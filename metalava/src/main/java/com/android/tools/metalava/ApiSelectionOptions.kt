@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.config.ApiSurfaceConfig
+import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -31,13 +34,23 @@ const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 
+const val ARG_HIDE_ANNOTATION = "--hide-annotation"
+
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
 
 /**
  * Options related to selecting which parts of the source files will be part of the generated API.
+ *
+ * @param apiSurfacesConfigProvider Provides the [ApiSurfacesConfig] that was provided in an
+ *   [ARG_CONFIG_FILE], if any. This must only be called after all the options have been parsed.
+ * @param checkSurfaceConsistencyProvider Returns `true` if the configured [ApiSurfaces] should be
+ *   checked for consistency with the [showUnannotated] property.
  */
-class ApiSelectionOptions :
+class ApiSelectionOptions(
+    private val apiSurfacesConfigProvider: () -> ApiSurfacesConfig? = { null },
+    private val checkSurfaceConsistencyProvider: () -> Boolean = { true },
+) :
     OptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
         help =
@@ -48,15 +61,14 @@ class ApiSelectionOptions :
                 .trimIndent()
     ) {
 
-    val apiSurface by
+    private val apiSurface by
         option(
             ARG_API_SURFACE,
             metavar = "<surface>",
             help =
                 """
-                    The API surface currently being generated.
-
-                    Currently, only used for testing purposes.
+                    The API surface currently being generated. Must correspond to an <api-surface>
+                    element in a $ARG_CONFIG_FILE.
                 """,
         )
 
@@ -111,6 +123,14 @@ class ApiSelectionOptions :
             )
             .multiple()
 
+    private val hideAnnotationValues by
+        option(
+                ARG_HIDE_ANNOTATION,
+                help = "Treat any elements annotated with the given annotation as hidden.",
+                metavar = "<annotation-filter>",
+            )
+            .multiple()
+
     /**
      * Whether to include APIs with annotations (intended for documentation purposes). This includes
      * [showAnnotations], [showSingleAnnotations] and [showForStubPurposesAnnotations].
@@ -153,10 +173,19 @@ class ApiSelectionOptions :
             AnnotationFilter.create(showForStubPurposesAnnotationValues)
         }
 
+    /** Annotations that mark items which should be treated as hidden. */
+    internal val hideAnnotations by
+        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(hideAnnotationValues) }
+
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
+            val apiSurfacesConfig = apiSurfacesConfigProvider()
+            val checkSurfaceConsistency = checkSurfaceConsistencyProvider()
             createApiSurfaces(
                 showUnannotated,
+                apiSurface,
+                apiSurfacesConfig,
+                checkSurfaceConsistency,
             )
         }
 
@@ -166,9 +195,17 @@ class ApiSelectionOptions :
          *
          * @param showUnannotated true if unannotated items should be included in the API, false
          *   otherwise.
+         * @param targetApiSurface the optional name of the target API surface to be created. If
+         *   supplied it MUST reference an [ApiSurfaceConfig] in [apiSurfacesConfig].
+         * @param apiSurfacesConfig the optional [ApiSurfacesConfig].
+         * @param checkSurfaceConsistency if `true` and [targetApiSurface] is not-null then check
+         *   the consistency between the configured surfaces and the [ApiSelectionOptions].
          */
         private fun createApiSurfaces(
             showUnannotated: Boolean,
+            targetApiSurface: String?,
+            apiSurfacesConfig: ApiSurfacesConfig?,
+            checkSurfaceConsistency: Boolean,
         ): ApiSurfaces {
             // A base API surface is needed if and only if the main API surface being generated
             // extends another API surface. That is not currently explicitly specified on the
@@ -199,9 +236,73 @@ class ApiSelectionOptions :
             // behaving as if it was.
             val needsBase = !showUnannotated
 
-            return ApiSurfaces.create(
-                needsBase = needsBase,
+            // If no --api-surface option was provided, then create the ApiSurfaces from the command
+            // line options.
+            if (targetApiSurface == null) {
+                return ApiSurfaces.create(
+                    needsBase = needsBase,
+                )
+            }
+
+            // Otherwise, create it from the configured API surfaces.
+            if (apiSurfacesConfig == null || apiSurfacesConfig.apiSurfaceList.isEmpty()) {
+                throw MetalavaCliException(
+                    "$ARG_API_SURFACE requires at least one <api-surface> to have been configured in a --config-file"
+                )
+            }
+
+            val targetApiSurfaceConfig =
+                apiSurfacesConfig.getByNameOrError(targetApiSurface) {
+                    "$ARG_API_SURFACE (`$it`) does not match an <api-surface> in a --config-file"
+                }
+
+            val extendedSurface = targetApiSurfaceConfig.extends
+            val extendsSurface = extendedSurface != null
+
+            // If show annotations should not be ignored then perform a consistency check to ensure
+            // that the configuration and command line options are compatible.
+            if (checkSurfaceConsistency) {
+                if (extendsSurface != needsBase) {
+                    val reason =
+                        if (extendsSurface)
+                            "extends $extendedSurface which requires that it not show unannotated items but $ARG_SHOW_UNANNOTATED is true"
+                        else
+                            "does not extend another surface which requires that it show unannotated items but $ARG_SHOW_UNANNOTATED is false"
+                    throw MetalavaCliException(
+                        """Configuration of `<api-surface name="$targetApiSurface">` is inconsistent with command line options because `$targetApiSurface` $reason"""
+                    )
+                }
+            }
+
+            // Create the ApiSurfaces from the configured API surfaces.
+            return apiSurfacesFromConfig(
+                apiSurfacesConfig.contributesTo(targetApiSurfaceConfig),
+                targetApiSurface
             )
         }
     }
 }
+
+/**
+ * Create [ApiSurfaces] from a collection of [ApiSurfaceConfig]s.
+ *
+ * The [ApiSurfaceConfig]s must be in order such that every [ApiSurfaceConfig] comes before any
+ * [ApiSurfaceConfig] that extends it. It must also be complete such that the collection must
+ * contain every [ApiSurfaceConfig] that is extended by another in the collection.
+ */
+internal fun apiSurfacesFromConfig(
+    surfaceConfigs: Collection<ApiSurfaceConfig>,
+    targetApiSurface: String?
+) =
+    ApiSurfaces.build {
+        // Add ApiSurface instances in order so that surfaces referenced by another (i.e.
+        // through `extends`) come before the surfaces that reference them. This ensures
+        // that the `extends` can be resolved to an existing `ApiSurface`.
+        for (surfaceConfig in surfaceConfigs) {
+            createSurface(
+                name = surfaceConfig.name,
+                extends = surfaceConfig.extends,
+                isMain = surfaceConfig.name == targetApiSurface,
+            )
+        }
+    }

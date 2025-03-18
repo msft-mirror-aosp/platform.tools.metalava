@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.SignatureFile
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertThrows
@@ -48,11 +49,14 @@ Api Levels Generation:
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
                                              all non-negative integers and `quality` is an alphanumeric string.
   --current-codename <version-codename>      Sets the code name for the current source code.
-  --android-jar-pattern <android-jar-pattern>
-                                             Pattern to use to locate Android JAR files. Each pattern must contain a
-                                             {version:level} placeholder that will be replaced with each API level that
-                                             is being included and if the result is an existing jar file then it will be
-                                             taken as the definition of the API at that level.
+  --android-jar-pattern <historical-api-pattern>
+                                             Pattern to use to locate Android JAR files. Must end with `.jar`.
+
+                                             See `metalava help historical-api-patterns` for more information.
+  --api-version-signature-pattern <historical-api-pattern>
+                                             Pattern to use to locate signature files. Typically ends with `.txt`.
+
+                                             See `metalava help historical-api-patterns` for more information.
   --sdk-extensions-info <sdk-info-file>      Points to map of extension SDK APIs to include, if any. The file is a plain
                                              text file and describes, per extension SDK, what APIs from that extension
                                              to include in the file created via --generate-api-levels. The format of
@@ -83,10 +87,6 @@ Api Levels Generation:
                                              current API version, which will be parsed from the provided source files.
                                              Not required to generate API version JSON if the current version is the
                                              only version.
-  --api-version-names <api-versions>         An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files. If --current-version is not provided then
-                                             this must include an additional version at the end which is used for the
-                                             current API version. Required for --generate-api-version-history.
     """
         .trimIndent()
 
@@ -96,20 +96,27 @@ class ApiLevelsGenerationOptionsTest :
     ) {
     override fun createOptions() = ApiLevelsGenerationOptions()
 
+    private fun fakeSignatureFileLoader() =
+        object : SignatureFileLoader {
+            override fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver?) =
+                error("Fake signature file loader cannot load signature files")
+        }
+
     /** Get an optional [GenerateApiHistoryConfig] for a fake set of signature files. */
-    private fun ApiLevelsGenerationOptions.fromFakeSignatureFiles(): GenerateApiHistoryConfig? =
+    private fun ApiLevelsGenerationOptions.fromFakeSignatureFiles() =
         fromSignatureFilesConfig(
-            signatureFileLoader =
-                object : SignatureFileLoader {
-                    override fun load(
-                        signatureFiles: List<SignatureFile>,
-                        classResolver: ClassResolver?
-                    ) = error("Fake signature file loader cannot load signature files")
-                },
+            signatureFileLoader = fakeSignatureFileLoader(),
             codebaseFragmentProvider = {
                 error("Fake CodebaseFragment provider cannot create CodebaseFragment")
             },
         )
+
+    /**
+     * Get an optional [GenerateApiHistoryConfig] from
+     * [ApiLevelsGenerationOptions.forAndroidConfig].
+     */
+    private fun ApiLevelsGenerationOptions.testForAndroidConfig() =
+        forAndroidConfig(fakeSignatureFileLoader()) { error("no codebase fragment") }
 
     @Test
     fun `Test current version supports major-minor`() {
@@ -133,29 +140,6 @@ class ApiLevelsGenerationOptionsTest :
     }
 
     @Test
-    fun `Test --generate-api-version-history without --api-version-names`() {
-        val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
-        val exception =
-            assertThrows(MetalavaCliException::class.java) {
-                runTest(
-                    ARG_GENERATE_API_VERSION_HISTORY,
-                    apiVersionsJson.path,
-                ) {
-                    val apiHistoryConfig = options.fromFakeSignatureFiles()
-                    assertThat(apiHistoryConfig).isNotNull()
-                    val apiVersions =
-                        apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
-                    assertThat(apiVersions).isEqualTo("1.2.3-beta01")
-                }
-            }
-
-        assertThat(exception.message)
-            .isEqualTo(
-                "Must specify --api-version-names and/or --current-version with --generate-api-version-history"
-            )
-    }
-
-    @Test
     fun `Test --current-version used alone with --generate-api-version-history`() {
         val apiVersionsJson = newFile("api-versions.json")
         runTest(
@@ -172,7 +156,7 @@ class ApiLevelsGenerationOptionsTest :
     }
 
     @Test
-    fun `Test --current-version used with --generate-api-version-history and --api-version-names`() {
+    fun `Test --current-version used with --generate-api-version-history and --api-version-signature-pattern`() {
         val signatureFile = newFile("1.2.0-alpha01/api.txt")
         val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
         runTest(
@@ -182,13 +166,64 @@ class ApiLevelsGenerationOptionsTest :
             apiVersionsJson.path,
             ARG_API_VERSION_SIGNATURE_FILES,
             signatureFile.path,
-            ARG_API_VERSION_NAMES,
-            "1.2.0",
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "${temporaryFolder.root}/{version:major.minor.patch}*/api.txt",
         ) {
             val apiHistoryConfig = options.fromFakeSignatureFiles()
             assertThat(apiHistoryConfig).isNotNull()
             val apiVersions = apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
             assertThat(apiVersions).isEqualTo("1.2.0, 1.2.3-beta01")
+        }
+    }
+
+    @Test
+    fun `Test --api-version-signature-pattern without --current-version`() {
+        val signatureFile = newFile("1.2.0/api.txt")
+        val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
+        runTest(
+            ARG_GENERATE_API_VERSION_HISTORY,
+            apiVersionsJson.path,
+            ARG_API_VERSION_SIGNATURE_FILES,
+            signatureFile.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "${temporaryFolder.root}:/{version:major.minor.patch}/api.txt",
+        ) {
+            val exception =
+                assertThrows(MetalavaCliException::class.java) { options.fromFakeSignatureFiles() }
+            assertThat(exception.message)
+                .isEqualTo("Must specify --current-version with --api-version-signature-pattern")
+        }
+    }
+
+    @Test
+    fun `Test --api-version-signature-pattern with no matching pattern`() {
+        val signatureFiles =
+            listOf(
+                newFile("1.1.0/api.txt"),
+                // This will not be matched by the pattern.
+                newFile("will/not/match/api.txt"),
+            )
+        val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
+        runTest(
+            ARG_CURRENT_VERSION,
+            "1.2.3-beta01",
+            ARG_GENERATE_API_VERSION_HISTORY,
+            apiVersionsJson.path,
+            ARG_API_VERSION_SIGNATURE_FILES,
+            signatureFiles.joinToString(":"),
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "${temporaryFolder.root}/{version:major.minor.patch}/api.txt",
+        ) {
+            val exception =
+                assertThrows(MetalavaCliException::class.java) { options.fromFakeSignatureFiles() }
+            assertThat(cleanupString(exception.message!!))
+                .isEqualTo(
+                    """
+                        --api-version-signature-files: The following files were unmatched by a signature pattern:
+                            TESTROOT/will/not/match/api.txt
+                    """
+                        .trimIndent()
+                )
         }
     }
 
@@ -245,7 +280,7 @@ class ApiLevelsGenerationOptionsTest :
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
-            val apiHistoryConfig = options.forAndroidConfig { error("no codebase fragment") }
+            val apiHistoryConfig = options.testForAndroidConfig()
             assertThat(apiHistoryConfig).isNotNull()
 
             // Compute the list of versioned files.
@@ -258,6 +293,79 @@ class ApiLevelsGenerationOptionsTest :
                         VersionedJarApi(jar=TESTROOT/2/public/baz.jar, updater=ExtensionUpdater(extVersion=2, module=baz, nextSdkVersion=30))
                         VersionedJarApi(jar=TESTROOT/1/public/foo.jar, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
                         VersionedJarApi(jar=TESTROOT/2/public/foo.jar, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=30))
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
+    fun `Test signature files in forAndroidConfig`() {
+        val root = buildFileStructure {
+            dir("1") { dir("public") { emptyFile("api.txt") } }
+            dir("1.1") {
+                dir("public") { emptyFile("api.txt") }
+                dir("system") { emptyFile("api.txt") }
+            }
+            dir("2") {
+                dir("public") { emptyFile("api.txt") }
+                dir("system") { emptyFile("api.txt") }
+            }
+            dir("extensions") {
+                dir("1") {
+                    dir("public") {
+                        emptyFile("foo.txt")
+                        emptyFile("bar.txt")
+                    }
+                    dir("system") { emptyFile("foo.txt") }
+                }
+                dir("2") {
+                    dir("public") {
+                        emptyFile("foo.txt")
+                        emptyFile("bar.txt")
+                        emptyFile("baz.txt")
+                    }
+                    dir("system") { emptyFile("foo.txt") }
+                }
+            }
+        }
+
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface("public")
+                createSurface("system", isMain = true)
+            }
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+        runTest(
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:major.minor?}/{surface}/api.txt",
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/extensions/{version:extension}/{surface}/{module}.txt",
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+        ) {
+            val apiHistoryConfig = options.testForAndroidConfig()
+            assertThat(apiHistoryConfig).isNotNull()
+
+            // Compute the list of versioned files.
+            assertThat(apiHistoryConfig!!.versionedApis.dump())
+                .isEqualTo(
+                    """
+                        VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
+                        VersionedSignatureApi(files=TESTROOT/1.1/{public,system}/api.txt, updater=ApiVersionUpdater(version=1.1))
+                        VersionedSignatureApi(files=TESTROOT/2/{public,system}/api.txt, updater=ApiVersionUpdater(version=2))
+                        VersionedSourceApi(version=30)
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/public/bar.txt, updater=ExtensionUpdater(extVersion=1, module=bar, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/2/public/bar.txt, updater=ExtensionUpdater(extVersion=2, module=bar, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/2/public/baz.txt, updater=ExtensionUpdater(extVersion=2, module=baz, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/{public,system}/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/2/{public,system}/foo.txt, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=30))
                     """
                         .trimIndent()
                 )
@@ -282,12 +390,40 @@ class ApiLevelsGenerationOptionsTest :
         ) {
             val exception =
                 assertThrows(IllegalArgumentException::class.java) {
-                    options.forAndroidConfig { error("no codebase fragment") }
+                    options.testForAndroidConfig()
                 }
 
             assertThat(exception.message)
                 .isEqualTo(
-                    "no extension sdk jar files found in $root/{version:extension}/*/{module}.jar"
+                    "no extension api files found by $root/{version:extension}/*/{module}.jar"
+                )
+        }
+    }
+
+    @Test
+    fun `Test do not mix signature and android jar patterns in forAndroidConfig`() {
+        val root = getOrCreateFolder()
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+        runTest(
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_ANDROID_JAR_PATTERN,
+            "$root/{version:extension}/*/{module}.jar",
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:extension}/*/{module}.txt",
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+        ) {
+            val exception =
+                assertThrows(MetalavaCliException::class.java) { options.testForAndroidConfig() }
+
+            assertThat(exception.message)
+                .isEqualTo(
+                    "Cannot combine --api-version-signature-pattern with --android-jar-pattern"
                 )
         }
     }
@@ -322,7 +458,7 @@ class ApiLevelsGenerationOptionsTest :
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
-            val apiHistoryConfig = options.forAndroidConfig { error("no codebase fragment") }
+            val apiHistoryConfig = options.testForAndroidConfig()
             assertThat(apiHistoryConfig).isNotNull()
 
             assertThat(apiHistoryConfig!!.versionedApis.dump())

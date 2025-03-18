@@ -67,6 +67,13 @@ interface Assertions {
         return packageItem
     }
 
+    /** Get the type alias from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertTypeAlias(qualifiedName: String): TypeAliasItem {
+        val typeAliasItem = findTypeAlias(qualifiedName)
+        assertNotNull(typeAliasItem, message = "Expected $qualifiedName to be a defined type alias")
+        return typeAliasItem
+    }
+
     /**
      * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
      */
@@ -192,6 +199,13 @@ interface Assertions {
         }
         append("): ")
         append(returnType().testTypeString(kotlinStyleNulls = true))
+    }
+
+    /** Get the [AnnotationAttribute] from the [AnnotationItem], failing if it does not exist. */
+    fun AnnotationItem.assertAttribute(name: String): AnnotationAttribute {
+        val attribute = findAttribute(name)
+        assertNotNull(attribute, message = "Expected $this to contain attribute $name")
+        return attribute
     }
 
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */

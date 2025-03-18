@@ -33,7 +33,6 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteral
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.uast.UAnnotation
@@ -100,7 +99,8 @@ private constructor(
             // the version that will be present as a class in the codebase.
             val originalName =
                 uAnnotation.qualifiedName?.let {
-                    (codebase.typeAliases[it] as? PsiClassTypeItem)?.qualifiedName ?: it
+                    (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
+                        ?: it
                 }
                     ?: return null
             val qualifiedName =
@@ -350,7 +350,6 @@ internal class UAnnotationSingleAttributeValue(
             when (val resolved = psiValue.resolve()) {
                 is PsiField -> return codebase.findField(resolved)
                 is PsiClass -> return codebase.findOrCreateClass(resolved)
-                is PsiMethod -> return codebase.findCallableByPsiMethod(resolved)
             }
         }
         return null
