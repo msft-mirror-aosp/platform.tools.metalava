@@ -28,7 +28,6 @@ private constructor(
     private val target: AnnotationTarget,
     private val runtimeAnnotationsOnly: Boolean = false,
     private val skipNullnessAnnotations: Boolean = false,
-    private val language: Language = Language.JAVA,
 ) {
     companion object {
         fun forSignature(
@@ -45,7 +44,6 @@ private constructor(
             writer: Writer,
             docStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
-            language: Language = Language.JAVA,
         ) =
             ModifierListWriter(
                 writer = writer,
@@ -53,8 +51,6 @@ private constructor(
                     if (docStubs) AnnotationTarget.DOC_STUBS_FILE
                     else AnnotationTarget.SDK_STUBS_FILE,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                skipNullnessAnnotations = language == Language.KOTLIN,
-                language = language,
             )
 
         /**
@@ -94,9 +90,13 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item) {
+    fun write(item: Item, normalizeFinal: Boolean = false) {
         writeAnnotations(item)
+        writeKeywords(item, normalizeFinal = normalizeFinal)
+    }
 
+    /** Write the modifier keywords. */
+    fun writeKeywords(item: Item, normalizeFinal: Boolean = false) {
         if (
             item is PackageItem ||
                 (target != AnnotationTarget.SIGNATURE_FILE &&
@@ -117,21 +117,13 @@ private constructor(
 
         val list = item.modifiers
         val visibilityLevel = list.getVisibilityLevel()
-        val modifier =
-            if (language == Language.JAVA) {
-                visibilityLevel.javaSourceCodeModifier
-            } else {
-                visibilityLevel.kotlinSourceCodeModifier
-            }
+        val modifier = visibilityLevel.javaSourceCodeModifier
         if (modifier.isNotEmpty()) {
             writer.write("$modifier ")
         }
 
         val isInterface =
-            classItem?.isInterface() == true ||
-                (methodItem?.containingClass()?.isInterface() == true &&
-                    !list.isDefault() &&
-                    !list.isStatic())
+            classItem?.isInterface() == true || methodItem?.containingClass()?.isInterface() == true
 
         val isAbstract = list.isAbstract()
         val ignoreAbstract =
@@ -159,14 +151,15 @@ private constructor(
 
         if (
             list.isFinal() &&
-                language == Language.JAVA &&
-                // Don't show final on parameters: that's an implementation side detail
+                // Don't show final on parameters: that's an implementation detail
                 item !is ParameterItem &&
-                classItem?.isEnum() != true
+                // Don't add final on enum or enum members as they are implicitly final.
+                classItem?.isEnum() != true &&
+                // If normalizing and the current item is a method and its containing class is final
+                // then do not write out the final keyword.
+                (!normalizeFinal || methodItem?.containingClass()?.modifiers?.isFinal() != true)
         ) {
             writer.write("final ")
-        } else if (!list.isFinal() && language == Language.KOTLIN) {
-            writer.write("open ")
         }
 
         if (list.isSealed()) {
@@ -212,12 +205,6 @@ private constructor(
         if (list.isFunctional()) {
             writer.write("fun ")
         }
-
-        if (language == Language.KOTLIN) {
-            if (list.isData()) {
-                writer.write("data ")
-            }
-        }
     }
 
     private fun writeAnnotations(item: Item) {
@@ -226,33 +213,40 @@ private constructor(
         val separateLines =
             target != AnnotationTarget.SIGNATURE_FILE &&
                 when (item) {
-                    is MethodItem,
+                    is CallableItem,
                     is ClassItem,
                     is PackageItem -> true
                     is FieldItem -> item.isEnumConstant()
                     else -> false
                 }
 
+        val list = item.modifiers
+        var annotations = list.annotations()
+
         // Do not write deprecate or suppress compatibility annotations on a package.
         if (item !is PackageItem) {
-            if (item.deprecated) {
-                // Do not write @Deprecated for a parameter unless it was explicitly marked as
-                // deprecated.
-                if (item !is ParameterItem || item.originallyDeprecated) {
-                    writer.write("@Deprecated")
-                    writer.write(if (separateLines) "\n" else " ")
+            val writeDeprecated =
+                when {
+                    // Do not write @Deprecated for a parameter unless it was explicitly marked
+                    // as deprecated.
+                    item is ParameterItem -> item.originallyDeprecated
+                    else -> item.effectivelyDeprecated
                 }
+            if (writeDeprecated) {
+                writer.write("@Deprecated")
+                writer.write(if (separateLines) "\n" else " ")
             }
 
-            if (item.hasSuppressCompatibilityMetaAnnotation()) {
+            if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
                 writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
                 writer.write(if (separateLines) "\n" else " ")
             }
         }
 
-        val list = item.modifiers
-        var annotations = list.annotations()
-
+        // Remove @SuppressCompatibility if it exists (it will for text codebases) because it was
+        // already written out above.
+        annotations =
+            annotations.filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
         // Ensure stable signature file order
         if (annotations.size > 1) {
             annotations = annotations.sortedBy { it.qualifiedName }
@@ -280,7 +274,7 @@ private constructor(
                     // Special cased in stubs and signature files: emitted first
                     continue
                 } else {
-                    val typedefMode = list.codebase.annotationManager.typedefMode
+                    val typedefMode = item.codebase.annotationManager.typedefMode
                     if (typedefMode == TypedefMode.INLINE) {
                         val typedef = annotation.findTypedefAnnotation()
                         if (typedef != null) {
@@ -293,9 +287,7 @@ private constructor(
                     ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
-                        writer.write(
-                            annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
-                        )
+                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
                         if (separateLines) {
                             writer.write("\n")
                         } else {
@@ -376,3 +368,12 @@ private constructor(
  * Because this is used in API files, it needs to maintain compatibility.
  */
 const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
+
+/**
+ * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
+ *
+ * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it doesn't
+ * need to maintain compatibility.
+ */
+internal val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+    AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)

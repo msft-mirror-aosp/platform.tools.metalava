@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
@@ -137,6 +136,7 @@ class MetalavaCommandTest : TemporaryFolderOwner {
 
         val pattern =
             """\Qcom.android.tools.metalava.cli.common.MetalavaCliException: fail
+            |	at com.android.tools.metalava.cli.common.MetalavaCliExceptionKt.cliError\E\([^)]+\)\Q
             |	at com.android.tools.metalava.cli.common.MetalavaCommandTest${"$"}FailCommand.run\E\([^)]+\)
             |	at .*
             |	at .*
@@ -164,7 +164,7 @@ $separator
 
     private class FailCommand : CliktCommand() {
         override fun run() {
-            throw MetalavaCliException("fail")
+            cliError("fail")
         }
     }
 }

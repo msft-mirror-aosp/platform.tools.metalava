@@ -16,18 +16,12 @@
 
 package com.android.tools.metalava
 
+import org.gradle.api.tasks.bundling.Jar
 import com.android.build.api.dsl.Lint
-import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask
-import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
-import com.android.tools.metalava.buildinfo.addTaskToAggregateBuildInfoFileTask
 import com.android.tools.metalava.buildinfo.configureBuildInfoTask
-import java.io.File
-import java.io.StringReader
-import java.util.Properties
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
 import org.gradle.api.plugins.JavaPlugin
@@ -44,8 +38,14 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.setEnvironment
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinBasePluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.File
+import java.io.StringReader
+import java.util.Properties
 
 class MetalavaBuildPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -59,11 +59,11 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 }
                 is KotlinBasePluginWrapper -> {
                     project.tasks.withType(KotlinCompile::class.java).configureEach { task ->
-                        task.kotlinOptions.apply {
-                            jvmTarget = "17"
-                            apiVersion = "1.7"
-                            languageVersion = "1.7"
-                            allWarningsAsErrors = true
+                        task.compilerOptions.apply {
+                            jvmTarget.set(JvmTarget.JVM_17)
+                            apiVersion.set(KotlinVersion.KOTLIN_2_0)
+                            languageVersion.set(KotlinVersion.KOTLIN_2_0)
+                            allWarningsAsErrors.set(true)
                         }
                     }
                 }
@@ -80,7 +80,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         project.group = "com.android.tools.metalava"
     }
 
-    fun configureLint(project: Project) {
+    private fun configureLint(project: Project) {
         project.apply(mapOf("plugin" to "com.android.lint"))
         project.extensions.getByType<Lint>().apply {
             fatal.add("UastImplementation") // go/hide-uast-impl
@@ -92,7 +92,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         }
     }
 
-    fun configureTestTasks(project: Project) {
+    private fun configureTestTasks(project: Project) {
         val testTask = project.tasks.named("test", Test::class.java)
 
         val zipTask: TaskProvider<Zip> =
@@ -110,6 +110,26 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 "--add-opens=java.base/java.lang=ALL-UNNAMED",
                 // Needed for CustomizableParameterizedRunner
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+            )
+
+            // Get the jar from the stub-annotations project.
+            val jarTask = project.findProject(":stub-annotations")!!.tasks.named("jar", Jar::class.java)
+
+            // Add a dependency from this test task to the jar task of stub-annotations to make sure
+            // it is built before this is run.
+            task.dependsOn(jarTask)
+
+            // Clear the environment before adding any custom variables. Avoids problems with
+            // inconsistent behavior when testing code that accesses environment variables, e.g.
+            // command line tools that use environment variables to determine whether to use colors
+            // in command line help.
+            task.setEnvironment()
+
+            // Get the path to the stub-annotations jar and pass it to this in an environment
+            // variable.
+            val stubAnnotationsJar = jarTask.get().outputs.files.singleFile
+            task.environment.put(
+                "METALAVA_STUB_ANNOTATIONS_JAR", stubAnnotationsJar,
             )
 
             task.doFirst {
@@ -179,7 +199,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         }
     }
 
-    fun configurePublishing(project: Project) {
+    private fun configurePublishing(project: Project) {
         val projectRepo = project.layout.buildDirectory.dir("repo")
         val archiveTaskProvider =
             configurePublishingArchive(
@@ -225,15 +245,13 @@ class MetalavaBuildPlugin : Plugin<Project> {
                         }
                     }
 
-                    val buildInfoTask =
-                        configureBuildInfoTask(
-                            project,
-                            this,
-                            isBuildingOnServer(),
-                            getDistributionDirectory(project),
-                            archiveTaskProvider
-                        )
-                    project.addTaskToAggregateBuildInfoFileTask(buildInfoTask)
+                    configureBuildInfoTask(
+                        project,
+                        this,
+                        isBuildingOnServer(),
+                        getDistributionDirectory(project),
+                        archiveTaskProvider
+                    )
                 }
             }
             repositories { handler ->
@@ -275,7 +293,6 @@ class MetalavaBuildPlugin : Plugin<Project> {
 }
 
 internal fun Project.version(): Provider<String> {
-    @Suppress("UNCHECKED_CAST") // version is a VersionProviderWrapper set in MetalavaBuildPlugin
     return (version as VersionProviderWrapper).versionProvider
 }
 
@@ -289,7 +306,7 @@ private class VersionProviderWrapper(val versionProvider: Provider<String>) {
 private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
-            rootProject.layout.projectDirectory.file("version.properties")
+            isolated.rootProject.projectDirectory.file("version.properties")
         )
     return VersionProviderWrapper(
         contents.asText.map {

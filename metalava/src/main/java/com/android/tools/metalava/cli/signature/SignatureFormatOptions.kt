@@ -30,14 +30,15 @@ const val ARG_USE_SAME_FORMAT_AS = "--use-same-format-as"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SIGNATURE_FORMAT_OUTPUT_GROUP = "Signature Format Output"
 
-private val versionToFileFormat =
-    mapOf(
-        "v2" to FileFormat.V2,
-        "v3" to FileFormat.V3,
-        "v4" to FileFormat.V4,
-        "latest" to FileFormat.LATEST,
-        "recommended" to FileFormat.V2,
-    )
+private val versionToFileFormat = buildMap {
+    // For any FileFormat version that has a legacy command line alias add a mapping from that alias
+    // to the FileFormat defaults appropriate for that version.
+    FileFormat.Version.entries
+        .filter { it.legacyCommandLineAlias != null }
+        .associateByTo(this, { it.legacyCommandLineAlias!! }) { it.defaults }
+    put("latest", FileFormat.LATEST)
+    put("recommended", FileFormat.V2)
+}
 
 class SignatureFormatOptions(
     /** If true then the `migrating` property is allowed, otherwise it is not allowed at all. */
@@ -77,7 +78,7 @@ class SignatureFormatOptions(
     private val formatSpecifier by
         option(
                 ARG_FORMAT,
-                metavar = "[v2|v3|v4|latest|recommended|<specifier>]",
+                metavar = "[v2|v4|latest|recommended|<specifier>]",
                 help =
                     """
                         Specifies the output signature file format.
@@ -106,12 +107,11 @@ class SignatureFormatOptions(
 
                         v2 - The main version used in Android.
 
-                        v3 - Adds support for using kotlin style syntax to embed nullability
+                        v4 - Adds support for using kotlin style syntax to embed nullability
                         information instead of using explicit and verbose @NonNull and @Nullable
-                        annotations. This can be used for Java files and Kotlin files alike.
-
-                        v4 - Adds support for using concise default values in parameters. Instead
-                        of specifying the actual default values it just uses the `default` keyword.
+                        annotations. This can be used for Java files and Kotlin files alike. Also,
+                        adds support for recording that a parameter has a default value by using the
+                        pseudo-modifier `optional`.
                     """
                         .trimIndent(),
             )

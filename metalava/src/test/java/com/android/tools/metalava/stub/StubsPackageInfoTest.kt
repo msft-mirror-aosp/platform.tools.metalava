@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.model.provider.Capability
@@ -50,7 +49,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    androidxNullableSource,
                 ),
             warnings = "",
             api =
@@ -68,8 +67,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 """,
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
                     // By default metalava rewrites androidx.annotation.Nullable to
                     // android.annotation.Nullable, but the latter does not have target PACKAGE thus
                     // fails to compile. This forces stubs keep the androidx annotation.
@@ -182,7 +179,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         )
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }"""),
-                    restrictToSource
+                    restrictToSource,
                 ),
             api =
                 """
@@ -207,7 +204,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 

@@ -120,8 +120,17 @@ internal open class MetalavaHelpFormatter(
                 .sortedBy { (it as? Option)?.groupName != defaultOptionGroupName }
                 .toList()
 
+        // Scan for enum help text and style for the terminal.
+        val styledProlog = styleEnumHelpTextIfNeeded(prolog, mutableMapOf(), terminal)
+
         // Use the default help format.
-        val help = super.formatHelp(prolog, epilog, transformedParameters, formattedProgramName)
+        val help =
+            super.formatHelp(
+                styledProlog,
+                epilog,
+                transformedParameters,
+                formattedProgramName,
+            )
 
         return removePadding(help)
     }
@@ -183,12 +192,7 @@ internal open class MetalavaHelpFormatter(
         val styledHelp = styleEnumHelpTextIfNeeded(help, mutableTags, terminal)
 
         // Add any additional help text.
-        val helpText = super.renderHelpText(styledHelp, mutableTags)
-
-        // Remove any trailing NEL to prevent additional blank lines being added. This is done here
-        // rather than before as super.renderHelpText(...) may append content to the end which would
-        // need to be separated from the rest of the text by a blank line.
-        return helpText.removeSuffix(HARD_NEWLINE)
+        return super.renderHelpText(styledHelp, mutableTags)
     }
 
     override fun renderOptionName(name: String): String {

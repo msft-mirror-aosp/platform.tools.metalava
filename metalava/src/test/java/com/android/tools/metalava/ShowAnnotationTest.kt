@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
@@ -52,12 +68,7 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
+                    systemApiSource,
                 ),
             api =
                 """
@@ -112,12 +123,7 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
+                    systemApiSource,
                 ),
             api =
                 """
@@ -174,14 +180,12 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    testApiSource
+                    testApiSource,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             api =
                 """
@@ -232,7 +236,7 @@ class ShowAnnotationTest : DriverTest() {
                         long CONSTANT3 = 42;
                     }
                     """
-                    )
+                    ),
                 ),
             stubFiles =
                 arrayOf(
@@ -271,8 +275,6 @@ class ShowAnnotationTest : DriverTest() {
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 )
         )
     }
@@ -314,14 +316,12 @@ class ShowAnnotationTest : DriverTest() {
                     }
                 """
                     ),
-                    systemApiSource
+                    systemApiSource,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_SINGLE_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             api =
                 """
@@ -392,7 +392,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `showAnnotation with parameters`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -421,15 +421,13 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    restrictToSource
+                    restrictToSource,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_UNANNOTATED,
                     ARG_SHOW_ANNOTATION,
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation"
                 ),
             api =
                 """
@@ -477,6 +475,7 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.annotation;
+                    /** @hide */
                     public @interface Api {
                         enum Type {A, B}
                         Type type() default Type.A;
@@ -489,8 +488,6 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_UNANNOTATED,
                     ARG_SHOW_ANNOTATION,
                     "test.annotation.Api(type=test.annotation.Api.Type.A)",
-                    ARG_HIDE_PACKAGE,
-                    "test.annotation"
                 ),
             api =
                 """
@@ -509,7 +506,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Testing parsing an annotation whose attribute references the annotated class`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -531,14 +528,13 @@ class ShowAnnotationTest : DriverTest() {
                 """,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.room {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
                     field public static final int REPLACE = 1; // 0x1
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_ANNOTATION, "androidx.annotation.IntDef")
         )
     }
 
@@ -546,7 +542,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Testing that file order does not affect output`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -591,12 +587,12 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    restrictToSource
+                    restrictToSource,
                 ),
             expectedIssues = null,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package a {
                   @RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP) public class Example1<T> {
                     ctor public Example1();
@@ -613,13 +609,7 @@ class ShowAnnotationTest : DriverTest() {
                 }
                 """,
             extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "androidx.annotation.RestrictTo",
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
-                    ARG_SHOW_UNANNOTATED
-                )
+                arrayOf(ARG_SHOW_ANNOTATION, "androidx.annotation.RestrictTo", ARG_SHOW_UNANNOTATED)
         )
     }
 
@@ -644,11 +634,12 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     package test.annotation;
 
+                    /** @hide */
                     public @interface Api {
                         String value();
                     }
                     """
-                    )
+                    ),
                 ),
             classpath =
                 arrayOf(
@@ -681,8 +672,6 @@ class ShowAnnotationTest : DriverTest() {
                     ARG_SHOW_UNANNOTATED,
                     ARG_SHOW_ANNOTATION,
                     "test.annotation.Api",
-                    ARG_HIDE_PACKAGE,
-                    "test.annotation"
                 ),
             api =
                 """
@@ -700,7 +689,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Check @PublishedApi handling`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -718,7 +707,7 @@ class ShowAnnotationTest : DriverTest() {
             extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi"),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @kotlin.PublishedApi internal final class WeAreSoCool {
                     ctor public WeAreSoCool();
@@ -871,8 +860,6 @@ class ShowAnnotationTest : DriverTest() {
                     "android.annotation.SystemApi",
                     ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
                     "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             api =
                 """

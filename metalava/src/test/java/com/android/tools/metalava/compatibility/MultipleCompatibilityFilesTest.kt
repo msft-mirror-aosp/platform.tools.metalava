@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.compatibility
 
+import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import org.junit.Test
 
 class MultipleCompatibilityFilesTest : DriverTest() {
@@ -26,6 +28,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             // Signature format: 2.0
             package test.pkg {
               public class Bar extends IllegalStateException {
+                field public int field;
               }
               public class Foo {
                 method public void foo() throws test.pkg.Bar;
@@ -46,6 +49,23 @@ class MultipleCompatibilityFilesTest : DriverTest() {
         """
 
     /**
+     * The current and complete public api which will be tested for compatibility against the public
+     * API.
+     */
+    private val currentCompletePublicApi =
+        """
+            // Signature format: 2.0
+            package test.pkg {
+              public class Bar extends IllegalStateException {
+                field public volatile int field;
+              }
+              public class Foo {
+                method public void foo() throws test.pkg.Bar;
+              }
+            }
+        """
+
+    /**
      * The current and complete system api which will be tested for compatibility against some
      * combination of the above previously released APIs.
      */
@@ -53,6 +73,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
         """
             package test.pkg {
               public class Bar extends IllegalStateException {
+                field public volatile int field;
               }
               public class Baz extends test.pkg.Bar {
               }
@@ -63,48 +84,68 @@ class MultipleCompatibilityFilesTest : DriverTest() {
         """
 
     @Test
-    fun `Test public only`() {
+    fun `Test current public vs released public only`() {
         check(
             checkCompatibilityApiReleasedList = listOf(previouslyReleasedPublicApi),
-            signatureSource = currentCompleteSystemApi,
-            // This fails because the previous system API is not provided.
+            signatureSource = currentCompletePublicApi,
+            // This reports a real issue that exists in the public API.
             expectedIssues =
                 """
-                    load-api.txt:8: error: Method test.pkg.Foo.foo added thrown exception test.pkg.Baz [ChangedThrows]
+                    load-api.txt:4: error: Field test.pkg.Bar.field has changed 'volatile' qualifier [ChangedVolatile]
                 """,
         )
     }
 
     @Test
-    fun `Test system only`() {
+    fun `Test current system vs released system only`() {
         check(
             checkCompatibilityApiReleasedList = listOf(previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
+            // This does not report the `ChangedVolatile` issue with test.pkg.Bar.field because it
+            // is not given `previouslyReleasedPublicApi` and so does not know that the field was
+            // previously declared without the `volatile` keyword.
         )
     }
 
     @Test
-    fun `Test multiple compatibility files (public first)`() {
+    fun `Test current system vs multiple released compatibility files`() {
         check(
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
             checkCompatibilityApiReleasedList =
                 listOf(previouslyReleasedPublicApi, previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
+            // Although there is an issue in the public API that is not reported here because it
+            // only reports issues found when comparing against `previouslyReleasedSystemApiDelta`.
+            // That is to avoid reporting an issue in one API surface against any API surface that
+            // extends it.
         )
     }
 
     @Test
-    fun `Test multiple compatibility files (system first)`() {
+    fun `Test current system vs multiple released compatibility files (invalid first)`() {
         check(
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
             checkCompatibilityApiReleasedList =
-                listOf(previouslyReleasedSystemApiDelta, previouslyReleasedPublicApi),
+                listOf("Invalid Signature File", previouslyReleasedSystemApiDelta),
             signatureSource = currentCompleteSystemApi,
-            // This fails because the previous system API is provided first and the
-            // CompatibilityCheck assumes that the second one should override the first, so it is
-            // using the public definition of the `foo()` method and the public `throws` list which
-            // is why it is getting the same errors as when public only is provided.
-            expectedIssues =
+            expectedFail =
                 """
-                    load-api.txt:8: error: Method test.pkg.Foo.foo added thrown exception test.pkg.Baz [ChangedThrows]
+                    Aborting: Unable to parse signature file: TESTROOT/project/released-api.txt:2: expected package got Invalid
+                """
+        )
+    }
+
+    @Test
+    fun `Test current public vs multiple removed compatibility files (invalid first)`() {
+        check(
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            checkCompatibilityRemovedApiReleasedList =
+                listOf("Invalid Signature File", previouslyReleasedPublicApi),
+            signatureSource = currentCompletePublicApi,
+            // This reports a real issue that exists in the public API.
+            expectedFail =
+                """
+                    Aborting: Unable to parse signature file: TESTROOT/project/removed-released-api.txt:2: expected package got Invalid
                 """,
         )
     }

@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.cli.internal
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.newDir
 import com.github.ajalt.clikt.core.CliktCommand
@@ -53,9 +53,9 @@ class MakeAnnotationsPackagePrivateCommand :
         val rewrite = RewriteAnnotations()
         sourceDir.listFiles()?.forEach { file ->
             try {
-                rewrite.modifyAnnotationSources(null, file, File(targetDir, file.name))
+                rewrite.modifyAnnotationSources(file, File(targetDir, file.name))
             } catch (e: IllegalStateException) {
-                throw MetalavaCliException(e.message!!)
+                cliError(e.message!!)
             }
         }
     }

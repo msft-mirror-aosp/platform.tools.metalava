@@ -17,25 +17,16 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
-import com.android.tools.metalava.model.psi.PsiFieldItem
-import com.android.tools.metalava.model.psi.PsiParameterItem
-import com.android.tools.metalava.model.psi.report
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.lang.java.lexer.JavaLexer
-import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.psi.KtObjectDeclaration
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
-import org.jetbrains.kotlin.psi.psiUtil.isPublic
-import org.jetbrains.uast.UField
+import com.intellij.psi.util.PsiUtil
 
 // Enforces the interoperability guidelines outlined in
 //   https://android.github.io/kotlin-guides/interop.html
@@ -47,51 +38,30 @@ class KotlinInteropChecks(val reporter: Reporter) {
     private val javaLanguageLevel =
         PsiEnvironmentManager.javaLanguageLevelFromString(options.javaLanguageLevelAsString)
 
-    fun check(codebase: Codebase) {
-        codebase.accept(
-            object :
-                ApiVisitor(
-                    // Sort by source order such that warnings follow source line number order
-                    methodComparator = MethodItem.sourceOrderComparator,
-                    // No need to check "for stubs only APIs" (== "implicit" APIs)
-                    includeApisForStubPurposes = false
-                ) {
-                private var isKotlin = false
-
-                override fun visitClass(cls: ClassItem) {
-                    isKotlin = cls.isKotlin()
-                }
-
-                override fun visitMethod(method: MethodItem) {
-                    checkMethod(method, isKotlin)
-                }
-
-                override fun visitField(field: FieldItem) {
-                    checkField(field, isKotlin)
-                }
-            }
-        )
-    }
-
     fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
-        if (isKotlin) {
-            ensureCompanionFieldJvmField(field)
-        }
         ensureFieldNameNotKeyword(field)
     }
 
     fun checkMethod(method: MethodItem, isKotlin: Boolean = method.isKotlin()) {
-        if (!method.isConstructor()) {
-            if (isKotlin) {
-                ensureDefaultParamsHaveJvmOverloads(method)
-                ensureCompanionJvmStatic(method)
-                ensureExceptionsDocumented(method)
-            } else {
-                ensureMethodNameNotKeyword(method)
-                ensureParameterNamesNotKeywords(method)
-                ensureLambdaLastParameter(method)
-            }
+        if (isKotlin) {
+            ensureDefaultParamsHaveJvmOverloads(method)
+            ensureCompanionJvmStatic(method)
+            ensureExceptionsDocumented(method)
+        } else {
+            ensureMethodNameNotKeyword(method)
+            ensureParameterNamesNotKeywords(method)
+            ensureLambdaLastParameter(method)
         }
+    }
+
+    fun checkClass(cls: ClassItem, isKotlin: Boolean = cls.isKotlin()) {
+        if (isKotlin) {
+            disallowValueClasses(cls)
+        }
+    }
+
+    fun checkProperty(property: PropertyItem) {
+        ensureCompanionJvmField(property)
     }
 
     private fun ensureExceptionsDocumented(method: MethodItem) {
@@ -99,11 +69,12 @@ class KotlinInteropChecks(val reporter: Reporter) {
             return
         }
 
-        val exceptions = method.findThrownExceptions()
+        val exceptions = method.body.findThrownExceptions()
         if (exceptions.isEmpty()) {
             return
         }
-        val doc = method.documentation.ifEmpty { method.property?.documentation.orEmpty() }
+        val doc =
+            method.documentation.text.ifEmpty { method.property?.documentation?.text.orEmpty() }
         for (exception in exceptions.sortedBy { it.qualifiedName() }) {
             val checked =
                 !(exception.extends("java.lang.RuntimeException") ||
@@ -138,76 +109,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
     }
 
-    private fun ensureCompanionFieldJvmField(field: FieldItem) {
-        val modifiers = field.modifiers
-        if (modifiers.isPublic() && modifiers.isFinal()) {
-            // UAST will inline const fields into the surrounding class, so we have to
-            // dip into Kotlin PSI to figure out if this field was really declared in
-            // a companion object
-            val psi = (field as PsiFieldItem).psi()
-            if (psi is UField) {
-                val sourcePsi = psi.sourcePsi
-                if (sourcePsi is KtProperty) {
-                    val companionClassName = sourcePsi.containingClassOrObject?.name
-                    if (companionClassName == "Companion") {
-                        // JvmField cannot be applied to const property
-                        // (https://github.com/JetBrains/kotlin/blob/dc7b1fbff946d1476cc9652710df85f65664baee/compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/checkers/JvmFieldApplicabilityChecker.kt#L46)
-                        if (!modifiers.isConst()) {
-                            if (modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
-                                reporter.report(
-                                    Issues.MISSING_JVMSTATIC,
-                                    field,
-                                    "Companion object constants like ${field.name()} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
-                                )
-                            } else if (modifiers.findAnnotation("kotlin.jvm.JvmStatic") != null) {
-                                reporter.report(
-                                    Issues.MISSING_JVMSTATIC,
-                                    field,
-                                    "Companion object constants like ${field.name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
-                                )
-                            }
-                        }
-                    }
-                } else if (sourcePsi is KtObjectDeclaration && sourcePsi.isCompanion()) {
-                    // We are checking if we have public properties that we can expect to be
-                    // constant
-                    // (that is, declared via `val`) but that aren't declared 'const' in a companion
-                    // object that are not annotated with @JvmField or annotated with @JvmStatic
-                    // https://developer.android.com/kotlin/interop#companion_constants
-                    val ktProperties =
-                        sourcePsi.declarations.filter { declaration ->
-                            declaration is KtProperty &&
-                                declaration.isPublic &&
-                                !declaration.isVar &&
-                                !declaration.hasModifier(KtTokens.CONST_KEYWORD) &&
-                                declaration.annotationEntries.none { annotationEntry ->
-                                    annotationEntry.shortName?.asString() == "JvmField"
-                                }
-                        }
-                    for (ktProperty in ktProperties) {
-                        if (
-                            ktProperty.annotationEntries.none { annotationEntry ->
-                                annotationEntry.shortName?.asString() == "JvmStatic"
-                            }
-                        ) {
-                            reporter.report(
-                                Issues.MISSING_JVMSTATIC,
-                                ktProperty,
-                                "Companion object constants like ${ktProperty.name} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
-                            )
-                        } else {
-                            reporter.report(
-                                Issues.MISSING_JVMSTATIC,
-                                ktProperty,
-                                "Companion object constants like ${ktProperty.name} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private fun ensureLambdaLastParameter(method: MethodItem) {
         val parameters = method.parameters()
         if (parameters.size > 1) {
@@ -234,52 +135,67 @@ class KotlinInteropChecks(val reporter: Reporter) {
     private fun ensureCompanionJvmStatic(method: MethodItem) {
         if (
             method.containingClass().simpleName() == "Companion" &&
-                method.isKotlin() &&
-                method.modifiers.isPublic()
+                // Many properties will be checked through [ensureCompanionJvmField]. If this method
+                // is not a property or its property can't use @JvmField, it should use @JvmStatic.
+                method.property?.canHaveJvmField() != true &&
+                method.modifiers.findAnnotation(JVM_STATIC) == null &&
+                method.property?.modifiers?.findAnnotation(JVM_STATIC) == null
         ) {
-            if (method.isKotlinProperty()) {
-                /* Not yet working; can't find the @JvmStatic/@JvmField in the AST
-                // Only flag the read method, not the write method
-                if (method.name().startsWith("get")) {
-                    // Find the backing field; *that's* where the @JvmStatic/@JvmField annotations
-                    // are available (but the field itself is not visited since it is typically private
-                    // and therefore not part of the API visitor. Dip into Kotlin PSI to accurately
-                    // find the field name instead of guessing based on getter name.
-                    var field: FieldItem? = null
-                    val psi = method.psi()
-                    if (psi is KotlinUMethod) {
-                        val property = psi.sourcePsi as? KtProperty
-                        if (property != null) {
-                            val propertyName = property.name
-                            if (propertyName != null) {
-                                field = method.containingClass().containingClass()?.findField(propertyName)
-                            }
-                        }
-                    }
+            reporter.report(
+                Issues.MISSING_JVMSTATIC,
+                method,
+                "Companion object methods like ${method.name()} should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions"
+            )
+        }
+    }
 
-                    if (field != null) {
-                        if (field.modifiers.findAnnotation("kotlin.jvm.JvmStatic") != null) {
-                            reporter.report(
-                                Errors.MISSING_JVMSTATIC, method,
-                                "Companion object constants should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
-                            )
-                        } else if (field.modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
-                            reporter.report(
-                                Errors.MISSING_JVMSTATIC, method,
-                                "Companion object constants should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
-                            )
-                        }
-                    }
-                }
-                */
-            } else if (method.modifiers.findAnnotation("kotlin.jvm.JvmStatic") == null) {
+    /**
+     * Warn if companion constants are not marked with @JvmField.
+     *
+     * Properties that we can expect to be constant (that is, declared via `val`, so they don't have
+     * a setter) but that aren't declared 'const' in a companion object should have @JvmField, and
+     * not have @JvmStatic.
+     *
+     * See https://developer.android.com/kotlin/interop#companion_constants
+     */
+    private fun ensureCompanionJvmField(property: PropertyItem) {
+        if (property.containingClass().modifiers.isCompanion() && property.canHaveJvmField()) {
+            if (property.modifiers.findAnnotation(JVM_STATIC) != null) {
                 reporter.report(
                     Issues.MISSING_JVMSTATIC,
-                    method,
-                    "Companion object methods like ${method.name()} should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions"
+                    property,
+                    "Companion object constants like ${property.name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
+                )
+            } else if (property.modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
+                reporter.report(
+                    Issues.MISSING_JVMSTATIC,
+                    property,
+                    "Companion object constants like ${property.name()} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
                 )
             }
         }
+    }
+
+    /**
+     * Whether the property (assumed to be a companion property) is allowed to be have @JvmField.
+     *
+     * If it can't be annotated with @JvmField, it should use @JvmStatic for its accessors instead.
+     */
+    private fun PropertyItem.canHaveJvmField(): Boolean {
+        val companionContainer = containingClass().containingClass()
+        return !modifiers.isConst() &&
+            setter == null &&
+            // @JvmField can only be used on interface companion properties in limited situations --
+            // all the companion properties must be public and constant, so adding more properties
+            // might mean @JvmField would no longer be allowed even if it was originally. Because of
+            // this, don't suggest using @JvmField for interface companion properties.
+            // https://github.com/Kotlin/KEEP/blob/master/proposals/jvm-field-annotation-in-interface-companion.md
+            containingClass().containingClass()?.isInterface() != true &&
+            // @JvmField can only be used when the property has a backing field. The backing
+            // field is present on the containing class of the companion.
+            companionContainer?.findField(name()) != null &&
+            // The compiler does not allow @JvmField on value class type properties.
+            !type().isValueClassType()
     }
 
     private fun ensureFieldNameNotKeyword(field: FieldItem) {
@@ -376,7 +292,17 @@ class KotlinInteropChecks(val reporter: Reporter) {
             "java.lang.Iterable" -> return false
         }
 
-        return parameter is PsiParameterItem && parameter.isSamCompatibleOrKotlinLambda()
+        return parameter.isSamCompatibleOrKotlinLambda()
+    }
+
+    private fun disallowValueClasses(cls: ClassItem) {
+        if (cls.modifiers.isValue()) {
+            reporter.report(
+                Issues.VALUE_CLASS_DEFINITION,
+                cls,
+                "Value classes should not be public in APIs targeting Java clients."
+            )
+        }
     }
 
     private fun isKotlinHardKeyword(keyword: String): Boolean {
@@ -418,6 +344,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
 
     /** Returns true if the given string is a reserved Java keyword */
     private fun isJavaKeyword(keyword: String): Boolean {
-        return JavaLexer.isKeyword(keyword, javaLanguageLevel)
+        return PsiUtil.isKeyword(keyword, javaLanguageLevel)
     }
 }

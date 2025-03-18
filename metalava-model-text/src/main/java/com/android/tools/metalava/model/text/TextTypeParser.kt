@@ -22,9 +22,8 @@ import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
-import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -32,30 +31,68 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultArrayTypeItem
 import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
+import com.android.tools.metalava.reporter.Issues
 import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
-internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Boolean = false) {
+internal class TextTypeParser(
+    val codebase: Codebase,
+    val kotlinStyleNulls: Boolean = false,
+    delegateErrorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
+) {
+    /**
+     * Tracks whether types that were unqualified and so implicitly treated as being part of the
+     * 'java.lang` package are actually part of that package. If they are not then an error is
+     * reported and it is not prefixed with `java.lang`.
+     */
+    private val javaLangPackage: JavaLangPackage = JavaLangPackage.DEFAULT
 
     /**
-     * The cache key, incorporates the information from [TypeUse] and [kotlinStyleNulls] as well as
-     * the type string as they can all affect the created [TypeItem].
+     * A count of the errors reported through [errorReporter].
      *
-     * e.g. [TypeUse.SUPER_TYPE] will cause the type to be treated as a super class and so always be
+     * This is used to prevent caching [TypeItem]s that reported errors to make sure that every such
+     * case is reported.
+     */
+    private var errorCount = 0
+
+    /**
+     * Report a recoverable error.
+     *
+     * This keeps a count of how many were reported so that [CacheEntry.getTypeItem] can use that to
+     * determine if any errors were found while parsing a type ([errorCount] increased) and so
+     * prevent it from being cached which would suppress any more errors with that type string.
+     */
+    private val errorReporter: SignatureErrorReporter =
+        object : SignatureErrorReporter {
+            override fun report(
+                issue: Issues.Issue,
+                message: String,
+            ) {
+                delegateErrorReporter.report(issue, message)
+                errorCount += 1
+            }
+        }
+
+    /**
+     * The cache key, incorporates some information from [ContextNullability] and [kotlinStyleNulls]
+     * as well as the type string as they can all affect the created [TypeItem].
+     *
+     * e.g. [ContextNullability.forceNonNull] will cause the type to always be
      * [TypeNullability.NONNULL] even if [kotlinStyleNulls] is `false` which would normally cause it
      * to be [TypeNullability.PLATFORM]. However, when [kotlinStyleNulls] is `true` then there is no
-     * difference between [TypeUse.SUPER_TYPE] and [TypeUse.GENERAL] as they will both cause a class
-     * type with no nullability suffix to be treated as [TypeNullability.NONNULL].
+     * difference between [ContextNullability.forceNonNull] and [ContextNullability.none] as they
+     * will both cause a class type with no nullability suffix to be treated as
+     * [TypeNullability.NONNULL].
      *
      * That information is encapsulated in the [forceClassToBeNonNull] property.
      */
@@ -69,39 +106,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     internal var cacheHit = 0
     internal var cacheSize = 0
 
-    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
-    val superAnnotationType
-        get() = createJavaLangSuperType(JAVA_LANG_ANNOTATION)
-
-    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
-    val superEnumType
-        get() = createJavaLangSuperType(JAVA_LANG_ENUM)
-
-    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
-    val superObjectType
-        get() = createJavaLangSuperType(JAVA_LANG_OBJECT)
-
-    /**
-     * Create a [ClassTypeItem] for a standard java.lang class suitable for use by a super class or
-     * interface.
-     */
-    private fun createJavaLangSuperType(standardClassName: String): ClassTypeItem {
-        return getSuperType(standardClassName, TypeParameterScope.empty)
-    }
-
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
     private val objectType: ReferenceTypeItem
         get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty) as ReferenceTypeItem
-
-    /**
-     * Creates or retrieves a previously cached [ClassTypeItem] that is suitable for use as a super
-     * type, e.g. in an `extends` or `implements` list.
-     */
-    fun getSuperType(
-        type: String,
-        typeParameterScope: TypeParameterScope,
-    ): ClassTypeItem =
-        obtainTypeFromString(type, typeParameterScope, TypeUse.SUPER_TYPE) as ClassTypeItem
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
@@ -110,8 +117,8 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope,
-        typeUse: TypeUse = TypeUse.GENERAL,
-    ): TypeItem = cachedParseType(type, typeParameterScope, emptyList(), typeUse)
+        contextNullability: ContextNullability = ContextNullability.none,
+    ): TypeItem = cachedParseType(type, typeParameterScope, emptyList(), contextNullability)
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
@@ -125,14 +132,15 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         type: String,
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem> = emptyList(),
-        typeUse: TypeUse = TypeUse.GENERAL,
+        contextNullability: ContextNullability = ContextNullability.none,
     ): TypeItem {
         requests++
 
         // Class types used as super types, i.e. in an extends or implements list are forced to be
         // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
         // same cache key for both so that they reuse cached types where possible.
-        val forceClassToBeNonNull = typeUse == TypeUse.SUPER_TYPE || kotlinStyleNulls
+        val forceClassToBeNonNull =
+            contextNullability.forcedNullability == TypeNullability.NONNULL || kotlinStyleNulls
 
         // Don't use the cache when there are type-use annotations not contained in the string.
         return if (annotations.isEmpty()) {
@@ -166,7 +174,8 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 // If forceClassToBeNonNull is true then a plain class type without any nullability
                 // suffix must be treated as if it was not null, which is just how it would be
                 // treated when kotlinStyleNulls is true. So, pretend that kotlinStyleNulls is true.
-                kotlinStyleNulls || forceClassToBeNonNull
+                kotlinStyleNulls || forceClassToBeNonNull,
+                errorReporter,
             )
         val trimmed = withoutNullability.trim()
 
@@ -219,7 +228,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 else -> return null
             }
         if (nullability != null && nullability != TypeNullability.NONNULL) {
-            throw ApiParseException("Invalid nullability suffix on primitive: $original")
+            errorReporter.report("Invalid nullability suffix on primitive: $original")
         }
         return DefaultPrimitiveTypeItem(modifiers(annotations, TypeNullability.NONNULL), kind)
     }
@@ -266,7 +275,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
         // Remove nullability marker from the component type, but don't add it to the list yet, as
         // it might not be an array.
-        var nullabilityResult = splitNullabilitySuffix(componentString, kotlinStyleNulls)
+        var nullabilityResult =
+            splitNullabilitySuffix(
+                componentString,
+                kotlinStyleNulls,
+                errorReporter,
+            )
         componentString = nullabilityResult.first
         var componentNullability = nullabilityResult.second
 
@@ -283,7 +297,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
             // Remove nullability marker from the new component type, but don't add it to the list
             // yet, as the next component type might not be an array.
-            nullabilityResult = splitNullabilitySuffix(componentString, kotlinStyleNulls)
+            nullabilityResult =
+                splitNullabilitySuffix(
+                    componentString,
+                    kotlinStyleNulls,
+                    errorReporter,
+                )
             componentString = nullabilityResult.first
             componentNullability = nullabilityResult.second
         }
@@ -331,35 +350,33 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
 
+        val modifiers = modifiers(annotations, TypeNullability.UNDEFINED)
+
         // Unbounded wildcard type: there is an implicit Object extends bound
-        if (type == "?")
-            return DefaultWildcardTypeItem(
-                modifiers(annotations, TypeNullability.UNDEFINED),
-                objectType,
-                null,
-            )
+        if (type == "?") return DefaultWildcardTypeItem(modifiers, objectType, null)
 
         // If there's a bound, the nullability suffix applies there instead.
         val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
             DefaultWildcardTypeItem(
-                modifiers(annotations, TypeNullability.UNDEFINED),
+                modifiers,
                 getWildcardBound(extendsBound, typeParameterScope),
                 null,
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
             DefaultWildcardTypeItem(
-                modifiers(annotations, TypeNullability.UNDEFINED),
+                modifiers,
                 // All wildcards have an implicit Object extends bound
                 objectType,
                 getWildcardBound(superBound, typeParameterScope),
             )
         } else {
-            throw ApiParseException(
-                "Type starts with \"?\" but doesn't appear to be wildcard: $type"
-            )
+            errorReporter.report("Type starts with \"?\" but doesn't appear to be wildcard: $type")
+
+            // Ignore the part after the "?" and treat it as an unbounded wildcard.
+            DefaultWildcardTypeItem(modifiers, objectType, null)
         }
     }
 
@@ -416,11 +433,20 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
         val qualifiedName =
             if (outerClassType != null) {
-                // This is an inner type, add the prefix of the outer name
+                // This is a nested type, add the prefix of the outer name
                 "${outerClassType.qualifiedName}.$name"
             } else if (!name.contains('.')) {
-                // Reverse the effect of [TypeItem.stripJavaLangPrefix].
-                "java.lang.$name"
+                val javaLangName = "java.lang.$name"
+                if (javaLangPackage.containsQualified(javaLangName)) {
+                    // Reverse the effect of [TypeItem.stripJavaLangPrefix].
+                    javaLangName
+                } else {
+                    errorReporter.report(
+                        Issues.UNQUALIFIED_TYPE_ERROR,
+                        "Unqualified type '$name' is not in 'java.lang' and is not a type parameter in scope"
+                    )
+                    name
+                }
             } else {
                 name
             }
@@ -429,7 +455,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         val arguments =
             argumentStrings.map { cachedParseType(it, typeParameterScope) as TypeArgumentTypeItem }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
-        // the leading annotations (they belong to the inner class type).
+        // the leading annotations (they belong to the nested class type).
         val classModifiers =
             if (remainder != null) {
                 modifiers(classAnnotations, TypeNullability.NONNULL)
@@ -441,11 +467,14 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
-                throw ApiParseException(
+                errorReporter.report(
                     "Could not parse type `$type`. Found unexpected string after type parameters: $remainder"
                 )
+                // Ignore the remainder.
+                return classType
             }
-            // This is an inner class type, recur with the new outer class
+
+            // This is a nested class type, recur with the new outer class
             return createClassType(
                 remainder.substring(1),
                 classType,
@@ -465,7 +494,6 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         return DefaultTypeModifiers.create(
             annotations,
             nullability,
-            "Type modifiers created by the text model are immutable because they are cached",
         )
     }
 
@@ -479,7 +507,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
             trimmed = trimmed.substring(end).trim()
         }
         return Pair(trimmed, annotations)
@@ -520,7 +550,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 break
             }
             val annotationSource = trimmed.substring(start)
-            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+                annotations.add(annotationItem)
+            }
             // Cut this annotation off, so now the next one can end at the last index.
             trimmed = trimmed.substring(0, start).trim()
         }
@@ -530,7 +562,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     /**
      * Given [type] which represents a class, splits the string into the qualified name of the
      * class, the remainder of the type string, and a list of type-use annotations. The remainder of
-     * the type string might be the type parameter list, inner class names, or a combination
+     * the type string might be the type parameter list, nested class names, or a combination
      *
      * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
      * "<java.lang.@C String", listOf("@A", "@B")).
@@ -604,7 +636,8 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
          */
         fun splitNullabilitySuffix(
             type: String,
-            kotlinStyleNulls: Boolean
+            kotlinStyleNulls: Boolean,
+            errorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
         ): Pair<String, TypeNullability?> {
             return if (kotlinStyleNulls) {
                 // Don't interpret the wildcard type `?` as a nullability marker.
@@ -617,10 +650,9 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                 } else {
                     Pair(type, TypeNullability.NONNULL)
                 }
-            } else if (type.length > 1 && type.endsWith("?") || type.endsWith("!")) {
-                throw ApiParseException(
-                    "Format does not support Kotlin-style null type syntax: $type"
-                )
+            } else if (((type.length > 1) && type.endsWith("?")) || type.endsWith("!")) {
+                errorReporter.report("Format does not support Kotlin-style null type syntax: $type")
+                Pair(type.dropLast(1), TypeNullability.PLATFORM)
             } else {
                 Pair(type, null)
             }
@@ -796,8 +828,17 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                     null
                 }
 
-            // Parse the [type] to produce a [TypeItem].
+            // Remember the number of errors that have been reported so far.
+            val startErrorCount = errorCount
+
+            // Parse the [type] to produce a [TypeItem]. This may report errors.
             val typeItem = createTypeItem(typeParameterScope)
+
+            // If the error count is different then do not cache this.
+            if (errorCount != startErrorCount) {
+                return typeItem
+            }
+
             cacheSize++
 
             // Find the scope for caching if it was not found above.
@@ -851,15 +892,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
             // package, all other types must be fully qualified. At this point it is not clear
             // whether the type used in the input type string was qualified or not as the package
             // has been prepended so this assumes that they all are just to be on the safe side.
-            // It is only for legacy reasons that all `java.lang` package prefixes are stripped
-            // when generating the API signature files. See b/324047248.
             val name = classType.qualifiedName
             if (!name.contains('.')) {
                 unqualifiedNames.add(name)
             } else {
-                val trimmed = TypeItem.stripJavaLangPrefix(name)
-                if (trimmed != name) {
-                    unqualifiedNames.add(trimmed)
+                if (classType.classNamePrefix == JAVA_LANG_PREFIX) {
+                    unqualifiedNames.add(classType.className)
                 }
             }
         }

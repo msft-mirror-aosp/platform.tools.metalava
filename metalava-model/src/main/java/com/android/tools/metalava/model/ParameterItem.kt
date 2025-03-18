@@ -16,30 +16,38 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.ParameterDefaultValue
+
 @MetalavaApi
-interface ParameterItem : Item {
+interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
 
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        containingMethod()
-            .findCorrespondingItemIn(codebase)
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) =
+        containingCallable()
+            .findCorrespondingItemIn(codebase, superMethods = superMethods, duplicate = duplicate)
             ?.parameters()
             ?.getOrNull(parameterIndex)
 
-    /** The containing method */
-    fun containingMethod(): MethodItem
+    /** The containing callable. */
+    fun containingCallable(): CallableItem
+
+    /** The possible containing method, returns null if this is a constructor parameter. */
+    fun possibleContainingMethod(): MethodItem? = containingCallable().let { it as? MethodItem }
 
     /** Index of this parameter in the parameter list (0-based) */
     val parameterIndex: Int
 
     /**
      * The public name of this parameter. In Kotlin, names are part of the public API; in Java they
-     * are not. In Java, you can annotate a parameter with {@literal @ParameterName("foo")} to name
-     * the parameter something (potentially different from the actual code parameter name).
+     * are not.
      */
     fun publicName(): String?
 
@@ -48,66 +56,79 @@ interface ParameterItem : Item {
      * Java, it's supported via a special annotation, {@literal @DefaultValue("source"). This does
      * not necessarily imply that the default value is accessible, and we know the body of the
      * default value.
-     *
-     * @see isDefaultValueKnown
      */
     fun hasDefaultValue(): Boolean
 
-    /**
-     * Returns whether this parameter has an accessible default value that we plan to keep. This is
-     * a superset of [hasDefaultValue] - if we are not writing the default values to the signature
-     * file, then the default value might not be available, even though the parameter does have a
-     * default.
-     *
-     * @see hasDefaultValue
-     */
-    fun isDefaultValueKnown(): Boolean
-
-    /**
-     * Returns the default value.
-     *
-     * **This method should only be called if [isDefaultValueKnown] returned true!** (This is
-     * necessary since the null return value is a valid default value separate from no default value
-     * specified.)
-     *
-     * The default value is the source string literal representation of the value, e.g. strings
-     * would be surrounded by quotes, Booleans are the strings "true" or "false", and so on.
-     */
-    fun defaultValue(): String?
+    /** The default value of this [ParameterItem]. */
+    val defaultValue: ParameterDefaultValue
 
     /** Whether this is a varargs parameter */
-    fun isVarArgs(): Boolean
+    fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
     val property: PropertyItem?
         get() = null
 
-    override fun parent(): MethodItem? = containingMethod()
+    override fun parent(): CallableItem? = containingCallable()
+
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || containingCallable().effectivelyDeprecated
 
     override fun baselineElementId() =
-        containingMethod().baselineElementId() + " parameter #" + parameterIndex
+        containingCallable().baselineElementId() + " parameter #" + parameterIndex
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
 
+    /**
+     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
+     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
+     * syntax.
+     *
+     * Specifically this will attempt to handle the follow cases:
+     * - Java SAM interface = true
+     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
+     * - Kotlin fun interface = true
+     * - Kotlin lambda = true
+     * - Any other type = false
+     */
+    fun isSamCompatibleOrKotlinLambda(): Boolean =
+        // TODO(b/354889186): Implement correctly
+        false
+
+    /**
+     * Create a duplicate of this for [containingCallable].
+     *
+     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
+     * [TypeItem.convertType].
+     *
+     * This is called from within the constructor of the [containingCallable] so must only access
+     * its `name` and its reference. In particularly it must not access its
+     * [CallableItem.parameters] property as this is called during its initialization.
+     */
+    fun duplicate(
+        containingCallable: CallableItem,
+        typeVariableMap: TypeParameterBindings,
+    ): ParameterItem
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ParameterItem) return false
+
+        return parameterIndex == other.parameterIndex &&
+            containingCallable() == other.containingCallable()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
+    }
+
     override fun toStringForItem() = "parameter ${name()}"
 
-    override fun requiresNullnessInfo(): Boolean {
-        return type() !is PrimitiveTypeItem
-    }
+    override fun containingClass(): ClassItem = containingCallable().containingClass()
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
-    override fun containingClass(): ClassItem? = containingMethod().containingClass()
-
-    override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
+    override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
 
     // TODO: modifier list
 }

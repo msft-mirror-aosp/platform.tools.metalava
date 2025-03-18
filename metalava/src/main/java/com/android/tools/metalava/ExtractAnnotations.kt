@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -34,23 +35,14 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter
-import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.PsiMethodItem
-import com.android.tools.metalava.model.psi.UAnnotationItem
 import com.android.tools.metalava.model.psi.report
+import com.android.tools.metalava.model.psi.uAnnotation
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.xml.XmlEscapers
-import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiNameValuePair
-import com.intellij.psi.PsiReferenceExpression
-import com.intellij.psi.PsiReturnStatement
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -62,7 +54,6 @@ import kotlin.text.Charsets.UTF_8
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastEmptyExpression
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.toUElement
@@ -74,17 +65,14 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
-) : ApiVisitor() {
+) :
+    ApiVisitor(
+        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+    ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
     private val packageToAnnotationPairs =
-        LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationHolder>>>()
-
-    private data class AnnotationHolder(
-        val annotationClass: ClassItem?,
-        val annotationItem: AnnotationItem,
-        val uAnnotation: UAnnotation?
-    )
+        LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationItem>>>()
 
     private val fieldNamePrinter =
         CodePrinter(
@@ -104,7 +92,7 @@ class ExtractAnnotations(
             skipUnknown = true,
         )
 
-    private val classToAnnotationHolder = mutableMapOf<String, AnnotationHolder>()
+    private val classToAnnotationHolder = mutableMapOf<String, AnnotationItem>()
 
     fun extractAnnotations() {
         codebase.accept(this)
@@ -169,30 +157,35 @@ class ExtractAnnotations(
         }
     }
 
-    private fun addItem(item: Item, annotation: AnnotationHolder) {
+    private fun addItem(item: Item, annotation: AnnotationItem) {
         val pkg =
             when (item) {
+                is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
-                is ParameterItem -> item.containingMethod().containingClass().containingPackage()
+                is ParameterItem -> item.containingCallable().containingClass().containingPackage()
                 else -> return
             }
 
         val list =
             packageToAnnotationPairs[pkg]
                 ?: run {
-                    val new = mutableListOf<Pair<Item, AnnotationHolder>>()
+                    val new = mutableListOf<Pair<Item, AnnotationItem>>()
                     packageToAnnotationPairs[pkg] = new
                     new
                 }
         list.add(Pair(item, annotation))
     }
 
+    override fun visitClass(cls: ClassItem) {
+        checkItem(cls)
+    }
+
     override fun visitField(field: FieldItem) {
         checkItem(field)
     }
 
-    override fun visitMethod(method: MethodItem) {
-        checkItem(method)
+    override fun visitCallable(callable: CallableItem) {
+        checkItem(callable)
     }
 
     override fun visitParameter(parameter: ParameterItem) {
@@ -202,7 +195,7 @@ class ExtractAnnotations(
     /** For a given item, extract the relevant annotations for that item */
     private fun checkItem(item: Item) {
         for (annotation in item.modifiers.annotations()) {
-            val qualifiedName = annotation.qualifiedName ?: continue
+            val qualifiedName = annotation.qualifiedName
             if (
                 qualifiedName.startsWith(JAVA_LANG_PREFIX) ||
                     qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) ||
@@ -210,11 +203,11 @@ class ExtractAnnotations(
             ) {
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef
-                    addItem(item, AnnotationHolder(null, annotation, null))
+                    addItem(item, annotation)
                 } else if (
                     annotation.targets.contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE)
                 ) {
-                    addItem(item, AnnotationHolder(null, annotation, null))
+                    addItem(item, annotation)
                 }
 
                 continue
@@ -223,7 +216,7 @@ class ExtractAnnotations(
                     qualifiedName.startsWith(ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX)
             ) {
                 // Externally merged metadata, like @Contract and @Language
-                addItem(item, AnnotationHolder(null, annotation, null))
+                addItem(item, annotation)
                 continue
             }
 
@@ -256,110 +249,18 @@ class ExtractAnnotations(
                         )
                     }
 
-                    val result =
-                        if (
-                            typeDefAnnotation is PsiAnnotationItem && typeDefClass is PsiClassItem
-                        ) {
-                            AnnotationHolder(
-                                typeDefClass,
-                                typeDefAnnotation,
-                                UastFacade.convertElement(
-                                    typeDefAnnotation.psiAnnotation,
-                                    null,
-                                    UAnnotation::class.java
-                                ) as UAnnotation
-                            )
-                        } else if (
-                            typeDefAnnotation is UAnnotationItem && typeDefClass is PsiClassItem
-                        ) {
-                            AnnotationHolder(
-                                typeDefClass,
-                                typeDefAnnotation,
-                                typeDefAnnotation.uAnnotation
-                            )
-                        } else {
-                            continue
-                        }
-
-                    classToAnnotationHolder[className] = result
-                    addItem(item, result)
+                    classToAnnotationHolder[className] = typeDefAnnotation
+                    addItem(item, typeDefAnnotation)
 
                     if (
-                        item is PsiMethodItem &&
-                            result.uAnnotation != null &&
+                        item is MethodItem &&
                             !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
                     ) {
-                        verifyReturnedConstants(item, result.uAnnotation, result, className)
+                        item.body.verifyReturnedConstants(typeDefAnnotation, typeDefClass)
                     }
-                    continue
                 }
             }
         }
-    }
-
-    /**
-     * Given a method whose return value is annotated with a typedef, runs checks on the typedef and
-     * flags any returned constants not in the list.
-     */
-    private fun verifyReturnedConstants(
-        item: PsiMethodItem,
-        uAnnotation: UAnnotation,
-        result: AnnotationHolder,
-        className: String
-    ) {
-        val method = item.psiMethod
-        if (method.body != null) {
-            method.body?.accept(
-                object : JavaRecursiveElementVisitor() {
-                    private var constants: List<String>? = null
-
-                    override fun visitReturnStatement(statement: PsiReturnStatement) {
-                        val value = statement.returnValue
-                        if (value is PsiReferenceExpression) {
-                            val resolved = value.resolve() as? PsiField ?: return
-                            val modifiers = resolved.modifierList ?: return
-                            if (
-                                modifiers.hasModifierProperty(PsiModifier.STATIC) &&
-                                    modifiers.hasModifierProperty(PsiModifier.FINAL)
-                            ) {
-                                if (resolved.type.arrayDimensions > 0) {
-                                    return
-                                }
-                                val name = resolved.name
-
-                                // Make sure this is one of the allowed annotations
-                                val names =
-                                    constants
-                                        ?: run {
-                                            constants = computeValidConstantNames(uAnnotation)
-                                            constants!!
-                                        }
-                                if (names.isNotEmpty() && !names.contains(name)) {
-                                    val expected = names.joinToString { it }
-                                    reporter.report(
-                                        Issues.RETURNING_UNEXPECTED_CONSTANT,
-                                        value as PsiElement,
-                                        "Returning unexpected constant $name; is @${result.annotationClass?.simpleName()
-                                        ?: className} missing this constant? Expected one of $expected"
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            )
-        }
-    }
-
-    private fun computeValidConstantNames(annotation: UAnnotation): List<String> {
-        val constants = annotation.findAttributeValue(ANNOTATION_ATTR_VALUE) ?: return emptyList()
-        if (constants is UCallExpression) {
-            return constants.valueArguments
-                .mapNotNull { (it as? USimpleNameReferenceExpression)?.identifier }
-                .toList()
-        }
-
-        return emptyList()
     }
 
     /**
@@ -405,7 +306,7 @@ class ExtractAnnotations(
             is ClassItem -> {
                 return escapeXml(qualifiedName())
             }
-            is MethodItem -> {
+            is CallableItem -> {
                 val sb = StringBuilder(100)
                 sb.append(escapeXml(containingClass().qualifiedName()))
                 sb.append(' ')
@@ -449,7 +350,7 @@ class ExtractAnnotations(
                 return escapeXml(containingClass().qualifiedName()) + " " + name()
             }
             is ParameterItem -> {
-                return containingMethod().getExternalAnnotationSignature() +
+                return containingCallable().getExternalAnnotationSignature() +
                     " " +
                     this.parameterIndex
             }
@@ -461,25 +362,25 @@ class ExtractAnnotations(
     private fun writeAnnotation(
         writer: StringPrintWriter,
         item: Item,
-        annotationHolder: AnnotationHolder
+        annotationItem: AnnotationItem
     ) {
-        val annotationItem = annotationHolder.annotationItem
-        val uAnnotation =
-            annotationHolder.uAnnotation
-                ?: when (annotationItem) {
-                    is UAnnotationItem -> annotationItem.uAnnotation
-                    is PsiAnnotationItem ->
-                        // Imported annotation
-                        annotationItem.psiAnnotation.toUElement(UAnnotation::class.java) ?: return
-                    else -> return
-                }
+        val uAnnotation = annotationItem.uAnnotation ?: return
         val qualifiedName = annotationItem.qualifiedName
 
         writer.mark()
         writer.print("    <annotation name=\"")
         writer.print(qualifiedName)
 
-        var attributes = uAnnotation.attributeValues
+        var attributes =
+            // Ensure consistent ordering.
+            uAnnotation.attributeValues.sortedWith(
+                compareBy(
+                    // Ensure that the value attribute is written first
+                    { (it.name ?: ANNOTATION_ATTR_VALUE) != ANNOTATION_ATTR_VALUE },
+                    { it.name }
+                )
+            )
+
         if (attributes.isEmpty()) {
             writer.print("\"/>")
             writer.println()
@@ -489,24 +390,12 @@ class ExtractAnnotations(
         writer.print("\">")
         writer.println()
 
-        // noinspection PointlessBooleanExpression,ConstantConditions
-        if (sortAnnotations) {
-            // Ensure that the value attribute is written first
-            attributes =
-                attributes.sortedWith(
-                    compareBy(
-                        { (it.name ?: ANNOTATION_ATTR_VALUE) != ANNOTATION_ATTR_VALUE },
-                        { it.name }
-                    )
-                )
-        }
-
         if (attributes.size == 1 && Extractor.REQUIRES_PERMISSION.isPrefix(qualifiedName, true)) {
             val expression = attributes[0].expression
             if (expression is UAnnotation) {
                 // The external annotations format does not allow for nested/complex annotations.
                 // However, these special annotations (@RequiresPermission.Read,
-                // @RequiresPermission.Write, etc) are known to only be simple containers with a
+                // @RequiresPermission.Write, etc.) are known to only be simple containers with a
                 // single permission child, so instead we "inline" the content:
                 //  @Read(@RequiresPermission(allOf={P1,P2},conditional=true)
                 //     =>
@@ -544,7 +433,7 @@ class ExtractAnnotations(
                 name = ANNOTATION_ATTR_VALUE // default name
             }
 
-            // Platform typedef annotations declare prefix/suffix attributes for historical reasons
+            // Platform typedef annotations declare prefix/suffix attributes for historical reasons,
             // and they are no longer necessary; they should also not be part of the extracted
             // metadata.
             if (("prefix" == name || "suffix" == name) && annotationItem.isTypeDefAnnotation()) {
@@ -556,10 +445,16 @@ class ExtractAnnotations(
                 continue
             }
 
+            // The value could contain fully qualified references to enum values that are in the
+            // android.annotation package. If so, then replace them with references in the
+            // androidx.annotation package.
+            val normalizedValue =
+                value.replace(ANDROID_ANNOTATION_PREFIX, ANDROIDX_ANNOTATION_PREFIX)
+
             writer.print("      <val name=\"")
             writer.print(name)
             writer.print("\" val=\"")
-            writer.print(escapeXml(value))
+            writer.print(escapeXml(normalizedValue))
             writer.println("\" />")
         }
 
@@ -585,12 +480,5 @@ class ExtractAnnotations(
 
     private fun isInlinedConstant(annotationItem: AnnotationItem): Boolean {
         return annotationItem.isTypeDefAnnotation()
-    }
-
-    /** Whether to sort annotation attributes (otherwise their declaration order is used) */
-    private val sortAnnotations: Boolean = true
-
-    companion object {
-        private const val SOURCE = "SOURCE"
     }
 }
