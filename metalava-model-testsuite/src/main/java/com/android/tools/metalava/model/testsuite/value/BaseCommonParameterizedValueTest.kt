@@ -21,10 +21,8 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.junit4.ParameterFilter
-import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
-import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
@@ -38,6 +36,7 @@ import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -135,6 +134,7 @@ abstract class BaseCommonParameterizedValueTest(
                         when (it) {
                             InputFormat.JAVA -> JavaTestClassCreator
                             InputFormat.KOTLIN -> KotlinTestClassCreator
+                            InputFormat.SIGNATURE -> SignatureTestClassCreator
                             else -> error("Unknown input format: $inputFormat")
                         }
 
@@ -246,10 +246,8 @@ abstract class BaseCommonParameterizedValueTest(
 
             // Ignore any tests that are not valid for the InputFormat.
             return inputFormat in testCase.valueExample.validForInputFormats &&
-                // Only supports java and kotlin input formats at the moment. Kotlin input formats
-                // cannot be used with jar as there is no way to create jars from Kotlin.
-                (inputFormat == InputFormat.JAVA ||
-                    (producer.kind != ProducerKind.JAR && inputFormat == InputFormat.KOTLIN))
+                // Supports all input formats but only Java can produce jars.
+                (inputFormat == InputFormat.JAVA || producer.kind != ProducerKind.JAR)
         }
 
         /** The set of [TestCase]s to run in each [CodebaseProducer] in [codebaseProducers]. */
@@ -426,7 +424,6 @@ abstract class BaseCommonParameterizedValueTest(
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun testLegacySource() {
         val expectedLegacySource = testCase.valueExample.expectedLegacySourceFor(inputFormat)
@@ -766,6 +763,162 @@ object KotlinTestClassCreator : TestClassCreator {
                     append(valueExample.kotlinExpression)
                     append("\n")
                     append("    }\n")
+                    append("}\n")
+                }
+            )
+            .asTestClass(className)
+            .dependsOn(otherAnnotationClass)
+            .dependsOn(testConstantsClass)
+    }
+}
+
+/** Creates signature [TestClass]es for use by [BaseCommonParameterizedValueTest]. */
+object SignatureTestClassCreator : TestClassCreator {
+    private val testConstantsClass =
+        signature(
+            "constants.txt",
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Constants {
+                    field public static final String STRING_CONSTANT = "constant";
+                  }
+                }
+            """
+        )
+
+    private val testEnumClass =
+        signature(
+            "test-enum.txt",
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public enum TestEnum {
+                    enum_constant public static final test.pkg.TestEnum DEFAULT;
+                    enum_constant public static final test.pkg.TestEnum VALUE1;
+                  }
+                }
+            """
+        )
+
+    private val otherAnnotationClass =
+        signature(
+                "other-annotation.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public @interface OtherAnnotation {
+                        method public Class<?> classType() default void.class;
+                        method public test.pkg.TestEnum enumType() default test.pkg.TestEnum.DEFAULT;
+                        method public int intType() default -1;
+                        method public String stringType() default "default";
+                        method public String[] stringArrayType() default {};
+                      }
+                    }
+                """
+            )
+            .asTestClass("OtherAnnotation")
+            .dependsOn(testEnumClass)
+
+    /**
+     * Create an annotation [TestClass] for [valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     * @param withDefaults true if defaults should be added, false otherwise.
+     */
+    override fun generateAnnotationClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+        withDefaults: Boolean
+    ): TestClass {
+        val className = "${classNamePrefix}_${valueExample.classSuffix}"
+        return signature(
+                "$className.txt",
+                buildString {
+                    append("// Signature format: 2.0\n")
+                    append("package test.pkg {\n")
+                    append("  public @interface $className {\n")
+                    append("    method public abstract ")
+                    append(valueExample.signatureType)
+                    append(" ")
+                    append(ATTRIBUTE_NAME)
+                    append("()")
+                    if (withDefaults) {
+                        append(" default ")
+                        append(valueExample.signatureExpression)
+                    }
+                    append(";\n")
+                    append("  }\n")
+                    append("}\n")
+                }
+            )
+            .asTestClass(className)
+            .dependsOn(otherAnnotationClass)
+            .dependsOn(testConstantsClass)
+    }
+
+    /**
+     * Create a normal [TestClass] annotated with [annotationTestClass].
+     *
+     * The annotation uses the appropriate values from this [valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     * @param annotationTestClass the annotation [TestClass] to annotate the class with.
+     */
+    override fun generateAnnotatedTestClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+        annotationTestClass: TestClass,
+    ): TestClass {
+        val className = "${classNamePrefix}_${valueExample.classSuffix}"
+        return signature(
+                "$className.txt",
+                buildString {
+                    append("// Signature format: 2.0\n")
+                    append("package test.pkg {\n")
+                    append("  @")
+                    append(annotationTestClass.className)
+                    append("(")
+                    append(ATTRIBUTE_NAME)
+                    append(" = ")
+                    append(valueExample.signatureExpression)
+                    append(") ")
+                    append("public class $className {\n")
+                    append("  }\n")
+                    append("}\n")
+                }
+            )
+            .asTestClass(className)
+            .dependsOn(annotationTestClass)
+    }
+
+    /**
+     * Create a [TestClass] containing a "constant" field for this [valueExample].
+     *
+     * @param valueExample the [ValueExample] for which this is being created.
+     * @param classNamePrefix the prefix of the class.
+     */
+    override fun generateFieldTestClass(
+        valueExample: ValueExample,
+        classNamePrefix: String,
+    ): TestClass {
+        val className = "${classNamePrefix}_${valueExample.classSuffix}"
+        return signature(
+                "$className.txt",
+                buildString {
+                    append("// Signature format: 2.0\n")
+                    append("package test.pkg {\n")
+                    append("  public class $className {\n")
+                    append("    field public static final ")
+                    append(valueExample.signatureType)
+                    append(" ")
+                    append(FIELD_NAME)
+                    append(" = ")
+                    append(valueExample.signatureExpression)
+                    append(";\n")
+                    append("  }\n")
                     append("}\n")
                 }
             )

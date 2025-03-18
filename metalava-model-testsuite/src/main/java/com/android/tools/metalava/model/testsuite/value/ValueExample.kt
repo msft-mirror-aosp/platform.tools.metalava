@@ -61,6 +61,20 @@ class ValueExample(
     /** The optional java imports. */
     val javaImports: List<String> = emptyList(),
 
+    /**
+     * The signature type, defaults to [javaType] as signature files generally use Java types and
+     * values but needs to be overridden in some cases, e.g. to use qualified types in place of
+     * unqualified types as signature files requires most types to be qualified.
+     */
+    val signatureType: String = javaType,
+
+    /**
+     * The signature expression, defaults to [javaExpression] as signature files generally use Java
+     * types and values but needs to be overridden in some cases, e.g. to use qualified types in
+     * place of unqualified types as signature files requires most types to be qualified.
+     */
+    val signatureExpression: String = javaExpression,
+
     /** The set of [ValueUseSite]s in which this example will be tested; defaults to all of them. */
     val suitableFor: Set<ValueUseSite> = allValueUseSites,
 
@@ -151,6 +165,9 @@ class ValueExample(
                     name = "annotation",
                     javaType = "OtherAnnotation",
                     javaExpression = "@OtherAnnotation(intType = 1)",
+                    // Must fully qualify most classes in signature files.
+                    signatureType = "test.pkg.OtherAnnotation",
+                    signatureExpression = "@test.pkg.OtherAnnotation(intType = 1)",
                     expectedLegacySource =
                         expectations {
                             common = "@test.pkg.OtherAnnotation(intType = 1)"
@@ -205,6 +222,7 @@ class ValueExample(
                     javaType = "char",
                     javaExpression = "'x'",
                     kotlinType = "Char",
+                    signatureExpression = "120",
                     expectedLegacySource =
                         expectations {
                             common = "'x'"
@@ -221,6 +239,7 @@ class ValueExample(
                     javaType = "char",
                     javaExpression = "'\\u2912'",
                     kotlinType = "Char",
+                    signatureExpression = "10514",
                     expectedLegacySource =
                         expectations {
                             common = "'\\u2912'"
@@ -239,6 +258,7 @@ class ValueExample(
                     javaType = "char",
                     javaExpression = "'\\t'",
                     kotlinType = "Char",
+                    signatureExpression = "9",
                     expectedLegacySource =
                         expectations {
                             // This seems like the best representation. Quoted and escaped.
@@ -505,6 +525,9 @@ class ValueExample(
                     name = "enum",
                     javaType = "TestEnum",
                     javaExpression = "TestEnum.VALUE1",
+                    // Must fully qualify most classes in signature files.
+                    signatureType = "test.pkg.TestEnum",
+                    signatureExpression = "test.pkg.TestEnum.VALUE1",
                     expectedLegacySource =
                         expectations {
                             common = "test.pkg.TestEnum.VALUE1"
