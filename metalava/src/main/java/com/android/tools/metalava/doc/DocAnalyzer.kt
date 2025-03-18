@@ -177,7 +177,9 @@ class DocAnalyzer(
                     val permClass = codebase.findClass("android.Manifest.permission")
                     permClass
                         ?.fields()
-                        ?.filter { it.initialValue(requireConstant = false)?.toString() == perm }
+                        ?.filter {
+                            it.legacyInitialValue(requireConstant = false)?.toString() == perm
+                        }
                         ?.forEach {
                             return it
                         }

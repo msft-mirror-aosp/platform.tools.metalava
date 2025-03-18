@@ -342,7 +342,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     containingClass = containingClass,
                     type = fieldToSnapshot.type().snapshot(),
                     isEnumConstant = fieldToSnapshot.isEnumConstant(),
-                    fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
+                    fieldValue = fieldToSnapshot.legacyFieldValue?.snapshot(),
                 )
             }
         newField.copySelectedApiVariants(fieldToSnapshot)

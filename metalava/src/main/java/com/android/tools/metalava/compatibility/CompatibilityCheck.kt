@@ -726,7 +726,7 @@ class CompatibilityCheck(
                     "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
             } else if (!old.hasSameValue(new)) {
-                val prevValue = old.initialValue()
+                val prevValue = old.legacyInitialValue()
                 val prevString =
                     if (prevValue == null && !old.modifiers.isFinal()) {
                         "nothing/not constant"
@@ -734,7 +734,7 @@ class CompatibilityCheck(
                         prevValue
                     }
 
-                val newValue = new.initialValue()
+                val newValue = new.legacyInitialValue()
                 val newString =
                     if (newValue is PsiField) {
                         newValue.containingClass?.qualifiedName + "." + newValue.name
@@ -788,7 +788,7 @@ class CompatibilityCheck(
             oldModifiers.isFinal() &&
                 !newModifiers.isFinal() &&
                 oldModifiers.isStatic() &&
-                old.initialValue() != null
+                old.legacyInitialValue() != null
         ) {
             report(
                 Issues.REMOVED_FINAL,

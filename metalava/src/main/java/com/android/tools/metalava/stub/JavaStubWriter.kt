@@ -345,7 +345,7 @@ internal class JavaStubWriter(
         writer.print(field.name())
         val needsInitialization =
             field.modifiers.isFinal() &&
-                field.initialValue(true) == null &&
+                field.legacyInitialValue(true) == null &&
                 field.containingClass().isClass()
         field.writeValueWithSemicolon(
             writer,
