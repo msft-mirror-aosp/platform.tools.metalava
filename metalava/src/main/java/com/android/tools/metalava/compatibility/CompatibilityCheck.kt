@@ -892,7 +892,7 @@ class CompatibilityCheck(
             // two interfaces that each now define methods with the same signature.
             // Annotation types cannot implement other interfaces, however, so it is permitted to
             // add new default methods to annotation types.
-            if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
+            if (new.containingClass().isAnnotationType() && new.defaultValue() != "") {
                 return
             }
         }
