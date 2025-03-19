@@ -143,6 +143,16 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,k2,null annotated parameterized inner type - kotlin nulls]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
+  testLegacySource[psi,kotlin,k1,source,class array literal]
+  testLegacySource[psi,kotlin,k1,source,class int array literal]
+  testLegacySource[psi,kotlin,k1,source,class void primitive class]
+  testLegacySource[psi,kotlin,k1,source,class void wrapper class]
+  testLegacySource[psi,kotlin,k1,source,class]
+  testLegacySource[psi,kotlin,k2,source,class array literal]
+  testLegacySource[psi,kotlin,k2,source,class int array literal]
+  testLegacySource[psi,kotlin,k2,source,class void primitive class]
+  testLegacySource[psi,kotlin,k2,source,class void wrapper class]
+  testLegacySource[psi,kotlin,k2,source,class]
   testLegacySource[turbine,jar,annotation]
   testLegacySource[turbine,jar,double NaN]
   testLegacySource[turbine,jar,double negative infinity]
@@ -173,6 +183,16 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[turbine,source,long with int]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testLegacySource[psi,kotlin,k1,source,class array literal]
+  testLegacySource[psi,kotlin,k1,source,class int array literal]
+  testLegacySource[psi,kotlin,k1,source,class void primitive class]
+  testLegacySource[psi,kotlin,k1,source,class void wrapper class]
+  testLegacySource[psi,kotlin,k1,source,class]
+  testLegacySource[psi,kotlin,k2,source,class array literal]
+  testLegacySource[psi,kotlin,k2,source,class int array literal]
+  testLegacySource[psi,kotlin,k2,source,class void primitive class]
+  testLegacySource[psi,kotlin,k2,source,class void wrapper class]
+  testLegacySource[psi,kotlin,k2,source,class]
   testLegacySource[turbine,jar,annotation]
   testLegacySource[turbine,jar,char unicode]
   testLegacySource[turbine,jar,double NaN]
