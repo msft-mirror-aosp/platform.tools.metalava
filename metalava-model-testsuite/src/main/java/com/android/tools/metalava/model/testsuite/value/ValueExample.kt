@@ -19,7 +19,9 @@ package com.android.tools.metalava.model.testsuite.value
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
+import java.util.EnumSet
 
 /**
  * Encapsulates information about a value example.
@@ -46,6 +48,9 @@ class ValueExample(
 
     /** The set of [ValueUseSite]s in which this example will be tested; defaults to all of them. */
     val suitableFor: Set<ValueUseSite> = allValueUseSites,
+
+    /** The set of [InputFormat]s for which this example is valid. */
+    val validForInputFormats: Set<InputFormat> = allInputFormats,
 
     /**
      * The legacy string representation of [javaExpression].
@@ -92,6 +97,9 @@ class ValueExample(
             }
             add("String")
         }
+
+        /** All the [InputFormat]s. */
+        private val allInputFormats = EnumSet.allOf(InputFormat::class.java)
 
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and

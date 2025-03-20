@@ -239,9 +239,14 @@ abstract class BaseCommonParameterizedValueTest(
             config: CodebaseCreatorConfig<ModelSuiteRunner>,
             producer: CodebaseProducer,
             testCase: TestCase,
-        ) =
-            // Only supports java input formats at the moment.
-            config.inputFormat == InputFormat.JAVA
+        ): Boolean {
+            val inputFormat = config.inputFormat
+
+            // Ignore any tests that are not valid for the InputFormat.
+            return inputFormat in testCase.valueExample.validForInputFormats &&
+                // Only supports java input formats at the moment.
+                inputFormat == InputFormat.JAVA
+        }
 
         /** The set of [TestCase]s to run in each [CodebaseProducer] in [codebaseProducers]. */
         private val testCases = run {
