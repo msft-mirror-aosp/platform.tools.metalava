@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
+import com.android.tools.metalava.model.value.Value
 import java.util.EnumSet
 
 /**
@@ -97,6 +98,18 @@ class ValueExample(
      * Kotlin specific expectation sit alongside and default to [expectedLegacySource].
      */
     private val expectedKotlinLegacySource: Expectation<String?> = expectedLegacySource,
+
+    /**
+     * The expected [Value] for this case.
+     *
+     * This may differ by [ProducerKind] and [ValueUseSite].
+     *
+     * This is optional at the moment to allow the expected value to be added incrementally as the
+     * [Value] model is expanded.
+     *
+     * TODO(b/354633349): Make this required.
+     */
+    val expectedValue: Expectation<Value?>? = null,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
