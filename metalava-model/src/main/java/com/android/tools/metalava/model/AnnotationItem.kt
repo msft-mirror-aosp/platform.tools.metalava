@@ -386,13 +386,14 @@ protected constructor(
     final override val qualifiedName: String,
 
     /** Possibly empty list of attributes. */
-    attributesGetter: () -> List<AnnotationAttribute>,
+    attributesGetter: (AnnotationItem) -> List<AnnotationAttribute>,
 ) : AnnotationItem {
 
     override val targets
         get() = info.targets
 
-    final override val attributes: List<AnnotationAttribute> by lazy(attributesGetter)
+    final override val attributes: List<AnnotationAttribute> by
+        lazy(LazyThreadSafetyMode.NONE) { attributesGetter(this) }
 
     /** Information that metalava has gathered about this annotation item. */
     internal val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
@@ -511,7 +512,8 @@ protected constructor(
                 if (index == -1) source.substring(1) // Strip @
                 else source.substring(1, index)
 
-            fun attributes(): List<AnnotationAttribute> =
+            @Suppress("UNUSED_PARAMETER")
+            fun attributes(annotationItem: AnnotationItem): List<AnnotationAttribute> =
                 if (index == -1) {
                     emptyList()
                 } else {
@@ -541,7 +543,7 @@ protected constructor(
             codebase: Codebase,
             fileLocation: FileLocation,
             originalName: String,
-            attributesGetter: () -> List<AnnotationAttribute>,
+            attributesGetter: (AnnotationItem) -> List<AnnotationAttribute>,
         ): AnnotationItem? {
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
