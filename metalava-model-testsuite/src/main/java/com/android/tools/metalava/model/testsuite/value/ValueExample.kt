@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
@@ -75,7 +74,8 @@ class ValueExample(
     val expectedLegacySource =
         // If the field is not a constant then wrap it in an Expectation that will enforce that
         // fields only have constant values.
-        if (isConstant) expectedLegacySource else NotConstantFieldExpectation(expectedLegacySource)
+        if (isConstant) expectedLegacySource
+        else constantFieldLegacySourceExpectation.fallBackTo(expectedLegacySource)
 
     /** The suffix to add to class names to make them specific to this example. */
     val classSuffix = name.replace(" ", "_")
@@ -739,23 +739,14 @@ class ValueExample(
 }
 
 /**
- * An [Expectation] that wraps another [Expectation] and return [NO_INITIAL_FIELD_VALUE] for fields.
+ * A partial [Expectation] that returns [NO_INITIAL_FIELD_VALUE] for fields.
  *
  * This is used when a [ValueExample] is not a constant and so a field that uses it will not have a
- * value.
+ * value. It is checked first and then [falls back to](fallBackTo)
+ * [ValueExample.expectedLegacySource],
  */
-class NotConstantFieldExpectation(private val delegate: Expectation<String>) : Expectation<String> {
-    override fun expectationFor(
-        producerKind: ProducerKind,
-        valueUseSite: ValueUseSite,
-        codebase: Codebase
-    ): String {
-        return when (valueUseSite) {
-            ValueUseSite.FIELD_VALUE,
-            ValueUseSite.FIELD_WRITE_WITH_SEMICOLON -> {
-                NO_INITIAL_FIELD_VALUE
-            }
-            else -> delegate.expectationFor(producerKind, valueUseSite, codebase)
-        }
+private val constantFieldLegacySourceExpectation =
+    partialExpectations<String> {
+        fieldValue = NO_INITIAL_FIELD_VALUE
+        fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
     }
-}
