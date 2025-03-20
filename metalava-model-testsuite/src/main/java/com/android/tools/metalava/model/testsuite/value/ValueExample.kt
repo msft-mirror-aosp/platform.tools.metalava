@@ -16,15 +16,17 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.testsuite.value.CommonParameterizedValueTest.CodebaseProducer
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 
 /**
  * Encapsulates information about a value example.
  *
  * This will be useful for a number of different tests around values.
  */
-data class ValueExample(
+class ValueExample(
     /**
      * The name of the example.
      *
@@ -50,7 +52,7 @@ data class ValueExample(
      *
      * This may differ by [ProducerKind] and [ValueUseSite].
      */
-    val expectedLegacySource: Expectation<String>,
+    expectedLegacySource: Expectation<String>,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -65,18 +67,32 @@ data class ValueExample(
      */
     val testThis: Boolean = false,
 ) {
-    /** The name of the annotation attribute that this example will use in any generated classes. */
-    val attributeName = name.replace(" ", "_") + "_attr"
+    val expectedLegacySource =
+        // If the field is not a constant then wrap it in an Expectation that will enforce that
+        // fields only have constant values.
+        if (isConstant) expectedLegacySource else NotConstantFieldExpectation(expectedLegacySource)
 
-    /** The name of the field that this example will use in any generated classes. */
-    val fieldName = attributeName.uppercase()
+    /** The suffix to add to class names to make them specific to this example. */
+    val classSuffix = name.replace(" ", "_")
+
+    /** True if this is supported to be a field constant. */
+    private val isConstant
+        get() = javaType in constantTypeNames
 
     companion object {
         /** A special value used for fields for whom [FieldItem.initialValue] returns `null`. */
         internal const val NO_INITIAL_FIELD_VALUE = "NO INITIAL FIELD VALUE"
 
+        /** Names of constant types used in [ValueExample.javaType]. */
+        private val constantTypeNames = buildSet {
+            for (kind in PrimitiveTypeItem.Primitive.entries) {
+                add(kind.primitiveName)
+            }
+            add("String")
+        }
+
         /**
-         * The list of all [ValueExample]s that could be tested across [CodebaseProducer] and
+         * The list of all [ValueExample]s that could be tested across [ProducerKind] and
          * [ValueUseSite]s.
          */
         private val allValueExamples =
@@ -92,6 +108,15 @@ data class ValueExample(
                             source { common = "@OtherAnnotation(intType = 1)" }
                             // TODO(b/354633349): Missing attributes.
                             attributeDefaultValue = "@test.pkg.OtherAnnotation"
+
+                            annotationToSource =
+                                "@test.pkg.OtherAnnotation(" +
+                                    "classType=void.class," +
+                                    " enumType=test.pkg.TestEnum.DEFAULT," +
+                                    " intType=1," +
+                                    " stringType=\"default\"," +
+                                    " stringArrayType={}" +
+                                    ")"
                         },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allValueUseSitesExceptFields,
@@ -127,6 +152,7 @@ data class ValueExample(
                             common = "'x'"
                             // TODO(b/354633349): Should have surrounding quotes.
                             fieldValue = "x"
+                            fieldWriteWithSemicolon = "120"
                         },
                 ),
                 // Check a unicode char.
@@ -136,15 +162,27 @@ data class ValueExample(
                     javaExpression = "'\\u2912'",
                     expectedLegacySource =
                         expectations {
-                            // TODO(b/354633349): Should probably use the `\uABCD` form.
-                            common = "'⤒'"
+                            common = "'\\u2912'"
                             // TODO(b/354633349): Should have surrounding quotes and use the
-                            // `\uABCD` form.
+                            //   `\uABCD` form.
                             fieldValue = "⤒"
-
-                            // These are correct.
-                            attributeDefaultValue = "'\\u2912'"
-                            source { attributeValue = "'\\u2912'" }
+                            jar { attributeValue = "'⤒'" }
+                            fieldWriteWithSemicolon = "10514"
+                        },
+                ),
+                // Check char escaped.
+                ValueExample(
+                    name = "char escaped",
+                    javaType = "char",
+                    javaExpression = "'\\t'",
+                    expectedLegacySource =
+                        expectations {
+                            // This seems like the best representation. Quoted and escaped.
+                            common = "'\\t'"
+                            // TODO(b/354633349): Should have surrounding quotes and use the
+                            //   `\uABCD` form.
+                            fieldValue = "\t"
+                            fieldWriteWithSemicolon = "9"
                         },
                 ),
                 // Check a class literal.
@@ -161,9 +199,53 @@ data class ValueExample(
                                 common = "List.class"
                                 attributeDefaultValue = "java.util.List.class"
                             }
-                            // TODO(b/354633349): Try and make this consistent.
-                            fieldValue = NO_INITIAL_FIELD_VALUE
                         },
+                ),
+                // Check an array class literal.
+                ValueExample(
+                    name = "class array literal",
+                    javaType = "Class<?>",
+                    javaExpression = "List[].class",
+                    javaImports = listOf("java.util.List"),
+                    expectedLegacySource =
+                        expectations {
+                            common = "java.util.List[].class"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better.
+                                common = "List[].class"
+                                attributeDefaultValue = "java.util.List[].class"
+                            }
+                        },
+                ),
+                // Check a primitive class literal.
+                ValueExample(
+                    name = "class void primitive class",
+                    javaType = "Class<?>",
+                    javaExpression = "void.class",
+                    expectedLegacySource = expectations { common = "void.class" },
+                ),
+                // Check a primitive wrapper class literal.
+                ValueExample(
+                    name = "class void wrapper class",
+                    javaType = "Class<?>",
+                    javaExpression = "Void.class",
+                    expectedLegacySource =
+                        expectations {
+                            common = "java.lang.Void.class"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better unless java.lang
+                                //   prefix is removed.
+                                attributeValue = "Void.class"
+                                annotationToSource = "Void.class"
+                            }
+                        },
+                ),
+                // Check a primitive array class literal.
+                ValueExample(
+                    name = "class int array literal",
+                    javaType = "Class<?>",
+                    javaExpression = "int[].class",
+                    expectedLegacySource = expectations { common = "int[].class" },
                 ),
                 // Check a simple double.
                 ValueExample(
@@ -189,7 +271,20 @@ data class ValueExample(
                                 // TODO(b/354633349): Consistency is good.
                                 attributeDefaultValue = "3"
                                 attributeValue = "3"
+                                annotationToSource = "3"
                             }
+                        },
+                ),
+                // Check a simple double with exponent
+                ValueExample(
+                    name = "double with exponent",
+                    javaType = "double",
+                    javaExpression = "7e10",
+                    expectedLegacySource =
+                        expectations {
+                            common = "7.0E10"
+
+                            source { attributeValue = "7e10" }
                         },
                 ),
                 // Check a special double - Nan.
@@ -207,13 +302,17 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Double.NaN"
                                 attributeValue = "Double.NaN"
+                                annotationToSource = "java.lang.Double.NaN"
                                 fieldValue = "NaN"
+                                fieldWriteWithSemicolon = "(0.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0d / 0.0"
+                                annotationToSource = "0.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -232,13 +331,17 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Double.POSITIVE_INFINITY"
                                 attributeValue = "Double.POSITIVE_INFINITY"
+                                annotationToSource = "java.lang.Double.POSITIVE_INFINITY"
                                 fieldValue = "Infinity"
+                                fieldWriteWithSemicolon = "(1.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0 / 0.0"
+                                annotationToSource = "1.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -256,13 +359,17 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Double.NEGATIVE_INFINITY"
                                 attributeValue = "Double.NEGATIVE_INFINITY"
+                                annotationToSource = "java.lang.Double.NEGATIVE_INFINITY"
                                 fieldValue = "-Infinity"
+                                fieldWriteWithSemicolon = "(-1.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0 / 0.0"
+                                annotationToSource = "-1.0 / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -278,8 +385,6 @@ data class ValueExample(
                                 // TODO(b/354633349): Fully qualified is better.
                                 attributeValue = "TestEnum.VALUE1"
                             }
-                            // TODO(b/354633349): Try and make this consistent.
-                            fieldValue = NO_INITIAL_FIELD_VALUE
                         },
                 ),
                 // Check a simple float with int
@@ -299,6 +404,7 @@ data class ValueExample(
                                 // TODO(b/354633349): Consistency is good.
                                 attributeDefaultValue = "3"
                                 attributeValue = "3"
+                                annotationToSource = "3"
                             }
 
                             jar {
@@ -308,6 +414,21 @@ data class ValueExample(
 
                             // TODO(b/354633349): Consistency is good.
                             fieldValue = "3.0"
+                            fieldWriteWithSemicolon = "3.0f"
+                        },
+                ),
+                // Check a simple float with exponent
+                ValueExample(
+                    name = "float with exponent",
+                    javaType = "float",
+                    javaExpression = "7e10f",
+                    expectedLegacySource =
+                        expectations {
+                            common = "7.0E10f"
+
+                            source { attributeValue = "7e10f" }
+
+                            fieldValue = "7.0E10"
                         },
                 ),
                 // Check a simple float with upper F.
@@ -321,6 +442,7 @@ data class ValueExample(
 
                             // TODO(b/354633349): Consistency is good.
                             attributeDefaultValue = "3.141f"
+                            annotationToSource = "3.141f"
 
                             jar {
                                 // TODO(b/354633349): Consistency is good.
@@ -329,6 +451,7 @@ data class ValueExample(
 
                             // TODO(b/354633349): Consistency is good.
                             fieldValue = "3.141"
+                            fieldWriteWithSemicolon = "3.141f"
                         },
                 ),
                 // Check a simple float with lower F.
@@ -358,13 +481,17 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Float.NaN"
                                 attributeValue = "Float.NaN"
+                                annotationToSource = "java.lang.Float.NaN"
                                 fieldValue = "NaN"
+                                fieldWriteWithSemicolon = "(0.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0f / 0.0"
+                                annotationToSource = "0.0f / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -383,13 +510,17 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Float.POSITIVE_INFINITY"
                                 attributeValue = "Float.POSITIVE_INFINITY"
+                                annotationToSource = "java.lang.Float.POSITIVE_INFINITY"
                                 fieldValue = "Infinity"
+                                fieldWriteWithSemicolon = "(1.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0f / 0.0"
+                                annotationToSource = "1.0f / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -407,13 +538,17 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "java.lang.Float.NEGATIVE_INFINITY"
                                 attributeValue = "Float.NEGATIVE_INFINITY"
+                                annotationToSource = "java.lang.Float.NEGATIVE_INFINITY"
                                 fieldValue = "-Infinity"
+                                fieldWriteWithSemicolon = "(-1.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0f / 0.0"
+                                annotationToSource = "-1.0F / 0.0"
                                 fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
                 ),
@@ -435,6 +570,8 @@ data class ValueExample(
                             source {
                                 // TODO(b/354633349): The leading + is unnecessary.
                                 attributeValue = "+17"
+
+                                annotationToSource = "0x11"
                             }
                         },
                 ),
@@ -443,7 +580,12 @@ data class ValueExample(
                     name = "int negative",
                     javaType = "int",
                     javaExpression = "-17",
-                    expectedLegacySource = expectations { common = "-17" },
+                    expectedLegacySource =
+                        expectations {
+                            common = "-17"
+
+                            annotationToSource = "0xffffffef"
+                        },
                 ),
                 // Check a simple long with an integer value.
                 ValueExample(
@@ -461,6 +603,7 @@ data class ValueExample(
                             source {
                                 attributeDefaultValue = "1000"
                                 attributeValue = "1000"
+                                annotationToSource = "1000"
                             }
                         },
                 ),
@@ -512,24 +655,32 @@ data class ValueExample(
                             fieldValue = "string"
                         },
                 ),
+                ValueExample(
+                    name = "String escaped",
+                    javaType = "String",
+                    javaExpression = "\"str\\ning\"",
+                    expectedLegacySource =
+                        expectations {
+                            common = "\"str\\ning\""
+                            // TODO(b/354633349): Should have surrounding quotes and newline should
+                            //   be escaped.
+                            fieldValue = "str\ning"
+                        },
+                ),
                 // Check a simple string array.
                 ValueExample(
                     name = "String array",
                     javaType = "String[]",
                     javaExpression = "{\"string1\", \"string2\"}",
-                    expectedLegacySource =
-                        expectations {
-                            common = "{\"string1\", \"string2\"}"
-
-                            // This is ok as an array is not a constant.
-                            fieldValue = NO_INITIAL_FIELD_VALUE
-                        },
+                    expectedLegacySource = expectations { common = "{\"string1\", \"string2\"}" },
                 ),
                 // Check passing a single value to an array type.
                 ValueExample(
                     name = "String array with single string",
                     javaType = "String[]",
                     javaExpression = "\"string\"",
+                    // Fields that are of type String[] cannot be given a solitary string like an
+                    // annotation attribute can.
                     suitableFor = allValueUseSitesExceptFields,
                     expectedLegacySource =
                         expectations {
@@ -555,21 +706,46 @@ data class ValueExample(
                                 common = "test.pkg.Constants.STRING_CONSTANT"
                                 // TODO(b/354633349): Fully qualified is better.
                                 attributeValue = "Constants.STRING_CONSTANT"
-                                // TODO(b/354633349): Should at least be the constant string, if not
+                                // TODO(b/354633349): Should have surrounding quotes, if not
                                 //   a field reference.
-                                fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldValue = "constant"
+                                // TODO(b/354633349): Should probably be a field reference, at least
+                                //   in some cases.
+                                fieldWriteWithSemicolon = "\"constant\""
                             }
                         },
                 )
             )
 
         /**
-         * The list of [ValueExample]s that will be tested across [CodebaseProducer] and
+         * The list of [ValueExample]s that will be tested across [ProducerKind] and
          * [ValueUseSite]s.
          */
         internal val valueExamples =
             allValueExamples
                 .filter { it.testThis }
                 .let { filtered -> filtered.ifEmpty { allValueExamples } }
+    }
+}
+
+/**
+ * An [Expectation] that wraps another [Expectation] and return [NO_INITIAL_FIELD_VALUE] for fields.
+ *
+ * This is used when a [ValueExample] is not a constant and so a field that uses it will not have a
+ * value.
+ */
+class NotConstantFieldExpectation(private val delegate: Expectation<String>) : Expectation<String> {
+    override fun expectationFor(
+        producerKind: ProducerKind,
+        valueUseSite: ValueUseSite,
+        codebase: Codebase
+    ): String {
+        return when (valueUseSite) {
+            ValueUseSite.FIELD_VALUE,
+            ValueUseSite.FIELD_WRITE_WITH_SEMICOLON -> {
+                NO_INITIAL_FIELD_VALUE
+            }
+            else -> delegate.expectationFor(producerKind, valueUseSite, codebase)
+        }
     }
 }
