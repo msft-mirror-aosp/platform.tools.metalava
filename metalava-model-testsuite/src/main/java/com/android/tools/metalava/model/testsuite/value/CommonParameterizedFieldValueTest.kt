@@ -34,7 +34,7 @@ class CommonParameterizedFieldValueTest :
         FIELD_VALUE,
         legacySourceGetter = {
             val field = testClassItem.assertField(FIELD_NAME)
-            val fieldValue = assertNotNull(field.fieldValue, "No field value")
+            val fieldValue = assertNotNull(field.legacyFieldValue, "No field value")
             fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
         },
     ) {

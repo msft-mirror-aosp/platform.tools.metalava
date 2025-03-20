@@ -33,7 +33,7 @@ class CommonParameterizedAttributeDefaultValueTest :
         legacySourceGetter = {
             val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
 
-            annotationMethod.defaultValue()
+            annotationMethod.legacyDefaultValue()
         },
     ) {
     companion object : BaseCompanion(ATTRIBUTE_DEFAULT_VALUE) {

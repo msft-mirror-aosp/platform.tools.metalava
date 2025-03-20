@@ -80,7 +80,9 @@ class ValueExample(
         get() = javaType in constantTypeNames
 
     companion object {
-        /** A special value used for fields for whom [FieldItem.initialValue] returns `null`. */
+        /**
+         * A special value used for fields for whom [FieldItem.legacyInitialValue] returns `null`.
+         */
         internal const val NO_INITIAL_FIELD_VALUE = "NO INITIAL FIELD VALUE"
 
         /** Names of constant types used in [ValueExample.javaType]. */
