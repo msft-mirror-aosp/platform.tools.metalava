@@ -56,7 +56,17 @@ class ValueExample(
      *
      * This may differ by [ProducerKind] and [ValueUseSite].
      */
-    expectedLegacySource: Expectation<String>,
+    private val expectedLegacySource: Expectation<String>,
+
+    /**
+     * Kotlin source expressions can have a different representation than the same source expression
+     * in Java.
+     *
+     * Rather than make [Expectation] support another dimension on top of [ValueUseSite] and
+     * [ProducerKind] for the few cases where there are differences, it is handled by having this
+     * Kotlin specific expectation sit alongside and default to [expectedLegacySource].
+     */
+    private val expectedKotlinLegacySource: Expectation<String?> = expectedLegacySource,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -71,11 +81,24 @@ class ValueExample(
      */
     val testThis: Boolean = false,
 ) {
-    val expectedLegacySource =
-        // If the field is not a constant then wrap it in an Expectation that will enforce that
-        // fields only have constant values.
-        if (isConstant) expectedLegacySource
-        else constantFieldLegacySourceExpectation.fallBackTo(expectedLegacySource)
+    /**
+     * If the field is not a constant then wrap it in an Expectation that will enforce that fields
+     * only have constant values.
+     */
+    private fun wrapLegacySource(expectation: Expectation<String>) =
+        if (isConstant) expectation
+        else constantFieldLegacySourceExpectation.fallBackTo(expectation)
+
+    /** Get the expected legacy source for [inputFormat]. */
+    fun expectedLegacySourceFor(inputFormat: InputFormat) =
+        wrapLegacySource(
+            when (inputFormat) {
+                InputFormat.KOTLIN ->
+                    // Kotlin overrides the standard expectations.
+                    expectedKotlinLegacySource.fallBackTo(expectedLegacySource)
+                else -> expectedLegacySource
+            }
+        )
 
     /** The suffix to add to class names to make them specific to this example. */
     val classSuffix = name.replace(" ", "_")

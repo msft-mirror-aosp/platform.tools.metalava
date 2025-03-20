@@ -78,7 +78,7 @@ import org.junit.runners.Parameterized
  *   this test class.
  * @param valueUseSite the [ValueUseSite] being tested by this class.
  * @param legacySourceGetter gets the legacy source representation as expected by
- *   [ValueExample.expectedLegacySource].
+ *   [ValueExample.expectedLegacySourceFor].
  */
 abstract class BaseCommonParameterizedValueTest(
     private val testFileCache: TestFileCache,
@@ -425,7 +425,8 @@ abstract class BaseCommonParameterizedValueTest(
     @RequiresCapabilities(Capability.JAVA)
     @Test
     fun testLegacySource() {
-        runExpectationTest(testCase.valueExample.expectedLegacySource, legacySourceGetter)
+        val expectedLegacySource = testCase.valueExample.expectedLegacySourceFor(inputFormat)
+        runExpectationTest(expectedLegacySource, legacySourceGetter)
     }
 }
 
