@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.value
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.value.Value
 import java.util.EnumSet
@@ -212,6 +213,7 @@ class ValueExample(
                     javaExpression = "true",
                     kotlinType = "Boolean",
                     expectedLegacySource = expectations { common = "true" },
+                    expectedValue = expectations { common = literalValue(true) },
                 ),
                 // Check a simple boolean false value.
                 ValueExample(
@@ -220,6 +222,7 @@ class ValueExample(
                     javaExpression = "false",
                     kotlinType = "Boolean",
                     expectedLegacySource = expectations { common = "false" },
+                    expectedValue = expectations { common = literalValue(false) },
                 ),
                 // Check a simple byte.
                 ValueExample(
@@ -228,6 +231,7 @@ class ValueExample(
                     javaExpression = "116",
                     kotlinType = "Byte",
                     expectedLegacySource = expectations { common = "116" },
+                    expectedValue = expectations { common = literalValue(116.toByte()) },
                 ),
                 // Check a simple char.
                 ValueExample(
@@ -245,6 +249,7 @@ class ValueExample(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "\"x\"" },
+                    expectedValue = expectations { common = literalValue('x') },
                 ),
                 // Check a unicode char.
                 ValueExample(
@@ -264,6 +269,7 @@ class ValueExample(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "\"\\u2912\"" },
+                    expectedValue = expectations { common = literalValue('\u2912') },
                 ),
                 // Check char escaped.
                 ValueExample(
@@ -283,6 +289,7 @@ class ValueExample(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "\"\\t\"" },
+                    expectedValue = expectations { common = literalValue('\t') },
                 ),
                 // Check a class literal.
                 ValueExample(
@@ -388,6 +395,7 @@ class ValueExample(
                     javaExpression = "3.141",
                     kotlinType = "Double",
                     expectedLegacySource = expectations { common = "3.141" },
+                    expectedValue = expectations { common = literalValue(3.141) },
                 ),
                 // Check a simple double with int
                 ValueExample(
@@ -411,6 +419,7 @@ class ValueExample(
                             }
                         },
                     expectedKotlinLegacySource = partialExpectations { source { common = "3" } },
+                    expectedValue = expectations { common = literalValue(3.0) },
                 ),
                 // Check a simple double with exponent
                 ValueExample(
@@ -424,6 +433,7 @@ class ValueExample(
 
                             source { attributeValue = "7e10" }
                         },
+                    expectedValue = expectations { common = literalValue(7e10) },
                 ),
                 // Check a special double - Nan.
                 ValueExample(
@@ -459,6 +469,7 @@ class ValueExample(
                             attributeDefaultValue = "kotlin.jvm.internal.DoubleCompanionObject.NaN"
                             annotationToSource = "kotlin.jvm.internal.DoubleCompanionObject.NaN"
                         },
+                    expectedValue = expectations { common = literalValue(Double.NaN) },
                 ),
                 // Check a special double - +infinity.
                 ValueExample(
@@ -496,6 +507,8 @@ class ValueExample(
                             annotationToSource =
                                 "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY"
                         },
+                    expectedValue =
+                        expectations { common = literalValue(Double.POSITIVE_INFINITY) },
                 ),
                 ValueExample(
                     name = "double negative infinity",
@@ -532,6 +545,8 @@ class ValueExample(
                             annotationToSource =
                                 "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY"
                         },
+                    expectedValue =
+                        expectations { common = literalValue(Double.NEGATIVE_INFINITY) },
                 ),
                 // Check an enum literal.
                 ValueExample(
@@ -581,6 +596,7 @@ class ValueExample(
                             fieldWriteWithSemicolon = "3.0f"
                         },
                     expectedKotlinLegacySource = partialExpectations { source { common = "3" } },
+                    expectedValue = expectations { common = literalValue(3.0f) },
                 ),
                 // Check a simple float with exponent
                 ValueExample(
@@ -598,6 +614,7 @@ class ValueExample(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "7.0E10" },
+                    expectedValue = expectations { common = literalValue(7e10f) },
                 ),
                 // Check a simple float with upper F.
                 ValueExample(
@@ -624,6 +641,7 @@ class ValueExample(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "3.141" },
+                    expectedValue = expectations { common = literalValue(3.141F) },
                 ),
                 // Check a simple float with lower F.
                 ValueExample(
@@ -674,6 +692,7 @@ class ValueExample(
                             attributeDefaultValue = "kotlin.jvm.internal.FloatCompanionObject.NaN"
                             annotationToSource = "kotlin.jvm.internal.FloatCompanionObject.NaN"
                         },
+                    expectedValue = expectations { common = literalValue(Float.NaN) },
                 ),
                 // Check a special float - +infinity.
                 ValueExample(
@@ -711,6 +730,7 @@ class ValueExample(
                             annotationToSource =
                                 "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY"
                         },
+                    expectedValue = expectations { common = literalValue(Float.POSITIVE_INFINITY) },
                 ),
                 ValueExample(
                     name = "float negative infinity",
@@ -747,6 +767,7 @@ class ValueExample(
                             annotationToSource =
                                 "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY"
                         },
+                    expectedValue = expectations { common = literalValue(Float.NEGATIVE_INFINITY) },
                 ),
                 // Check a simple int.
                 ValueExample(
@@ -755,6 +776,7 @@ class ValueExample(
                     javaExpression = "17",
                     kotlinType = "Int",
                     expectedLegacySource = expectations { common = "17" },
+                    expectedValue = expectations { common = literalValue(17) },
                 ),
                 // Check an int with a unary plus.
                 ValueExample(
@@ -774,6 +796,7 @@ class ValueExample(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "+17" },
+                    expectedValue = expectations { common = literalValue(17) },
                 ),
                 // Check an int with a unary minus.
                 ValueExample(
@@ -787,6 +810,7 @@ class ValueExample(
 
                             annotationToSource = "0xffffffef"
                         },
+                    expectedValue = expectations { common = literalValue(-17) },
                 ),
                 // Check a simple long with an integer value.
                 ValueExample(
@@ -810,6 +834,7 @@ class ValueExample(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { annotationToSource = "1000L" },
+                    expectedValue = expectations { common = literalValue(1000L) },
                 ),
                 // Check a simple long with an upper case suffix.
                 ValueExample(
@@ -825,6 +850,7 @@ class ValueExample(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "10000000000" },
+                    expectedValue = expectations { common = literalValue(10000000000L) },
                 ),
                 // Check a simple long with a lower case suffix.
                 ValueExample(
@@ -846,6 +872,7 @@ class ValueExample(
                                 attributeValue = "10000000000l"
                             }
                         },
+                    expectedValue = expectations { common = literalValue(10000000000L) },
                 ),
                 // Check a simple short with a lower case suffix.
                 ValueExample(
@@ -854,6 +881,7 @@ class ValueExample(
                     javaExpression = "32000",
                     kotlinType = "Short",
                     expectedLegacySource = expectations { common = "32000" },
+                    expectedValue = expectations { common = literalValue(32000.toShort()) },
                 ),
                 // Check a simple string.
                 ValueExample(
@@ -866,6 +894,7 @@ class ValueExample(
                             // TODO(b/354633349): Should have surrounding quotes.
                             fieldValue = "string"
                         },
+                    expectedValue = expectations { common = literalValue("string") },
                 ),
                 ValueExample(
                     name = "String escaped",
@@ -878,6 +907,7 @@ class ValueExample(
                             //   be escaped.
                             fieldValue = "str\ning"
                         },
+                    expectedValue = expectations { common = literalValue("str\ning") },
                 ),
                 // Check a simple string array.
                 ValueExample(
