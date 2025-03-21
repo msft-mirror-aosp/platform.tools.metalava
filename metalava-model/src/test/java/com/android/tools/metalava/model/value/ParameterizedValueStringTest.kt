@@ -33,206 +33,279 @@ class ParameterizedValueStringTest {
         private val name: String,
 
         /** The value to test. */
-        val value: Value,
+        private val value: Value,
 
         /**
-         * The expected value returned from `Value.toValueString()`, i.e. with
-         * [ValueStringConfiguration.DEFAULT].
+         * The [LabelledConfig] whose [LabelledConfig.valueStringConfiguration] is passed to
+         * [Value.toValueString].
          */
-        val expectedDefaultString: String,
+        private val config: LabelledConfig,
+
+        /**
+         * The expected value returned from [Value.toValueString] when passed the
+         * [ValueStringConfiguration] from [config].
+         */
+        private val expectedString: String,
     ) {
         override fun toString() = name
+
+        /** Run the test. */
+        fun runTest() {
+            assertEquals(expectedString, value.toValueString(config.valueStringConfiguration))
+        }
+    }
+
+    /**
+     * A wrapper around a [valueStringConfiguration] that adds a [label] for use in the
+     * [TestCase.name].
+     */
+    class LabelledConfig(
+        val label: String,
+        val valueStringConfiguration: ValueStringConfiguration
+    ) {
+        companion object {
+            val DEFAULT = LabelledConfig("default", ValueStringConfiguration.DEFAULT)
+        }
     }
 
     companion object {
-        /** Create a [TestCase] for [value] with the [expectedDefaultString]. */
-        private fun testCase(
+        /**
+         * Create a [TestCase] for [value] with the [expectedDefaultString] and optionally invoke
+         * [body] to create additional [TestCase]s for the same [Value].
+         *
+         * @param expectedDefaultString The expected value returned from `Value.toValueString()`,
+         *   i.e. with [ValueStringConfiguration.DEFAULT].
+         */
+        private fun testCasesForValue(
             valueLabel: String? = null,
             value: Value,
-            expectedDefaultString: String
-        ) =
-            TestCase(
-                "${value.kind},${valueLabel ?: value.toValueString()}",
-                value,
-                expectedDefaultString,
-            )
+            expectedDefaultString: String,
+            body: (TestCaseBuilder.() -> Unit)? = null,
+        ) = buildList {
+            TestCaseBuilder(this, valueLabel, value, expectedDefaultString).let { builder ->
+                builder.verifyConfigMatchesDefault(LabelledConfig.DEFAULT)
+                if (body != null) {
+                    builder.body()
+                }
+            }
+        }
+
+        /**
+         * Builder for [TestCase]s.
+         *
+         * @param testCases the list of [TestCase]s to update.
+         * @param valueLabel the optional label to use if the [value]'s [Value.toValueString] is not
+         *   helpful.
+         * @param value the [Value] whose [Value.toValueString] is being tested.
+         * @param expectedDefaultString The expected value returned from `Value.toValueString()`,
+         *   i.e. with [ValueStringConfiguration.DEFAULT].
+         */
+        private class TestCaseBuilder(
+            private val testCases: MutableList<TestCase>,
+            valueLabel: String? = null,
+            private val value: Value,
+            private val expectedDefaultString: String
+        ) {
+            private val prefix = "${value.kind},${valueLabel ?: value.toValueString()}"
+
+            private fun addTestCase(config: LabelledConfig, expectedString: String) {
+                testCases.add(TestCase("$prefix,${config.label}", value, config, expectedString))
+            }
+
+            /**
+             * Add a [TestCase] that verifies that passing [LabelledConfig.valueStringConfiguration]
+             * to [Value.toValueString] results in the same value as if the
+             * [ValueStringConfiguration.DEFAULT] was used, i.e. [expectedDefaultString].
+             */
+            fun verifyConfigMatchesDefault(config: LabelledConfig) {
+                addTestCase(config, expectedDefaultString)
+            }
+
+            /**
+             * Add a [TestCase] that verifies that passing [LabelledConfig.valueStringConfiguration]
+             * to [Value.toValueString] results in [expectedString].
+             */
+            fun verifyConfigChangesOutput(config: LabelledConfig, expectedString: String) {
+                addTestCase(config, expectedString)
+            }
+        }
 
         private val testCases =
             listOf(
                 // ********************************* Arrays *********************************
-                testCase(
+                testCasesForValue(
                     value = arrayValueFromAny(),
                     expectedDefaultString = "{}",
                 ),
-                testCase(
+                testCasesForValue(
                     valueLabel = "single integer",
                     value = arrayValueFromAny(1),
                     expectedDefaultString = "{1}",
                 ),
-                testCase(
+                testCasesForValue(
                     valueLabel = "single string",
                     value = arrayValueFromAny("single"),
                     expectedDefaultString = "{\"single\"}",
                 ),
-                testCase(
+                testCasesForValue(
                     valueLabel = "integers",
                     value = arrayValueFromAny(1, 2, 3),
                     expectedDefaultString = "{1, 2, 3}",
                 ),
-                testCase(
+                testCasesForValue(
                     valueLabel = "strings",
                     value = arrayValueFromAny("first", "second", "third"),
                     expectedDefaultString = "{\"first\", \"second\", \"third\"}",
                 ),
                 // ********************************* Booleans *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue(true),
                     expectedDefaultString = "true",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(false),
                     expectedDefaultString = "false",
                 ),
                 // ********************************* Bytes *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue(0.toByte()),
                     expectedDefaultString = "0",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Byte.MAX_VALUE),
                     expectedDefaultString = "127",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Byte.MIN_VALUE),
                     expectedDefaultString = "-128",
                 ),
                 // ********************************* Chars *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue('a'),
                     expectedDefaultString = "'a'",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue('\t'),
                     expectedDefaultString = "'\\t'",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue('\n'),
                     expectedDefaultString = "'\\n'",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue('\u1245'),
                     expectedDefaultString = "'\\u1245'",
                 ),
                 // ********************************* Doubles *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue(0.0),
                     expectedDefaultString = "0.0",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Double.MAX_VALUE),
                     expectedDefaultString = "1.7976931348623157E308",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Double.MIN_VALUE),
                     expectedDefaultString = "4.9E-324",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Double.NaN),
                     expectedDefaultString = "NaN",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Double.NEGATIVE_INFINITY),
                     expectedDefaultString = "-Infinity",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Double.POSITIVE_INFINITY),
                     expectedDefaultString = "Infinity",
                 ),
                 // ********************************* Floats *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue(0.0f),
                     expectedDefaultString = "0.0f",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Float.MAX_VALUE),
                     expectedDefaultString = "3.4028235E38f",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Float.MIN_VALUE),
                     expectedDefaultString = "1.4E-45f",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Float.NaN),
                     expectedDefaultString = "NaN",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Float.NEGATIVE_INFINITY),
                     expectedDefaultString = "-Infinity",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Float.POSITIVE_INFINITY),
                     expectedDefaultString = "Infinity",
                 ),
                 // ********************************* Ints *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue(0),
                     expectedDefaultString = "0",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Int.MAX_VALUE),
                     expectedDefaultString = "2147483647",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Int.MIN_VALUE),
                     expectedDefaultString = "-2147483648",
                 ),
                 // ********************************* Longs *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue(0L),
                     expectedDefaultString = "0L",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Long.MAX_VALUE),
                     expectedDefaultString = "9223372036854775807L",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Long.MIN_VALUE),
                     expectedDefaultString = "-9223372036854775808L",
                 ),
                 // ********************************* Shorts *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue(0.toShort()),
                     expectedDefaultString = "0",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Short.MAX_VALUE),
                     expectedDefaultString = "32767",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue(Short.MIN_VALUE),
                     expectedDefaultString = "-32768",
                 ),
                 // ********************************* Strings *********************************
-                testCase(
+                testCasesForValue(
                     value = literalValue("string"),
                     expectedDefaultString = "\"string\"",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue("str\ting\n"),
                     expectedDefaultString = "\"str\\ting\\n\"",
                 ),
-                testCase(
+                testCasesForValue(
                     value = literalValue("str\u89EFing"),
                     expectedDefaultString = "\"str\\u89efing\"",
                 ),
             )
 
         /** Supply the list of creation tests as the parameters for this test class. */
-        @JvmStatic @Parameterized.Parameters(name = "{0}") fun params() = testCases
+        @JvmStatic @Parameterized.Parameters(name = "{0}") fun params() = testCases.flatten()
     }
 
     @Test
     fun `toValueString test`() {
-        assertEquals(testCase.expectedDefaultString, testCase.value.toValueString())
+        testCase.runTest()
     }
 }
