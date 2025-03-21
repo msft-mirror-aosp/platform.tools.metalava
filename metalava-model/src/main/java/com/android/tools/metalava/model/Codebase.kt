@@ -25,7 +25,7 @@ import java.io.File
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase : ClassResolver {
+interface Codebase : ClassResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -40,9 +40,6 @@ interface Codebase : ClassResolver {
 
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
-
-    /** The manager of annotations within this codebase. */
-    val annotationManager: AnnotationManager
 
     /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
     val apiSurfaces: ApiSurfaces
@@ -104,16 +101,6 @@ interface Codebase : ClassResolver {
     fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
-
-    /**
-     * Creates an annotation item for the given (fully qualified) Java source.
-     *
-     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
-     */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem?
 
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing {
