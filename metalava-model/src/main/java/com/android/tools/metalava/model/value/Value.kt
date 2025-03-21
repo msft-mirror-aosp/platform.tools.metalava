@@ -164,7 +164,9 @@ sealed interface DoubleValue : PrimitiveValue<Double> {
         get() = ValueKind.DOUBLE
 
     override fun equalToValue(other: Value) =
-        other is DoubleValue && underlyingValue == other.underlyingValue
+        other is DoubleValue &&
+            (underlyingValue == other.underlyingValue ||
+                (underlyingValue.isNaN() && other.underlyingValue.isNaN()))
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 }
@@ -175,7 +177,9 @@ sealed interface FloatValue : PrimitiveValue<Float> {
         get() = ValueKind.FLOAT
 
     override fun equalToValue(other: Value) =
-        other is FloatValue && underlyingValue == other.underlyingValue
+        other is FloatValue &&
+            (underlyingValue == other.underlyingValue ||
+                (underlyingValue.isNaN() && other.underlyingValue.isNaN()))
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
