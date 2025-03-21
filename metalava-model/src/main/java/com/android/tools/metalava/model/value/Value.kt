@@ -59,8 +59,15 @@ sealed interface Value {
     companion object : ValueFactory
 }
 
-/** Configuration options for how to represent a value as a string. */
-class ValueStringConfiguration {
+/**
+ * Configuration options for how to represent a value as a string.
+ *
+ * @param unwrapSingleArrayElement Whether to add braces around an array that contains only a single
+ *   element.
+ */
+data class ValueStringConfiguration(
+    val unwrapSingleArrayElement: Boolean = false,
+) {
     companion object {
         /** Default configuration. */
         val DEFAULT = ValueStringConfiguration()
@@ -242,7 +249,11 @@ sealed interface ArrayValue : Value {
     override fun hashCodeForValue() = elements.hashCode()
 
     override fun toValueString(configuration: ValueStringConfiguration) =
-        elements.joinToString(prefix = "{", postfix = "}") { it.toValueString() }
+        if (configuration.unwrapSingleArrayElement && elements.size == 1) {
+            elements[0].toValueString(configuration)
+        } else {
+            elements.joinToString(prefix = "{", postfix = "}") { it.toValueString() }
+        }
 }
 
 /** Base implementation of [Value]. */

@@ -65,6 +65,9 @@ class ParameterizedValueStringTest {
     ) {
         companion object {
             val DEFAULT = LabelledConfig("default", ValueStringConfiguration.DEFAULT)
+
+            val UNWRAP_SINGLE_ARRAY_ELEMENT =
+                LabelledConfig("unwrap", ValueStringConfiguration(unwrapSingleArrayElement = true))
         }
     }
 
@@ -136,27 +139,43 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = arrayValueFromAny(),
                     expectedDefaultString = "{}",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT)
+                },
                 testCasesForValue(
                     valueLabel = "single integer",
                     value = arrayValueFromAny(1),
                     expectedDefaultString = "{1}",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT,
+                        expectedString = "1",
+                    )
+                },
                 testCasesForValue(
                     valueLabel = "single string",
                     value = arrayValueFromAny("single"),
                     expectedDefaultString = "{\"single\"}",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT,
+                        expectedString = "\"single\"",
+                    )
+                },
                 testCasesForValue(
                     valueLabel = "integers",
                     value = arrayValueFromAny(1, 2, 3),
                     expectedDefaultString = "{1, 2, 3}",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT)
+                },
                 testCasesForValue(
                     valueLabel = "strings",
                     value = arrayValueFromAny("first", "second", "third"),
                     expectedDefaultString = "{\"first\", \"second\", \"third\"}",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT)
+                },
                 // ********************************* Booleans *********************************
                 testCasesForValue(
                     value = literalValue(true),
