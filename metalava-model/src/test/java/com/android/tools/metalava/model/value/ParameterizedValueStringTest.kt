@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.literalValue
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -45,11 +46,44 @@ class ParameterizedValueStringTest {
 
     companion object {
         /** Create a [TestCase] for [value] with the [expectedDefaultString]. */
-        private fun testCase(value: Value, expectedDefaultString: String) =
-            TestCase("${value.kind},${value.toValueString()}", value, expectedDefaultString)
+        private fun testCase(
+            valueLabel: String? = null,
+            value: Value,
+            expectedDefaultString: String
+        ) =
+            TestCase(
+                "${value.kind},${valueLabel ?: value.toValueString()}",
+                value,
+                expectedDefaultString,
+            )
 
         private val testCases =
             listOf(
+                // ********************************* Arrays *********************************
+                testCase(
+                    value = arrayValueFromAny(),
+                    expectedDefaultString = "{}",
+                ),
+                testCase(
+                    valueLabel = "single integer",
+                    value = arrayValueFromAny(1),
+                    expectedDefaultString = "{1}",
+                ),
+                testCase(
+                    valueLabel = "single string",
+                    value = arrayValueFromAny("single"),
+                    expectedDefaultString = "{\"single\"}",
+                ),
+                testCase(
+                    valueLabel = "integers",
+                    value = arrayValueFromAny(1, 2, 3),
+                    expectedDefaultString = "{1, 2, 3}",
+                ),
+                testCase(
+                    valueLabel = "strings",
+                    value = arrayValueFromAny("first", "second", "third"),
+                    expectedDefaultString = "{\"first\", \"second\", \"third\"}",
+                ),
                 // ********************************* Booleans *********************************
                 testCase(
                     value = literalValue(true),

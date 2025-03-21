@@ -14,15 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testing.value
+package com.android.tools.metalava.model.value
 
-import com.android.tools.metalava.model.value.ArrayValue
-import com.android.tools.metalava.model.value.LiteralValue
-import com.android.tools.metalava.model.value.Value
-
-/** Create a [LiteralValue] from the [underlyingValue]. */
-fun literalValue(underlyingValue: Any) = Value.createLiteralValue(null, underlyingValue)
-
-/** Create an [ArrayValue] containing [literals]. */
-fun arrayValueFromAny(vararg literals: Any) =
-    Value.createArrayValue(literals.map { literalValue(it) })
+internal class DefaultArrayValue(override val elements: List<ArrayElementValue>) :
+    DefaultValue(), ArrayValue

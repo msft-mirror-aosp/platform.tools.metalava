@@ -16,7 +16,9 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.testing.stringType
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -63,5 +65,32 @@ class ValueFactoryTest {
         val value = Value.createLiteralValue(null, "string")
         assertEquals(DefaultStringValue("string"), value)
         assertEquals("string", value.underlyingValue)
+    }
+
+    @Test
+    fun `createArrayValue - empty`() {
+        val firstEmpty = Value.createArrayValue(emptyList())
+        val secondEmpty = arrayValueFromAny()
+        assertSame(firstEmpty, secondEmpty)
+    }
+
+    @Test
+    fun `createArrayValue - mixture of kinds`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                arrayValueFromAny(1, 1.0f, 2, 3.0, "text")
+            }
+
+        assertEquals(
+            """
+                Expected array elements to be all of the same kind but found 4 different kinds of value:
+                    int -> DefaultIntValue(1), DefaultIntValue(2)
+                    float -> DefaultFloatValue(1.0f)
+                    double -> DefaultDoubleValue(3.0)
+                    string -> DefaultStringValue("text")
+            """
+                .trimIndent(),
+            exception.message?.trimEnd()
+        )
     }
 }

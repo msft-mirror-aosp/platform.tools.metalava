@@ -119,6 +119,32 @@ interface ValueFactory {
         return literalValue
     }
 
+    /**
+     * Create an [ArrayValue] containing [elements].
+     *
+     * Every call that supplies an empty [elements] will return the same instance of [ArrayValue].
+     * It is the caller's responsibility to ensure that every [ArrayElementValue] in [elements] has
+     * the same [Value.kind]. This will throw an exception if it does not.
+     */
+    fun createArrayValue(elements: List<ArrayElementValue>): Value {
+        if (elements.isEmpty()) return EMPTY_ARRAY
+        val groupedByKind = elements.groupBy { it.kind }
+        val kindCount = groupedByKind.size
+        if (kindCount == 1) return DefaultArrayValue(elements)
+        val message = buildString {
+            append("Expected array elements to be all of the same kind but found ")
+            append(kindCount)
+            append(" different kinds of value:")
+            for (entry in groupedByKind) {
+                append("\n    ")
+                append(entry.key)
+                append(" -> ")
+                entry.value.joinTo(this)
+            }
+        }
+        error(message)
+    }
+
     companion object {
         /**
          * Map from [Primitive] to a [PrimitiveValueFactory] to use to create an appropriate
@@ -262,6 +288,9 @@ interface ValueFactory {
             // Convert it to the correct type for the primitive kind.
             return convert(doubleValue)
         }
+
+        /** An empty [ArrayValue]. */
+        private val EMPTY_ARRAY = DefaultArrayValue(emptyList())
     }
 }
 

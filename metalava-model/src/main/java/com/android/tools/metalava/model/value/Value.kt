@@ -69,6 +69,7 @@ class ValueStringConfiguration {
 
 /** Enumeration of the different types of [ValueKind]. */
 enum class ValueKind {
+    ARRAY,
     BOOLEAN,
     BYTE,
     CHAR,
@@ -83,8 +84,11 @@ enum class ValueKind {
     override fun toString() = super.toString().lowercase()
 }
 
-/** A [Value] that can be used in a constant field as defined by JLS 15.28. */
-sealed interface ConstantValue : Value
+/** A [Value] that is allowed to be used in [ArrayValue.elements]. */
+sealed interface ArrayElementValue : Value
+
+/** A [Value] that can be used in a constant field. */
+sealed interface ConstantValue : ArrayElementValue
 
 /**
  * A [Value] that encapsulates an [underlyingValue] that can be either a primitive or a String.
@@ -223,6 +227,22 @@ sealed interface StringValue : LiteralValue<String> {
         val escaped = javaEscapeString(underlyingValue)
         return "\"$escaped\""
     }
+}
+
+/** A [Value] that is an array whose contents are [elements]. */
+sealed interface ArrayValue : Value {
+    override val kind: ValueKind
+        get() = ValueKind.ARRAY
+
+    /** The array elements. */
+    val elements: List<ArrayElementValue>
+
+    override fun equalToValue(other: Value) = other is ArrayValue && elements == other.elements
+
+    override fun hashCodeForValue() = elements.hashCode()
+
+    override fun toValueString(configuration: ValueStringConfiguration) =
+        elements.joinToString(prefix = "{", postfix = "}") { it.toValueString() }
 }
 
 /** Base implementation of [Value]. */
