@@ -25,7 +25,7 @@ import java.io.File
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase {
+interface Codebase : ClassResolver {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -83,7 +83,7 @@ interface Codebase {
      * available). That may include fabricating the [ClassItem] from nothing in the case of models
      * that work with a partial set of classes (like text model).
      */
-    fun resolveClass(className: String): ClassItem?
+    override fun resolveClass(erasedName: String): ClassItem?
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
