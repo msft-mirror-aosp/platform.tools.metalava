@@ -18,7 +18,12 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.literalValue
+import com.android.tools.metalava.testing.EntryPoint
+import com.android.tools.metalava.testing.EntryPointCallerRule
+import com.android.tools.metalava.testing.EntryPointCallerTracker
+import com.android.tools.metalava.testing.ExitPoint
 import kotlin.test.assertEquals
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -27,6 +32,12 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 class ParameterizedValueStringTest {
     @Parameterized.Parameter(0) lateinit var testCase: TestCase
+
+    /**
+     * Will try and rewrite the stack trace of any test failures to refer to the location where the
+     * [testCase] that is currently being tested was created.
+     */
+    @get:Rule val entryPointCallerRule = EntryPointCallerRule { testCase.entryPointCallerTracker }
 
     class TestCase(
         /** The name of the test. */
@@ -47,6 +58,12 @@ class ParameterizedValueStringTest {
          */
         private val expectedString: String,
     ) {
+        /**
+         * Record the stack trace of the creation of this which can be used to provide a stack trace
+         * to the creator of this instance in the event of a test failure.
+         */
+        val entryPointCallerTracker = EntryPointCallerTracker()
+
         override fun toString() = name
 
         /** Run the test. */
@@ -79,7 +96,8 @@ class ParameterizedValueStringTest {
          * @param expectedDefaultString The expected value returned from `Value.toValueString()`,
          *   i.e. with [ValueStringConfiguration.DEFAULT].
          */
-        private fun testCasesForValue(
+        @EntryPoint
+        internal fun testCasesForValue(
             valueLabel: String? = null,
             value: Value,
             expectedDefaultString: String,
@@ -88,7 +106,7 @@ class ParameterizedValueStringTest {
             TestCaseBuilder(this, valueLabel, value, expectedDefaultString).let { builder ->
                 builder.verifyConfigMatchesDefault(LabelledConfig.DEFAULT)
                 if (body != null) {
-                    builder.body()
+                    builder.buildTestCases(body)
                 }
             }
         }
@@ -103,7 +121,7 @@ class ParameterizedValueStringTest {
          * @param expectedDefaultString The expected value returned from `Value.toValueString()`,
          *   i.e. with [ValueStringConfiguration.DEFAULT].
          */
-        private class TestCaseBuilder(
+        internal class TestCaseBuilder(
             private val testCases: MutableList<TestCase>,
             valueLabel: String? = null,
             private val value: Value,
@@ -120,6 +138,7 @@ class ParameterizedValueStringTest {
              * to [Value.toValueString] results in the same value as if the
              * [ValueStringConfiguration.DEFAULT] was used, i.e. [expectedDefaultString].
              */
+            @EntryPoint
             fun verifyConfigMatchesDefault(config: LabelledConfig) {
                 addTestCase(config, expectedDefaultString)
             }
@@ -128,8 +147,15 @@ class ParameterizedValueStringTest {
              * Add a [TestCase] that verifies that passing [LabelledConfig.valueStringConfiguration]
              * to [Value.toValueString] results in [expectedString].
              */
+            @EntryPoint
             fun verifyConfigChangesOutput(config: LabelledConfig, expectedString: String) {
                 addTestCase(config, expectedString)
+            }
+
+            /** Separated out as required by [ExitPoint]. */
+            @ExitPoint
+            fun buildTestCases(body: TestCaseBuilder.() -> Unit) {
+                body()
             }
         }
 
