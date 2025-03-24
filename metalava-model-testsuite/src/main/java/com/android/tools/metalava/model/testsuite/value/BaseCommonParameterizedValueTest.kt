@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Compani
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
@@ -41,6 +42,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
 import org.junit.AssumptionViolatedException
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -93,6 +95,15 @@ abstract class BaseCommonParameterizedValueTest(
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
 
     @Parameterized.Parameter(1) lateinit var testCase: TestCase
+
+    /**
+     * Will try and rewrite the stack trace of any test failures to refer to the location where the
+     * [ValueExample] that is currently being tested was created.
+     */
+    @get:Rule
+    val entryPointCallerRule = EntryPointCallerRule {
+        testCase.valueExample.entryPointCallerTracker
+    }
 
     /** Produces a [Codebase] to test and runs the test on it. */
     sealed class CodebaseProducer(val kind: ProducerKind) {

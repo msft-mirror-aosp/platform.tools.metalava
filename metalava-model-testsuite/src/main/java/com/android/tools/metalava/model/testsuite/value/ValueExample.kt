@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.testing.EntryPoint
+import com.android.tools.metalava.testing.EntryPointCallerTracker
 import java.util.EnumSet
 
 /**
@@ -29,7 +31,9 @@ import java.util.EnumSet
  *
  * This will be useful for a number of different tests around values.
  */
-class ValueExample(
+class ValueExample
+@EntryPoint
+constructor(
     /**
      * The name of the example.
      *
@@ -125,6 +129,12 @@ class ValueExample(
      */
     val testThis: Boolean = false,
 ) {
+    /**
+     * Record the stack trace of the creation of this which can be used to provide a stack trace to
+     * the creator of this instance in the event of a test failure.
+     */
+    val entryPointCallerTracker = EntryPointCallerTracker()
+
     /**
      * If the field is not a constant then wrap it in an Expectation that will enforce that fields
      * only have constant values.
