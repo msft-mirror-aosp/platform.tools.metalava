@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -29,7 +30,9 @@ import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.intellij.psi.PsiAnnotationMemberValue
+import com.intellij.psi.PsiLiteralExpression
 import org.jetbrains.uast.UExpression
+import org.jetbrains.uast.ULiteralExpression
 
 /**
  * Creates [ValueProvider]s that will delegate to [implementationValueToModelValue] to create
@@ -74,8 +77,58 @@ internal class PsiValueFactory : ValueFactory, ImplementationValueToModelFactory
         optionalTypeItem: TypeItem?,
         implementationValue: Any,
     ): Value {
+        return when (implementationValue) {
+            is UExpression -> uExpressionToValue(optionalTypeItem, implementationValue)
+            is PsiAnnotationMemberValue -> psiToValue(optionalTypeItem, implementationValue)
+            else ->
+                throw ValueProviderException(
+                    "Unknown value '$implementationValue' of ${implementationValue.javaClass} for type $optionalTypeItem"
+                )
+        }
+    }
+
+    /** Create a [Value] of [optionalTypeItem] from [uExpression]. */
+    private fun uExpressionToValue(optionalTypeItem: TypeItem?, uExpression: UExpression): Value {
+        if (uExpression is ULiteralExpression) {
+            uExpression.value?.let { underlyingValue ->
+                return createLiteralValue(optionalTypeItem, underlyingValue)
+            }
+        }
+
+        // All others expressions are evaluated to a literal, if possible and returned.
+        ConstantEvaluator.evaluate(null, uExpression)?.let { value ->
+            return createLiteralValue(optionalTypeItem, value)
+        }
+
+        // Drop through to throw an exception to document why it failed.
         throw ValueProviderException(
-            "Unknown value '$implementationValue' of ${implementationValue.javaClass} for type $optionalTypeItem"
+            "Unknown value '$uExpression' of ${uExpression.javaClass} for type $optionalTypeItem"
+        )
+    }
+
+    /** Create a [Value] of [optionalTypeItem] from [psiValue]. */
+    private fun psiToValue(
+        optionalTypeItem: TypeItem?,
+        psiValue: PsiAnnotationMemberValue,
+    ): Value {
+        // Literal primitive or String.
+        if (psiValue is PsiLiteralExpression) {
+            return psiValue.value?.let { underlyingValue ->
+                createLiteralValue(optionalTypeItem, underlyingValue)
+            }
+                ?: error(
+                    "Unknown value '$psiValue' of ${psiValue.javaClass} for type $optionalTypeItem"
+                )
+        }
+
+        // All others expressions are evaluated to a literal, if possible and returned.
+        ConstantEvaluator.evaluate(null, psiValue)?.let { value ->
+            return createLiteralValue(optionalTypeItem, value)
+        }
+
+        // Drop through to throw an exception to document why it failed.
+        throw ValueProviderException(
+            "Unknown value '$psiValue' of ${psiValue.javaClass} for type $optionalTypeItem"
         )
     }
 }
