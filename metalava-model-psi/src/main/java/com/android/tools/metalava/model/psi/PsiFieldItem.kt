@@ -149,8 +149,7 @@ private fun PsiField.isFieldInitializerNonNull(): Boolean {
                 initializer.resolveMethod()
             }
             else -> null
-        }
-            ?: return false
+        } ?: return false
 
     return resolved is PsiModifierListOwner &&
         resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }

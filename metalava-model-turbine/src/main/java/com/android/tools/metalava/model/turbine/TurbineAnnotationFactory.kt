@@ -100,7 +100,7 @@ internal class TurbineAnnotationFactory(
                         val value =
                             attrs[name]
                                 ?: (exp as? Literal)?.value()
-                                    ?: error(
+                                ?: error(
                                     "Cannot find value for default 'value' attribute from $exp"
                                 )
                         attributes.add(

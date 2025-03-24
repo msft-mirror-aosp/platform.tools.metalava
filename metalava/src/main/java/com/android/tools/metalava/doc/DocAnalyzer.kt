@@ -254,8 +254,7 @@ class DocAnalyzer(
                                 ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
                             ?.legacyValue
                             ?.value()
-                            ?.toString()
-                            ?: return
+                            ?.toString() ?: return
                     if (text.isBlank() || item.documentation.contains(text)) {
                         return
                     }
@@ -276,8 +275,7 @@ class DocAnalyzer(
                                     item
                                         .containingCallable()
                                         .documentation
-                                        .findTagDocumentation("param", item.name())
-                                        ?: ""
+                                        .findTagDocumentation("param", item.name()) ?: ""
                                 }
                                 is CallableItem -> {
                                     // Don't inspect param docs (and other tags) for this purpose.

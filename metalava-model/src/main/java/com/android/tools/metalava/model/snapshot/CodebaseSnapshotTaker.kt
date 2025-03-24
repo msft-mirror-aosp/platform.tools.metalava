@@ -491,6 +491,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         typeParameterItem.typeBounds().map { typeItemFactory.getBoundsType(it) }
                     },
                 )
+
         /** General [TypeItem] specific snapshot. */
         internal fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
 

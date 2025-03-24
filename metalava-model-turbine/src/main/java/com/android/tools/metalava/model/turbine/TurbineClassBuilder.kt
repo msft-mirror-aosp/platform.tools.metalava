@@ -452,8 +452,7 @@ internal class TurbineClassBuilder(
                 method.defaultValue()?.let { defaultConst ->
                     TurbineValue(defaultConst, defaultValueExpr, fieldResolver)
                         .getSourceForMethodDefault()
-                }
-                    ?: ""
+                } ?: ""
 
             val parameters = method.parameters()
             val fingerprint = MethodFingerprint(name, parameters.size)

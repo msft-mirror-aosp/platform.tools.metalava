@@ -1004,8 +1004,7 @@ private constructor(
                 }
 
                 Pair(existingTypeParameterList, typeItemFactoryForClass(existingClass))
-            }
-                ?: Pair(typeParameterList, typeItemFactory)
+            } ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
             fullName = fullName,

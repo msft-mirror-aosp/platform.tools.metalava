@@ -358,8 +358,7 @@ abstract class DriverTest :
                     baselineFile,
                     inputContents,
                 )
-        }
-            ?: BaselineCheck("", emptyArray(), null, "")
+        } ?: BaselineCheck("", emptyArray(), null, "")
     }
 
     @Suppress("DEPRECATION")

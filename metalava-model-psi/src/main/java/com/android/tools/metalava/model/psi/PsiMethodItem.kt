@@ -193,8 +193,7 @@ internal class PsiMethodItem(
                             it.qualifiedName == JvmName::class.qualifiedName
                         }
                         ?.findAttributeValue("name")
-                        ?.evaluate() as? String
-                        ?: psiMethod.name
+                        ?.evaluate() as? String ?: psiMethod.name
                 } else {
                     psiMethod.name
                 }

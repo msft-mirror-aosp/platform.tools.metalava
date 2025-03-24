@@ -108,8 +108,7 @@ private constructor(
                 psiAnnotation.qualifiedName?.let {
                     (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
                         ?: it
-                }
-                    ?: return null
+                } ?: return null
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return PsiAnnotationItem(

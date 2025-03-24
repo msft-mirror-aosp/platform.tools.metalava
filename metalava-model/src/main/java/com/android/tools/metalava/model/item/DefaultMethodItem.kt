@@ -213,8 +213,8 @@ open class DefaultMethodItem(
                     methods.add(superMethod)
                 }
             }
-            // A method could not be found in this interface so search its interfaces.
-            ?: appendSuperMethodsFromInterfaces(methods, itfClass)
+                // A method could not be found in this interface so search its interfaces.
+                ?: appendSuperMethodsFromInterfaces(methods, itfClass)
         }
     }
 

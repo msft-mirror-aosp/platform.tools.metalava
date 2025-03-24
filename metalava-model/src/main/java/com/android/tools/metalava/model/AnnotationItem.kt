@@ -294,8 +294,7 @@ internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: 
             is AnnotationArrayAttributeValue ->
                 throw IllegalStateException("Annotation attribute is of type array")
             else -> attributeValue.value()
-        }
-            ?: return null
+        } ?: return null
 
     return convertValue(annotationContext, kClass, value)
 }
