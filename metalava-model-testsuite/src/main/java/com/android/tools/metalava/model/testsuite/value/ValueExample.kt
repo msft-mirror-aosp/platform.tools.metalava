@@ -17,9 +17,10 @@
 package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.value.literalValue
+import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.testing.EntryPoint
@@ -207,7 +208,7 @@ constructor(
 
         /** Names of constant types used in [ValueExample.javaType]. */
         private val constantTypeNames = buildSet {
-            for (kind in PrimitiveTypeItem.Primitive.entries) {
+            for (kind in Primitive.entries) {
                 add(kind.primitiveName)
             }
             add("String")
@@ -487,7 +488,12 @@ constructor(
                             source { attributeValue = 3 }
                         },
                     expectedKotlinLegacyValue = expectations { source { common = 3 } },
-                    expectedValue = expectations { common = literalValue(3.0) },
+                    expectedValue =
+                        expectations {
+                            // Expect a double value created from an int.
+                            common = primitiveValueForKind(Primitive.DOUBLE, 3)
+                            jar { common = literalValue(3.0) }
+                        },
                 ),
                 // Check a simple double with exponent
                 ValueExample(
@@ -681,7 +687,12 @@ constructor(
                             source { attributeValue = 3 }
                         },
                     expectedKotlinLegacyValue = partialExpectations { source { common = 3 } },
-                    expectedValue = expectations { common = literalValue(3.0f) },
+                    expectedValue =
+                        expectations {
+                            // Expect a double value created from an int.
+                            common = primitiveValueForKind(Primitive.FLOAT, 3)
+                            jar { common = literalValue(3.0f) }
+                        },
                 ),
                 // Check a simple float with exponent
                 ValueExample(
@@ -949,7 +960,12 @@ constructor(
                         },
                     expectedKotlinLegacyValue =
                         partialExpectations { source { attributeValue = 1000L } },
-                    expectedValue = expectations { common = literalValue(1000L) },
+                    expectedValue =
+                        expectations {
+                            // Expect a long value created from an int.
+                            common = primitiveValueForKind(Primitive.LONG, 1000)
+                            jar { common = literalValue(1000L) }
+                        },
                 ),
                 // Check a simple long with an upper case suffix.
                 ValueExample(

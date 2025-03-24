@@ -151,10 +151,13 @@ sealed interface Value {
 /**
  * Configuration options for how to represent a value as a string.
  *
+ * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
+ *   `int` if it was originally specified as an `int`.
  * @param unwrapSingleArrayElement Whether to add braces around an array that contains only a single
  *   element.
  */
 data class ValueStringConfiguration(
+    val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
     val unwrapSingleArrayElement: Boolean = false,
 ) {
     companion object {

@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava.model.testing.value
 
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.LiteralValue
+import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.ValueProviderException
@@ -27,6 +30,10 @@ import org.junit.AssumptionViolatedException
 
 /** Create a [LiteralValue] from the [underlyingValue]. */
 fun literalValue(underlyingValue: Any) = Value.createLiteralValue(null, underlyingValue)
+
+/** Create a [PrimitiveValue] of [kind] from the [underlyingValue]. */
+fun primitiveValueForKind(kind: Primitive, underlyingValue: Any) =
+    Value.createLiteralValue(primitiveTypeForKind(kind), underlyingValue)
 
 /** Create an [ArrayValue] containing [literals]. */
 fun arrayValueFromAny(vararg literals: Any) =

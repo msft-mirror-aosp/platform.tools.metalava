@@ -91,7 +91,27 @@ internal class PsiValueFactory : ValueFactory, ImplementationValueToModelFactory
     private fun uExpressionToValue(optionalTypeItem: TypeItem?, uExpression: UExpression): Value {
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
-                return createLiteralValue(optionalTypeItem, underlyingValue)
+                // Check to see if the underlying value has been already been cast from the source
+                // literal type to a type appropriate for where it is being used. If it has then
+                // reverse the cast to preserve the information about the source literal type. That
+                // is needed to enable consistent processing with legacy value handling which often
+                // uses the source type directly, e.g. when parsing `longValue = 1` it may write it
+                // as `longValue = 1` instead of the more consistent `longValue = 1L`.
+                val transformedValue =
+                    if (underlyingValue is Long) {
+                        uExpression.sourcePsi?.text?.let { text ->
+                            // If the text ends with `L` or `l` then it was a long literal so keep
+                            // it as such.
+                            if (text.endsWith("L") || text.endsWith("l")) underlyingValue
+                            else {
+                                // Otherwise, try and see if it can be cast to an int without loss.
+                                // If it can then use the int, otherwise keep the long.
+                                val asInt = underlyingValue.toInt()
+                                if (asInt.toLong() == underlyingValue) asInt else underlyingValue
+                            }
+                        } ?: underlyingValue
+                    } else underlyingValue
+                return createLiteralValue(optionalTypeItem, transformedValue)
             }
         }
 

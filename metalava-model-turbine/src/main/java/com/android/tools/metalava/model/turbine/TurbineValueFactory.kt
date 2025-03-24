@@ -28,6 +28,8 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.google.turbine.model.Const
+import com.google.turbine.model.TurbineConstantTypeKind
+import com.google.turbine.tree.Tree
 
 internal class TurbineValueFactory : ValueFactory, ImplementationValueToModelFactory<TurbineValue> {
     /**
@@ -68,8 +70,24 @@ internal class TurbineValueFactory : ValueFactory, ImplementationValueToModelFac
 
     private fun TurbineValue.toValue(optionalTypeItem: TypeItem?): Value {
         if (const.kind() == Const.Kind.PRIMITIVE) {
-            val underlyingValue = (const as Const.Value).value
-            return createLiteralValue(optionalTypeItem, underlyingValue)
+            // Check to see if the underlying value has been already been cast from the source
+            // literal type to a type appropriate for where it is being used. If it has then reverse
+            // the cast to preserve the information about the source literal type. That is needed to
+            // enable consistent processing with legacy value handling which often uses the source
+            // type directly, e.g. when parsing `longValue = 1` it may write it as `longValue = 1`
+            // instead of the more consistent `longValue = 1L`.
+            val transformedValue =
+                when (val underlyingValue = (const as Const.Value).value) {
+                    is Double,
+                    is Float,
+                    is Long -> {
+                        if (expr is Tree.Literal && expr.tykind() == TurbineConstantTypeKind.INT) {
+                            expr.toString().toInt()
+                        } else underlyingValue
+                    }
+                    else -> underlyingValue
+                }
+            return createLiteralValue(optionalTypeItem, transformedValue)
         }
 
         throw ValueProviderException(

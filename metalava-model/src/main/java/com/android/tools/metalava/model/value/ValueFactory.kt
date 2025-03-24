@@ -83,7 +83,7 @@ interface ValueFactory {
                     val primitiveKind = optionalTypeItem.kind
                     val primitiveValue = normalizePrimitive(underlyingValue, primitiveKind)
 
-                    createPrimitiveValueForKind(primitiveKind, primitiveValue)
+                    createPrimitiveValueForKind(primitiveKind, primitiveValue, underlyingValue)
                 }
                 is ClassTypeItem -> {
                     // The only allowable class type is a String.
@@ -102,7 +102,11 @@ interface ValueFactory {
                                 it.wrapperClass.isInstance(underlyingValue) && it != Primitive.VOID
                             }
                             ?.let { primitiveKind ->
-                                createPrimitiveValueForKind(primitiveKind, underlyingValue)
+                                createPrimitiveValueForKind(
+                                    primitiveKind,
+                                    underlyingValue,
+                                    underlyingValue
+                                )
                             }
                             ?: error(
                                 "Underlying value '$underlyingValue' of ${underlyingValue.javaClass} is not supported"
@@ -153,23 +157,32 @@ interface ValueFactory {
         val primitiveValueFactories =
             mapOf<Primitive, PrimitiveValueFactory<*>>(
                 Primitive.BOOLEAN to
-                    { underlyingValue ->
+                    { underlyingValue, _ ->
                         DefaultBooleanValue(underlyingValue as Boolean)
                     },
-                Primitive.BYTE to { underlyingValue -> DefaultByteValue(underlyingValue as Byte) },
-                Primitive.CHAR to { underlyingValue -> DefaultCharValue(underlyingValue as Char) },
+                Primitive.BYTE to
+                    { underlyingValue, _ ->
+                        DefaultByteValue(underlyingValue as Byte)
+                    },
+                Primitive.CHAR to
+                    { underlyingValue, _ ->
+                        DefaultCharValue(underlyingValue as Char)
+                    },
                 Primitive.DOUBLE to
-                    { underlyingValue ->
-                        DefaultDoubleValue(underlyingValue as Double)
+                    { underlyingValue, originalValue ->
+                        DefaultDoubleValue(underlyingValue as Double, originalValue is Int)
                     },
                 Primitive.FLOAT to
-                    { underlyingValue ->
-                        DefaultFloatValue(underlyingValue as Float)
+                    { underlyingValue, originalValue ->
+                        DefaultFloatValue(underlyingValue as Float, originalValue is Int)
                     },
-                Primitive.INT to { underlyingValue -> DefaultIntValue(underlyingValue as Int) },
-                Primitive.LONG to { underlyingValue -> DefaultLongValue(underlyingValue as Long) },
+                Primitive.INT to { underlyingValue, _ -> DefaultIntValue(underlyingValue as Int) },
+                Primitive.LONG to
+                    { underlyingValue, originalValue ->
+                        DefaultLongValue(underlyingValue as Long, originalValue is Int)
+                    },
                 Primitive.SHORT to
-                    { underlyingValue ->
+                    { underlyingValue, _ ->
                         DefaultShortValue(underlyingValue as Short)
                     },
             )
@@ -179,10 +192,23 @@ interface ValueFactory {
          *
          * The caller has already made sure that the [primitiveValue] is appropriate for
          * [primitiveKind].
+         *
+         * The [originalValue] is the original value that was retrieved from the expression before
+         * any casting was performed to ensure it matches the [primitiveKind]. e.g. if the original
+         * source expression was an `int` literal, e.g. `10` and [primitiveKind] is [Primitive.LONG]
+         * then the [primitiveValue] will be a `java.lang.Long` instance with a value of `10L` but
+         * the [originalValue] will be a `java.lang.Integer` instance with a value of `10`.
+         *
+         * It supports the [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt] behavior.
          */
-        private fun createPrimitiveValueForKind(primitiveKind: Primitive, primitiveValue: Any) =
-            primitiveValueFactories[primitiveKind]?.let { factory -> factory(primitiveValue) }
-                ?: error("Cannot create PrimitiveValue: unknown primitive kind: $primitiveKind")
+        private fun createPrimitiveValueForKind(
+            primitiveKind: Primitive,
+            primitiveValue: Any,
+            originalValue: Any
+        ) =
+            primitiveValueFactories[primitiveKind]?.let { factory ->
+                factory(primitiveValue, originalValue)
+            } ?: error("Cannot create PrimitiveValue: unknown primitive kind: $primitiveKind")
 
         /** Normalize the [underlyingValue] to make it consistent with [primitiveKind]. */
         private fun normalizePrimitive(underlyingValue: Any, primitiveKind: Primitive): Any {
@@ -308,4 +334,4 @@ interface ValueFactory {
 }
 
 /** Type of values in [primitiveValueFactories]. */
-internal typealias PrimitiveValueFactory<T> = (Any) -> PrimitiveValue<T>
+internal typealias PrimitiveValueFactory<T> = (Any, Any) -> PrimitiveValue<T>
