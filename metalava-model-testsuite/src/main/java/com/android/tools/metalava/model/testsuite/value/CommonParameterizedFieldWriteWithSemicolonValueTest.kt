@@ -25,6 +25,7 @@ import com.android.tools.metalava.testing.TestFileCacheRule
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.ClassRule
+import org.junit.Test
 import org.junit.runners.Parameterized
 
 /** Run parameterized tests for [FIELD_WRITE_WITH_SEMICOLON]. */
@@ -46,6 +47,12 @@ class CommonParameterizedFieldWriteWithSemicolonValueTest :
             else withSemicolon.substringAfter(" = ").substringBefore(";")
         },
     ) {
+
+    @Test
+    fun testLegacySource() {
+        checkLegacySource()
+    }
+
     companion object : BaseCompanion(FIELD_WRITE_WITH_SEMICOLON) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()

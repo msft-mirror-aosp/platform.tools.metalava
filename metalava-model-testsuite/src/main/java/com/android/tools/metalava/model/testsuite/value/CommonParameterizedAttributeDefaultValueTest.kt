@@ -47,6 +47,11 @@ class CommonParameterizedAttributeDefaultValueTest :
         @JvmStatic @Parameterized.Parameters fun params() = testParameters
     }
 
+    @Test
+    fun testLegacySource() {
+        checkLegacySource()
+    }
+
     @RequiresCapabilities(Capability.JAVA)
     @Test
     fun testMethodDefaultValue() {

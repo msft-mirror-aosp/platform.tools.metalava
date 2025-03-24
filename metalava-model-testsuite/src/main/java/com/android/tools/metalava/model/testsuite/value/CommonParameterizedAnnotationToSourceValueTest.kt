@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.testsuite.value.ValueUseSite.ANNOTATION_
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import org.junit.ClassRule
+import org.junit.Test
 import org.junit.runners.Parameterized
 
 /** Run parameterized tests for [ANNOTATION_TO_SOURCE]. */
@@ -45,5 +46,10 @@ class CommonParameterizedAnnotationToSourceValueTest :
 
         /** Supply the list of test cases as the parameters for this test class. */
         @JvmStatic @Parameterized.Parameters fun params() = testParameters
+    }
+
+    @Test
+    fun testLegacySource() {
+        checkLegacySource()
     }
 }

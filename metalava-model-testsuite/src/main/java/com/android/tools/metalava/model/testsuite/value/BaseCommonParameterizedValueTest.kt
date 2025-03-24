@@ -43,7 +43,6 @@ import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
-import org.junit.Test
 import org.junit.runners.Parameterized
 
 /**
@@ -438,8 +437,11 @@ abstract class BaseCommonParameterizedValueTest(
         }
     }
 
-    @Test
-    fun testLegacySource() {
+    /**
+     * Check the [ValueExample.expectedLegacySource] against the [String] returned by
+     * [legacySourceGetter].
+     */
+    protected fun checkLegacySource() {
         val expectedLegacySource = testCase.valueExample.expectedLegacySourceFor(inputFormat)
         runExpectationTest(expectedLegacySource, legacySourceGetter)
     }
