@@ -52,15 +52,6 @@ interface ValueProvider {
 /** Like [ValueProvider] but allows a `null` [Value] to be returned. */
 interface OptionalValueProvider {
     val optionalValue: Value?
-
-    companion object {
-        /** A temporary [OptionalValueProvider] which always returns `null` when called. */
-        val NO_VALUE =
-            object : OptionalValueProvider {
-                override val optionalValue: Value?
-                    get() = null
-            }
-    }
 }
 
 /**
