@@ -563,11 +563,14 @@ class DocAnalyzer(
                     val fromValue: String? =
                         annotationItem.findAttribute("from")?.legacyValue?.toSource()
 
-                    if (environmentsValue == null || !environmentsValue.endsWith("SDK_SANDBOX")) {
+                    if (
+                        environmentsValue == null ||
+                            !environmentsValue.endsWith("ENVIRONMENT_SDK_RUNTIME")
+                    ) {
                         reporter.report(
                             Issues.INVALID_ENVIRONMENT_IN_RESTRICTED_FOR_ENVIRONMENT,
                             item,
-                            "Invalid 'environments' value '$environmentsValue', must be 'SDK_SANDBOX'"
+                            "Invalid 'environments' value '$environmentsValue', must be 'ENVIRONMENT_SDK_RUNTIME'"
                         )
                         return
                     }
