@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
@@ -29,8 +30,8 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
- * A comprehensive set of tests that verify the behavior of converting from one [Primitive] type to
- * another, for all possible combinations (excluding [Primitive.VOID].
+ * A comprehensive set of tests that verify the behavior of converting from one
+ * [ValueKind.PRIMITIVE_KINDS] to another, for all possible combinations.
  */
 @RunWith(Parameterized::class)
 class ParameterizedPrimitiveValueConversionTest {
@@ -97,7 +98,7 @@ class ParameterizedPrimitiveValueConversionTest {
         override fun ConversionTest.checkExample() {
             // If the conversion is unsupported then it does not matter what the input is so just
             // use the default value.
-            val input = fromKind.defaultValue!!
+            val input = fromKind.primitiveKind?.defaultValue!!
             checkNormalizationIsUnsupported(input, targetKind)
         }
 
@@ -106,8 +107,8 @@ class ParameterizedPrimitiveValueConversionTest {
 
     /** A conversion test from [fromKind] to [targetKind] using [conversionExample]. */
     data class ConversionTest(
-        val fromKind: Primitive,
-        val targetKind: Primitive,
+        val fromKind: ValueKind,
+        val targetKind: ValueKind,
         val conversionExample: ConversionExample,
     ) {
         fun runTest() {
@@ -120,12 +121,11 @@ class ParameterizedPrimitiveValueConversionTest {
          */
         fun checkNormalization(
             input: Any,
-            targetKind: Primitive,
+            targetKind: ValueKind,
             expectedOutput: Any,
             expectedClass: Class<*>
         ) {
-            val description =
-                "Converting $input of ${input.javaClass} to ${targetKind.primitiveName}"
+            val description = "Converting $input of ${input.javaClass} to $targetKind"
             val normalized = createLiteralValue(targetKind, input).underlyingValue
             assertEquals<Class<*>>(
                 expectedClass,
@@ -141,16 +141,15 @@ class ParameterizedPrimitiveValueConversionTest {
          */
         fun checkNormalizationIsLossy(
             input: Number,
-            targetKind: Primitive,
+            targetKind: ValueKind,
             lossyOutput: Number,
             roundTripValue: Number,
         ) {
-            val description =
-                "Converting $input of ${input.javaClass} to ${targetKind.primitiveName}"
+            val description = "Converting $input of ${input.javaClass} to $targetKind"
             val exception =
                 assertThrows(RuntimeException::class.java) { createLiteralValue(targetKind, input) }
             assertEquals(
-                "Conversion of $input to ${targetKind.primitiveName} is lossy and produces $lossyOutput; round trip value is $roundTripValue",
+                "Conversion of $input to $targetKind is lossy and produces $lossyOutput; round trip value is $roundTripValue",
                 exception.message,
                 description
             )
@@ -159,10 +158,9 @@ class ParameterizedPrimitiveValueConversionTest {
         /** Check the normalization of [input] to match the [targetKind] is unsupported. */
         fun checkNormalizationIsUnsupported(
             input: Any,
-            targetKind: Primitive,
+            targetKind: ValueKind,
         ) {
-            val description =
-                "Converting $input of ${input.javaClass} to ${targetKind.primitiveName}"
+            val description = "Converting $input of ${input.javaClass} to $targetKind"
             val exception =
                 assertThrows(RuntimeException::class.java) { createLiteralValue(targetKind, input) }
             assertEquals(
@@ -172,25 +170,31 @@ class ParameterizedPrimitiveValueConversionTest {
             )
         }
 
-        private fun createLiteralValue(targetKind: Primitive, input: Any): LiteralValue<*> {
-            val typeItem = primitiveTypeForKind(targetKind)
+        private fun createLiteralValue(targetKind: ValueKind, input: Any): LiteralValue<*> {
+            val typeItem =
+                targetKind.primitiveKind?.let { primitiveTypeForKind(it) } ?: stringType()
             return Value.createLiteralValue(typeItem, input)
         }
 
-        override fun toString() =
-            "${fromKind.primitiveName} to ${targetKind.primitiveName} is $conversionExample"
+        override fun toString() = "$fromKind to $targetKind is $conversionExample"
     }
 
     companion object {
-        /** The conversion between two [Primitive]s is unsupported. */
+        val ValueKind.wrapperClass
+            get() =
+                primitiveKind?.wrapperClass
+                    ?: if (this == ValueKind.STRING) String::class.java
+                    else error("No wrapper class found for $this")
+
+        /** The conversion between two [ValueKind]s is unsupported. */
         @EntryPoint internal fun unsupported() = listOf(ConversionIsUnsupported())
 
-        /** The conversion between two primitives works fine. */
+        /** The conversion between two literals works fine. */
         @EntryPoint
         internal fun ok(input: Any, expectedOutput: Any) =
             listOf(ConversionIsOk(input, expectedOutput))
 
-        /** The conversion between two primitives produces the same output as input. */
+        /** The conversion between two literals produces the same output as input. */
         @EntryPoint internal fun same(input: Any) = listOf(ConversionIsSame(input))
 
         /** The conversion between two primitives is lossy. */
@@ -206,66 +210,66 @@ class ParameterizedPrimitiveValueConversionTest {
          */
         private val conversionMatrix =
             mapOf(
-                Primitive.BOOLEAN to
+                ValueKind.BOOLEAN to
                     mapOf(
-                        Primitive.BOOLEAN to same(input = true),
-                        Primitive.BYTE to unsupported(),
-                        Primitive.CHAR to unsupported(),
-                        Primitive.DOUBLE to unsupported(),
-                        Primitive.FLOAT to unsupported(),
-                        Primitive.INT to unsupported(),
-                        Primitive.LONG to unsupported(),
-                        Primitive.SHORT to unsupported(),
+                        ValueKind.BOOLEAN to same(input = true),
+                        ValueKind.BYTE to unsupported(),
+                        ValueKind.CHAR to unsupported(),
+                        ValueKind.DOUBLE to unsupported(),
+                        ValueKind.FLOAT to unsupported(),
+                        ValueKind.INT to unsupported(),
+                        ValueKind.LONG to unsupported(),
+                        ValueKind.SHORT to unsupported(),
                     ),
-                Primitive.BYTE to
+                ValueKind.BYTE to
                     mapOf(
-                        Primitive.BOOLEAN to unsupported(),
-                        Primitive.BYTE to same(input = 100.toByte()),
-                        Primitive.CHAR to unsupported(),
-                        Primitive.DOUBLE to
+                        ValueKind.BOOLEAN to unsupported(),
+                        ValueKind.BYTE to same(input = 100.toByte()),
+                        ValueKind.CHAR to unsupported(),
+                        ValueKind.DOUBLE to
                             ok(
                                 input = (-77).toByte(),
                                 expectedOutput = -77.0,
                             ),
-                        Primitive.FLOAT to
+                        ValueKind.FLOAT to
                             ok(
                                 input = 15.toByte(),
                                 expectedOutput = 15.0f,
                             ),
-                        Primitive.INT to
+                        ValueKind.INT to
                             ok(
                                 input = 127.toByte(),
                                 expectedOutput = 127,
                             ),
-                        Primitive.LONG to
+                        ValueKind.LONG to
                             ok(
                                 input = (-125).toByte(),
                                 expectedOutput = -125L,
                             ),
-                        Primitive.SHORT to
+                        ValueKind.SHORT to
                             ok(
                                 input = 53.toByte(),
                                 expectedOutput = 53.toShort(),
                             ),
                     ),
-                Primitive.CHAR to
+                ValueKind.CHAR to
                     mapOf(
-                        Primitive.BOOLEAN to unsupported(),
-                        Primitive.BYTE to unsupported(),
-                        Primitive.CHAR to same(input = 'a'),
-                        Primitive.DOUBLE to unsupported(),
-                        Primitive.FLOAT to unsupported(),
-                        Primitive.INT to unsupported(),
-                        Primitive.LONG to unsupported(),
-                        Primitive.SHORT to unsupported(),
+                        ValueKind.BOOLEAN to unsupported(),
+                        ValueKind.BYTE to unsupported(),
+                        ValueKind.CHAR to same(input = 'a'),
+                        ValueKind.DOUBLE to unsupported(),
+                        ValueKind.FLOAT to unsupported(),
+                        ValueKind.INT to unsupported(),
+                        ValueKind.LONG to unsupported(),
+                        ValueKind.SHORT to unsupported(),
                     ),
-                Primitive.DOUBLE to
+                ValueKind.DOUBLE to
                     mapOf(
-                        Primitive.BOOLEAN to unsupported(),
-                        Primitive.BYTE to unsupported(),
-                        Primitive.CHAR to unsupported(),
-                        Primitive.DOUBLE to same(input = 7.89E-200),
-                        Primitive.FLOAT to
+                        ValueKind.BOOLEAN to unsupported(),
+                        ValueKind.BYTE to unsupported(),
+                        ValueKind.CHAR to unsupported(),
+                        ValueKind.DOUBLE to same(input = 7.89E-200),
+                        ValueKind.FLOAT to
                             ok(
                                 input = -3.125,
                                 expectedOutput = -3.125f,
@@ -275,29 +279,29 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = Float.POSITIVE_INFINITY,
                                     roundTripValue = Double.POSITIVE_INFINITY,
                                 ),
-                        Primitive.INT to unsupported(),
-                        Primitive.LONG to unsupported(),
-                        Primitive.SHORT to unsupported(),
+                        ValueKind.INT to unsupported(),
+                        ValueKind.LONG to unsupported(),
+                        ValueKind.SHORT to unsupported(),
                     ),
-                Primitive.FLOAT to
+                ValueKind.FLOAT to
                     mapOf(
-                        Primitive.BOOLEAN to unsupported(),
-                        Primitive.BYTE to unsupported(),
-                        Primitive.CHAR to unsupported(),
-                        Primitive.DOUBLE to
+                        ValueKind.BOOLEAN to unsupported(),
+                        ValueKind.BYTE to unsupported(),
+                        ValueKind.CHAR to unsupported(),
+                        ValueKind.DOUBLE to
                             ok(
                                 input = Float.MAX_VALUE,
                                 expectedOutput = 3.4028234663852886E38,
                             ),
-                        Primitive.FLOAT to same(input = 123456.79f),
-                        Primitive.INT to unsupported(),
-                        Primitive.LONG to unsupported(),
-                        Primitive.SHORT to unsupported(),
+                        ValueKind.FLOAT to same(input = 123456.79f),
+                        ValueKind.INT to unsupported(),
+                        ValueKind.LONG to unsupported(),
+                        ValueKind.SHORT to unsupported(),
                     ),
-                Primitive.INT to
+                ValueKind.INT to
                     mapOf(
-                        Primitive.BOOLEAN to unsupported(),
-                        Primitive.BYTE to
+                        ValueKind.BOOLEAN to unsupported(),
+                        ValueKind.BYTE to
                             ok(
                                 input = 1,
                                 expectedOutput = 1.toByte(),
@@ -307,13 +311,13 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = -128,
                                     roundTripValue = -128,
                                 ),
-                        Primitive.CHAR to unsupported(),
-                        Primitive.DOUBLE to
+                        ValueKind.CHAR to unsupported(),
+                        ValueKind.DOUBLE to
                             ok(
                                 input = Int.MAX_VALUE,
                                 expectedOutput = 2.147483647E9,
                             ),
-                        Primitive.FLOAT to
+                        ValueKind.FLOAT to
                             ok(
                                 input = 123456,
                                 expectedOutput = 123456.0f,
@@ -323,13 +327,13 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = 1.6777216E7f,
                                     roundTripValue = 16_777_216,
                                 ),
-                        Primitive.INT to same(input = 99),
-                        Primitive.LONG to
+                        ValueKind.INT to same(input = 99),
+                        ValueKind.LONG to
                             ok(
                                 input = Int.MIN_VALUE,
                                 expectedOutput = -2147483648L,
                             ),
-                        Primitive.SHORT to
+                        ValueKind.SHORT to
                             ok(
                                 input = -123,
                                 expectedOutput = (-123).toShort(),
@@ -340,10 +344,10 @@ class ParameterizedPrimitiveValueConversionTest {
                                     roundTripValue = 0,
                                 ),
                     ),
-                Primitive.LONG to
+                ValueKind.LONG to
                     mapOf(
-                        Primitive.BOOLEAN to unsupported(),
-                        Primitive.BYTE to
+                        ValueKind.BOOLEAN to unsupported(),
+                        ValueKind.BYTE to
                             ok(
                                 input = 1L,
                                 expectedOutput = 1.toByte(),
@@ -353,8 +357,8 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = (-126).toByte(),
                                     roundTripValue = -126L,
                                 ),
-                        Primitive.CHAR to unsupported(),
-                        Primitive.DOUBLE to
+                        ValueKind.CHAR to unsupported(),
+                        ValueKind.DOUBLE to
                             ok(
                                 input = 20_000_000_000L,
                                 expectedOutput = 2.0E10,
@@ -364,7 +368,7 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = 9.007199254740992E15,
                                     roundTripValue = 9007199254740992L,
                                 ),
-                        Primitive.FLOAT to
+                        ValueKind.FLOAT to
                             ok(
                                 input = 9_999_999L,
                                 expectedOutput = 9999999.0f,
@@ -374,7 +378,7 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = 1.2345679E11,
                                     roundTripValue = 123456790528L,
                                 ),
-                        Primitive.INT to
+                        ValueKind.INT to
                             ok(
                                 input = 1L shl 30,
                                 expectedOutput = 1 shl 30,
@@ -384,8 +388,8 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = 0,
                                     roundTripValue = 0,
                                 ),
-                        Primitive.LONG to same(input = Long.MIN_VALUE),
-                        Primitive.SHORT to
+                        ValueKind.LONG to same(input = Long.MIN_VALUE),
+                        ValueKind.SHORT to
                             ok(
                                 input = -32768L,
                                 expectedOutput = Short.MIN_VALUE,
@@ -396,10 +400,10 @@ class ParameterizedPrimitiveValueConversionTest {
                                     roundTripValue = -21092,
                                 ),
                     ),
-                Primitive.SHORT to
+                ValueKind.SHORT to
                     mapOf(
-                        Primitive.BOOLEAN to unsupported(),
-                        Primitive.BYTE to
+                        ValueKind.BOOLEAN to unsupported(),
+                        ValueKind.BYTE to
                             ok(
                                 input = 9.toShort(),
                                 expectedOutput = 9.toByte(),
@@ -409,28 +413,28 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = 1,
                                     roundTripValue = 1,
                                 ),
-                        Primitive.CHAR to unsupported(),
-                        Primitive.DOUBLE to
+                        ValueKind.CHAR to unsupported(),
+                        ValueKind.DOUBLE to
                             ok(
                                 input = Short.MAX_VALUE,
                                 expectedOutput = 32767.0,
                             ),
-                        Primitive.FLOAT to
+                        ValueKind.FLOAT to
                             ok(
                                 input = Short.MIN_VALUE,
                                 expectedOutput = -32768.0f,
                             ),
-                        Primitive.INT to
+                        ValueKind.INT to
                             ok(
                                 input = 1234,
                                 expectedOutput = 1234,
                             ),
-                        Primitive.LONG to
+                        ValueKind.LONG to
                             ok(
                                 input = -12345,
                                 expectedOutput = -12345L,
                             ),
-                        Primitive.SHORT to same(input = 9876.toShort()),
+                        ValueKind.SHORT to same(input = 9876.toShort()),
                     ),
             )
 
@@ -438,12 +442,23 @@ class ParameterizedPrimitiveValueConversionTest {
          * Flatten the matrix of [Primitive] to [Primitive] to list of [ConversionExample]s into a
          * list of [ConversionTest]s.
          */
-        private val conversionTests =
+        private val conversionTests = let {
+            // Make sure that every primitive kind is used as the fromKind and targetKind.
+            val allKinds = ValueKind.PRIMITIVE_KINDS
+
+            require(conversionMatrix.keys == allKinds) {
+                "Expected conversion from every one of $allKinds, but found ${conversionMatrix.keys}"
+            }
             conversionMatrix.flatMap { (fromKind, targetMap) ->
+                require(targetMap.keys == allKinds) {
+                    "Expected conversion from $fromKind to every one of $allKinds, but found ${targetMap.keys}"
+                }
+
                 targetMap.flatMap { (targetKind, examples) ->
                     examples.map { example -> ConversionTest(fromKind, targetKind, example) }
                 }
             }
+        }
 
         /** Supply the list of test cases as the parameters for this test class. */
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun params() = conversionTests

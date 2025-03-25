@@ -216,7 +216,7 @@ interface ValueFactory {
 
             primitiveValue
                 ?: error(
-                    "Unsupported primitive type: $primitiveKind, for underlying value `$underlyingValue` of ${underlyingValue.javaClass}"
+                    "Unsupported primitive type: ${primitiveKind.primitiveName}, for underlying value `$underlyingValue` of ${underlyingValue.javaClass}"
                 )
             return primitiveValue
         }
