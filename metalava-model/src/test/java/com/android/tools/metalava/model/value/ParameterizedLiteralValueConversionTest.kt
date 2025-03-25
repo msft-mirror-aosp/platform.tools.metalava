@@ -94,12 +94,12 @@ class ParameterizedLiteralValueConversionTest {
     }
 
     /** A [ConversionExample] that is unsupported. */
-    class ConversionIsUnsupported : ConversionExample() {
+    class ConversionIsUnsupported(private val input: Any?) : ConversionExample() {
         override fun ConversionTest.checkExample() {
-            // If the conversion is unsupported then it does not matter what the input is so just
-            // use the default value. For strings use an empty string as the default.
-            val input = fromKind.primitiveKind?.defaultValue ?: ""
-            checkNormalizationIsUnsupported(input, targetKind)
+            // If no input value has been provided then just use the default value. For strings use
+            // an empty string as the default.
+            val actualInput = input ?: fromKind.primitiveKind?.defaultValue ?: ""
+            checkNormalizationIsUnsupported(actualInput, targetKind)
         }
 
         override fun toString() = "unsupported"
@@ -219,7 +219,8 @@ class ParameterizedLiteralValueConversionTest {
                     else error("No wrapper class found for $this")
 
         /** The conversion between two [ValueKind]s is unsupported. */
-        @EntryPoint internal fun unsupported() = listOf(ConversionIsUnsupported())
+        @EntryPoint
+        internal fun unsupported(input: Any? = null) = listOf(ConversionIsUnsupported(input))
 
         /** The conversion between two [ValueKind]s is incompatible. */
         private fun incompatible() = listOf(ConversionIsIncompatible())
@@ -483,7 +484,20 @@ class ParameterizedLiteralValueConversionTest {
                     mapOf(
                         ValueKind.BOOLEAN to unsupported(),
                         ValueKind.BYTE to unsupported(),
-                        ValueKind.CHAR to unsupported(),
+                        ValueKind.CHAR to
+                            // Single character string can be converted to a char.
+                            ok(
+                                input = "a",
+                                expectedOutput = 'a',
+                            ) +
+                                // Empty strings cannot be converted to a char.
+                                unsupported(
+                                    input = "",
+                                ) +
+                                // Multi-character strings cannot be converted to a char.
+                                unsupported(
+                                    input = "aa",
+                                ),
                         ValueKind.DOUBLE to unsupported(),
                         ValueKind.FLOAT to unsupported(),
                         ValueKind.INT to unsupported(),

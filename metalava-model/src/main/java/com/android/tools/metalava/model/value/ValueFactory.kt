@@ -194,6 +194,12 @@ interface ValueFactory {
                     is Char -> {
                         if (primitiveKind == Primitive.CHAR) underlyingValue else null
                     }
+                    is String -> {
+                        // A single character string can be used as a char.
+                        if (primitiveKind == Primitive.CHAR && underlyingValue.length == 1)
+                            underlyingValue[0]
+                        else null
+                    }
                     is Number -> {
                         val numberValue =
                             when (primitiveKind) {
