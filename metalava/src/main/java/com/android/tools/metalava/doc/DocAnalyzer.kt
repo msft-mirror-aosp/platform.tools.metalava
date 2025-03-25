@@ -559,18 +559,16 @@ class DocAnalyzer(
                     item: Item
                 ) {
                     val environmentsValue: String? =
-                        annotationItem.findAttribute("environments")?.legacyValue?.toSource()
+                        annotationItem.findAttribute("environments")?.legacyValue?.value()
+                            as String?
                     val fromValue: String? =
                         annotationItem.findAttribute("from")?.legacyValue?.toSource()
 
-                    if (
-                        environmentsValue == null ||
-                            !environmentsValue.endsWith("ENVIRONMENT_SDK_RUNTIME")
-                    ) {
+                    if (environmentsValue == null) {
                         reporter.report(
-                            Issues.INVALID_ENVIRONMENT_IN_RESTRICTED_FOR_ENVIRONMENT,
+                            Issues.MISSING_ENVIRONMENTS_VALUE,
                             item,
-                            "Invalid 'environments' value '$environmentsValue', must be 'ENVIRONMENT_SDK_RUNTIME'"
+                            "Missing 'environments' value for @RestrictedForEnvironment annotation"
                         )
                         return
                     }
@@ -585,7 +583,7 @@ class DocAnalyzer(
                     }
 
                     appendDocumentation(
-                        "Restricted for SDK Runtime environment in API level $fromValue.\n",
+                        "Restricted for $environmentsValue environment in API level $fromValue.\n",
                         item,
                         false
                     )
