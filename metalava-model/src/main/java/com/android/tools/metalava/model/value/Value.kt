@@ -110,10 +110,13 @@ enum class ValueKind(val primitiveKind: Primitive? = null) {
 
     companion object {
         /** The set of [ValueKind]s that represent primitive values. */
-        val PRIMITIVE_KINDS: Set<ValueKind> =
+        private val PRIMITIVE_KINDS: Set<ValueKind> =
             EnumSet.noneOf(ValueKind::class.java).apply {
                 addAll(entries.filter { it.primitiveKind != null })
             }
+
+        /** The set of [ValueKind]s that represent literal values. */
+        val LITERAL_KINDS: Set<ValueKind> = EnumSet.of(STRING).apply { addAll(PRIMITIVE_KINDS) }
     }
 }
 

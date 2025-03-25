@@ -31,10 +31,10 @@ import org.junit.runners.Parameterized
 
 /**
  * A comprehensive set of tests that verify the behavior of converting from one
- * [ValueKind.PRIMITIVE_KINDS] to another, for all possible combinations.
+ * [ValueKind.LITERAL_KINDS] to another, for all possible combinations.
  */
 @RunWith(Parameterized::class)
-class ParameterizedPrimitiveValueConversionTest {
+class ParameterizedLiteralValueConversionTest {
     @Parameterized.Parameter(0) lateinit var conversionTest: ConversionTest
 
     /**
@@ -97,12 +97,24 @@ class ParameterizedPrimitiveValueConversionTest {
     class ConversionIsUnsupported : ConversionExample() {
         override fun ConversionTest.checkExample() {
             // If the conversion is unsupported then it does not matter what the input is so just
-            // use the default value.
-            val input = fromKind.primitiveKind?.defaultValue!!
+            // use the default value. For strings use an empty string as the default.
+            val input = fromKind.primitiveKind?.defaultValue ?: ""
             checkNormalizationIsUnsupported(input, targetKind)
         }
 
         override fun toString() = "unsupported"
+    }
+
+    /** A [ConversionExample] that is incompatible. */
+    class ConversionIsIncompatible : ConversionExample() {
+        override fun ConversionTest.checkExample() {
+            // If the conversion is incompatible then it does not matter what the input is so just
+            // use the default value.
+            val input = fromKind.primitiveKind?.defaultValue ?: ""
+            checkNormalizationIsIncompatible(input, targetKind)
+        }
+
+        override fun toString() = "incompatible"
     }
 
     /** A conversion test from [fromKind] to [targetKind] using [conversionExample]. */
@@ -170,6 +182,21 @@ class ParameterizedPrimitiveValueConversionTest {
             )
         }
 
+        /** Check the normalization of [input] to match the [targetKind] is incompatible. */
+        fun checkNormalizationIsIncompatible(
+            input: Any,
+            targetKind: ValueKind,
+        ) {
+            val description = "Converting $input of ${input.javaClass} to $targetKind"
+            val exception =
+                assertThrows(RuntimeException::class.java) { createLiteralValue(targetKind, input) }
+            assertEquals(
+                "Incompatible type '${targetKind.wrapperClass.name}', for underlying value `$input` of ${input.javaClass}",
+                exception.message,
+                description
+            )
+        }
+
         private fun createLiteralValue(targetKind: ValueKind, input: Any): LiteralValue<*> {
             val typeItem =
                 targetKind.primitiveKind?.let { primitiveTypeForKind(it) } ?: stringType()
@@ -180,6 +207,11 @@ class ParameterizedPrimitiveValueConversionTest {
     }
 
     companion object {
+        /**
+         * Get the `java.lang` boxing wrapper class suitable for this [ValueKind].
+         *
+         * Only works for primitive [ValueKind]s and [ValueKind.STRING].
+         */
         val ValueKind.wrapperClass
             get() =
                 primitiveKind?.wrapperClass
@@ -188,6 +220,9 @@ class ParameterizedPrimitiveValueConversionTest {
 
         /** The conversion between two [ValueKind]s is unsupported. */
         @EntryPoint internal fun unsupported() = listOf(ConversionIsUnsupported())
+
+        /** The conversion between two [ValueKind]s is incompatible. */
+        private fun incompatible() = listOf(ConversionIsIncompatible())
 
         /** The conversion between two literals works fine. */
         @EntryPoint
@@ -220,6 +255,7 @@ class ParameterizedPrimitiveValueConversionTest {
                         ValueKind.INT to unsupported(),
                         ValueKind.LONG to unsupported(),
                         ValueKind.SHORT to unsupported(),
+                        ValueKind.STRING to incompatible(),
                     ),
                 ValueKind.BYTE to
                     mapOf(
@@ -251,6 +287,7 @@ class ParameterizedPrimitiveValueConversionTest {
                                 input = 53.toByte(),
                                 expectedOutput = 53.toShort(),
                             ),
+                        ValueKind.STRING to incompatible(),
                     ),
                 ValueKind.CHAR to
                     mapOf(
@@ -262,6 +299,7 @@ class ParameterizedPrimitiveValueConversionTest {
                         ValueKind.INT to unsupported(),
                         ValueKind.LONG to unsupported(),
                         ValueKind.SHORT to unsupported(),
+                        ValueKind.STRING to incompatible(),
                     ),
                 ValueKind.DOUBLE to
                     mapOf(
@@ -282,6 +320,7 @@ class ParameterizedPrimitiveValueConversionTest {
                         ValueKind.INT to unsupported(),
                         ValueKind.LONG to unsupported(),
                         ValueKind.SHORT to unsupported(),
+                        ValueKind.STRING to incompatible(),
                     ),
                 ValueKind.FLOAT to
                     mapOf(
@@ -297,6 +336,7 @@ class ParameterizedPrimitiveValueConversionTest {
                         ValueKind.INT to unsupported(),
                         ValueKind.LONG to unsupported(),
                         ValueKind.SHORT to unsupported(),
+                        ValueKind.STRING to incompatible(),
                     ),
                 ValueKind.INT to
                     mapOf(
@@ -343,6 +383,7 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = 0,
                                     roundTripValue = 0,
                                 ),
+                        ValueKind.STRING to incompatible(),
                     ),
                 ValueKind.LONG to
                     mapOf(
@@ -399,6 +440,7 @@ class ParameterizedPrimitiveValueConversionTest {
                                     lossyOutput = (-21092).toShort(),
                                     roundTripValue = -21092,
                                 ),
+                        ValueKind.STRING to incompatible(),
                     ),
                 ValueKind.SHORT to
                     mapOf(
@@ -435,6 +477,19 @@ class ParameterizedPrimitiveValueConversionTest {
                                 expectedOutput = -12345L,
                             ),
                         ValueKind.SHORT to same(input = 9876.toShort()),
+                        ValueKind.STRING to incompatible(),
+                    ),
+                ValueKind.STRING to
+                    mapOf(
+                        ValueKind.BOOLEAN to unsupported(),
+                        ValueKind.BYTE to unsupported(),
+                        ValueKind.CHAR to unsupported(),
+                        ValueKind.DOUBLE to unsupported(),
+                        ValueKind.FLOAT to unsupported(),
+                        ValueKind.INT to unsupported(),
+                        ValueKind.LONG to unsupported(),
+                        ValueKind.SHORT to unsupported(),
+                        ValueKind.STRING to same(input = "string"),
                     ),
             )
 
@@ -443,8 +498,8 @@ class ParameterizedPrimitiveValueConversionTest {
          * list of [ConversionTest]s.
          */
         private val conversionTests = let {
-            // Make sure that every primitive kind is used as the fromKind and targetKind.
-            val allKinds = ValueKind.PRIMITIVE_KINDS
+            // Make sure that every literal kind is used as the fromKind and targetKind.
+            val allKinds = ValueKind.LITERAL_KINDS
 
             require(conversionMatrix.keys == allKinds) {
                 "Expected conversion from every one of $allKinds, but found ${conversionMatrix.keys}"
