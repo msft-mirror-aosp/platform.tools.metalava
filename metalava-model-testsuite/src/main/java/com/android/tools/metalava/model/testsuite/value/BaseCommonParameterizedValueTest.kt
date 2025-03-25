@@ -428,7 +428,7 @@ abstract class BaseCommonParameterizedValueTest(
             val actual = actualGetter()
 
             // Get the expected value.
-            val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
+            val expected = expectation.expectationFor(producerKind, valueUseSite)
 
             // Compare the two.
             if (expected is Array<*> && actual is Array<*>) {
@@ -497,7 +497,7 @@ abstract class BaseCommonParameterizedValueTest(
                 }
 
             // Get the expected value.
-            val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
+            val expected = expectation.expectationFor(producerKind, valueUseSite)
 
             // A null value being returned when the expectation is non-null is not treated as an
             // error at the moment to avoid having to keep updating baseline files while expanding
