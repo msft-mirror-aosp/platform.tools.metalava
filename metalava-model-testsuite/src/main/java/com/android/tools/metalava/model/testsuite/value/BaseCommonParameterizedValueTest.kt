@@ -960,7 +960,7 @@ object SignatureTestClassCreator : TestClassCreator {
                 buildString {
                     append("// Signature format: 2.0\n")
                     append("package test.pkg {\n")
-                    append("  @")
+                    append("  @test.pkg.")
                     append(annotationTestClass.className)
                     append("(")
                     append(ATTRIBUTE_NAME)
