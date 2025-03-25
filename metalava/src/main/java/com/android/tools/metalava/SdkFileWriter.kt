@@ -73,14 +73,13 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
             // first check constant fields for the SdkConstant annotation.
             val fields = clazz.fields()
             for (field in fields) {
-                val value = field.initialValue() ?: continue
+                val value = field.legacyInitialValue() ?: continue
                 val annotations = field.modifiers.annotations()
                 for (annotation in annotations) {
                     if (ANDROID_SDK_CONSTANT == annotation.qualifiedName) {
                         val resolved =
                             annotation.findAttribute(null)?.leafValues()?.firstOrNull()?.resolve()
-                                as? FieldItem
-                                ?: continue
+                                as? FieldItem ?: continue
                         when (resolved.containingClass().qualifiedName() + "." + resolved.name()) {
                             SDK_CONSTANT_TYPE_ACTIVITY_ACTION ->
                                 activityActions.add(value.toString())

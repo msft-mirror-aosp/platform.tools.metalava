@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.FieldValue
+import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.Value
 import java.io.PrintWriter
 
 @MetalavaApi
@@ -34,14 +36,40 @@ interface FieldItem : MemberItem, InheritableItem {
         duplicate: Boolean,
     ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
-    /** The optional value of this [FieldItem]. */
-    val fieldValue: FieldValue?
+    /**
+     * The optional value of this [FieldItem].
+     *
+     * This is called `legacy` because this an old, inconsistent representation of the field value
+     * that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
+     */
+    val legacyFieldValue: FieldValue?
 
     /**
-     * The initial/constant value, if any. If [requireConstant] the initial value will only be
-     * returned if it's constant.
+     * The legacy initial/constant value, if any. If [requireConstant] the initial value will only
+     * be returned if it's constant.
+     *
+     * This is called `legacy` because this an old, inconsistent representation of the field value
+     * that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
      */
-    fun initialValue(requireConstant: Boolean = true): Any?
+    fun legacyInitialValue(requireConstant: Boolean = true): Any?
+
+    /**
+     * The optional initial value of the field.
+     *
+     * Replacement for [legacyInitialValue] and [legacyFieldValue].
+     *
+     * The [Value] may be the result of a constant expression as defined by JLS 15.28, i.e. a value
+     * of a primitive or [String] type (see [ConstantValue]), or it could be some other value, e.g.
+     * enum, class literal, etc.
+     *
+     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
+     * behavior is correctly maintained, i.e.:
+     * * `legacyInitialValue(true)` will become `initialValue as? ConstantValue`.
+     * * `legacyInitialValue(false)` will become `initialValue`.
+     */
+    val initialValue: Value?
 
     /**
      * An enum can contain both enum constants and fields; this method provides a way to distinguish
@@ -80,8 +108,8 @@ interface FieldItem : MemberItem, InheritableItem {
      * toolchains with different fp -> string conversions.
      */
     fun hasSameValue(other: FieldItem): Boolean {
-        val thisConstant = initialValue()
-        val otherConstant = other.initialValue()
+        val thisConstant = legacyInitialValue()
+        val otherConstant = other.legacyInitialValue()
         if (thisConstant == null != (otherConstant == null)) {
             return false
         }
@@ -132,7 +160,7 @@ interface FieldItem : MemberItem, InheritableItem {
         requireInitialValue: Boolean = false
     ) {
         val value =
-            initialValue(!allowDefaultValue)
+            legacyInitialValue(!allowDefaultValue)
                 ?: if (allowDefaultValue && !containingClass().isClass()) type().defaultValue()
                 else null
         if (value != null) {

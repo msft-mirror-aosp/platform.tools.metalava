@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
@@ -74,6 +75,7 @@ internal class PsiMethodItem(
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+        defaultValueProvider = OptionalValueProvider.NO_VALUE,
     ),
     PsiCallableItem {
 
@@ -98,16 +100,16 @@ internal class PsiMethodItem(
                     (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
 
-    override fun defaultValue(): String {
+    override fun legacyDefaultValue(): String {
         return when (psiMethod) {
             is UAnnotationMethod -> {
                 psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
             }
             is PsiAnnotationMethod -> {
                 psiMethod.defaultValue?.let { codebase.printer.toSourceExpression(it, this) }
-                    ?: super.defaultValue()
+                    ?: super.legacyDefaultValue()
             }
-            else -> super.defaultValue()
+            else -> super.legacyDefaultValue()
         }
     }
 
@@ -193,8 +195,7 @@ internal class PsiMethodItem(
                             it.qualifiedName == JvmName::class.qualifiedName
                         }
                         ?.findAttributeValue("name")
-                        ?.evaluate() as? String
-                        ?: psiMethod.name
+                        ?.evaluate() as? String ?: psiMethod.name
                 } else {
                     psiMethod.name
                 }

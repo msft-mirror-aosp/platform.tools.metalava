@@ -177,7 +177,9 @@ class DocAnalyzer(
                     val permClass = codebase.findClass("android.Manifest.permission")
                     permClass
                         ?.fields()
-                        ?.filter { it.initialValue(requireConstant = false)?.toString() == perm }
+                        ?.filter {
+                            it.legacyInitialValue(requireConstant = false)?.toString() == perm
+                        }
                         ?.forEach {
                             return it
                         }
@@ -250,10 +252,9 @@ class DocAnalyzer(
                     val text =
                         (annotation.findAttribute("message")
                                 ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
-                            ?.value
+                            ?.legacyValue
                             ?.value()
-                            ?.toString()
-                            ?: return
+                            ?.toString() ?: return
                     if (text.isBlank() || item.documentation.contains(text)) {
                         return
                     }
@@ -274,8 +275,7 @@ class DocAnalyzer(
                                     item
                                         .containingCallable()
                                         .documentation
-                                        .findTagDocumentation("param", item.name())
-                                        ?: ""
+                                        .findTagDocumentation("param", item.name()) ?: ""
                                 }
                                 is CallableItem -> {
                                     // Don't inspect param docs (and other tags) for this purpose.
@@ -326,7 +326,7 @@ class DocAnalyzer(
                                 values = attribute.leafValues()
                             }
                             "conditional" -> {
-                                conditional = attribute.value.value() == true
+                                conditional = attribute.legacyValue.value() == true
                             }
                         }
                     }
@@ -398,8 +398,8 @@ class DocAnalyzer(
                 }
 
                 private fun handleRange(annotation: AnnotationItem, item: Item) {
-                    val from: String? = annotation.findAttribute("from")?.value?.toSource()
-                    val to: String? = annotation.findAttribute("to")?.value?.toSource()
+                    val from: String? = annotation.findAttribute("from")?.legacyValue?.toSource()
+                    val to: String? = annotation.findAttribute("to")?.legacyValue?.toSource()
                     // TODO: inclusive/exclusive attributes on FloatRange!
                     if (from != null || to != null) {
                         val args = HashMap<String, String>()
@@ -420,7 +420,7 @@ class DocAnalyzer(
 
                 private fun handleTypeDef(annotation: AnnotationItem, item: Item) {
                     val values = annotation.findAttribute("value")?.leafValues() ?: return
-                    val flag = annotation.findAttribute("flag")?.value?.toSource() == "true"
+                    val flag = annotation.findAttribute("flag")?.legacyValue?.toSource() == "true"
 
                     // Look at macros_override.cs for the usage of these
                     // tags. In particular, search for def:dump_int_def
@@ -559,14 +559,16 @@ class DocAnalyzer(
                     item: Item
                 ) {
                     val environmentsValue: String? =
-                        annotationItem.findAttribute("environments")?.value?.toSource()
-                    val fromValue: String? = annotationItem.findAttribute("from")?.value?.toSource()
+                        annotationItem.findAttribute("environments")?.legacyValue?.value()
+                            as String?
+                    val fromValue: String? =
+                        annotationItem.findAttribute("from")?.legacyValue?.toSource()
 
-                    if (environmentsValue == null || !environmentsValue.endsWith("SDK_SANDBOX")) {
+                    if (environmentsValue == null) {
                         reporter.report(
-                            Issues.INVALID_ENVIRONMENT_IN_RESTRICTED_FOR_ENVIRONMENT,
+                            Issues.MISSING_ENVIRONMENTS_VALUE,
                             item,
-                            "Invalid 'environments' value '$environmentsValue', must be 'SDK_SANDBOX'"
+                            "Missing 'environments' value for @RestrictedForEnvironment annotation"
                         )
                         return
                     }
@@ -581,7 +583,7 @@ class DocAnalyzer(
                     }
 
                     appendDocumentation(
-                        "Restricted for SDK Runtime environment in API level $fromValue.\n",
+                        "Restricted for $environmentsValue environment in API level $fromValue.\n",
                         item,
                         false
                     )

@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.FieldValue
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
@@ -47,7 +48,7 @@ internal class PsiFieldItem(
     containingClass: ClassItem,
     type: TypeItem,
     private val isEnumConstant: Boolean,
-    override val fieldValue: FieldValue?,
+    override val legacyFieldValue: FieldValue?,
 ) :
     DefaultFieldItem(
         codebase = codebase,
@@ -60,7 +61,8 @@ internal class PsiFieldItem(
         containingClass = containingClass,
         type = type,
         isEnumConstant = isEnumConstant,
-        fieldValue = fieldValue,
+        initialValueProvider = OptionalValueProvider.NO_VALUE,
+        legacyFieldValue = legacyFieldValue,
     ),
     FieldItem,
     PsiItem {
@@ -125,7 +127,7 @@ internal class PsiFieldItem(
                 containingClass = containingClass,
                 type = fieldType,
                 isEnumConstant = isEnumConstant,
-                fieldValue = fieldValue
+                legacyFieldValue = fieldValue
             )
         }
     }
@@ -149,8 +151,7 @@ private fun PsiField.isFieldInitializerNonNull(): Boolean {
                 initializer.resolveMethod()
             }
             else -> null
-        }
-            ?: return false
+        } ?: return false
 
     return resolved is PsiModifierListOwner &&
         resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
