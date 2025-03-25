@@ -83,7 +83,7 @@ class ParameterizedLiteralValueConversionTest {
     /** A [ConversionExample] that is lossy. */
     class ConversionIsLossy(
         private val input: Number,
-        private val lossyOutput: Number,
+        private val lossyOutput: Any,
         private val roundTripValue: Number,
     ) : ConversionExample() {
         override fun ConversionTest.checkExample() {
@@ -154,7 +154,7 @@ class ParameterizedLiteralValueConversionTest {
         fun checkNormalizationIsLossy(
             input: Number,
             targetKind: ValueKind,
-            lossyOutput: Number,
+            lossyOutput: Any,
             roundTripValue: Number,
         ) {
             val description = "Converting $input of ${input.javaClass} to $targetKind"
@@ -237,7 +237,7 @@ class ParameterizedLiteralValueConversionTest {
         @EntryPoint
         internal fun lossy(
             input: Number,
-            lossyOutput: Number,
+            lossyOutput: Any,
             roundTripValue: Number,
         ) = listOf(ConversionIsLossy(input, lossyOutput, roundTripValue))
 
@@ -262,7 +262,18 @@ class ParameterizedLiteralValueConversionTest {
                     mapOf(
                         ValueKind.BOOLEAN to unsupported(),
                         ValueKind.BYTE to same(input = 100.toByte()),
-                        ValueKind.CHAR to unsupported(),
+                        ValueKind.CHAR to
+                            ok(
+                                input = 66.toByte(),
+                                expectedOutput = 'B',
+                            ) +
+                                // A negative byte to a character to an int, to a byte produces the
+                                // exact same negative byte as this started with so it is not
+                                // considered lossy.
+                                ok(
+                                    input = (-12).toByte(),
+                                    expectedOutput = '\uFFF4',
+                                ),
                         ValueKind.DOUBLE to
                             ok(
                                 input = (-77).toByte(),
@@ -352,7 +363,16 @@ class ParameterizedLiteralValueConversionTest {
                                     lossyOutput = -128,
                                     roundTripValue = -128,
                                 ),
-                        ValueKind.CHAR to unsupported(),
+                        ValueKind.CHAR to
+                            ok(
+                                input = 169,
+                                expectedOutput = '©',
+                            ) +
+                                lossy(
+                                    input = 123456,
+                                    lossyOutput = '\uE240',
+                                    roundTripValue = 57920,
+                                ),
                         ValueKind.DOUBLE to
                             ok(
                                 input = Int.MAX_VALUE,
@@ -399,7 +419,16 @@ class ParameterizedLiteralValueConversionTest {
                                     lossyOutput = (-126).toByte(),
                                     roundTripValue = -126L,
                                 ),
-                        ValueKind.CHAR to unsupported(),
+                        ValueKind.CHAR to
+                            ok(
+                                input = 0x2345L,
+                                expectedOutput = '\u2345',
+                            ) +
+                                lossy(
+                                    input = 12_345_678_900L,
+                                    lossyOutput = '\u1C34',
+                                    roundTripValue = 7220,
+                                ),
                         ValueKind.DOUBLE to
                             ok(
                                 input = 20_000_000_000L,
@@ -456,7 +485,18 @@ class ParameterizedLiteralValueConversionTest {
                                     lossyOutput = 1,
                                     roundTripValue = 1,
                                 ),
-                        ValueKind.CHAR to unsupported(),
+                        ValueKind.CHAR to
+                            ok(
+                                input = Short.MAX_VALUE,
+                                expectedOutput = '\u7FFF',
+                            ) +
+                                // A negative short to a character to an int, to a short produces
+                                // the exact same negative short as this started with so it is not
+                                // considered lossy.
+                                ok(
+                                    input = (-56).toShort(),
+                                    expectedOutput = '\uFFC8',
+                                ),
                         ValueKind.DOUBLE to
                             ok(
                                 input = Short.MAX_VALUE,
