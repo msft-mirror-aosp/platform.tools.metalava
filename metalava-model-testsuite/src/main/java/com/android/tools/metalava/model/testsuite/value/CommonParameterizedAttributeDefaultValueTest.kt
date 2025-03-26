@@ -33,11 +33,6 @@ class CommonParameterizedAttributeDefaultValueTest :
         testFileCacheRule.cache,
         testJarFile,
         ATTRIBUTE_DEFAULT_VALUE,
-        legacySourceGetter = {
-            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
-
-            annotationMethod.legacyDefaultValue()
-        },
     ) {
     companion object : BaseCompanion(ATTRIBUTE_DEFAULT_VALUE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */

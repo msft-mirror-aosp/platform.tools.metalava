@@ -29,16 +29,6 @@ class CommonParameterizedAnnotationToSourceValueTest :
         testFileCacheRule.cache,
         testJarFile,
         ANNOTATION_TO_SOURCE,
-        legacySourceGetter = {
-            // Get the annotation to test.
-            val annotation = testClassItem.modifiers.annotations().first()
-
-            // Generate the whole annotation representation.
-            val wholeAnnotation = annotation.toSource()
-
-            // Extract the value from the whole annotation.
-            wholeAnnotation.substringAfter("=").substringBeforeLast(")")
-        },
     ) {
     companion object : BaseCompanion(ANNOTATION_TO_SOURCE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */

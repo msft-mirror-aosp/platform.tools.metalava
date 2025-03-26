@@ -33,12 +33,6 @@ class CommonParameterizedAttributeValueTest :
         testFileCacheRule.cache,
         testJarFile,
         ATTRIBUTE_VALUE,
-        legacySourceGetter = {
-            val annotation = testClassItem.modifiers.annotations().first()
-            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
-
-            annotationAttribute.legacyValue.toSource()
-        }
     ) {
     companion object : BaseCompanion(ATTRIBUTE_VALUE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */

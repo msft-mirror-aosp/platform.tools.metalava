@@ -81,14 +81,11 @@ import org.junit.runners.Parameterized
  * @param testJarFile the [TestFile] for the jar file built from all the java source files used by
  *   this test class.
  * @param valueUseSite the [ValueUseSite] being tested by this class.
- * @param legacySourceGetter gets the legacy source representation as expected by
- *   [ValueExample.expectedLegacySourceFor].
  */
 abstract class BaseCommonParameterizedValueTest(
     private val testFileCache: TestFileCache,
     private val testJarFile: TestFile,
     private val valueUseSite: ValueUseSite,
-    private val legacySourceGetter: TestCaseContext.() -> String,
 ) : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
@@ -439,11 +436,11 @@ abstract class BaseCommonParameterizedValueTest(
 
     /**
      * Check the [ValueExample.expectedLegacySource] against the [String] returned by
-     * [legacySourceGetter].
+     * [ValueUseSite.legacySourceGetter].
      */
     protected fun checkLegacySource() {
         val expectedLegacySource = testCase.valueExample.expectedLegacySourceFor(inputFormat)
-        runExpectationTest(expectedLegacySource, legacySourceGetter)
+        runExpectationTest(expectedLegacySource, valueUseSite.legacySourceGetter)
     }
 
     /**
