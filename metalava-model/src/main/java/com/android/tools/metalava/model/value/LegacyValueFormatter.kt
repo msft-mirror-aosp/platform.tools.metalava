@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -38,8 +39,16 @@ import com.android.tools.metalava.model.MethodItem
  * implement the legacy string representations by applying one of these to the [Value].
  *
  * There will be one instance of this created per legacy use site.
+ *
+ * @param sourceSettings the [Settings] to use when formatting a value whose context [MemberItem] is
+ *   loaded from the sources.
+ * @param jarSettings the [Settings] to use when formatting a value whose context [MemberItem] is
+ *   loaded from a jar.
  */
-class LegacyValueFormatter(private val settings: Settings) {
+class LegacyValueFormatter(
+    private val sourceSettings: Settings,
+    private val jarSettings: Settings = sourceSettings,
+) {
     /** Settings that affect the formatting of a [Value]. */
     data class Settings(
         /** The configuration that is used when calling [Value.toValueString]. */
@@ -64,7 +73,14 @@ class LegacyValueFormatter(private val settings: Settings) {
      *
      * This is not suitable for formatting a [Value] from [AnnotationAttribute.value].
      */
-    fun format(value: Value, @Suppress("UNUSED_PARAMETER") context: MemberItem): String {
+    fun format(value: Value, context: MemberItem): String {
+        // Select the settings to use based on whether it is from the classpath (a jar) or sources.
+        val settings =
+            when {
+                context.containingClass().origin == ClassOrigin.CLASS_PATH -> jarSettings
+                else -> sourceSettings
+            }
+
         // If there is a string replacement then return it.
         settings.stringReplacement[value]?.let { replacement ->
             return replacement

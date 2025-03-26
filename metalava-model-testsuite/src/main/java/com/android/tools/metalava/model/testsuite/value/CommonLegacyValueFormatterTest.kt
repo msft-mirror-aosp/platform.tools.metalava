@@ -225,4 +225,20 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             assertEquals("3.0", actual)
         }
     }
+
+    @Test
+    fun `Test jar specific settings`() {
+        checkFormatting {
+            val sourceSettings = Settings(stringReplacement = mapOf(DOUBLE_NAN to "Source"))
+            val jarSettings = Settings(stringReplacement = mapOf(DOUBLE_NAN to "Jar"))
+            val formatter =
+                LegacyValueFormatter(
+                    sourceSettings = sourceSettings,
+                    jarSettings = jarSettings,
+                )
+            val actual = formatter.format(DOUBLE_NAN, method)
+            val expected = if (producerKind == ProducerKind.JAR) "Jar" else "Source"
+            assertEquals(expected, actual)
+        }
+    }
 }
