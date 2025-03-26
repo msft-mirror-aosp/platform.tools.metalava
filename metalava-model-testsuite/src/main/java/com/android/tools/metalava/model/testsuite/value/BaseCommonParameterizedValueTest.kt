@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
@@ -32,7 +33,6 @@ import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Compani
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.Value
-import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.cacheIn
@@ -481,34 +481,22 @@ abstract class BaseCommonParameterizedValueTest(
                 )
 
         runTestOnCodebase {
-            // Get the actual value.
-            // ValueProviderExceptions are not treated as test failures at the moment to avoid
-            // having to keep updating baseline files while expanding Value support across the
-            // models.
-            // TODO(b/354633349): Stop ignoring exceptions.
-            val actual =
-                try {
-                    actualValueGetter()
-                } catch (e: ValueProviderException) {
-                    throw AssumptionViolatedException(
-                        "Ignoring exception thrown while retrieving value",
-                        e
-                    )
-                }
-
             // Get the expected value.
-            val expected = expectation.expectationFor(producerKind, valueUseSite)
+            expectation.expectationFor(producerKind, valueUseSite).runValueTest { expected ->
 
-            // A null value being returned when the expectation is non-null is not treated as an
-            // error at the moment to avoid having to keep updating baseline files while expanding
-            // Value support across the models.
-            // TODO(b/354633349): Stop ignoring mismatch when actual is null.
-            if (expected != null && actual == null) {
-                throw AssumptionViolatedException("Ignoring null value")
+                // Get the actual value.
+                val actual =
+                    actualValueGetter()
+                        ?:
+                        // A null value being returned when the expectation is non-null is not
+                        // treated as an error at the moment to avoid having to keep updating
+                        // baseline files while expanding Value support across the models.
+                        // TODO(b/354633349): Stop ignoring mismatch when actual is null.
+                        throw AssumptionViolatedException("Ignoring null value")
+
+                // Compare the two.
+                assertEquals(expected, actual)
             }
-
-            // Compare the two.
-            assertEquals(expected, actual)
         }
     }
 }
