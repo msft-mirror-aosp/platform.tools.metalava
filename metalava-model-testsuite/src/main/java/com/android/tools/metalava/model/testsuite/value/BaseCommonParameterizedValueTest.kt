@@ -41,6 +41,7 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
 import org.junit.runners.Parameterized
@@ -430,7 +431,11 @@ abstract class BaseCommonParameterizedValueTest(
             val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
 
             // Compare the two.
-            assertEquals(expected, actual)
+            if (expected is Array<*> && actual is Array<*>) {
+                assertArrayEquals(expected, actual)
+            } else {
+                assertEquals(expected, actual)
+            }
         }
     }
 

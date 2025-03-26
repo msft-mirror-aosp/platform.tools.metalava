@@ -47,6 +47,11 @@ class CommonParameterizedAttributeValueTest :
         checkLegacySource()
     }
 
+    @Test
+    fun testLegacyValue() {
+        checkLegacyValue()
+    }
+
     @RequiresCapabilities(Capability.JAVA)
     @Test
     fun testAttributeValue() {

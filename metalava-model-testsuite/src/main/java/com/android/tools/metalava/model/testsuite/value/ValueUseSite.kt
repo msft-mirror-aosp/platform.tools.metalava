@@ -57,6 +57,12 @@ enum class ValueUseSite(
 
             annotationAttribute.legacyValue.toSource()
         },
+        legacyValueGetter = {
+            val annotation = testClassItem.modifiers.annotations().first()
+            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
+
+            annotationAttribute.legacyValue.value() ?: NO_INITIAL_FIELD_VALUE
+        }
     ),
 
     /**
