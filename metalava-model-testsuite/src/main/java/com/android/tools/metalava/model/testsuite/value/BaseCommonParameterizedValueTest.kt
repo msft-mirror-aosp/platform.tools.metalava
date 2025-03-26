@@ -444,6 +444,22 @@ abstract class BaseCommonParameterizedValueTest(
     }
 
     /**
+     * Check the [ValueExample.expectedLegacyValue] against the [Any] returned by
+     * [ValueUseSite.legacyValueGetter].
+     */
+    protected fun checkLegacyValue() {
+        val expectedLegacyValue =
+            testCase.valueExample.expectedLegacyValueFor(inputFormat)
+                // Make sure that there is an expectation for every constant example.
+                ?: if (testCase.valueExample.isConstant) error("Missing expected legacy value")
+                else return
+        val legacyValueGetter =
+            valueUseSite.legacyValueGetter
+                ?: error("ValueUseSite.$valueUseSite does not provide a legacyValueGetter")
+        runExpectationTest(expectedLegacyValue, legacyValueGetter)
+    }
+
+    /**
      * Check the [ValueExample.expectedValue] against the [Value] returned by [actualValueGetter].
      */
     protected fun checkExpectedValue(

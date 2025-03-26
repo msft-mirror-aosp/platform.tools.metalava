@@ -33,8 +33,13 @@ import kotlin.test.assertNotNull
  *
  * @param legacySourceGetter gets the legacy source representation as expected by
  *   [ValueExample.expectedLegacySourceFor].
+ * @param legacyValueGetter get the legacy value as expected by
+ *   [ValueExample.expectedLegacyValueFor].
  */
-enum class ValueUseSite(val legacySourceGetter: TestCaseContext.() -> String) {
+enum class ValueUseSite(
+    val legacySourceGetter: TestCaseContext.() -> String,
+    val legacyValueGetter: (TestCaseContext.() -> Any)? = null,
+) {
     /** The default value specified on an annotation class's method. */
     ATTRIBUTE_DEFAULT_VALUE(
         legacySourceGetter = {
@@ -77,6 +82,10 @@ enum class ValueUseSite(val legacySourceGetter: TestCaseContext.() -> String) {
             val field = testClassItem.assertField(FIELD_NAME)
             val fieldValue = assertNotNull(field.legacyFieldValue, "No field value")
             fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
+        },
+        legacyValueGetter = {
+            testClassItem.assertField(FIELD_NAME).legacyFieldValue?.initialValue(true)
+                ?: NO_INITIAL_FIELD_VALUE
         },
     ),
 

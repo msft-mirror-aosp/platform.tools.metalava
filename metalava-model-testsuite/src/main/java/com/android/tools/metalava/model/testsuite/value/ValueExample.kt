@@ -105,6 +105,23 @@ constructor(
     private val expectedKotlinLegacySource: Expectation<String?> = expectedLegacySource,
 
     /**
+     * The legacy value of [javaExpression].
+     *
+     * This may differ by [ProducerKind] and [ValueUseSite].
+     */
+    private val expectedLegacyValue: Expectation<Any>? = null,
+
+    /**
+     * Kotlin source expressions can produce different values than the same source expression in
+     * Java.
+     *
+     * Rather than make [Expectation] support another dimension on top of [ValueUseSite] and
+     * [ProducerKind] for the few cases where there are differences, it is handled by having this
+     * Kotlin specific expectation sit alongside and default to [expectedLegacyValue].
+     */
+    private val expectedKotlinLegacyValue: Expectation<Any?>? = expectedLegacyValue,
+
+    /**
      * The expected [Value] for this case.
      *
      * This may differ by [ProducerKind] and [ValueUseSite].
@@ -154,11 +171,32 @@ constructor(
             }
         )
 
+    /**
+     * If the field is not a constant then wrap it in an Expectation that will enforce that fields
+     * only have constant values.
+     */
+    private fun wrapLegacyValue(expectation: Expectation<Any?>?) =
+        if (expectation == null) null
+        else if (isConstant) expectation
+        else constantFieldLegacySourceExpectation.fallBackTo(expectation)
+
+    /** Get the expected legacy value for [inputFormat]. */
+    fun expectedLegacyValueFor(inputFormat: InputFormat) =
+        wrapLegacyValue(
+            when (inputFormat) {
+                InputFormat.KOTLIN ->
+                    // Kotlin overrides the standard expectations.
+                    if (expectedLegacyValue == null) expectedKotlinLegacyValue
+                    else expectedKotlinLegacyValue?.fallBackTo(expectedLegacyValue)
+                else -> expectedLegacyValue
+            }
+        )
+
     /** The suffix to add to class names to make them specific to this example. */
     val classSuffix = name.replace(" ", "_")
 
     /** True if this is supported to be a field constant. */
-    private val isConstant
+    internal val isConstant
         get() = javaType in constantTypeNames
 
     companion object {
@@ -223,6 +261,7 @@ constructor(
                     javaExpression = "true",
                     kotlinType = "Boolean",
                     expectedLegacySource = expectations { common = "true" },
+                    expectedLegacyValue = expectations { common = true },
                     expectedValue = expectations { common = literalValue(true) },
                 ),
                 // Check a simple boolean false value.
@@ -232,6 +271,7 @@ constructor(
                     javaExpression = "false",
                     kotlinType = "Boolean",
                     expectedLegacySource = expectations { common = "false" },
+                    expectedLegacyValue = expectations { common = false },
                     expectedValue = expectations { common = literalValue(false) },
                 ),
                 // Check a simple byte.
@@ -241,6 +281,7 @@ constructor(
                     javaExpression = "116",
                     kotlinType = "Byte",
                     expectedLegacySource = expectations { common = "116" },
+                    expectedLegacyValue = expectations { common = 116.toByte() },
                     expectedValue = expectations { common = literalValue(116.toByte()) },
                 ),
                 // Check a simple char.
@@ -259,6 +300,7 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "\"x\"" },
+                    expectedLegacyValue = expectations { common = 'x' },
                     expectedValue = expectations { common = literalValue('x') },
                 ),
                 // Check a unicode char.
@@ -279,6 +321,7 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "\"\\u2912\"" },
+                    expectedLegacyValue = expectations { common = '⤒' },
                     expectedValue = expectations { common = literalValue('\u2912') },
                 ),
                 // Check char escaped.
@@ -299,6 +342,7 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "\"\\t\"" },
+                    expectedLegacyValue = expectations { common = '\t' },
                     expectedValue = expectations { common = literalValue('\t') },
                 ),
                 // Check a class literal.
@@ -405,6 +449,7 @@ constructor(
                     javaExpression = "3.141",
                     kotlinType = "Double",
                     expectedLegacySource = expectations { common = "3.141" },
+                    expectedLegacyValue = expectations { common = 3.141 },
                     expectedValue = expectations { common = literalValue(3.141) },
                 ),
                 // Check a simple double with int
@@ -429,6 +474,8 @@ constructor(
                             }
                         },
                     expectedKotlinLegacySource = partialExpectations { source { common = "3" } },
+                    expectedLegacyValue = expectations { common = 3.0 },
+                    expectedKotlinLegacyValue = expectations { source { common = 3 } },
                     expectedValue = expectations { common = literalValue(3.0) },
                 ),
                 // Check a simple double with exponent
@@ -443,6 +490,7 @@ constructor(
 
                             source { attributeValue = "7e10" }
                         },
+                    expectedLegacyValue = expectations { common = 7e10 },
                     expectedValue = expectations { common = literalValue(7e10) },
                 ),
                 // Check a special double - Nan.
@@ -478,6 +526,11 @@ constructor(
                         partialExpectations {
                             attributeDefaultValue = "kotlin.jvm.internal.DoubleCompanionObject.NaN"
                             annotationToSource = "kotlin.jvm.internal.DoubleCompanionObject.NaN"
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = Double.NaN
+                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
                         },
                     expectedValue = expectations { common = literalValue(Double.NaN) },
                 ),
@@ -517,6 +570,11 @@ constructor(
                             annotationToSource =
                                 "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY"
                         },
+                    expectedLegacyValue =
+                        expectations {
+                            common = Double.POSITIVE_INFINITY
+                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
+                        },
                     expectedValue =
                         expectations { common = literalValue(Double.POSITIVE_INFINITY) },
                 ),
@@ -554,6 +612,11 @@ constructor(
                                 "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY"
                             annotationToSource =
                                 "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY"
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = Double.NEGATIVE_INFINITY
+                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
                         },
                     expectedValue =
                         expectations { common = literalValue(Double.NEGATIVE_INFINITY) },
@@ -606,6 +669,8 @@ constructor(
                             fieldWriteWithSemicolon = "3.0f"
                         },
                     expectedKotlinLegacySource = partialExpectations { source { common = "3" } },
+                    expectedLegacyValue = expectations { common = 3.0f },
+                    expectedKotlinLegacyValue = partialExpectations { source { common = 3 } },
                     expectedValue = expectations { common = literalValue(3.0f) },
                 ),
                 // Check a simple float with exponent
@@ -624,6 +689,7 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "7.0E10" },
+                    expectedLegacyValue = expectations { common = 7.0E10f },
                     expectedValue = expectations { common = literalValue(7e10f) },
                 ),
                 // Check a simple float with upper F.
@@ -651,6 +717,7 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "3.141" },
+                    expectedLegacyValue = expectations { common = 3.141f },
                     expectedValue = expectations { common = literalValue(3.141F) },
                 ),
                 // Check a simple float with lower F.
@@ -666,6 +733,7 @@ constructor(
                             // TODO(b/354633349): Consistency is good.
                             fieldValue = "3.141"
                         },
+                    expectedLegacyValue = expectations { common = 3.141f },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "3.141" },
                 ),
@@ -701,6 +769,11 @@ constructor(
                         partialExpectations {
                             attributeDefaultValue = "kotlin.jvm.internal.FloatCompanionObject.NaN"
                             annotationToSource = "kotlin.jvm.internal.FloatCompanionObject.NaN"
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = Float.NaN
+                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
                         },
                     expectedValue = expectations { common = literalValue(Float.NaN) },
                 ),
@@ -740,6 +813,11 @@ constructor(
                             annotationToSource =
                                 "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY"
                         },
+                    expectedLegacyValue =
+                        expectations {
+                            common = Float.POSITIVE_INFINITY
+                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
+                        },
                     expectedValue = expectations { common = literalValue(Float.POSITIVE_INFINITY) },
                 ),
                 ValueExample(
@@ -777,6 +855,11 @@ constructor(
                             annotationToSource =
                                 "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY"
                         },
+                    expectedLegacyValue =
+                        expectations {
+                            common = Float.NEGATIVE_INFINITY
+                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
+                        },
                     expectedValue = expectations { common = literalValue(Float.NEGATIVE_INFINITY) },
                 ),
                 // Check a simple int.
@@ -786,6 +869,7 @@ constructor(
                     javaExpression = "17",
                     kotlinType = "Int",
                     expectedLegacySource = expectations { common = "17" },
+                    expectedLegacyValue = expectations { common = 17 },
                     expectedValue = expectations { common = literalValue(17) },
                 ),
                 // Check an int with a unary plus.
@@ -806,6 +890,7 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "+17" },
+                    expectedLegacyValue = expectations { common = 17 },
                     expectedValue = expectations { common = literalValue(17) },
                 ),
                 // Check an int with a unary minus.
@@ -820,6 +905,7 @@ constructor(
 
                             annotationToSource = "0xffffffef"
                         },
+                    expectedLegacyValue = expectations { common = -17 },
                     expectedValue = expectations { common = literalValue(-17) },
                 ),
                 // Check a simple long with an integer value.
@@ -844,6 +930,7 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { annotationToSource = "1000L" },
+                    expectedLegacyValue = expectations { common = 1000L },
                     expectedValue = expectations { common = literalValue(1000L) },
                 ),
                 // Check a simple long with an upper case suffix.
@@ -860,6 +947,7 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "10000000000" },
+                    expectedLegacyValue = expectations { common = 10000000000L },
                     expectedValue = expectations { common = literalValue(10000000000L) },
                 ),
                 // Check a simple long with a lower case suffix.
@@ -882,6 +970,7 @@ constructor(
                                 attributeValue = "10000000000l"
                             }
                         },
+                    expectedLegacyValue = expectations { common = 10000000000L },
                     expectedValue = expectations { common = literalValue(10000000000L) },
                 ),
                 // Check a simple short with a lower case suffix.
@@ -891,6 +980,7 @@ constructor(
                     javaExpression = "32000",
                     kotlinType = "Short",
                     expectedLegacySource = expectations { common = "32000" },
+                    expectedLegacyValue = expectations { common = 32000.toShort() },
                     expectedValue = expectations { common = literalValue(32000.toShort()) },
                 ),
                 // Check a simple string.
@@ -904,6 +994,7 @@ constructor(
                             // TODO(b/354633349): Should have surrounding quotes.
                             fieldValue = "string"
                         },
+                    expectedLegacyValue = expectations { common = "string" },
                     expectedValue = expectations { common = literalValue("string") },
                 ),
                 ValueExample(
@@ -917,6 +1008,7 @@ constructor(
                             //   be escaped.
                             fieldValue = "str\ning"
                         },
+                    expectedLegacyValue = expectations { common = "str\ning" },
                     expectedValue = expectations { common = literalValue("str\ning") },
                 ),
                 // Check a simple string array.
@@ -973,6 +1065,7 @@ constructor(
                                 fieldWriteWithSemicolon = "\"constant\""
                             }
                         },
+                    expectedLegacyValue = expectations { common = "constant" },
                 )
             )
 
@@ -995,7 +1088,7 @@ constructor(
  * [ValueExample.expectedLegacySource],
  */
 private val constantFieldLegacySourceExpectation =
-    partialExpectations<String> {
+    partialExpectations<Any> {
         fieldValue = NO_INITIAL_FIELD_VALUE
         fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
     }

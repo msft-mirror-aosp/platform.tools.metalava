@@ -96,6 +96,12 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTe
   testLegacySource[jar,float NaN]
   testLegacySource[jar,float negative infinity]
   testLegacySource[jar,float positive infinity]
+  testLegacyValue[jar,double NaN]
+  testLegacyValue[jar,double negative infinity]
+  testLegacyValue[jar,double positive infinity]
+  testLegacyValue[jar,float NaN]
+  testLegacyValue[jar,float negative infinity]
+  testLegacyValue[jar,float positive infinity]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
   testLegacySource[jar,double NaN]
