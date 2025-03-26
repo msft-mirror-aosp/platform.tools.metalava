@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.javaUnescapeString
@@ -24,7 +27,43 @@ import com.android.tools.metalava.model.javaUnescapeString
  * Parser for the string representation of [Value]s that is used in a signature file or an
  * annotation created from a string.
  */
-class ValueParser : ValueFactory {
+class ValueParser : ValueFactory, ImplementationValueToModelFactory<String> {
+    /**
+     * Get a [CombinedValueProvider] that will create (and cache) a [Value] of [typeItem] from
+     * [text].
+     *
+     * @param typeItem the required type for the value, e.g. [MethodItem.returnType] or
+     *   [FieldItem.type].
+     * @param text the String value to be parsed.
+     */
+    fun providerFor(typeItem: TypeItem, text: String): CombinedValueProvider =
+        CachingValueProvider(this, typeItem, text)
+
+    /**
+     * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
+     * [attributeName] of [annotationItem] from [text].
+     *
+     * @param annotationItem the containing [AnnotationItem].
+     * @param attributeName the name of the attribute whose value it will provide.
+     * @param text the String value to be parsed.
+     */
+    fun providerForAnnotationValue(
+        annotationItem: AnnotationItem,
+        attributeName: String,
+        text: String
+    ): CombinedValueProvider =
+        CachingAnnotationValueProvider(
+            this,
+            annotationItem,
+            attributeName,
+            text,
+        )
+
+    override fun implementationValueToModelValue(
+        optionalTypeItem: TypeItem?,
+        implementationValue: String
+    ) = parse(optionalTypeItem, implementationValue)
+
     /** Parse the [text] to provide a [Value] of the [optionalTypeItem]. */
     fun parse(optionalTypeItem: TypeItem?, text: String): Value? {
         if (text.isEmpty()) return null
@@ -160,6 +199,9 @@ class ValueParser : ValueFactory {
     }
 
     companion object {
+        /** The default instance of this. */
+        val DEFAULT = ValueParser()
+
         /**
          * Map of all the different string representations of various special floating point
          * numbers.
