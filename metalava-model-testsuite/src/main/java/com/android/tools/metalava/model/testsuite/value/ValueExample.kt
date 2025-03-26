@@ -305,8 +305,6 @@ constructor(
                     expectedLegacySource =
                         expectations {
                             common = "'x'"
-                            // TODO(b/354633349): Should have surrounding quotes.
-                            fieldValue = "x"
                             fieldWriteWithSemicolon = "120"
                         },
                     expectedKotlinLegacySource =
@@ -324,9 +322,6 @@ constructor(
                     expectedLegacySource =
                         expectations {
                             common = "'\\u2912'"
-                            // TODO(b/354633349): Should have surrounding quotes and use the
-                            //   `\uABCD` form.
-                            fieldValue = "⤒"
                             jar { attributeValue = "'⤒'" }
                             fieldWriteWithSemicolon = "10514"
                         },
@@ -346,9 +341,6 @@ constructor(
                         expectations {
                             // This seems like the best representation. Quoted and escaped.
                             common = "'\\t'"
-                            // TODO(b/354633349): Should have surrounding quotes and use the
-                            //   `\uABCD` form.
-                            fieldValue = "\t"
                             fieldWriteWithSemicolon = "9"
                         },
                     expectedKotlinLegacySource =
@@ -529,7 +521,6 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.NaN"
                                 attributeValue = "Double.NaN"
                                 annotationToSource = "java.lang.Double.NaN"
-                                fieldValue = "NaN"
                                 fieldWriteWithSemicolon = "(0.0/0.0)"
                             }
 
@@ -537,7 +528,6 @@ constructor(
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0d / 0.0"
                                 annotationToSource = "0.0 / 0.0"
-                                fieldValue = NO_INITIAL_FIELD_VALUE
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -570,7 +560,6 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.POSITIVE_INFINITY"
                                 attributeValue = "Double.POSITIVE_INFINITY"
                                 annotationToSource = "java.lang.Double.POSITIVE_INFINITY"
-                                fieldValue = "Infinity"
                                 fieldWriteWithSemicolon = "(1.0/0.0)"
                             }
 
@@ -578,7 +567,6 @@ constructor(
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0 / 0.0"
                                 annotationToSource = "1.0 / 0.0"
-                                fieldValue = NO_INITIAL_FIELD_VALUE
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -613,7 +601,6 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.NEGATIVE_INFINITY"
                                 attributeValue = "Double.NEGATIVE_INFINITY"
                                 annotationToSource = "java.lang.Double.NEGATIVE_INFINITY"
-                                fieldValue = "-Infinity"
                                 fieldWriteWithSemicolon = "(-1.0/0.0)"
                             }
 
@@ -621,7 +608,6 @@ constructor(
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0 / 0.0"
                                 annotationToSource = "-1.0 / 0.0"
-                                fieldValue = NO_INITIAL_FIELD_VALUE
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -686,8 +672,6 @@ constructor(
                                 common = "3.0f"
                             }
 
-                            // TODO(b/354633349): Consistency is good.
-                            fieldValue = "3.0"
                             fieldWriteWithSemicolon = "3.0f"
                         },
                     expectedKotlinLegacySource = partialExpectations { source { common = "3" } },
@@ -710,8 +694,6 @@ constructor(
                             common = "7.0E10f"
 
                             source { attributeValue = "7e10f" }
-
-                            fieldValue = "7.0E10"
                         },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "7.0E10" },
@@ -737,8 +719,6 @@ constructor(
                                 common = "3.141f"
                             }
 
-                            // TODO(b/354633349): Consistency is good.
-                            fieldValue = "3.141"
                             fieldWriteWithSemicolon = "3.141f"
                         },
                     expectedKotlinLegacySource =
@@ -752,13 +732,7 @@ constructor(
                     javaType = "float",
                     javaExpression = "3.141f",
                     kotlinType = "Float",
-                    expectedLegacySource =
-                        expectations {
-                            common = "3.141f"
-
-                            // TODO(b/354633349): Consistency is good.
-                            fieldValue = "3.141"
-                        },
+                    expectedLegacySource = expectations { common = "3.141f" },
                     expectedLegacyValue = expectations { common = 3.141f },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "3.141" },
@@ -779,7 +753,6 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.NaN"
                                 attributeValue = "Float.NaN"
                                 annotationToSource = "java.lang.Float.NaN"
-                                fieldValue = "NaN"
                                 fieldWriteWithSemicolon = "(0.0f/0.0f)"
                             }
 
@@ -787,7 +760,6 @@ constructor(
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0f / 0.0"
                                 annotationToSource = "0.0f / 0.0"
-                                fieldValue = NO_INITIAL_FIELD_VALUE
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -825,7 +797,6 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.POSITIVE_INFINITY"
                                 attributeValue = "Float.POSITIVE_INFINITY"
                                 annotationToSource = "java.lang.Float.POSITIVE_INFINITY"
-                                fieldValue = "Infinity"
                                 fieldWriteWithSemicolon = "(1.0f/0.0f)"
                             }
 
@@ -833,7 +804,6 @@ constructor(
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0f / 0.0"
                                 annotationToSource = "1.0f / 0.0"
-                                fieldValue = NO_INITIAL_FIELD_VALUE
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -874,7 +844,6 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.NEGATIVE_INFINITY"
                                 attributeValue = "Float.NEGATIVE_INFINITY"
                                 annotationToSource = "java.lang.Float.NEGATIVE_INFINITY"
-                                fieldValue = "-Infinity"
                                 fieldWriteWithSemicolon = "(-1.0f/0.0f)"
                             }
 
@@ -882,7 +851,6 @@ constructor(
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0f / 0.0"
                                 annotationToSource = "-1.0F / 0.0"
-                                fieldValue = NO_INITIAL_FIELD_VALUE
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
@@ -966,7 +934,6 @@ constructor(
                             //  long when parsing the signature file even if the annotation
                             //  definition is not available or only add it when strictly necessary.
                             common = "1000L"
-                            fieldValue = "1000"
                             source {
                                 attributeDefaultValue = "1000"
                                 attributeValue = "1000"
@@ -990,12 +957,7 @@ constructor(
                     javaType = "long",
                     javaExpression = "10000000000L",
                     kotlinType = "Long",
-                    expectedLegacySource =
-                        expectations {
-                            common = "10000000000L"
-                            // TODO(b/354633349): Consistency is good.
-                            fieldValue = "10000000000"
-                        },
+                    expectedLegacySource = expectations { common = "10000000000L" },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeDefaultValue = "10000000000" },
                     expectedLegacyValue = expectations { common = 10000000000L },
@@ -1013,8 +975,6 @@ constructor(
                     expectedLegacySource =
                         expectations {
                             common = "10000000000L"
-                            // TODO(b/354633349): Consistency is good.
-                            fieldValue = "10000000000"
 
                             source {
                                 // TODO(b/354633349): Consistency is good.
@@ -1046,12 +1006,7 @@ constructor(
                     name = "String",
                     javaType = "String",
                     javaExpression = "\"string\"",
-                    expectedLegacySource =
-                        expectations {
-                            common = "\"string\""
-                            // TODO(b/354633349): Should have surrounding quotes.
-                            fieldValue = "string"
-                        },
+                    expectedLegacySource = expectations { common = "\"string\"" },
                     expectedLegacyValue = expectations { common = "string" },
                     expectedValue = expectations { common = literalValue("string") },
                 ),
@@ -1059,13 +1014,7 @@ constructor(
                     name = "String escaped",
                     javaType = "String",
                     javaExpression = "\"str\\ning\"",
-                    expectedLegacySource =
-                        expectations {
-                            common = "\"str\\ning\""
-                            // TODO(b/354633349): Should have surrounding quotes and newline should
-                            //   be escaped.
-                            fieldValue = "str\ning"
-                        },
+                    expectedLegacySource = expectations { common = "\"str\\ning\"" },
                     expectedLegacyValue = expectations { common = "str\ning" },
                     expectedValue = expectations { common = literalValue("str\ning") },
                 ),
@@ -1112,18 +1061,10 @@ constructor(
                         expectations {
                             common = "\"constant\""
 
-                            jar {
-                                // TODO(b/354633349): Should have surrounding quotes.
-                                fieldValue = "constant"
-                            }
-
                             source {
                                 common = "test.pkg.Constants.STRING_CONSTANT"
                                 // TODO(b/354633349): Fully qualified is better.
                                 attributeValue = "Constants.STRING_CONSTANT"
-                                // TODO(b/354633349): Should have surrounding quotes, if not
-                                //   a field reference.
-                                fieldValue = "constant"
                                 // TODO(b/354633349): Should probably be a field reference, at least
                                 //   in some cases.
                                 fieldWriteWithSemicolon = "\"constant\""

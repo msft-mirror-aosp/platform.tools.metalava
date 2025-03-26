@@ -445,7 +445,11 @@ abstract class BaseCommonParameterizedValueTest(
      */
     protected fun checkLegacySource() {
         val expectedLegacySource = testCase.valueExample.expectedLegacySourceFor(inputFormat)
-        runExpectationTest(expectedLegacySource, valueUseSite.legacySourceGetter)
+        val legacySourceGetter =
+            valueUseSite.legacySourceGetter
+                ?: error("ValueUseSite.$valueUseSite does not provide a legacySourceGetter")
+
+        runExpectationTest(expectedLegacySource, legacySourceGetter)
     }
 
     /**

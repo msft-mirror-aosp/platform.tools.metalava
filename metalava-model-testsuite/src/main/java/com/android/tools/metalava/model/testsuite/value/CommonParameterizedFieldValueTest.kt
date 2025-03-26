@@ -42,11 +42,6 @@ class CommonParameterizedFieldValueTest :
     }
 
     @Test
-    fun testLegacySource() {
-        checkLegacySource()
-    }
-
-    @Test
     fun testLegacyValue() {
         checkLegacyValue()
     }

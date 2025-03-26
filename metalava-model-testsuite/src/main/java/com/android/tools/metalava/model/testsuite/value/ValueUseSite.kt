@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Compani
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import java.util.EnumSet
-import kotlin.test.assertNotNull
 
 /**
  * The possible places where values can be provided.
@@ -37,7 +36,7 @@ import kotlin.test.assertNotNull
  *   [ValueExample.expectedLegacyValueFor].
  */
 enum class ValueUseSite(
-    val legacySourceGetter: TestCaseContext.() -> String,
+    val legacySourceGetter: (TestCaseContext.() -> String)? = null,
     val legacyValueGetter: (TestCaseContext.() -> Any)? = null,
 ) {
     /** The default value specified on an annotation class's method. */
@@ -84,11 +83,6 @@ enum class ValueUseSite(
 
     /** The value of a field. */
     FIELD_VALUE(
-        legacySourceGetter = {
-            val field = testClassItem.assertField(FIELD_NAME)
-            val fieldValue = assertNotNull(field.legacyFieldValue, "No field value")
-            fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
-        },
         legacyValueGetter = {
             testClassItem.assertField(FIELD_NAME).legacyFieldValue?.initialValue(true)
                 ?: NO_INITIAL_FIELD_VALUE
