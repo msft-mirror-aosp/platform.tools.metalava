@@ -1093,7 +1093,7 @@ constructor(
  * [ValueExample.expectedLegacySource],
  */
 private val constantFieldLegacySourceExpectation =
-    partialExpectations<Any> {
+    partialExpectations<String> {
         fieldValue = NO_INITIAL_FIELD_VALUE
         fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
     }
