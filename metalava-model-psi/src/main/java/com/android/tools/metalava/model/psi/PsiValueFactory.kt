@@ -21,15 +21,20 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.CachingAnnotationValueProvider
 import com.android.tools.metalava.model.value.CachingValueProvider
+import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.CombinedValueProvider
+import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.intellij.psi.PsiAnnotationMemberValue
+import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiLiteralExpression
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
@@ -37,8 +42,14 @@ import org.jetbrains.uast.ULiteralExpression
 /**
  * Creates [ValueProvider]s that will delegate to [implementationValueToModelValue] to create
  * [Value]s when requested.
+ *
+ * @param globalTypeItemFactory the global [PsiTypeItemFactory] used for creating [TypeItem]s for
+ *   [ClassObjectValue]s. It uses the global factory as the types will never be [VariableTypeItem]s
+ *   and so there is no need to use a factory that has access to the in scope type parameters.
  */
-internal class PsiValueFactory : ValueFactory, ImplementationValueToModelFactory<Any> {
+internal class PsiValueFactory(
+    private val globalTypeItemFactory: PsiTypeItemFactory,
+) : ValueFactory, ImplementationValueToModelFactory<Any> {
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] of [typeItem] from
      * [anyValue].
@@ -131,6 +142,31 @@ internal class PsiValueFactory : ValueFactory, ImplementationValueToModelFactory
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
     ): Value {
+        when (psiValue) {
+            // Class literal, e.g. `SomeClass.class`.
+            is PsiClassObjectAccessExpression -> {
+                // Get the type of the class literal. e.g. if the expression was `X.class` then this
+                // will be of type `X`, or if the expression was of type `X[].class` then this will
+                // be of type `X[]`. `X` may be a primitive type.
+                val classLiteralTypeItem =
+                    globalTypeItemFactory.getType(
+                        psiValue.operand.type,
+                        contextNullability = ContextNullability.forceNonNull,
+                    )
+
+                return createClassObjectValue(classLiteralTypeItem)
+            }
+        }
+
+        // All others drop through.
+        return psiToConstant(optionalTypeItem, psiValue)
+    }
+
+    /** Create a [ConstantValue] of [optionalTypeItem] from [psiValue]. */
+    private fun psiToConstant(
+        optionalTypeItem: TypeItem?,
+        psiValue: PsiAnnotationMemberValue,
+    ): ConstantValue {
         // Literal primitive or String.
         if (psiValue is PsiLiteralExpression) {
             return psiValue.value?.let { underlyingValue ->
