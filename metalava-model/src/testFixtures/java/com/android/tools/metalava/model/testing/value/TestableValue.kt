@@ -17,8 +17,10 @@
 package com.android.tools.metalava.model.testing.value
 
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.ArrayValue
+import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
@@ -38,6 +40,9 @@ fun primitiveValueForKind(kind: Primitive, underlyingValue: Any) =
 /** Create an [ArrayValue] containing [literals]. */
 fun arrayValueFromAny(vararg literals: Any) =
     Value.createArrayValue(literals.map { literalValue(it) })
+
+/** Create a [ClassObjectValue] containing [typeItem]. */
+fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,

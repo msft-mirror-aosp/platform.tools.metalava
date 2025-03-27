@@ -17,7 +17,11 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.testing.arrayTypeItem
+import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.testing.EntryPoint
@@ -250,6 +254,27 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue('\u1245'),
                     expectedDefaultString = "'\\u1245'",
+                ),
+                // ********************************* Classes *********************************
+                testCasesForValue(
+                    value = classObjectValue(primitiveTypeForKind(Primitive.VOID)),
+                    expectedDefaultString = "void.class",
+                ),
+                testCasesForValue(
+                    value = classObjectValue(primitiveTypeForKind(Primitive.INT)),
+                    expectedDefaultString = "int.class",
+                ),
+                testCasesForValue(
+                    value = classObjectValue(stringType()),
+                    expectedDefaultString = "java.lang.String.class",
+                ),
+                testCasesForValue(
+                    value = classObjectValue(arrayTypeItem(primitiveTypeForKind(Primitive.INT))),
+                    expectedDefaultString = "int[].class",
+                ),
+                testCasesForValue(
+                    value = classObjectValue(arrayTypeItem(arrayTypeItem(stringType()))),
+                    expectedDefaultString = "java.lang.String[][].class",
                 ),
                 // ********************************* Doubles *********************************
                 testCasesForValue(

@@ -19,6 +19,9 @@ package com.android.tools.metalava.model.testsuite.value
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.arrayTypeItem
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
@@ -372,6 +375,10 @@ constructor(
                             attributeDefaultValue = "List::class.java"
                         },
                     expectedLegacyValue = expectations { common = "java.util.List" },
+                    expectedValue =
+                        expectations {
+                            common = Value.createClassObjectValue(classTypeItem("java.util.List"))
+                        },
                 ),
                 // Check an array class literal.
                 ValueExample(
@@ -396,6 +403,13 @@ constructor(
                             attributeDefaultValue = "Array<List>::class.java"
                         },
                     expectedLegacyValue = expectations { common = "java.util.List[]" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                Value.createClassObjectValue(
+                                    arrayTypeItem(classTypeItem("java.util.List"))
+                                )
+                        },
                 ),
                 // Check a primitive class literal.
                 ValueExample(
@@ -411,6 +425,11 @@ constructor(
                             attributeDefaultValue = "Unit::class.java"
                         },
                     expectedLegacyValue = expectations { common = "void" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                Value.createClassObjectValue(primitiveTypeForKind(Primitive.VOID))
+                        },
                 ),
                 // Check a primitive wrapper class literal.
                 ValueExample(
@@ -435,6 +454,10 @@ constructor(
                             attributeDefaultValue = "java.lang.Void::class.java"
                         },
                     expectedLegacyValue = expectations { common = "java.lang.Void" },
+                    expectedValue =
+                        expectations {
+                            common = Value.createClassObjectValue(classTypeItem("java.lang.Void"))
+                        },
                 ),
                 // Check a primitive array class literal.
                 ValueExample(
@@ -450,6 +473,13 @@ constructor(
                             attributeDefaultValue = "IntArray::class.java"
                         },
                     expectedLegacyValue = expectations { common = "int[]" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                Value.createClassObjectValue(
+                                    arrayTypeItem(primitiveTypeForKind(Primitive.INT))
+                                )
+                        },
                 ),
                 // Check a simple double.
                 ValueExample(

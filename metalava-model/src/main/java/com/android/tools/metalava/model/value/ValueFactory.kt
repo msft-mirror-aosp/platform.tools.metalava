@@ -16,11 +16,15 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeVisitor
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.value.ValueFactory.Companion.primitiveValueFactories
 
 /**
@@ -147,6 +151,19 @@ interface ValueFactory {
             }
         }
         error(message)
+    }
+
+    /**
+     * Create a [ClassObjectValue] encapsulating [typeItem].
+     *
+     * [typeItem] must be one of the following:
+     * * A [PrimitiveTypeItem].
+     * * A [ClassTypeItem] with no [ClassTypeItem.arguments].
+     * * An [ArrayTypeItem] of one of these (including [ArrayTypeItem]).
+     */
+    fun createClassObjectValue(typeItem: TypeItem): ClassObjectValue {
+        typeItem.accept(classObjectValueTypeChecker)
+        return DefaultClassObjectValue(typeItem)
     }
 
     companion object {
@@ -330,6 +347,34 @@ interface ValueFactory {
 
         /** An empty [ArrayValue]. */
         private val EMPTY_ARRAY = DefaultArrayValue(emptyList())
+
+        /** Checks the [TypeItem] supplied to [createClassObjectValue]. */
+        val classObjectValueTypeChecker =
+            object : TypeVisitor {
+                private fun invalidType(typeItem: TypeItem): Nothing {
+                    error("'$typeItem' is an invalid type for a class object value")
+                }
+
+                override fun visit(arrayType: ArrayTypeItem) {
+                    arrayType.componentType.accept(this)
+                }
+
+                override fun visit(classType: ClassTypeItem) {
+                    if (classType.arguments.isNotEmpty()) {
+                        error(
+                            "'$classType' is an invalid type for a class object value as it has type arguments"
+                        )
+                    }
+                }
+
+                override fun visit(variableType: VariableTypeItem) {
+                    invalidType(variableType)
+                }
+
+                override fun visit(wildcardType: WildcardTypeItem) {
+                    invalidType(wildcardType)
+                }
+            }
     }
 }
 

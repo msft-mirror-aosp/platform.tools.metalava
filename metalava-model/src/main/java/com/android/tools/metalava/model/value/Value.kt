@@ -16,8 +16,12 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.javaEscapeString
 import java.util.EnumSet
 
@@ -178,6 +182,7 @@ enum class ValueKind(val primitiveKind: Primitive? = null) {
     CHAR(
         primitiveKind = Primitive.CHAR,
     ),
+    CLASS,
     DOUBLE(
         primitiveKind = Primitive.DOUBLE,
     ),
@@ -357,6 +362,29 @@ sealed interface StringValue : LiteralValue<String> {
         val escaped = javaEscapeString(underlyingValue)
         return "\"$escaped\""
     }
+}
+
+/** A [Value] reference to a [Class] object. */
+sealed interface ClassObjectValue : ArrayElementValue {
+    override val kind: ValueKind
+        get() = ValueKind.CLASS
+
+    /**
+     * The type whose [Class] object this encapsulates.
+     *
+     * Must be one of:
+     * * A [PrimitiveTypeItem].
+     * * A [ClassTypeItem] with no [ClassTypeItem.arguments].
+     * * An [ArrayTypeItem] of one of these (including [ArrayTypeItem]).
+     */
+    val typeItem: TypeItem
+
+    override fun equalToValue(other: Value) =
+        other is ClassObjectValue && typeItem == other.typeItem
+
+    override fun hashCodeForValue() = typeItem.hashCode()
+
+    override fun toValueString(configuration: ValueStringConfiguration) = "$typeItem.class"
 }
 
 /** A [Value] that is an array whose contents are [elements]. */
