@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
 import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
@@ -494,8 +495,9 @@ abstract class BaseCommonParameterizedValueTest(
                         // TODO(b/354633349): Stop ignoring mismatch when actual is null.
                         throw AssumptionViolatedException("Ignoring null value")
 
-                // Compare the two.
-                assertEquals(expected, actual)
+                // Strictly compare the Values to ensure that where necessary they have included any
+                // information needed to generate correct legacy string representations.
+                assertValuesAreStrictlyEqual(expected, actual)
             }
         }
     }
