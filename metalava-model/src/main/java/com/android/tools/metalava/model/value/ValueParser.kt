@@ -17,17 +17,23 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.javaUnescapeString
+import com.android.tools.metalava.model.type.TypeItemParser
 
 /**
  * Parser for the string representation of [Value]s that is used in a signature file or an
  * annotation created from a string.
  */
-class ValueParser : ValueFactory, ImplementationValueToModelFactory<String> {
+class ValueParser(
+    private val typeItemParser: TypeItemParser,
+) : ValueFactory, ImplementationValueToModelFactory<String> {
+
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] of [typeItem] from
      * [text].
@@ -97,6 +103,16 @@ class ValueParser : ValueFactory, ImplementationValueToModelFactory<String> {
                 return parseNumber(optionalTypeItem, text.substring(1), UnaryOperator.MINUS)
             }
             first.isDigit() -> return parseNumber(optionalTypeItem, text, null)
+        }
+
+        // If the text ends with `.class` then it is a class literal of the form `<type>.class` so
+        // remove the `.class` suffix and then parse the remaining `<type>` using `typeItemParser`.
+        text.removeSuffix(".class").let { typeString ->
+            if (typeString != text) {
+                val classLiteralTypeItem =
+                    typeItemParser.obtainTypeFromString(typeString, TypeParameterScope.empty)
+                return createClassObjectValue(classLiteralTypeItem)
+            }
         }
 
         throw ValueProviderException("Unknown token <$text> of $optionalTypeItem")
@@ -200,7 +216,7 @@ class ValueParser : ValueFactory, ImplementationValueToModelFactory<String> {
 
     companion object {
         /** The default instance of this. */
-        val DEFAULT = ValueParser()
+        val DEFAULT = ValueParser(TypeItemParser.forValueParser(ClassResolver.THROWING))
 
         /**
          * Map of all the different string representations of various special floating point

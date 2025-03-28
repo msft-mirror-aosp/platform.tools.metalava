@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.type
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
@@ -31,6 +32,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.value.ValueParser
 
 /**
  * Parses and caches types within an [annotationContext].
@@ -711,6 +713,30 @@ open class TypeItemParser(
                     return
                 }
             }
+        }
+
+        /**
+         * Returns a [TypeItemParser] suitable for use by the [ValueParser].
+         *
+         * It does not support kotlin style nulls, or annotations and treats unqualified types as if
+         * they were qualified.
+         */
+        fun forValueParser(
+            classResolver: ClassResolver,
+            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+        ): TypeItemParser {
+            val annotationContext =
+                object : AnnotationContext, ClassResolver by classResolver {
+                    override val annotationManager
+                        get() = error("Annotations not supported")
+                }
+
+            return TypeItemParser(
+                annotationContext,
+                UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG,
+                kotlinStyleNulls = false,
+                errorReporter
+            )
         }
     }
 }

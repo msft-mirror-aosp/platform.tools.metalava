@@ -210,6 +210,14 @@ private constructor(
      */
     private lateinit var fileLocationTracker: FileLocationTracker
 
+    /** Report recoverable errors encountered while parsing types. */
+    private val typeItemParserErrorReporter =
+        object : TypeItemParserErrorReporter {
+            override fun report(issue: Issues.Issue, message: String) {
+                reportIssue(issue, message)
+            }
+        }
+
     /**
      * Provides support for parsing and caching [TypeItem]s.
      *
@@ -218,15 +226,7 @@ private constructor(
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) {
-            // Report recoverable errors encountered while parsing types.
-            val errorReporter =
-                object : TypeItemParserErrorReporter {
-                    override fun report(issue: Issues.Issue, message: String) {
-                        reportIssue(issue, message)
-                    }
-                }
-
-            TextTypeParser(codebase, kotlinStyleNulls!!, errorReporter)
+            TextTypeParser(codebase, kotlinStyleNulls!!, typeItemParserErrorReporter)
         }
 
     /**
@@ -241,7 +241,8 @@ private constructor(
     private val itemFactory = assembler.itemFactory
 
     /** The [ValueParser] to use for creating [Value]s from a signature file. */
-    private val valueParser = ValueParser.DEFAULT
+    private val valueParser =
+        ValueParser(TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter))
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !

@@ -180,6 +180,15 @@ class ParameterizedValueParserTest : BaseModelTest() {
                 .distinct()
                 // Put them in order.
                 .sortedWith(compareBy({ it.label }))
+                // Apply some filtering to remove known problematic cases.
+                .filter {
+                    // TODO(b/354633349): Support Kotlin syntax for class literals in signature
+                    //  files.
+                    !it.input.contains("::class")
+                    // Ignore test cases that require imports as they are not fully qualified
+                    // and signature files require class types to be fully qualified.
+                    && it.valueExample.javaImports.isEmpty()
+                }
 
         /** Supply the list of test cases as the parameters for this test class. */
         @JvmStatic @Parameterized.Parameters fun params() = testCases
@@ -203,7 +212,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
             // kind is not fully supported across implementation models.
             testCase.expectedValue.runValueTest { expected ->
                 val typeItem = codebase.assertClass("test.pkg.Foo").assertField("FIELD").type()
-                val valueParser = ValueParser()
+                val valueParser = ValueParser.DEFAULT
                 val actualValue = valueParser.parse(typeItem, testCase.input)
                 assertEquals(expected, actualValue)
             }

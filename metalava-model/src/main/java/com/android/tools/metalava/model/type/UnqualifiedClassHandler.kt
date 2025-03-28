@@ -50,11 +50,19 @@ interface UnqualifiedClassHandler {
          * [UnqualifiedClassHandler] that will prefix with `java.lang.` if appropriate, otherwise
          * report an error and just use the unqualified name as is.
          */
-        val PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR: UnqualifiedClassHandler = PrefixWithJavaLang()
+        val PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR: UnqualifiedClassHandler =
+            PrefixWithJavaLang(reportAsError = true)
+
+        /**
+         * [UnqualifiedClassHandler] that will prefix with `java.lang.` if appropriate, otherwise
+         * just use the unqualified name as is.
+         */
+        val PREFIX_WITH_JAVA_LANG: UnqualifiedClassHandler =
+            PrefixWithJavaLang(reportAsError = false)
     }
 
     /** An [UnqualifiedClassHandler] that will prefix with `java.lang.` if appropriate. */
-    private class PrefixWithJavaLang : UnqualifiedClassHandler {
+    private class PrefixWithJavaLang(private val reportAsError: Boolean) : UnqualifiedClassHandler {
         /**
          * Tracks whether types that were unqualified and so implicitly treated as being part of the
          * 'java.lang` package are actually part of that package. If they are not then an error is
@@ -76,10 +84,12 @@ interface UnqualifiedClassHandler {
                     // Reverse the effect of [TypeItem.stripJavaLangPrefix].
                     javaLangName
                 } else {
-                    errorReporter.report(
-                        Issues.UNQUALIFIED_TYPE_ERROR,
-                        "Unqualified type '$unqualifiedName' is not in 'java.lang' and is not a type parameter in scope"
-                    )
+                    if (reportAsError) {
+                        errorReporter.report(
+                            Issues.UNQUALIFIED_TYPE_ERROR,
+                            "Unqualified type '$unqualifiedName' is not in 'java.lang' and is not a type parameter in scope"
+                        )
+                    }
                     unqualifiedName
                 }
 
