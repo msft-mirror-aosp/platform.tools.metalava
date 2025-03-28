@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
@@ -36,8 +38,13 @@ import com.android.tools.metalava.model.value.ValueProviderException
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiLiteralExpression
+import com.intellij.psi.PsiTypes
+import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
+import org.jetbrains.uast.UQualifiedReferenceExpression
+import org.jetbrains.uast.USimpleNameReferenceExpression
+import org.jetbrains.uast.UastQualifiedExpressionAccessType
 
 /**
  * Creates [ValueProvider]s that will delegate to [implementationValueToModelValue] to create
@@ -100,6 +107,108 @@ internal class PsiValueFactory(
 
     /** Create a [Value] of [optionalTypeItem] from [uExpression]. */
     private fun uExpressionToValue(optionalTypeItem: TypeItem?, uExpression: UExpression): Value {
+        when (uExpression) {
+            is UQualifiedReferenceExpression -> {
+                // Check to see if it is a class literal and if so then create a ClassObjectValue
+                // and return it, otherwise drop through.
+                uReferenceExpressionToClassObjectValue(uExpression)?.let {
+                    return it
+                }
+            }
+        }
+
+        // All others drop through.
+        return uExpressionToConstant(optionalTypeItem, uExpression)
+    }
+
+    /**
+     * Checks to see if [uExpression] is of the form `<class>::class.java`, if not it returns null
+     * otherwise it creates a [ClassObjectValue] for it.
+     *
+     * In this case `<class>` can be either a primitive, a normal class, or an array (possibly
+     * multidimensional) of them.
+     */
+    private fun uReferenceExpressionToClassObjectValue(
+        uExpression: UQualifiedReferenceExpression
+    ): ClassObjectValue? {
+        // Check for the SIMPLE access type, i.e. ".", in `<class>::class.java`
+        if (uExpression.accessType != UastQualifiedExpressionAccessType.SIMPLE) return null
+
+        // Check for the `java` part.
+        val selector = uExpression.selector
+        // TODO(b/354633349): Support javaPrimitiveType and javaObjectType too?
+        if (selector !is USimpleNameReferenceExpression || selector.identifier != "java")
+            return null
+
+        // Check to make sure the receiver is the `<class>::class` part.
+        val receiver = uExpression.receiver as? UClassLiteralExpression ?: return null
+
+        // Make sure the type is present.
+        val type = receiver.type ?: return null
+
+        // Get the type of the class literal. e.g. if the expression was `X::class` then this
+        // will be of type `X`, or if the expression was of type `Array<X>.class` then this will
+        // be of type `X[]`. `X` may be a primitive type.
+        val receiverTypeItem =
+            globalTypeItemFactory.getType(
+                type,
+                contextNullability = ContextNullability.forceNonNull,
+            )
+
+        val unboxedTypeItem = unboxTypeItemIfNeeded(receiverTypeItem, receiver)
+
+        // If it is a ClassTypeItem then make sure it does not have any arguments. It is not
+        // necessary to check array components as Kotlin does not support class literals for arrays
+        // of generic classes, e.g. `Array<List<*>>::class`.
+        val classLiteralTypeItem =
+            if (unboxedTypeItem is ClassTypeItem)
+                unboxedTypeItem.substitute(arguments = emptyList())
+            else unboxedTypeItem
+
+        return createClassObjectValue(classLiteralTypeItem)
+    }
+
+    /**
+     * Both Kotlin "primitive" types and their corresponding Java wrapper class will use the wrapper
+     * class as their type, e.g. `Int::class.java` and `Integer::class.java` will both have a type
+     * `Class<Integer>`. So, use clues from the source [receiver] to choose the correct one.
+     */
+    private fun unboxTypeItemIfNeeded(
+        receiverTypeItem: PsiTypeItem,
+        receiver: UClassLiteralExpression
+    ): TypeItem {
+        if (receiverTypeItem !is ClassTypeItem) return receiverTypeItem
+        val expression =
+            receiver.expression as? USimpleNameReferenceExpression ?: return receiverTypeItem
+        val primitiveKind =
+            Primitive.forWrapperClassName(receiverTypeItem.qualifiedName) ?: return receiverTypeItem
+
+        if (expression.identifier != primitiveKind.kotlinName) return receiverTypeItem
+
+        val psiType =
+            when (primitiveKind) {
+                Primitive.BOOLEAN -> PsiTypes.booleanType()
+                Primitive.BYTE -> PsiTypes.byteType()
+                Primitive.CHAR -> PsiTypes.charType()
+                Primitive.DOUBLE -> PsiTypes.doubleType()
+                Primitive.FLOAT -> PsiTypes.floatType()
+                Primitive.INT -> PsiTypes.intType()
+                Primitive.LONG -> PsiTypes.longType()
+                Primitive.SHORT -> PsiTypes.shortType()
+                Primitive.VOID -> PsiTypes.voidType()
+            }
+
+        return globalTypeItemFactory.getType(
+            psiType,
+            contextNullability = ContextNullability.forceNonNull
+        )
+    }
+
+    /** Create a [ConstantValue] of [optionalTypeItem] from [uExpression]. */
+    private fun uExpressionToConstant(
+        optionalTypeItem: TypeItem?,
+        uExpression: UExpression
+    ): ConstantValue {
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
                 // Check to see if the underlying value has been already been cast from the source
