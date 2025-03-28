@@ -410,6 +410,7 @@ constructor(
                             // Some value use sites throw a class cast exception.
                             attributeDefaultValue = "Unit::class.java"
                         },
+                    expectedLegacyValue = expectations { common = "void" },
                 ),
                 // Check a primitive wrapper class literal.
                 ValueExample(
