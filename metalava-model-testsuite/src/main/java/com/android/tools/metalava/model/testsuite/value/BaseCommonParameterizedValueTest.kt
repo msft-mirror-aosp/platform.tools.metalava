@@ -745,6 +745,15 @@ object KotlinTestClassCreator : TestClassCreator {
             .asTestClass("OtherAnnotation")
             .dependsOn(testEnumClass)
 
+    /** Append all the imports provided by this list to [buffer]. */
+    private fun appendImportsTo(valueExample: ValueExample, buffer: StringBuilder) {
+        for (javaImport in valueExample.javaImports) {
+            buffer.append("import ")
+            buffer.append(javaImport)
+            buffer.append("\n")
+        }
+    }
+
     /**
      * Create an annotation [TestClass] for [valueExample].
      *
@@ -761,14 +770,15 @@ object KotlinTestClassCreator : TestClassCreator {
         return kotlin(
                 buildString {
                     append("package test.pkg\n")
+                    appendImportsTo(valueExample, this)
                     append("annotation class $className(\n")
                     append("    val ")
                     append(ATTRIBUTE_NAME)
                     append(": ")
-                    append(valueExample.kotlinType)
+                    append(valueExample.kotlinTypeForAnnotation)
                     if (withDefaults) {
                         append(" = ")
-                        append(valueExample.kotlinExpression)
+                        append(valueExample.kotlinExpressionForAnnotation)
                     }
                     append("\n")
                     append(")\n")
@@ -797,12 +807,13 @@ object KotlinTestClassCreator : TestClassCreator {
         return kotlin(
                 buildString {
                     append("package test.pkg\n")
+                    appendImportsTo(valueExample, this)
                     append("@")
                     append(annotationTestClass.className)
                     append("(")
                     append(ATTRIBUTE_NAME)
                     append(" = ")
-                    append(valueExample.kotlinExpression)
+                    append(valueExample.kotlinExpressionForAnnotation)
                     append(")\n")
                     append("class $className {}\n")
                 }
@@ -825,6 +836,7 @@ object KotlinTestClassCreator : TestClassCreator {
         return kotlin(
                 buildString {
                     append("package test.pkg\n")
+                    appendImportsTo(valueExample, this)
                     append("class $className {\n")
                     append("    companion object {\n")
                     append("        const val ")

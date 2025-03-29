@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import java.util.EnumSet
+import kotlin.reflect.KClass
 
 /**
  * Encapsulates information about a value example.
@@ -67,6 +68,22 @@ constructor(
      * [javaExpression].
      */
     val kotlinExpression: String = javaExpression,
+
+    /**
+     * The Kotlin type for use in annotations.
+     *
+     * Kotlin automatically maps between [KClass] and [Class] when creating, using and reading
+     * annotations so annotations it must use [KClass] not [Class].
+     */
+    val kotlinTypeForAnnotation: String = if (kotlinType == "Class<*>") "KClass<*>" else kotlinType,
+
+    /**
+     * The Kotlin expression for use in annotations.
+     *
+     * Kotlin automatically maps between [KClass] and [Class] when creating, using and reading
+     * annotations so annotations it must use `<class>::class` not `<class>::class.java`.
+     */
+    val kotlinExpressionForAnnotation: String = kotlinExpression.substringBefore(".class"),
 
     /** The optional java imports. */
     val javaImports: List<String> = emptyList(),
@@ -197,7 +214,7 @@ constructor(
         )
 
     /** The suffix to add to class names to make them specific to this example. */
-    val classSuffix = name.replace(" ", "_")
+    val classSuffix = name.replace(' ', '_').replace('-', '_')
 
     /** True if this is supported to be a field constant. */
     internal val isConstant
@@ -219,6 +236,9 @@ constructor(
 
         /** All the [InputFormat]s. */
         private val allInputFormats = EnumSet.allOf(InputFormat::class.java)
+
+        /** All except Kotlin. */
+        private val notValidForKotlin = EnumSet.complementOf(EnumSet.of(InputFormat.KOTLIN))
 
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and
@@ -352,9 +372,36 @@ constructor(
                     expectedLegacyValue = expectations { common = '\t' },
                     expectedValue = expectations { common = literalValue('\t') },
                 ),
-                // Check a class literal.
+                // Check a class literal for a basic class.
                 ValueExample(
-                    name = "class",
+                    name = "class literal - basic class",
+                    javaType = "Class<?>",
+                    javaExpression = "BitSet.class",
+                    javaImports = listOf("java.util.BitSet"),
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "BitSet::class.java",
+                    expectedLegacySource =
+                        expectations {
+                            common = "java.util.BitSet.class"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better.
+                                common = "BitSet.class"
+                                attributeDefaultValue = "java.util.BitSet.class"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        partialExpectations { common = "BitSet::class.java" },
+                    expectedLegacyValue = expectations { common = "java.util.BitSet" },
+                    expectedKotlinLegacyValue =
+                        partialExpectations { common = "BitSet::class.java" },
+                    expectedValue =
+                        expectations {
+                            common = Value.createClassObjectValue(classTypeItem("java.util.BitSet"))
+                        },
+                ),
+                // Check a class literal for a generic class.
+                ValueExample(
+                    name = "class literal - generic class",
                     javaType = "Class<?>",
                     javaExpression = "List.class",
                     javaImports = listOf("java.util.List"),
@@ -370,24 +417,53 @@ constructor(
                             }
                         },
                     expectedKotlinLegacySource =
-                        partialExpectations {
-                            // Some value use sites throw a class cast exception.
-                            attributeDefaultValue = "List::class.java"
-                        },
+                        partialExpectations { common = "List::class.java" },
                     expectedLegacyValue = expectations { common = "java.util.List" },
+                    expectedKotlinLegacyValue = partialExpectations { common = "List::class.java" },
                     expectedValue =
                         expectations {
                             common = Value.createClassObjectValue(classTypeItem("java.util.List"))
                         },
                 ),
-                // Check an array class literal.
+                // Check an array of a basic class literal.
                 ValueExample(
-                    name = "class array literal",
+                    name = "class literal - array of basic class",
+                    javaType = "Class<?>",
+                    javaExpression = "BitSet[].class",
+                    javaImports = listOf("java.util.BitSet"),
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "Array<BitSet>::class.java",
+                    expectedLegacySource =
+                        expectations {
+                            common = "java.util.BitSet[].class"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better.
+                                common = "BitSet[].class"
+                                attributeDefaultValue = "java.util.BitSet[].class"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        partialExpectations { source { common = "Array<BitSet>::class.java" } },
+                    expectedLegacyValue = expectations { common = "java.util.BitSet[]" },
+                    expectedKotlinLegacyValue =
+                        partialExpectations { source { common = "Array<BitSet>::class.java" } },
+                    expectedValue =
+                        expectations {
+                            common =
+                                Value.createClassObjectValue(
+                                    arrayTypeItem(classTypeItem("java.util.BitSet"))
+                                )
+                        },
+                ),
+                // Check an array of a generic class literal.
+                ValueExample(
+                    name = "class literal - array of generic class",
                     javaType = "Class<?>",
                     javaExpression = "List[].class",
                     javaImports = listOf("java.util.List"),
-                    kotlinType = "Class<*>",
-                    kotlinExpression = "Array<List>::class.java",
+                    // While Kotlin can correctly map a `List[].class` instance from a Java
+                    // annotation it has no way of representing it in the source.
+                    validForInputFormats = notValidForKotlin,
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List[].class"
@@ -396,11 +472,6 @@ constructor(
                                 common = "List[].class"
                                 attributeDefaultValue = "java.util.List[].class"
                             }
-                        },
-                    expectedKotlinLegacySource =
-                        partialExpectations {
-                            // Some value use sites throw a class cast exception.
-                            attributeDefaultValue = "Array<List>::class.java"
                         },
                     expectedLegacyValue = expectations { common = "java.util.List[]" },
                     expectedValue =
@@ -411,19 +482,15 @@ constructor(
                                 )
                         },
                 ),
-                // Check a primitive class literal.
+                // Check a primitive void class literal.
                 ValueExample(
-                    name = "class void primitive class",
+                    name = "class literal - void primitive",
                     javaType = "Class<?>",
                     javaExpression = "void.class",
-                    kotlinType = "Class<*>",
-                    kotlinExpression = "Unit::class.java",
+                    // While Kotlin can correctly map a `void.class` instance from a Java annotation
+                    // it has no way of representing it in the source.
+                    validForInputFormats = notValidForKotlin,
                     expectedLegacySource = expectations { common = "void.class" },
-                    expectedKotlinLegacySource =
-                        partialExpectations {
-                            // Some value use sites throw a class cast exception.
-                            attributeDefaultValue = "Unit::class.java"
-                        },
                     expectedLegacyValue = expectations { common = "void" },
                     expectedValue =
                         expectations {
@@ -431,9 +498,9 @@ constructor(
                                 Value.createClassObjectValue(primitiveTypeForKind(Primitive.VOID))
                         },
                 ),
-                // Check a primitive wrapper class literal.
+                // Check a primitive void wrapper class literal.
                 ValueExample(
-                    name = "class void wrapper class",
+                    name = "class literal - void wrapper",
                     javaType = "Class<?>",
                     javaExpression = "Void.class",
                     kotlinType = "Class<*>",
@@ -449,30 +516,71 @@ constructor(
                             }
                         },
                     expectedKotlinLegacySource =
-                        partialExpectations {
-                            // Some value use sites throw a class cast exception.
-                            attributeDefaultValue = "java.lang.Void::class.java"
-                        },
+                        partialExpectations { common = "java.lang.Void::class.java" },
                     expectedLegacyValue = expectations { common = "java.lang.Void" },
+                    expectedKotlinLegacyValue =
+                        partialExpectations { common = "java.lang.Void::class.java" },
                     expectedValue =
                         expectations {
                             common = Value.createClassObjectValue(classTypeItem("java.lang.Void"))
                         },
                 ),
+                ValueExample(
+                    name = "class literal - int primitive",
+                    javaType = "Class<?>",
+                    javaExpression = "int.class",
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "Int::class.java",
+                    expectedLegacySource = expectations { common = "int.class" },
+                    expectedKotlinLegacySource = partialExpectations { common = "Int::class.java" },
+                    expectedLegacyValue = expectations { common = "int" },
+                    expectedKotlinLegacyValue = partialExpectations { common = "Int::class.java" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                Value.createClassObjectValue(primitiveTypeForKind(Primitive.INT))
+                        },
+                ),
+                ValueExample(
+                    name = "class literal - int wrapper",
+                    javaType = "Class<?>",
+                    javaExpression = "Integer.class",
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "Integer::class.java",
+                    expectedLegacySource =
+                        expectations {
+                            common = "java.lang.Integer.class"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better unless java.lang
+                                //   prefix is removed.
+                                attributeValue = "Integer.class"
+                                annotationToSource = "Integer.class"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        partialExpectations { common = "Integer::class.java" },
+                    expectedLegacyValue = expectations { common = "java.lang.Integer" },
+                    expectedKotlinLegacyValue =
+                        partialExpectations { common = "Integer::class.java" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                Value.createClassObjectValue(classTypeItem("java.lang.Integer"))
+                        },
+                ),
                 // Check a primitive array class literal.
                 ValueExample(
-                    name = "class int array literal",
+                    name = "class literal - int array",
                     javaType = "Class<?>",
                     javaExpression = "int[].class",
                     kotlinType = "Class<*>",
                     kotlinExpression = "IntArray::class.java",
                     expectedLegacySource = expectations { common = "int[].class" },
                     expectedKotlinLegacySource =
-                        partialExpectations {
-                            // Some value use sites throw a class cast exception.
-                            attributeDefaultValue = "IntArray::class.java"
-                        },
+                        partialExpectations { common = "IntArray::class.java" },
                     expectedLegacyValue = expectations { common = "int[]" },
+                    expectedKotlinLegacyValue =
+                        partialExpectations { common = "IntArray::class.java" },
                     expectedValue =
                         expectations {
                             common =
@@ -1018,7 +1126,7 @@ constructor(
                     kotlinType = "Long",
                     // Kotlin does not support using a lower case l as a suffix for long, presumably
                     // because it looks too similar to a number 1.
-                    validForInputFormats = EnumSet.complementOf(EnumSet.of(InputFormat.KOTLIN)),
+                    validForInputFormats = notValidForKotlin,
                     expectedLegacySource =
                         expectations {
                             common = "10000000000L"
