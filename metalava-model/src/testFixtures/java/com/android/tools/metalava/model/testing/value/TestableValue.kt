@@ -71,7 +71,10 @@ fun enumConstantValue(
  * that there are no regressions.
  */
 private val fullySupportedValueKinds =
-    EnumSet.noneOf(ValueKind::class.java).apply { addAll(ValueKind.LITERAL_KINDS) }
+    EnumSet.noneOf(ValueKind::class.java).apply {
+        addAll(ValueKind.LITERAL_KINDS)
+        add(ValueKind.CLASS)
+    }
 
 /**
  * Run a test on this [Value] ignoring any [ValueProviderException]s if its [Value.kind] is not
