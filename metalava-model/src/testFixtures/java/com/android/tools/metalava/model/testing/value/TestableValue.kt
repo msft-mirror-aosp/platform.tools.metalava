@@ -51,7 +51,8 @@ fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem
  * As each additional [ValueKind] is supported across the models they will be added here to ensure
  * that there are no regressions.
  */
-private val fullySupportedValueKinds = EnumSet.noneOf(ValueKind::class.java)
+private val fullySupportedValueKinds =
+    EnumSet.noneOf(ValueKind::class.java).apply { addAll(ValueKind.LITERAL_KINDS) }
 
 /**
  * Run a test on this [Value] ignoring any [ValueProviderException]s if its [Value.kind] is not
