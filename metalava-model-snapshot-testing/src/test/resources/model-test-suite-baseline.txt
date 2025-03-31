@@ -211,7 +211,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[turbine,source,double with int]
   testLegacySource[turbine,source,float with int]
   testLegacySource[turbine,source,long with int]
-  testMethodDefaultValue[turbine,source,String using constant]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testAttributeValue[turbine,source,String using constant]
