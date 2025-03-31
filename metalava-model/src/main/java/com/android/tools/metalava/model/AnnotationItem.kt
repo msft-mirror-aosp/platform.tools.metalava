@@ -19,6 +19,7 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import kotlin.reflect.KClass
@@ -542,12 +543,12 @@ protected constructor(
                 if (index == -1) source.substring(1) // Strip @
                 else source.substring(1, index)
 
-            @Suppress("UNUSED_PARAMETER")
             fun attributes(annotationItem: AnnotationItem): List<AnnotationAttribute> =
                 if (index == -1) {
                     emptyList()
                 } else {
                     DefaultAnnotationAttribute.createList(
+                        annotationItem,
                         source.substring(index + 1, source.lastIndexOf(')'))
                     )
                 }
@@ -683,15 +684,28 @@ class DefaultAnnotationAttribute(
         get() = valueProvider.value
 
     companion object {
-        fun create(name: String, value: String): DefaultAnnotationAttribute {
+        /** Overload to supply `null` [AnnotationItem] to the following method. */
+        fun create(name: String, value: String) = create(null, name, value)
+
+        fun create(
+            annotationItem: AnnotationItem?,
+            name: String,
+            value: String
+        ): DefaultAnnotationAttribute {
             return DefaultAnnotationAttribute(
                 name,
-                ValueProvider.fromText(value),
+                // If annotation item is null then the [ValueProvider] is not going to be used so
+                // use one that will throw an exception when called.
+                if (annotationItem == null) ValueProvider.UNSUPPORTED
+                else ValueParser.DEFAULT.providerForAnnotationValue(annotationItem, name, value),
                 DefaultAnnotationValue.create(value),
             )
         }
 
-        fun createList(source: String): List<AnnotationAttribute> {
+        /** Overload to supply `null` [AnnotationItem] to the following method. */
+        fun createList(source: String) = createList(null, source)
+
+        fun createList(annotationItem: AnnotationItem?, source: String): List<AnnotationAttribute> {
             val list = mutableListOf<AnnotationAttribute>() // TODO: default size = 2
             var begin = 0
             var index = 0
@@ -703,7 +717,7 @@ class DefaultAnnotationAttribute(
                 } else if (c == '"') {
                     index = findEnd(source, index + 1, length, '"')
                 } else if (c == ',') {
-                    addAttribute(list, source, begin, index)
+                    addAttribute(annotationItem, list, source, begin, index)
                     index++
                     begin = index
                     continue
@@ -715,7 +729,7 @@ class DefaultAnnotationAttribute(
             }
 
             if (begin < length) {
-                addAttribute(list, source, begin, length)
+                addAttribute(annotationItem, list, source, begin, length)
             }
 
             return list
@@ -736,6 +750,7 @@ class DefaultAnnotationAttribute(
         }
 
         private fun addAttribute(
+            annotationItem: AnnotationItem?,
             list: MutableList<AnnotationAttribute>,
             source: String,
             from: Int,
@@ -760,7 +775,7 @@ class DefaultAnnotationAttribute(
             }
             value = source.substring(valueBegin, valueEnd).trim()
             if (!value.isEmpty()) {
-                list.add(create(name, value))
+                list.add(create(annotationItem, name, value))
             }
         }
     }

@@ -60,7 +60,8 @@ import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
-import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -241,6 +242,9 @@ private constructor(
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
+
+    /** The [ValueParser] to use for creating [Value]s from a signature file. */
+    private val valueParser = ValueParser.DEFAULT
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -1246,6 +1250,11 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
 
+        val defaultValueProvider =
+            if (defaultAnnotationMethodValue.isNotEmpty())
+                valueParser.providerFor(returnType, defaultAnnotationMethodValue)
+            else null
+
         method =
             itemFactory.createMethodItem(
                 fileLocation = tokenizer.fileLocation(),
@@ -1259,7 +1268,7 @@ private constructor(
                     createParameterItems(containingCallable, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
-                defaultValueProvider = OptionalValueProvider.NO_VALUE,
+                defaultValueProvider = defaultValueProvider,
                 annotationDefault = defaultAnnotationMethodValue,
             )
 
@@ -1333,6 +1342,8 @@ private constructor(
         // Defer parsing the value string until needed.
         val fieldValue = valueString?.let { TextFieldValue(type, it) }
 
+        val initialValueProvider = valueString?.let { valueParser.providerFor(type, it) }
+
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -1345,7 +1356,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                initialValueProvider = OptionalValueProvider.NO_VALUE,
+                initialValueProvider = initialValueProvider,
                 fieldValue = fieldValue,
             )
         field.markForMainApiSurface()
