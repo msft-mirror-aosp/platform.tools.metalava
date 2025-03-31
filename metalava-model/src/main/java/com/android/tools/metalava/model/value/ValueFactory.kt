@@ -16,11 +16,15 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeVisitor
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.value.ValueFactory.Companion.primitiveValueFactories
 
 /**
@@ -83,7 +87,7 @@ interface ValueFactory {
                     val primitiveKind = optionalTypeItem.kind
                     val primitiveValue = normalizePrimitive(underlyingValue, primitiveKind)
 
-                    createPrimitiveValueForKind(primitiveKind, primitiveValue)
+                    createPrimitiveValueForKind(primitiveKind, primitiveValue, underlyingValue)
                 }
                 is ClassTypeItem -> {
                     // The only allowable class type is a String.
@@ -102,7 +106,11 @@ interface ValueFactory {
                                 it.wrapperClass.isInstance(underlyingValue) && it != Primitive.VOID
                             }
                             ?.let { primitiveKind ->
-                                createPrimitiveValueForKind(primitiveKind, underlyingValue)
+                                createPrimitiveValueForKind(
+                                    primitiveKind,
+                                    underlyingValue,
+                                    underlyingValue
+                                )
                             }
                             ?: error(
                                 "Underlying value '$underlyingValue' of ${underlyingValue.javaClass} is not supported"
@@ -145,6 +153,19 @@ interface ValueFactory {
         error(message)
     }
 
+    /**
+     * Create a [ClassObjectValue] encapsulating [typeItem].
+     *
+     * [typeItem] must be one of the following:
+     * * A [PrimitiveTypeItem].
+     * * A [ClassTypeItem] with no [ClassTypeItem.arguments].
+     * * An [ArrayTypeItem] of one of these (including [ArrayTypeItem]).
+     */
+    fun createClassObjectValue(typeItem: TypeItem): ClassObjectValue {
+        typeItem.accept(classObjectValueTypeChecker)
+        return DefaultClassObjectValue(typeItem)
+    }
+
     companion object {
         /**
          * Map from [Primitive] to a [PrimitiveValueFactory] to use to create an appropriate
@@ -153,23 +174,32 @@ interface ValueFactory {
         val primitiveValueFactories =
             mapOf<Primitive, PrimitiveValueFactory<*>>(
                 Primitive.BOOLEAN to
-                    { underlyingValue ->
+                    { underlyingValue, _ ->
                         DefaultBooleanValue(underlyingValue as Boolean)
                     },
-                Primitive.BYTE to { underlyingValue -> DefaultByteValue(underlyingValue as Byte) },
-                Primitive.CHAR to { underlyingValue -> DefaultCharValue(underlyingValue as Char) },
+                Primitive.BYTE to
+                    { underlyingValue, _ ->
+                        DefaultByteValue(underlyingValue as Byte)
+                    },
+                Primitive.CHAR to
+                    { underlyingValue, _ ->
+                        DefaultCharValue(underlyingValue as Char)
+                    },
                 Primitive.DOUBLE to
-                    { underlyingValue ->
-                        DefaultDoubleValue(underlyingValue as Double)
+                    { underlyingValue, originalValue ->
+                        DefaultDoubleValue(underlyingValue as Double, originalValue is Int)
                     },
                 Primitive.FLOAT to
-                    { underlyingValue ->
-                        DefaultFloatValue(underlyingValue as Float)
+                    { underlyingValue, originalValue ->
+                        DefaultFloatValue(underlyingValue as Float, originalValue is Int)
                     },
-                Primitive.INT to { underlyingValue -> DefaultIntValue(underlyingValue as Int) },
-                Primitive.LONG to { underlyingValue -> DefaultLongValue(underlyingValue as Long) },
+                Primitive.INT to { underlyingValue, _ -> DefaultIntValue(underlyingValue as Int) },
+                Primitive.LONG to
+                    { underlyingValue, originalValue ->
+                        DefaultLongValue(underlyingValue as Long, originalValue is Int)
+                    },
                 Primitive.SHORT to
-                    { underlyingValue ->
+                    { underlyingValue, _ ->
                         DefaultShortValue(underlyingValue as Short)
                     },
             )
@@ -179,10 +209,23 @@ interface ValueFactory {
          *
          * The caller has already made sure that the [primitiveValue] is appropriate for
          * [primitiveKind].
+         *
+         * The [originalValue] is the original value that was retrieved from the expression before
+         * any casting was performed to ensure it matches the [primitiveKind]. e.g. if the original
+         * source expression was an `int` literal, e.g. `10` and [primitiveKind] is [Primitive.LONG]
+         * then the [primitiveValue] will be a `java.lang.Long` instance with a value of `10L` but
+         * the [originalValue] will be a `java.lang.Integer` instance with a value of `10`.
+         *
+         * It supports the [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt] behavior.
          */
-        private fun createPrimitiveValueForKind(primitiveKind: Primitive, primitiveValue: Any) =
-            primitiveValueFactories[primitiveKind]?.let { factory -> factory(primitiveValue) }
-                ?: error("Cannot create PrimitiveValue: unknown primitive kind: $primitiveKind")
+        private fun createPrimitiveValueForKind(
+            primitiveKind: Primitive,
+            primitiveValue: Any,
+            originalValue: Any
+        ) =
+            primitiveValueFactories[primitiveKind]?.let { factory ->
+                factory(primitiveValue, originalValue)
+            } ?: error("Cannot create PrimitiveValue: unknown primitive kind: $primitiveKind")
 
         /** Normalize the [underlyingValue] to make it consistent with [primitiveKind]. */
         private fun normalizePrimitive(underlyingValue: Any, primitiveKind: Primitive): Any {
@@ -304,8 +347,36 @@ interface ValueFactory {
 
         /** An empty [ArrayValue]. */
         private val EMPTY_ARRAY = DefaultArrayValue(emptyList())
+
+        /** Checks the [TypeItem] supplied to [createClassObjectValue]. */
+        val classObjectValueTypeChecker =
+            object : TypeVisitor {
+                private fun invalidType(typeItem: TypeItem): Nothing {
+                    error("'$typeItem' is an invalid type for a class object value")
+                }
+
+                override fun visit(arrayType: ArrayTypeItem) {
+                    arrayType.componentType.accept(this)
+                }
+
+                override fun visit(classType: ClassTypeItem) {
+                    if (classType.arguments.isNotEmpty()) {
+                        error(
+                            "'$classType' is an invalid type for a class object value as it has type arguments"
+                        )
+                    }
+                }
+
+                override fun visit(variableType: VariableTypeItem) {
+                    invalidType(variableType)
+                }
+
+                override fun visit(wildcardType: WildcardTypeItem) {
+                    invalidType(wildcardType)
+                }
+            }
     }
 }
 
 /** Type of values in [primitiveValueFactories]. */
-internal typealias PrimitiveValueFactory<T> = (Any) -> PrimitiveValue<T>
+internal typealias PrimitiveValueFactory<T> = (Any, Any) -> PrimitiveValue<T>
