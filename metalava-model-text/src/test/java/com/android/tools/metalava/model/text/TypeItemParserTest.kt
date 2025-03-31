@@ -28,26 +28,26 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Assert
 import org.junit.Test
 
-class TextTypeParserTest {
-    private val typeParser = TextTypeParser(AnnotationContext.DEFAULT)
+class TypeItemParserTest {
+    private val typeParser = TypeItemParser(AnnotationContext.DEFAULT)
 
     private fun parseType(type: String) =
         typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
 
     @Test
     fun `Test type parameter strings`() {
-        assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
-        assertThat(TextTypeParser.typeParameterStrings("").toString()).isEqualTo("[]")
-        assertThat(TextTypeParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
-        assertThat(TextTypeParser.typeParameterStrings("<ABC,DEF extends T>").toString())
+        assertThat(TypeItemParser.typeParameterStrings(null).toString()).isEqualTo("[]")
+        assertThat(TypeItemParser.typeParameterStrings("").toString()).isEqualTo("[]")
+        assertThat(TypeItemParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
+        assertThat(TypeItemParser.typeParameterStrings("<ABC,DEF extends T>").toString())
             .isEqualTo("[ABC, DEF extends T]")
         assertThat(
-                TextTypeParser.typeParameterStrings("<T extends java.lang.Comparable<? super T>>")
+                TypeItemParser.typeParameterStrings("<T extends java.lang.Comparable<? super T>>")
                     .toString()
             )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")
         assertThat(
-                TextTypeParser.typeParameterStrings("<java.util.List<java.lang.String>[]>")
+                TypeItemParser.typeParameterStrings("<java.util.List<java.lang.String>[]>")
                     .toString()
             )
             .isEqualTo("[java.util.List<java.lang.String>[]]")
@@ -56,15 +56,15 @@ class TextTypeParserTest {
     @Test
     fun `Test type parameter strings with annotations`() {
         assertThat(
-                TextTypeParser.typeParameterStrings(
+                TypeItemParser.typeParameterStrings(
                     "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
                 )
             )
             .containsExactly("java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer")
-        assertThat(TextTypeParser.typeParameterStrings("<@test.pkg.C String>"))
+        assertThat(TypeItemParser.typeParameterStrings("<@test.pkg.C String>"))
             .containsExactly("@test.pkg.C String")
         assertThat(
-                TextTypeParser.typeParameterStrings(
+                TypeItemParser.typeParameterStrings(
                     "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer, @test.pkg.C String>"
                 )
             )
@@ -76,50 +76,50 @@ class TextTypeParserTest {
 
     @Test
     fun `Test type parameter strings with remainder`() {
-        assertThat(TextTypeParser.typeParameterStringsWithRemainder(null))
+        assertThat(TypeItemParser.typeParameterStringsWithRemainder(null))
             .isEqualTo(Pair(emptyList<String>(), null))
-        assertThat(TextTypeParser.typeParameterStringsWithRemainder(""))
+        assertThat(TypeItemParser.typeParameterStringsWithRemainder(""))
             .isEqualTo(Pair(emptyList<String>(), ""))
-        assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X>"))
+        assertThat(TypeItemParser.typeParameterStringsWithRemainder("<X>"))
             .isEqualTo(Pair(listOf("X"), null))
-        assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X>.Inner"))
+        assertThat(TypeItemParser.typeParameterStringsWithRemainder("<X>.Inner"))
             .isEqualTo(Pair(listOf("X"), ".Inner"))
-        assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X, Y, Z>.Inner<A, B, C>"))
+        assertThat(TypeItemParser.typeParameterStringsWithRemainder("<X, Y, Z>.Inner<A, B, C>"))
             .isEqualTo(Pair(listOf("X", "Y", "Z"), ".Inner<A, B, C>"))
     }
 
     @Test
     fun `Test splitting Kotlin nullability suffix`() {
-        assertThat(TextTypeParser.splitNullabilitySuffix("String!", true))
+        assertThat(TypeItemParser.splitNullabilitySuffix("String!", true))
             .isEqualTo(Pair("String", TypeNullability.PLATFORM))
-        assertThat(TextTypeParser.splitNullabilitySuffix("String?", true))
+        assertThat(TypeItemParser.splitNullabilitySuffix("String?", true))
             .isEqualTo(Pair("String", TypeNullability.NULLABLE))
-        assertThat(TextTypeParser.splitNullabilitySuffix("String", true))
+        assertThat(TypeItemParser.splitNullabilitySuffix("String", true))
             .isEqualTo(Pair("String", TypeNullability.NONNULL))
         // Check that wildcards work
-        assertThat(TextTypeParser.splitNullabilitySuffix("?", true))
+        assertThat(TypeItemParser.splitNullabilitySuffix("?", true))
             .isEqualTo(Pair("?", TypeNullability.UNDEFINED))
-        assertThat(TextTypeParser.splitNullabilitySuffix("T", true))
+        assertThat(TypeItemParser.splitNullabilitySuffix("T", true))
             .isEqualTo(Pair("T", TypeNullability.NONNULL))
     }
 
     @Test
     fun `Test splitting Kotlin nullability suffix when kotlinStyleNulls is false`() {
-        assertThat(TextTypeParser.splitNullabilitySuffix("String", false))
+        assertThat(TypeItemParser.splitNullabilitySuffix("String", false))
             .isEqualTo(Pair("String", null))
-        assertThat(TextTypeParser.splitNullabilitySuffix("?", false)).isEqualTo(Pair("?", null))
+        assertThat(TypeItemParser.splitNullabilitySuffix("?", false)).isEqualTo(Pair("?", null))
 
         Assert.assertThrows(
             "Format does not support Kotlin-style null type syntax: String!",
             IllegalStateException::class.java
         ) {
-            TextTypeParser.splitNullabilitySuffix("String!", false)
+            TypeItemParser.splitNullabilitySuffix("String!", false)
         }
         Assert.assertThrows(
             "Format does not support Kotlin-style null type syntax: String?",
             IllegalStateException::class.java
         ) {
-            TextTypeParser.splitNullabilitySuffix("String?", false)
+            TypeItemParser.splitNullabilitySuffix("String?", false)
         }
     }
 
@@ -273,7 +273,7 @@ class TextTypeParserTest {
     }
 
     /**
-     * Verifies that calling [TextTypeParser.splitClassType] returns the triple of
+     * Verifies that calling [TypeItemParser.splitClassType] returns the triple of
      * [expectedClassName], [expectedParams], [expectedAnnotations].
      */
     private fun testClassAnnotations(
