@@ -108,7 +108,9 @@ internal class TextTypeParser(
 
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
     private val objectType: ReferenceTypeItem
-        get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty) as ReferenceTypeItem
+        get() =
+            parseTypeWithContextNullability(JAVA_LANG_OBJECT, TypeParameterScope.empty)
+                as ReferenceTypeItem
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
@@ -118,7 +120,34 @@ internal class TextTypeParser(
         type: String,
         typeParameterScope: TypeParameterScope,
         contextNullability: ContextNullability = ContextNullability.none,
-    ): TypeItem = cachedParseType(type, typeParameterScope, emptyList(), contextNullability)
+    ): TypeItem =
+        parseTypeWithContextNullability(type, typeParameterScope, emptyList(), contextNullability)
+
+    /**
+     * Parse [type] and return a [TypeItem], in the context of type parameters from
+     * [typeParameterScope], if applicable.
+     *
+     * Used internally, as it has an extra [annotations] parameter that allows the annotations on
+     * array components to be correctly associated with the correct component. They are optional
+     * leading type-use annotations that have already been removed from the arrays type string.
+     *
+     * This will also map [contextNullability] to a [Boolean] that controls whether a
+     * [ClassTypeItem] is forced to be non-null, taking into account [kotlinStyleNulls].
+     */
+    private fun parseTypeWithContextNullability(
+        type: String,
+        typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem> = emptyList(),
+        contextNullability: ContextNullability = ContextNullability.none,
+    ): TypeItem {
+        // Class types used as super types, i.e. in an extends or implements list are forced to be
+        // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
+        // same cache key for both so that they reuse cached types where possible.
+        val forceClassToBeNonNull =
+            contextNullability.forcedNullability == TypeNullability.NONNULL || kotlinStyleNulls
+
+        return cachedParseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
+    }
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
@@ -132,16 +161,10 @@ internal class TextTypeParser(
         type: String,
         typeParameterScope: TypeParameterScope,
         annotations: List<AnnotationItem> = emptyList(),
-        contextNullability: ContextNullability = ContextNullability.none,
+        // Forces a [ClassTypeItem] to have [TypeNullability.NONNULL]
+        forceClassToBeNonNull: Boolean = false,
     ): TypeItem {
         requests++
-
-        // Class types used as super types, i.e. in an extends or implements list are forced to be
-        // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
-        // same cache key for both so that they reuse cached types where possible.
-        val forceClassToBeNonNull =
-            contextNullability.forcedNullability == TypeNullability.NONNULL || kotlinStyleNulls
-
         // Don't use the cache when there are type-use annotations not contained in the string.
         return if (annotations.isEmpty()) {
             val key = Key(forceClassToBeNonNull, type)
@@ -311,7 +334,11 @@ internal class TextTypeParser(
         // the leading annotations already removed from the type string.
         componentString += componentNullability?.suffix.orEmpty()
         val deepComponentType =
-            cachedParseType(componentString, typeParameterScope, componentAnnotations)
+            parseTypeWithContextNullability(
+                componentString,
+                typeParameterScope,
+                componentAnnotations
+            )
 
         // Join the annotations and nullability markers -- as described in the comment above, these
         // appear in the string in reverse order of each other. The modifiers list will be ordered
@@ -381,7 +408,7 @@ internal class TextTypeParser(
     }
 
     private fun getWildcardBound(bound: String, typeParameterScope: TypeParameterScope) =
-        cachedParseType(bound, typeParameterScope) as ReferenceTypeItem
+        parseTypeWithContextNullability(bound, typeParameterScope) as ReferenceTypeItem
 
     /**
      * Try parsing [type] as a type variable. This will return a non-null [VariableTypeItem] if
@@ -453,7 +480,9 @@ internal class TextTypeParser(
 
         val (argumentStrings, remainder) = typeParameterStringsWithRemainder(afterName)
         val arguments =
-            argumentStrings.map { cachedParseType(it, typeParameterScope) as TypeArgumentTypeItem }
+            argumentStrings.map {
+                parseTypeWithContextNullability(it, typeParameterScope) as TypeArgumentTypeItem
+            }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
         // the leading annotations (they belong to the nested class type).
         val classModifiers =
