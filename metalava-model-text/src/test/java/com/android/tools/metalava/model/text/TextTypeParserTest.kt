@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
@@ -27,12 +28,8 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Assert
 import org.junit.Test
 
-class TextTypeParserTest : BaseTextCodebaseTest() {
-    private val typeParser = run {
-        val signatureFile = SignatureFile.fromText("test", "")
-        val codebase = ApiFile.parseApi(listOf(signatureFile))
-        TextTypeParser(codebase)
-    }
+class TextTypeParserTest {
+    private val typeParser = TextTypeParser(AnnotationContext.DEFAULT)
 
     private fun parseType(type: String) =
         typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
@@ -139,7 +136,9 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
         val (type, annotations) = annotationFunction(original)
         assertThat(type).isEqualTo(expectedType)
         val expectedAnnotationItems =
-            expectedAnnotations.map { DefaultAnnotationItem.create(typeParser.codebase, it) }
+            expectedAnnotations.map {
+                DefaultAnnotationItem.create(typeParser.annotationContext, it)
+            }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
 
@@ -287,7 +286,9 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
         assertThat(className).isEqualTo(expectedClassName)
         assertThat(params).isEqualTo(expectedParams)
         val expectedAnnotationItems =
-            expectedAnnotations.map { DefaultAnnotationItem.create(typeParser.codebase, it) }
+            expectedAnnotations.map {
+                DefaultAnnotationItem.create(typeParser.annotationContext, it)
+            }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
 

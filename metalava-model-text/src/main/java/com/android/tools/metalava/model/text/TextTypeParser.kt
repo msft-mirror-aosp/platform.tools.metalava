@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -44,9 +44,9 @@ import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.android.tools.metalava.reporter.Issues
 import kotlin.collections.HashMap
 
-/** Parses and caches types for a [codebase]. */
+/** Parses and caches types within a [annotationContext]. */
 internal class TextTypeParser(
-    val codebase: Codebase,
+    val annotationContext: AnnotationContext,
     val kotlinStyleNulls: Boolean = false,
     delegateErrorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
 ) {
@@ -463,7 +463,13 @@ internal class TextTypeParser(
                 modifiers(classAnnotations + annotations, nullability)
             }
         val classType =
-            DefaultClassTypeItem(codebase, classModifiers, qualifiedName, arguments, outerClassType)
+            DefaultClassTypeItem(
+                annotationContext,
+                classModifiers,
+                qualifiedName,
+                arguments,
+                outerClassType
+            )
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
@@ -507,7 +513,8 @@ internal class TextTypeParser(
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
-            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+            DefaultAnnotationItem.create(annotationContext, annotationSource)?.let { annotationItem
+                ->
                 annotations.add(annotationItem)
             }
             trimmed = trimmed.substring(end).trim()
@@ -550,7 +557,8 @@ internal class TextTypeParser(
                 break
             }
             val annotationSource = trimmed.substring(start)
-            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+            DefaultAnnotationItem.create(annotationContext, annotationSource)?.let { annotationItem
+                ->
                 annotations.add(annotationItem)
             }
             // Cut this annotation off, so now the next one can end at the last index.
