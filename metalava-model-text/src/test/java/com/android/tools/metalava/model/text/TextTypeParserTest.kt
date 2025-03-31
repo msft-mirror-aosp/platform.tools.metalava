@@ -111,13 +111,13 @@ class TextTypeParserTest {
 
         Assert.assertThrows(
             "Format does not support Kotlin-style null type syntax: String!",
-            ApiParseException::class.java
+            IllegalStateException::class.java
         ) {
             TextTypeParser.splitNullabilitySuffix("String!", false)
         }
         Assert.assertThrows(
             "Format does not support Kotlin-style null type syntax: String?",
-            ApiParseException::class.java
+            IllegalStateException::class.java
         ) {
             TextTypeParser.splitNullabilitySuffix("String?", false)
         }

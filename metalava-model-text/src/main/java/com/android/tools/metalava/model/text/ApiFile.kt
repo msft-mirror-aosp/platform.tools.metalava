@@ -209,19 +209,6 @@ private constructor(
     private lateinit var fileLocationTracker: FileLocationTracker
 
     /**
-     * Report recoverable errors encountered while parsing.
-     *
-     * Retrieves the location of the error from [fileLocationTracker].
-     */
-    private val errorReporter =
-        object : SignatureErrorReporter {
-            override fun report(issue: Issues.Issue, message: String) {
-                val location = fileLocationTracker.fileLocation()
-                codebase.reporter.report(issue, null, message, location)
-            }
-        }
-
-    /**
      * Provides support for parsing and caching [TypeItem]s.
      *
      * Defer creation until after the first file has been read and [kotlinStyleNulls] has been set
@@ -229,6 +216,14 @@ private constructor(
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) {
+            // Report recoverable errors encountered while parsing types.
+            val errorReporter =
+                object : TypeItemParserErrorReporter {
+                    override fun report(issue: Issues.Issue, message: String) {
+                        reportIssue(issue, message)
+                    }
+                }
+
             TextTypeParser(codebase, kotlinStyleNulls!!, errorReporter)
         }
 
@@ -400,6 +395,18 @@ private constructor(
     }
 
     /**
+     * Report a recoverable issue encountered while parsing.
+     *
+     * Retrieves the location of the error from [fileLocationTracker].
+     *
+     * Note: Non-recoverable issues result in an exception being thrown.
+     */
+    private fun reportIssue(issue: Issues.Issue, message: String) {
+        val location = fileLocationTracker.fileLocation()
+        codebase.reporter.report(issue, null, message, location)
+    }
+
+    /**
      * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
      * created.
      *
@@ -489,7 +496,8 @@ private constructor(
         // Disallow a mixture of kotlinStyleNulls settings.
         if (kotlinStyleNulls != null && kotlinStyleNulls != format.kotlinStyleNulls) {
             val precedingFile = precedingTracker!!.fileLocation().path
-            errorReporter.report(
+            reportIssue(
+                Issues.SIGNATURE_FILE_ERROR,
                 "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
             )
         }

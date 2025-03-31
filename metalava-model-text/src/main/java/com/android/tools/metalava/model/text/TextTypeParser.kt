@@ -48,7 +48,7 @@ import kotlin.collections.HashMap
 internal class TextTypeParser(
     val annotationContext: AnnotationContext,
     val kotlinStyleNulls: Boolean = false,
-    delegateErrorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
+    delegateErrorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
 ) {
     /**
      * Tracks whether types that were unqualified and so implicitly treated as being part of the
@@ -72,8 +72,8 @@ internal class TextTypeParser(
      * determine if any errors were found while parsing a type ([errorCount] increased) and so
      * prevent it from being cached which would suppress any more errors with that type string.
      */
-    private val errorReporter: SignatureErrorReporter =
-        object : SignatureErrorReporter {
+    private val errorReporter: TypeItemParserErrorReporter =
+        object : TypeItemParserErrorReporter {
             override fun report(
                 issue: Issues.Issue,
                 message: String,
@@ -674,7 +674,7 @@ internal class TextTypeParser(
         fun splitNullabilitySuffix(
             type: String,
             kotlinStyleNulls: Boolean,
-            errorReporter: SignatureErrorReporter = SignatureErrorReporter.THROWING,
+            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
         ): Pair<String, TypeNullability?> {
             return if (kotlinStyleNulls) {
                 // Don't interpret the wildcard type `?` as a nullability marker.
