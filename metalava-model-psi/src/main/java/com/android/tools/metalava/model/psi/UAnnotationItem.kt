@@ -58,7 +58,9 @@ private constructor(
         fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
         originalName = originalName,
         qualifiedName = qualifiedName,
-        attributesGetter = { getAnnotationAttributes(annotationContext, uAnnotation) },
+        attributesGetter = { annotationItem ->
+            getAnnotationAttributes(annotationContext, annotationItem, uAnnotation)
+        },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -87,12 +89,19 @@ private constructor(
     companion object {
         private fun getAnnotationAttributes(
             codebase: PsiBasedCodebase,
+            annotationItem: AnnotationItem,
             uAnnotation: UAnnotation
         ): List<AnnotationAttribute> =
             uAnnotation.attributeValues
                 .map { attribute ->
+                    val name = attribute.name ?: ANNOTATION_ATTR_VALUE
                     DefaultAnnotationAttribute(
-                        attribute.name ?: ANNOTATION_ATTR_VALUE,
+                        name,
+                        codebase.valueFactory.providerForAnnotationValue(
+                            annotationItem,
+                            name,
+                            attribute.expression
+                        ),
                         createValue(codebase, attribute.expression)
                     )
                 }
@@ -108,8 +117,7 @@ private constructor(
                 uAnnotation.qualifiedName?.let {
                     (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
                         ?: it
-                }
-                    ?: return null
+                } ?: return null
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return UAnnotationItem(
@@ -199,13 +207,20 @@ private constructor(
             when (value) {
                 null -> sb.append("null")
                 is ULiteralExpression -> sb.append(CodePrinter.constantToSource(value.value))
-                is UQualifiedReferenceExpression -> { // the value is a Foo.BAR type of reference.
-                    // expand `Foo` to fully qualified name `com.example.Foo`
-                    appendQualifiedName(codebase, sb, value.receiver as UReferenceExpression)
-                    // append accessor `.`
-                    sb.append(value.accessType.name)
-                    // append `BAR`
-                    sb.append(value.selector.asRenderString())
+                is UQualifiedReferenceExpression -> {
+                    // the value is a Foo.BAR type of reference, or a Foo::class.java type of
+                    // reference.
+                    val receiver = value.receiver
+                    if (receiver is UReferenceExpression) {
+                        // expand `Foo` to fully qualified name `com.example.Foo`
+                        appendQualifiedName(codebase, sb, receiver)
+                        // append accessor `.`
+                        sb.append(value.accessType.name)
+                        // append `BAR`
+                        sb.append(value.selector.asRenderString())
+                    } else {
+                        sb.append(value.asSourceString())
+                    }
                 }
                 is UReferenceExpression -> {
                     // expand Foo to fully qualified name com.example.Foo

@@ -18,6 +18,9 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueParser
+import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import kotlin.reflect.KClass
 
@@ -294,8 +297,7 @@ internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: 
             is AnnotationArrayAttributeValue ->
                 throw IllegalStateException("Annotation attribute is of type array")
             else -> attributeValue.value()
-        }
-            ?: return null
+        } ?: return null
 
     return convertValue(annotationContext, kClass, value)
 }
@@ -380,16 +382,6 @@ private fun convertValue(
 interface AnnotationContext : ClassResolver {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
-
-    /**
-     * Creates an annotation item for the given (fully qualified) Java source.
-     *
-     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
-     */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem?
 }
 
 /** Default implementation of an annotation item */
@@ -475,7 +467,23 @@ protected constructor(
             originalName,
             qualifiedName,
         ) {
-            attributes.map { DefaultAnnotationAttribute(it.name, it.legacyValue.snapshot()) }
+            attributes.map { attributeToSnapshot ->
+                // Defer retrieval of the value until it is needed as it could throw an exception.
+                // This makes it easier to incrementally expand the Value model without breaking
+                // existing snapshot tests.
+                // TODO(b/354633349): Stop deferring retrieval.
+                val valueProvider =
+                    object : ValueProvider {
+                        override val value: Value
+                            get() = attributeToSnapshot.value.snapshot(targetCodebase)
+                    }
+
+                DefaultAnnotationAttribute(
+                    attributeToSnapshot.name,
+                    valueProvider,
+                    attributeToSnapshot.legacyValue.snapshot(),
+                )
+            }
         }
     }
 
@@ -535,27 +543,17 @@ protected constructor(
                 if (index == -1) source.substring(1) // Strip @
                 else source.substring(1, index)
 
-            @Suppress("UNUSED_PARAMETER")
             fun attributes(annotationItem: AnnotationItem): List<AnnotationAttribute> =
                 if (index == -1) {
                     emptyList()
                 } else {
                     DefaultAnnotationAttribute.createList(
+                        annotationItem,
                         source.substring(index + 1, source.lastIndexOf(')'))
                     )
                 }
 
             return create(annotationContext, FileLocation.UNKNOWN, originalName, ::attributes)
-        }
-
-        fun create(
-            annotationContext: AnnotationContext,
-            originalName: String,
-            attributes: List<AnnotationAttribute> = emptyList(),
-            context: Item? = null
-        ): AnnotationItem? {
-            val source = formatAnnotationItem(originalName, attributes)
-            return annotationContext.createAnnotation(source, context)
         }
 
         /**
@@ -597,6 +595,17 @@ sealed interface AnnotationAttribute {
      * representation.
      */
     val legacyValue: AnnotationAttributeValue
+
+    /**
+     * The value of this attribute.
+     *
+     * Replacement for [legacyValue].
+     *
+     * The [Value] will be suitable for use as an annotation attribute value as specified by JLS
+     * 9.6.1 (what this model calls "attributes", the JSL calls "elements"). That includes constant
+     * fields.
+     */
+    val value: Value
 
     /**
      * Return all leaf values; this flattens the complication of handling
@@ -667,14 +676,36 @@ sealed interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
 
 class DefaultAnnotationAttribute(
     override val name: String,
-    override val legacyValue: AnnotationAttributeValue
+    private val valueProvider: ValueProvider,
+    override val legacyValue: AnnotationAttributeValue,
 ) : AnnotationAttribute {
+
+    override val value: Value
+        get() = valueProvider.value
+
     companion object {
-        fun create(name: String, value: String): DefaultAnnotationAttribute {
-            return DefaultAnnotationAttribute(name, DefaultAnnotationValue.create(value))
+        /** Overload to supply `null` [AnnotationItem] to the following method. */
+        fun create(name: String, value: String) = create(null, name, value)
+
+        fun create(
+            annotationItem: AnnotationItem?,
+            name: String,
+            value: String
+        ): DefaultAnnotationAttribute {
+            return DefaultAnnotationAttribute(
+                name,
+                // If annotation item is null then the [ValueProvider] is not going to be used so
+                // use one that will throw an exception when called.
+                if (annotationItem == null) ValueProvider.UNSUPPORTED
+                else ValueParser.DEFAULT.providerForAnnotationValue(annotationItem, name, value),
+                DefaultAnnotationValue.create(value),
+            )
         }
 
-        fun createList(source: String): List<AnnotationAttribute> {
+        /** Overload to supply `null` [AnnotationItem] to the following method. */
+        fun createList(source: String) = createList(null, source)
+
+        fun createList(annotationItem: AnnotationItem?, source: String): List<AnnotationAttribute> {
             val list = mutableListOf<AnnotationAttribute>() // TODO: default size = 2
             var begin = 0
             var index = 0
@@ -686,7 +717,7 @@ class DefaultAnnotationAttribute(
                 } else if (c == '"') {
                     index = findEnd(source, index + 1, length, '"')
                 } else if (c == ',') {
-                    addAttribute(list, source, begin, index)
+                    addAttribute(annotationItem, list, source, begin, index)
                     index++
                     begin = index
                     continue
@@ -698,7 +729,7 @@ class DefaultAnnotationAttribute(
             }
 
             if (begin < length) {
-                addAttribute(list, source, begin, length)
+                addAttribute(annotationItem, list, source, begin, length)
             }
 
             return list
@@ -719,6 +750,7 @@ class DefaultAnnotationAttribute(
         }
 
         private fun addAttribute(
+            annotationItem: AnnotationItem?,
             list: MutableList<AnnotationAttribute>,
             source: String,
             from: Int,
@@ -743,7 +775,7 @@ class DefaultAnnotationAttribute(
             }
             value = source.substring(valueBegin, valueEnd).trim()
             if (!value.isEmpty()) {
-                list.add(create(name, value))
+                list.add(create(annotationItem, name, value))
             }
         }
     }

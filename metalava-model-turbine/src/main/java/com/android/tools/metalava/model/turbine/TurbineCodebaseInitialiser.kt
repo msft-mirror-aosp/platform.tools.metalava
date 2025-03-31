@@ -97,7 +97,7 @@ internal class TurbineCodebaseInitialiser(
     override lateinit var annotationFactory: TurbineAnnotationFactory
 
     /** Global [TurbineTypeItemFactory] from which all other instances are created. */
-    private lateinit var globalTypeItemFactory: TurbineTypeItemFactory
+    override lateinit var globalTypeItemFactory: TurbineTypeItemFactory
 
     /** Creates [Item] instances for [codebase]. */
     override val itemFactory =
@@ -109,6 +109,8 @@ internal class TurbineCodebaseInitialiser(
             // need to create an ApiVariantSelectors instance that can be used to track that.
             defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         )
+
+    override lateinit var valueFactory: TurbineValueFactory
 
     /**
      * Data Type: TurbineElements (An implementation of javax.lang.model.util.Elements)
@@ -206,8 +208,16 @@ internal class TurbineCodebaseInitialiser(
         // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
         sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
 
+        // Create the TurbineValueProviderFactory
+        valueFactory = TurbineValueFactory(this)
+
         // Create a factory for creating annotations from AnnoInfo.
-        annotationFactory = TurbineAnnotationFactory(codebase, sourceFileCache)
+        annotationFactory =
+            TurbineAnnotationFactory(
+                codebase,
+                sourceFileCache,
+                valueFactory,
+            )
 
         // Create the global TurbineTypeItemFactory.
         globalTypeItemFactory =
