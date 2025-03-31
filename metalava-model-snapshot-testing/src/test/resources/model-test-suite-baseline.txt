@@ -211,8 +211,18 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[turbine,source,double with int]
   testLegacySource[turbine,source,float with int]
   testLegacySource[turbine,source,long with int]
+  testMethodDefaultValue[psi,java,k1,source,String using constant]
+  testMethodDefaultValue[psi,java,k2,source,String using constant]
+  testMethodDefaultValue[psi,kotlin,k1,source,String using constant]
+  testMethodDefaultValue[psi,kotlin,k2,source,String using constant]
+  testMethodDefaultValue[turbine,source,String using constant]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testAttributeValue[psi,java,k1,source,String using constant]
+  testAttributeValue[psi,java,k2,source,String using constant]
+  testAttributeValue[psi,kotlin,k1,source,String using constant]
+  testAttributeValue[psi,kotlin,k2,source,String using constant]
+  testAttributeValue[turbine,source,String using constant]
   testLegacySource[text,source,annotation]
   testLegacySource[text,source,char escaped]
   testLegacySource[text,source,char unicode]
@@ -294,6 +304,11 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[turbine,source,short]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[psi,java,k1,source,String using constant]
+  testFieldValue[psi,java,k2,source,String using constant]
+  testFieldValue[psi,kotlin,k1,source,String using constant]
+  testFieldValue[psi,kotlin,k2,source,String using constant]
+  testFieldValue[turbine,source,String using constant]
   testLegacyValue[text,source,String using constant]
   testLegacyValue[text,source,byte]
   testLegacyValue[text,source,class literal - array of basic class]
@@ -345,3 +360,9 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
   testLegacySource[turbine,jar,float NaN]
   testLegacySource[turbine,jar,float negative infinity]
   testLegacySource[turbine,jar,float positive infinity]
+
+com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
+  Test parse[text,String using constant,field_write_with_semicolon,java,source]
+  Test parse[text,String using constant,javaExpression,jar]
+  Test parse[text,enum,attribute_default_value,java,jar]
+  Test parse[text,enum,javaExpression,jar]

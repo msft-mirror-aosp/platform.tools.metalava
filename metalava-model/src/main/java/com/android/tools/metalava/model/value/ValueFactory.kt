@@ -121,7 +121,7 @@ interface ValueFactory {
             }
 
         literalValue
-            ?: error(
+            ?: throw ValueProviderException(
                 "Incompatible type '$optionalTypeItem', for underlying value `$underlyingValue` of ${underlyingValue.javaClass}"
             )
         return literalValue
@@ -166,6 +166,34 @@ interface ValueFactory {
         return DefaultClassObjectValue(typeItem)
     }
 
+    /**
+     * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+     * [constantValue].
+     */
+    fun createConstantFieldValue(
+        qualifiedClassName: String,
+        fieldName: String,
+        constantValue: ConstantValue?,
+    ): ArrayElementValue {
+        // Some special values need to be used instead of their fields (which can differ between
+        // Java and Kotlin).
+        if (constantValue != null && constantValue in constantValuesToUseInsteadOfField) {
+            return constantValue
+        }
+
+        return DefaultConstantFieldValue(
+            qualifiedClassName,
+            fieldName,
+            constantValue,
+        )
+    }
+
+    /** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
+    fun createEnumConstantValue(
+        qualifiedClassName: String,
+        fieldName: String,
+    ): ArrayElementValue = DefaultEnumConstantValue(qualifiedClassName, fieldName)
+
     companion object {
         /**
          * Map from [Primitive] to a [PrimitiveValueFactory] to use to create an appropriate
@@ -202,6 +230,22 @@ interface ValueFactory {
                     { underlyingValue, _ ->
                         DefaultShortValue(underlyingValue as Short)
                     },
+            )
+
+        /**
+         * Set of [ConstantValue]s which should be used in place of any referencing field.
+         *
+         * These are normalized so that the values are the same whether they come from a jar file or
+         * a source file, or java or kotlin.
+         */
+        private val constantValuesToUseInsteadOfField =
+            setOf(
+                DoubleValue.NaN,
+                DoubleValue.POSITIVE_INFINITY,
+                DoubleValue.NEGATIVE_INFINITY,
+                FloatValue.NaN,
+                FloatValue.POSITIVE_INFINITY,
+                FloatValue.NEGATIVE_INFINITY,
             )
 
         /**

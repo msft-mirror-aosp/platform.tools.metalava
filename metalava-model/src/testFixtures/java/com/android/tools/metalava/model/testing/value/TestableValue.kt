@@ -21,6 +21,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
+import com.android.tools.metalava.model.value.ConstantFieldValue
+import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.EnumConstantValue
 import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
@@ -43,6 +46,22 @@ fun arrayValueFromAny(vararg literals: Any) =
 
 /** Create a [ClassObjectValue] containing [typeItem]. */
 fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
+
+/**
+ * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+ * [constantValue].
+ */
+fun constantFieldValue(
+    qualifiedClassName: String,
+    fieldName: String,
+    constantValue: ConstantValue? = null
+) = Value.createConstantFieldValue(qualifiedClassName, fieldName, constantValue)
+
+/** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
+fun enumConstantValue(
+    qualifiedClassName: String,
+    fieldName: String,
+) = Value.createEnumConstantValue(qualifiedClassName, fieldName)
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,

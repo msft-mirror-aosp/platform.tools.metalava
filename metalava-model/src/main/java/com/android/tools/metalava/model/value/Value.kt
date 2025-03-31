@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.javaEscapeString
 import java.util.EnumSet
+import java.util.Objects
 
 /**
  * Represents a value in a [Codebase].
@@ -183,9 +184,11 @@ enum class ValueKind(val primitiveKind: Primitive? = null) {
         primitiveKind = Primitive.CHAR,
     ),
     CLASS,
+    CONSTANT_FIELD,
     DOUBLE(
         primitiveKind = Primitive.DOUBLE,
     ),
+    ENUM,
     FLOAT(
         primitiveKind = Primitive.FLOAT,
     ),
@@ -218,7 +221,7 @@ enum class ValueKind(val primitiveKind: Primitive? = null) {
 /** A [Value] that is allowed to be used in [ArrayValue.elements]. */
 sealed interface ArrayElementValue : Value
 
-/** A [Value] that can be used in a constant field. */
+/** A [Value] that can be used in a constant field as defined by JLS 15.28. */
 sealed interface ConstantValue : ArrayElementValue
 
 /**
@@ -293,6 +296,12 @@ sealed interface DoubleValue : PrimitiveValue<Double> {
                 (underlyingValue.isNaN() && other.underlyingValue.isNaN()))
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val NaN: DoubleValue = DefaultDoubleValue(Double.NaN)
+        val NEGATIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.NEGATIVE_INFINITY)
+        val POSITIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.POSITIVE_INFINITY)
+    }
 }
 
 /** A [Value] that encapsulates a [Float]. */
@@ -311,6 +320,12 @@ sealed interface FloatValue : PrimitiveValue<Float> {
         // No `f` suffix is needed on special values.
         if (underlyingValue.isNaN() || underlyingValue.isInfinite()) underlyingValue.toString()
         else "${underlyingValue}f"
+
+    companion object {
+        val NaN: FloatValue = DefaultFloatValue(Float.NaN)
+        val NEGATIVE_INFINITY: FloatValue = DefaultFloatValue(Float.NEGATIVE_INFINITY)
+        val POSITIVE_INFINITY: FloatValue = DefaultFloatValue(Float.POSITIVE_INFINITY)
+    }
 }
 
 /** A [Value] that encapsulates a [Int]. */
@@ -362,6 +377,67 @@ sealed interface StringValue : LiteralValue<String> {
         val escaped = javaEscapeString(underlyingValue)
         return "\"$escaped\""
     }
+}
+
+/**
+ * A [Value] that references a field in class [qualifiedClassName] with name [fieldName].
+ *
+ * Sub-interfaces specialize this for [EnumConstantValue] and [ConstantFieldValue]. The reasons why
+ * they are modelled as two separate interfaces are:
+ * 1. They have different behavior, e.g. [ConstantFieldValue] has an optional [ConstantValue] but
+ *    [EnumConstantValue] does not.
+ * 2. The underlying models treat them differently, e.g. they need to do extra work to provide the
+ *    [ConstantValue] for the [ConstantFieldValue].
+ * 3. They are processed differently, e.g. sometimes the [ConstantFieldValue] is used directly,
+ *    other times its [ConstantValue] is used.
+ */
+sealed interface FieldReferenceValue : ArrayElementValue {
+    /** The qualified name of the class that contains the field. */
+    val qualifiedClassName: String
+
+    /** The name of the field. */
+    val fieldName: String
+
+    fun equalToFieldReferenceValue(other: FieldReferenceValue): Boolean {
+        return qualifiedClassName == other.qualifiedClassName && fieldName == other.fieldName
+    }
+
+    fun hashCodeForFieldReferenceValue() = Objects.hash(qualifiedClassName, fieldName)
+
+    override fun toValueString(configuration: ValueStringConfiguration) =
+        "$qualifiedClassName.$fieldName"
+}
+
+/** A [Value] that represents the initial value of a constant field. */
+sealed interface ConstantFieldValue : FieldReferenceValue {
+    override val kind: ValueKind
+        get() = ValueKind.CONSTANT_FIELD
+
+    /**
+     * The optional constant value of this field.
+     *
+     * Is `null` if the field does not reference a constant value.
+     */
+    val constantValue: ConstantValue?
+
+    override fun equalToValue(other: Value) =
+        other is ConstantFieldValue &&
+            equalToFieldReferenceValue(other) &&
+            constantValue == other.constantValue
+
+    override fun hashCodeForValue() =
+        hashCodeForFieldReferenceValue() * 31 + constantValue.hashCode()
+}
+
+/** A [Value] that represents an enum constant. */
+sealed interface EnumConstantValue : FieldReferenceValue {
+    override val kind: ValueKind
+        get() = ValueKind.ENUM
+
+    override fun equalToValue(other: Value) =
+        other is EnumConstantValue && equalToFieldReferenceValue(other)
+
+    override fun hashCodeForValue() = hashCodeForFieldReferenceValue() * 31
 }
 
 /** A [Value] reference to a [Class] object. */

@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.value.constantFieldValue
+import com.android.tools.metalava.model.testing.value.enumConstantValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
@@ -790,6 +792,8 @@ constructor(
                     // Intentionally do not test the value of this because it returns an internal,
                     // model specific object.
                     //   expectedLegacyValue = expectations {},
+                    expectedValue =
+                        expectations { common = enumConstantValue("test.pkg.TestEnum", "VALUE1") },
                 ),
                 // Check a simple float with int
                 ValueExample(
@@ -1226,6 +1230,19 @@ constructor(
                             }
                         },
                     expectedLegacyValue = expectations { common = "constant" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                constantFieldValue(
+                                    "test.pkg.Constants",
+                                    "STRING_CONSTANT",
+                                    literalValue("constant")
+                                )
+                            jar {
+                                // The compiler will always inline a constant field value.
+                                common = literalValue("constant")
+                            }
+                        },
                 )
             )
 
