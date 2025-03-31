@@ -25,10 +25,12 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.CachingAnnotationValueProvider
 import com.android.tools.metalava.model.value.CachingValueProvider
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.CombinedValueProvider
+import com.android.tools.metalava.model.value.ConstantFieldValue
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
 import com.android.tools.metalava.model.value.Value
@@ -37,7 +39,10 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiClassObjectAccessExpression
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteralExpression
+import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiTypes
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
@@ -55,6 +60,7 @@ import org.jetbrains.uast.UastQualifiedExpressionAccessType
  *   and so there is no need to use a factory that has access to the in scope type parameters.
  */
 internal class PsiValueFactory(
+    private val codebase: PsiBasedCodebase,
     private val globalTypeItemFactory: PsiTypeItemFactory,
 ) : ValueFactory, ImplementationValueToModelFactory<Any> {
     /**
@@ -114,6 +120,16 @@ internal class PsiValueFactory(
                 uReferenceExpressionToClassObjectValue(uExpression)?.let {
                     return it
                 }
+
+                // Resolve it and convert it to a Value if possible.
+                val resolved = uExpression.resolve()
+                // Try and convert the resolved PsiElement to a Value and return it if succeeded.
+                resolvedPsiElementToValue(resolved) {
+                        uExpressionToConstant(optionalTypeItem, uExpression)
+                    }
+                    ?.let {
+                        return it
+                    }
             }
         }
 
@@ -265,6 +281,15 @@ internal class PsiValueFactory(
 
                 return createClassObjectValue(classLiteralTypeItem)
             }
+            // Field reference.
+            is PsiReferenceExpression -> {
+                val resolved = psiValue.resolve()
+                // Try and convert the resolved PsiElement to a Value and return it if succeeded.
+                resolvedPsiElementToValue(resolved) { psiToConstant(optionalTypeItem, psiValue) }
+                    ?.let {
+                        return it
+                    }
+            }
         }
 
         // All others drop through.
@@ -295,5 +320,31 @@ internal class PsiValueFactory(
         throw ValueProviderException(
             "Unknown value '$psiValue' of ${psiValue.javaClass} for type $optionalTypeItem"
         )
+    }
+
+    /**
+     * Try and convert the [resolved] [PsiElement] to an [ArrayElementValue].
+     *
+     * If [resolved] is a [PsiField] and it is not an enum constant then it will call
+     * [constantProvider] to find the [ConstantValue] for the [ConstantFieldValue].
+     */
+    private inline fun resolvedPsiElementToValue(
+        resolved: PsiElement?,
+        constantProvider: () -> ConstantValue?
+    ): ArrayElementValue? {
+        if (resolved is PsiField) {
+            codebase.findField(resolved)?.let { fieldItem ->
+                if (fieldItem.isEnumConstant()) {
+                    return createEnumConstantValue(fieldItem)
+                }
+
+                // Get the constant value of the field, if any.
+                val constantValue = constantProvider()
+
+                return createConstantFieldValue(fieldItem, constantValue)
+            }
+        }
+
+        return null
     }
 }

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -167,6 +168,26 @@ interface ValueFactory {
     }
 
     /**
+     * Create a [ConstantFieldValue] from [fieldItem] and the optional [constantValue].
+     *
+     * The [FieldItem] must not be an enum constant, i.e. [FieldItem.isEnumConstant] must be
+     * `false`.
+     */
+    fun createConstantFieldValue(
+        fieldItem: FieldItem,
+        constantValue: ConstantValue?
+    ): ArrayElementValue {
+        require(!fieldItem.isEnumConstant()) {
+            "Constant field must be created from a FieldItem which is not an enum constant but $fieldItem is"
+        }
+        return createConstantFieldValue(
+            fieldItem.containingClass().qualifiedName(),
+            fieldItem.name(),
+            constantValue,
+        )
+    }
+
+    /**
      * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
      * [constantValue].
      */
@@ -185,6 +206,21 @@ interface ValueFactory {
             qualifiedClassName,
             fieldName,
             constantValue,
+        )
+    }
+
+    /**
+     * Create an [EnumConstantValue] from [fieldItem].
+     *
+     * The [FieldItem] must be an enum constant, i.e. [FieldItem.isEnumConstant] must be `true`.
+     */
+    fun createEnumConstantValue(fieldItem: FieldItem): ArrayElementValue {
+        require(fieldItem.isEnumConstant()) {
+            "Enum constant must be created from a FieldItem which is an enum constant but $fieldItem is not"
+        }
+        return createEnumConstantValue(
+            fieldItem.containingClass().qualifiedName(),
+            fieldItem.name(),
         )
     }
 
