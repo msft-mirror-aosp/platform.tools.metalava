@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.parser
 
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.reporter.FileLocation
