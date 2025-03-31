@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -38,17 +39,20 @@ import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.intellij.psi.PsiAnnotationMemberValue
+import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteralExpression
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiTypes
+import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
 import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.USimpleNameReferenceExpression
+import org.jetbrains.uast.UastCallKind
 import org.jetbrains.uast.UastQualifiedExpressionAccessType
 
 /**
@@ -113,6 +117,34 @@ internal class PsiValueFactory(
 
     /** Create a [Value] of [optionalTypeItem] from [uExpression]. */
     private fun uExpressionToValue(optionalTypeItem: TypeItem?, uExpression: UExpression): Value {
+        if (
+            uExpression is UCallExpression &&
+                uExpression.kind == UastCallKind.NESTED_ARRAY_INITIALIZER
+        ) {
+            val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
+            val elementType = arrayTypeItem?.componentType
+            val elements =
+                uExpression.valueArguments.map { uExpressionToArrayElementValue(elementType, it) }
+            return createArrayValue(elements)
+        }
+
+        return if (optionalTypeItem is ArrayTypeItem) {
+            // The type is an array so this is an example of not having to add curly braces around a
+            // single value in an annotation attribute. Create a value for the component type and
+            // then wrap it in an ArrayValue.
+            val singleValue =
+                uExpressionToArrayElementValue(optionalTypeItem.componentType, uExpression)
+            createArrayValue(listOf(singleValue))
+        } else {
+            uExpressionToArrayElementValue(optionalTypeItem, uExpression)
+        }
+    }
+
+    /** Create an [ArrayElementValue] of [optionalTypeItem] from [uExpression]. */
+    private fun uExpressionToArrayElementValue(
+        optionalTypeItem: TypeItem?,
+        uExpression: UExpression
+    ): ArrayElementValue {
         when (uExpression) {
             is UQualifiedReferenceExpression -> {
                 // Check to see if it is a class literal and if so then create a ClassObjectValue
@@ -267,6 +299,31 @@ internal class PsiValueFactory(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
     ): Value {
+        // Array literal.
+        if (psiValue is PsiArrayInitializerMemberValue) {
+            val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
+            val elementType = arrayTypeItem?.componentType
+            val elements =
+                psiValue.initializers.mapNotNull { psiToArrayElementValue(elementType, it) }
+            return createArrayValue(elements)
+        }
+
+        return if (optionalTypeItem is ArrayTypeItem) {
+            // The type is an array so this is an example of not having to add curly braces around a
+            // single value in an annotation attribute. Create a value for the component type and
+            // then wrap it in an ArrayValue.
+            val singleValue = psiToArrayElementValue(optionalTypeItem.componentType, psiValue)
+            createArrayValue(listOf(singleValue))
+        } else {
+            psiToArrayElementValue(optionalTypeItem, psiValue)
+        }
+    }
+
+    /** Create an [ArrayElementValue] of [optionalTypeItem] from [psiValue]. */
+    private fun psiToArrayElementValue(
+        optionalTypeItem: TypeItem?,
+        psiValue: PsiAnnotationMemberValue,
+    ): ArrayElementValue {
         when (psiValue) {
             // Class literal, e.g. `SomeClass.class`.
             is PsiClassObjectAccessExpression -> {

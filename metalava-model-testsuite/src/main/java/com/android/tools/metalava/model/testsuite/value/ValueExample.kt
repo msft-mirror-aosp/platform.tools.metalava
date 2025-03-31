@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.constantFieldValue
 import com.android.tools.metalava.model.testing.value.enumConstantValue
 import com.android.tools.metalava.model.testing.value.literalValue
@@ -1198,6 +1199,7 @@ constructor(
                             attributeDefaultValue = ""
                         },
                     expectedLegacyValue = expectations { common = emptyArray<Int>() },
+                    expectedValue = expectations { common = arrayValueFromAny() },
                 ),
                 // Check a simple string array.
                 ValueExample(
@@ -1212,6 +1214,8 @@ constructor(
                     expectedKotlinLegacySource =
                         partialExpectations { attributeValue = "[\"string1\", \"string2\"]" },
                     expectedLegacyValue = expectations { common = arrayOf("string1", "string2") },
+                    expectedValue =
+                        expectations { common = arrayValueFromAny("string1", "string2") },
                 ),
                 // Check passing a single value to an array type.
                 ValueExample(
@@ -1233,6 +1237,7 @@ constructor(
                             common = arrayOf("string")
                             source { common = "string" }
                         },
+                    expectedValue = expectations { common = arrayValueFromAny("string") },
                 ),
                 ValueExample(
                     name = "String using constant",

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -24,7 +25,10 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.javaUnescapeString
+import com.android.tools.metalava.model.parser.ParseException
+import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.TypeItemParser
+import java.nio.file.Path
 
 /**
  * Parser for the string representation of [Value]s that is used in a signature file or an
@@ -71,8 +75,69 @@ class ValueParser(
     ) = parse(optionalTypeItem, implementationValue)
 
     /** Parse the [text] to provide a [Value] of the [optionalTypeItem]. */
-    fun parse(optionalTypeItem: TypeItem?, text: String): Value? {
-        if (text.isEmpty()) return null
+    fun parse(optionalTypeItem: TypeItem?, text: String): Value? =
+        when {
+            text.isEmpty() -> null
+            text[0] == '{' -> {
+                // The text looks like it is an array literal that could contain multiple values so
+                // it will require splitting into separate parts, so create a Tokenizer to do that.
+                val tokenizer = Tokenizer(Path.of("unknown"), text.toCharArray())
+                parseWithTokenizer(optionalTypeItem, tokenizer)
+            }
+            optionalTypeItem is ArrayTypeItem -> {
+                // The type is an array so this is an example of not having to add curly braces
+                // around a
+                // single value in an annotation attribute. Create a value for the component type
+                // and
+                // then wrap it in an ArrayValue.
+                val singleValue = parseArrayElementValue(optionalTypeItem.componentType, text)
+                createArrayValue(listOf(singleValue))
+            }
+            else -> {
+                parseArrayElementValue(optionalTypeItem, text)
+            }
+        }
+
+    /** Parse a [Value] of the [optionalTypeItem] from [tokenizer]. */
+    private fun parseWithTokenizer(optionalTypeItem: TypeItem?, tokenizer: Tokenizer) =
+        when (val token = tokenizer.requireToken()) {
+            "{" -> {
+                val componentType = (optionalTypeItem as? ArrayTypeItem)?.componentType
+                val elements = buildList {
+                    while (true) {
+                        // The next token could be the end of the array or a value.
+                        // TODO(b/354633349): Handle annotations in arrays.
+                        val valueToken = tokenizer.requireToken()
+
+                        // If it is the end of the array (because the array is empty) then break
+                        // out.
+                        if (valueToken == "}") break
+
+                        // Parse the token as a value and add it to the list.
+                        val element = parseArrayElementValue(componentType, valueToken)
+                        add(element)
+
+                        // The next token should be either a `,` or a `}`.
+                        when (val separator = tokenizer.requireToken()) {
+                            "," -> continue
+                            "}" -> break
+                            else ->
+                                throw ParseException("Expected ',' or '}' but found '$separator'")
+                        }
+                    }
+                }
+                createArrayValue(elements)
+            }
+            else -> {
+                throw ParseException("Expected '{' but found '$token'")
+            }
+        }
+
+    /** Parse the [text] to provide an [ArrayElementValue] of the [optionalTypeItem]. */
+    private fun parseArrayElementValue(
+        optionalTypeItem: TypeItem?,
+        text: String
+    ): ArrayElementValue {
         knownSpecialValues[text]?.let { value ->
             return createLiteralValue(optionalTypeItem, value)
         }
@@ -148,7 +213,7 @@ class ValueParser(
         optionalTypeItem: TypeItem?,
         text: String,
         unaryOperator: UnaryOperator?,
-    ): Value {
+    ): ConstantValue {
         // Handle hexadecimal numbers first as they could end with a 'f' which would be treated as
         // a float below.
         if (text.startsWith("0x")) {
