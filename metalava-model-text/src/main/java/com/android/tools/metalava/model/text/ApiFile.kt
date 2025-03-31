@@ -60,6 +60,8 @@ import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.reporter.FileLocation

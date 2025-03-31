@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
@@ -31,17 +31,10 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.DefaultArrayTypeItem
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
-import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.android.tools.metalava.reporter.Issues
 
 /** Parses and caches types within a [annotationContext]. */
-internal open class TypeItemParser(
+open class TypeItemParser(
     val annotationContext: AnnotationContext,
     val kotlinStyleNulls: Boolean = false,
     protected open val errorReporter: TypeItemParserErrorReporter =

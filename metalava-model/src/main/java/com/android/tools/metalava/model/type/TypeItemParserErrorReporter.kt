@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.reporter.Issues
@@ -31,7 +31,7 @@ import com.android.tools.metalava.reporter.Issues
  * be readable by Metalava. The exception would be types which appear in an annotation instance
  * specified on the command line.
  */
-internal interface TypeItemParserErrorReporter {
+interface TypeItemParserErrorReporter {
     /** Report recoverable errors encountered while parsing. */
     fun report(issue: Issues.Issue, message: String)
 

@@ -28,6 +28,8 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.reporter.Issues
 
 /** Parses and caches types within a [annotationContext]. */
