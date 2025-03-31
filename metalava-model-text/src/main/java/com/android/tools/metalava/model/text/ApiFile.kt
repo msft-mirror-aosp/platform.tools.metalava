@@ -170,10 +170,10 @@ sealed class SignatureFile {
                 file.readText(UTF_8)
             } catch (ex: IOException) {
                 throw ApiParseException(
-                    "Error reading API file",
-                    location = FileLocation.createLocation(file.toPath()),
-                    cause = ex
-                )
+                        "Error reading API file",
+                        location = FileLocation.createLocation(file.toPath()),
+                    )
+                    .apply { initCause(ex) }
             }
     }
 
@@ -483,7 +483,7 @@ private constructor(
         // Remember the API variant of the file being parsed.
         this.apiVariant = apiVariant
 
-        val tokenizer = Tokenizer(path, apiText.toCharArray())
+        val tokenizer = Tokenizer(path, apiText.toCharArray(), ::ApiParseException)
 
         // Get the preceding tracker, if any.
         val precedingTracker =
