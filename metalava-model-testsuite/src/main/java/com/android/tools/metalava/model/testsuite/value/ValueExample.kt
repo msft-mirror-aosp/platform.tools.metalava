@@ -1181,6 +1181,24 @@ constructor(
                     expectedLegacyValue = expectations { common = "str\ning" },
                     expectedValue = expectations { common = literalValue("str\ning") },
                 ),
+                // Check an empty array.
+                ValueExample(
+                    name = "array - empty",
+                    javaType = "int[]",
+                    javaExpression = "{}",
+                    kotlinType = "IntArray",
+                    kotlinExpression = "[]",
+                    // Literal arrays are only allowed in annotations not fields.
+                    suitableFor = allValueUseSitesExceptFields,
+                    expectedLegacySource = expectations { common = "{}" },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            attributeValue = "[]"
+                            // TODO(b/354633349): Fix this, it should not be an empty string.
+                            attributeDefaultValue = ""
+                        },
+                    expectedLegacyValue = expectations { common = emptyArray<Int>() },
+                ),
                 // Check a simple string array.
                 ValueExample(
                     name = "String array",

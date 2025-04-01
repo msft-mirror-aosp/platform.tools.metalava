@@ -74,6 +74,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[source,String escaped]
   testLegacyValue[source,String using constant]
   testLegacyValue[source,annotation]
+  testLegacyValue[source,array - empty]
   testLegacyValue[source,byte]
   testLegacyValue[source,char escaped]
   testLegacyValue[source,char unicode]
