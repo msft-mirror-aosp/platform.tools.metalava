@@ -63,6 +63,8 @@ dependencies {
 /** The location into which a fake representation of the prebuilts/sdk directory will be written. */
 val testPrebuiltsSdkDir = layout.buildDirectory.dir("prebuilts/sdk")
 
+val testDataDir = layout.projectDirectory.dir("src/testdata")
+
 /**
  * Register tasks to emulate parts of the prebuilts/sdk repository using source from this directory.
  *
@@ -141,8 +143,13 @@ project.tasks.register("test-prebuilts-sdk") {
 
 tasks.named<Test>("test").configure {
     dependsOn("test-prebuilts-sdk")
-    setEnvironment(
-        "METALAVA_TEST_PREBUILTS_SDK_ROOT" to testPrebuiltsSdkDir.get().asFile.absolutePath
+
+    // Add some additional environment variables to pass in some directories needed by the test.
+    environment.putAll(
+        mapOf(
+            "METALAVA_TEST_PREBUILTS_SDK_ROOT" to testPrebuiltsSdkDir.get().asFile.absolutePath,
+            "METALAVA_TESTDATA_DIR" to testDataDir.asFile.absolutePath,
+        )
     )
 }
 

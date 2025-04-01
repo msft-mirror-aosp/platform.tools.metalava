@@ -19,8 +19,12 @@ import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
 
-/** Represents the whole Android API. */
-class Api : ParentApiElement {
+/**
+ * Represents the whole Android API.
+ *
+ * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
+ */
+class Api(val useInternalNames: Boolean) : ParentApiElement {
     /**
      * This has to behave as if it exists since before any specific version (so that every class
      * always specifies its `since` attribute.
@@ -93,9 +97,9 @@ class Api : ParentApiElement {
     fun patchSdkExtensionsHistory() {
         val sdkExtensions =
             findClass("android/os/ext/SdkExtensions")
-            // This is either for the module-lib/system-server (null) or for a non-Android API.
-            // Either way it does not need patching.
-            ?: return
+                // This is either for the module-lib/system-server (null) or for a non-Android API.
+                // Either way it does not need patching.
+                ?: return
 
         val sdk30 = ApiVersion.fromLevel(30)
         val sdk31 = ApiVersion.fromLevel(31)
@@ -197,7 +201,8 @@ class Api : ParentApiElement {
         if (results.isNotEmpty()) {
             var message = ""
             for ((key, value) in results) {
-                message += """
+                message +=
+                    """
   $key referenced by:"""
                 for (referencer in value) {
                     message += "\n    $referencer"

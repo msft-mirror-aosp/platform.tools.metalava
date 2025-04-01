@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
@@ -43,10 +44,13 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.Value
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
 class CodebaseSnapshotTaker
@@ -296,6 +300,16 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 methodToSnapshot.typeParameterList.snapshot(methodToSnapshot.describe())
             }
 
+        // Defer retrieval of the defaultValue until it is needed as it could throw an exception.
+        // This makes it easier to incrementally expand the Value model without breaking existing
+        // snapshot tests.
+        // TODO(b/354633349): Stop deferring retrieval.
+        val defaultValueProvider =
+            object : OptionalValueProvider {
+                override val optionalValue: Value?
+                    get() = methodToSnapshot.defaultValue?.snapshot(snapshotCodebase)
+            }
+
         val newMethod =
             // Resolve any type parameters used in the method's return type and parameter items
             // within the scope of the method's SnapshotTypeItemFactory.
@@ -315,7 +329,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
                     callableBodyFactory = methodToSnapshot.body::snapshot,
-                    annotationDefault = methodToSnapshot.defaultValue(),
+                    defaultValueProvider = defaultValueProvider,
+                    annotationDefault = methodToSnapshot.legacyDefaultValue(),
                 )
             }
         newMethod.copySelectedApiVariants(methodToSnapshot)
@@ -325,6 +340,16 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 
     override fun visitField(field: FieldItem) {
         val fieldToSnapshot = field.actualItemToSnapshot
+
+        // Defer retrieval of the initialValue until it is needed as it could throw an exception.
+        // This makes it easier to incrementally expand the Value model without breaking existing
+        // snapshot tests.
+        // TODO(b/354633349): Stop deferring retrieval.
+        val initialValueProvider =
+            object : OptionalValueProvider {
+                override val optionalValue: Value?
+                    get() = fieldToSnapshot.initialValue?.snapshot(snapshotCodebase)
+            }
 
         val containingClass = field.containingClass().getSnapshotClass()
         val newField =
@@ -340,7 +365,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     containingClass = containingClass,
                     type = fieldToSnapshot.type().snapshot(),
                     isEnumConstant = fieldToSnapshot.isEnumConstant(),
-                    fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
+                    fieldValue = fieldToSnapshot.legacyFieldValue?.snapshot(),
+                    initialValueProvider = initialValueProvider,
                 )
             }
         newField.copySelectedApiVariants(fieldToSnapshot)
@@ -350,12 +376,18 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 
     override fun visitProperty(property: PropertyItem) {
         val propertyToSnapshot = property.actualItemToSnapshot
-
         val containingClass = property.containingClass().getSnapshotClass()
+
+        // Create a TypeParameterList and SnapshotTypeItemFactory for the property.
+        val (typeParameterList, propertyTypeItemFactory) =
+            globalTypeItemFactory.from(containingClass).inScope {
+                propertyToSnapshot.typeParameterList.snapshot(propertyToSnapshot.describe())
+            }
+
         val newProperty =
             // Resolve any type parameters used in the property's type within the scope of the
             // containing class's SnapshotTypeItemFactory.
-            globalTypeItemFactory.from(containingClass).inScope {
+            propertyTypeItemFactory.inScope {
                 itemFactory.createPropertyItem(
                     fileLocation = propertyToSnapshot.fileLocation,
                     itemLanguage = propertyToSnapshot.itemLanguage,
@@ -368,11 +400,37 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     setter = property.setter,
                     constructorParameter = property.constructorParameter,
                     backingField = property.backingField,
+                    receiver = property.receiver?.snapshot(),
+                    typeParameterList = typeParameterList
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)
 
         containingClass.addProperty(newProperty)
+    }
+
+    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
+        val typeAliasToSnapshot = typeAlias.actualItemToSnapshot
+        val containingPackage = typeAlias.containingPackage().getSnapshotPackage()
+
+        val (typeParameterList, typeAliasTypeItemFactory) =
+            globalTypeItemFactory.inScope {
+                typeAliasToSnapshot.typeParameterList.snapshot(typeAliasToSnapshot.describe())
+            }
+
+        val newTypeAlias =
+            typeAliasTypeItemFactory.inScope {
+                itemFactory.createTypeAliasItem(
+                    fileLocation = typeAliasToSnapshot.fileLocation,
+                    modifiers = typeAliasToSnapshot.modifiers.snapshot(),
+                    qualifiedName = typeAliasToSnapshot.qualifiedName,
+                    containingPackage = containingPackage as DefaultPackageItem,
+                    aliasedType = typeAliasToSnapshot.aliasedType.snapshot(),
+                    typeParameterList = typeParameterList,
+                    documentationFactory = snapshotDocumentation(typeAliasToSnapshot, typeAlias),
+                )
+            }
+        newTypeAlias.copySelectedApiVariants(typeAliasToSnapshot)
     }
 
     /** Take a snapshot of [qualifiedName]. */
@@ -446,7 +504,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     this,
                     { typeParameterItem ->
                         DefaultTypeParameterItem(
-                            codebase = snapshotCodebase,
+                            classResolver = snapshotCodebase,
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()
@@ -457,6 +515,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         typeParameterItem.typeBounds().map { typeItemFactory.getBoundsType(it) }
                     },
                 )
+
         /** General [TypeItem] specific snapshot. */
         internal fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
 
