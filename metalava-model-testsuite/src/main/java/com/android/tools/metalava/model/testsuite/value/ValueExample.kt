@@ -382,6 +382,7 @@ constructor(
                     javaImports = listOf("java.util.BitSet"),
                     kotlinType = "Class<*>",
                     kotlinExpression = "BitSet::class.java",
+                    signatureExpression = "java.util.BitSet.class",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.BitSet.class"
@@ -409,6 +410,7 @@ constructor(
                     javaImports = listOf("java.util.List"),
                     kotlinType = "Class<*>",
                     kotlinExpression = "List::class.java",
+                    signatureExpression = "java.util.List.class",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List.class"
@@ -435,6 +437,7 @@ constructor(
                     javaImports = listOf("java.util.BitSet"),
                     kotlinType = "Class<*>",
                     kotlinExpression = "Array<BitSet>::class.java",
+                    signatureExpression = "java.util.BitSet[].class",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.BitSet[].class"
@@ -466,6 +469,7 @@ constructor(
                     // While Kotlin can correctly map a `List[].class` instance from a Java
                     // annotation it has no way of representing it in the source.
                     validForInputFormats = notValidForKotlin,
+                    signatureExpression = "java.util.List[].class",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List[].class"

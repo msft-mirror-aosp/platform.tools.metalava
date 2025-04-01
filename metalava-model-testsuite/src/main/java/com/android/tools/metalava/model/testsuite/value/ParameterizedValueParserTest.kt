@@ -139,7 +139,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                                     "${valueExample.name},javaExpression,${producerKind.name.lowercase()}",
                                     valueExample,
                                     javaType,
-                                    valueExample.javaExpression,
+                                    valueExample.signatureExpression,
                                     expectedValue
                                 )
                             )
