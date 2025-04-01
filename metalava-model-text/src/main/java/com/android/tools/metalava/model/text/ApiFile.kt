@@ -1106,6 +1106,7 @@ private constructor(
             DefaultAnnotationItem.createFromSource(
                     codebase,
                     annotationSource,
+                    valueParser,
                 )
                 ?.let { annotationItem -> add(annotationItem) }
         }

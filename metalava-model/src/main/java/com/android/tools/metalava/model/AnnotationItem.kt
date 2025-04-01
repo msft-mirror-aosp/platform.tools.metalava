@@ -558,6 +558,7 @@ protected constructor(
         fun createFromSource(
             annotationContext: AnnotationContext,
             source: String,
+            valueParser: ValueParser = ValueParser.DEFAULT,
         ): AnnotationItem? {
             val index = source.indexOf("(")
             val originalName =
@@ -570,7 +571,8 @@ protected constructor(
                 } else {
                     DefaultAnnotationAttribute.createList(
                         annotationItem,
-                        source.substring(index + 1, source.lastIndexOf(')'))
+                        source.substring(index + 1, source.lastIndexOf(')')),
+                        valueParser,
                     )
                 }
 
@@ -718,14 +720,15 @@ class DefaultAnnotationAttribute(
         fun create(
             annotationItem: AnnotationItem?,
             name: String,
-            value: String
+            value: String,
+            valueParser: ValueParser = ValueParser.DEFAULT,
         ): DefaultAnnotationAttribute {
             return DefaultAnnotationAttribute(
                 name,
                 // If annotation item is null then the [ValueProvider] is not going to be used so
                 // use one that will throw an exception when called.
                 if (annotationItem == null) ValueProvider.UNSUPPORTED
-                else ValueParser.DEFAULT.providerForAnnotationValue(annotationItem, name, value),
+                else valueParser.providerForAnnotationValue(annotationItem, name, value),
                 DefaultAnnotationValue.create(value),
             )
         }
@@ -733,7 +736,11 @@ class DefaultAnnotationAttribute(
         /** Overload to supply `null` [AnnotationItem] to the following method. */
         fun createList(source: String) = createList(null, source)
 
-        fun createList(annotationItem: AnnotationItem?, source: String): List<AnnotationAttribute> {
+        fun createList(
+            annotationItem: AnnotationItem?,
+            source: String,
+            valueParser: ValueParser = ValueParser.DEFAULT,
+        ): List<AnnotationAttribute> {
             val list = mutableListOf<AnnotationAttribute>() // TODO: default size = 2
             var begin = 0
             var index = 0
@@ -745,7 +752,7 @@ class DefaultAnnotationAttribute(
                 } else if (c == '"') {
                     index = findEnd(source, index + 1, length, '"')
                 } else if (c == ',') {
-                    addAttribute(annotationItem, list, source, begin, index)
+                    addAttribute(valueParser, annotationItem, list, source, begin, index)
                     index++
                     begin = index
                     continue
@@ -757,7 +764,7 @@ class DefaultAnnotationAttribute(
             }
 
             if (begin < length) {
-                addAttribute(annotationItem, list, source, begin, length)
+                addAttribute(valueParser, annotationItem, list, source, begin, length)
             }
 
             return list
@@ -778,6 +785,7 @@ class DefaultAnnotationAttribute(
         }
 
         private fun addAttribute(
+            valueParser: ValueParser,
             annotationItem: AnnotationItem?,
             list: MutableList<AnnotationAttribute>,
             source: String,
@@ -803,7 +811,7 @@ class DefaultAnnotationAttribute(
             }
             value = source.substring(valueBegin, valueEnd).trim()
             if (!value.isEmpty()) {
-                list.add(create(annotationItem, name, value))
+                list.add(create(annotationItem, name, value, valueParser))
             }
         }
     }
