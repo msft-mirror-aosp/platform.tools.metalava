@@ -372,7 +372,7 @@ private fun convertValue(
 
     // TODO: Push down into the model as that is likely to be more efficient.
     if (kClass == AnnotationItem::class) {
-        return DefaultAnnotationItem.create(annotationContext, value as String)
+        return DefaultAnnotationItem.createFromSource(annotationContext, value as String)
     }
 
     return value
@@ -554,7 +554,11 @@ protected constructor(
             }
         }
 
-        fun create(annotationContext: AnnotationContext, source: String): AnnotationItem? {
+        /** Create an annotation from [source]. */
+        fun createFromSource(
+            annotationContext: AnnotationContext,
+            source: String,
+        ): AnnotationItem? {
             val index = source.indexOf("(")
             val originalName =
                 if (index == -1) source.substring(1) // Strip @
@@ -570,14 +574,21 @@ protected constructor(
                     )
                 }
 
-            return create(annotationContext, FileLocation.UNKNOWN, originalName, ::attributes)
+            return createAttributesLazily(
+                annotationContext,
+                FileLocation.UNKNOWN,
+                originalName,
+                ::attributes
+            )
         }
 
         /**
-         * Create a [DefaultAnnotationItem] by mapping the [originalName] to a [qualifiedName] by
-         * using the [annotationContext]'s [AnnotationManager.normalizeInputName].
+         * Create a [DefaultAnnotationItem] deferring the creation of the attributes until needed.
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
          */
-        fun create(
+        fun createAttributesLazily(
             annotationContext: AnnotationContext,
             fileLocation: FileLocation,
             originalName: String,

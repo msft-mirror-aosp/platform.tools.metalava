@@ -1103,9 +1103,11 @@ private constructor(
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
-                add(annotationItem)
-            }
+            DefaultAnnotationItem.createFromSource(
+                    codebase,
+                    annotationSource,
+                )
+                ?.let { annotationItem -> add(annotationItem) }
         }
     }
 
