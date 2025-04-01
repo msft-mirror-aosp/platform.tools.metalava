@@ -31,21 +31,21 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.android.tools.metalava.reporter.Issues
 
-/** Parses and caches types within a [annotationContext]. */
+/**
+ * Parses and caches types within an [annotationContext].
+ *
+ * @param unqualifiedClassHandler responsible for determining how to handle unqualified types.
+ * @param kotlinStyleNulls whether Kotlin style nulls, i.e. no nullability suffix for non-null, `?`
+ *   for nullable, and `!` for platform are supported or not.
+ * @param errorReporter channel for reporting recoverable errors found while parsing.
+ */
 open class TypeItemParser(
     val annotationContext: AnnotationContext,
+    private val unqualifiedClassHandler: UnqualifiedClassHandler,
     val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
 ) {
-    /**
-     * Tracks whether types that were unqualified and so implicitly treated as being part of the
-     * 'java.lang` package are actually part of that package. If they are not then an error is
-     * reported and it is not prefixed with `java.lang`.
-     */
-    private val javaLangPackage: JavaLangPackage = JavaLangPackage.DEFAULT
-
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
     private val objectType: ReferenceTypeItem
         get() =
@@ -370,18 +370,6 @@ open class TypeItemParser(
             if (outerClassType != null) {
                 // This is a nested type, add the prefix of the outer name
                 "${outerClassType.qualifiedName}.$name"
-            } else if (!name.contains('.')) {
-                val javaLangName = "java.lang.$name"
-                if (javaLangPackage.containsQualified(javaLangName)) {
-                    // Reverse the effect of [TypeItem.stripJavaLangPrefix].
-                    javaLangName
-                } else {
-                    errorReporter.report(
-                        Issues.UNQUALIFIED_TYPE_ERROR,
-                        "Unqualified type '$name' is not in 'java.lang' and is not a type parameter in scope"
-                    )
-                    name
-                }
             } else {
                 name
             }
@@ -399,14 +387,28 @@ open class TypeItemParser(
             } else {
                 modifiers(classAnnotations + annotations, nullability)
             }
+
+        // If the class name is qualified (i.e. contains a `.`) then create the ClassTypeItem,
+        // directly, otherwise defer to the unqualifiedTypeHandler to create it instead.
         val classType =
-            DefaultClassTypeItem(
-                annotationContext,
-                classModifiers,
-                qualifiedName,
-                arguments,
-                outerClassType
-            )
+            if (qualifiedName.contains('.')) {
+                DefaultClassTypeItem(
+                    annotationContext,
+                    classModifiers,
+                    qualifiedName,
+                    arguments,
+                    outerClassType
+                )
+            } else {
+                unqualifiedClassHandler.handleUnqualifiedType(
+                    annotationContext,
+                    errorReporter,
+                    classModifiers,
+                    name,
+                    arguments,
+                    outerClassType
+                )
+            }
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {

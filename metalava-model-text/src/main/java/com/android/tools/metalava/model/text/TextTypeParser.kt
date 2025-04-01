@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.text.TextTypeParser.CacheEntry
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
+import com.android.tools.metalava.model.type.UnqualifiedClassHandler
 import com.android.tools.metalava.reporter.Issues
 
 /** Parses and caches types within a [annotationContext]. */
@@ -42,6 +43,7 @@ private constructor(
 ) :
     TypeItemParser(
         annotationContext,
+        UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR,
         kotlinStyleNulls,
         countingErrorReporter,
     ) {

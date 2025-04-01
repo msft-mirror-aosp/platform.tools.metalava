@@ -29,7 +29,11 @@ import org.junit.Assert
 import org.junit.Test
 
 class TypeItemParserTest {
-    private val typeParser = TypeItemParser(AnnotationContext.DEFAULT)
+    private val typeParser =
+        TypeItemParser(
+            AnnotationContext.DEFAULT,
+            UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR,
+        )
 
     private fun parseType(type: String) =
         typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
