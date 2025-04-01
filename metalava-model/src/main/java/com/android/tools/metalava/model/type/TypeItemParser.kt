@@ -37,8 +37,7 @@ import com.android.tools.metalava.reporter.Issues
 open class TypeItemParser(
     val annotationContext: AnnotationContext,
     val kotlinStyleNulls: Boolean = false,
-    protected open val errorReporter: TypeItemParserErrorReporter =
-        TypeItemParserErrorReporter.THROWING,
+    private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
 ) {
     /**
      * Tracks whether types that were unqualified and so implicitly treated as being part of the

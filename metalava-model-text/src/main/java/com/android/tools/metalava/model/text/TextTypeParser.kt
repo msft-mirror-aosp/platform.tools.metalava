@@ -27,43 +27,34 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.text.TextTypeParser.CacheEntry
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.reporter.Issues
 
 /** Parses and caches types within a [annotationContext]. */
-internal class TextTypeParser(
+internal class TextTypeParser
+private constructor(
     annotationContext: AnnotationContext,
-    kotlinStyleNulls: Boolean = false,
-    delegateErrorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
-) : TypeItemParser(annotationContext, kotlinStyleNulls) {
+    kotlinStyleNulls: Boolean,
+    private val countingErrorReporter: CountingErrorReporter,
+) :
+    TypeItemParser(
+        annotationContext,
+        kotlinStyleNulls,
+        countingErrorReporter,
+    ) {
 
     /**
-     * A count of the errors reported through [errorReporter].
-     *
-     * This is used to prevent caching [TypeItem]s that reported errors to make sure that every such
-     * case is reported.
+     * Secondary constructor that will wrap the [errorReporter] it is given in a
+     * [CountingErrorReporter] before calling the primary constructor.
      */
-    private var errorCount = 0
-
-    /**
-     * Report a recoverable error.
-     *
-     * This keeps a count of how many were reported so that [CacheEntry.getTypeItem] can use that to
-     * determine if any errors were found while parsing a type ([errorCount] increased) and so
-     * prevent it from being cached which would suppress any more errors with that type string.
-     */
-    override val errorReporter: TypeItemParserErrorReporter =
-        object : TypeItemParserErrorReporter {
-            override fun report(
-                issue: Issues.Issue,
-                message: String,
-            ) {
-                delegateErrorReporter.report(issue, message)
-                errorCount += 1
-            }
-        }
+    constructor(
+        annotationContext: AnnotationContext,
+        kotlinStyleNulls: Boolean = false,
+        errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+    ) : this(annotationContext, kotlinStyleNulls, CountingErrorReporter(errorReporter))
 
     /**
      * The cache key, incorporates some information from [ContextNullability] and [kotlinStyleNulls]
@@ -182,13 +173,13 @@ internal class TextTypeParser(
                 }
 
             // Remember the number of errors that have been reported so far.
-            val startErrorCount = errorCount
+            val startErrorCount = countingErrorReporter.errorCount
 
             // Parse the [type] to produce a [TypeItem]. This may report errors.
             val typeItem = createTypeItem(typeParameterScope)
 
             // If the error count is different then do not cache this.
-            if (errorCount != startErrorCount) {
+            if (countingErrorReporter.errorCount != startErrorCount) {
                 return typeItem
             }
 
@@ -272,4 +263,31 @@ internal class TextTypeParser(
      * all the [TypeItem]s cached by this.
      */
     private val unqualifiedNameGatherer = UnqualifiedNameGatherer()
+}
+
+/**
+ * Report a recoverable error.
+ *
+ * This keeps a count of how many were reported so that [CacheEntry.getTypeItem] can use that to
+ * determine if any errors were found while parsing a type ([errorCount] increased) and so prevent
+ * it from being cached which would suppress any more errors with that type string.
+ */
+private class CountingErrorReporter(
+    private val delegateErrorReporter: TypeItemParserErrorReporter
+) : TypeItemParserErrorReporter {
+    /**
+     * A count of the errors reported through this.
+     *
+     * This is used to prevent caching [TypeItem]s that reported errors to make sure that every such
+     * case is reported.
+     */
+    var errorCount = 0
+
+    override fun report(
+        issue: Issues.Issue,
+        message: String,
+    ) {
+        delegateErrorReporter.report(issue, message)
+        errorCount += 1
+    }
 }
