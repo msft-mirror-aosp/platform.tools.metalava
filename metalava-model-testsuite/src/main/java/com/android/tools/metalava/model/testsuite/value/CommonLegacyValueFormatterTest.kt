@@ -23,8 +23,10 @@ import com.android.tools.metalava.model.Assertions.Companion.assertResolvedClass
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.junit4.ParameterFilter
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.value.LegacyValueFormatter
@@ -233,11 +235,29 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             val jarSettings = Settings(stringReplacement = mapOf(DOUBLE_NAN to "Jar"))
             val formatter =
                 LegacyValueFormatter(
-                    sourceSettings = sourceSettings,
+                    javaSettings = sourceSettings,
                     jarSettings = jarSettings,
                 )
             val actual = formatter.format(DOUBLE_NAN, method)
             val expected = if (producerKind == ProducerKind.JAR) "Jar" else "Source"
+            assertEquals(expected, actual)
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test kotlin specific settings`() {
+        checkFormatting {
+            val javaSettings = Settings(stringReplacement = mapOf(DOUBLE_NAN to "Java"))
+            val kotlinSettings = Settings(stringReplacement = mapOf(DOUBLE_NAN to "Kotlin"))
+
+            val formatter =
+                LegacyValueFormatter(
+                    javaSettings = javaSettings,
+                    kotlinSettings = kotlinSettings,
+                )
+            val actual = formatter.format(DOUBLE_NAN, method)
+            val expected = if (inputFormat == InputFormat.JAVA) "Java" else "Kotlin"
             assertEquals(expected, actual)
         }
     }

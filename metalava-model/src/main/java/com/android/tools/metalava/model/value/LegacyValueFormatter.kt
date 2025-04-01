@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 
@@ -40,14 +41,18 @@ import com.android.tools.metalava.model.MethodItem
  *
  * There will be one instance of this created per legacy use site.
  *
- * @param sourceSettings the [Settings] to use when formatting a value whose context [MemberItem] is
- *   loaded from the sources.
+ * @param javaSettings the [Settings] to use when formatting a value whose context [MemberItem] is
+ *   loaded from Java sources, will also apply to Kotlin sources unless [kotlinSettings] is provided
+ *   and [MemberItem]s loaded from a Jar when [jarSettings] is not provided.
+ * @param kotlinSettings the [Settings] to use when formatting a value whose context [MemberItem] is
+ *   loaded from Kotlin sources; defaults to [javaSettings].
  * @param jarSettings the [Settings] to use when formatting a value whose context [MemberItem] is
- *   loaded from a jar.
+ *   loaded from a jar; defaults to [javaSettings].
  */
 class LegacyValueFormatter(
-    private val sourceSettings: Settings,
-    private val jarSettings: Settings = sourceSettings,
+    private val javaSettings: Settings,
+    private val kotlinSettings: Settings = javaSettings,
+    private val jarSettings: Settings = javaSettings,
 ) {
     /** Settings that affect the formatting of a [Value]. */
     data class Settings(
@@ -78,7 +83,8 @@ class LegacyValueFormatter(
         val settings =
             when {
                 context.containingClass().origin == ClassOrigin.CLASS_PATH -> jarSettings
-                else -> sourceSettings
+                context.itemLanguage == ItemLanguage.KOTLIN -> kotlinSettings
+                else -> javaSettings
             }
 
         // If there is a string replacement then return it.
