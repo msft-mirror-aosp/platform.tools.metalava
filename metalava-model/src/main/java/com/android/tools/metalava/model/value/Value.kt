@@ -189,6 +189,9 @@ sealed interface Value {
     companion object : ValueFactory
 }
 
+/** Get this [Value] as a [String], or `null` if it cannot be represented as a [String]. */
+fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
+
 /**
  * Configuration options for how to represent a value as a string.
  *
