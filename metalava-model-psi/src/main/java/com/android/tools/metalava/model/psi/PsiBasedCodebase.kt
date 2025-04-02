@@ -89,7 +89,7 @@ internal class PsiBasedCodebase(
 
     /** Creates [ValueProvider]s and [Value]s from Psi classes. */
     internal val valueFactory by
-        lazy(LazyThreadSafetyMode.NONE) { PsiValueFactory(globalTypeItemFactory) }
+        lazy(LazyThreadSafetyMode.NONE) { PsiValueFactory(this, globalTypeItemFactory) }
 
     override fun dispose() {
         psiAssembler.dispose()

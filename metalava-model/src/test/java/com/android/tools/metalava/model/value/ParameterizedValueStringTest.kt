@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.constantFieldValue
+import com.android.tools.metalava.model.testing.value.enumConstantValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.testing.EntryPoint
@@ -276,6 +278,15 @@ class ParameterizedValueStringTest {
                     value = classObjectValue(arrayTypeItem(arrayTypeItem(stringType()))),
                     expectedDefaultString = "java.lang.String[][].class",
                 ),
+                // ****************************** Constant Fields ******************************
+                testCasesForValue(
+                    value = constantFieldValue("test.pkg.AClass", "FIELD"),
+                    expectedDefaultString = "test.pkg.AClass.FIELD",
+                ),
+                testCasesForValue(
+                    value = constantFieldValue("test.pkg.AClass", "FIELD", literalValue(2)),
+                    expectedDefaultString = "test.pkg.AClass.FIELD",
+                ),
                 // ********************************* Doubles *********************************
                 testCasesForValue(
                     value = literalValue(0.0),
@@ -310,6 +321,11 @@ class ParameterizedValueStringTest {
                 ) {
                     verifyConfigChangesOutput(LabelledConfig.TREAT_AS_INT, "3")
                 },
+                // ********************************* Enum *********************************
+                testCasesForValue(
+                    value = enumConstantValue("test.pkg.EnumClass", "VALUE1"),
+                    expectedDefaultString = "test.pkg.EnumClass.VALUE1",
+                ),
                 // ********************************* Floats *********************************
                 testCasesForValue(
                     value = literalValue(0.0f),

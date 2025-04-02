@@ -382,6 +382,23 @@ private fun convertValue(
 interface AnnotationContext : ClassResolver {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
+
+    companion object {
+        /**
+         * Instance that can be used in contexts where [resolveClass] is not required, e.g. testing
+         * or when parsing annotations provides on the command line.
+         */
+        val DEFAULT: AnnotationContext =
+            object : AnnotationContext, ClassResolver by ClassResolver.THROWING {
+                /**
+                 * Return [noOpAnnotationManager] rather than just throwing an exception as most
+                 * uses of [AnnotationItem]s will make at least one call to [annotationManager] and
+                 * having it return a valid, but basic implementation makes this more useful.
+                 */
+                override val annotationManager
+                    get() = noOpAnnotationManager
+            }
+    }
 }
 
 /** Default implementation of an annotation item */

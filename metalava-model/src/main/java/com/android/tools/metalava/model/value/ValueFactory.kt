@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -121,7 +122,7 @@ interface ValueFactory {
             }
 
         literalValue
-            ?: error(
+            ?: throw ValueProviderException(
                 "Incompatible type '$optionalTypeItem', for underlying value `$underlyingValue` of ${underlyingValue.javaClass}"
             )
         return literalValue
@@ -166,6 +167,69 @@ interface ValueFactory {
         return DefaultClassObjectValue(typeItem)
     }
 
+    /**
+     * Create a [ConstantFieldValue] from [fieldItem] and the optional [constantValue].
+     *
+     * The [FieldItem] must not be an enum constant, i.e. [FieldItem.isEnumConstant] must be
+     * `false`.
+     */
+    fun createConstantFieldValue(
+        fieldItem: FieldItem,
+        constantValue: ConstantValue?
+    ): ArrayElementValue {
+        require(!fieldItem.isEnumConstant()) {
+            "Constant field must be created from a FieldItem which is not an enum constant but $fieldItem is"
+        }
+        return createConstantFieldValue(
+            fieldItem.containingClass().qualifiedName(),
+            fieldItem.name(),
+            constantValue,
+        )
+    }
+
+    /**
+     * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+     * [constantValue].
+     */
+    fun createConstantFieldValue(
+        qualifiedClassName: String,
+        fieldName: String,
+        constantValue: ConstantValue?,
+    ): ArrayElementValue {
+        // Some special values need to be used instead of their fields (which can differ between
+        // Java and Kotlin).
+        if (constantValue != null && constantValue in constantValuesToUseInsteadOfField) {
+            return constantValue
+        }
+
+        return DefaultConstantFieldValue(
+            qualifiedClassName,
+            fieldName,
+            constantValue,
+        )
+    }
+
+    /**
+     * Create an [EnumConstantValue] from [fieldItem].
+     *
+     * The [FieldItem] must be an enum constant, i.e. [FieldItem.isEnumConstant] must be `true`.
+     */
+    fun createEnumConstantValue(fieldItem: FieldItem): ArrayElementValue {
+        require(fieldItem.isEnumConstant()) {
+            "Enum constant must be created from a FieldItem which is an enum constant but $fieldItem is not"
+        }
+        return createEnumConstantValue(
+            fieldItem.containingClass().qualifiedName(),
+            fieldItem.name(),
+        )
+    }
+
+    /** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
+    fun createEnumConstantValue(
+        qualifiedClassName: String,
+        fieldName: String,
+    ): ArrayElementValue = DefaultEnumConstantValue(qualifiedClassName, fieldName)
+
     companion object {
         /**
          * Map from [Primitive] to a [PrimitiveValueFactory] to use to create an appropriate
@@ -202,6 +266,22 @@ interface ValueFactory {
                     { underlyingValue, _ ->
                         DefaultShortValue(underlyingValue as Short)
                     },
+            )
+
+        /**
+         * Set of [ConstantValue]s which should be used in place of any referencing field.
+         *
+         * These are normalized so that the values are the same whether they come from a jar file or
+         * a source file, or java or kotlin.
+         */
+        private val constantValuesToUseInsteadOfField =
+            setOf(
+                DoubleValue.NaN,
+                DoubleValue.POSITIVE_INFINITY,
+                DoubleValue.NEGATIVE_INFINITY,
+                FloatValue.NaN,
+                FloatValue.POSITIVE_INFINITY,
+                FloatValue.NEGATIVE_INFINITY,
             )
 
         /**

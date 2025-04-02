@@ -21,6 +21,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
+import com.android.tools.metalava.model.value.ConstantFieldValue
+import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.EnumConstantValue
 import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
@@ -45,13 +48,33 @@ fun arrayValueFromAny(vararg literals: Any) =
 fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
 
 /**
+ * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+ * [constantValue].
+ */
+fun constantFieldValue(
+    qualifiedClassName: String,
+    fieldName: String,
+    constantValue: ConstantValue? = null
+) = Value.createConstantFieldValue(qualifiedClassName, fieldName, constantValue)
+
+/** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
+fun enumConstantValue(
+    qualifiedClassName: String,
+    fieldName: String,
+) = Value.createEnumConstantValue(qualifiedClassName, fieldName)
+
+/**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,
  * i.e. will not ignore [ValueProviderException]
  *
  * As each additional [ValueKind] is supported across the models they will be added here to ensure
  * that there are no regressions.
  */
-private val fullySupportedValueKinds = EnumSet.noneOf(ValueKind::class.java)
+private val fullySupportedValueKinds =
+    EnumSet.noneOf(ValueKind::class.java).apply {
+        addAll(ValueKind.LITERAL_KINDS)
+        add(ValueKind.CLASS)
+    }
 
 /**
  * Run a test on this [Value] ignoring any [ValueProviderException]s if its [Value.kind] is not
