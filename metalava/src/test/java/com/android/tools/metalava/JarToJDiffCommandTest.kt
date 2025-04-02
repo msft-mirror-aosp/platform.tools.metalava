@@ -234,7 +234,6 @@ Arguments:
                      type="test.pkg.Foo"
                      transient="false"
                      volatile="false"
-                     value="PsiField:CONSTANT"
                      static="true"
                      final="true"
                      deprecated="not deprecated"
