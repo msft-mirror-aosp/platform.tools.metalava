@@ -189,6 +189,9 @@ sealed interface Value {
     companion object : ValueFactory
 }
 
+/** Get this [Value] as an [Int], or `null` if it cannot be represented as a [Int]. */
+fun Value.asInt() = (asLiteralValue() as? IntValue)?.underlyingValue
+
 /** Get this [Value] as a [String], or `null` if it cannot be represented as a [String]. */
 fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 
