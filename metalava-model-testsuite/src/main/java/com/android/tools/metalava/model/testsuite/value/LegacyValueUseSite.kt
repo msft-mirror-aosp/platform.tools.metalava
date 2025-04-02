@@ -122,12 +122,17 @@ enum class LegacyValueUseSite(
 internal val allLegacyValueUseSites = EnumSet.allOf(LegacyValueUseSite::class.java)
 
 /**
+ * The set of all field [LegacyValueUseSite]s, i.e. [LegacyValueUseSite.FIELD_VALUE] and
+ * [LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
+ */
+internal val allFieldLegacyValueUseSites =
+    EnumSet.of(LegacyValueUseSite.FIELD_VALUE, LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON)
+
+/**
  * The set of all [LegacyValueUseSite]s except [LegacyValueUseSite.FIELD_VALUE] and
  * [LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
  *
  * Stored in [ValueExample.suitableFor] for any [ValueExample] that does not work on fields.
  */
 internal val allLegacyValueUseSitesExceptFields =
-    allLegacyValueUseSites -
-        LegacyValueUseSite.FIELD_VALUE -
-        LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON
+    allLegacyValueUseSites - allFieldLegacyValueUseSites

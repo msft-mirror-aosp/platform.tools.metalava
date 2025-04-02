@@ -1278,6 +1278,18 @@ constructor(
                                 common = literalValue("constant")
                             }
                         },
+                ),
+                ValueExample(
+                    name = "method call",
+                    javaType = "String",
+                    javaExpression = "System.getProperty(\"PROPERTY\")",
+                    // Only suitable for use in fields.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    // Signature never has a method call for a value.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource = expectations { common = null },
+                    expectedLegacyValue = expectations { common = null },
+                    expectedValue = expectations { common = null },
                 )
             )
 
