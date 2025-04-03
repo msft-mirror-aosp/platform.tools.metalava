@@ -729,8 +729,10 @@ object KotlinTestClassCreator : TestClassCreator {
                 """
                     package test.pkg
 
+                    import kotlin.reflect.KClass
+
                     annotation class OtherAnnotation(
-                        val classType: Class<*> = void.javaClass,
+                        val classType: KClass<*> = Unit::class,
                         val enumType: TestEnum = TestEnum.DEFAULT,
                         val intType: Int = -1,
                         val stringType: String = "default",
@@ -774,7 +776,8 @@ object KotlinTestClassCreator : TestClassCreator {
                     append(valueExample.kotlinTypeForAnnotation)
                     if (withDefaults) {
                         append(" = ")
-                        append(valueExample.kotlinExpressionForAnnotation)
+                        // Kotlin nested annotations do not use an @ prefix so remove it.
+                        append(valueExample.kotlinExpressionForAnnotation.removePrefix("@"))
                     }
                     append("\n")
                     append(")\n")
@@ -809,7 +812,8 @@ object KotlinTestClassCreator : TestClassCreator {
                     append("(")
                     append(ATTRIBUTE_NAME)
                     append(" = ")
-                    append(valueExample.kotlinExpressionForAnnotation)
+                    // Kotlin nested annotations do not use an @ prefix so remove it.
+                    append(valueExample.kotlinExpressionForAnnotation.removePrefix("@"))
                     append(")\n")
                     append("class $className {}\n")
                 }

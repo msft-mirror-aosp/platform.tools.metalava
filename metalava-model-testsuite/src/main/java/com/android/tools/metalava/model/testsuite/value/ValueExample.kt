@@ -283,14 +283,17 @@ constructor(
                         },
                     expectedKotlinLegacySource =
                         expectations {
-                            attributeDefaultValue = "@OtherAnnotation(intType = 1)"
-                            annotationToSource = "@OtherAnnotation(intType = 1)"
+                            common = "OtherAnnotation(intType = 1)"
+
+                            source { attributeDefaultValue = "test.pkg.OtherAnnotation(1)" }
                         },
                     expectedLegacyValue =
                         expectations {
                             common = "@test.pkg.OtherAnnotation(intType = 1)"
                             source { common = "@OtherAnnotation(intType = 1)" }
                         },
+                    expectedKotlinLegacyValue =
+                        expectations { common = "OtherAnnotation(intType = 1)" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
                 ),
