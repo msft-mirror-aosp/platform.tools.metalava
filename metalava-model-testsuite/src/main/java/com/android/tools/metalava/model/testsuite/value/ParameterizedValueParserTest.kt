@@ -98,12 +98,12 @@ class ParameterizedValueParserTest : BaseModelTest() {
             return inputFormat == InputFormat.SIGNATURE
         }
 
-        /** The set of [ValueUseSite]s which end up being written to a signature file. */
-        private val valueUseSitesWrittenToSignatureFiles =
+        /** The set of [LegacyValueUseSite]s which end up being written to a signature file. */
+        private val legacyValueUseSitesWrittenToSignatureFiles =
             EnumSet.of(
-                ValueUseSite.ANNOTATION_TO_SOURCE,
-                ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
-                ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
+                LegacyValueUseSite.ANNOTATION_TO_SOURCE,
+                LegacyValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
+                LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
             )
 
         /**
@@ -125,12 +125,12 @@ class ParameterizedValueParserTest : BaseModelTest() {
                     buildList {
                         // Iterate over jar and source representations.
                         for (producerKind in ProducerKind.entries) {
-                            // Get the expected value. Uses ValueUseSite.ATTRIBUTE_VALUE but any
-                            // would be ok as all use sites have the same expected value.
+                            // Get the expected value. Uses LegacyValueUseSite.ATTRIBUTE_VALUE but
+                            // any would be ok as all use sites have the same expected value.
                             val expectedValue =
                                 valueExample.expectedValue?.expectationFor(
                                     producerKind,
-                                    ValueUseSite.ATTRIBUTE_VALUE
+                                    LegacyValueUseSite.ATTRIBUTE_VALUE
                                 ) ?: continue
 
                             // Add a test case for the input java expression.
@@ -145,7 +145,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                             )
 
                             // Iterate over all value use sites that are written to signature files.
-                            for (valueUseSite in valueUseSitesWrittenToSignatureFiles) {
+                            for (legacyValueUseSite in legacyValueUseSitesWrittenToSignatureFiles) {
                                 // Cover Java dnd Kotlin representations.
                                 for (sourceInputFormat in sourceInputFormats) {
                                     // Get the expected representation for this combination of
@@ -153,13 +153,13 @@ class ParameterizedValueParserTest : BaseModelTest() {
                                     val input =
                                         valueExample
                                             .expectedLegacySourceFor(sourceInputFormat)
-                                            .expectationFor(producerKind, valueUseSite)
+                                            .expectationFor(producerKind, legacyValueUseSite)
 
                                     // Ignore no values.
                                     if (input == NO_INITIAL_FIELD_VALUE) continue
 
                                     val label =
-                                        "${valueExample.name},${valueUseSite.name.lowercase()},${sourceInputFormat.name.lowercase()},${producerKind.name.lowercase()}"
+                                        "${valueExample.name},${legacyValueUseSite.name.lowercase()},${sourceInputFormat.name.lowercase()},${producerKind.name.lowercase()}"
 
                                     // Add a test case for the input.
                                     add(

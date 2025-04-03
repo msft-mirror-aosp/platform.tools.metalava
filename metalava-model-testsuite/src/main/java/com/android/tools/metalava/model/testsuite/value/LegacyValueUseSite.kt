@@ -35,7 +35,7 @@ import java.util.EnumSet
  * @param legacyValueGetter get the legacy value as expected by
  *   [ValueExample.expectedLegacyValueFor].
  */
-enum class ValueUseSite(
+enum class LegacyValueUseSite(
     val legacySourceGetter: (TestCaseContext.() -> String)? = null,
     val legacyValueGetter: (TestCaseContext.() -> Any)? = null,
 ) {
@@ -109,17 +109,19 @@ enum class ValueUseSite(
 }
 
 /**
- * The set of all [ValueUseSite]s.
+ * The set of all [LegacyValueUseSite]s.
  *
  * Default for [ValueExample.suitableFor].
  */
-internal val allValueUseSites = EnumSet.allOf(ValueUseSite::class.java)
+internal val allLegacyValueUseSites = EnumSet.allOf(LegacyValueUseSite::class.java)
 
 /**
- * The set of all [ValueUseSite]s except [ValueUseSite.FIELD_VALUE] and
- * [ValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
+ * The set of all [LegacyValueUseSite]s except [LegacyValueUseSite.FIELD_VALUE] and
+ * [LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
  *
  * Stored in [ValueExample.suitableFor] for any [ValueExample] that does not work on fields.
  */
-internal val allValueUseSitesExceptFields =
-    allValueUseSites - ValueUseSite.FIELD_VALUE - ValueUseSite.FIELD_WRITE_WITH_SEMICOLON
+internal val allLegacyValueUseSitesExceptFields =
+    allLegacyValueUseSites -
+        LegacyValueUseSite.FIELD_VALUE -
+        LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON

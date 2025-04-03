@@ -105,8 +105,11 @@ constructor(
      */
     val signatureExpression: String = javaExpression,
 
-    /** The set of [ValueUseSite]s in which this example will be tested; defaults to all of them. */
-    val suitableFor: Set<ValueUseSite> = allValueUseSites,
+    /**
+     * The set of [LegacyValueUseSite]s in which this example will be tested; defaults to all of
+     * them.
+     */
+    val suitableFor: Set<LegacyValueUseSite> = allLegacyValueUseSites,
 
     /** The set of [InputFormat]s for which this example is valid. */
     val validForInputFormats: Set<InputFormat> = allInputFormats,
@@ -114,7 +117,7 @@ constructor(
     /**
      * The legacy string representation of [javaExpression].
      *
-     * This may differ by [ProducerKind] and [ValueUseSite].
+     * This may differ by [ProducerKind] and [LegacyValueUseSite].
      */
     private val expectedLegacySource: Expectation<String>,
 
@@ -122,7 +125,7 @@ constructor(
      * Kotlin source expressions can have a different representation than the same source expression
      * in Java.
      *
-     * Rather than make [Expectation] support another dimension on top of [ValueUseSite] and
+     * Rather than make [Expectation] support another dimension on top of [LegacyValueUseSite] and
      * [ProducerKind] for the few cases where there are differences, it is handled by having this
      * Kotlin specific expectation sit alongside and default to [expectedLegacySource].
      */
@@ -131,7 +134,7 @@ constructor(
     /**
      * The legacy value of [javaExpression].
      *
-     * This may differ by [ProducerKind] and [ValueUseSite].
+     * This may differ by [ProducerKind] and [LegacyValueUseSite].
      */
     private val expectedLegacyValue: Expectation<Any>? = null,
 
@@ -139,7 +142,7 @@ constructor(
      * Kotlin source expressions can produce different values than the same source expression in
      * Java.
      *
-     * Rather than make [Expectation] support another dimension on top of [ValueUseSite] and
+     * Rather than make [Expectation] support another dimension on top of [LegacyValueUseSite] and
      * [ProducerKind] for the few cases where there are differences, it is handled by having this
      * Kotlin specific expectation sit alongside and default to [expectedLegacyValue].
      */
@@ -148,7 +151,7 @@ constructor(
     /**
      * The expected [Value] for this case.
      *
-     * This may differ by [ProducerKind] and [ValueUseSite].
+     * This may differ by [ProducerKind] and [LegacyValueUseSite].
      *
      * This is optional at the moment to allow the expected value to be added incrementally as the
      * [Value] model is expanded.
@@ -245,7 +248,7 @@ constructor(
 
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and
-         * [ValueUseSite]s.
+         * [LegacyValueUseSite]s.
          */
         private val allValueExamples =
             listOf(
@@ -284,7 +287,7 @@ constructor(
                             source { common = "@OtherAnnotation(intType = 1)" }
                         },
                     // Annotation literals cannot be used in fields.
-                    suitableFor = allValueUseSitesExceptFields,
+                    suitableFor = allLegacyValueUseSitesExceptFields,
                 ),
                 // Check a simple boolean true value.
                 ValueExample(
@@ -1210,7 +1213,7 @@ constructor(
                     kotlinType = "IntArray",
                     kotlinExpression = "[]",
                     // Literal arrays are only allowed in annotations not fields.
-                    suitableFor = allValueUseSitesExceptFields,
+                    suitableFor = allLegacyValueUseSitesExceptFields,
                     expectedLegacySource = expectations { common = "{}" },
                     expectedKotlinLegacySource =
                         partialExpectations {
@@ -1229,7 +1232,7 @@ constructor(
                     kotlinType = "Array<String>",
                     kotlinExpression = "[\"string1\", \"string2\"]",
                     // Literal arrays are only allowed in annotations not fields.
-                    suitableFor = allValueUseSitesExceptFields,
+                    suitableFor = allLegacyValueUseSitesExceptFields,
                     expectedLegacySource = expectations { common = "{\"string1\", \"string2\"}" },
                     expectedKotlinLegacySource =
                         partialExpectations { attributeValue = "[\"string1\", \"string2\"]" },
@@ -1245,7 +1248,7 @@ constructor(
                     kotlinType = "Array<String>",
                     // Fields that are of type String[] cannot be given a solitary string like an
                     // annotation attribute can.
-                    suitableFor = allValueUseSitesExceptFields,
+                    suitableFor = allLegacyValueUseSitesExceptFields,
                     expectedLegacySource =
                         expectations {
                             common = "\"string\""
@@ -1295,7 +1298,7 @@ constructor(
 
         /**
          * The list of [ValueExample]s that will be tested across [ProducerKind] and
-         * [ValueUseSite]s.
+         * [LegacyValueUseSite]s.
          */
         internal val valueExamples =
             allValueExamples
