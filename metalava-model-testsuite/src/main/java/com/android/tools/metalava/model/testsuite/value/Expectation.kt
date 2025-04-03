@@ -62,15 +62,6 @@ private fun <T> nullableExpectations(
 }
 
 /**
- * Builder for partial expectations.
- *
- * Allows `null` values and is expected to be a partial set of expectations that falls back to
- * another set of expectations. See [fallBackTo].
- */
-internal fun <T> partialExpectations(body: ExpectationsBuilder<T?>.() -> Unit) =
-    nullableExpectations(optionalDefaultValueProvider = { null }, body = body)
-
-/**
  * Create an [Expectation] from an [Expectation] that returns `null`, i.e. a partial set, by falling
  * back to another [Expectation] that does not contain `null`, i.e. a full set.
  *
