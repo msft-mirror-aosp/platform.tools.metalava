@@ -110,19 +110,36 @@ internal class PsiValueFactory(
         optionalTypeItem: TypeItem?,
         implementationValue: Any,
         valueUseSite: ValueUseSite,
-    ): Value {
-        return when (implementationValue) {
-            is UExpression -> uExpressionToValue(optionalTypeItem, implementationValue)
-            is PsiAnnotationMemberValue -> psiToValue(optionalTypeItem, implementationValue)
-            else ->
-                throw ValueProviderException(
-                    "Unknown value '$implementationValue' of ${implementationValue.javaClass} for type $optionalTypeItem"
-                )
+    ): Value? {
+        val value =
+            when (implementationValue) {
+                is UExpression -> uExpressionToValue(optionalTypeItem, implementationValue)
+                is PsiAnnotationMemberValue -> psiToValue(optionalTypeItem, implementationValue)
+                else -> null
+            }
+
+        if (valueUseSite == ValueUseSite.ANNOTATION && value == null) {
+            unknownExpression(optionalTypeItem, implementationValue)
         }
+
+        return value
+    }
+
+    /**
+     * An unknown [expression] of [optionalTypeItem] was found and it was not possible to return
+     * `null` so throw an exception.
+     */
+    private fun unknownExpression(optionalTypeItem: TypeItem?, expression: Any): Nothing {
+        throw ValueProviderException(
+            "Unknown value '$expression' of ${expression.javaClass} for type $optionalTypeItem"
+        )
     }
 
     /** Create a [Value] of [optionalTypeItem] from [uExpression]. */
-    private fun uExpressionToValue(optionalTypeItem: TypeItem?, uExpression: UExpression): Value {
+    private fun uExpressionToValue(
+        optionalTypeItem: TypeItem?,
+        uExpression: UExpression,
+    ): Value? {
         if (
             uExpression is UCallExpression &&
                 uExpression.kind == UastCallKind.NESTED_ARRAY_INITIALIZER
@@ -130,7 +147,10 @@ internal class PsiValueFactory(
             val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
             val elementType = arrayTypeItem?.componentType
             val elements =
-                uExpression.valueArguments.map { uExpressionToArrayElementValue(elementType, it) }
+                uExpression.valueArguments.map {
+                    uExpressionToArrayElementValue(elementType, it)
+                        ?: unknownExpression(elementType, it)
+                }
             return createArrayValue(elements)
         }
 
@@ -138,9 +158,10 @@ internal class PsiValueFactory(
             // The type is an array so this is an example of not having to add curly braces around a
             // single value in an annotation attribute. Create a value for the component type and
             // then wrap it in an ArrayValue.
-            val singleValue =
-                uExpressionToArrayElementValue(optionalTypeItem.componentType, uExpression)
-            createArrayValue(listOf(singleValue))
+            uExpressionToArrayElementValue(optionalTypeItem.componentType, uExpression)?.let {
+                singleValue ->
+                createArrayValue(listOf(singleValue))
+            }
         } else {
             uExpressionToArrayElementValue(optionalTypeItem, uExpression)
         }
@@ -150,7 +171,7 @@ internal class PsiValueFactory(
     private fun uExpressionToArrayElementValue(
         optionalTypeItem: TypeItem?,
         uExpression: UExpression
-    ): ArrayElementValue {
+    ): ArrayElementValue? {
         when (uExpression) {
             is UQualifiedReferenceExpression -> {
                 // Check to see if it is a class literal and if so then create a ClassObjectValue
@@ -262,7 +283,7 @@ internal class PsiValueFactory(
     private fun uExpressionToConstant(
         optionalTypeItem: TypeItem?,
         uExpression: UExpression
-    ): ConstantValue {
+    ): ConstantValue? {
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
                 // Check to see if the underlying value has been already been cast from the source
@@ -294,23 +315,23 @@ internal class PsiValueFactory(
             return createLiteralValue(optionalTypeItem, value)
         }
 
-        // Drop through to throw an exception to document why it failed.
-        throw ValueProviderException(
-            "Unknown value '$uExpression' of ${uExpression.javaClass} for type $optionalTypeItem"
-        )
+        // An unknown expression was found so return null and the caller will handle as needed.
+        return null
     }
 
     /** Create a [Value] of [optionalTypeItem] from [psiValue]. */
     private fun psiToValue(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
-    ): Value {
+    ): Value? {
         // Array literal.
         if (psiValue is PsiArrayInitializerMemberValue) {
             val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
             val elementType = arrayTypeItem?.componentType
             val elements =
-                psiValue.initializers.mapNotNull { psiToArrayElementValue(elementType, it) }
+                psiValue.initializers.map {
+                    psiToArrayElementValue(elementType, it) ?: unknownExpression(elementType, it)
+                }
             return createArrayValue(elements)
         }
 
@@ -318,8 +339,9 @@ internal class PsiValueFactory(
             // The type is an array so this is an example of not having to add curly braces around a
             // single value in an annotation attribute. Create a value for the component type and
             // then wrap it in an ArrayValue.
-            val singleValue = psiToArrayElementValue(optionalTypeItem.componentType, psiValue)
-            createArrayValue(listOf(singleValue))
+            psiToArrayElementValue(optionalTypeItem.componentType, psiValue)?.let { singleValue ->
+                createArrayValue(listOf(singleValue))
+            }
         } else {
             psiToArrayElementValue(optionalTypeItem, psiValue)
         }
@@ -329,7 +351,7 @@ internal class PsiValueFactory(
     private fun psiToArrayElementValue(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
-    ): ArrayElementValue {
+    ): ArrayElementValue? {
         when (psiValue) {
             // Class literal, e.g. `SomeClass.class`.
             is PsiClassObjectAccessExpression -> {
@@ -363,7 +385,7 @@ internal class PsiValueFactory(
     private fun psiToConstant(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
-    ): ConstantValue {
+    ): ConstantValue? {
         // Literal primitive or String.
         if (psiValue is PsiLiteralExpression) {
             return psiValue.value?.let { underlyingValue ->
@@ -379,10 +401,8 @@ internal class PsiValueFactory(
             return createLiteralValue(optionalTypeItem, value)
         }
 
-        // Drop through to throw an exception to document why it failed.
-        throw ValueProviderException(
-            "Unknown value '$psiValue' of ${psiValue.javaClass} for type $optionalTypeItem"
-        )
+        // An unknown expression was found so return null and the caller will handle as needed.
+        return null
     }
 
     /**
