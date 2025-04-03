@@ -157,7 +157,7 @@ constructor(
      *
      * TODO(b/354633349): Make this required.
      */
-    val expectedValue: Expectation<Value?>? = null,
+    expectedValue: Expectation<Value?>? = null,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -181,12 +181,22 @@ constructor(
     /**
      * Enforces that field values are constant.
      *
-     * This has to deal with this issue:
-     * * If the example is not for a constant type then replace the [Expectation] for fields with
-     *   `null`.
+     * This has to deal with two different issues:
+     * 1. If the example is not for a constant type then replace the [Expectation] for fields with
+     *    `null`.
+     * 2. If the example is for a constant type then make sure that the expectations do not include
+     *    a constant field. This is automatically handled for legacy source and values as they
+     *    replace the constant field with its constant value. However, that is not true for the new
+     *    `Value`s as the expectations can specify a `ConstantFieldValue`.
+     *
+     * @param constantTransform the transform to apply to the constant expectations, defaults to the
+     *   identity transform.
      */
-    private fun <T : Any> Expectation<T?>.enforceFieldValuesAreConstant(): Expectation<T?> =
-        if (isConstant) this else TransformFieldExpectation(this, { null })
+    private fun <T : Any> Expectation<T?>.enforceFieldValuesAreConstant(
+        constantTransform: (T) -> T? = { it }
+    ): Expectation<T?> =
+        if (isConstant) TransformFieldExpectation(this, constantTransform)
+        else TransformFieldExpectation(this, { null })
 
     /** Get the expected legacy source for [inputFormat]. */
     fun expectedLegacySourceFor(inputFormat: InputFormat) =
@@ -206,6 +216,12 @@ constructor(
                 else expectedKotlinLegacyValue?.fallBackTo(expectedLegacyValue)
             else -> expectedLegacyValue
         }?.enforceFieldValuesAreConstant()
+
+    /**
+     * Get the [Expectation]s for [Value], making sure that any [Value]s for [ValueUseSite.FIELD]s
+     * are constants.
+     */
+    val expectedValue = expectedValue?.enforceFieldValuesAreConstant { it.asLiteralValue() }
 
     /** The suffix to add to class names to make them specific to this example. */
     val classSuffix = name.replace(' ', '_').replace('-', '_')
@@ -228,6 +244,9 @@ constructor(
 
         /** All except Kotlin. */
         private val notValidForKotlin = EnumSet.complementOf(EnumSet.of(InputFormat.KOTLIN))
+
+        /** All except Signature. */
+        private val notValidForSignature = EnumSet.complementOf(EnumSet.of(InputFormat.SIGNATURE))
 
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and
@@ -771,6 +790,8 @@ constructor(
                     // Must fully qualify most classes in signature files.
                     signatureType = "test.pkg.TestEnum",
                     signatureExpression = "test.pkg.TestEnum.VALUE1",
+                    // TODO(b/354633349): Signature files does not support field references.
+                    validForInputFormats = notValidForSignature,
                     expectedLegacySource =
                         expectations {
                             common = "test.pkg.TestEnum.VALUE1"
@@ -1228,6 +1249,8 @@ constructor(
                     name = "String using constant",
                     javaType = "String",
                     javaExpression = "Constants.STRING_CONSTANT",
+                    // TODO(b/354633349): Signature files does not support field references.
+                    validForInputFormats = notValidForSignature,
                     expectedLegacySource =
                         expectations {
                             common = "\"constant\""

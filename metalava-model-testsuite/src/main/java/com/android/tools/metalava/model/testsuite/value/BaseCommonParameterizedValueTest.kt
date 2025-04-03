@@ -488,16 +488,8 @@ abstract class BaseCommonParameterizedValueTest(
         runTestOnCodebase {
             // Get the expected value.
             expectation.expectationFor(producerKind, legacyValueUseSite).runValueTest { expected ->
-
                 // Get the actual value.
-                val actual =
-                    actualValueGetter()
-                        ?:
-                        // A null value being returned when the expectation is non-null is not
-                        // treated as an error at the moment to avoid having to keep updating
-                        // baseline files while expanding Value support across the models.
-                        // TODO(b/354633349): Stop ignoring mismatch when actual is null.
-                        throw AssumptionViolatedException("Ignoring null value")
+                val actual = actualValueGetter()
 
                 // Strictly compare the Values to ensure that where necessary they have included any
                 // information needed to generate correct legacy string representations.

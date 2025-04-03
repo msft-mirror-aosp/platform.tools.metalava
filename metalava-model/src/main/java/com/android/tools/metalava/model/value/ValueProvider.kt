@@ -83,10 +83,17 @@ abstract class BaseCachingValueProvider(protected val valueUseSite: ValueUseSite
     private fun cachedValue(): Optional<Value> {
         if (!::_value.isInitialized) {
             val providedValue = provideValue()
-            if (valueUseSite == ValueUseSite.ANNOTATION && providedValue == null) {
-                error("Provider returned `null` but nulls are not allowed on annotation values")
-            }
-            _value = Optional.ofNullable(providedValue)
+            val valueToCache =
+                when (valueUseSite) {
+                    ValueUseSite.ANNOTATION ->
+                        providedValue
+                            ?: error(
+                                "Provider returned `null` but nulls are not allowed on annotation values"
+                            )
+                    ValueUseSite.FIELD -> providedValue?.asLiteralValue()
+                }
+
+            _value = Optional.ofNullable(valueToCache)
         }
         return _value
     }
