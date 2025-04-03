@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.value.constantFieldValue
+import com.android.tools.metalava.model.testing.value.enumConstantValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
@@ -380,6 +382,7 @@ constructor(
                     javaImports = listOf("java.util.BitSet"),
                     kotlinType = "Class<*>",
                     kotlinExpression = "BitSet::class.java",
+                    signatureExpression = "java.util.BitSet.class",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.BitSet.class"
@@ -407,6 +410,7 @@ constructor(
                     javaImports = listOf("java.util.List"),
                     kotlinType = "Class<*>",
                     kotlinExpression = "List::class.java",
+                    signatureExpression = "java.util.List.class",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List.class"
@@ -433,6 +437,7 @@ constructor(
                     javaImports = listOf("java.util.BitSet"),
                     kotlinType = "Class<*>",
                     kotlinExpression = "Array<BitSet>::class.java",
+                    signatureExpression = "java.util.BitSet[].class",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.BitSet[].class"
@@ -464,6 +469,7 @@ constructor(
                     // While Kotlin can correctly map a `List[].class` instance from a Java
                     // annotation it has no way of representing it in the source.
                     validForInputFormats = notValidForKotlin,
+                    signatureExpression = "java.util.List[].class",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List[].class"
@@ -790,6 +796,8 @@ constructor(
                     // Intentionally do not test the value of this because it returns an internal,
                     // model specific object.
                     //   expectedLegacyValue = expectations {},
+                    expectedValue =
+                        expectations { common = enumConstantValue("test.pkg.TestEnum", "VALUE1") },
                 ),
                 // Check a simple float with int
                 ValueExample(
@@ -1226,6 +1234,19 @@ constructor(
                             }
                         },
                     expectedLegacyValue = expectations { common = "constant" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                constantFieldValue(
+                                    "test.pkg.Constants",
+                                    "STRING_CONSTANT",
+                                    literalValue("constant")
+                                )
+                            jar {
+                                // The compiler will always inline a constant field value.
+                                common = literalValue("constant")
+                            }
+                        },
                 )
             )
 

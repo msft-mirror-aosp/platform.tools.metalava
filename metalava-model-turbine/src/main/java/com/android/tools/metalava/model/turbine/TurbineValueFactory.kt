@@ -29,10 +29,12 @@ import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.model.Const
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.tree.Tree
+import com.google.turbine.tree.Tree.ConstVarName
 
 internal class TurbineValueFactory(private val globalContext: TurbineGlobalContext) :
     ValueFactory,
@@ -91,7 +93,33 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
 
                 return createClassObjectValue(classLiteralTypeItem)
             }
+            Const.Kind.ENUM_CONSTANT -> {
+                const as EnumConstantValue
+                // Create an EnumConstantValue for the underlying Turbine EnumConstantValue.
+                val fieldSymbol = const.sym()
+                return createEnumConstantValue(
+                    fieldSymbol.owner().qualifiedName,
+                    fieldSymbol.name(),
+                )
+            }
             else -> {}
+        }
+
+        // Check for a field reference if a field resolver is available.
+        if (expr != null && expr is ConstVarName && fieldResolver != null) {
+            val fieldInfo = fieldResolver.resolveField(expr)
+            val fieldSymbol = fieldInfo?.sym()
+            // If the field could be resolved then wrap it around the constant value.
+            if (fieldSymbol != null) {
+                // Get the constant value first.
+                val constantValue = toConstant(optionalTypeItem)
+
+                return createConstantFieldValue(
+                    fieldSymbol.owner().qualifiedName,
+                    fieldSymbol.name(),
+                    constantValue,
+                )
+            }
         }
 
         return toConstant(optionalTypeItem)

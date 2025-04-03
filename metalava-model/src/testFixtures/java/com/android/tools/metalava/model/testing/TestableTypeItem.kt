@@ -59,11 +59,6 @@ fun TypeItem.testTypeString(
         )
     )
 
-private val fakeClassResolver =
-    object : ClassResolver {
-        override fun resolveClass(erasedName: String) = error("Cannot resolved $erasedName")
-    }
-
 /** Create a [PrimitiveTypeItem] for [kind]. */
 fun primitiveTypeForKind(kind: Primitive): PrimitiveTypeItem =
     DefaultPrimitiveTypeItem(DefaultTypeModifiers.emptyNonNullModifiers, kind)
@@ -78,7 +73,7 @@ fun classTypeItem(
     outerClassType: ClassTypeItem? = null,
 ): ClassTypeItem =
     DefaultClassTypeItem(
-        fakeClassResolver,
+        ClassResolver.THROWING,
         DefaultTypeModifiers.emptyNonNullModifiers,
         qualifiedName,
         arguments,
@@ -98,7 +93,7 @@ fun variableTypeItem(name: String): VariableTypeItem =
     DefaultVariableTypeItem(
         DefaultTypeModifiers.emptyNonNullModifiers,
         DefaultTypeParameterItem(
-            fakeClassResolver,
+            ClassResolver.THROWING,
             DefaultModifierList.create(0),
             name,
             isReified = false
