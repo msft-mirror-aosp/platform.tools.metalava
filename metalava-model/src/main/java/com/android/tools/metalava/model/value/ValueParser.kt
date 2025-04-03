@@ -45,9 +45,13 @@ class ValueParser(
      * @param typeItem the required type for the value, e.g. [MethodItem.returnType] or
      *   [FieldItem.type].
      * @param text the String value to be parsed.
+     * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
      */
-    fun providerFor(typeItem: TypeItem, text: String): CombinedValueProvider =
-        CachingValueProvider(this, typeItem, text)
+    fun providerFor(
+        typeItem: TypeItem,
+        text: String,
+        valueUseSite: ValueUseSite,
+    ): CombinedValueProvider = CachingValueProvider(this, typeItem, text, valueUseSite)
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -71,7 +75,8 @@ class ValueParser(
 
     override fun implementationValueToModelValue(
         optionalTypeItem: TypeItem?,
-        implementationValue: String
+        implementationValue: String,
+        valueUseSite: ValueUseSite
     ) = parse(optionalTypeItem, implementationValue)
 
     /** Parse the [text] to provide a [Value] of the [optionalTypeItem]. */

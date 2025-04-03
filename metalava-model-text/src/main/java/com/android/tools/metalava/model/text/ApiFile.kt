@@ -66,6 +66,7 @@ import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -1265,7 +1266,11 @@ private constructor(
 
         val defaultValueProvider =
             if (defaultAnnotationMethodValue.isNotEmpty())
-                valueParser.providerFor(returnType, defaultAnnotationMethodValue)
+                valueParser.providerFor(
+                    returnType,
+                    defaultAnnotationMethodValue,
+                    ValueUseSite.ANNOTATION,
+                )
             else null
 
         method =
@@ -1355,7 +1360,8 @@ private constructor(
         // Defer parsing the value string until needed.
         val fieldValue = valueString?.let { TextFieldValue(type, it) }
 
-        val initialValueProvider = valueString?.let { valueParser.providerFor(type, it) }
+        val initialValueProvider =
+            valueString?.let { valueParser.providerFor(type, it, ValueUseSite.FIELD) }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)

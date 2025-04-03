@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiClassObjectAccessExpression
@@ -75,9 +76,13 @@ internal class PsiValueFactory(
      *   [FieldItem.type].
      * @param anyValue the underlying Psi specific value. It is of type [Any] to avoid having to
      *   duplicate everything for [UExpression] and [PsiAnnotationMemberValue].
+     * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
      */
-    fun providerFor(typeItem: TypeItem, anyValue: Any): CombinedValueProvider =
-        CachingValueProvider(this, typeItem, anyValue)
+    fun providerFor(
+        typeItem: TypeItem,
+        anyValue: Any,
+        valueUseSite: ValueUseSite
+    ): CombinedValueProvider = CachingValueProvider(this, typeItem, anyValue, valueUseSite)
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -104,6 +109,7 @@ internal class PsiValueFactory(
     override fun implementationValueToModelValue(
         optionalTypeItem: TypeItem?,
         implementationValue: Any,
+        valueUseSite: ValueUseSite,
     ): Value {
         return when (implementationValue) {
             is UExpression -> uExpressionToValue(optionalTypeItem, implementationValue)

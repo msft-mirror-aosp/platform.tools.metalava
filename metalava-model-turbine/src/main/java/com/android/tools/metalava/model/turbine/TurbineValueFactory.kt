@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.model.Const
@@ -51,9 +52,13 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
      * @param typeItem the required type for the value, e.g. [MethodItem.returnType] or
      *   [FieldItem.type].
      * @param turbineValue the underlying Turbine value.
+     * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
      */
-    fun providerFor(typeItem: TypeItem, turbineValue: TurbineValue): CombinedValueProvider =
-        CachingValueProvider(this, typeItem, turbineValue)
+    fun providerFor(
+        typeItem: TypeItem,
+        turbineValue: TurbineValue,
+        valueUseSite: ValueUseSite,
+    ): CombinedValueProvider = CachingValueProvider(this, typeItem, turbineValue, valueUseSite)
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -77,7 +82,8 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
 
     override fun implementationValueToModelValue(
         optionalTypeItem: TypeItem?,
-        implementationValue: TurbineValue
+        implementationValue: TurbineValue,
+        valueUseSite: ValueUseSite,
     ) = implementationValue.toValue(optionalTypeItem)
 
     /** Create a [Value] of [optionalTypeItem] from this [TurbineValue]. */

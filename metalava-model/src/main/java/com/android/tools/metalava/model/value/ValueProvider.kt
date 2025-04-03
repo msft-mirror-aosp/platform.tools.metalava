@@ -71,15 +71,22 @@ interface CombinedValueProvider : ValueProvider, OptionalValueProvider
 /**
  * A [CombinedValueProvider] that provides support to subclasses for caching a [Value] that has been
  * provided.
+ *
+ * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
  */
-abstract class BaseCachingValueProvider : CombinedValueProvider {
+abstract class BaseCachingValueProvider(protected val valueUseSite: ValueUseSite) :
+    CombinedValueProvider {
     /** The cached value. */
     private lateinit var _value: Optional<Value>
 
     /** Get the cached value, calling [provideValue] if it has not yet been cached. */
     private fun cachedValue(): Optional<Value> {
         if (!::_value.isInitialized) {
-            _value = Optional.ofNullable(provideValue())
+            val providedValue = provideValue()
+            if (valueUseSite == ValueUseSite.ANNOTATION && providedValue == null) {
+                error("Provider returned `null` but nulls are not allowed on annotation values")
+            }
+            _value = Optional.ofNullable(providedValue)
         }
         return _value
     }
