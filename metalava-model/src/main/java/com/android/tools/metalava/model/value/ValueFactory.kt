@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
@@ -232,6 +233,10 @@ interface ValueFactory {
         classTypeItem: ClassTypeItem,
         fieldName: String,
     ): ArrayElementValue = DefaultEnumConstantValue(classTypeItem, fieldName)
+
+    /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
+    fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
+        DefaultAnnotationValue(annotationItem)
 
     companion object {
         /**

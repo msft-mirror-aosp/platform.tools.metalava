@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.annotationValueFromSource
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.constantFieldValue
 import com.android.tools.metalava.model.testing.value.enumConstantValue
@@ -294,6 +296,11 @@ constructor(
                         expectations { common = "OtherAnnotation(intType = 1)" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations {
+                            common =
+                                annotationValueFromSource("@test.pkg.OtherAnnotation(intType=1)")
+                        },
                 ),
                 ValueExample(
                     name = "annotation - no attributes",
@@ -326,6 +333,8 @@ constructor(
                         expectations { common = "test.pkg.OtherAnnotation()" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations { common = annotationValue("test.pkg.OtherAnnotation") },
                 ),
                 ValueExample(
                     name = "annotation - multiple attributes",
@@ -368,6 +377,13 @@ constructor(
                         },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations {
+                            common =
+                                annotationValueFromSource(
+                                    "@test.pkg.OtherAnnotation(intType=3, stringType=\"one\")"
+                                )
+                        },
                 ),
                 ValueExample(
                     name = "annotation - single value",
