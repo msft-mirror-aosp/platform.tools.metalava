@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestCaseContext
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
-import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import java.util.EnumSet
 
 /**
@@ -36,8 +35,8 @@ import java.util.EnumSet
  *   [ValueExample.expectedLegacyValueFor].
  */
 enum class LegacyValueUseSite(
-    val legacySourceGetter: (TestCaseContext.() -> String)? = null,
-    val legacyValueGetter: (TestCaseContext.() -> Any)? = null,
+    val legacySourceGetter: (TestCaseContext.() -> String?)? = null,
+    val legacyValueGetter: (TestCaseContext.() -> Any?)? = null,
 ) {
     /** The default value specified on an annotation class's method. */
     ATTRIBUTE_DEFAULT_VALUE(
@@ -60,7 +59,7 @@ enum class LegacyValueUseSite(
             val annotation = testClassItem.modifiers.annotations().first()
             val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
 
-            annotationAttribute.legacyValue.value() ?: NO_INITIAL_FIELD_VALUE
+            annotationAttribute.legacyValue.value()
         }
     ),
 
@@ -85,7 +84,6 @@ enum class LegacyValueUseSite(
     FIELD_VALUE(
         legacyValueGetter = {
             testClassItem.assertField(FIELD_NAME).legacyFieldValue?.initialValue(true)
-                ?: NO_INITIAL_FIELD_VALUE
         },
     ),
 
@@ -102,7 +100,7 @@ enum class LegacyValueUseSite(
             val withSemicolon = stringWriter.toString()
 
             // Extract the value from the " = ...; // ...." string.
-            if (withSemicolon == ";") NO_INITIAL_FIELD_VALUE
+            if (withSemicolon == ";") null
             else withSemicolon.substringAfter(" = ").substringBefore(";")
         },
     ),

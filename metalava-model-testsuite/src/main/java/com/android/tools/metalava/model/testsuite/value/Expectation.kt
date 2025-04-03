@@ -23,6 +23,15 @@ import kotlin.reflect.KProperty
 interface Expectation<out T> {
     /** Get the expectations of type [T] for [producerKind] at [legacyValueUseSite]. */
     fun expectationFor(producerKind: ProducerKind, legacyValueUseSite: LegacyValueUseSite): T
+
+    /**
+     * Check to see if this has an expectation (which may be null) for [producerKind] at
+     * [legacyValueUseSite].
+     */
+    fun hasExpectationFor(
+        producerKind: ProducerKind,
+        legacyValueUseSite: LegacyValueUseSite
+    ): Boolean
 }
 
 /**
@@ -31,8 +40,8 @@ interface Expectation<out T> {
  * This makes it easy to create a set of expectations for all possible combinations of
  * [ProducerKind] and [LegacyValueUseSite] without duplicating effort.
  */
-internal fun <T : Any> expectations(body: ExpectationsBuilder<T>.() -> Unit) =
-    nullableExpectations(body = body)
+internal fun <T : Any> expectations(body: ExpectationsBuilder<T?>.() -> Unit) =
+    nullableExpectations(optionalDefaultValueProvider = { null }, body = body)
 
 /**
  * Builder for expectations that allows null.
@@ -210,6 +219,14 @@ internal class ExpectationsBuilder<T> :
             val key = producerKind to legacyValueUseSite
             return map[key] ?: defaultValueProvider(key)
         }
+
+        override fun hasExpectationFor(
+            producerKind: ProducerKind,
+            legacyValueUseSite: LegacyValueUseSite
+        ): Boolean {
+            val key = producerKind to legacyValueUseSite
+            return key in map
+        }
     }
 }
 
@@ -219,12 +236,20 @@ internal class ExpectationsBuilder<T> :
  */
 private class ChainedExpectation<T>(
     private val first: Expectation<T?>,
-    private val second: Expectation<T>,
-) : Expectation<T> {
+    private val second: Expectation<T?>,
+) : Expectation<T?> {
     override fun expectationFor(
         producerKind: ProducerKind,
         legacyValueUseSite: LegacyValueUseSite,
     ) =
-        first.expectationFor(producerKind, legacyValueUseSite)
-            ?: second.expectationFor(producerKind, legacyValueUseSite)
+        if (first.hasExpectationFor(producerKind, legacyValueUseSite)) {
+            first.expectationFor(producerKind, legacyValueUseSite)
+        } else second.expectationFor(producerKind, legacyValueUseSite)
+
+    override fun hasExpectationFor(
+        producerKind: ProducerKind,
+        legacyValueUseSite: LegacyValueUseSite
+    ) =
+        first.hasExpectationFor(producerKind, legacyValueUseSite) ||
+            second.hasExpectationFor(producerKind, legacyValueUseSite)
 }

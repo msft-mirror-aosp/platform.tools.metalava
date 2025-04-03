@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
-import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
@@ -156,7 +155,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                                             .expectationFor(producerKind, legacyValueUseSite)
 
                                     // Ignore no values.
-                                    if (input == NO_INITIAL_FIELD_VALUE) continue
+                                    if (input == null) continue
 
                                     val label =
                                         "${valueExample.name},${legacyValueUseSite.name.lowercase()},${sourceInputFormat.name.lowercase()},${producerKind.name.lowercase()}"

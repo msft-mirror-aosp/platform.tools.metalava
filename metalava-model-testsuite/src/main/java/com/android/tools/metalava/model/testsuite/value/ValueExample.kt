@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.arrayTypeItem
@@ -27,7 +26,6 @@ import com.android.tools.metalava.model.testing.value.constantFieldValue
 import com.android.tools.metalava.model.testing.value.enumConstantValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
-import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerTracker
@@ -119,7 +117,7 @@ constructor(
      *
      * This may differ by [ProducerKind] and [LegacyValueUseSite].
      */
-    private val expectedLegacySource: Expectation<String>,
+    private val expectedLegacySource: Expectation<String?>,
 
     /**
      * Kotlin source expressions can have a different representation than the same source expression
@@ -136,7 +134,7 @@ constructor(
      *
      * This may differ by [ProducerKind] and [LegacyValueUseSite].
      */
-    private val expectedLegacyValue: Expectation<Any>? = null,
+    private val expectedLegacyValue: Expectation<Any?>? = null,
 
     /**
      * Kotlin source expressions can produce different values than the same source expression in
@@ -183,7 +181,7 @@ constructor(
      * If the field is not a constant then wrap it in an Expectation that will enforce that fields
      * only have constant values.
      */
-    private fun wrapLegacySource(expectation: Expectation<String>) =
+    private fun wrapLegacySource(expectation: Expectation<String?>) =
         if (isConstant) expectation
         else constantFieldLegacySourceExpectation.fallBackTo(expectation)
 
@@ -227,11 +225,6 @@ constructor(
         get() = javaType in constantTypeNames
 
     companion object {
-        /**
-         * A special value used for fields for whom [FieldItem.legacyInitialValue] returns `null`.
-         */
-        internal const val NO_INITIAL_FIELD_VALUE = "NO INITIAL FIELD VALUE"
-
         /** Names of constant types used in [ValueExample.javaType]. */
         private val constantTypeNames = buildSet {
             for (kind in Primitive.entries) {
@@ -683,7 +676,7 @@ constructor(
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0d / 0.0"
                                 annotationToSource = "0.0 / 0.0"
-                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -694,7 +687,7 @@ constructor(
                     expectedLegacyValue =
                         expectations {
                             common = Double.NaN
-                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
+                            jar { fieldValue = null }
                         },
                     expectedValue = expectations { common = literalValue(Double.NaN) },
                 ),
@@ -722,7 +715,7 @@ constructor(
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0 / 0.0"
                                 annotationToSource = "1.0 / 0.0"
-                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -735,7 +728,7 @@ constructor(
                     expectedLegacyValue =
                         expectations {
                             common = Double.POSITIVE_INFINITY
-                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
+                            jar { fieldValue = null }
                         },
                     expectedValue =
                         expectations { common = literalValue(Double.POSITIVE_INFINITY) },
@@ -763,7 +756,7 @@ constructor(
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0 / 0.0"
                                 annotationToSource = "-1.0 / 0.0"
-                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -776,7 +769,7 @@ constructor(
                     expectedLegacyValue =
                         expectations {
                             common = Double.NEGATIVE_INFINITY
-                            jar { fieldValue = NO_INITIAL_FIELD_VALUE }
+                            jar { fieldValue = null }
                         },
                     expectedValue =
                         expectations { common = literalValue(Double.NEGATIVE_INFINITY) },
@@ -931,7 +924,7 @@ constructor(
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0f / 0.0"
                                 annotationToSource = "0.0f / 0.0"
-                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -944,7 +937,7 @@ constructor(
                             common = Float.NaN
                             jar {
                                 attributeValue = Double.NaN
-                                fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldValue = null
                             }
                         },
                     expectedKotlinLegacyValue =
@@ -975,7 +968,7 @@ constructor(
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0f / 0.0"
                                 annotationToSource = "1.0f / 0.0"
-                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -990,7 +983,7 @@ constructor(
                             common = Float.POSITIVE_INFINITY
                             jar {
                                 attributeValue = Double.POSITIVE_INFINITY
-                                fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldValue = null
                             }
                         },
                     expectedKotlinLegacyValue =
@@ -1022,7 +1015,7 @@ constructor(
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0f / 0.0"
                                 annotationToSource = "-1.0F / 0.0"
-                                fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
+                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -1037,7 +1030,7 @@ constructor(
                             common = Float.NEGATIVE_INFINITY
                             jar {
                                 attributeValue = Double.NEGATIVE_INFINITY
-                                fieldValue = NO_INITIAL_FIELD_VALUE
+                                fieldValue = null
                             }
                         },
                     expectedKotlinLegacyValue =
@@ -1308,7 +1301,7 @@ constructor(
 }
 
 /**
- * A partial [Expectation] that returns [NO_INITIAL_FIELD_VALUE] for fields.
+ * A partial [Expectation] that returns `null` for fields.
  *
  * This is used when a [ValueExample] is not a constant and so a field that uses it will not have a
  * value. It is checked first and then [falls back to](fallBackTo)
@@ -1316,6 +1309,6 @@ constructor(
  */
 private val constantFieldLegacySourceExpectation =
     partialExpectations<String> {
-        fieldValue = NO_INITIAL_FIELD_VALUE
-        fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
+        fieldValue = null
+        fieldWriteWithSemicolon = null
     }
