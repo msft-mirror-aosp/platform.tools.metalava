@@ -161,13 +161,8 @@ class ValueParser(
                 val char = string[0]
                 return createLiteralValue(optionalTypeItem, char)
             }
-            first == '+' -> {
-                return parseNumber(optionalTypeItem, text.substring(1), UnaryOperator.PLUS)
-            }
-            first == '-' -> {
-                return parseNumber(optionalTypeItem, text.substring(1), UnaryOperator.MINUS)
-            }
-            first.isDigit() -> return parseNumber(optionalTypeItem, text, null)
+            first == '+' || first == '-' || first.isDigit() ->
+                return parseNumber(optionalTypeItem, text)
         }
 
         // If the text ends with `.class` then it is a class literal of the form `<type>.class` so
@@ -183,43 +178,20 @@ class ValueParser(
         throw ValueProviderException("Unknown token <$text> of $optionalTypeItem")
     }
 
-    /** The possible unary operators that may appear at the start of a number. */
-    private enum class UnaryOperator(val text: String) {
-        PLUS("+"),
-        MINUS("-"),
-    }
-
-    /** Apply this optional [UnaryOperator] to [magnitude]. */
-    private fun UnaryOperator?.evaluate(magnitude: Long) =
-        if (this == UnaryOperator.MINUS) -magnitude else magnitude
-
-    /** Apply this optional [UnaryOperator] to [magnitude]. */
-    private fun UnaryOperator?.evaluate(magnitude: Float) =
-        if (this == UnaryOperator.MINUS) -magnitude else magnitude
-
-    /** Apply this optional [UnaryOperator] to [magnitude]. */
-    private fun UnaryOperator?.evaluate(magnitude: Double) =
-        if (this == UnaryOperator.MINUS) -magnitude else magnitude
-
     /**
      * Parse a number from [text].
      *
      * @param optionalTypeItem the optional [TypeItem], if present then the parsed value will be
      *   converted to be appropriate for this [TypeItem].
      * @param text the text to parse.
-     * @param unaryOperator the optional [UnaryOperator] to apply after parsing.
      */
     private fun parseNumber(
         optionalTypeItem: TypeItem?,
         text: String,
-        unaryOperator: UnaryOperator?,
     ): ConstantValue {
         // Handle hexadecimal numbers first as they could end with a 'f' which would be treated as
         // a float below.
         if (text.startsWith("0x")) {
-            require(unaryOperator == null) {
-                "Hexadecimal values cannot have a leading sign character but has '${unaryOperator!!.text}'"
-            }
             // Remove the leading "0x"
             val withoutLeading0x = text.substring(2)
 
@@ -237,42 +209,38 @@ class ValueParser(
         when (text.last()) {
             'L',
             'l' -> {
-                val magnitude = text.substring(0, text.length - 1).toLong()
-                val withSign = unaryOperator.evaluate(magnitude)
-                return createLiteralValue(optionalTypeItem, withSign)
+                val long = text.substring(0, text.length - 1).toLong()
+                return createLiteralValue(optionalTypeItem, long)
             }
             'F',
             'f' -> {
-                val magnitude = text.substring(0, text.length - 1).toFloat()
-                val withSign = unaryOperator.evaluate(magnitude)
-                return createLiteralValue(optionalTypeItem, withSign)
+                val float = text.substring(0, text.length - 1).toFloat()
+                return createLiteralValue(optionalTypeItem, float)
             }
         }
 
         // Try parsing as a long first. This will cover bytes, ints, longs, and shorts.
-        text.toLongOrNull()?.let { longMagnitude ->
-            val longWithSign = unaryOperator.evaluate(longMagnitude)
+        text.toLongOrNull()?.let { long ->
             // Cast down to an int if allowed as an integer number without a trailing L or l is
             // treated as an integer in source.
-            if (longWithSign in Int.MIN_VALUE..Int.MAX_VALUE) {
-                return createLiteralValue(optionalTypeItem, longWithSign.toInt())
+            if (long in Int.MIN_VALUE..Int.MAX_VALUE) {
+                return createLiteralValue(optionalTypeItem, long.toInt())
             } else {
                 // Otherwise, rely on createLiteralValue(...) to do appropriate non-lossy casting to
                 // match the optional type item.
-                return createLiteralValue(optionalTypeItem, longWithSign)
+                return createLiteralValue(optionalTypeItem, long)
             }
         }
 
         // Try parsing as a double. This will cover floats too.
-        text.toDoubleOrNull()?.let { doubleMagnitude ->
-            val doubleWithSign = unaryOperator.evaluate(doubleMagnitude)
+        text.toDoubleOrNull()?.let { double ->
             if (
                 optionalTypeItem is PrimitiveTypeItem &&
                     optionalTypeItem.kind == PrimitiveTypeItem.Primitive.FLOAT
             ) {
-                return createLiteralValue(optionalTypeItem, doubleWithSign.toFloat())
+                return createLiteralValue(optionalTypeItem, double.toFloat())
             } else {
-                return createLiteralValue(optionalTypeItem, doubleWithSign)
+                return createLiteralValue(optionalTypeItem, double)
             }
         }
 

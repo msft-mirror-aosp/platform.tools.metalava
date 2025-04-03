@@ -778,6 +778,15 @@ constructor(
                     expectedValue =
                         expectations { common = literalValue(Double.NEGATIVE_INFINITY) },
                 ),
+                ValueExample(
+                    name = "double - negative max",
+                    javaType = "double",
+                    javaExpression = "-1.7976931348623157E308",
+                    kotlinType = "Double",
+                    expectedLegacySource = expectations { common = "-1.7976931348623157E308" },
+                    expectedLegacyValue = expectations { common = -1.7976931348623157E308 },
+                    expectedValue = expectations { common = literalValue(-Double.MAX_VALUE) },
+                ),
                 // Check an enum literal.
                 ValueExample(
                     name = "enum",
@@ -1147,6 +1156,17 @@ constructor(
                         },
                     expectedLegacyValue = expectations { common = 10000000000L },
                     expectedValue = expectations { common = literalValue(10000000000L) },
+                ),
+                ValueExample(
+                    name = "long - min with suffix",
+                    javaType = "long",
+                    javaExpression = "-9223372036854775808L",
+                    expectedLegacySource = expectations { common = "-9223372036854775808L" },
+                    // Kotlin does not support specifying -9223372036854775808L as a literal.
+                    // See https://youtrack.jetbrains.com/issue/KT-4749.
+                    validForInputFormats = notValidForKotlin,
+                    expectedLegacyValue = expectations { common = Long.MIN_VALUE },
+                    expectedValue = expectations { common = literalValue(Long.MIN_VALUE) },
                 ),
                 // Check a simple short with a lower case suffix.
                 ValueExample(
