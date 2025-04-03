@@ -24,22 +24,26 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestCaseContext
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
+import com.android.tools.metalava.model.value.ValueUseSite
 import java.util.EnumSet
 
 /**
  * The possible places where values can be provided.
  *
+ * @param valueUseSite the [ValueUseSite] that will replace the [LegacyValueUseSite].
  * @param legacySourceGetter gets the legacy source representation as expected by
  *   [ValueExample.expectedLegacySourceFor].
  * @param legacyValueGetter get the legacy value as expected by
  *   [ValueExample.expectedLegacyValueFor].
  */
 enum class LegacyValueUseSite(
+    val valueUseSite: ValueUseSite,
     val legacySourceGetter: (TestCaseContext.() -> String?)? = null,
     val legacyValueGetter: (TestCaseContext.() -> Any?)? = null,
 ) {
     /** The default value specified on an annotation class's method. */
     ATTRIBUTE_DEFAULT_VALUE(
+        ValueUseSite.ANNOTATION,
         legacySourceGetter = {
             val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
 
@@ -49,6 +53,7 @@ enum class LegacyValueUseSite(
 
     /** An annotation attribute value specified in an annotation instance. */
     ATTRIBUTE_VALUE(
+        ValueUseSite.ANNOTATION,
         legacySourceGetter = {
             val annotation = testClassItem.modifiers.annotations().first()
             val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
@@ -68,6 +73,7 @@ enum class LegacyValueUseSite(
      * instance.
      */
     ANNOTATION_TO_SOURCE(
+        ValueUseSite.ANNOTATION,
         legacySourceGetter = {
             // Get the annotation to test.
             val annotation = testClassItem.modifiers.annotations().first()
@@ -82,6 +88,7 @@ enum class LegacyValueUseSite(
 
     /** The value of a field. */
     FIELD_VALUE(
+        ValueUseSite.FIELD,
         legacyValueGetter = {
             testClassItem.assertField(FIELD_NAME).legacyFieldValue?.initialValue(true)
         },
@@ -89,6 +96,7 @@ enum class LegacyValueUseSite(
 
     /** The value of a field written out by [FieldItem.writeValueWithSemicolon]. */
     FIELD_WRITE_WITH_SEMICOLON(
+        ValueUseSite.FIELD,
         legacySourceGetter = {
             val field = testClassItem.assertField(FIELD_NAME)
 

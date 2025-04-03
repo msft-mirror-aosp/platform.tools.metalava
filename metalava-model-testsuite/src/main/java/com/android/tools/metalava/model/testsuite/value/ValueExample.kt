@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.testing.value.enumConstantValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import java.util.EnumSet
@@ -178,44 +179,33 @@ constructor(
     val entryPointCallerTracker = EntryPointCallerTracker()
 
     /**
-     * If the field is not a constant then wrap it in an Expectation that will enforce that fields
-     * only have constant values.
+     * Enforces that field values are constant.
+     *
+     * This has to deal with this issue:
+     * * If the example is not for a constant type then replace the [Expectation] for fields with
+     *   `null`.
      */
-    private fun wrapLegacySource(expectation: Expectation<String?>) =
-        if (isConstant) expectation
-        else constantFieldLegacySourceExpectation.fallBackTo(expectation)
+    private fun <T : Any> Expectation<T?>.enforceFieldValuesAreConstant(): Expectation<T?> =
+        if (isConstant) this else TransformFieldExpectation(this, { null })
 
     /** Get the expected legacy source for [inputFormat]. */
     fun expectedLegacySourceFor(inputFormat: InputFormat) =
-        wrapLegacySource(
-            when (inputFormat) {
-                InputFormat.KOTLIN ->
-                    // Kotlin overrides the standard expectations.
-                    expectedKotlinLegacySource.fallBackTo(expectedLegacySource)
-                else -> expectedLegacySource
-            }
-        )
-
-    /**
-     * If the field is not a constant then wrap it in an Expectation that will enforce that fields
-     * only have constant values.
-     */
-    private fun wrapLegacyValue(expectation: Expectation<Any?>?) =
-        if (expectation == null) null
-        else if (isConstant) expectation
-        else constantFieldLegacySourceExpectation.fallBackTo(expectation)
+        when (inputFormat) {
+            InputFormat.KOTLIN ->
+                // Kotlin overrides the standard expectations.
+                expectedKotlinLegacySource.fallBackTo(expectedLegacySource)
+            else -> expectedLegacySource
+        }.enforceFieldValuesAreConstant()
 
     /** Get the expected legacy value for [inputFormat]. */
     fun expectedLegacyValueFor(inputFormat: InputFormat) =
-        wrapLegacyValue(
-            when (inputFormat) {
-                InputFormat.KOTLIN ->
-                    // Kotlin overrides the standard expectations.
-                    if (expectedLegacyValue == null) expectedKotlinLegacyValue
-                    else expectedKotlinLegacyValue?.fallBackTo(expectedLegacyValue)
-                else -> expectedLegacyValue
-            }
-        )
+        when (inputFormat) {
+            InputFormat.KOTLIN ->
+                // Kotlin overrides the standard expectations.
+                if (expectedLegacyValue == null) expectedKotlinLegacyValue
+                else expectedKotlinLegacyValue?.fallBackTo(expectedLegacyValue)
+            else -> expectedLegacyValue
+        }?.enforceFieldValuesAreConstant()
 
     /** The suffix to add to class names to make them specific to this example. */
     val classSuffix = name.replace(' ', '_').replace('-', '_')
@@ -1280,14 +1270,27 @@ constructor(
 }
 
 /**
- * A partial [Expectation] that returns `null` for fields.
- *
- * This is used when a [ValueExample] is not a constant and so a field that uses it will not have a
- * value. It is checked first and then [falls back to](fallBackTo)
- * [ValueExample.expectedLegacySource],
+ * An [Expectation] that will apply [transform] to expected values returned from [delegate] for
+ * [LegacyValueUseSite.FIELD_VALUE] and [LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
  */
-private val constantFieldLegacySourceExpectation =
-    expectations<String> {
-        fieldValue = null
-        fieldWriteWithSemicolon = null
-    }
+class TransformFieldExpectation<T : Any>(
+    private val delegate: Expectation<T?>,
+    private val transform: (T) -> T? = { it }
+) : Expectation<T?> {
+    override fun expectationFor(
+        producerKind: ProducerKind,
+        legacyValueUseSite: LegacyValueUseSite
+    ) =
+        delegate.expectationFor(producerKind, legacyValueUseSite)?.let { expected ->
+            if (legacyValueUseSite.valueUseSite == ValueUseSite.FIELD)
+                expected.let { transform(it) }
+            else expected
+        }
+
+    override fun hasExpectationFor(
+        producerKind: ProducerKind,
+        legacyValueUseSite: LegacyValueUseSite
+    ) =
+        if (legacyValueUseSite.valueUseSite == ValueUseSite.FIELD) true
+        else delegate.hasExpectationFor(producerKind, legacyValueUseSite)
+}
