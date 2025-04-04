@@ -106,6 +106,9 @@ sealed interface Value {
     /**
      * A string representation of the value.
      *
+     * There can be many different representations of each value but the default version used here
+     * should be the simplest source representation of the value.
+     *
      * By default, i.e. when [configuration] is equal to [ValueStringConfiguration.DEFAULT], this
      * will only include "Normalized State" in the returned [String]. However, with a suitable
      * [ValueStringConfiguration] it may include "Legacy State".
@@ -309,6 +312,14 @@ sealed interface DoubleValue : PrimitiveValue<Double> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
+    override fun toValueString(configuration: ValueStringConfiguration) =
+        when {
+            underlyingValue.isNaN() -> "(0.0/0.0)"
+            underlyingValue == Double.NEGATIVE_INFINITY -> "(-1.0/0.0)"
+            underlyingValue == Double.POSITIVE_INFINITY -> "(1.0/0.0)"
+            else -> "$underlyingValue"
+        }
+
     companion object {
         val NaN: DoubleValue = DefaultDoubleValue(Double.NaN)
         val NEGATIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.NEGATIVE_INFINITY)
@@ -329,9 +340,12 @@ sealed interface FloatValue : PrimitiveValue<Float> {
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
     override fun toValueString(configuration: ValueStringConfiguration) =
-        // No `f` suffix is needed on special values.
-        if (underlyingValue.isNaN() || underlyingValue.isInfinite()) underlyingValue.toString()
-        else "${underlyingValue}f"
+        when {
+            underlyingValue.isNaN() -> "(0.0f/0.0f)"
+            underlyingValue == Float.NEGATIVE_INFINITY -> "(-1.0f/0.0f)"
+            underlyingValue == Float.POSITIVE_INFINITY -> "(1.0f/0.0f)"
+            else -> "${underlyingValue}f"
+        }
 
     companion object {
         val NaN: FloatValue = DefaultFloatValue(Float.NaN)

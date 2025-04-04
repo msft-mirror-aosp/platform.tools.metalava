@@ -304,15 +304,15 @@ class ParameterizedValueStringTest {
                 ),
                 testCasesForValue(
                     value = literalValue(Double.NaN),
-                    expectedDefaultString = "NaN",
+                    expectedDefaultString = "(0.0/0.0)",
                 ),
                 testCasesForValue(
                     value = literalValue(Double.NEGATIVE_INFINITY),
-                    expectedDefaultString = "-Infinity",
+                    expectedDefaultString = "(-1.0/0.0)",
                 ),
                 testCasesForValue(
                     value = literalValue(Double.POSITIVE_INFINITY),
-                    expectedDefaultString = "Infinity",
+                    expectedDefaultString = "(1.0/0.0)",
                 ),
                 testCasesForValue(
                     "double as int",
@@ -343,15 +343,15 @@ class ParameterizedValueStringTest {
                 ),
                 testCasesForValue(
                     value = literalValue(Float.NaN),
-                    expectedDefaultString = "NaN",
+                    expectedDefaultString = "(0.0f/0.0f)",
                 ),
                 testCasesForValue(
                     value = literalValue(Float.NEGATIVE_INFINITY),
-                    expectedDefaultString = "-Infinity",
+                    expectedDefaultString = "(-1.0f/0.0f)",
                 ),
                 testCasesForValue(
                     value = literalValue(Float.POSITIVE_INFINITY),
-                    expectedDefaultString = "Infinity",
+                    expectedDefaultString = "(1.0f/0.0f)",
                 ),
                 testCasesForValue(
                     "float as int",
