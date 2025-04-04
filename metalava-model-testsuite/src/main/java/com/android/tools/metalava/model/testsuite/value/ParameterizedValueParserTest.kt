@@ -120,6 +120,10 @@ class ParameterizedValueParserTest : BaseModelTest() {
         private val testCases =
             valueExamples
                 .flatMap { valueExample ->
+                    // If the example is not suitable for signature files then ignore it.
+                    if (InputFormat.SIGNATURE !in valueExample.validForInputFormats)
+                        return@flatMap emptyList()
+
                     val javaType = valueExample.javaType
                     buildList {
                         // Iterate over jar and source representations.

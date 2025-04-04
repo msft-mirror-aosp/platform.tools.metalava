@@ -248,6 +248,9 @@ constructor(
         /** All except Signature. */
         private val notValidForSignature = EnumSet.complementOf(EnumSet.of(InputFormat.SIGNATURE))
 
+        /** Only Java. */
+        private val onlyValidForJava = EnumSet.of(InputFormat.JAVA)
+
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and
          * [LegacyValueUseSite]s.
@@ -1077,6 +1080,43 @@ constructor(
                         },
                     expectedLegacyValue = expectations { common = -17 },
                     expectedValue = expectations { common = literalValue(-17) },
+                ),
+                // Check an int with a complex expression
+                ValueExample(
+                    name = "int - complex",
+                    javaType = "int",
+                    javaExpression = "('_'<<24)|('P'<<16)|('N'<<8)|'G'",
+                    kotlinType = "Int",
+                    kotlinExpression =
+                        "('_'.code shl 24) or ('P'.code shl 16) or ('N'.code shl 8) or 'G'.code",
+                    // TODO(b/354633349): Only valid for Java, Kotlin is inconsistent and signature
+                    //   files do not have complex expressions at all.
+                    validForInputFormats = onlyValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "1599098439"
+
+                            source {
+                                annotationToSource = "0x5f504e47"
+                                attributeValue = "('_'<<24)|('P'<<16)|('N'<<8)|'G'"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "0x5f000000 | 0x500000 | 0x4e00 | 'G'.code"
+                                attributeValue =
+                                    "('_'.code shl 24) or ('P'.code shl 16) or ('N'.code shl 8) or 'G'.code"
+                            }
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = 1599098439
+                            source { attributeValue = "('_'<<24)|('P'<<16)|('N'<<8)|'G'" }
+                        },
+                    expectedKotlinLegacyValue =
+                        expectations { source { attributeValue = 1599098439 } },
+                    expectedValue = expectations { common = literalValue(1599098439) },
                 ),
                 // Check a simple long with an integer value.
                 ValueExample(
