@@ -182,18 +182,18 @@ interface ValueFactory {
             "Constant field must be created from a FieldItem which is not an enum constant but $fieldItem is"
         }
         return createConstantFieldValue(
-            fieldItem.containingClass().qualifiedName(),
+            fieldItem.containingClass().type(),
             fieldItem.name(),
             constantValue,
         )
     }
 
     /**
-     * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+     * Create a [ConstantFieldValue] called [fieldName] in [classTypeItem] with an optional
      * [constantValue].
      */
     fun createConstantFieldValue(
-        qualifiedClassName: String,
+        classTypeItem: ClassTypeItem,
         fieldName: String,
         constantValue: ConstantValue?,
     ): ArrayElementValue {
@@ -204,7 +204,7 @@ interface ValueFactory {
         }
 
         return DefaultConstantFieldValue(
-            qualifiedClassName,
+            classTypeItem,
             fieldName,
             constantValue,
         )
@@ -220,16 +220,16 @@ interface ValueFactory {
             "Enum constant must be created from a FieldItem which is an enum constant but $fieldItem is not"
         }
         return createEnumConstantValue(
-            fieldItem.containingClass().qualifiedName(),
+            fieldItem.containingClass().type(),
             fieldItem.name(),
         )
     }
 
-    /** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
+    /** Create an [EnumConstantValue] called [fieldName] in [classTypeItem]. */
     fun createEnumConstantValue(
-        qualifiedClassName: String,
+        classTypeItem: ClassTypeItem,
         fieldName: String,
-    ): ArrayElementValue = DefaultEnumConstantValue(qualifiedClassName, fieldName)
+    ): ArrayElementValue = DefaultEnumConstantValue(classTypeItem, fieldName)
 
     companion object {
         /**

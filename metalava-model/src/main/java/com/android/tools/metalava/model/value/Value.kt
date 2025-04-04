@@ -392,7 +392,7 @@ sealed interface StringValue : LiteralValue<String> {
 }
 
 /**
- * A [Value] that references a field in class [qualifiedClassName] with name [fieldName].
+ * A [Value] that references a field in [classTypeItem] with name [fieldName].
  *
  * Sub-interfaces specialize this for [EnumConstantValue] and [ConstantFieldValue]. The reasons why
  * they are modelled as two separate interfaces are:
@@ -404,20 +404,20 @@ sealed interface StringValue : LiteralValue<String> {
  *    other times its [ConstantValue] is used.
  */
 sealed interface FieldReferenceValue : ArrayElementValue {
-    /** The qualified name of the class that contains the field. */
-    val qualifiedClassName: String
+    /** The class type that contains the field. */
+    val classTypeItem: ClassTypeItem
 
     /** The name of the field. */
     val fieldName: String
 
     fun equalToFieldReferenceValue(other: FieldReferenceValue): Boolean {
-        return qualifiedClassName == other.qualifiedClassName && fieldName == other.fieldName
+        return classTypeItem == other.classTypeItem && fieldName == other.fieldName
     }
 
-    fun hashCodeForFieldReferenceValue() = Objects.hash(qualifiedClassName, fieldName)
+    fun hashCodeForFieldReferenceValue() = Objects.hash(classTypeItem, fieldName)
 
     override fun toValueString(configuration: ValueStringConfiguration) =
-        "$qualifiedClassName.$fieldName"
+        "$classTypeItem.$fieldName"
 }
 
 /** A [Value] that represents the initial value of a constant field. */
