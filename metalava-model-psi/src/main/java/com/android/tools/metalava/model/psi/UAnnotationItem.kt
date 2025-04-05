@@ -249,15 +249,9 @@ private constructor(
                     } // TODO: support UCallExpression for other cases than array initializers
                 }
                 is UAnnotation -> {
-                    appendAnnotation(
-                        codebase,
-                        sb,
-                        value,
-                        // Normalize the input name of the annotation.
-                        codebase.annotationManager.normalizeInputName(value.qualifiedName!!),
-                        target,
-                        showDefaultAttrs
-                    )
+                    // TODO(b/354633349): Remove this branch once it has been shown that it is never
+                    // taken.
+                    error("$value is both a UExpression and a UAnnotation")
                 }
                 else -> {
                     val source = getConstantSource(value)
