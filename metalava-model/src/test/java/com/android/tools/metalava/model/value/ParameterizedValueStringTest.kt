@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.stringType
+import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.constantFieldValue
@@ -108,6 +109,15 @@ class ParameterizedValueStringTest {
                     ValueStringConfiguration(
                         treatAsIntIfOriginallySpecifiedAsInt = true,
                     )
+                )
+
+            val TREAT_AS_INT_UNWRAP_SINGLE_ARRAY_ELEMENT =
+                LabelledConfig(
+                    "treat-as-int/unwrap",
+                    ValueStringConfiguration(
+                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                        unwrapSingleArrayElement = true,
+                    ),
                 )
 
             val UNWRAP_SINGLE_ARRAY_ELEMENT =
@@ -256,6 +266,17 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "{\"first\", \"second\", \"third\"}",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT)
+                },
+                testCasesForValue(
+                    valueLabel = "array of long as int",
+                    value = arrayValue(primitiveValueForKind(Primitive.LONG, 3)),
+                    expectedDefaultValueString = "{3L}",
+                    // TODO(b/354633349): Should use debug value for nested.
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_UNWRAP_SINGLE_ARRAY_ELEMENT,
+                        expectedValueString = "3",
+                    )
                 },
                 // ********************************* Booleans *********************************
                 testCasesForValue(

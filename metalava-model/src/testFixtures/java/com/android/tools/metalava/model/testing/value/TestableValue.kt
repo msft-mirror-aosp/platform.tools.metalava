@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.ConstantFieldValue
@@ -44,6 +45,9 @@ fun primitiveValueForKind(kind: Primitive, underlyingValue: Any) =
 /** Create an [ArrayValue] containing [literals]. */
 fun arrayValueFromAny(vararg literals: Any) =
     Value.createArrayValue(literals.map { literalValue(it) })
+
+/** Create an [ArrayValue] containing [values]. */
+fun arrayValue(vararg values: ArrayElementValue) = Value.createArrayValue(values.toList())
 
 /** Create a [ClassObjectValue] containing [typeItem]. */
 fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
