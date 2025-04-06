@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.javaEscapeString
+import com.android.tools.metalava.model.value.Value.Companion.toString
 import java.util.EnumSet
 import java.util.Objects
 
@@ -106,6 +107,15 @@ sealed interface Value {
     /**
      * A string representation of the value.
      *
+     * See [appendValueStringTo] for more details.
+     */
+    fun toValueString(
+        configuration: ValueStringConfiguration = ValueStringConfiguration.DEFAULT
+    ): String
+
+    /**
+     * Append a string representation of this to [builder] as required by [configuration].
+     *
      * There can be many different representations of each value but the default version used here
      * should be the simplest source representation of the value.
      *
@@ -113,9 +123,10 @@ sealed interface Value {
      * will only include "Normalized State" in the returned [String]. However, with a suitable
      * [ValueStringConfiguration] it may include "Legacy State".
      */
-    fun toValueString(
+    fun appendValueStringTo(
+        builder: StringBuilder,
         configuration: ValueStringConfiguration = ValueStringConfiguration.DEFAULT
-    ): String
+    )
 
     /**
      * Whether this value is equal to [other].
@@ -139,7 +150,16 @@ sealed interface Value {
 
     /**
      * Provides a string representation of the complete internal state, both "Normalized" and
-     * "Legacy", useful for debugging and testing.
+     * "Legacy"; useful for debugging and testing.
+     *
+     * See [appendDebugStringTo] for more details.
+     */
+    @Deprecated(message = "Do not call directly", replaceWith = ReplaceWith("toString()"))
+    fun debugStringForValue(): String
+
+    /**
+     * Appends a string representation of the complete internal state, both "Normalized" and
+     * "Legacy", to [builder]; useful for debugging and testing.
      *
      * See [Value] for an explanation of the terms "Normalized" and "Legacy".
      *
@@ -150,7 +170,10 @@ sealed interface Value {
      * interfaces this will need to be implemented in the implementation classes.
      */
     @Deprecated(message = "Do not call directly", replaceWith = ReplaceWith("toString()"))
-    fun debugStringForValue() = toValueString()
+    fun appendDebugStringTo(builder: StringBuilder) = appendValueStringTo(builder)
+
+    /** Append this [Value]'s [toString] result to [builder]. */
+    fun appendToStringTo(builder: StringBuilder)
 
     /**
      * The string representation of a [Value] that includes the implementation class name as well as
@@ -254,9 +277,14 @@ sealed interface LiteralValue<T : Any> : ConstantValue {
     override fun asLiteralValue() = this
 
     /**
-     * Default implementation just returns the underlying value's standard [String.toString] value.
+     * Default implementation just appends the underlying value's standard [String.toString] value.
      */
-    override fun toValueString(configuration: ValueStringConfiguration) = underlyingValue.toString()
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        builder.append(underlyingValue)
+    }
 }
 
 /** A [LiteralValue] that is of a primitive type. */
@@ -294,9 +322,11 @@ sealed interface CharValue : PrimitiveValue<Char> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun toValueString(configuration: ValueStringConfiguration): String {
-        val escaped = javaEscapeString(underlyingValue.toString())
-        return "'$escaped'"
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        builder.append('\'').append(javaEscapeString(underlyingValue.toString())).append('\'')
     }
 }
 
@@ -312,13 +342,17 @@ sealed interface DoubleValue : PrimitiveValue<Double> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun toValueString(configuration: ValueStringConfiguration) =
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
         when {
-            underlyingValue.isNaN() -> "(0.0/0.0)"
-            underlyingValue == Double.NEGATIVE_INFINITY -> "(-1.0/0.0)"
-            underlyingValue == Double.POSITIVE_INFINITY -> "(1.0/0.0)"
-            else -> "$underlyingValue"
+            underlyingValue.isNaN() -> builder.append("(0.0/0.0)")
+            underlyingValue == Double.NEGATIVE_INFINITY -> builder.append("(-1.0/0.0)")
+            underlyingValue == Double.POSITIVE_INFINITY -> builder.append("(1.0/0.0)")
+            else -> builder.append(underlyingValue)
         }
+    }
 
     companion object {
         val NaN: DoubleValue = DefaultDoubleValue(Double.NaN)
@@ -339,13 +373,17 @@ sealed interface FloatValue : PrimitiveValue<Float> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun toValueString(configuration: ValueStringConfiguration) =
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
         when {
-            underlyingValue.isNaN() -> "(0.0f/0.0f)"
-            underlyingValue == Float.NEGATIVE_INFINITY -> "(-1.0f/0.0f)"
-            underlyingValue == Float.POSITIVE_INFINITY -> "(1.0f/0.0f)"
-            else -> "${underlyingValue}f"
+            underlyingValue.isNaN() -> builder.append("(0.0f/0.0f)")
+            underlyingValue == Float.NEGATIVE_INFINITY -> builder.append("(-1.0f/0.0f)")
+            underlyingValue == Float.POSITIVE_INFINITY -> builder.append("(1.0f/0.0f)")
+            else -> builder.append(underlyingValue).append("f")
         }
+    }
 
     companion object {
         val NaN: FloatValue = DefaultFloatValue(Float.NaN)
@@ -375,7 +413,12 @@ sealed interface LongValue : PrimitiveValue<Long> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun toValueString(configuration: ValueStringConfiguration) = "${underlyingValue}L"
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        builder.append(underlyingValue).append('L')
+    }
 }
 
 /** A [Value] that encapsulates a [Short]. */
@@ -399,9 +442,11 @@ sealed interface StringValue : LiteralValue<String> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun toValueString(configuration: ValueStringConfiguration): String {
-        val escaped = javaEscapeString(underlyingValue)
-        return "\"$escaped\""
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        builder.append('"').append(javaEscapeString(underlyingValue)).append('"')
     }
 }
 
@@ -430,8 +475,12 @@ sealed interface FieldReferenceValue : ArrayElementValue {
 
     fun hashCodeForFieldReferenceValue() = Objects.hash(classTypeItem, fieldName)
 
-    override fun toValueString(configuration: ValueStringConfiguration) =
-        "$classTypeItem.$fieldName"
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        builder.append(classTypeItem).append('.').append(fieldName)
+    }
 }
 
 /** A [Value] that represents the initial value of a constant field. */
@@ -489,7 +538,12 @@ sealed interface ClassObjectValue : ArrayElementValue {
 
     override fun hashCodeForValue() = typeItem.hashCode()
 
-    override fun toValueString(configuration: ValueStringConfiguration) = "$typeItem.class"
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        builder.append(typeItem).append(".class")
+    }
 }
 
 /** A [Value] that is an array whose contents are [elements]. */
@@ -504,23 +558,49 @@ sealed interface ArrayValue : Value {
 
     override fun hashCodeForValue() = elements.hashCode()
 
-    override fun toValueString(configuration: ValueStringConfiguration) =
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
         if (configuration.unwrapSingleArrayElement && elements.size == 1) {
-            elements[0].toValueString(configuration)
+            elements[0].appendValueStringTo(builder, configuration)
         } else {
-            elements.joinToString(prefix = "{", postfix = "}") { it.toValueString() }
+            builder.append('{')
+            for ((index, element) in elements.withIndex()) {
+                if (index > 0) {
+                    builder.append(", ")
+                }
+                element.appendValueStringTo(builder)
+            }
+            builder.append('}')
         }
+    }
 }
 
 /** Base implementation of [Value]. */
 internal sealed class DefaultValue : Value {
-    override fun equals(other: Any?): Boolean {
+    final override fun equals(other: Any?): Boolean {
         if (other !is Value) return false
         return equalToValue(other)
     }
 
-    override fun hashCode(): Int = hashCodeForValue()
+    final override fun hashCode(): Int = hashCodeForValue()
+
+    final override fun toValueString(configuration: ValueStringConfiguration) = buildString {
+        appendValueStringTo(this, configuration)
+    }
 
     @Suppress("DEPRECATION")
-    override fun toString() = "${javaClass.simpleName}(${debugStringForValue()})"
+    @Deprecated("Do not call directly", replaceWith = ReplaceWith("toString()"))
+    final override fun debugStringForValue() = buildString { appendDebugStringTo(this) }
+
+    @Suppress("DEPRECATION")
+    final override fun appendToStringTo(builder: StringBuilder) {
+        builder.append(javaClass.simpleName)
+        builder.append("(")
+        builder.append(debugStringForValue())
+        builder.append(")")
+    }
+
+    final override fun toString() = buildString { appendToStringTo(this) }
 }
