@@ -237,6 +237,7 @@ class ParameterizedValueStringTest {
                     valueLabel = "single integer",
                     value = arrayValueFromAny(1),
                     expectedDefaultValueString = "{1}",
+                    expectedDefaultDebugString = "{DefaultIntValue(1)}",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT,
@@ -247,6 +248,7 @@ class ParameterizedValueStringTest {
                     valueLabel = "single string",
                     value = arrayValueFromAny("single"),
                     expectedDefaultValueString = "{\"single\"}",
+                    expectedDefaultDebugString = "{DefaultStringValue(\"single\")}",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT,
@@ -257,6 +259,8 @@ class ParameterizedValueStringTest {
                     valueLabel = "integers",
                     value = arrayValueFromAny(1, 2, 3),
                     expectedDefaultValueString = "{1, 2, 3}",
+                    expectedDefaultDebugString =
+                        "{DefaultIntValue(1), DefaultIntValue(2), DefaultIntValue(3)}",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT)
                 },
@@ -264,6 +268,8 @@ class ParameterizedValueStringTest {
                     valueLabel = "strings",
                     value = arrayValueFromAny("first", "second", "third"),
                     expectedDefaultValueString = "{\"first\", \"second\", \"third\"}",
+                    expectedDefaultDebugString =
+                        "{DefaultStringValue(\"first\"), DefaultStringValue(\"second\"), DefaultStringValue(\"third\")}",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT)
                 },
@@ -271,7 +277,7 @@ class ParameterizedValueStringTest {
                     valueLabel = "array of long as int",
                     value = arrayValue(primitiveValueForKind(Primitive.LONG, 3)),
                     expectedDefaultValueString = "{3L}",
-                    // TODO(b/354633349): Should use debug value for nested.
+                    expectedDefaultDebugString = "{DefaultLongValue(3L,asInt)}",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.TREAT_AS_INT_UNWRAP_SINGLE_ARRAY_ELEMENT,

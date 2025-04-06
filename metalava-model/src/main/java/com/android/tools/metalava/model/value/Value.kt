@@ -170,7 +170,8 @@ sealed interface Value {
      * interfaces this will need to be implemented in the implementation classes.
      */
     @Deprecated(message = "Do not call directly", replaceWith = ReplaceWith("toString()"))
-    fun appendDebugStringTo(builder: StringBuilder) = appendValueStringTo(builder)
+    fun appendDebugStringTo(builder: StringBuilder) =
+        appendValueStringTo(builder, ValueStringConfiguration.DEBUG)
 
     /** Append this [Value]'s [toString] result to [builder]. */
     fun appendToStringTo(builder: StringBuilder)
@@ -191,18 +192,33 @@ sealed interface Value {
 /**
  * Configuration options for how to represent a value as a string.
  *
+ * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
  * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
  *   `int` if it was originally specified as an `int`.
  * @param unwrapSingleArrayElement Whether to add braces around an array that contains only a single
  *   element.
  */
 data class ValueStringConfiguration(
+    val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
+        Value::appendValueStringTo,
     val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
     val unwrapSingleArrayElement: Boolean = false,
 ) {
+    /** Use the [nestedValueAppender] to append a string representation of [Value] to [builder]. */
+    fun appendNestedValueTo(builder: StringBuilder, value: Value) {
+        nestedValueAppender(value, builder, this)
+    }
+
     companion object {
         /** Default configuration. */
         val DEFAULT = ValueStringConfiguration()
+
+        /** Debug configuration. */
+        val DEBUG: ValueStringConfiguration =
+            ValueStringConfiguration(
+                // Use [appendToStringTo] for nested values.
+                nestedValueAppender = { value, builder, _ -> value.appendToStringTo(builder) },
+            )
     }
 }
 
@@ -563,14 +579,14 @@ sealed interface ArrayValue : Value {
         configuration: ValueStringConfiguration
     ) {
         if (configuration.unwrapSingleArrayElement && elements.size == 1) {
-            elements[0].appendValueStringTo(builder, configuration)
+            configuration.appendNestedValueTo(builder, elements[0])
         } else {
             builder.append('{')
             for ((index, element) in elements.withIndex()) {
                 if (index > 0) {
                     builder.append(", ")
                 }
-                element.appendValueStringTo(builder)
+                configuration.appendNestedValueTo(builder, element)
             }
             builder.append('}')
         }
