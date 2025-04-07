@@ -812,6 +812,44 @@ constructor(
                     expectedValue =
                         expectations { common = enumConstantValue("test.pkg.TestEnum", "VALUE1") },
                 ),
+                ValueExample(
+                    name = "field - generic class constant",
+                    javaType = "String",
+                    javaExpression = "GenericClass.STRING_CONSTANT",
+                    // TODO(b/354633349): Signature files does not support field references.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource =
+                        expectations {
+                            common = "\"constant\""
+
+                            source {
+                                common = "test.pkg.GenericClass.STRING_CONSTANT"
+                                // TODO(b/354633349): Fully qualified is better.
+                                attributeValue = "GenericClass.STRING_CONSTANT"
+                                // TODO(b/354633349): Should probably be a field reference, at least
+                                //   in some cases.
+                                fieldWriteWithSemicolon = "\"constant\""
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            annotationToSource = "test.pkg.GenericClass.Companion.STRING_CONSTANT"
+                        },
+                    expectedLegacyValue = expectations { common = "constant" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                constantFieldValue(
+                                    "test.pkg.GenericClass",
+                                    "STRING_CONSTANT",
+                                    literalValue("constant")
+                                )
+                            jar {
+                                // The compiler will always inline a constant field value.
+                                common = literalValue("constant")
+                            }
+                        },
+                ),
                 // Check a simple float with int
                 ValueExample(
                     name = "float with int",

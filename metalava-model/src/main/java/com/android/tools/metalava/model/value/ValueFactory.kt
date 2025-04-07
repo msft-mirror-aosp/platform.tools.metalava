@@ -181,8 +181,10 @@ interface ValueFactory {
         require(!fieldItem.isEnumConstant()) {
             "Constant field must be created from a FieldItem which is not an enum constant but $fieldItem is"
         }
+        // Make sure that the class type item does not have any arguments.
+        val classTypeItem = fieldItem.containingClass().type().substitute(arguments = emptyList())
         return createConstantFieldValue(
-            fieldItem.containingClass().type(),
+            classTypeItem,
             fieldItem.name(),
             constantValue,
         )
