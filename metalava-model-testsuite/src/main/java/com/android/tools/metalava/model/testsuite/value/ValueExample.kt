@@ -268,9 +268,7 @@ constructor(
                     expectedLegacySource =
                         expectations {
                             common = "@test.pkg.OtherAnnotation(intType = 1)"
-                            source { common = "@OtherAnnotation(intType = 1)" }
-                            // TODO(b/354633349): Missing attributes.
-                            attributeDefaultValue = "@test.pkg.OtherAnnotation"
+                            source { attributeValue = "@OtherAnnotation(intType = 1)" }
 
                             annotationToSource =
                                 "@test.pkg.OtherAnnotation(" +
