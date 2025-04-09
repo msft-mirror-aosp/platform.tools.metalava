@@ -28,6 +28,7 @@ class TokenizerTest(private val params: Params) {
 
     data class Params(
         val input: String,
+        val label: String = input,
         val parenIsSep: Boolean = true,
         val expectedTokens: List<String>? = null,
         val expectedError: String? = null,
@@ -44,7 +45,7 @@ class TokenizerTest(private val params: Params) {
             }
         }
 
-        override fun toString(): String = input
+        override fun toString(): String = label
     }
 
     companion object {
@@ -75,6 +76,15 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """ value=1""",
                     expectedTokens = listOf("value", "=", "1"),
+                ),
+                Params(
+                    label = "line comment",
+                    input =
+                        """
+                            // Comment before token
+                            name
+                        """,
+                    expectedTokens = listOf("name"),
                 ),
             )
 

@@ -1345,7 +1345,7 @@ private constructor(
         // Get the optional value.
         val valueString =
             if ("=" == token) {
-                token = tokenizer.requireToken(false)
+                token = tokenizer.requireToken(parenIsSep = false)
                 token.also { token = tokenizer.requireToken() }
             } else null
 

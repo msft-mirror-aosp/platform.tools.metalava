@@ -104,11 +104,10 @@ class Tokenizer(
      * Get the next token, failing if the end of the file is reached.
      *
      * @param parenIsSep If `true` then treat `(` and `)` as separators, otherwise do not.
-     * @param eatWhitespace If `true` then eat whitespace and comments first.
      * @return the token String found.
      */
-    fun requireToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String {
-        val token = getToken(parenIsSep, eatWhitespace)
+    fun requireToken(parenIsSep: Boolean = true): String {
+        val token = getToken(parenIsSep)
         return token ?: throwException("Unexpected end of file")
     }
 
@@ -136,13 +135,12 @@ class Tokenizer(
      * Get the next token, returning null if the end of the file is reached.
      *
      * @param parenIsSep If `true` then treat `(` and `)` as separators, otherwise do not.
-     * @param eatWhitespace If `true` then eat whitespace and comments first.
      * @return the token String found, or null.
      */
-    fun getToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String? {
-        if (eatWhitespace) {
-            eatWhitespaceAndComments()
-        }
+    fun getToken(parenIsSep: Boolean = true): String? {
+        // Eat any white space or comments that come before the token.
+        eatWhitespaceAndComments()
+
         if (position >= buffer.size) {
             return null
         }
