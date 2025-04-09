@@ -86,6 +86,23 @@ class TokenizerTest(private val params: Params) {
                         """,
                     expectedTokens = listOf("name"),
                 ),
+                Params(
+                    input = """test.pkg.Generic<String>""",
+                    expectedTokens = listOf("test.pkg.Generic<String>"),
+                ),
+                Params(
+                    input = """test.pkg.Generic<String, Integer>""",
+                    expectedTokens = listOf("test.pkg.Generic<String, Integer>"),
+                ),
+                Params(
+                    input = """test.pkg.Generic<String, Integer, test.pkg.Nested<A, B>>""",
+                    expectedTokens =
+                        listOf("test.pkg.Generic<String, Integer, test.pkg.Nested<A, B>>"),
+                ),
+                Params(
+                    input = """<A extends Other, B>""",
+                    expectedTokens = listOf("<", "A", "extends", "Other", ",", "B", ">"),
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "<{0}>") fun testParams(): List<Params> = params
