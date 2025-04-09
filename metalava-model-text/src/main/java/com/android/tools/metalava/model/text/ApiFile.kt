@@ -1778,7 +1778,7 @@ private constructor(
                 // Java style: parse the type, then the public name if it has one.
                 typeString = scanForTypeString(tokenizer, token)
                 token = tokenizer.current
-                if (Tokenizer.isIdent(token) && token != "=") {
+                if (Tokenizer.isIdent(token)) {
                     name = token
                     publicName = name
                     token = tokenizer.requireToken()

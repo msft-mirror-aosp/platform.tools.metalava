@@ -251,7 +251,7 @@ class Tokenizer(
                     return true
                 }
             }
-            return c == '{' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>'
+            return c == '{' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>' || c == '='
         }
 
         private fun isIdent(c: Char): Boolean {

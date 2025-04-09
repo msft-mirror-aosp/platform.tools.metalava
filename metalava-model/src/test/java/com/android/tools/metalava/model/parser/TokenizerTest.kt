@@ -74,7 +74,7 @@ class TokenizerTest(private val params: Params) {
                 ),
                 Params(
                     input = """ value=1""",
-                    expectedTokens = listOf("value=1"),
+                    expectedTokens = listOf("value", "=", "1"),
                 ),
             )
 
