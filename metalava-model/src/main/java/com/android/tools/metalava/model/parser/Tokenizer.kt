@@ -144,17 +144,25 @@ class Tokenizer(
         if (position >= buffer.size) {
             return null
         }
+        val start = position
+        scanForEndOfToken(parenIsSep)
+        current = String(buffer, start, position - start)
+        return current
+    }
+
+    /**
+     * Scan from [position] (which is the start of the token) to the end of the token and return.
+     *
+     * When this returns [position] will point to the character after the end of the token.
+     */
+    private fun scanForEndOfToken(parenIsSep: Boolean) {
         val line = line
         val c = buffer[position]
-        val start = position
         position++
         if (c == '"') {
             scanForClosingQuotes()
-            current = String(buffer, start, position - start)
-            return current
         } else if (isSeparator(c, parenIsSep)) {
-            current = c.toString()
-            return current
+            // Nothing else to do, the separator is the token.
         } else {
             // A count of the number of tokens that have been started but not finished, e.g. strings
             // that have not yet seen the closing double quotes, , etc.
@@ -183,8 +191,6 @@ class Tokenizer(
             if (position >= buffer.size && incompleteDepth != 0) {
                 throwException("Unexpected end of file for \" starting at $line")
             }
-            current = String(buffer, start, position - start)
-            return current
         }
     }
 
