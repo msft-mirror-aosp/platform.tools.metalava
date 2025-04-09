@@ -180,45 +180,37 @@ class Tokenizer(
             // A count of the number of tokens that have been started but not finished, e.g. strings
             // that have not yet seen the closing double quotes, , etc.
             var incompleteDepth = 0
-            do {
-                while (position < buffer.size) {
-                    val d = buffer[position]
-                    if (isSpace(d) || isSeparator(d, parenIsSep)) {
-                        break
-                    } else if (d == '"') {
-                        // String literal in token: skip the full thing
-                        position++
-                        incompleteDepth++
-                        while (position < buffer.size) {
-                            if (buffer[position] == '"') {
-                                position++
-                                incompleteDepth--
-                                break
-                            } else if (buffer[position] == '\\') {
-                                position++
-                            }
+            while (position < buffer.size) {
+                val d = buffer[position]
+                if (d == '"') {
+                    // String literal in token: skip the full thing
+                    position++
+                    incompleteDepth++
+                    while (position < buffer.size) {
+                        if (buffer[position] == '"') {
+                            position++
+                            incompleteDepth--
+                            break
+                        } else if (buffer[position] == '\\') {
                             position++
                         }
-                        continue
-                    }
-                    position++
-                }
-                if (position < buffer.size) {
-                    if (buffer[position] == '<') {
-                        incompleteDepth++
-                        position++
-                    } else if (incompleteDepth != 0) {
-                        if (buffer[position] == '>') {
-                            incompleteDepth--
-                        }
                         position++
                     }
+                    continue
+                } else if (d == '<') {
+                    // Open a type parameter/argument list. Make sure to continue to the next `>`.
+                    incompleteDepth++
+                } else if (incompleteDepth != 0 && d == '>') {
+                    // If this closes a previously opened type parameter/argument list then close
+                    // it.
+                    incompleteDepth--
+                } else if (incompleteDepth == 0 && (isSpace(d) || isSeparator(d, parenIsSep))) {
+                    // If there are no incomplete tokens and this is a space or separator then this
+                    // is the end of  the token.
+                    break
                 }
-            } while (
-                position < buffer.size &&
-                    (!isSpace(buffer[position]) && !isSeparator(buffer[position], parenIsSep) ||
-                        incompleteDepth != 0)
-            )
+                position++
+            }
             // If reached the end of the buffer but the token is incomplete then throw an error.
             if (position >= buffer.size && incompleteDepth != 0) {
                 throwException("Unexpected end of file for \" starting at $line")

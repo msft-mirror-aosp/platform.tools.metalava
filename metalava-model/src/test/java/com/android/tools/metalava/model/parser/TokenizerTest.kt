@@ -103,6 +103,10 @@ class TokenizerTest(private val params: Params) {
                     input = """<A extends Other, B>""",
                     expectedTokens = listOf("<", "A", "extends", "Other", ",", "B", ">"),
                 ),
+                Params(
+                    input = """<A extends Other<A>>""",
+                    expectedTokens = listOf("<", "A", "extends", "Other<A>", ">"),
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "<{0}>") fun testParams(): List<Params> = params
