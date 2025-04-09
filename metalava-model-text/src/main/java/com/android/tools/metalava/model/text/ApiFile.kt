@@ -1345,7 +1345,7 @@ private constructor(
         // Get the optional value.
         val valueString =
             if ("=" == token) {
-                token = tokenizer.requireToken(false)
+                token = tokenizer.requireToken(parenIsSep = false)
                 token.also { token = tokenizer.requireToken() }
             } else null
 
@@ -1778,7 +1778,7 @@ private constructor(
                 // Java style: parse the type, then the public name if it has one.
                 typeString = scanForTypeString(tokenizer, token)
                 token = tokenizer.current
-                if (Tokenizer.isIdent(token) && token != "=") {
+                if (Tokenizer.isIdent(token)) {
                     name = token
                     publicName = name
                     token = tokenizer.requireToken()

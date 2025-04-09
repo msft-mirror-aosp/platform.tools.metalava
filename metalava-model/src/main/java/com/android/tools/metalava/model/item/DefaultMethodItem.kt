@@ -23,8 +23,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -33,7 +33,7 @@ import com.android.tools.metalava.reporter.FileLocation
 open class DefaultMethodItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -50,7 +50,7 @@ open class DefaultMethodItem(
     DefaultCallableItem(
         codebase,
         fileLocation,
-        itemLanguage,
+        sourceLanguage,
         modifiers,
         documentationFactory,
         variantSelectorsFactory,
@@ -107,7 +107,7 @@ open class DefaultMethodItem(
         return DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
-                itemLanguage = itemLanguage,
+                sourceLanguage = sourceLanguage,
                 modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
                 variantSelectorsFactory = variantSelectors::duplicate,

@@ -56,7 +56,7 @@ internal class PsiFieldItem(
     DefaultFieldItem(
         codebase = codebase,
         fileLocation = PsiFileLocation(psiField),
-        itemLanguage = psiField.itemLanguage,
+        sourceLanguage = psiField.sourceLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,

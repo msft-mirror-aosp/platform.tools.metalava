@@ -43,7 +43,7 @@ internal constructor(
     DefaultPackageItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = psiPackage.itemLanguage,
+        sourceLanguage = psiPackage.sourceLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,

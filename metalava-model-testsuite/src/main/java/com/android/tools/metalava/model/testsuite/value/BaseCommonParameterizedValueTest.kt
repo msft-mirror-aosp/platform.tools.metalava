@@ -563,6 +563,16 @@ object JavaTestClassCreator : TestClassCreator {
             """
         )
 
+    private val testGenericClass =
+        java(
+            """
+                package test.pkg;
+                public interface GenericClass<T> {
+                    String STRING_CONSTANT = "constant";
+                }
+            """
+        )
+
     private val testEnumClass =
         java(
             """
@@ -590,6 +600,18 @@ object JavaTestClassCreator : TestClassCreator {
             )
             .asTestClass("OtherAnnotation")
             .dependsOn(testEnumClass)
+
+    private val singleValueAnnotationClass =
+        java(
+                """
+                    package test.pkg;
+                    
+                    public @interface SingleValueAnnotation {
+                        String value();
+                    }
+                """
+            )
+            .asTestClass("SingleValueAnnotation")
 
     /** Append all the imports provided by this list to [buffer]. */
     private fun appendImportsTo(valueExample: ValueExample, buffer: StringBuilder) {
@@ -633,7 +655,9 @@ object JavaTestClassCreator : TestClassCreator {
             )
             .asTestClass(className)
             .dependsOn(otherAnnotationClass)
+            .dependsOn(singleValueAnnotationClass)
             .dependsOn(testConstantsClass)
+            .dependsOn(testGenericClass)
     }
 
     /**
@@ -697,7 +721,9 @@ object JavaTestClassCreator : TestClassCreator {
             )
             .asTestClass(className)
             .dependsOn(otherAnnotationClass)
+            .dependsOn(singleValueAnnotationClass)
             .dependsOn(testConstantsClass)
+            .dependsOn(testGenericClass)
     }
 }
 
@@ -709,6 +735,18 @@ object KotlinTestClassCreator : TestClassCreator {
                 package test.pkg
                 object Constants {
                     const val STRING_CONSTANT = "constant"
+                }
+            """
+        )
+
+    private val testGenericClass =
+        kotlin(
+            """
+                package test.pkg
+                interface GenericClass<T> {
+                    companion object {
+                        const val STRING_CONSTANT = "constant"
+                    }
                 }
             """
         )
@@ -742,6 +780,18 @@ object KotlinTestClassCreator : TestClassCreator {
             )
             .asTestClass("OtherAnnotation")
             .dependsOn(testEnumClass)
+
+    private val singleValueAnnotationClass =
+        kotlin(
+                """
+                    package test.pkg
+
+                    annotation class SingleValueAnnotation(
+                        val value: String,
+                    )
+                """
+            )
+            .asTestClass("SingleValueAnnotation")
 
     /** Append all the imports provided by this list to [buffer]. */
     private fun appendImportsTo(valueExample: ValueExample, buffer: StringBuilder) {
@@ -785,7 +835,9 @@ object KotlinTestClassCreator : TestClassCreator {
             )
             .asTestClass(className)
             .dependsOn(otherAnnotationClass)
+            .dependsOn(singleValueAnnotationClass)
             .dependsOn(testConstantsClass)
+            .dependsOn(testGenericClass)
     }
 
     /**
@@ -852,7 +904,9 @@ object KotlinTestClassCreator : TestClassCreator {
             )
             .asTestClass(className)
             .dependsOn(otherAnnotationClass)
+            .dependsOn(singleValueAnnotationClass)
             .dependsOn(testConstantsClass)
+            .dependsOn(testGenericClass)
     }
 }
 
@@ -865,6 +919,9 @@ object SignatureTestClassCreator : TestClassCreator {
                 // Signature format: 2.0
                 package test.pkg {
                   public interface Constants {
+                    field public static final String STRING_CONSTANT = "constant";
+                  }
+                  public interface GenericClass<T> {
                     field public static final String STRING_CONSTANT = "constant";
                   }
                 }

@@ -18,7 +18,8 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
-  testLegacySource[source,String using constant]
+  testLegacySource[source,annotation - multiple attributes]
+  testLegacySource[source,annotation - no attributes]
   testLegacySource[source,annotation]
   testLegacySource[source,char escaped]
   testLegacySource[source,char unicode]
@@ -42,7 +43,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
   testLegacySource[source,String array]
-  testLegacySource[source,String using constant]
+  testLegacySource[source,annotation - multiple attributes]
   testLegacySource[source,annotation]
   testLegacySource[source,char escaped]
   testLegacySource[source,char unicode]
@@ -62,6 +63,8 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[source,long with lower l]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testLegacySource[source,String using constant]
+  testLegacySource[source,annotation - multiple attributes]
   testLegacySource[source,annotation]
   testLegacySource[source,char escaped]
   testLegacySource[source,char unicode]
@@ -72,6 +75,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacySource[source,class literal - generic class]
   testLegacySource[source,enum]
   testLegacyValue[source,String using constant]
+  testLegacyValue[source,annotation - multiple attributes]
   testLegacyValue[source,annotation]
   testLegacyValue[source,array - empty]
   testLegacyValue[source,byte]
@@ -147,4 +151,3 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
 com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
   Test parse[String using constant,field_write_with_semicolon,java,source]
   Test parse[String using constant,javaExpression,jar]
-  Test parse[enum,javaExpression,jar]

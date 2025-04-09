@@ -104,11 +104,10 @@ class Tokenizer(
      * Get the next token, failing if the end of the file is reached.
      *
      * @param parenIsSep If `true` then treat `(` and `)` as separators, otherwise do not.
-     * @param eatWhitespace If `true` then eat whitespace and comments first.
      * @return the token String found.
      */
-    fun requireToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String {
-        val token = getToken(parenIsSep, eatWhitespace)
+    fun requireToken(parenIsSep: Boolean = true): String {
+        val token = getToken(parenIsSep)
         return token ?: throwException("Unexpected end of file")
     }
 
@@ -136,13 +135,12 @@ class Tokenizer(
      * Get the next token, returning null if the end of the file is reached.
      *
      * @param parenIsSep If `true` then treat `(` and `)` as separators, otherwise do not.
-     * @param eatWhitespace If `true` then eat whitespace and comments first.
      * @return the token String found, or null.
      */
-    fun getToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String? {
-        if (eatWhitespace) {
-            eatWhitespaceAndComments()
-        }
+    fun getToken(parenIsSep: Boolean = true): String? {
+        // Eat any white space or comments that come before the token.
+        eatWhitespaceAndComments()
+
         if (position >= buffer.size) {
             return null
         }
@@ -151,78 +149,66 @@ class Tokenizer(
         val start = position
         position++
         if (c == '"') {
-            val STATE_BEGIN = 0
-            val STATE_ESCAPE = 1
-            var state = STATE_BEGIN
-            while (true) {
-                if (position >= buffer.size) {
-                    throwException("Unexpected end of file for \" starting at $line")
-                }
-                val k = buffer[position]
-                if (k == '\n' || k == '\r') {
-                    throwException("Unexpected newline for \" starting at $line")
-                }
-                position++
-                when (state) {
-                    STATE_BEGIN ->
-                        when (k) {
-                            '\\' -> state = STATE_ESCAPE
-                            '"' -> {
-                                current = String(buffer, start, position - start)
-                                return current
-                            }
-                        }
-                    STATE_ESCAPE -> state = STATE_BEGIN
-                }
-            }
+            scanForClosingQuotes()
+            current = String(buffer, start, position - start)
+            return current
         } else if (isSeparator(c, parenIsSep)) {
             current = c.toString()
             return current
         } else {
-            var genericDepth = 0
-            do {
-                while (position < buffer.size) {
-                    val d = buffer[position]
-                    if (isSpace(d) || isSeparator(d, parenIsSep)) {
-                        break
-                    } else if (d == '"') {
-                        // String literal in token: skip the full thing
-                        position++
-                        while (position < buffer.size) {
-                            if (buffer[position] == '"') {
-                                position++
-                                break
-                            } else if (buffer[position] == '\\') {
-                                position++
-                            }
-                            position++
-                        }
-                        continue
-                    }
+            // A count of the number of tokens that have been started but not finished, e.g. strings
+            // that have not yet seen the closing double quotes, , etc.
+            var incompleteDepth = 0
+            while (position < buffer.size) {
+                val d = buffer[position]
+                if (d == '"') {
                     position++
+                    scanForClosingQuotes()
+                    continue
+                } else if (d == '<') {
+                    // Open a type parameter/argument list. Make sure to continue to the next `>`.
+                    incompleteDepth++
+                } else if (incompleteDepth != 0 && d == '>') {
+                    // If this closes a previously opened type parameter/argument list then close
+                    // it.
+                    incompleteDepth--
+                } else if (incompleteDepth == 0 && (isSpace(d) || isSeparator(d, parenIsSep))) {
+                    // If there are no incomplete tokens and this is a space or separator then this
+                    // is the end of  the token.
+                    break
                 }
-                if (position < buffer.size) {
-                    if (buffer[position] == '<') {
-                        genericDepth++
-                        position++
-                    } else if (genericDepth != 0) {
-                        if (buffer[position] == '>') {
-                            genericDepth--
-                        }
-                        position++
-                    }
-                }
-            } while (
-                position < buffer.size &&
-                    (!isSpace(buffer[position]) && !isSeparator(buffer[position], parenIsSep) ||
-                        genericDepth != 0)
-            )
-            if (position >= buffer.size) {
+                position++
+            }
+            // If reached the end of the buffer but the token is incomplete then throw an error.
+            if (position >= buffer.size && incompleteDepth != 0) {
                 throwException("Unexpected end of file for \" starting at $line")
             }
             current = String(buffer, start, position - start)
             return current
         }
+    }
+
+    /**
+     * Scan from [position] (which should be immediately after the opening quotes) until after the
+     * matching closing quotes.
+     */
+    private fun scanForClosingQuotes() {
+        while (position < buffer.size) {
+            val k = buffer[position]
+            position++
+            if (k == '\n' || k == '\r') {
+                throwException("Unexpected newline for \" starting at $line")
+            }
+
+            if (k == '"') {
+                return
+            } else if (k == '\\') {
+                // Skip the escaped character. This only really matters if the character is a quote
+                // as without skipping it would be treated as the closing quote.
+                position++
+            }
+        }
+        throwException("Unexpected end of file for \" starting at $line")
     }
 
     fun assertIdent(token: String) {
@@ -246,7 +232,7 @@ class Tokenizer(
                     return true
                 }
             }
-            return c == '{' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>'
+            return c == '{' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>' || c == '='
         }
 
         private fun isIdent(c: Char): Boolean {
