@@ -72,6 +72,10 @@ class TokenizerTest(private val params: Params) {
                     parenIsSep = false,
                     expectedError = """api.txt:1: Unexpected end of file for " starting at 1""",
                 ),
+                Params(
+                    input = """ value=1""",
+                    expectedTokens = listOf("value=1"),
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "<{0}>") fun testParams(): List<Params> = params

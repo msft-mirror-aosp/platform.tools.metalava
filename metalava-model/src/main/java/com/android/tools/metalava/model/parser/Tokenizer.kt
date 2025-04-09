@@ -179,7 +179,9 @@ class Tokenizer(
             current = c.toString()
             return current
         } else {
-            var genericDepth = 0
+            // A count of the number of tokens that have been started but not finished, e.g. strings
+            // that have not yet seen the closing double quotes, , etc.
+            var incompleteDepth = 0
             do {
                 while (position < buffer.size) {
                     val d = buffer[position]
@@ -188,9 +190,11 @@ class Tokenizer(
                     } else if (d == '"') {
                         // String literal in token: skip the full thing
                         position++
+                        incompleteDepth++
                         while (position < buffer.size) {
                             if (buffer[position] == '"') {
                                 position++
+                                incompleteDepth--
                                 break
                             } else if (buffer[position] == '\\') {
                                 position++
@@ -203,11 +207,11 @@ class Tokenizer(
                 }
                 if (position < buffer.size) {
                     if (buffer[position] == '<') {
-                        genericDepth++
+                        incompleteDepth++
                         position++
-                    } else if (genericDepth != 0) {
+                    } else if (incompleteDepth != 0) {
                         if (buffer[position] == '>') {
-                            genericDepth--
+                            incompleteDepth--
                         }
                         position++
                     }
@@ -215,9 +219,10 @@ class Tokenizer(
             } while (
                 position < buffer.size &&
                     (!isSpace(buffer[position]) && !isSeparator(buffer[position], parenIsSep) ||
-                        genericDepth != 0)
+                        incompleteDepth != 0)
             )
-            if (position >= buffer.size) {
+            // If reached the end of the buffer but the token is incomplete then throw an error.
+            if (position >= buffer.size && incompleteDepth != 0) {
                 throwException("Unexpected end of file for \" starting at $line")
             }
             current = String(buffer, start, position - start)
