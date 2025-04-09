@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model
 
 /** The language of an item. */
-enum class ItemLanguage {
+enum class SourceLanguage {
     KOTLIN,
     JAVA,
     UNKNOWN {

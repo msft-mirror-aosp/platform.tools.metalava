@@ -54,7 +54,7 @@ internal constructor(
     DefaultClassItem(
         codebase = codebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiClass),
-        itemLanguage = psiClass.itemLanguage,
+        sourceLanguage = psiClass.sourceLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
