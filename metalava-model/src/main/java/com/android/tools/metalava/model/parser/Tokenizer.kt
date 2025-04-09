@@ -194,7 +194,7 @@ class Tokenizer(
 
         // If reached the end of the buffer but the token is incomplete then throw an error.
         if (incompleteDepth != 0) {
-            throwException("Unexpected end of file for \" starting at $line")
+            throwException("Unexpected end of file for < starting at $line")
         }
     }
 

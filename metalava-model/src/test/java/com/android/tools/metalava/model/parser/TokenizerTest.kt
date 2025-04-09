@@ -107,6 +107,10 @@ class TokenizerTest(private val params: Params) {
                     input = """<A extends Other<A>>""",
                     expectedTokens = listOf("<", "A", "extends", "Other<A>", ">"),
                 ),
+                Params(
+                    input = """Other<String""",
+                    expectedError = "api.txt:1: Unexpected end of file for < starting at 1",
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "<{0}>") fun testParams(): List<Params> = params
