@@ -502,14 +502,7 @@ internal class PsiValueFactory(
     ): ArrayElementValue? {
         if (resolved is PsiField) {
             codebase.findField(resolved)?.let { fieldItem ->
-                if (fieldItem.isEnumConstant()) {
-                    return createEnumConstantValue(fieldItem)
-                }
-
-                // Get the constant value of the field, if any.
-                val constantValue = constantProvider()
-
-                return createConstantFieldValue(fieldItem, constantValue)
+                return createFieldReferenceValue(fieldItem)
             }
         }
 
