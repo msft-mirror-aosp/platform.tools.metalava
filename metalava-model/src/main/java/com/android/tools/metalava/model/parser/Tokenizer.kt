@@ -149,30 +149,9 @@ class Tokenizer(
         val start = position
         position++
         if (c == '"') {
-            val STATE_BEGIN = 0
-            val STATE_ESCAPE = 1
-            var state = STATE_BEGIN
-            while (true) {
-                if (position >= buffer.size) {
-                    throwException("Unexpected end of file for \" starting at $line")
-                }
-                val k = buffer[position]
-                if (k == '\n' || k == '\r') {
-                    throwException("Unexpected newline for \" starting at $line")
-                }
-                position++
-                when (state) {
-                    STATE_BEGIN ->
-                        when (k) {
-                            '\\' -> state = STATE_ESCAPE
-                            '"' -> {
-                                current = String(buffer, start, position - start)
-                                return current
-                            }
-                        }
-                    STATE_ESCAPE -> state = STATE_BEGIN
-                }
-            }
+            scanForClosingQuotes()
+            current = String(buffer, start, position - start)
+            return current
         } else if (isSeparator(c, parenIsSep)) {
             current = c.toString()
             return current
@@ -183,19 +162,8 @@ class Tokenizer(
             while (position < buffer.size) {
                 val d = buffer[position]
                 if (d == '"') {
-                    // String literal in token: skip the full thing
                     position++
-                    incompleteDepth++
-                    while (position < buffer.size) {
-                        if (buffer[position] == '"') {
-                            position++
-                            incompleteDepth--
-                            break
-                        } else if (buffer[position] == '\\') {
-                            position++
-                        }
-                        position++
-                    }
+                    scanForClosingQuotes()
                     continue
                 } else if (d == '<') {
                     // Open a type parameter/argument list. Make sure to continue to the next `>`.
@@ -218,6 +186,29 @@ class Tokenizer(
             current = String(buffer, start, position - start)
             return current
         }
+    }
+
+    /**
+     * Scan from [position] (which should be immediately after the opening quotes) until after the
+     * matching closing quotes.
+     */
+    private fun scanForClosingQuotes() {
+        while (position < buffer.size) {
+            val k = buffer[position]
+            position++
+            if (k == '\n' || k == '\r') {
+                throwException("Unexpected newline for \" starting at $line")
+            }
+
+            if (k == '"') {
+                return
+            } else if (k == '\\') {
+                // Skip the escaped character. This only really matters if the character is a quote
+                // as without skipping it would be treated as the closing quote.
+                position++
+            }
+        }
+        throwException("Unexpected end of file for \" starting at $line")
     }
 
     fun assertIdent(token: String) {
