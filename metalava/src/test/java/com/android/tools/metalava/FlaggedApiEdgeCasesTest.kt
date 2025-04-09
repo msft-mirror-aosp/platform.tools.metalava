@@ -188,6 +188,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             package test.pkg;
                             /**
                              * Javadoc for Test
+                             * @apiSince 31
                              */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
