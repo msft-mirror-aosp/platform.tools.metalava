@@ -145,7 +145,13 @@ class Tokenizer(
             return null
         }
         val start = position
-        scanForEndOfToken(parenIsSep)
+        // If the first character is a separator then that is the token.
+        if (isSeparator(buffer[position], parenIsSep)) {
+            // Nothing else to do, the separator is the token.
+            position++
+        } else {
+            scanForEndOfToken(parenIsSep)
+        }
         current = String(buffer, start, position - start)
         return current
     }
@@ -157,14 +163,6 @@ class Tokenizer(
      */
     private fun scanForEndOfToken(parenIsSep: Boolean) {
         val line = line
-
-        // If the first character is a separator then that is the token.
-        if (isSeparator(buffer[position], parenIsSep)) {
-            // Nothing else to do, the separator is the token.
-            position++
-            return
-        }
-
         // A count of the number of tokens that have been started but not finished, e.g. strings
         // that have not yet seen the closing double quotes, , etc.
         var incompleteDepth = 0
