@@ -29,15 +29,15 @@ class TokenizerTest(private val params: Params) {
     data class Params(
         val input: String,
         val parenIsSep: Boolean = true,
-        val expectedToken: String? = null,
+        val expectedTokens: List<String>? = null,
         val expectedError: String? = null,
     ) {
         init {
-            if (expectedToken == null && expectedError == null) {
+            if (expectedTokens == null && expectedError == null) {
                 throw IllegalArgumentException(
                     "Expected one of `expectedToken` and `expectedError`, found neither"
                 )
-            } else if (expectedToken != null && expectedError != null) {
+            } else if (expectedTokens != null && expectedError != null) {
                 throw IllegalArgumentException(
                     "Expected one of `expectedToken` and `expectedError`, found both"
                 )
@@ -52,7 +52,7 @@ class TokenizerTest(private val params: Params) {
             listOf(
                 Params(
                     input = """  "string"  """,
-                    expectedToken = """"string"""",
+                    expectedTokens = listOf(""""string""""),
                 ),
                 Params(
                     input = """  "string  """,
@@ -65,7 +65,7 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """ @pkg.Annotation("string") """,
                     parenIsSep = false,
-                    expectedToken = """@pkg.Annotation("string")""",
+                    expectedTokens = listOf("""@pkg.Annotation("string")"""),
                 ),
                 Params(
                     input = """ @pkg.Annotation("string """,
@@ -90,9 +90,14 @@ class TokenizerTest(private val params: Params) {
             assertEquals(expectedError, exception.message)
         }
 
-        params.expectedToken?.let { expectedToken ->
-            val token = requireToken()
-            assertEquals(expectedToken, token)
+        params.expectedTokens?.let { expectedTokens ->
+            val tokens = buildList {
+                do {
+                    tokenizer.getToken(parenIsSep = params.parenIsSep)?.let { token -> add(token) }
+                        ?: break
+                } while (true)
+            }
+            assertEquals(expectedTokens, tokens)
         }
     }
 }
