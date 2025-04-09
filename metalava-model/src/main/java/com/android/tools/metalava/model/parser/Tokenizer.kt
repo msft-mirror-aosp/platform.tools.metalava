@@ -157,40 +157,44 @@ class Tokenizer(
      */
     private fun scanForEndOfToken(parenIsSep: Boolean) {
         val line = line
-        val c = buffer[position]
-        position++
-        if (c == '"') {
-            scanForClosingQuotes()
-        } else if (isSeparator(c, parenIsSep)) {
+
+        // If the first character is a separator then that is the token.
+        if (isSeparator(buffer[position], parenIsSep)) {
             // Nothing else to do, the separator is the token.
-        } else {
-            // A count of the number of tokens that have been started but not finished, e.g. strings
-            // that have not yet seen the closing double quotes, , etc.
-            var incompleteDepth = 0
-            while (position < buffer.size) {
-                val d = buffer[position]
-                if (d == '"') {
-                    position++
-                    scanForClosingQuotes()
-                    continue
-                } else if (d == '<') {
-                    // Open a type parameter/argument list. Make sure to continue to the next `>`.
-                    incompleteDepth++
-                } else if (incompleteDepth != 0 && d == '>') {
-                    // If this closes a previously opened type parameter/argument list then close
-                    // it.
-                    incompleteDepth--
-                } else if (incompleteDepth == 0 && (isSpace(d) || isSeparator(d, parenIsSep))) {
-                    // If there are no incomplete tokens and this is a space or separator then this
-                    // is the end of  the token.
-                    break
-                }
-                position++
+            position++
+            return
+        }
+
+        // A count of the number of tokens that have been started but not finished, e.g. strings
+        // that have not yet seen the closing double quotes, , etc.
+        var incompleteDepth = 0
+        while (position < buffer.size) {
+            // Get the next character and assume that it is part of the token by incrementing the
+            // position.
+            val c = buffer[position]
+            position++
+
+            if (c == '"') {
+                scanForClosingQuotes()
+            } else if (c == '<') {
+                // Open a type parameter/argument list. Make sure to continue to the next `>`.
+                incompleteDepth++
+            } else if (incompleteDepth != 0 && c == '>') {
+                // If this closes a previously opened type parameter/argument list then close
+                // it.
+                incompleteDepth--
+            } else if (incompleteDepth == 0 && (isSpace(c) || isSeparator(c, parenIsSep))) {
+                // If there are no incomplete tokens then a space or separator ends the token but
+                // is not part of it. Remove it from the token by decrementing the position and then
+                // return.
+                position--
+                return
             }
-            // If reached the end of the buffer but the token is incomplete then throw an error.
-            if (position >= buffer.size && incompleteDepth != 0) {
-                throwException("Unexpected end of file for \" starting at $line")
-            }
+        }
+
+        // If reached the end of the buffer but the token is incomplete then throw an error.
+        if (incompleteDepth != 0) {
+            throwException("Unexpected end of file for \" starting at $line")
         }
     }
 
