@@ -45,7 +45,7 @@ class TokenizerTest(private val params: Params) {
             }
         }
 
-        override fun toString(): String = label
+        override fun toString(): String = "$label,parenIsSep=$parenIsSep"
     }
 
     companion object {
@@ -63,11 +63,135 @@ class TokenizerTest(private val params: Params) {
                     input = """  "string\""",
                     expectedError = """api.txt:1: Unexpected end of file for " starting at 1""",
                 ),
+                // Test handling of empty parentheses.
                 Params(
-                    input = """ @pkg.Annotation("string") """,
+                    input = """@pkg.Annotation()""",
+                    parenIsSep = false,
+                    expectedTokens = listOf("""@pkg.Annotation()"""),
+                ),
+                Params(
+                    input = """@pkg.Annotation()""",
+                    parenIsSep = true,
+                    expectedTokens = listOf("@pkg.Annotation", "(", ")"),
+                ),
+                // Test handling of empty parentheses with extra space.
+                Params(
+                    input = """@pkg.Annotation( )""",
+                    parenIsSep = false,
+                    // TODO(b/354633349): This is wrong, should be a single token.
+                    expectedTokens = listOf("@pkg.Annotation(", ")"),
+                ),
+                Params(
+                    input = """@pkg.Annotation( )""",
+                    parenIsSep = true,
+                    expectedTokens = listOf("@pkg.Annotation", "(", ")"),
+                ),
+                // Test handling of parentheses with one parameter.
+                Params(
+                    input = """@pkg.Annotation("string")""",
                     parenIsSep = false,
                     expectedTokens = listOf("""@pkg.Annotation("string")"""),
                 ),
+                Params(
+                    input = """@pkg.Annotation("string")""",
+                    parenIsSep = true,
+                    expectedTokens = listOf("@pkg.Annotation", "(", "\"string\"", ")"),
+                ),
+                // Test handling of parentheses with multiple, space separated parameters.
+                Params(
+                    input = """@pkg.Annotation(stringAttr="string", intAttr=1)""",
+                    parenIsSep = false,
+                    // TODO(b/354633349): This is wrong, should be a single token.
+                    expectedTokens =
+                        listOf(
+                            "@pkg.Annotation(stringAttr",
+                            "=",
+                            "\"string\"",
+                            ",",
+                            "intAttr",
+                            "=",
+                            "1)",
+                        ),
+                ),
+                Params(
+                    input = """@pkg.Annotation(stringAttr="string", intAttr=1)""",
+                    parenIsSep = true,
+                    expectedTokens =
+                        listOf(
+                            "@pkg.Annotation",
+                            "(",
+                            "stringAttr",
+                            "=",
+                            "\"string\"",
+                            ",",
+                            "intAttr",
+                            "=",
+                            "1",
+                            ")",
+                        ),
+                ),
+                // Test handling of nested layer of parentheses.
+                Params(
+                    input = """@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))""",
+                    parenIsSep = false,
+                    // TODO(b/354633349): This is wrong, should be a single token.
+                    expectedTokens =
+                        listOf(
+                            "@pkg.Annotation(attr",
+                            "=",
+                            "1",
+                            ",",
+                            "nested",
+                            "=",
+                            "@pkg.Nested(\"string\"))",
+                        ),
+                ),
+                Params(
+                    input = """@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))""",
+                    parenIsSep = true,
+                    expectedTokens =
+                        listOf(
+                            "@pkg.Annotation",
+                            "(",
+                            "attr",
+                            "=",
+                            "1",
+                            ",",
+                            "nested",
+                            "=",
+                            "@pkg.Nested",
+                            "(",
+                            "\"string\"",
+                            ")",
+                            ")",
+                        ),
+                ),
+                // Test handling of unmatched open parentheses.
+                Params(
+                    input = """@pkg.Annotation(""",
+                    parenIsSep = false,
+                    // TODO(b/354633349): This is wrong, should report an error.
+                    expectedTokens = listOf("@pkg.Annotation("),
+                ),
+                Params(
+                    input = """@pkg.Annotation(""",
+                    parenIsSep = true,
+                    expectedTokens = listOf("@pkg.Annotation", "("),
+                ),
+                // Test handling of trailing closed parentheses.
+                Params(
+                    input = """1)""",
+                    parenIsSep = false,
+                    // TODO(b/354633349): This is wrong, an unbalanced close parenthesis should be
+                    //  treated as a separator.
+                    expectedTokens = listOf("1)"),
+                ),
+                Params(
+                    input = """1)""",
+                    parenIsSep = true,
+                    expectedTokens = listOf("1", ")"),
+                ),
+                // Test handling of unmatched open quotes.
                 Params(
                     input = """ @pkg.Annotation("string """,
                     parenIsSep = false,
