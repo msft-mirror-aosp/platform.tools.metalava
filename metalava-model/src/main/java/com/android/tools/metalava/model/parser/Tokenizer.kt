@@ -233,6 +233,9 @@ class Tokenizer(
             } else if (purpose == TokenPurpose.VALUE && c == '(') {
                 // Open a parenthesized fragment. Make sure to continue to the next `)`.
                 scanForEndOfTokenFragment('(', ')')
+            } else if (purpose == TokenPurpose.VALUE && c == '{') {
+                // Open a braced fragment. Make sure to continue to the next `}`.
+                scanForEndOfTokenFragment('{', '}')
             } else if (endOfTokenPredicate(c)) {
                 if (openChar == null) {
                     position--
@@ -296,18 +299,12 @@ class Tokenizer(
                 // 3. An unbalanced close parenthesis, e.g. in `attr=1)`, should be treated as a
                 //    separator so it is not included in the preceding token, e.g. the above should
                 //    tokenize as `attr`, `=`, `1`, `)`  and NOT `attr`, `=`, `1)`.
-                if (c == '(') {
+                // Ditto for open and close braces.
+                if (c == '(' || c == '{') {
                     return true
                 }
             }
-            return c == ')' ||
-                c == '{' ||
-                c == '}' ||
-                c == ',' ||
-                c == ';' ||
-                c == '<' ||
-                c == '>' ||
-                c == '='
+            return c == ')' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>' || c == '='
         }
 
         private fun isIdent(c: Char): Boolean {

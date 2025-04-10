@@ -222,7 +222,7 @@ class TokenizerTest(private val params: Params) {
                     input = """{1, 2}""",
                     purpose = TokenPurpose.VALUE,
                     // TODO(b/354633349): This is wrong, should be a single token.
-                    expectedTokens = listOf("{", "1", ",", "2", "}"),
+                    expectedTokens = listOf("{1, 2}"),
                 ),
                 // Test handling of unbalanced brace.
                 Params(
@@ -233,8 +233,7 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """{1,""",
                     purpose = TokenPurpose.VALUE,
-                    // TODO(b/354633349): This is wrong, should report an error.
-                    expectedTokens = listOf("{", "1", ","),
+                    expectedError = "api.txt:1: Unexpected end of file for { starting at 1",
                 ),
             )
 
