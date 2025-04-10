@@ -23,6 +23,8 @@ versionProperties="$OUT_DIR/build/base/builder-model/build/resources/main/com/an
 export LINT_VERSION=`perl -nle'print $& while m{(?<=baseVersion=).*}g' $versionProperties`
 export LINT_REPO="$(pwd)/out/repo"
 
+export ANDROID_HOME="$ANDROIDX_DIR/prebuilts/fullsdk-$plat"
+
 JAVA_HOME="$(pwd)/prebuilts/jdk/jdk21/linux-x86/" tools/gradlew -p tools/metalava \
   --no-daemon \
   --stacktrace \
