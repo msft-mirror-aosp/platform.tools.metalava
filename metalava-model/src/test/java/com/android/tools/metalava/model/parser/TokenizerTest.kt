@@ -78,8 +78,7 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """@pkg.Annotation( )""",
                     parenIsSep = false,
-                    // TODO(b/354633349): This is wrong, should be a single token.
-                    expectedTokens = listOf("@pkg.Annotation(", ")"),
+                    expectedTokens = listOf("@pkg.Annotation( )"),
                 ),
                 Params(
                     input = """@pkg.Annotation( )""",
@@ -101,17 +100,7 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """@pkg.Annotation(stringAttr="string", intAttr=1)""",
                     parenIsSep = false,
-                    // TODO(b/354633349): This is wrong, should be a single token.
-                    expectedTokens =
-                        listOf(
-                            "@pkg.Annotation(stringAttr",
-                            "=",
-                            "\"string\"",
-                            ",",
-                            "intAttr",
-                            "=",
-                            "1)",
-                        ),
+                    expectedTokens = listOf("@pkg.Annotation(stringAttr=\"string\", intAttr=1)"),
                 ),
                 Params(
                     input = """@pkg.Annotation(stringAttr="string", intAttr=1)""",
@@ -134,17 +123,8 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))""",
                     parenIsSep = false,
-                    // TODO(b/354633349): This is wrong, should be a single token.
                     expectedTokens =
-                        listOf(
-                            "@pkg.Annotation(attr",
-                            "=",
-                            "1",
-                            ",",
-                            "nested",
-                            "=",
-                            "@pkg.Nested(\"string\"))",
-                        ),
+                        listOf("""@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))"""),
                 ),
                 Params(
                     input = """@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))""",
@@ -170,8 +150,7 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """@pkg.Annotation(""",
                     parenIsSep = false,
-                    // TODO(b/354633349): This is wrong, should report an error.
-                    expectedTokens = listOf("@pkg.Annotation("),
+                    expectedError = """api.txt:1: Unexpected end of file for ( starting at 1""",
                 ),
                 Params(
                     input = """@pkg.Annotation(""",
@@ -182,9 +161,7 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """1)""",
                     parenIsSep = false,
-                    // TODO(b/354633349): This is wrong, an unbalanced close parenthesis should be
-                    //  treated as a separator.
-                    expectedTokens = listOf("1)"),
+                    expectedTokens = listOf("1", ")"),
                 ),
                 Params(
                     input = """1)""",

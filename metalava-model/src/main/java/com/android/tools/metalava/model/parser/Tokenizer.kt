@@ -164,7 +164,9 @@ class Tokenizer(
      * @see inlinedScanForEndOfTokenFragment
      */
     private fun scanForEndOfToken(parenIsSep: Boolean) {
-        inlinedScanForEndOfTokenFragment { c -> isSpace(c) || isSeparator(c, parenIsSep) }
+        inlinedScanForEndOfTokenFragment(parenIsSep) { c ->
+            isSpace(c) || isSeparator(c, parenIsSep)
+        }
     }
 
     /**
@@ -175,13 +177,13 @@ class Tokenizer(
      * a token of "Generic<AnotherGeneric<A>, B>" then "<AnotherGeneric<A>, B>" is a token fragment
      * of the whole token and "<A>" is a token fragment of that.
      *
-     * Currently, every token fragment starts with `<` and ends with `>`. It is an error if the end
-     * of the buffer is reached before matching the corresponding close `>` character.
+     * A token fragment starts with [openChar] and ends with [closeChar]. It is an error if the end
+     * of the buffer is reached before matching the corresponding [closeChar] character.
      *
      * @see inlinedScanForEndOfTokenFragment
      */
-    private fun scanForEndOfTokenFragment() {
-        inlinedScanForEndOfTokenFragment(openChar = '<') { c -> c == '>' }
+    private fun scanForEndOfTokenFragment(openChar: Char, closeChar: Char) {
+        inlinedScanForEndOfTokenFragment(parenIsSep = false, openChar) { c -> c == closeChar }
     }
 
     /**
@@ -204,8 +206,13 @@ class Tokenizer(
      *
      * If this finds a `<` character it will call [scanForEndOfTokenFragment] to find the matching
      * `>` character, failing if it reaches the end of the buffer first.
+     *
+     * If [parenIsSep] is `false` and this finds a `(` character, it will call
+     * [scanForEndOfTokenFragment] to find the matching `)` character, failing if it reaches the end
+     * of the buffer first.
      */
     private inline fun inlinedScanForEndOfTokenFragment(
+        parenIsSep: Boolean,
         openChar: Char? = null,
         endOfTokenPredicate: (Char) -> Boolean
     ) {
@@ -220,7 +227,10 @@ class Tokenizer(
                 scanForClosingQuotes()
             } else if (c == '<') {
                 // Open a type parameter/argument list. Make sure to continue to the next `>`.
-                scanForEndOfTokenFragment()
+                scanForEndOfTokenFragment('<', '>')
+            } else if (!parenIsSep && c == '(') {
+                // Open a parenthesized fragment. Make sure to continue to the next `)`.
+                scanForEndOfTokenFragment('(', ')')
             } else if (endOfTokenPredicate(c)) {
                 if (openChar == null) {
                     position--
@@ -275,11 +285,27 @@ class Tokenizer(
 
         private fun isSeparator(c: Char, parenIsSep: Boolean): Boolean {
             if (parenIsSep) {
-                if (c == '(' || c == ')') {
+                // This only affects whether an open parenthesis is treated as a separator. A close
+                // parenthesis is always treated as a separator because:
+                // 1. If an open parenthesis is a separator then so should a close parenthesis.
+                // 2. If an open parenthesis is not a separator then its matching close parenthesis
+                //    will be included in the token irrespective of whether it is a separator or
+                //    not.
+                // 3. An unbalanced close parenthesis, e.g. in `attr=1)`, should be treated as a
+                //    separator so it is not included in the preceding token, e.g. the above should
+                //    tokenize as `attr`, `=`, `1`, `)`  and NOT `attr`, `=`, `1)`.
+                if (c == '(') {
                     return true
                 }
             }
-            return c == '{' || c == '}' || c == ',' || c == ';' || c == '<' || c == '>' || c == '='
+            return c == ')' ||
+                c == '{' ||
+                c == '}' ||
+                c == ',' ||
+                c == ';' ||
+                c == '<' ||
+                c == '>' ||
+                c == '='
         }
 
         private fun isIdent(c: Char): Boolean {
