@@ -29,7 +29,7 @@ class TokenizerTest(private val params: Params) {
     data class Params(
         val input: String,
         val label: String = input,
-        val parenIsSep: Boolean = true,
+        val purpose: TokenPurpose = TokenPurpose.GENERAL,
         val expectedTokens: List<String>? = null,
         val expectedError: String? = null,
     ) {
@@ -45,7 +45,7 @@ class TokenizerTest(private val params: Params) {
             }
         }
 
-        override fun toString(): String = "$label,parenIsSep=$parenIsSep"
+        override fun toString(): String = "$label,purpose=$purpose"
     }
 
     companion object {
@@ -66,45 +66,45 @@ class TokenizerTest(private val params: Params) {
                 // Test handling of empty parentheses.
                 Params(
                     input = """@pkg.Annotation()""",
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedTokens = listOf("""@pkg.Annotation()"""),
                 ),
                 Params(
                     input = """@pkg.Annotation()""",
-                    parenIsSep = true,
+                    purpose = TokenPurpose.GENERAL,
                     expectedTokens = listOf("@pkg.Annotation", "(", ")"),
                 ),
                 // Test handling of empty parentheses with extra space.
                 Params(
                     input = """@pkg.Annotation( )""",
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedTokens = listOf("@pkg.Annotation( )"),
                 ),
                 Params(
                     input = """@pkg.Annotation( )""",
-                    parenIsSep = true,
+                    purpose = TokenPurpose.GENERAL,
                     expectedTokens = listOf("@pkg.Annotation", "(", ")"),
                 ),
                 // Test handling of parentheses with one parameter.
                 Params(
                     input = """@pkg.Annotation("string")""",
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedTokens = listOf("""@pkg.Annotation("string")"""),
                 ),
                 Params(
                     input = """@pkg.Annotation("string")""",
-                    parenIsSep = true,
+                    purpose = TokenPurpose.GENERAL,
                     expectedTokens = listOf("@pkg.Annotation", "(", "\"string\"", ")"),
                 ),
                 // Test handling of parentheses with multiple, space separated parameters.
                 Params(
                     input = """@pkg.Annotation(stringAttr="string", intAttr=1)""",
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedTokens = listOf("@pkg.Annotation(stringAttr=\"string\", intAttr=1)"),
                 ),
                 Params(
                     input = """@pkg.Annotation(stringAttr="string", intAttr=1)""",
-                    parenIsSep = true,
+                    purpose = TokenPurpose.GENERAL,
                     expectedTokens =
                         listOf(
                             "@pkg.Annotation",
@@ -122,13 +122,13 @@ class TokenizerTest(private val params: Params) {
                 // Test handling of nested layer of parentheses.
                 Params(
                     input = """@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))""",
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedTokens =
                         listOf("""@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))"""),
                 ),
                 Params(
                     input = """@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))""",
-                    parenIsSep = true,
+                    purpose = TokenPurpose.GENERAL,
                     expectedTokens =
                         listOf(
                             "@pkg.Annotation",
@@ -149,29 +149,29 @@ class TokenizerTest(private val params: Params) {
                 // Test handling of unmatched open parentheses.
                 Params(
                     input = """@pkg.Annotation(""",
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedError = """api.txt:1: Unexpected end of file for ( starting at 1""",
                 ),
                 Params(
                     input = """@pkg.Annotation(""",
-                    parenIsSep = true,
+                    purpose = TokenPurpose.GENERAL,
                     expectedTokens = listOf("@pkg.Annotation", "("),
                 ),
                 // Test handling of trailing closed parentheses.
                 Params(
                     input = """1)""",
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedTokens = listOf("1", ")"),
                 ),
                 Params(
                     input = """1)""",
-                    parenIsSep = true,
+                    purpose = TokenPurpose.GENERAL,
                     expectedTokens = listOf("1", ")"),
                 ),
                 // Test handling of unmatched open quotes.
                 Params(
                     input = """ @pkg.Annotation("string """,
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedError = """api.txt:1: Unexpected end of file for " starting at 1""",
                 ),
                 Params(
@@ -222,7 +222,7 @@ class TokenizerTest(private val params: Params) {
         val tokenizer = Tokenizer(Path.of("api.txt"), params.input.toCharArray())
 
         fun requireToken(): String {
-            return tokenizer.requireToken(parenIsSep = params.parenIsSep)
+            return tokenizer.requireToken(purpose = params.purpose)
         }
 
         params.expectedError?.let { expectedError ->
@@ -233,7 +233,7 @@ class TokenizerTest(private val params: Params) {
         params.expectedTokens?.let { expectedTokens ->
             val tokens = buildList {
                 do {
-                    tokenizer.getToken(parenIsSep = params.parenIsSep)?.let { token -> add(token) }
+                    tokenizer.getToken(purpose = params.purpose)?.let { token -> add(token) }
                         ?: break
                 } while (true)
             }

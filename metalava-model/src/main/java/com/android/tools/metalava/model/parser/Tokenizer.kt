@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.parser
 
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
 
@@ -25,7 +27,7 @@ import java.nio.file.Path
  * The tokens are not the usual sort of tokens created by a tokenizer, e.g. some tokens contain
  * white spaces and even whole strings. e.g. an annotation, including parameters if present, can be
  * returned as a single token, if requested (e.g. by calling [requireToken] with
- * `parenIsSep=false`).
+ * `purpose=TokenPurpose.VALUE`).
  *
  * @param path the [Path] to the source being read.
  * @param buffer the [CharArray] from which this will read tokens.
@@ -103,11 +105,11 @@ class Tokenizer(
     /**
      * Get the next token, failing if the end of the file is reached.
      *
-     * @param parenIsSep If `true` then treat `(` and `)` as separators, otherwise do not.
+     * @param purpose determines which characters will be included in the token.
      * @return the token String found.
      */
-    fun requireToken(parenIsSep: Boolean = true): String {
-        val token = getToken(parenIsSep)
+    fun requireToken(purpose: TokenPurpose = TokenPurpose.GENERAL): String {
+        val token = getToken(purpose)
         return token ?: throwException("Unexpected end of file")
     }
 
@@ -134,10 +136,10 @@ class Tokenizer(
     /**
      * Get the next token, returning null if the end of the file is reached.
      *
-     * @param parenIsSep If `true` then treat `(` and `)` as separators, otherwise do not.
+     * @param purpose determines which characters will be included in the token.
      * @return the token String found, or null.
      */
-    fun getToken(parenIsSep: Boolean = true): String? {
+    fun getToken(purpose: TokenPurpose = TokenPurpose.GENERAL): String? {
         // Eat any white space or comments that come before the token.
         eatWhitespaceAndComments()
 
@@ -146,11 +148,11 @@ class Tokenizer(
         }
         val start = position
         // If the first character is a separator then that is the token.
-        if (isSeparator(buffer[position], parenIsSep)) {
+        if (isSeparator(buffer[position], purpose)) {
             // Nothing else to do, the separator is the token.
             position++
         } else {
-            scanForEndOfToken(parenIsSep)
+            scanForEndOfToken(purpose)
         }
         current = String(buffer, start, position - start)
         return current
@@ -163,10 +165,8 @@ class Tokenizer(
      *
      * @see inlinedScanForEndOfTokenFragment
      */
-    private fun scanForEndOfToken(parenIsSep: Boolean) {
-        inlinedScanForEndOfTokenFragment(parenIsSep) { c ->
-            isSpace(c) || isSeparator(c, parenIsSep)
-        }
+    private fun scanForEndOfToken(purpose: TokenPurpose) {
+        inlinedScanForEndOfTokenFragment(purpose) { c -> isSpace(c) || isSeparator(c, purpose) }
     }
 
     /**
@@ -183,7 +183,9 @@ class Tokenizer(
      * @see inlinedScanForEndOfTokenFragment
      */
     private fun scanForEndOfTokenFragment(openChar: Char, closeChar: Char) {
-        inlinedScanForEndOfTokenFragment(parenIsSep = false, openChar) { c -> c == closeChar }
+        inlinedScanForEndOfTokenFragment(purpose = TokenPurpose.VALUE, openChar) { c ->
+            c == closeChar
+        }
     }
 
     /**
@@ -207,12 +209,12 @@ class Tokenizer(
      * If this finds a `<` character it will call [scanForEndOfTokenFragment] to find the matching
      * `>` character, failing if it reaches the end of the buffer first.
      *
-     * If [parenIsSep] is `false` and this finds a `(` character, it will call
+     * If [purpose] is [TokenPurpose.VALUE] and this finds a `(` character, it will call
      * [scanForEndOfTokenFragment] to find the matching `)` character, failing if it reaches the end
      * of the buffer first.
      */
     private inline fun inlinedScanForEndOfTokenFragment(
-        parenIsSep: Boolean,
+        purpose: TokenPurpose,
         openChar: Char? = null,
         endOfTokenPredicate: (Char) -> Boolean
     ) {
@@ -228,7 +230,7 @@ class Tokenizer(
             } else if (c == '<') {
                 // Open a type parameter/argument list. Make sure to continue to the next `>`.
                 scanForEndOfTokenFragment('<', '>')
-            } else if (!parenIsSep && c == '(') {
+            } else if (purpose == TokenPurpose.VALUE && c == '(') {
                 // Open a parenthesized fragment. Make sure to continue to the next `)`.
                 scanForEndOfTokenFragment('(', ')')
             } else if (endOfTokenPredicate(c)) {
@@ -283,8 +285,8 @@ class Tokenizer(
             return c == '\n' || c == '\r'
         }
 
-        private fun isSeparator(c: Char, parenIsSep: Boolean): Boolean {
-            if (parenIsSep) {
+        private fun isSeparator(c: Char, purpose: TokenPurpose): Boolean {
+            if (purpose == TokenPurpose.GENERAL) {
                 // This only affects whether an open parenthesis is treated as a separator. A close
                 // parenthesis is always treated as a separator because:
                 // 1. If an open parenthesis is a separator then so should a close parenthesis.
@@ -309,13 +311,31 @@ class Tokenizer(
         }
 
         private fun isIdent(c: Char): Boolean {
-            return c != '"' && !isSeparator(c, true)
+            return c != '"' && !isSeparator(c, TokenPurpose.GENERAL)
         }
 
         fun isIdent(token: String): Boolean {
             return isIdent(token[0])
         }
     }
+}
+
+/** The purpose for which a token will be used. */
+enum class TokenPurpose {
+    /**
+     * General purpose, e.g. for parsing signature files.
+     *
+     * This will generally return unbalanced tokens, e.g. `{` and `}` will be returned separately.
+     * The sole exception is `<` and `>` which will be balanced for use in [TypeItem]s.
+     */
+    GENERAL,
+
+    /**
+     * The token will represent a [Value].
+     *
+     * This will balance out delimiters like `(` and `)`.
+     */
+    VALUE,
 }
 
 /**
