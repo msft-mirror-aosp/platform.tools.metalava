@@ -212,6 +212,30 @@ class TokenizerTest(private val params: Params) {
                     input = """Other<String""",
                     expectedError = "api.txt:1: Unexpected end of file for < starting at 1",
                 ),
+                // Test handling of braces.
+                Params(
+                    input = """{1, 2}""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("{", "1", ",", "2", "}"),
+                ),
+                Params(
+                    input = """{1, 2}""",
+                    purpose = TokenPurpose.VALUE,
+                    // TODO(b/354633349): This is wrong, should be a single token.
+                    expectedTokens = listOf("{", "1", ",", "2", "}"),
+                ),
+                // Test handling of unbalanced brace.
+                Params(
+                    input = """{1,""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("{", "1", ","),
+                ),
+                Params(
+                    input = """{1,""",
+                    purpose = TokenPurpose.VALUE,
+                    // TODO(b/354633349): This is wrong, should report an error.
+                    expectedTokens = listOf("{", "1", ","),
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "<{0}>") fun testParams(): List<Params> = params
