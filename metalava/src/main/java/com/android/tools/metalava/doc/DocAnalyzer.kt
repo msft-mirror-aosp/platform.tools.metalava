@@ -44,6 +44,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -171,19 +172,14 @@ class DocAnalyzer(
                     return result ?: emptyList()
                 }
 
-                /** Fallback if field can't be resolved or if an inlined string value is used */
+                /**
+                 * Fallback if field can't be resolved or if an inlined string value is used then
+                 * try and find the field in the `android.Manifest.permission` class if available.
+                 */
                 private fun findPermissionField(codebase: Codebase, value: Any): FieldItem? {
                     val perm = value.toString()
                     val permClass = codebase.findClass("android.Manifest.permission")
-                    permClass
-                        ?.fields()
-                        ?.filter {
-                            it.legacyInitialValue(requireConstant = false)?.toString() == perm
-                        }
-                        ?.forEach {
-                            return it
-                        }
-                    return null
+                    return permClass?.fields()?.firstOrNull { it.constantValue?.asString() == perm }
                 }
 
                 private fun handleAnnotation(
