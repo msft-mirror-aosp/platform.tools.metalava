@@ -16,38 +16,19 @@
 
 package com.android.tools.metalava.model
 
-import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class DefaultAnnotationItemTest {
-    // Placeholder for use in test where we don't need codebase functionality
-    private val placeholderCodebase =
-        object : DefaultCodebase(File("").canonicalFile, "", false, noOpAnnotationManager) {
-            override fun supportsDocumentation(): Boolean = false
+class DefaultAnnotationItemTest : Assertions {
 
-            override fun getPackages(): PackageList = unsupported()
-
-            override fun size(): Int = unsupported()
-
-            override fun findClass(className: String): ClassItem? = unsupported()
-
-            override fun findPackage(pkgName: String): PackageItem? = unsupported()
-
-            override fun trustedApi(): Boolean = false
-
-            override fun createAnnotation(
-                source: String,
-                context: Item?,
-            ): AnnotationItem = unsupported()
-        }
+    private fun createDefaultAnnotationItem(source: String) =
+        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT, source)
+            ?: error("Could not create annotation from: '$source'")
 
     @Test
     fun testSimple() {
-        val annotation =
-            DefaultAnnotationItem.create(placeholderCodebase, "@androidx.annotation.Nullable")
+        val annotation = createDefaultAnnotationItem("@androidx.annotation.Nullable")
         assertEquals("@androidx.annotation.Nullable", annotation.toSource())
         assertEquals("androidx.annotation.Nullable", annotation.qualifiedName)
         assertTrue(annotation.attributes.isEmpty())
@@ -56,24 +37,20 @@ class DefaultAnnotationItemTest {
     @Test
     fun testIntRange() {
         val annotation =
-            DefaultAnnotationItem.create(
-                placeholderCodebase,
-                "@androidx.annotation.IntRange(from = 20, to = 40)"
-            )
+            createDefaultAnnotationItem("@androidx.annotation.IntRange(from = 20, to = 40)")
         assertEquals("@androidx.annotation.IntRange(from=20, to=40)", annotation.toSource())
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
-        assertEquals("from", annotation.findAttribute("from")?.name)
-        assertEquals("20", annotation.findAttribute("from")?.value.toString())
-        assertEquals("to", annotation.findAttribute("to")?.name)
-        assertEquals("40", annotation.findAttribute("to")?.value.toString())
+        assertEquals("from", annotation.assertAttribute("from").name)
+        assertEquals("20", annotation.assertAttribute("from").legacyValue.toString())
+        assertEquals("to", annotation.assertAttribute("to").name)
+        assertEquals("40", annotation.assertAttribute("to").legacyValue.toString())
     }
 
     @Test
     fun testIntDef() {
         val annotation =
-            DefaultAnnotationItem.create(
-                placeholderCodebase,
+            createDefaultAnnotationItem(
                 "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})"
             )
         assertEquals(
@@ -82,15 +59,14 @@ class DefaultAnnotationItemTest {
         )
         assertEquals("androidx.annotation.IntDef", annotation.qualifiedName)
         assertEquals(1, annotation.attributes.size)
-        val attribute = annotation.findAttribute("value")
-        assertNotNull(attribute)
-        assertEquals("value", attribute?.name)
+        val attribute = annotation.assertAttribute("value")
+        assertEquals("value", attribute.name)
         assertEquals(
             "{STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT}",
-            annotation.findAttribute("value")?.value.toString()
+            attribute.legacyValue.toString()
         )
 
-        assertTrue(attribute?.value is AnnotationArrayAttributeValue)
+        assertTrue(attribute.legacyValue is AnnotationArrayAttributeValue)
         if (attribute is AnnotationArrayAttributeValue) {
             val list = attribute.values
             assertEquals(3, list.size)

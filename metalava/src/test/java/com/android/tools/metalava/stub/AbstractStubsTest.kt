@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 
-open class AbstractStubsTest : DriverTest() {
+abstract class AbstractStubsTest : DriverTest() {
     protected fun checkStubs(
         // source is a wrapper for stubFiles. When passing multiple stub Java files to test,
         // use stubFiles.
@@ -35,7 +35,7 @@ open class AbstractStubsTest : DriverTest() {
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
-        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
+        skipEmitPackages: List<String>? = null,
         format: FileFormat = FileFormat.LATEST,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),

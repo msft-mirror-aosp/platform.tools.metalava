@@ -20,24 +20,26 @@ import java.io.File
 
 private const val DOT_KT = ".kt"
 
-/** A slight modification of com.android.tools.lint.checks.infrastructure.findKotlinStdLibPath. */
-fun findKotlinStdlibPaths(sources: Array<String>): List<File> {
+/** Get Kotlin stdlib paths. */
+fun getKotlinStdlibPaths(): MutableList<File> {
     val classPath: String = System.getProperty("java.class.path")
     val paths = mutableListOf<File>()
     for (path in classPath.split(':')) {
         val file = File(path)
         val name = file.name
-        if (
-            name.startsWith("kotlin-stdlib") ||
-                name.startsWith("kotlin-reflect") ||
-                name.startsWith("kotlin-script-runtime")
-        ) {
+        if (name.startsWith("kotlin-stdlib") || name.startsWith("kotlin-script-runtime")) {
             paths.add(file)
         }
     }
     if (paths.isEmpty()) {
         error("Did not find kotlin-stdlib-jre8 in classpath: $classPath")
     }
+    return paths
+}
+
+/** Get the Kotlin stdlib paths if needed for [sources]. */
+fun findKotlinStdlibPaths(sources: Array<String>): List<File> {
+    val paths = getKotlinStdlibPaths()
     return if (sources.asSequence().any { it.endsWith(DOT_KT) }) {
         paths
     } else {

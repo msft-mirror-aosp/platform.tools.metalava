@@ -16,18 +16,27 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
-import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
+import com.android.tools.metalava.model.item.DefaultCodebaseFactory
+import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
+import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -35,40 +44,26 @@ import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
-import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
-import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
-import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
-import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
-import com.google.turbine.binder.bound.TypeBoundClass.TyVarInfo
-import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
+import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
-import com.google.turbine.binder.sym.TyVarSymbol
+import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineLog
-import com.google.turbine.model.Const
-import com.google.turbine.model.Const.ArrayInitValue
-import com.google.turbine.model.Const.Kind
-import com.google.turbine.model.Const.Value
-import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
+import com.google.turbine.parse.Parser
+import com.google.turbine.processing.ModelFactory
+import com.google.turbine.processing.TurbineElements
+import com.google.turbine.processing.TurbineTypes
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.type.AnnoInfo
-import com.google.turbine.type.Type
-import com.google.turbine.type.Type.ArrayTy
-import com.google.turbine.type.Type.ClassTy
-import com.google.turbine.type.Type.ClassTy.SimpleClassTy
-import com.google.turbine.type.Type.PrimTy
-import com.google.turbine.type.Type.TyKind
-import com.google.turbine.type.Type.TyVar
-import com.google.turbine.type.Type.WildTy
-import com.google.turbine.type.Type.WildTy.BoundKind
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.TypeElement
 
 /**
  * This initializer acts as an adapter between codebase and the output from Turbine parser.
@@ -76,29 +71,90 @@ import javax.lang.model.SourceVersion
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
  */
-open class TurbineCodebaseInitialiser(
-    val units: List<CompUnit>,
-    val codebase: TurbineBasedCodebase,
-    val classpath: List<File>,
-) {
+internal class TurbineCodebaseInitialiser(
+    codebaseFactory: DefaultCodebaseFactory,
+    private val classpath: List<File>,
+    override val allowReadingComments: Boolean,
+) : DefaultCodebaseAssembler(), TurbineGlobalContext {
+
+    override val codebase = codebaseFactory(this)
+
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
 
-    /** Map between ClassSymbols and TurbineClass for classes present in source */
-    private lateinit var sourceClassMap: ImmutableMap<ClassSymbol, SourceTypeBoundClass>
-
-    /** Map between ClassSymbols and TurbineClass for classes present in classPath */
-    private lateinit var envClassMap: CompoundEnv<ClassSymbol, BytecodeBoundClass>
+    /**
+     * Map between ClassSymbols and TurbineClass for classes present on the source path or the class
+     * path
+     */
+    private lateinit var envClassMap: CompoundEnv<ClassSymbol, TypeBoundClass>
 
     private lateinit var index: TopLevelIndex
 
+    /** Caches [TurbineSourceFile] instances. */
+    override lateinit var sourceFileCache: TurbineSourceFileCache
+
+    /** Factory for creating [AnnotationItem]s from [AnnoInfo]s. */
+    override lateinit var annotationFactory: TurbineAnnotationFactory
+
+    /** Global [TurbineTypeItemFactory] from which all other instances are created. */
+    override lateinit var globalTypeItemFactory: TurbineTypeItemFactory
+
+    /** Creates [Item] instances for [codebase]. */
+    override val itemFactory =
+        DefaultItemFactory(
+            codebase = codebase,
+            // Turbine can only process java files.
+            defaultSourceLanguage = SourceLanguage.JAVA,
+            // Source files need to track which parts belong to which API surface variants, so they
+            // need to create an ApiVariantSelectors instance that can be used to track that.
+            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        )
+
+    override lateinit var valueFactory: TurbineValueFactory
+
     /**
-     * Binds the units with the help of Turbine's binder.
+     * Data Type: TurbineElements (An implementation of javax.lang.model.util.Elements)
+     *
+     * Usage: Enables lookup of TypeElement objects by name.
+     */
+    private lateinit var turbineElements: TurbineElements
+
+    /**
+     * Populates [codebase] from the [sourceSet].
      *
      * Then creates the packages, classes and their members, as well as sets up various class
      * hierarchies using the binder's output
      */
-    fun initialize() {
+    fun initialize(
+        sourceSet: SourceSet,
+        apiPackages: PackageFilter?,
+    ) {
+        // Get the units from the source files provided on the command line.
+        val commandLineSources = sourceSet.sources
+        val sourceFiles = getSourceFiles(commandLineSources.asSequence())
+        val units = sourceFiles.map { Parser.parse(it) }
+
+        // Get the sequence of all files that can be found on the source path which are not
+        // explicitly listed on the command line.
+        val scannedFiles = scanSourcePath(sourceSet.sourcePath, commandLineSources.toSet())
+        val sourcePathFiles = getSourceFiles(scannedFiles)
+
+        // Get the set of qualified class names provided on the command line. If a `.java` file
+        // contains multiple java classes then it just used the main class name.
+        val commandLineClasses = units.mapNotNull { unit -> unit.mainClassQualifiedName }.toSet()
+
+        // Get the units for the extra source files found on the source path.
+        val extraUnits =
+            sourcePathFiles
+                .map { Parser.parse(it) }
+                // Ignore any files that contain duplicates of a class that was specified on the
+                // command line. This is needed when merging annotations from other java files as
+                // there may be duplicate definitions of the class on the source path.
+                .filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
+
+        // Combine all the units together.
+        val allUnits = ImmutableList.builder<CompUnit>().addAll(units).addAll(extraUnits).build()
+
         // Bind the units
         try {
             val procInfo =
@@ -116,541 +172,342 @@ open class TurbineCodebaseInitialiser(
             bindingResult =
                 Binder.bind(
                     log,
-                    ImmutableList.copyOf(units),
+                    allUnits,
                     ClassPathBinder.bindClasspath(classpath.map { it.toPath() }),
                     procInfo,
                     ClassPathBinder.bindClasspath(listOf()),
                     Optional.empty()
                 )!!
-            sourceClassMap = bindingResult.units()
-            envClassMap = bindingResult.classPathEnv()
             index = bindingResult.tli()
         } catch (e: Throwable) {
             throw e
         }
-        createAllPackages()
-        createAllClasses()
-        correctNullability()
+        // Get the SourceTypeBoundClass for all units that have been bound together.
+        val allSourceClassMap = bindingResult.units()
+
+        // Maps class symbols to their source-based definitions
+        val sourceEnv = SimpleEnv(allSourceClassMap)
+
+        // Maps class symbols to their classpath-based definitions
+        val classPathEnv = bindingResult.classPathEnv()
+
+        // Provides a unified view of both source and classpath classes. Although, the `sourceEnv`
+        // is appended to the `CompoundEnv` that contains the `classPathEnv`, it is actually
+        // queried first. So, this will search for a class on the source path first and then on the
+        // class path.
+        envClassMap = CompoundEnv.of<ClassSymbol, TypeBoundClass>(classPathEnv).append(sourceEnv)
+
+        // used to create language model elements for code analysis
+        val factory = ModelFactory(envClassMap, ClassLoader.getSystemClassLoader(), index)
+        // provides type-related operations within the Turbine compiler context
+        val turbineTypes = TurbineTypes(factory)
+        // provides access to code elements (packages, types, members) for analysis.
+        turbineElements = TurbineElements(factory, turbineTypes)
+
+        // Create a cache from SourceFile to the TurbineSourceFile wrapper. The latter needs the
+        // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
+        sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
+
+        // Create the TurbineValueProviderFactory
+        valueFactory = TurbineValueFactory(this)
+
+        // Create a factory for creating annotations from AnnoInfo.
+        annotationFactory =
+            TurbineAnnotationFactory(
+                codebase,
+                sourceFileCache,
+                valueFactory,
+            )
+
+        // Create the global TurbineTypeItemFactory.
+        globalTypeItemFactory =
+            TurbineTypeItemFactory(this, annotationFactory, TypeParameterScope.empty)
+
+        // Find the package-info.java units.
+        val packageInfoUnits = allUnits.filter { it.isPackageInfo() }
+
+        // Split the map from ClassSymbol to SourceTypeBoundClass into separate package-info and
+        // normal classes.
+        val (packageInfoClasses, allSourceClasses) =
+            separatePackageInfoClassesFromRealClasses(allSourceClassMap)
+
+        val packageInfoList =
+            combinePackageInfoClassesAndUnits(packageInfoClasses, packageInfoUnits)
+
+        // Scan the files looking for package.html and overview.html files and combine that with
+        // information from package-info.java units to create a comprehensive set of package
+        // documentation just in case they are needed during package creation.
+        val packageDocs =
+            gatherPackageJavadoc(
+                codebase.reporter,
+                sourceSet,
+                packageNameFilter = { true },
+                packageInfoList
+            ) { (unit, packageName, sourceTypeBoundClass) ->
+                val source = unit.source().source()
+                val file = File(unit.source().path())
+                val fileLocation = FileLocation.forFile(file)
+                val comment = getHeaderComments(source).toItemDocumentationFactory()
+
+                val annotations =
+                    annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())
+
+                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
+                MutablePackageDoc(packageName, fileLocation, modifiers, comment)
+            }
+
+        // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
+        // the command line as only those classes can contribute directly to the API.
+        val commandLineSourceClasses =
+            topLevelAccessibleCommandLineClasses(allSourceClasses, commandLineSources)
+
+        createAllPackages(packageDocs)
+        createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
     }
 
     /**
-     * Corrects the nullability of types in the codebase based on their context items. If an item is
-     * non-null or nullable, its type is too.
+     * Compute the set of accessible, top level classes that were specified on the command line.
+     *
+     * @param allSourceClasses all the [SourceTypeBoundClass]s found during binding, includes those
+     *   from the source path as well as those whose containing file was provided on the command
+     *   line.
+     * @param commandLineSources the list of source [File]s provided on the command line.
      */
-    private fun correctNullability() {
-        codebase.accept(
-            object : BaseItemVisitor() {
-                override fun visitItem(item: Item) {
-                    val type = item.type() ?: return
-                    val implicitNullness = item.implicitNullness()
-                    if (implicitNullness == true || item.modifiers.isNullable()) {
-                        type.modifiers.setNullability(TypeNullability.NULLABLE)
-                    } else if (implicitNullness == false || item.modifiers.isNonNull()) {
-                        type.modifiers.setNullability(TypeNullability.NONNULL)
-                    }
-                    // Also make array components for annotation types non-null
-                    if (
-                        type is ArrayTypeItem && item.containingClass()?.isAnnotationType() == true
-                    ) {
-                        type.componentType.modifiers.setNullability(TypeNullability.NONNULL)
-                    }
-                }
-            }
-        )
-    }
+    private fun topLevelAccessibleCommandLineClasses(
+        allSourceClasses: Map<ClassSymbol, SourceTypeBoundClass>,
+        commandLineSources: List<File>
+    ): Map<ClassSymbol, SourceTypeBoundClass> {
+        // The set of paths supplied on the command line.
+        val commandLinePaths = commandLineSources.map { it.path }.toSet()
 
-    private fun createAllPackages() {
-        // Root package
-        findOrCreatePackage("")
+        // Get the map from ClassSymbol to SourceTypeBoundClass for only the accessible, top level
+        // classes provided on the command line as only those classes (and their nested classes) can
+        // contribute directly to the API.
+        return allSourceClasses.filter { (_, sourceTypeBoundClass) ->
+            // Ignore nested classes, they will be created as part of the construction of their
+            // containing class.
+            if (sourceTypeBoundClass.owner() != null) return@filter false
 
-        for (unit in units) {
-            val optPkg = unit.pkg()
-            val pkg = if (optPkg.isPresent()) optPkg.get() else null
-            var pkgName = ""
-            if (pkg != null) {
-                val pkgNameList = pkg.name().map { it.value() }
-                pkgName = pkgNameList.joinToString(separator = ".")
-            }
-            findOrCreatePackage(pkgName)
+            // Ignore inaccessible classes.
+            if (!sourceTypeBoundClass.isAccessible) return@filter false
+
+            // Ignore classes whose paths were not specified on the command line.
+            val path = sourceTypeBoundClass.source().path()
+            path in commandLinePaths
         }
     }
 
     /**
-     * Searches for the package with supplied name in the codebase's package map and if not found
-     * creates the corresponding TurbinePackageItem and adds it to the package map.
+     * Get the qualified class name of the main class in a unit.
+     *
+     * If a `.java` file contains multiple java classes then the main class is the first one which
+     * is assumed to be the public class.
      */
-    private fun findOrCreatePackage(name: String): TurbinePackageItem {
-        val pkgItem = codebase.findPackage(name)
-        if (pkgItem != null) {
-            return pkgItem as TurbinePackageItem
-        } else {
-            val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
-            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
-            codebase.addPackage(turbinePkgItem)
-            return turbinePkgItem
+    private val CompUnit.mainClassQualifiedName: String?
+        get() {
+            val pkgName = getPackageName(this)
+            return decls().firstOrNull()?.let { decl -> "$pkgName.${decl.name()}" }
         }
-    }
 
-    private fun createAllClasses() {
-        val classes = sourceClassMap.keys
-        for (cls in classes) {
-
-            // Turbine considers package-info as class and creates one for empty packages which is
-            // not consistent with Psi
-            if (cls.simpleName() == "package-info") {
-                continue
+    private fun scanSourcePath(sourcePath: List<File>, existingSources: Set<File>): Sequence<File> {
+        val visited = mutableSetOf<String>()
+        return sourcePath
+            .asSequence()
+            .flatMap { sourceRoot ->
+                sourceRoot
+                    .walkTopDown()
+                    // The following prevents repeatedly re-entering the same directory if there is
+                    // a cycle in the files, e.g. a symlink from a subdirectory back up to an
+                    // ancestor directory.
+                    .onEnter { dir ->
+                        // Use the canonical path as each file in a cycle can be represented by an
+                        // infinite number of paths and using them would make the visited check
+                        // useless.
+                        val canonical = dir.canonicalPath
+                        return@onEnter if (canonical in visited) false
+                        else {
+                            visited += canonical
+                            true
+                        }
+                    }
             }
-
-            findOrCreateClass(cls)
-        }
+            .filter { it !in existingSources }
     }
 
-    /** Tries to create a class if not already present in codebase's classmap */
-    internal fun findOrCreateClass(name: String): TurbineClassItem? {
-        var classItem = codebase.findClass(name)
+    /**
+     * Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find it
+     * then look in the class path. It is guaranteed to be found in one of those places as otherwise
+     * there would be no `ClassSymbol`.
+     */
+    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)!!
 
-        if (classItem == null) {
-            val symbol = getClassSymbol(name)
-            symbol?.let { createClass(symbol) }
-            classItem = codebase.findClass(name)
-        }
-
-        return classItem
-    }
-
-    /** Creates a class if not already present in codebase's classmap */
-    private fun findOrCreateClass(sym: ClassSymbol): TurbineClassItem {
-        val className = getQualifiedName(sym.binaryName())
-        var classItem = codebase.findClass(className)
-
-        if (classItem == null) {
-            // Inner class should not be created directly from here. Instead create its
-            // TopLevelClass which
-            // will automatically create the innerclass via createInnerClasses method
-            if (sym.binaryName().contains("$")) {
-                val topClassSym = getClassSymbol(className)!!
-                createClass(topClassSym)
+    /**
+     * Separate `package-info.java` synthetic classes from real classes.
+     *
+     * Turbine treats a `package-info.java` file as if it created a class called `package-info`.
+     * This method separates the [sourceClassMap] into two, one for the synthetic `package-info`
+     * classes and one for real classes.
+     *
+     * @param sourceClassMap the map from [ClassSymbol] to [SourceTypeBoundClass] for all classes,
+     *   real or synthetic.
+     */
+    private fun separatePackageInfoClassesFromRealClasses(
+        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
+    ): Pair<Map<ClassSymbol, SourceTypeBoundClass>, Map<ClassSymbol, SourceTypeBoundClass>> {
+        val packageInfoClasses = mutableMapOf<ClassSymbol, SourceTypeBoundClass>()
+        val sourceClasses = mutableMapOf<ClassSymbol, SourceTypeBoundClass>()
+        for ((symbol, typeBoundClass) in sourceClassMap) {
+            if (symbol.simpleName() == "package-info") {
+                packageInfoClasses[symbol] = typeBoundClass
             } else {
-                createClass(sym)
+                sourceClasses[symbol] = typeBoundClass
             }
         }
-
-        return codebase.findClass(className)!!
-    }
-
-    private fun createClass(sym: ClassSymbol): TurbineClassItem {
-
-        var cls: TypeBoundClass? = sourceClassMap[sym]
-        cls = if (cls != null) cls else envClassMap.get(sym)!!
-        val decl = (cls as? SourceTypeBoundClass)?.decl()
-
-        // Get the package item
-        val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName)
-
-        // Create class
-        val qualifiedName = getQualifiedName(sym.binaryName())
-        val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-        val fullName = sym.simpleName().replace('$', '.')
-        val annotations = createAnnotations(cls.annotations())
-        val modifierItem =
-            TurbineModifierItem.create(
-                codebase,
-                cls.access(),
-                annotations,
-                isDeprecated(decl?.javadoc())
-            )
-        val typeParameters = createTypeParameters(cls.typeParameterTypes())
-        val classItem =
-            TurbineClassItem(
-                codebase,
-                simpleName,
-                fullName,
-                qualifiedName,
-                modifierItem,
-                TurbineClassType.getClassType(cls.kind()),
-                typeParameters
-            )
-
-        // Setup the SuperClass
-        if (!classItem.isInterface()) {
-            val superClassItem =
-                cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
-            val superClassType = cls.superClassType()
-            val superClassTypeItem =
-                if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
-                else createType(superClassType, false)
-            classItem.setSuperClass(superClassItem, superClassTypeItem)
-        }
-
-        // Set direct interfaces
-        classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
-
-        // Set interface types
-        classItem.setInterfaceTypes(
-            cls.interfaceTypes()
-                .filter { it.tyKind() != TyKind.ERROR_TY }
-                .map { createType(it, false) }
-        )
-
-        // Create fields
-        createFields(classItem, cls.fields())
-
-        // Create methods
-        createMethods(classItem, cls.methods())
-
-        // Create constructors
-        createConstructors(classItem, cls.methods())
-
-        // Add to the codebase
-        val isTopClass = cls.owner() == null
-        codebase.addClass(classItem, isTopClass)
-
-        // Add the class to corresponding PackageItem
-        if (isTopClass) {
-            classItem.containingPackage = pkgItem
-            pkgItem.addTopClass(classItem)
-            // If the class is top class, fix the constructor return type right away. Otherwise wait
-            // for containingClass to be set via setInnerClasses
-            fixCtorReturnType(classItem)
-        }
-
-        // Set the throwslist for methods
-        classItem.methods.forEach { it.setThrowsTypes() }
-
-        // Set the throwslist for constructors
-        classItem.constructors.forEach { it.setThrowsTypes() }
-
-        // Create InnerClasses.
-        val children = cls.children()
-        createInnerClasses(classItem, children.values.asList())
-
-        return classItem
-    }
-
-    /** Creates a list of AnnotationItems from given list of Turbine Annotations */
-    private fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.mapNotNull { createAnnotation(it) }
-    }
-
-    private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem? {
-        val annoAttrs = getAnnotationAttributes(annotation.values())
-
-        val nameList = annotation.tree()?.let { tree -> tree.name().map { it.value() } }
-        val simpleName = nameList?.let { it -> it.joinToString(separator = ".") }
-        val clsSym = annotation.sym()
-        val qualifiedName =
-            if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
-
-        return TurbineAnnotationItem(codebase, qualifiedName, annoAttrs)
-    }
-
-    /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
-    private fun getAnnotationAttributes(
-        attrs: ImmutableMap<String, Const>
-    ): List<AnnotationAttribute> {
-        val attributes = mutableListOf<AnnotationAttribute>()
-        for ((name, value) in attrs) {
-            attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value)))
-        }
-        return attributes
-    }
-
-    private fun createAttrValue(const: Const): AnnotationAttributeValue {
-        if (const.kind() == Kind.ARRAY) {
-            val arrayVal = const as ArrayInitValue
-            return DefaultAnnotationArrayAttributeValue(
-                { arrayVal.toString() },
-                { arrayVal.elements().map { createAttrValue(it) } }
-            )
-        }
-        return DefaultAnnotationSingleAttributeValue({ const.toString() }, { getValue(const) })
-    }
-
-    private fun getValue(const: Const): Any? {
-        when (const.kind()) {
-            Kind.PRIMITIVE -> {
-                val value = const as Value
-                return value.getValue()
-            }
-            // For cases like AnyClass.class, return the qualified name of AnyClass
-            Kind.CLASS_LITERAL -> {
-                val value = const as TurbineClassValue
-                return value.type().toString()
-            }
-            else -> return const.toString()
-        }
-    }
-
-    private fun createType(type: Type, isVarArg: Boolean): TurbineTypeItem {
-        return when (val kind = type.tyKind()) {
-            TyKind.PRIM_TY -> {
-                type as PrimTy
-                val annotations = createAnnotations(type.annos())
-                // Primitives are always non-null.
-                val modifiers = TurbineTypeModifiers(annotations, TypeNullability.NONNULL)
-                when (type.primkind()) {
-                    PrimKind.BOOLEAN ->
-                        TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BOOLEAN)
-                    PrimKind.BYTE -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BYTE)
-                    PrimKind.CHAR -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.CHAR)
-                    PrimKind.DOUBLE ->
-                        TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.DOUBLE)
-                    PrimKind.FLOAT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.FLOAT)
-                    PrimKind.INT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.INT)
-                    PrimKind.LONG -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.LONG)
-                    PrimKind.SHORT -> TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.SHORT)
-                    else ->
-                        throw IllegalStateException("Invalid primitive type in API surface: $type")
-                }
-            }
-            TyKind.ARRAY_TY -> {
-                type as ArrayTy
-                val componentType = createType(type.elementType(), false)
-                val annotations = createAnnotations(type.annos())
-                val modifiers = TurbineTypeModifiers(annotations)
-                TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
-            }
-            TyKind.CLASS_TY -> {
-                type as ClassTy
-                var outerClass: TurbineClassTypeItem? = null
-                // A ClassTy is represented by list of SimpleClassTY each representing an inner
-                // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
-                // Outer, Outer.Inner and Outer.Inner.Inner1
-                for (simpleClass in type.classes()) {
-                    // For all outer class types, set the nullability to non-null.
-                    outerClass?.modifiers?.setNullability(TypeNullability.NONNULL)
-                    outerClass = createSimpleClassType(simpleClass, outerClass)
-                }
-                outerClass!!
-            }
-            TyKind.TY_VAR -> {
-                type as TyVar
-                val annotations = createAnnotations(type.annos())
-                val modifiers = TurbineTypeModifiers(annotations)
-                TurbineVariableTypeItem(codebase, modifiers, type.sym())
-            }
-            TyKind.WILD_TY -> {
-                type as WildTy
-                val annotations = createAnnotations(type.annotations())
-                // Wildcards themselves don't have a defined nullability.
-                val modifiers = TurbineTypeModifiers(annotations, TypeNullability.UNDEFINED)
-                when (type.boundKind()) {
-                    BoundKind.UPPER -> {
-                        val upperBound = createType(type.bound(), false)
-                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
-                    }
-                    BoundKind.LOWER -> {
-                        // LowerBounded types have java.lang.Object as upper bound
-                        val upperBound = createType(ClassTy.OBJECT, false)
-                        val lowerBound = createType(type.bound(), false)
-                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, lowerBound)
-                    }
-                    BoundKind.NONE -> {
-                        // Unbounded types have java.lang.Object as upper bound
-                        val upperBound = createType(ClassTy.OBJECT, false)
-                        TurbineWildcardTypeItem(codebase, modifiers, upperBound, null)
-                    }
-                    else ->
-                        throw IllegalStateException("Invalid wildcard type in API surface: $type")
-                }
-            }
-            TyKind.VOID_TY ->
-                TurbinePrimitiveTypeItem(
-                    codebase,
-                    // Primitives are always non-null.
-                    TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
-                    Primitive.VOID
-                )
-            TyKind.NONE_TY ->
-                TurbinePrimitiveTypeItem(
-                    codebase,
-                    // Primitives are always non-null.
-                    TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
-                    Primitive.VOID
-                )
-            else -> throw IllegalStateException("Invalid type in API surface: $kind")
-        }
-    }
-
-    private fun createSimpleClassType(
-        type: SimpleClassTy,
-        outerClass: TurbineClassTypeItem?
-    ): TurbineClassTypeItem {
-        val annotations = createAnnotations(type.annos())
-        val modifiers = TurbineTypeModifiers(annotations)
-        val qualifiedName = getQualifiedName(type.sym().binaryName())
-        val parameters = type.targs().map { createType(it, false) }
-        return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
-    }
-
-    private fun createTypeParameters(
-        tyParams: ImmutableMap<TyVarSymbol, TyVarInfo>
-    ): TypeParameterList {
-        if (tyParams.isEmpty()) return TypeParameterList.NONE
-
-        val tyParamList = TurbineTypeParameterList(codebase)
-        val result = mutableListOf<TurbineTypeParameterItem>()
-        for ((sym, tyParam) in tyParams) {
-            result.add(createTypeParameter(sym, tyParam))
-        }
-        tyParamList.typeParameters = result
-        return tyParamList
-    }
-
-    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): TurbineTypeParameterItem {
-        val typeBounds = mutableListOf<TurbineTypeItem>()
-        val upperBounds = param.upperBound()
-        upperBounds.bounds().mapTo(typeBounds) { createType(it, false) }
-        param.lowerBound()?.let { typeBounds.add(createType(it, false)) }
-        val modifiers =
-            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
-        val typeParamItem =
-            TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
-        codebase.addTypeParameter(sym, typeParamItem)
-        return typeParamItem
-    }
-
-    /** This method sets up the inner class hierarchy. */
-    private fun createInnerClasses(
-        classItem: TurbineClassItem,
-        innerClasses: ImmutableList<ClassSymbol>
-    ) {
-        classItem.innerClasses =
-            innerClasses.map { cls ->
-                val innerClassItem = createClass(cls)
-                innerClassItem.containingClass = classItem
-                fixCtorReturnType(innerClassItem)
-                innerClassItem
-            }
-    }
-
-    /** This methods creates and sets the fields of a class */
-    private fun createFields(classItem: TurbineClassItem, fields: ImmutableList<FieldInfo>) {
-        classItem.fields =
-            fields.map { field ->
-                val annotations = createAnnotations(field.annotations())
-                val fieldModifierItem =
-                    TurbineModifierItem.create(
-                        codebase,
-                        field.access(),
-                        annotations,
-                        isDeprecated(field.decl()?.javadoc())
-                    )
-                val type = createType(field.type(), false)
-                TurbineFieldItem(
-                    codebase,
-                    field.name(),
-                    classItem,
-                    type,
-                    fieldModifierItem,
-                )
-            }
-    }
-
-    private fun createMethods(classItem: TurbineClassItem, methods: List<MethodInfo>) {
-        classItem.methods =
-            methods
-                .filter { it.sym().name() != "<init>" }
-                .map { method ->
-                    val annotations = createAnnotations(method.annotations())
-                    val methodModifierItem =
-                        TurbineModifierItem.create(
-                            codebase,
-                            method.access(),
-                            annotations,
-                            isDeprecated(method.decl()?.javadoc())
-                        )
-                    val typeParams = createTypeParameters(method.tyParams())
-                    val methodItem =
-                        TurbineMethodItem(
-                            codebase,
-                            method.sym(),
-                            classItem,
-                            createType(method.returnType(), false),
-                            methodModifierItem,
-                            typeParams,
-                        )
-                    createParameters(methodItem, method.parameters())
-                    methodItem.throwsClassNames = getThrowsList(method.exceptions())
-                    methodItem
-                }
-    }
-
-    private fun createParameters(methodItem: TurbineMethodItem, parameters: List<ParamInfo>) {
-        methodItem.parameters =
-            parameters.mapIndexed { idx, parameter ->
-                val annotations = createAnnotations(parameter.annotations())
-                val parameterModifierItem =
-                    TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
-                val type = createType(parameter.type(), parameterModifierItem.isVarArg())
-                TurbineParameterItem(
-                    codebase,
-                    parameter.name(),
-                    methodItem,
-                    idx,
-                    type,
-                    parameterModifierItem,
-                )
-            }
-    }
-
-    private fun createConstructors(classItem: TurbineClassItem, methods: List<MethodInfo>) {
-        var hasImplicitDefaultConstructor = false
-        classItem.constructors =
-            methods
-                .filter { it.sym().name() == "<init>" }
-                .map { constructor ->
-                    val annotations = createAnnotations(constructor.annotations())
-                    val constructorModifierItem =
-                        TurbineModifierItem.create(
-                            codebase,
-                            constructor.access(),
-                            annotations,
-                            isDeprecated(constructor.decl()?.javadoc())
-                        )
-                    val typeParams = createTypeParameters(constructor.tyParams())
-                    hasImplicitDefaultConstructor =
-                        (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
-                    val name = classItem.simpleName()
-                    val constructorItem =
-                        TurbineConstructorItem(
-                            codebase,
-                            name,
-                            constructor.sym(),
-                            classItem,
-                            createType(constructor.returnType(), false),
-                            constructorModifierItem,
-                            typeParams,
-                        )
-                    createParameters(constructorItem, constructor.parameters())
-                    constructorItem.throwsClassNames = getThrowsList(constructor.exceptions())
-                    constructorItem
-                }
-        classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
-    }
-
-    private fun getQualifiedName(binaryName: String): String {
-        return binaryName.replace('/', '.').replace('$', '.')
+        return Pair(packageInfoClasses, sourceClasses)
     }
 
     /**
-     * Turbine's Binder gives return type of constructors as void. This needs to be changed to
-     * Class.toType().
+     * Encapsulates information needed to create a [DefaultPackageItem] in [gatherPackageJavadoc].
      */
-    private fun fixCtorReturnType(classItem: TurbineClassItem) {
-        val result =
-            classItem.constructors.map {
-                it.setReturnType(classItem.toType())
-                it
-            }
-        classItem.constructors = result
+    data class PackageInfoClass(
+        val unit: CompUnit,
+        val packageName: String,
+        val sourceTypeBoundClass: SourceTypeBoundClass,
+    )
+
+    /** Combine `package-info.java` synthetic classes and units */
+    private fun combinePackageInfoClassesAndUnits(
+        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
+        packageInfoUnits: List<CompUnit>
+    ): List<PackageInfoClass> {
+        // Create a mapping between the package name and the unit.
+        val packageInfoMap = packageInfoUnits.associateBy { getPackageName(it) }
+
+        return sourceClassMap.entries.map { (symbol, typeBoundClass) ->
+            val packageName = symbol.packageName().replace('/', '.')
+            PackageInfoClass(
+                unit = packageInfoMap[packageName]!!,
+                packageName = packageName,
+                sourceTypeBoundClass = typeBoundClass,
+            )
+        }
     }
+
+    /** Check if this is for a `package-info.java` file or not. */
+    private fun CompUnit.isPackageInfo() =
+        source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
+
+    private fun createAllPackages(packageDocs: PackageDocs) {
+        // Create packages for all the documentation packages and make sure there is a root package.
+        codebase.packageTracker.createInitialPackages(packageDocs)
+    }
+
+    private fun createAllCommandLineClasses(
+        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
+        apiPackages: PackageFilter?,
+    ) {
+        // Iterate over all the classes in the sources.
+        for ((classSymbol, sourceBoundClass) in sourceClassMap) {
+            // If a package filter is supplied then ignore any classes that do not match it.
+            if (apiPackages != null) {
+                val packageName = classSymbol.dotSeparatedPackageName
+                if (!apiPackages.matches(packageName)) continue
+            }
+
+            val classItem =
+                createTopLevelClassAndContents(
+                    classSymbol = classSymbol,
+                    typeBoundClass = sourceBoundClass,
+                    origin = ClassOrigin.COMMAND_LINE,
+                )
+            codebase.addTopLevelClassFromSource(classItem)
+        }
+    }
+
+    val ClassSymbol.isTopClass
+        get() = !binaryName().contains('$')
+
+    /**
+     * Create top level classes, their nested classes and all the other members.
+     *
+     * All the classes are registered by name and so can be found by
+     * [createClassFromUnderlyingModel].
+     */
+    private fun createTopLevelClassAndContents(
+        classSymbol: ClassSymbol,
+        typeBoundClass: TypeBoundClass,
+        origin: ClassOrigin,
+    ): ClassItem {
+        if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
+        val classBuilder =
+            TurbineClassBuilder(
+                globalContext = this,
+                classSymbol = classSymbol,
+                typeBoundClass = typeBoundClass,
+            )
+        return classBuilder.createClass(
+            containingClassItem = null,
+            enclosingClassTypeItemFactory = globalTypeItemFactory,
+            origin = origin,
+        )
+    }
+
+    /** Tries to create a class from a Turbine class with [qualifiedName]. */
+    override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
+        // This will get the symbol for the top class even if the class name is for a nested
+        // class.
+        val topClassSym = getClassSymbol(qualifiedName)
+
+        // Create the top level class, if needed, along with any nested classes and register
+        // them all by name.
+        topClassSym?.let {
+            // It is possible that the top level class has already been created but just did not
+            // contain the requested nested class so check to make sure it exists before
+            // creating it.
+            val topClassName = topClassSym.qualifiedName
+            codebase.findClass(topClassName)
+                ?: let {
+                    // Get the origin of the class.
+                    val typeBoundClass = typeBoundClassForSymbol(topClassSym)
+                    val origin =
+                        when (typeBoundClass) {
+                            is SourceTypeBoundClass -> ClassOrigin.SOURCE_PATH
+                            else -> ClassOrigin.CLASS_PATH
+                        }
+
+                    // Create and register the top level class and its nested classes.
+                    createTopLevelClassAndContents(
+                        classSymbol = topClassSym,
+                        typeBoundClass = typeBoundClass,
+                        origin = origin,
+                    )
+
+                    // Now try and find the actual class that was requested by name. If it exists it
+                    // should have been created in the previous call.
+                    return codebase.findClass(qualifiedName)
+                }
+        }
+
+        // Could not be found.
+        return null
+    }
+
+    override fun createFieldResolver(
+        classSymbol: ClassSymbol,
+        sourceTypeBoundClass: SourceTypeBoundClass
+    ) =
+        TurbineFieldResolver(
+            classSymbol,
+            classSymbol,
+            sourceTypeBoundClass.memberImports(),
+            sourceTypeBoundClass.scope(),
+            envClassMap,
+        )
 
     /**
      * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method
      * returns only top-level classes, this method will return the ClassSymbol of outermost class
-     * for inner classes.
+     * for nested classes.
      */
     private fun getClassSymbol(name: String): ClassSymbol? {
         val result = index.scope().lookup(createLookupKey(name))
@@ -663,14 +520,22 @@ open class TurbineCodebaseInitialiser(
         return LookupKey(ImmutableList.copyOf(idents))
     }
 
-    private fun isDeprecated(javadoc: String?): Boolean {
-        return javadoc?.contains("@deprecated") ?: false
-    }
-
-    private fun getThrowsList(throwsTypes: List<Type>): List<String> {
-        return throwsTypes.mapNotNull { it ->
-            val sym = (it as? ClassTy)?.sym()
-            sym?.let { getQualifiedName(it.binaryName()) }
-        }
-    }
+    internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }
+
+/** Create a [SourceFile] for every `.java` file in [sources]. */
+private fun getSourceFiles(sources: Sequence<File>): List<SourceFile> {
+    return sources
+        .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
+        .map { SourceFile(it.path, it.readText()) }
+        .toList()
+}
+
+private const val ACC_PUBLIC_OR_PROTECTED = TurbineFlag.ACC_PUBLIC or TurbineFlag.ACC_PROTECTED
+
+/** Check whether the [TypeBoundClass] is accessible. */
+private val TypeBoundClass.isAccessible: Boolean
+    get() {
+        val flags = access()
+        return flags and ACC_PUBLIC_OR_PROTECTED != 0
+    }

@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
-class PsiItemTest : BasePsiTest() {
+class PsiItemTest : BaseModelTest() {
     @Test
     fun `Documentation tags extraction`() {
-        testCodebase(
+        runCodebaseTest(
             java(
                 """
                     package test.pkg;
@@ -48,22 +48,22 @@ class PsiItemTest : BasePsiTest() {
                     }
                 """,
             )
-        ) { codebase ->
-            val testClass = codebase.findClass("test.pkg.Test")
-            assertNotNull(testClass)
-            val method = testClass.methods().first { it.name().equals("foo") }
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val method = testClass.methods().first { it.name() == "foo" }
             val barJavadoc = "@param bar The bar to foo with\n     *     the thing."
             val bazJavadoc = "@param baz The baz to foo\n     *     I think."
 
-            assertEquals(barJavadoc, method.findTagDocumentation("param"))
-            assertEquals("@return The result", method.findTagDocumentation("return"))
+            val documentation = method.documentation
+            assertEquals(barJavadoc, documentation.findTagDocumentation("param"))
+            assertEquals("@return The result", documentation.findTagDocumentation("return"))
 
-            assertEquals(barJavadoc, method.findTagDocumentation("param", "bar"))
-            assertEquals(bazJavadoc, method.findTagDocumentation("param", "baz"))
+            assertEquals(barJavadoc, documentation.findTagDocumentation("param", "bar"))
+            assertEquals(bazJavadoc, documentation.findTagDocumentation("param", "baz"))
 
             assertEquals(
                 "/**\n     * This method does foo.\n     *\n     * ",
-                method.findMainDocumentation()
+                documentation.findMainDocumentation()
             )
         }
     }

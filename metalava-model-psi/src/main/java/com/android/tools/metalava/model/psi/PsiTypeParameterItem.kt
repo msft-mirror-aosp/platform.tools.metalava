@@ -16,8 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.psi.ClassType.TYPE_PARAMETER
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
@@ -25,59 +26,37 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtTypeParameter
 
 internal class PsiTypeParameterItem(
-    codebase: PsiBasedCodebase,
-    psiClass: PsiTypeParameter,
+    private val codebase: PsiBasedCodebase,
+    private val psiTypeParameter: PsiTypeParameter,
     name: String,
-    modifiers: PsiModifierItem
+    modifiers: BaseModifierList
 ) :
-    PsiClassItem(
-        codebase = codebase,
-        psiClass = psiClass,
-        name = name,
-        fullName = name,
-        qualifiedName = name,
-        hasImplicitDefaultConstructor = false,
-        classType = TYPE_PARAMETER,
+    DefaultTypeParameterItem(
+        classResolver = codebase,
         modifiers = modifiers,
-        documentation = "",
-        fromClassPath = false
-    ),
-    TypeParameterItem {
-    override fun typeBounds(): List<PsiTypeItem> = bounds
+        name = name,
+        isReified = isReified(psiTypeParameter),
+    ) {
+    fun psi() = psiTypeParameter
 
-    override fun isReified(): Boolean {
-        return isReified(element as? PsiTypeParameter)
-    }
-
-    private lateinit var bounds: List<PsiTypeItem>
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        val refs = psiClass.extendsList?.referencedTypes
-        bounds =
-            if (refs.isNullOrEmpty()) {
-                emptyList()
-            } else {
-                refs.mapNotNull { codebase.getType(it) }
-            }
+    override fun createVariableTypeItem(): VariableTypeItem {
+        return codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
     }
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {
-            val simpleName = psiClass.name!!
-            val modifiers = modifiers(codebase, psiClass, "")
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiTypeParameter: PsiTypeParameter,
+        ): PsiTypeParameterItem {
+            val simpleName = psiTypeParameter.name!!
+            val modifiers = PsiModifierItem.create(codebase, psiTypeParameter)
 
-            val item =
-                PsiTypeParameterItem(
-                    codebase = codebase,
-                    psiClass = psiClass,
-                    name = simpleName,
-                    modifiers = modifiers
-                )
-            item.modifiers.setOwner(item)
-            item.initialize(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
-            return item
+            return PsiTypeParameterItem(
+                codebase = codebase,
+                psiTypeParameter = psiTypeParameter,
+                name = simpleName,
+                modifiers = modifiers
+            )
         }
 
         fun isReified(element: PsiTypeParameter?): Boolean {
@@ -96,6 +75,26 @@ internal class PsiTypeParameterItem(
                 return true
             }
             return false
+        }
+
+        /**
+         * Creates a [DefaultTypeParameterItem] using the [ktTypeParameter]. Should be used only
+         * when there is no [PsiTypeParameter] available.
+         *
+         * The returned type parameter uses the default type implementation, which does not create a
+         * [PsiVariableTypeItem], as the analysis API doesn't have a direct way to create a psi type
+         * from the [KtTypeParameter].
+         */
+        fun create(
+            codebase: PsiBasedCodebase,
+            ktTypeParameter: KtTypeParameter
+        ): DefaultTypeParameterItem {
+            return DefaultTypeParameterItem(
+                classResolver = codebase,
+                modifiers = PsiModifierItem.createForKtDeclaration(codebase, ktTypeParameter),
+                name = ktTypeParameter.name!!,
+                isReified = ktTypeParameter.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
+            )
         }
     }
 }

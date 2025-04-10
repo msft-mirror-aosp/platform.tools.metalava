@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.newDir
+import com.android.tools.metalava.model.PackageFilter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -43,7 +44,7 @@ class StubGenerationOptions :
                 help =
                     """
                         Base directory to output the generated stub source files for the API, if
-                        specified.  
+                        specified.
                     """
                         .trimIndent(),
             )

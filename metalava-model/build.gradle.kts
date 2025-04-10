@@ -23,9 +23,16 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":metalava-reporter"))
+
+    testImplementation(project(":metalava-testing"))
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
 
+    testFixturesImplementation(project(":metalava-reporter"))
+    testFixturesImplementation(project(":metalava-testing"))
+    testFixturesImplementation(libs.androidLintTests)
+    testFixturesImplementation(libs.truth)
     testFixturesImplementation(libs.kotlinTest)
 }

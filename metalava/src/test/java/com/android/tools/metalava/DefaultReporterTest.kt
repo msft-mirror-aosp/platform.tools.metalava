@@ -17,8 +17,22 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.DefaultReporterEnvironment
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.IssueConfiguration
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reportable
+import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class DefaultReporterTest : DriverTest() {
@@ -51,6 +65,7 @@ class DefaultReporterTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test suppression annotations`() {
         check(
@@ -144,7 +159,7 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
+                        public void foo1(String a) {}
                     }
                 """
                     ),
@@ -184,11 +199,11 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
-                        public void foo2(String a) {} 
-                        public void foo3(String a) {} 
-                        public void foo4(String a) {} 
-                        public void foo5(String a) {} 
+                        public void foo1(String a) {}
+                        public void foo2(String a) {}
+                        public void foo3(String a) {}
+                        public void foo4(String a) {}
+                        public void foo5(String a) {}
                     }
                 """
                     ),
@@ -230,17 +245,144 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
-                        public void foo2(String a) {} 
-                        public void foo3(String a) {} 
-                        public void foo4(String a) {} 
-                        public void foo5(String a) {} 
-                        public void foo6(String a) {} 
+                        public void foo1(String a) {}
+                        public void foo2(String a) {}
+                        public void foo3(String a) {}
+                        public void foo4(String a) {}
+                        public void foo5(String a) {}
+                        public void foo6(String a) {}
                     }
                 """
                     ),
                     suppressLintSource
                 )
+        )
+    }
+
+    @Test
+    fun `test maximum severity`() {
+        val stringWriter = StringWriter()
+        val nullReportable: Reportable? = null
+        val nullFile: File? = null
+        PrintWriter(stringWriter).use { writer ->
+            val reporterEnvironment =
+                DefaultReporterEnvironment(
+                    stdout = writer,
+                    stderr = writer,
+                )
+            val issueConfiguration = IssueConfiguration()
+            val reporter =
+                DefaultReporter(
+                    environment = reporterEnvironment,
+                    issueConfiguration = issueConfiguration,
+                    config = DefaultReporter.Config(),
+                )
+
+            fun checkReportableMethod(maximum: Severity) {
+                reporter.report(
+                    Issues.MISSING_NULLABILITY,
+                    nullReportable,
+                    "reportable/maximum=$maximum",
+                    maximumSeverity = maximum
+                )
+            }
+
+            checkReportableMethod(Severity.ERROR)
+            checkReportableMethod(Severity.WARNING_ERROR_WHEN_NEW)
+            checkReportableMethod(Severity.WARNING)
+            checkReportableMethod(Severity.HIDDEN)
+
+            fun checkFileMethod(maximum: Severity) {
+                reporter.report(
+                    Issues.MISSING_NULLABILITY,
+                    nullFile,
+                    "file/maximum=$maximum",
+                    maximumSeverity = maximum
+                )
+            }
+
+            checkFileMethod(Severity.ERROR)
+            checkFileMethod(Severity.WARNING_ERROR_WHEN_NEW)
+            checkFileMethod(Severity.WARNING)
+            checkFileMethod(Severity.HIDDEN)
+
+            // Write any saved reports.
+            reporter.writeSavedReports()
+        }
+
+        assertEquals(
+            """
+                warning: file/maximum=warning [MissingNullability]
+                warning: reportable/maximum=warning [MissingNullability]
+                warning: file/maximum=warning (ErrorWhenNew) [MissingNullability]
+                warning: reportable/maximum=warning (ErrorWhenNew) [MissingNullability]
+                error: file/maximum=error [MissingNullability]
+                error: reportable/maximum=error [MissingNullability]
+            """
+                .trimIndent(),
+            stringWriter.toString().trimEnd()
+        )
+    }
+
+    @Test
+    fun `test suppressed writer`() {
+        val fakeReportable: Reportable =
+            object : Reportable {
+                override val fileLocation = FileLocation.UNKNOWN
+                override val baselineKey: BaselineKey = BaselineKey.UNKNOWN
+
+                override fun suppressedIssues() = setOf(Issues.HIDDEN_SUPERCLASS.name)
+            }
+        val suppressedFile = temporaryFolder.newFile("suppressed.txt")
+        val stringWriter = StringWriter()
+        suppressedFile.printWriter().use { reportEvenIfSuppressedWriter ->
+            PrintWriter(stringWriter).use { writer ->
+                val reporterEnvironment =
+                    DefaultReporterEnvironment(
+                        stdout = writer,
+                        stderr = writer,
+                    )
+                val reporter =
+                    DefaultReporter(
+                        environment = reporterEnvironment,
+                        issueConfiguration = IssueConfiguration(),
+                        config =
+                            DefaultReporter.Config(
+                                reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
+                            ),
+                    )
+
+                reporter.report(
+                    Issues.HIDDEN_SUPERCLASS,
+                    fakeReportable,
+                    "HIDDEN_SUPERCLASS",
+                )
+
+                reporter.report(
+                    Issues.BROADCAST_BEHAVIOR,
+                    fakeReportable,
+                    "BROADCAST_BEHAVIOR",
+                )
+
+                // Write any saved reports.
+                reporter.writeSavedReports()
+            }
+        }
+
+        assertEquals(
+            """
+                warning: HIDDEN_SUPERCLASS [HiddenSuperclass]
+                error: BROADCAST_BEHAVIOR [BroadcastBehavior]
+            """
+                .trimIndent(),
+            suppressedFile.readText().trimEnd(),
+            message = "suppressed file"
+        )
+
+        assertEquals(
+            "error: BROADCAST_BEHAVIOR [BroadcastBehavior]",
+            stringWriter.toString().trimEnd(),
+            message = "intercepted stdout"
         )
     }
 }
