@@ -160,12 +160,56 @@ class Tokenizer(
      * Scan from [position] (which is the start of the token) to the end of the token and return.
      *
      * When this returns [position] will point to the character after the end of the token.
+     *
+     * @see inlinedScanForEndOfTokenFragment
      */
     private fun scanForEndOfToken(parenIsSep: Boolean) {
+        inlinedScanForEndOfTokenFragment { c -> isSpace(c) || isSeparator(c, parenIsSep) }
+    }
+
+    /**
+     * Scan from [position] (which is the start of the token fragment) to the end of the token
+     * fragment and return.
+     *
+     * A token fragment is a whole token or part of a token. e.g. while "1" is a whole token, given
+     * a token of "Generic<AnotherGeneric<A>, B>" then "<AnotherGeneric<A>, B>" is a token fragment
+     * of the whole token and "<A>" is a token fragment of that.
+     *
+     * Currently, every token fragment starts with `<` and ends with `>`. It is an error if the end
+     * of the buffer is reached before matching the corresponding close `>` character.
+     *
+     * @see inlinedScanForEndOfTokenFragment
+     */
+    private fun scanForEndOfTokenFragment() {
+        inlinedScanForEndOfTokenFragment(openChar = '<') { c -> c == '>' }
+    }
+
+    /**
+     * An inline function that avoids duplicating almost identical code in [scanForEndOfToken] and
+     * [scanForEndOfTokenFragment] while avoiding the performance cost of passing lambdas as
+     * parameters.
+     *
+     * Scan from [position] (which is the start of the token, or token fragment) to the end of the
+     * token, or token fragment, and return.
+     *
+     * When [openChar] is `null` this is scanning for the end of a token and will stop when it
+     * either reaches a character matched by [endOfTokenPredicate] or the end of the buffer. On
+     * return [position] will point to the matched character or just past the end of the buffer
+     * respectively.
+     *
+     * When [openChar] is not-null then this is scanning for the end of a token fragment and will
+     * stop when it reaches a character matched by [endOfTokenPredicate]. It is an error if it hits
+     * the end of the buffer before it matches a character. On return [position] will point to just
+     * after the matched character.
+     *
+     * If this finds a `<` character it will call [scanForEndOfTokenFragment] to find the matching
+     * `>` character, failing if it reaches the end of the buffer first.
+     */
+    private inline fun inlinedScanForEndOfTokenFragment(
+        openChar: Char? = null,
+        endOfTokenPredicate: (Char) -> Boolean
+    ) {
         val line = line
-        // A count of the number of tokens that have been started but not finished, e.g. strings
-        // that have not yet seen the closing double quotes, , etc.
-        var incompleteDepth = 0
         while (position < buffer.size) {
             // Get the next character and assume that it is part of the token by incrementing the
             // position.
@@ -176,23 +220,18 @@ class Tokenizer(
                 scanForClosingQuotes()
             } else if (c == '<') {
                 // Open a type parameter/argument list. Make sure to continue to the next `>`.
-                incompleteDepth++
-            } else if (incompleteDepth != 0 && c == '>') {
-                // If this closes a previously opened type parameter/argument list then close
-                // it.
-                incompleteDepth--
-            } else if (incompleteDepth == 0 && (isSpace(c) || isSeparator(c, parenIsSep))) {
-                // If there are no incomplete tokens then a space or separator ends the token but
-                // is not part of it. Remove it from the token by decrementing the position and then
-                // return.
-                position--
+                scanForEndOfTokenFragment()
+            } else if (endOfTokenPredicate(c)) {
+                if (openChar == null) {
+                    position--
+                }
                 return
             }
         }
 
         // If reached the end of the buffer but the token is incomplete then throw an error.
-        if (incompleteDepth != 0) {
-            throwException("Unexpected end of file for < starting at $line")
+        if (openChar != null) {
+            throwException("Unexpected end of file for $openChar starting at $line")
         }
     }
 
