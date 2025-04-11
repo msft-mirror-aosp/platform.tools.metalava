@@ -134,9 +134,9 @@ interface FieldItem : MemberItem, InheritableItem {
      * Check the declared value with a typed comparison, not a string comparison, to accommodate
      * toolchains with different fp -> string conversions.
      */
-    fun hasSameValue(other: FieldItem): Boolean {
-        val thisConstant = legacyInitialValue()
-        val otherConstant = other.legacyInitialValue()
+    fun hasSameConstantValue(other: FieldItem): Boolean {
+        val thisConstant = constantValue
+        val otherConstant = other.constantValue
         if (thisConstant == null != (otherConstant == null)) {
             return false
         }
@@ -154,7 +154,9 @@ interface FieldItem : MemberItem, InheritableItem {
             return true
         }
 
-        if (thisConstant.toString() == otherConstant.toString()) {
+        if (thisConstant.toValueString() == otherConstant?.toValueString()) {
+            // TODO(b/354633349): Add support for a special compare ignoring type that handles all
+            //   the conversions that the ValueFactory.createLiteralValue(...) handles.
             // e.g. Integer(3) and Short(3) are the same; when comparing
             // with signature files we sometimes don't have the right
             // types from signatures
