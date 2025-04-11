@@ -190,7 +190,8 @@ interface FieldItem : MemberItem, InheritableItem {
     ) {
         val value =
             legacyInitialValue(!allowDefaultValue)
-                ?: if (allowDefaultValue && !containingClass().isClass()) type().defaultValue()
+                ?: if (allowDefaultValue && !containingClass().classKind.supportsInitializerBlock)
+                    type().defaultValue()
                 else null
         if (value != null) {
             when (value) {

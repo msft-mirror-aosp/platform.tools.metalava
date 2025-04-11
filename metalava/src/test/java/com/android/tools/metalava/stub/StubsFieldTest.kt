@@ -174,7 +174,6 @@ class StubsFieldTest : AbstractStubsTest() {
                     ),
                 ),
             stubFiles =
-                // TODO(b/407951018): Stop using constant values as field initializers here.
                 arrayOf(
                     java(
                         """
@@ -182,16 +181,26 @@ class StubsFieldTest : AbstractStubsTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public enum Foo {
                             ;
-                            public static final boolean BOOLEAN_FIELD = false;
-                            public static final byte BYTE_FIELD = 0; // 0x0
-                            public static final char CHAR_FIELD = 0; // 0x0000 '\u0000'
-                            public static final double DOUBLE_FIELD = 0.0;
-                            public static final float FLOAT_FIELD = 0.0f;
-                            public static final int INT_FIELD = 0; // 0x0
-                            public static final long LONG_FIELD = 0L; // 0x0L
-                            public static final java.lang.Runnable RUNNABLE_FIELD = null;
-                            public static final short SHORT_FIELD = 0; // 0x0
-                            public static final java.lang.String STRING_FIELD = null;
+                            public static final boolean BOOLEAN_FIELD;
+                            static { BOOLEAN_FIELD = false; }
+                            public static final byte BYTE_FIELD;
+                            static { BYTE_FIELD = 0; }
+                            public static final char CHAR_FIELD;
+                            static { CHAR_FIELD = 0; }
+                            public static final double DOUBLE_FIELD;
+                            static { DOUBLE_FIELD = 0; }
+                            public static final float FLOAT_FIELD;
+                            static { FLOAT_FIELD = 0; }
+                            public static final int INT_FIELD;
+                            static { INT_FIELD = 0; }
+                            public static final long LONG_FIELD;
+                            static { LONG_FIELD = 0; }
+                            public static final java.lang.Runnable RUNNABLE_FIELD;
+                            static { RUNNABLE_FIELD = null; }
+                            public static final short SHORT_FIELD;
+                            static { SHORT_FIELD = 0; }
+                            public static final java.lang.String STRING_FIELD;
+                            static { STRING_FIELD = null; }
                             }
                         """
                     ),
