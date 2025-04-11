@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
@@ -31,6 +32,7 @@ open class DefaultFieldItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -45,6 +47,7 @@ open class DefaultFieldItem(
         codebase = codebase,
         fileLocation = fileLocation,
         sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
@@ -66,6 +69,7 @@ open class DefaultFieldItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
+                targetLanguages = targetLanguages,
                 variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
