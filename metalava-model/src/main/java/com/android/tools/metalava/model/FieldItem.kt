@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.FieldValue
+import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.Value
 import java.io.PrintWriter
 
 @MetalavaApi
@@ -52,6 +54,22 @@ interface FieldItem : MemberItem, InheritableItem {
      * representation.
      */
     fun legacyInitialValue(requireConstant: Boolean = true): Any?
+
+    /**
+     * The optional initial value of the field.
+     *
+     * Replacement for [legacyInitialValue] and [legacyFieldValue].
+     *
+     * The [Value] may be the result of a constant expression as defined by JLS 15.28, i.e. a value
+     * of a primitive or [String] type (see [ConstantValue]), or it could be some other value, e.g.
+     * enum, class literal, etc.
+     *
+     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
+     * behavior is correctly maintained, i.e.:
+     * * `legacyInitialValue(true)` will become `initialValue as? ConstantValue`.
+     * * `legacyInitialValue(false)` will become `initialValue`.
+     */
+    val initialValue: Value?
 
     /**
      * An enum can contain both enum constants and fields; this method provides a way to distinguish
@@ -194,7 +212,7 @@ interface FieldItem : MemberItem, InheritableItem {
                         value == java.lang.Float.MIN_NORMAL ->
                             writer.format("1.17549435E-38f;", value)
                         else -> {
-                            writer.print(canonicalizeFloatingPointString(value.toString()))
+                            writer.print(value.toString())
                             writer.print("f;")
                         }
                     }
@@ -206,7 +224,7 @@ interface FieldItem : MemberItem, InheritableItem {
                         value == Double.NEGATIVE_INFINITY -> writer.print("(-1.0/0.0);")
                         java.lang.Double.isNaN(value) -> writer.print("(0.0/0.0);")
                         else -> {
-                            writer.print(canonicalizeFloatingPointString(value.toString()))
+                            writer.print(value.toString())
                             writer.print(";")
                         }
                     }
@@ -359,25 +377,4 @@ fun javaUnescapeString(str: String): String {
         throw IllegalArgumentException("unfinished escape sequence: $str")
     }
     return buf.toString()
-}
-
-/**
- * Returns a canonical string representation of a floating point number. The representation is
- * suitable for use as Java source code. This method also addresses bug #4428022 in the Sun JDK.
- */
-// From doclava1
-fun canonicalizeFloatingPointString(value: String): String {
-    var str = value
-    if (str.indexOf('E') != -1) {
-        return str
-    }
-
-    // 1.0 is the only case where a trailing "0" is allowed.
-    // 1.00 is canonicalized as 1.0.
-    var i = str.length - 1
-    val d = str.indexOf('.')
-    while (i >= d + 2 && str[i] == '0') {
-        str = str.substring(0, i--)
-    }
-    return str
 }

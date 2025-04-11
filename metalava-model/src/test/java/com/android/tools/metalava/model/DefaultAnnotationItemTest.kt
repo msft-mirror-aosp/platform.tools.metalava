@@ -16,38 +16,14 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.PackageDoc
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DefaultAnnotationItemTest : Assertions {
-    // Placeholder for use in test where we don't need codebase functionality
-    private val placeholderCodebase =
-        DefaultCodebase(
-            location = File("").canonicalFile,
-            description = "",
-            preFiltered = false,
-            config = Codebase.Config.NOOP,
-            trustedApi = false,
-            supportsDocumentation = false,
-            assembler =
-                object : CodebaseAssembler {
-                    override fun createPackageItem(
-                        packageName: String,
-                        packageDoc: PackageDoc,
-                        containingPackage: PackageItem?,
-                    ) = error("unsupported")
-
-                    override fun createClassFromUnderlyingModel(qualifiedName: String) = null
-                },
-        )
 
     private fun createDefaultAnnotationItem(source: String) =
-        DefaultAnnotationItem.create(placeholderCodebase, source)
+        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT, source)
             ?: error("Could not create annotation from: '$source'")
 
     @Test

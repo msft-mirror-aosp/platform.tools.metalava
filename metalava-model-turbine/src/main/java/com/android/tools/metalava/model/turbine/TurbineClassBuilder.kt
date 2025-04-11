@@ -54,6 +54,7 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -77,6 +78,7 @@ import com.google.turbine.tree.Tree.TyDecl
 import com.google.turbine.tree.Tree.VarDecl
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Responsible for creating [ClassItem]s from either source or binary [ClassSymbol] and
@@ -217,7 +219,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
-        val annotations = annotationFactory.createAnnotations(annoInfos)
+        val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
@@ -407,6 +409,13 @@ internal class TurbineClassBuilder(
                     }
                 )
 
+            val initialFieldValueProvider =
+                field.value()?.let { const ->
+                    val expr = field.decl()?.init()?.getOrNull()
+                    val turbineValue = TurbineValue(const, expr, fieldResolver)
+                    valueFactory.providerFor(type, turbineValue, ValueUseSite.FIELD)
+                }
+
             val documentation = javadoc(decl)
             val fieldItem =
                 itemFactory.createFieldItem(
@@ -417,6 +426,7 @@ internal class TurbineClassBuilder(
                     containingClass = classItem,
                     type = type,
                     isEnumConstant = isEnumConstant,
+                    initialValueProvider = initialFieldValueProvider,
                     fieldValue = fieldValue,
                 )
 
@@ -448,12 +458,10 @@ internal class TurbineClassBuilder(
                 )
             val documentation = javadoc(decl)
             val defaultValueExpr = getAnnotationDefaultExpression(method)
-            val defaultValue =
+            val defaultTurbineValue =
                 method.defaultValue()?.let { defaultConst ->
                     TurbineValue(defaultConst, defaultValueExpr, fieldResolver)
-                        .getSourceForMethodDefault()
                 }
-                    ?: ""
 
             val parameters = method.parameters()
             val fingerprint = MethodFingerprint(name, parameters.size)
@@ -465,6 +473,12 @@ internal class TurbineClassBuilder(
                     fingerprint = fingerprint,
                     isAnnotationElement = isAnnotationElement,
                 )
+
+            val defaultValue = defaultTurbineValue?.getSourceForMethodDefault() ?: ""
+            val defaultValueProvider =
+                defaultTurbineValue?.let {
+                    valueFactory.providerFor(returnType, it, ValueUseSite.ANNOTATION)
+                }
 
             val methodItem =
                 itemFactory.createMethodItem(
@@ -484,6 +498,7 @@ internal class TurbineClassBuilder(
                         )
                     },
                     throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
+                    defaultValueProvider = defaultValueProvider,
                     annotationDefault = defaultValue,
                 )
 

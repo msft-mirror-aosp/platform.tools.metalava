@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -41,7 +40,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -61,8 +59,15 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.ParameterDefaultValue
-import com.android.tools.metalava.model.javaUnescapeString
+import com.android.tools.metalava.model.parser.FileLocationTracker
+import com.android.tools.metalava.model.parser.TokenPurpose
+import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueParser
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -169,10 +174,10 @@ sealed class SignatureFile {
                 file.readText(UTF_8)
             } catch (ex: IOException) {
                 throw ApiParseException(
-                    "Error reading API file",
-                    location = FileLocation.createLocation(file.toPath()),
-                    cause = ex
-                )
+                        "Error reading API file",
+                        location = FileLocation.createLocation(file.toPath()),
+                    )
+                    .apply { initCause(ex) }
             }
     }
 
@@ -209,16 +214,11 @@ private constructor(
      */
     private lateinit var fileLocationTracker: FileLocationTracker
 
-    /**
-     * Report recoverable errors encountered while parsing.
-     *
-     * Retrieves the location of the error from [fileLocationTracker].
-     */
-    private val errorReporter =
-        object : SignatureErrorReporter {
+    /** Report recoverable errors encountered while parsing types. */
+    private val typeItemParserErrorReporter =
+        object : TypeItemParserErrorReporter {
             override fun report(issue: Issues.Issue, message: String) {
-                val location = fileLocationTracker.fileLocation()
-                codebase.reporter.report(issue, null, message, location)
+                reportIssue(issue, message)
             }
         }
 
@@ -230,7 +230,7 @@ private constructor(
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) {
-            TextTypeParser(codebase, kotlinStyleNulls!!, errorReporter)
+            TextTypeParser(codebase, kotlinStyleNulls!!, typeItemParserErrorReporter)
         }
 
     /**
@@ -243,6 +243,10 @@ private constructor(
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
+
+    /** The [ValueParser] to use for creating [Value]s from a signature file. */
+    private val valueParser =
+        ValueParser(TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter))
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -398,6 +402,18 @@ private constructor(
     }
 
     /**
+     * Report a recoverable issue encountered while parsing.
+     *
+     * Retrieves the location of the error from [fileLocationTracker].
+     *
+     * Note: Non-recoverable issues result in an exception being thrown.
+     */
+    private fun reportIssue(issue: Issues.Issue, message: String) {
+        val location = fileLocationTracker.fileLocation()
+        codebase.reporter.report(issue, null, message, location)
+    }
+
+    /**
      * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
      * created.
      *
@@ -471,7 +487,7 @@ private constructor(
         // Remember the API variant of the file being parsed.
         this.apiVariant = apiVariant
 
-        val tokenizer = Tokenizer(path, apiText.toCharArray())
+        val tokenizer = Tokenizer(path, apiText.toCharArray(), ::ApiParseException)
 
         // Get the preceding tracker, if any.
         val precedingTracker =
@@ -487,7 +503,8 @@ private constructor(
         // Disallow a mixture of kotlinStyleNulls settings.
         if (kotlinStyleNulls != null && kotlinStyleNulls != format.kotlinStyleNulls) {
             val precedingFile = precedingTracker!!.fileLocation().path
-            errorReporter.report(
+            reportIssue(
+                Issues.SIGNATURE_FILE_ERROR,
                 "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
             )
         }
@@ -1004,8 +1021,7 @@ private constructor(
                 }
 
                 Pair(existingTypeParameterList, typeItemFactoryForClass(existingClass))
-            }
-                ?: Pair(typeParameterList, typeItemFactory)
+            } ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
             fullName = fullName,
@@ -1088,9 +1104,12 @@ private constructor(
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
-                add(annotationItem)
-            }
+            DefaultAnnotationItem.createFromSource(
+                    codebase,
+                    annotationSource,
+                    valueParser,
+                )
+                ?.let { annotationItem -> add(annotationItem) }
         }
     }
 
@@ -1249,6 +1268,15 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
 
+        val defaultValueProvider =
+            if (defaultAnnotationMethodValue.isNotEmpty())
+                valueParser.providerFor(
+                    returnType,
+                    defaultAnnotationMethodValue,
+                    ValueUseSite.ANNOTATION,
+                )
+            else null
+
         method =
             itemFactory.createMethodItem(
                 fileLocation = tokenizer.fileLocation(),
@@ -1262,6 +1290,7 @@ private constructor(
                     createParameterItems(containingCallable, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
+                defaultValueProvider = defaultValueProvider,
                 annotationDefault = defaultAnnotationMethodValue,
             )
 
@@ -1317,7 +1346,7 @@ private constructor(
         // Get the optional value.
         val valueString =
             if ("=" == token) {
-                token = tokenizer.requireToken(false)
+                token = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
                 token.also { token = tokenizer.requireToken() }
             } else null
 
@@ -1332,9 +1361,11 @@ private constructor(
             )
         synchronizeNullability(type, modifiers)
 
-        // Parse the value string.
-        val fieldValue =
-            valueString?.let { FixedFieldValue(parseValue(type, valueString, tokenizer)) }
+        // Defer parsing the value string until needed.
+        val fieldValue = valueString?.let { TextFieldValue(type, it) }
+
+        val initialValueProvider =
+            valueString?.let { valueParser.providerFor(type, it, ValueUseSite.FIELD) }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1348,6 +1379,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
+                initialValueProvider = initialValueProvider,
                 fieldValue = fieldValue,
             )
         field.markForMainApiSurface()
@@ -1474,67 +1506,6 @@ private constructor(
             modifiers.setDeprecated(true)
         }
         return modifiers
-    }
-
-    private fun parseValue(
-        type: TypeItem,
-        value: String?,
-        fileLocationTracker: FileLocationTracker,
-    ): Any? {
-        return if (value != null) {
-            if (type is PrimitiveTypeItem) {
-                parsePrimitiveValue(type, value, fileLocationTracker)
-            } else if (type.isString()) {
-                if ("null" == value) {
-                    null
-                } else {
-                    javaUnescapeString(value.substring(1, value.length - 1))
-                }
-            } else {
-                value
-            }
-        } else null
-    }
-
-    private fun parsePrimitiveValue(
-        type: PrimitiveTypeItem,
-        value: String,
-        fileLocationTracker: FileLocationTracker,
-    ): Any {
-        return when (type.kind) {
-            Primitive.BOOLEAN ->
-                if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
-            Primitive.BYTE,
-            Primitive.SHORT,
-            Primitive.INT -> Integer.valueOf(value)
-            Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-            Primitive.FLOAT ->
-                when (value) {
-                    "(1.0f/0.0f)",
-                    "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                    "(-1.0f/0.0f)",
-                    "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                    "(0.0f/0.0f)",
-                    "(0.0f / 0.0f)" -> Float.NaN
-                    else -> java.lang.Float.valueOf(value)
-                }
-            Primitive.DOUBLE ->
-                when (value) {
-                    "(1.0/0.0)",
-                    "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                    "(-1.0/0.0)",
-                    "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                    "(0.0/0.0)",
-                    "(0.0 / 0.0)" -> Double.NaN
-                    else -> java.lang.Double.valueOf(value)
-                }
-            Primitive.CHAR -> value.toInt().toChar()
-            Primitive.VOID ->
-                throw ApiParseException(
-                    "Found value $value assigned to void type",
-                    fileLocationTracker
-                )
-        }
     }
 
     private fun parseProperty(
@@ -1690,7 +1661,7 @@ private constructor(
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
-        val typeParameterStrings = TextTypeParser.typeParameterStrings(typeParameterListString)
+        val typeParameterStrings = TypeItemParser.typeParameterStrings(typeParameterListString)
 
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two
@@ -1808,7 +1779,7 @@ private constructor(
                 // Java style: parse the type, then the public name if it has one.
                 typeString = scanForTypeString(tokenizer, token)
                 token = tokenizer.current
-                if (Tokenizer.isIdent(token) && token != "=") {
+                if (Tokenizer.isIdent(token)) {
                     name = token
                     publicName = name
                     token = tokenizer.requireToken()

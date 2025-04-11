@@ -358,8 +358,7 @@ abstract class DriverTest :
                     baselineFile,
                     inputContents,
                 )
-        }
-            ?: BaselineCheck("", emptyArray(), null, "")
+        } ?: BaselineCheck("", emptyArray(), null, "")
     }
 
     @Suppress("DEPRECATION")
@@ -1562,27 +1561,50 @@ val requiresApiSource: TestFile =
         )
         .indented()
 
+val flaggedApiSource: TestFile =
+    java(
+            """
+        package android.annotation;
+        import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+        import static java.lang.annotation.ElementType.CONSTRUCTOR;
+        import static java.lang.annotation.ElementType.FIELD;
+        import static java.lang.annotation.ElementType.METHOD;
+        import static java.lang.annotation.ElementType.TYPE;
+
+        import java.lang.annotation.Retention;
+        import java.lang.annotation.RetentionPolicy;
+        import java.lang.annotation.Target;
+        /** @hide */
+        @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+        @Retention(RetentionPolicy.CLASS)
+        public @interface FlaggedApi {
+            String value();
+        }
+    """
+        )
+        .indented()
+
 private fun restrictedForEnvironmentClass(packageName: String): TestFile =
     java(
             """
             package $packageName;
             import java.lang.annotation.*;
             import static java.lang.annotation.ElementType.*;
-            import static java.lang.annotation.RetentionPolicy.SOURCE;
+            import static java.lang.annotation.RetentionPolicy;
             /** @hide */
-            @Retention(SOURCE)
+            @Retention(RetentionPolicy.RUNTIME)
             @Target({TYPE})
             public @interface RestrictedForEnvironment {
-              Environment[] environments();
+              @Environment String[] environments();
               int from();
-              enum Environment {
-                SDK_SANDBOX {
-                    @Override
-                    public String toString() {
-                        return "SDK Runtime";
-                    }
-                }
-              }
+              String ENVIRONMENT_SDK_RUNTIME = "SDK Runtime";
+              /** @hide */
+              @StringDef(prefix = "ENVIRONMENT_", value = {
+                ENVIRONMENT_SDK_RUNTIME
+              })
+              @Retention(RetentionPolicy.SOURCE)
+              @interface Environment {}
+
               @Retention(RetentionPolicy.RUNTIME)
               @Target(TYPE)
               @interface Container {
