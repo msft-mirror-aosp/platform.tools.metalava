@@ -177,8 +177,7 @@ interface ValueFactory {
         return if (fieldItem.isEnumConstant()) {
             createEnumConstantValue(classTypeItem, fieldName)
         } else {
-            val constantValue = fieldItem.initialValue?.asLiteralValue()
-            createConstantFieldValue(classTypeItem, fieldName, constantValue)
+            createConstantFieldValue(classTypeItem, fieldName, fieldItem.constantValue)
         }
     }
 

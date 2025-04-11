@@ -58,6 +58,10 @@ interface FieldItem : MemberItem, InheritableItem {
     /**
      * The optional initial value of the field.
      *
+     * This is the [Value] provided in the source (or for constant fields in the jar) and may not be
+     * included in the API even if the [FieldItem] is. See [constantValue] for the API value. This
+     * may differ between implementation models and is likely to be removed.
+     *
      * Replacement for [legacyInitialValue] and [legacyFieldValue].
      *
      * The [Value] may be the result of a constant expression as defined by JLS 15.28, i.e. a value
@@ -66,10 +70,33 @@ interface FieldItem : MemberItem, InheritableItem {
      *
      * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
      * behavior is correctly maintained, i.e.:
-     * * `legacyInitialValue(true)` will become `initialValue as? ConstantValue`.
-     * * `legacyInitialValue(false)` will become `initialValue`.
+     * * `legacyInitialValue(true)` will become [constantValue].
+     * * `legacyInitialValue(false)` will become [initialValue].
      */
     val initialValue: Value?
+
+    /**
+     * The optional constant value of the field.
+     *
+     * This is the [constantValue] provided in the source or in the jar and will be part of the API
+     * if the [FieldItem] is. See [initialValue] for the API value.
+     *
+     * Replacement for [legacyInitialValue] and [legacyFieldValue].
+     *
+     * The [ConstantValue] is the result of a constant expression as defined by JLS 15.28, i.e. a
+     * value of a primitive or [String] type (see [ConstantValue]) on a field which is `static` and
+     * `final`.
+     *
+     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
+     * behavior is correctly maintained, i.e.:
+     * * `legacyInitialValue(true)` will become [constantValue].
+     * * `legacyInitialValue(false)` will become [initialValue].
+     */
+    val constantValue: ConstantValue?
+        get() =
+            // Make sure the field is static and final and return the constant value.
+            if (modifiers.isStatic() && modifiers.isFinal()) initialValue?.asLiteralValue()
+            else null
 
     /**
      * An enum can contain both enum constants and fields; this method provides a way to distinguish
