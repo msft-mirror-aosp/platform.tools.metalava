@@ -64,7 +64,6 @@ class StubsFieldTest : AbstractStubsTest() {
                     ),
                 ),
             stubFiles =
-                // TODO(b/407951018): Stop using constant values as field initializers here.
                 arrayOf(
                     java(
                         """
@@ -72,16 +71,16 @@ class StubsFieldTest : AbstractStubsTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                             public @interface Foo {
-                            public static final boolean BOOLEAN_FIELD = false;
-                            public static final byte BYTE_FIELD = 0; // 0x0
-                            public static final char CHAR_FIELD = 0; // 0x0000 '\u0000'
-                            public static final double DOUBLE_FIELD = 0.0;
-                            public static final float FLOAT_FIELD = 0.0f;
-                            public static final int INT_FIELD = 0; // 0x0
-                            public static final long LONG_FIELD = 0L; // 0x0L
-                            public static final java.lang.Runnable RUNNABLE_FIELD = null;
-                            public static final short SHORT_FIELD = 0; // 0x0
-                            public static final java.lang.String STRING_FIELD = null;
+                            public static final boolean BOOLEAN_FIELD = java.lang.Boolean.parseBoolean("false"); // Not compile-time constant
+                            public static final byte BYTE_FIELD = java.lang.Byte.parseByte("0"); // Not compile-time constant
+                            public static final char CHAR_FIELD = "A".charAt(0); // Not compile-time constant
+                            public static final double DOUBLE_FIELD = java.lang.Double.parseDouble("0"); // Not compile-time constant
+                            public static final float FLOAT_FIELD = java.lang.Float.parseFloat("0"); // Not compile-time constant
+                            public static final int INT_FIELD = java.lang.Integer.parseInt("0"); // Not compile-time constant
+                            public static final long LONG_FIELD = java.lang.Long.parseLong("0"); // Not compile-time constant
+                            public static final java.lang.Runnable RUNNABLE_FIELD = null; // Not compile-time constant
+                            public static final short SHORT_FIELD = java.lang.Short.parseShort("0"); // Not compile-time constant
+                            public static final java.lang.String STRING_FIELD = java.lang.String.valueOf(0); // Not compile-time constant
                             }
                         """
                     ),
@@ -233,23 +232,22 @@ class StubsFieldTest : AbstractStubsTest() {
                     ),
                 ),
             stubFiles =
-                // TODO(b/407951018): Stop using constant values as field initializers here.
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Foo {
-                            public static final boolean BOOLEAN_FIELD = false;
-                            public static final byte BYTE_FIELD = 0; // 0x0
-                            public static final char CHAR_FIELD = 0; // 0x0000 '\u0000'
-                            public static final double DOUBLE_FIELD = 0.0;
-                            public static final float FLOAT_FIELD = 0.0f;
-                            public static final int INT_FIELD = 0; // 0x0
-                            public static final long LONG_FIELD = 0L; // 0x0L
-                            public static final java.lang.Runnable RUNNABLE_FIELD = null;
-                            public static final short SHORT_FIELD = 0; // 0x0
-                            public static final java.lang.String STRING_FIELD = null;
+                            public static final boolean BOOLEAN_FIELD = java.lang.Boolean.parseBoolean("false"); // Not compile-time constant
+                            public static final byte BYTE_FIELD = java.lang.Byte.parseByte("0"); // Not compile-time constant
+                            public static final char CHAR_FIELD = "A".charAt(0); // Not compile-time constant
+                            public static final double DOUBLE_FIELD = java.lang.Double.parseDouble("0"); // Not compile-time constant
+                            public static final float FLOAT_FIELD = java.lang.Float.parseFloat("0"); // Not compile-time constant
+                            public static final int INT_FIELD = java.lang.Integer.parseInt("0"); // Not compile-time constant
+                            public static final long LONG_FIELD = java.lang.Long.parseLong("0"); // Not compile-time constant
+                            public static final java.lang.Runnable RUNNABLE_FIELD = null; // Not compile-time constant
+                            public static final short SHORT_FIELD = java.lang.Short.parseShort("0"); // Not compile-time constant
+                            public static final java.lang.String STRING_FIELD = java.lang.String.valueOf(0); // Not compile-time constant
                             }
                         """
                     ),
@@ -309,13 +307,11 @@ class StubsFieldTest : AbstractStubsTest() {
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Foo {
-                            public static final java.lang.Class<?> FIELD;
+                            public static final java.lang.Class<?> FIELD = null; // Not compile-time constant
                             }
                         """
                     ),
                 ),
-            // TODO(b/407951018): Fix initialization issue so that this will compile properly.
-            checkCompilation = false,
         )
     }
 }

@@ -76,7 +76,7 @@ abstract class AbstractStubsTest : DriverTest() {
                 showAnnotations = showAnnotations,
                 stubFiles = stubFilesArr,
                 expectedIssues = warnings,
-                checkCompilation = true,
+                checkCompilation = checkCompilation,
                 extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
                 skipEmitPackages = skipEmitPackages,
                 format = format

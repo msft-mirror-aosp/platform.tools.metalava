@@ -181,104 +181,115 @@ interface FieldItem : MemberItem, InheritableItem {
 
     /**
      * If this field has no initial value, it just writes ";", otherwise it writes " = value;" with
-     * the correct Java syntax for the initial value
+     * the correct Java syntax for the initial value.
+     *
+     * @param writer the [PrintWriter] to which this will write the field value.
+     * @param nonConstantExpressionProvider optional provider of an expression that will initialize
+     *   the field but will not be considered to be a constant expression as defined in JLS 15.28.
+     * @return `true` if a value was written, false otherwise.
      */
     fun writeValueWithSemicolon(
         writer: PrintWriter,
-        allowDefaultValue: Boolean = false,
-        requireInitialValue: Boolean = false
-    ) {
-        val value =
-            legacyInitialValue(!allowDefaultValue)
-                ?: if (allowDefaultValue && !containingClass().classKind.supportsInitializerBlock)
-                    type().defaultValue()
-                else null
-        if (value != null) {
-            when (value) {
-                is Int -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print("; // 0x")
-                    writer.print(Integer.toHexString(value))
-                }
-                is String -> {
-                    writer.print(" = ")
-                    writer.print('"')
-                    writer.print(javaEscapeString(value))
-                    writer.print('"')
-                    writer.print(";")
-                }
-                is Long -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print(String.format("L; // 0x%xL", value))
-                }
-                is Boolean -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print(";")
-                }
-                is Byte -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print("; // 0x")
-                    writer.print(Integer.toHexString(value.toInt()))
-                }
-                is Short -> {
-                    writer.print(" = ")
-                    writer.print(value)
-                    writer.print("; // 0x")
-                    writer.print(Integer.toHexString(value.toInt()))
-                }
-                is Float -> {
-                    writer.print(" = ")
-                    when {
-                        value == Float.POSITIVE_INFINITY -> writer.print("(1.0f/0.0f);")
-                        value == Float.NEGATIVE_INFINITY -> writer.print("(-1.0f/0.0f);")
-                        java.lang.Float.isNaN(value) -> writer.print("(0.0f/0.0f);")
-                        // Force MIN_NORMAL to use the String representation created by
-                        // java.lang.Float.toString() before the bug fix in JDK 19  - see
-                        // https://inside.java/2022/09/23/quality-heads-up/ for details.
-                        value == java.lang.Float.MIN_NORMAL ->
-                            writer.format("1.17549435E-38f;", value)
-                        else -> {
-                            writer.print(value.toString())
-                            writer.print("f;")
-                        }
+        nonConstantExpressionProvider: ((FieldItem) -> String?)? = null,
+    ): Boolean {
+        when (val value = legacyInitialValue(true)) {
+            is Int -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print("; // 0x")
+                writer.print(Integer.toHexString(value))
+            }
+            is String -> {
+                writer.print(" = ")
+                writer.print('"')
+                writer.print(javaEscapeString(value))
+                writer.print('"')
+                writer.print(";")
+            }
+            is Long -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print(String.format("L; // 0x%xL", value))
+            }
+            is Boolean -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print(";")
+            }
+            is Byte -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print("; // 0x")
+                writer.print(Integer.toHexString(value.toInt()))
+            }
+            is Short -> {
+                writer.print(" = ")
+                writer.print(value)
+                writer.print("; // 0x")
+                writer.print(Integer.toHexString(value.toInt()))
+            }
+            is Float -> {
+                writer.print(" = ")
+                when {
+                    value == Float.POSITIVE_INFINITY -> writer.print("(1.0f/0.0f);")
+                    value == Float.NEGATIVE_INFINITY -> writer.print("(-1.0f/0.0f);")
+                    java.lang.Float.isNaN(value) -> writer.print("(0.0f/0.0f);")
+                    // Force MIN_NORMAL to use the String representation created by
+                    // java.lang.Float.toString() before the bug fix in JDK 19  - see
+                    // https://inside.java/2022/09/23/quality-heads-up/ for details.
+                    value == java.lang.Float.MIN_NORMAL -> writer.format("1.17549435E-38f;", value)
+                    else -> {
+                        writer.print(value.toString())
+                        writer.print("f;")
                     }
                 }
-                is Double -> {
-                    writer.print(" = ")
-                    when {
-                        value == Double.POSITIVE_INFINITY -> writer.print("(1.0/0.0);")
-                        value == Double.NEGATIVE_INFINITY -> writer.print("(-1.0/0.0);")
-                        java.lang.Double.isNaN(value) -> writer.print("(0.0/0.0);")
-                        else -> {
-                            writer.print(value.toString())
-                            writer.print(";")
-                        }
+            }
+            is Double -> {
+                writer.print(" = ")
+                when {
+                    value == Double.POSITIVE_INFINITY -> writer.print("(1.0/0.0);")
+                    value == Double.NEGATIVE_INFINITY -> writer.print("(-1.0/0.0);")
+                    java.lang.Double.isNaN(value) -> writer.print("(0.0/0.0);")
+                    else -> {
+                        writer.print(value.toString())
+                        writer.print(";")
                     }
                 }
-                is Char -> {
-                    writer.print(" = ")
-                    val intValue = value.code
-                    writer.print(intValue)
-                    writer.print("; // ")
-                    writer.print(
-                        String.format("0x%04x '%s'", intValue, javaEscapeString(value.toString()))
-                    )
-                }
-                else -> {
-                    writer.print(';')
-                }
             }
-        } else {
-            // in interfaces etc we must have an initial value
-            if (requireInitialValue && !containingClass().isClass()) {
-                writer.print(" = null")
+            is Char -> {
+                writer.print(" = ")
+                val intValue = value.code
+                writer.print(intValue)
+                writer.print("; // ")
+                writer.print(
+                    String.format("0x%04x '%s'", intValue, javaEscapeString(value.toString()))
+                )
             }
-            writer.print(';')
+            else -> {
+                // A non-constant expression initializer is only needed if the field is static and
+                // final. If it was just final and not static then it must be part of a normal class
+                // or an enum in which case they will use a separate initializer block to initialize
+                // the field.
+                if (modifiers.isFinal() && modifiers.isStatic()) {
+                    // Get the non-constant expression, if possible. If one is provided then write
+                    // it out.
+                    nonConstantExpressionProvider?.invoke(this)?.let { nonConstantExpression ->
+                        writer.print(" = ")
+                        writer.print(nonConstantExpression)
+                        writer.print("; // Not compile-time constant")
+                        // A value was written.
+                        return true
+                    }
+                }
+
+                writer.print(';')
+                // A value was not written.
+                return false
+            }
         }
+
+        // A value was written.
+        return true
     }
 }
 
