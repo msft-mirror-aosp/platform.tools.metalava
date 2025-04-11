@@ -17,7 +17,7 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
-import org.junit.Assert.*
+import com.android.tools.metalava.model.text.assertSignatureContents
 import org.junit.Test
 
 private val signatureCatHelp =
@@ -27,10 +27,12 @@ Usage: metalava signature-cat [options] [<files>]...
   Cats signature files.
 
   Reads signature files either provided on the command line, or in stdin into a combined API surface and then writes it
-  out to stdout according to the format options. The resulting output will be different to the input if the input does
-  not already conform to the selected format.
+  out to either the output file provided on the command line or to stdout according to the format options. The resulting
+  output will be different to the input if the input does not already conform to the selected format.
 
 Options:
+  --output-file <file>                       File to write the signature output to. If not specified stdout will be
+                                             used.
   -h, -?, --help                             Show this message and exit
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
@@ -94,30 +96,26 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
             args +=
                 listOf(
                     "signature-cat",
-                    inputFile(
-                            "foo.txt",
-                            """
+                    unindentedInputFile(
+                        "foo.txt",
+                        """
                             // Signature format: 2.0
                             package test.pkg {
                               public interface Foo {
                               }
                             }
                         """
-                                .trimIndent()
-                        )
-                        .path,
-                    inputFile(
-                            "bar.txt",
-                            """
+                    ),
+                    unindentedInputFile(
+                        "bar.txt",
+                        """
                             // Signature format: 2.0
                             package test.pkg {
                               public interface Bar {
                               }
                             }
                         """
-                                .trimIndent()
-                        )
-                        .path,
+                    ),
                 )
 
             // Stdin should be ignored when files are provided on the command line.
@@ -128,10 +126,10 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     // Signature format: 2.0
                     package test.pkg {
 
-                      public interface Foo {
+                      public interface Bar {
                       }
 
-                      public interface Bar {
+                      public interface Foo {
                       }
 
                     }
@@ -170,7 +168,6 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     .trimIndent()
 
             expectedStdout =
-                // TODO(b/394789173): Stop prefixing T with java.lang..
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -182,6 +179,106 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     }
                 """
                     .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Cat from file to file`() {
+        val signature =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo {
+                  }
+                }
+            """
+
+        commandTest {
+            val outputFile = outputFile("cat.txt")
+            args +=
+                listOf(
+                    "signature-cat",
+                    unindentedInputFile("current.txt", signature),
+                    "--output-file",
+                    outputFile,
+                )
+
+            verify { outputFile.assertSignatureContents(signature) }
+        }
+    }
+
+    @Test
+    fun `Cat from empty file to file`() {
+        val signature = "// Signature format: 2.0"
+
+        commandTest {
+            val outputFile = outputFile("cat.txt")
+            args +=
+                listOf(
+                    "signature-cat",
+                    unindentedInputFile("current.txt", signature),
+                    "--output-file",
+                    outputFile,
+                )
+
+            verify { outputFile.assertSignatureContents(signature) }
+        }
+    }
+
+    @Test
+    fun `Cat merge surfaces`() {
+        val surface1 =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo {
+                    method public void betaMethod();
+                    property public int betaProperty;
+                    field public static final int betaField;
+                  }
+                }
+            """
+
+        val surface2 =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo {
+                    method public void alphaMethod();
+                    property public int alphaProperty;
+                    field public static final int alphaField;
+                  }
+                }
+            """
+
+        commandTest {
+            val outputFile = outputFile("cat.txt")
+            args +=
+                listOf(
+                    "signature-cat",
+                    unindentedInputFile("surface1.txt", surface1),
+                    unindentedInputFile("surface2.txt", surface2),
+                    "--output-file",
+                    outputFile,
+                )
+
+            verify {
+                outputFile.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public interface Foo {
+                            method public void alphaMethod();
+                            method public void betaMethod();
+                            property public int alphaProperty;
+                            property public int betaProperty;
+                            field public static final int alphaField;
+                            field public static final int betaField;
+                          }
+                        }
+                    """
+                )
+            }
         }
     }
 }

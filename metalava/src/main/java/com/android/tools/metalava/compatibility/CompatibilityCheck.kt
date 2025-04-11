@@ -31,13 +31,13 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
@@ -562,9 +562,9 @@ class CompatibilityCheck(
         if (
             new.containingClass().isAnnotationType() &&
                 old.containingClass().isAnnotationType() &&
-                new.defaultValue() != old.defaultValue()
+                new.legacyDefaultValue() != old.legacyDefaultValue()
         ) {
-            val prevValue = old.defaultValue()
+            val prevValue = old.legacyDefaultValue()
             val prevString =
                 if (prevValue.isEmpty()) {
                     "nothing"
@@ -572,7 +572,7 @@ class CompatibilityCheck(
                     prevValue
                 }
 
-            val newValue = new.defaultValue()
+            val newValue = new.legacyDefaultValue()
             val newString =
                 if (newValue.isEmpty()) {
                     "nothing"
@@ -587,7 +587,7 @@ class CompatibilityCheck(
 
             // Adding a default value to an annotation method is safe
             val annotationMethodAddingDefaultValue =
-                new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+                new.containingClass().isAnnotationType() && old.legacyDefaultValue().isEmpty()
 
             if (!annotationMethodAddingDefaultValue) {
                 report(Issues.CHANGED_VALUE, new, message)
@@ -726,7 +726,7 @@ class CompatibilityCheck(
                     "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
             } else if (!old.hasSameValue(new)) {
-                val prevValue = old.initialValue()
+                val prevValue = old.legacyInitialValue()
                 val prevString =
                     if (prevValue == null && !old.modifiers.isFinal()) {
                         "nothing/not constant"
@@ -734,7 +734,7 @@ class CompatibilityCheck(
                         prevValue
                     }
 
-                val newValue = new.initialValue()
+                val newValue = new.legacyInitialValue()
                 val newString =
                     if (newValue is PsiField) {
                         newValue.containingClass?.qualifiedName + "." + newValue.name
@@ -788,7 +788,7 @@ class CompatibilityCheck(
             oldModifiers.isFinal() &&
                 !newModifiers.isFinal() &&
                 oldModifiers.isStatic() &&
-                old.initialValue() != null
+                old.legacyInitialValue() != null
         ) {
             report(
                 Issues.REMOVED_FINAL,
@@ -892,7 +892,7 @@ class CompatibilityCheck(
             // two interfaces that each now define methods with the same signature.
             // Annotation types cannot implement other interfaces, however, so it is permitted to
             // add new default methods to annotation types.
-            if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
+            if (new.containingClass().isAnnotationType() && new.legacyDefaultValue() != "") {
                 return
             }
         }
@@ -927,7 +927,7 @@ class CompatibilityCheck(
                                 // Hack to always mark added Kotlin interface methods as abstract
                                 // until we properly support JVM default methods for Kotlin.
                                 // TODO(b/200077254): Remove Kotlin special case
-                                if (new.itemLanguage == ItemLanguage.KOTLIN) {
+                                if (new.sourceLanguage == SourceLanguage.KOTLIN) {
                                     Issues.ADDED_ABSTRACT_METHOD
                                 } else {
                                     Issues.ADDED_METHOD

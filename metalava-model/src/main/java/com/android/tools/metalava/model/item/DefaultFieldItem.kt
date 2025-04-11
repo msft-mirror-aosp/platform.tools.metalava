@@ -22,14 +22,15 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultFieldItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -37,12 +38,13 @@ open class DefaultFieldItem(
     containingClass: ClassItem,
     private var type: TypeItem,
     private val isEnumConstant: Boolean,
-    override val fieldValue: FieldValue?,
+    private val initialValueProvider: OptionalValueProvider?,
+    override val legacyFieldValue: FieldValue?,
 ) :
     DefaultMemberItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
@@ -63,7 +65,7 @@ open class DefaultFieldItem(
         DefaultFieldItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
-                itemLanguage = itemLanguage,
+                sourceLanguage = sourceLanguage,
                 variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
@@ -71,12 +73,16 @@ open class DefaultFieldItem(
                 containingClass = targetContainingClass,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                fieldValue = fieldValue,
+                initialValueProvider = initialValueProvider,
+                legacyFieldValue = legacyFieldValue,
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-    final override fun initialValue(requireConstant: Boolean) =
-        fieldValue?.initialValue(requireConstant)
+    final override fun legacyInitialValue(requireConstant: Boolean) =
+        legacyFieldValue?.initialValue(requireConstant)
+
+    final override val initialValue
+        get() = initialValueProvider?.optionalValue
 
     final override fun isEnumConstant(): Boolean = isEnumConstant
 }

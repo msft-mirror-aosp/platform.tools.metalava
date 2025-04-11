@@ -31,6 +31,8 @@ import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
@@ -59,11 +61,12 @@ internal class PsiMethodItem(
     parameterItemsFactory: ParameterItemsFactory,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
+    val defaultValueProvider: OptionalValueProvider?,
 ) :
     DefaultMethodItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = psiMethod.itemLanguage,
+        sourceLanguage = psiMethod.sourceLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -74,6 +77,7 @@ internal class PsiMethodItem(
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+        defaultValueProvider = defaultValueProvider,
     ),
     PsiCallableItem {
 
@@ -98,16 +102,16 @@ internal class PsiMethodItem(
                     (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
 
-    override fun defaultValue(): String {
+    override fun legacyDefaultValue(): String {
         return when (psiMethod) {
             is UAnnotationMethod -> {
                 psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
             }
             is PsiAnnotationMethod -> {
                 psiMethod.defaultValue?.let { codebase.printer.toSourceExpression(it, this) }
-                    ?: super.defaultValue()
+                    ?: super.legacyDefaultValue()
             }
-            else -> super.defaultValue()
+            else -> super.legacyDefaultValue()
         }
     }
 
@@ -140,6 +144,7 @@ internal class PsiMethodItem(
                 },
                 typeParameterList,
                 throwsTypes(),
+                defaultValueProvider,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -193,8 +198,7 @@ internal class PsiMethodItem(
                             it.qualifiedName == JvmName::class.qualifiedName
                         }
                         ?.findAttributeValue("name")
-                        ?.evaluate() as? String
-                        ?: psiMethod.name
+                        ?.evaluate() as? String ?: psiMethod.name
                 } else {
                     psiMethod.name
                 }
@@ -236,14 +240,37 @@ internal class PsiMethodItem(
                     isAnnotationElement = isAnnotationElement,
                 )
 
+            val defaultValueProvider =
+                when (psiMethod) {
+                    is UAnnotationMethod -> {
+                        psiMethod.uastDefaultValue?.let { uDefaultValue ->
+                            codebase.valueFactory.providerFor(
+                                returnType,
+                                uDefaultValue,
+                                ValueUseSite.ANNOTATION,
+                            )
+                        }
+                    }
+                    is PsiAnnotationMethod -> {
+                        psiMethod.defaultValue?.let { psiDefaultValue ->
+                            codebase.valueFactory.providerFor(
+                                returnType,
+                                psiDefaultValue,
+                                ValueUseSite.ANNOTATION,
+                            )
+                        }
+                    }
+                    else -> null
+                }
+
             val method =
                 PsiMethodItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     returnType = returnType,
                     parameterItemsFactory = { containingCallable ->
                         parameterList(
@@ -256,6 +283,7 @@ internal class PsiMethodItem(
                     },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
+                    defaultValueProvider = defaultValueProvider,
                 )
 
             return method

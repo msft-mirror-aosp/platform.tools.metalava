@@ -1580,7 +1580,8 @@ class ApiLintTest : DriverTest() {
         // TODO: This check is not yet hooked up
         check(
             apiLint = "", // enabled
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             sourceFiles =
                 arrayOf(
@@ -3210,6 +3211,27 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                     """
                     )
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `data class definition`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            data class Foo(val v: Int)
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_ERROR, "DataClassDefinition"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                "src/test/pkg/Foo.kt:2: error: Exposing data classes as public API is discouraged because they are difficult to update while maintaining binary compatibility. [DataClassDefinition]"
         )
     }
 }

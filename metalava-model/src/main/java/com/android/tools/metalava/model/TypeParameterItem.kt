@@ -18,8 +18,6 @@ package com.android.tools.metalava.model
 
 @MetalavaApi
 interface TypeParameterItem {
-    val codebase: Codebase
-
     /** Return the modifiers of this class */
     @MetalavaApi val modifiers: ModifierList
 
@@ -36,12 +34,13 @@ interface TypeParameterItem {
      * something of this type. That is either the first bound (the super class) or
      * `java.lang.Object` if there are no bounds.
      */
-    fun asErasedType(): BoundsTypeItem? =
-        typeBounds().firstOrNull() ?: codebase.resolveClass(JAVA_LANG_OBJECT)?.type()
+    fun asErasedType(): BoundsTypeItem?
 
     fun isReified(): Boolean
 
-    fun toSource(): String {
+    fun toSource(
+        configuration: TypeStringConfiguration = SOURCE_TYPE_STRING_CONFIGURATION
+    ): String {
         return buildString {
             if (isReified()) {
                 append("reified ")
@@ -60,7 +59,7 @@ interface TypeParameterItem {
                         append(" ")
                     }
                     first = false
-                    append(bound.toTypeString(SOURCE_TYPE_STRING_CONFIGURATION))
+                    append(bound.toTypeString(configuration))
                 }
             }
         }
@@ -68,7 +67,7 @@ interface TypeParameterItem {
 
     companion object {
         /** [TypeStringConfiguration] for use by [toSource]. */
-        private val SOURCE_TYPE_STRING_CONFIGURATION =
-            TypeStringConfiguration(spaceBetweenParameters = true)
+        internal val SOURCE_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(spaceBetweenTypeArguments = true)
     }
 }

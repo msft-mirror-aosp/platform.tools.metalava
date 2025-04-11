@@ -25,7 +25,6 @@ class IssuesCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
     fun `Test help`() {
         commandTest {
             args += listOf("help", "issues")
-
             expectedStdout =
                 """
 Usage: metalava help issues <issue>?
@@ -81,6 +80,7 @@ Available Issues                             |  Category                |   Defa
   ConfigFieldName                            |  api_lint                |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
+  DataClassDefinition                        |  api_lint                |   hidden
   DefaultValueChange                         |  compatibility           |   error
   Deprecated                                 |  documentation           |   hidden
   DeprecationMismatch                        |  documentation           |   error
@@ -111,6 +111,7 @@ Available Issues                             |  Category                |   Defa
   IgnoringSymlink                            |  unknown                 |   info
   InconsistentMergeAnnotation                |  api_lint                |   warning_error_when_new
   InfixRemoval                               |  compatibility           |   error
+  InheritChangesSignature                    |  unknown                 |   warning_error_when_new
   IntDef                                     |  documentation           |   hidden
   IntentBuilderName                          |  api_lint                |   warning
   IntentName                                 |  api_lint                |   error
@@ -118,8 +119,6 @@ Available Issues                             |  Category                |   Defa
   InternalClasses                            |  api_lint                |   error
   InternalError                              |  unknown                 |   error
   InternalField                              |  api_lint                |   error
-  InvalidEnvironmentInRestrictedForEnvironment
-                                             |  api_lint                |   error
   InvalidFeatureEnforcement                  |  documentation           |   error
   InvalidNullConversion                      |  compatibility           |   error
   InvalidNullabilityAnnotation               |  unknown                 |   error
@@ -141,6 +140,7 @@ Available Issues                             |  Category                |   Defa
   MinMaxConstant                             |  api_lint                |   warning
   MissingBuildMethod                         |  api_lint                |   warning
   MissingColumn                              |  documentation           |   warning
+  MissingEnvironmentsValue                   |  api_lint                |   error
   MissingFromValue                           |  api_lint                |   error
   MissingGetterMatchingBuilder               |  api_lint                |   warning
   MissingInnerNullability                    |  api_lint                |   hidden
@@ -210,6 +210,7 @@ Available Issues                             |  Category                |   Defa
   SuperfluousPrefix                          |  unknown                 |   warning
   Todo                                       |  documentation           |   error
   TopLevelBuilder                            |  api_lint                |   warning
+  TypeParseError                             |  unknown                 |   error
   UnavailableSymbol                          |  documentation           |   warning
   UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  api_lint                |   error
