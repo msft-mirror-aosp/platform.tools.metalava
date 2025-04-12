@@ -1514,6 +1514,20 @@ constructor(
                     expectedLegacyValue = expectations { common = null },
                     expectedValue = expectations { common = null },
                 ),
+                // Check a constant value used with a non-constant type that should result in a null
+                // value.
+                ValueExample(
+                    name = "null - constant value with non-constant type",
+                    javaType = "java.lang.CharSequence",
+                    javaExpression = "\"string\"",
+                    // Only suitable for use in fields. Annotations cannot use a CharSequence type.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    // Signature never has a null field value.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource = expectations { common = null },
+                    expectedLegacyValue = expectations { common = null },
+                    expectedValue = expectations { common = null },
+                ),
             )
 
         /**

@@ -213,6 +213,9 @@ interface ValueFactory {
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
         DefaultAnnotationValue(annotationItem)
 
+    /** Check if this [TypeItem] is a constant type, i.e. a [String] or a primitive type. */
+    fun TypeItem.isConstantType() = isString() || this is PrimitiveTypeItem
+
     companion object {
         /**
          * Map from [Primitive] to a [PrimitiveValueFactory] to use to create an appropriate

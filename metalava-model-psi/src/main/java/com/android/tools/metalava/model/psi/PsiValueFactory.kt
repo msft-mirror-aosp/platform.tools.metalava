@@ -356,6 +356,13 @@ internal class PsiValueFactory(
         optionalTypeItem: TypeItem?,
         uExpression: UExpression
     ): ConstantValue? {
+        // If the type is supplied, and it's not a constant type then return immediately as this can
+        // never be treated as a constant value. If it is not supplied then drop through and check
+        // the actual value, if any.
+        if (optionalTypeItem != null && !optionalTypeItem.isConstantType()) {
+            return null
+        }
+
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
                 // Check to see if the underlying value has been already been cast from the source
@@ -464,6 +471,13 @@ internal class PsiValueFactory(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
     ): ConstantValue? {
+        // If the type is supplied, and it's not a constant type then return immediately as this can
+        // never be treated as a constant value. If it is not supplied then drop through and check
+        // the actual value, if any.
+        if (optionalTypeItem != null && !optionalTypeItem.isConstantType()) {
+            return null
+        }
+
         // Literal primitive or String.
         if (psiValue is PsiLiteralExpression) {
             return psiValue.value?.let { underlyingValue ->
