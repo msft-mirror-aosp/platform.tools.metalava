@@ -469,9 +469,6 @@ internal class PsiValueFactory(
             return psiValue.value?.let { underlyingValue ->
                 createLiteralValue(optionalTypeItem, underlyingValue)
             }
-                ?: error(
-                    "Unknown value '$psiValue' of ${psiValue.javaClass} for type $optionalTypeItem"
-                )
         }
 
         // All others expressions are evaluated to a literal, if possible and returned.

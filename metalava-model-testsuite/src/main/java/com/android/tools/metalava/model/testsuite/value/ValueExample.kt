@@ -1472,7 +1472,20 @@ constructor(
                     expectedLegacySource = expectations { common = null },
                     expectedLegacyValue = expectations { common = null },
                     expectedValue = expectations { common = null },
-                )
+                ),
+                // Null value
+                ValueExample(
+                    name = "null",
+                    javaType = "String",
+                    javaExpression = "null",
+                    // Only suitable for use in fields.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    // Signature never has a null field value.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource = expectations { common = null },
+                    expectedLegacyValue = expectations { common = null },
+                    expectedValue = expectations { common = null },
+                ),
             )
 
         /**
