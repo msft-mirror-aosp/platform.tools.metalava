@@ -124,12 +124,3 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTe
   testLegacyValue[source,float positive infinity]
   testLegacyValue[source,long with int]
   testLegacyValue[source,short]
-
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
-  testLegacySource[source,double NaN]
-  testLegacySource[source,double negative infinity]
-  testLegacySource[source,double positive infinity]
-  testLegacySource[source,float NaN]
-  testLegacySource[source,float negative infinity]
-  testLegacySource[source,float positive infinity]
-  testLegacySource[source,long with int]

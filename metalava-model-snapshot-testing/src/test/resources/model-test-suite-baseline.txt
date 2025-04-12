@@ -352,16 +352,5 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTe
   testLegacyValue[turbine,jar,float positive infinity]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
-  testLegacySource[text,source,double NaN]
-  testLegacySource[text,source,double negative infinity]
-  testLegacySource[text,source,double positive infinity]
-  testLegacySource[text,source,float NaN]
-  testLegacySource[text,source,float negative infinity]
-  testLegacySource[text,source,float positive infinity]
-  testLegacySource[text,source,long with int]
-  testLegacySource[turbine,jar,double NaN]
-  testLegacySource[turbine,jar,double negative infinity]
-  testLegacySource[turbine,jar,double positive infinity]
-  testLegacySource[turbine,jar,float NaN]
-  testLegacySource[turbine,jar,float negative infinity]
-  testLegacySource[turbine,jar,float positive infinity]
+  testLegacySource[psi,kotlin,k1,source,null - intermediate non-constant expression]
+  testLegacySource[psi,kotlin,k2,source,null - intermediate non-constant expression]
