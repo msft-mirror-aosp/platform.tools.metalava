@@ -59,11 +59,15 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.ParameterDefaultValue
+import com.android.tools.metalava.model.parser.FileLocationTracker
+import com.android.tools.metalava.model.parser.TokenPurpose
+import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -170,10 +174,10 @@ sealed class SignatureFile {
                 file.readText(UTF_8)
             } catch (ex: IOException) {
                 throw ApiParseException(
-                    "Error reading API file",
-                    location = FileLocation.createLocation(file.toPath()),
-                    cause = ex
-                )
+                        "Error reading API file",
+                        location = FileLocation.createLocation(file.toPath()),
+                    )
+                    .apply { initCause(ex) }
             }
     }
 
@@ -483,7 +487,7 @@ private constructor(
         // Remember the API variant of the file being parsed.
         this.apiVariant = apiVariant
 
-        val tokenizer = Tokenizer(path, apiText.toCharArray())
+        val tokenizer = Tokenizer(path, apiText.toCharArray(), ::ApiParseException)
 
         // Get the preceding tracker, if any.
         val precedingTracker =
@@ -1100,9 +1104,12 @@ private constructor(
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
-                add(annotationItem)
-            }
+            DefaultAnnotationItem.createFromSource(
+                    codebase,
+                    annotationSource,
+                    valueParser,
+                )
+                ?.let { annotationItem -> add(annotationItem) }
         }
     }
 
@@ -1263,7 +1270,11 @@ private constructor(
 
         val defaultValueProvider =
             if (defaultAnnotationMethodValue.isNotEmpty())
-                valueParser.providerFor(returnType, defaultAnnotationMethodValue)
+                valueParser.providerFor(
+                    returnType,
+                    defaultAnnotationMethodValue,
+                    ValueUseSite.ANNOTATION,
+                )
             else null
 
         method =
@@ -1335,7 +1346,7 @@ private constructor(
         // Get the optional value.
         val valueString =
             if ("=" == token) {
-                token = tokenizer.requireToken(false)
+                token = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
                 token.also { token = tokenizer.requireToken() }
             } else null
 
@@ -1353,7 +1364,8 @@ private constructor(
         // Defer parsing the value string until needed.
         val fieldValue = valueString?.let { TextFieldValue(type, it) }
 
-        val initialValueProvider = valueString?.let { valueParser.providerFor(type, it) }
+        val initialValueProvider =
+            valueString?.let { valueParser.providerFor(type, it, ValueUseSite.FIELD) }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1767,7 +1779,7 @@ private constructor(
                 // Java style: parse the type, then the public name if it has one.
                 typeString = scanForTypeString(tokenizer, token)
                 token = tokenizer.current
-                if (Tokenizer.isIdent(token) && token != "=") {
+                if (Tokenizer.isIdent(token)) {
                     name = token
                     publicName = name
                     token = tokenizer.requireToken()

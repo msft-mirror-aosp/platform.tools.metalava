@@ -54,6 +54,7 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -218,7 +219,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
-        val annotations = annotationFactory.createAnnotations(annoInfos)
+        val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
@@ -410,8 +411,9 @@ internal class TurbineClassBuilder(
 
             val initialFieldValueProvider =
                 field.value()?.let { const ->
-                    val turbineValue = TurbineValue(const, field.decl()?.init()?.getOrNull())
-                    valueFactory.providerFor(type, turbineValue)
+                    val expr = field.decl()?.init()?.getOrNull()
+                    val turbineValue = TurbineValue(const, expr, fieldResolver)
+                    valueFactory.providerFor(type, turbineValue, ValueUseSite.FIELD)
                 }
 
             val documentation = javadoc(decl)
@@ -474,7 +476,9 @@ internal class TurbineClassBuilder(
 
             val defaultValue = defaultTurbineValue?.getSourceForMethodDefault() ?: ""
             val defaultValueProvider =
-                defaultTurbineValue?.let { valueFactory.providerFor(returnType, it) }
+                defaultTurbineValue?.let {
+                    valueFactory.providerFor(returnType, it, ValueUseSite.ANNOTATION)
+                }
 
             val methodItem =
                 itemFactory.createMethodItem(

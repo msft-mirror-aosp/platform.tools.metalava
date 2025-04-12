@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VisibilityLevel
@@ -30,6 +31,7 @@ import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
@@ -55,7 +57,8 @@ internal class PsiFieldItem(
     DefaultFieldItem(
         codebase = codebase,
         fileLocation = PsiFileLocation(psiField),
-        itemLanguage = psiField.itemLanguage,
+        sourceLanguage = psiField.sourceLanguage,
+        targetLanguages = TargetLanguageSet.ALL,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -125,12 +128,20 @@ internal class PsiFieldItem(
                 when (psiField) {
                     is UField -> {
                         psiField.uastInitializer?.let { uastInitializer ->
-                            codebase.valueFactory.providerFor(fieldType, uastInitializer)
+                            codebase.valueFactory.providerFor(
+                                fieldType,
+                                uastInitializer,
+                                ValueUseSite.FIELD,
+                            )
                         }
                     }
                     else -> {
                         psiField.initializer?.let { psiInitializer ->
-                            codebase.valueFactory.providerFor(fieldType, psiInitializer)
+                            codebase.valueFactory.providerFor(
+                                fieldType,
+                                psiInitializer,
+                                ValueUseSite.FIELD,
+                            )
                         }
                     }
                 }
