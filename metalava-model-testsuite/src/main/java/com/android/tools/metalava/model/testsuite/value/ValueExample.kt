@@ -891,6 +891,20 @@ constructor(
                     expectedLegacyValue = expectations { common = -1.7976931348623157E308 },
                     expectedValue = expectations { common = literalValue(-Double.MAX_VALUE) },
                 ),
+                ValueExample(
+                    name = "double - hex",
+                    javaType = "double",
+                    javaExpression = "0x1p3",
+                    // Kotlin does not support hex floating point numbers.
+                    validForInputFormats = notValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "8.0"
+                            source { attributeValue = "0x1p3" }
+                        },
+                    expectedLegacyValue = expectations { common = 8.0 },
+                    expectedValue = expectations { common = literalValue(8.0) },
+                ),
                 // Check an enum literal.
                 ValueExample(
                     name = "enum",
@@ -1177,6 +1191,20 @@ constructor(
                     expectedKotlinLegacyValue =
                         expectations { source { attributeValue = Double.NEGATIVE_INFINITY } },
                     expectedValue = expectations { common = literalValue(Float.NEGATIVE_INFINITY) },
+                ),
+                ValueExample(
+                    name = "float - hex",
+                    javaType = "float",
+                    javaExpression = "0x1p3f",
+                    // Kotlin does not support hex floating point numbers.
+                    validForInputFormats = notValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "8.0f"
+                            source { attributeValue = "0x1p3f" }
+                        },
+                    expectedLegacyValue = expectations { common = 8.0f },
+                    expectedValue = expectations { common = literalValue(8.0f) },
                 ),
                 // Check a simple int.
                 ValueExample(
