@@ -193,12 +193,9 @@ internal class PsiValueFactory(
                 // Resolve it and convert it to a Value if possible.
                 val resolved = uExpression.resolve()
                 // Try and convert the resolved PsiElement to a Value and return it if succeeded.
-                resolvedPsiElementToValue(resolved) {
-                        uExpressionToConstant(optionalTypeItem, uExpression)
-                    }
-                    ?.let {
-                        return it
-                    }
+                resolvedPsiElementToValue(optionalTypeItem, resolved)?.let {
+                    return it
+                }
             }
             is UCallExpression -> {
                 uCallExpressionToAnnotationValue(uExpression)?.let {
@@ -449,10 +446,9 @@ internal class PsiValueFactory(
             is PsiReferenceExpression -> {
                 val resolved = psiValue.resolve()
                 // Try and convert the resolved PsiElement to a Value and return it if succeeded.
-                resolvedPsiElementToValue(resolved) { psiToConstant(optionalTypeItem, psiValue) }
-                    ?.let {
-                        return it
-                    }
+                resolvedPsiElementToValue(optionalTypeItem, resolved)?.let {
+                    return it
+                }
             }
             // An annotation value.
             is PsiAnnotation -> {
@@ -505,15 +501,15 @@ internal class PsiValueFactory(
      * Try and convert the [resolved] [PsiElement] to an [ArrayElementValue].
      *
      * If [resolved] is a [PsiField] and it is not an enum constant then it will call
-     * [constantProvider] to find the [ConstantValue] for the [ConstantFieldValue].
+     * [FieldItem.constantValue] to find the [ConstantValue] for the [ConstantFieldValue].
      */
-    private inline fun resolvedPsiElementToValue(
+    private fun resolvedPsiElementToValue(
+        optionalTypeItem: TypeItem?,
         resolved: PsiElement?,
-        constantProvider: () -> ConstantValue?
     ): ArrayElementValue? {
         if (resolved is PsiField) {
             codebase.findField(resolved)?.let { fieldItem ->
-                return createFieldReferenceValue(fieldItem)
+                return createFieldReferenceValue(optionalTypeItem, fieldItem)
             }
         }
 

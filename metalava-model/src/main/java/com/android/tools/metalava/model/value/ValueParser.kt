@@ -209,7 +209,7 @@ class ValueParser(
                     includeSuperClasses = true,
                     includeInterfaces = true,
                 )
-                ?.let { fieldItem -> createFieldReferenceValue(fieldItem) }
+                ?.let { fieldItem -> createFieldReferenceValue(optionalTypeItem, fieldItem) }
                 ?: createEnumConstantValue(classTypeItem, fieldName)
         }
 

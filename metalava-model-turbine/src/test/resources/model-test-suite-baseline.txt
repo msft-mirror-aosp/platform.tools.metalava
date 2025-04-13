@@ -68,10 +68,8 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[source,double with int]
   testLegacySource[source,float with int]
   testLegacySource[source,long with int]
-  testMethodDefaultValue[source,field - long with int constant]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
-  testAttributeValue[source,field - long with int constant]
   testLegacySource[jar,annotation - multiple attributes]
   testLegacySource[jar,annotation]
   testLegacySource[jar,char unicode]

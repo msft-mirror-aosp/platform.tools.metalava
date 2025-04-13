@@ -1011,8 +1011,7 @@ constructor(
                                 constantFieldValue(
                                     "test.pkg.Constants",
                                     "INT_CONSTANT",
-                                    // TODO(b/354633349): This should be 37L.
-                                    literalValue(37)
+                                    primitiveValueForKind(Primitive.LONG, 37)
                                 )
                             jar {
                                 // The compiler will always inline a constant field value using the
