@@ -965,6 +965,62 @@ constructor(
                             }
                         },
                 ),
+                // Check the behavior of using an int constant field with a long value.
+                ValueExample(
+                    name = "field - long with int constant",
+                    javaType = "long",
+                    javaExpression = "Constants.INT_CONSTANT",
+                    kotlinType = "Long",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT",
+                    expectedLegacySource =
+                        expectations {
+                            common = "37L"
+
+                            source {
+                                common = "test.pkg.Constants.INT_CONSTANT"
+                                // TODO(b/354633349): Fully qualified is better.
+                                attributeValue = "Constants.INT_CONSTANT"
+                                // TODO(b/354633349): Should probably be a field reference, at least
+                                //   in some cases.
+                                fieldWriteWithSemicolon = "37L"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            annotationToSource = "test.pkg.Constants.INT_CONSTANT"
+                            fieldWriteWithSemicolon = "37"
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = 37
+                            source { fieldValue = 37L }
+                            jar {
+                                // The compiler will always inline a constant field value using the
+                                // correct type.
+                                common = 37L
+                            }
+                        },
+                    expectedKotlinLegacyValue =
+                        expectations {
+                            fieldValue = 37
+                            fieldWriteWithSemicolon = 37
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                constantFieldValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    // TODO(b/354633349): This should be 37L.
+                                    literalValue(37)
+                                )
+                            jar {
+                                // The compiler will always inline a constant field value using the
+                                // correct type.
+                                common = literalValue(37L)
+                            }
+                        },
+                ),
                 // Check a simple float with int
                 ValueExample(
                     name = "float with int",
