@@ -329,6 +329,8 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[turbine,source,short]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[psi,kotlin,k1,source,null - intermediate non-constant expression]
+  testFieldValue[psi,kotlin,k2,source,null - intermediate non-constant expression]
   testLegacyValue[text,source,String using constant]
   testLegacyValue[text,source,byte]
   testLegacyValue[text,source,class literal - array of basic class]
