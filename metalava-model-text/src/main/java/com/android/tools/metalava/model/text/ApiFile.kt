@@ -246,7 +246,10 @@ private constructor(
 
     /** The [ValueParser] to use for creating [Value]s from a signature file. */
     private val valueParser =
-        ValueParser(TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter))
+        ValueParser(
+            codebase,
+            TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter),
+        )
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !

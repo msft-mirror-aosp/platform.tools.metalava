@@ -251,7 +251,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
             // kind is not fully supported across implementation models.
             testCase.expectedValue.runValueTest { expected ->
                 val typeItem = codebase.assertClass("test.pkg.Foo").assertField("FIELD").type()
-                val valueParser = ValueParser(TypeItemParser.forValueParser(codebase))
+                val valueParser = ValueParser(codebase, TypeItemParser.forValueParser(codebase))
                 val actualValue = valueParser.parse(typeItem, testCase.input)
                 when (testCase.comparison) {
                     Comparison.STRICT -> {
