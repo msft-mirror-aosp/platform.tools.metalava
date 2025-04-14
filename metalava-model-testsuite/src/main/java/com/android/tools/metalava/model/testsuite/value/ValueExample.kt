@@ -1600,6 +1600,22 @@ constructor(
                     expectedLegacyValue = expectations { common = null },
                     expectedValue = expectations { common = null },
                 ),
+                // Check an expression that creates a fixed size array.
+                ValueExample(
+                    name = "null - fixed array",
+                    javaType = "int[]",
+                    javaExpression = "new int[0]",
+                    kotlinType = "IntArray",
+                    kotlinExpression = "emptyArray()",
+                    // Only suitable for use in fields. Annotations cannot use `new ...`
+                    // expressions.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    // Signature never has a null field value.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource = expectations { common = null },
+                    expectedLegacyValue = expectations { common = null },
+                    expectedValue = expectations { common = null },
+                ),
             )
 
         /**

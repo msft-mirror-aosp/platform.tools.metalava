@@ -54,6 +54,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteralExpression
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiNewExpression
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiTypes
 import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
@@ -399,29 +400,41 @@ internal class PsiValueFactory(
     private fun psiToValue(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
-    ): Value? {
-        // Array literal.
-        if (psiValue is PsiArrayInitializerMemberValue) {
-            val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
-            val elementType = arrayTypeItem?.componentType
-            val elements =
-                psiValue.initializers.map {
-                    psiToArrayElementValue(elementType, it) ?: unknownExpression(elementType, it)
-                }
-            return createArrayValue(elements)
-        }
-
-        return if (optionalTypeItem is ArrayTypeItem) {
-            // The type is an array so this is an example of not having to add curly braces around a
-            // single value in an annotation attribute. Create a value for the component type and
-            // then wrap it in an ArrayValue.
-            psiToArrayElementValue(optionalTypeItem.componentType, psiValue)?.let { singleValue ->
-                createArrayValue(listOf(singleValue))
+    ) =
+        when (psiValue) {
+            // Array literal.
+            is PsiArrayInitializerMemberValue -> {
+                val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
+                val elementType = arrayTypeItem?.componentType
+                val elements =
+                    psiValue.initializers.map {
+                        psiToArrayElementValue(elementType, it)
+                            ?: unknownExpression(elementType, it)
+                    }
+                createArrayValue(elements)
             }
-        } else {
-            psiToArrayElementValue(optionalTypeItem, psiValue)
+            is PsiNewExpression -> {
+                // New expressions cannot be used with annotations (they use array literals) and if
+                // they are used with fields they always return a `null` value so just return
+                // immediately. This avoids issues when dealing with expressions like `field = new
+                // int[0]` which end up being evaluated in [psiToConstant] to an array or an Android
+                // Lint specific type.
+                null
+            }
+            else -> {
+                if (optionalTypeItem is ArrayTypeItem) {
+                    // The type is an array so this is an example of not having to add curly braces
+                    // around a single value in an annotation attribute. Create a value for the
+                    // component type and then wrap it in an ArrayValue.
+                    psiToArrayElementValue(optionalTypeItem.componentType, psiValue)?.let {
+                        singleValue ->
+                        createArrayValue(listOf(singleValue))
+                    }
+                } else {
+                    psiToArrayElementValue(optionalTypeItem, psiValue)
+                }
+            }
         }
-    }
 
     /** Create an [ArrayElementValue] of [optionalTypeItem] from [psiValue]. */
     private fun psiToArrayElementValue(
