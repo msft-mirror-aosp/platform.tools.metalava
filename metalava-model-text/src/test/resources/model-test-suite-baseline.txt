@@ -156,10 +156,3 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
   testLegacySource[source,float negative infinity]
   testLegacySource[source,float positive infinity]
   testLegacySource[source,long with int]
-
-com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
-  Test parse[String using constant,field_write_with_semicolon,java,source]
-  Test parse[String using constant,javaExpression,jar]
-  Test parse[field - long with int constant,field_write_with_semicolon,java,source]
-  Test parse[field - long with int constant,field_write_with_semicolon,kotlin,source]
-  Test parse[field - long with int constant,javaExpression,jar]
