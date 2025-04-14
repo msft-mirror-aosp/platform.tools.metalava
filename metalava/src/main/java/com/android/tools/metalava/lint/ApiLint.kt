@@ -71,6 +71,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -78,6 +79,9 @@ import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.value.ValueKind
+import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -103,6 +107,7 @@ import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
+import com.android.tools.metalava.reporter.Issues.DATA_CLASS_DEFINITION
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
 import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
@@ -198,6 +203,7 @@ private constructor(
     reporter: Reporter,
     private val manifest: Manifest,
     apiPredicateConfig: ApiPredicate.Config,
+    private val allowedAcronyms: List<String>,
 ) :
     ApiVisitor(
         // ApiLint does not visit ParameterItems.
@@ -418,6 +424,10 @@ private constructor(
         }
     }
 
+    override fun visitProperty(property: PropertyItem) {
+        reporter.withContext(property) { kotlinInterop.checkProperty(property) }
+    }
+
     private fun checkType(type: TypeItem, item: Item) {
         val typeString = type.toTypeString()
         checkPfd(typeString, item)
@@ -475,6 +485,7 @@ private constructor(
         checkHasFlaggedApi(cls)
         checkFlaggedApiLiteral(cls)
         checkAccessorNullabilityMatches(methods)
+        checkDataClass(cls)
     }
 
     private fun checkField(field: FieldItem) {
@@ -504,16 +515,18 @@ private constructor(
             item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
         val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
 
-        if (attr.value.resolve() == null) {
-            val value = attr.value.value() as? String
-            if (value == attr.value.toSource()) {
-                // For a string literal, source and value are never the same, so this happens only
-                // when a reference isn't resolvable.
-                return
-            }
+        // Get the flag value, should be a reference to a constant field.
+        val flagValue = attr.value
+        if (flagValue.kind != ValueKind.CONSTANT_FIELD) {
+            // It is not a reference to a constant field so get the string value and try and see if
+            // the field could be found.
+            val value = flagValue.asString()
 
+            // Reverse engineer the string value to a field reference and resolve it to a FieldItem,
+            // if possible.
             val field = value?.let { aconfigFlagLiteralToFieldOrNull(item.codebase, it) }
 
+            // Generate some helpful text so the developer knows what to do to fix it.
             val replacement =
                 if (field != null) {
                     val (fieldSource, fieldItem) = field
@@ -570,14 +583,15 @@ private constructor(
                     method,
                     "Method name must start with lowercase char: $name"
                 )
-            hasAcronyms(name) -> {
+            hasAcronyms(name, allowedAcronyms) -> {
                 report(
                     ACRONYM_NAME,
                     method,
                     "Acronyms should not be capitalized in method names: was `$name`, should this be `${
                         decapitalizeAcronyms(
-                        name
-                    )
+                            name,
+                            allowedAcronyms
+                        )
                     }`?"
                 )
             }
@@ -602,14 +616,15 @@ private constructor(
             first !in 'A'..'Z' -> {
                 report(START_WITH_UPPER, cls, "Class must start with uppercase char: $name")
             }
-            hasAcronyms(name) -> {
+            hasAcronyms(name, allowedAcronyms) -> {
                 report(
                     ACRONYM_NAME,
                     cls,
                     "Acronyms should not be capitalized in class names: was `$name`, should this be `${
                         decapitalizeAcronyms(
-                        name
-                    )
+                            name,
+                            allowedAcronyms
+                        )
                     }`?"
                 )
             }
@@ -659,7 +674,7 @@ private constructor(
             )
         } else if (
             (field.type() is PrimitiveTypeItem || field.type().isString()) &&
-                field.initialValue(true) == null
+                field.constantValue?.asLiteralValue() == null
         ) {
             report(
                 COMPILE_TIME_CONSTANT,
@@ -809,7 +824,7 @@ private constructor(
         if (!field.type().isString()) {
             return
         }
-        val value = field.initialValue(true) as? String ?: return
+        val value = field.constantValue?.asString() ?: return
         if (!(name.contains("_ACTION") || name.contains("ACTION_") || value.contains(".action."))) {
             return
         }
@@ -850,7 +865,7 @@ private constructor(
         if (name.startsWith("ACTION_") || !field.type().isString()) {
             return
         }
-        val value = field.initialValue(true) as? String ?: return
+        val value = field.constantValue?.asString() ?: return
         if (!(name.contains("_EXTRA") || name.contains("EXTRA_") || value.contains(".extra"))) {
             return
         }
@@ -1141,7 +1156,7 @@ private constructor(
             fields
                 .firstOrNull { it.name() == fieldName }
                 ?.let { field ->
-                    if (field.initialValue(true) != fieldValue) {
+                    if (field.constantValue?.asString() != fieldValue) {
                         report(
                             INTERFACE_CONSTANT,
                             field,
@@ -1788,7 +1803,7 @@ private constructor(
             val name = field.name()
             val index = name.indexOf("FLAG_")
             if (index != -1) {
-                val value = field.initialValue() as? Int ?: continue
+                val value = field.constantValue?.asInt() ?: continue
                 val scope = name.substring(0, index)
                 val prev = known?.get(scope) ?: 0
                 if (known != null && (prev and value) != 0) {
@@ -2047,7 +2062,7 @@ private constructor(
                     writer,
                     skipNullnessAnnotations = true,
                 )
-            modifierListWriter.writeKeywords(item, normalize = true)
+            modifierListWriter.writeKeywords(item, normalizeFinal = true)
             writer.toString().trim()
         }
     }
@@ -2067,8 +2082,7 @@ private constructor(
                         it.parameters().find { param ->
                             item.parameterIndex == param.parameterIndex
                         }
-                    }
-                        ?: emptyList()
+                    } ?: emptyList()
                 is MethodItem -> item.superMethods()
                 else -> emptyList()
             }
@@ -2983,7 +2997,7 @@ private constructor(
         }
         val name = field.name()
         val endsWithService = name.endsWith("_SERVICE")
-        val value = field.initialValue(requireConstant = true) as? String
+        val value = field.constantValue?.asString()
 
         if (value == null) {
             val mustEndInService =
@@ -3260,8 +3274,7 @@ private constructor(
                 } else {
                     requiredParameters.last()
                 }
-                ?.parameterIndex
-                ?: return
+                ?.parameterIndex ?: return
         optionalParameters.forEach { parameter ->
             if (parameter.parameterIndex < lastRequiredParameterIndex) {
                 report(
@@ -3309,8 +3322,7 @@ private constructor(
             val setter =
                 methods.singleOrNull {
                     it.name() == expectedSetterName && it.parameters().size == 1
-                }
-                    ?: continue
+                } ?: continue
 
             val getterReturnType = getter.returnType()
             val setterParamType = setter.parameters().single().type()
@@ -3333,6 +3345,17 @@ private constructor(
         }
     }
 
+    private fun checkDataClass(cls: ClassItem) {
+        if (cls.modifiers.isData()) {
+            report(
+                DATA_CLASS_DEFINITION,
+                cls,
+                "Exposing data classes as public API is discouraged because they are " +
+                    "difficult to update while maintaining binary compatibility."
+            )
+        }
+    }
+
     companion object {
         /** [TypeStringConfiguration] for use in [checkAccessorNullabilityMatches] */
         private val KOTLIN_NULLS_TYPE_STRING_CONFIGURATION =
@@ -3351,8 +3374,17 @@ private constructor(
             reporter: Reporter,
             manifest: Manifest,
             apiPredicateConfig: ApiPredicate.Config,
+            allowedAcronyms: List<String>,
         ) {
-            val apiLint = ApiLint(codebase, oldCodebase, reporter, manifest, apiPredicateConfig)
+            val apiLint =
+                ApiLint(
+                    codebase,
+                    oldCodebase,
+                    reporter,
+                    manifest,
+                    apiPredicateConfig,
+                    allowedAcronyms,
+                )
             apiLint.check()
         }
 
@@ -3375,8 +3407,7 @@ private constructor(
             name.startsWith(prop(it)) &&
                 name.getOrNull(prop(it).length)?.let { charAfterPrefix ->
                     charAfterPrefix.isUpperCase() || charAfterPrefix.isDigit()
-                }
-                    ?: false
+                } ?: false
         }
 
         private val badBooleanGetterPrefixes = listOf("isHas", "isCan", "isShould", "get", "is")
@@ -3474,8 +3505,13 @@ private constructor(
         private val resourceValueFieldPattern = Regex("[a-z][a-zA-Z0-9]*")
         private val styleFieldPattern = Regex("[A-Z][A-Za-z0-9]+(_[A-Z][A-Za-z0-9]+?)*")
 
-        private val acronymPattern2 = Regex("([A-Z]){2,}")
-        private val acronymPattern3 = Regex("([A-Z]){3,}")
+        // An acronym is 2 or more capital letters. Following the acronym there can either be a next
+        // word (capital followed by a non-capital), digit, underscore, or word break (digits and
+        // underscores count as word characters).
+        // Including the next character in the regex means the first capture group will contain just
+        // the acronym and not the start of the next word, e.g. for "HTMLWriter" the acronym is
+        // "HTML", not "HTMLW".
+        private val acronymPattern = Regex("([A-Z]{2,})(?:[A-Z][a-z]|[0-9]|_|\\b)")
 
         private val serviceDumpMethodParameterTypes =
             listOf("java.io.FileDescriptor", "java.io.PrintWriter", "java.lang.String[]")
@@ -3483,8 +3519,8 @@ private constructor(
         private fun isServiceDumpMethod(item: Item) =
             when (item) {
                 is MethodItem -> isServiceDumpMethod(item)
-                is ParameterItem -> item.possibleContainingMethod()?.let { isServiceDumpMethod(it) }
-                        ?: false
+                is ParameterItem ->
+                    item.possibleContainingMethod()?.let { isServiceDumpMethod(it) } ?: false
                 else -> false
             }
 
@@ -3494,28 +3530,28 @@ private constructor(
                 item.parameters().map { it.type().toTypeString() } ==
                     serviceDumpMethodParameterTypes
 
-        private fun hasAcronyms(name: String): Boolean {
-            // Require 3 capitals, or 2 if it's at the end of a word.
-            val result = acronymPattern2.find(name) ?: return false
-            return result.range.first == name.length - 2 || acronymPattern3.find(name) != null
+        private fun hasAcronyms(name: String, allowedAcronyms: List<String>): Boolean {
+            return getFirstAcronym(name, allowedAcronyms) != null
         }
 
-        private fun getFirstAcronym(name: String): String? {
-            // Require 3 capitals, or 2 if it's at the end of a word.
-            val result = acronymPattern2.find(name) ?: return null
-            if (result.range.first == name.length - 2) {
-                return name.substring(name.length - 2)
-            }
-            val result2 = acronymPattern3.find(name)
-            return if (result2 != null) {
-                name.substring(result2.range.first, result2.range.last + 1)
+        private fun getFirstAcronym(name: String, allowedAcronyms: List<String>): String? {
+            val fullMatch = acronymPattern.find(name) ?: return null
+            // Group 1 is just the acronym.
+            val result = fullMatch.groups[1] ?: return null
+
+            val acronym = name.substring(result.range.first, result.range.last + 1)
+            return if (acronym !in allowedAcronyms) {
+                acronym
+            } else if (fullMatch.range.last < name.length) {
+                // Keep searching from the end of the last match, if possible.
+                getFirstAcronym(name.substring(result.range.last + 1), allowedAcronyms)
             } else {
                 null
             }
         }
 
         /** for something like "HTMLWriter", returns "HtmlWriter" */
-        private fun decapitalizeAcronyms(name: String): String {
+        private fun decapitalizeAcronyms(name: String, allowedAcronyms: List<String>): String {
             var s = name
 
             if (s.none { it.isLowerCase() }) {
@@ -3532,26 +3568,14 @@ private constructor(
             }
 
             while (true) {
-                val acronym = getFirstAcronym(s) ?: return s
+                val acronym = getFirstAcronym(s, allowedAcronyms) ?: return s
                 val index = s.indexOf(acronym)
                 if (index == -1) {
                     return s
                 }
-                // The last character, if not the end of the string, is probably the beginning of
-                // the
-                // next word so capitalize it
-                s =
-                    if (index == s.length - acronym.length) {
-                        // acronym at the end of the word word
-                        val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
-                        s.replace(acronym, decapitalized)
-                    } else {
-                        val replacement =
-                            acronym[0] +
-                                acronym.substring(1, acronym.length - 1).lowercase(Locale.US) +
-                                acronym[acronym.length - 1]
-                        s.replace(acronym, replacement)
-                    }
+                // Convert all but the first character of the acronym to lowercase.
+                val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
+                s = s.replace(acronym, decapitalized)
             }
         }
 

@@ -32,6 +32,7 @@ import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
 import org.jetbrains.uast.UElement
@@ -95,6 +96,11 @@ private constructor(
         } else {
             null
         }
+    }
+
+    /** Checks whether the [kaType] is a value class type. */
+    fun isValueClassType(): Boolean {
+        return kaType?.let { analysisSession?.typeForValueClass(it) } ?: false
     }
 
     /**
@@ -180,8 +186,7 @@ private constructor(
                         typeFromSyntheticElement(context)
                     }
                 }
-            }
-                ?: KotlinTypeInfo(context)
+            } ?: KotlinTypeInfo(context)
         }
 
         /**
@@ -201,8 +206,7 @@ private constructor(
                                 // delegate, if any.
                                 context is UField -> ktElement.delegateExpression?.expressionType
                                 else -> null
-                            }
-                                ?: ktElement.returnType
+                            } ?: ktElement.returnType
                         KotlinTypeInfo(this, ktType, ktElement)
                     }
                 }
@@ -231,6 +235,11 @@ private constructor(
                         (ktElement.symbol as? KaNamedClassSymbol)?.let { symbol ->
                             KotlinTypeInfo(this, symbol.defaultType, ktElement)
                         }
+                    }
+                }
+                is KtTypeAlias -> {
+                    analyze(ktElement) {
+                        KotlinTypeInfo(this, ktElement.getTypeReference()?.type, ktElement)
                     }
                 }
                 else -> null
@@ -354,6 +363,13 @@ private constructor(
                 !ktType.isMarkedNullable &&
                 // non-null upper bound, e.g., T : Any
                 ktType.canBeNull
+        }
+
+        // Mimic `typeForValueClass` in
+        // `org.jetbrains.kotlin.light.classes.symbol.classes.symbolLightClassUtils.kt`
+        private fun KaSession.typeForValueClass(type: KaType): Boolean {
+            val symbol = type.expandedSymbol as? KaNamedClassSymbol ?: return false
+            return symbol.isInline
         }
     }
 }

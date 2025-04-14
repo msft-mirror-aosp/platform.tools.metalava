@@ -38,10 +38,10 @@ internal class TurbineSourceParser(
      */
     override fun parseSources(
         sourceSet: SourceSet,
-        commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
+        projectDescription: File?
     ): Codebase {
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
@@ -69,7 +69,7 @@ internal class TurbineSourceParser(
         return assembler.codebase
     }
 
-    override fun loadFromJar(apiJar: File): Codebase {
+    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
         TODO("b/299044569 handle this")
     }
 }

@@ -82,6 +82,9 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
     /** Get a type suitable for use in an `extends` clause of a concrete class. */
     fun getSuperClassType(underlyingType: T): ClassTypeItem
 
+    /** Get a type suitable for use as a class reference. */
+    fun getClassReferenceType(underlyingType: T): ClassTypeItem
+
     // Item specific type methods.
 
     /**
@@ -224,9 +227,9 @@ class ContextNullability(
     ): TypeNullability =
         // If forced is set then use that as the top priority.
         forcedNullability
-        // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
-        // as that may be overridden by annotations or the default.
-        ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
+            // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
+            // as that may be overridden by annotations or the default.
+            ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
             // If item annotations are found then check them.
@@ -274,6 +277,11 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
     override fun getInterfaceType(underlyingType: T) = getSuperType(underlyingType)
 
     override fun getSuperClassType(underlyingType: T) = getSuperType(underlyingType)
+
+    override fun getClassReferenceType(underlyingType: T): ClassTypeItem {
+        return getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
+            as ClassTypeItem
+    }
 
     /**
      * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or

@@ -16,17 +16,60 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SignatureFileCache
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
 
 /**
- * Encapsulates an [ApiVersion] and associated API definition, currently represented by a single
- * [file] that contains an API signature.
+ * Supports updating [Api] with information from the [apiVersion] of the API that is defined in the
+ * signature [files].
  */
-class VersionedSignatureApi(val apiVersion: ApiVersion, private val file: File) {
-    /** Load the API into a [Codebase] using the [signatureFileCache]. */
-    fun load(signatureFileCache: SignatureFileCache) =
-        signatureFileCache.load(SignatureFile.fromFiles(file))
+class VersionedSignatureApi(
+    private val signatureFileLoader: SignatureFileLoader,
+    private val files: List<File>,
+    updater: ApiHistoryUpdater,
+) : VersionedApi(updater) {
+
+    init {
+        require(files.isNotEmpty()) { "files must contain at least one file" }
+    }
+
+    override fun updateApi(api: Api) {
+        val codebase = signatureFileLoader.load(SignatureFile.fromFiles(files))
+        val codebaseFragment = CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
+        addApisFromCodebase(api, updater, codebaseFragment)
+    }
+
+    override fun toString(): String {
+        // Compute the string representation of the files. Listing a number of potentially long
+        // files all on one line can make it difficult to debug. As the files are likely to contain
+        // common prefixes and suffixes, e.g. `prebuilts/sdk/28/public/api/android.txt` and
+        // `prebuilts/sdk/28/system/api/android.txt` this replaces it with a string that uses bash
+        // brace expansion syntax so it would generate all the original if used in bash, e.g.
+        // `prebuilts/sdk/28/{public,system}/api/android.txt`.
+        val filesAsString = stringsToBashBraceExpansion(files.map { it.path })
+        return "VersionedSignatureApi(files=$filesAsString, updater=$updater)"
+    }
+
+    companion object {
+        /** Generate a bash string expansion that will generate [strings]. */
+        internal fun stringsToBashBraceExpansion(strings: List<String>) =
+            if (strings.size == 1) {
+                strings.first()
+            } else {
+                val commonPrefix = strings.reduce { p1, p2 -> p1.commonPrefixWith(p2) }
+                val commonSuffix = strings.reduce { p1, p2 -> p1.commonSuffixWith(p2) }
+                buildString {
+                    append(commonPrefix)
+                    append("{")
+                    strings.joinTo(this, ",") {
+                        it.removePrefix(commonPrefix).removeSuffix(commonSuffix)
+                    }
+                    append("}")
+                    append(commonSuffix)
+                }
+            }
+    }
 }

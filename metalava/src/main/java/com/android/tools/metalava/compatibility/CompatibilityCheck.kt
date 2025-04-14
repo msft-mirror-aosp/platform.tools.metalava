@@ -19,7 +19,7 @@ package com.android.tools.metalava.compatibility
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ArrayTypeItem
@@ -31,13 +31,13 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
@@ -49,7 +49,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
-import com.intellij.psi.PsiField
 
 /**
  * Compares the current API with a previous version and makes sure the changes are compatible. For
@@ -562,9 +561,9 @@ class CompatibilityCheck(
         if (
             new.containingClass().isAnnotationType() &&
                 old.containingClass().isAnnotationType() &&
-                new.defaultValue() != old.defaultValue()
+                new.legacyDefaultValue() != old.legacyDefaultValue()
         ) {
-            val prevValue = old.defaultValue()
+            val prevValue = old.legacyDefaultValue()
             val prevString =
                 if (prevValue.isEmpty()) {
                     "nothing"
@@ -572,7 +571,7 @@ class CompatibilityCheck(
                     prevValue
                 }
 
-            val newValue = new.defaultValue()
+            val newValue = new.legacyDefaultValue()
             val newString =
                 if (newValue.isEmpty()) {
                     "nothing"
@@ -587,7 +586,7 @@ class CompatibilityCheck(
 
             // Adding a default value to an annotation method is safe
             val annotationMethodAddingDefaultValue =
-                new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+                new.containingClass().isAnnotationType() && old.legacyDefaultValue().isEmpty()
 
             if (!annotationMethodAddingDefaultValue) {
                 report(Issues.CHANGED_VALUE, new, message)
@@ -725,27 +724,16 @@ class CompatibilityCheck(
                 val message =
                     "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
-            } else if (!old.hasSameValue(new)) {
-                val prevValue = old.initialValue()
-                val prevString =
-                    if (prevValue == null && !old.modifiers.isFinal()) {
-                        "nothing/not constant"
-                    } else {
-                        prevValue
-                    }
-
-                val newValue = new.initialValue()
-                val newString =
-                    if (newValue is PsiField) {
-                        newValue.containingClass?.qualifiedName + "." + newValue.name
-                    } else {
-                        newValue
-                    }
+            } else if (!old.hasSameConstantValue(new)) {
+                val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
+                val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
                 val message =
-                    "${describe(
-                    new,
-                    capitalize = true
-                )} has changed value from $prevString to $newString"
+                    "${
+                        describe(
+                            new,
+                            capitalize = true
+                        )
+                    } has changed value from $oldString to $newString"
 
                 report(Issues.CHANGED_VALUE, new, message)
             }
@@ -788,7 +776,7 @@ class CompatibilityCheck(
             oldModifiers.isFinal() &&
                 !newModifiers.isFinal() &&
                 oldModifiers.isStatic() &&
-                old.initialValue() != null
+                old.constantValue != null
         ) {
             report(
                 Issues.REMOVED_FINAL,
@@ -892,7 +880,7 @@ class CompatibilityCheck(
             // two interfaces that each now define methods with the same signature.
             // Annotation types cannot implement other interfaces, however, so it is permitted to
             // add new default methods to annotation types.
-            if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
+            if (new.containingClass().isAnnotationType() && new.legacyDefaultValue() != "") {
                 return
             }
         }
@@ -927,7 +915,7 @@ class CompatibilityCheck(
                                 // Hack to always mark added Kotlin interface methods as abstract
                                 // until we properly support JVM default methods for Kotlin.
                                 // TODO(b/200077254): Remove Kotlin special case
-                                if (new.itemLanguage == ItemLanguage.KOTLIN) {
+                                if (new.sourceLanguage == SourceLanguage.KOTLIN) {
                                     Issues.ADDED_ABSTRACT_METHOD
                                 } else {
                                     Issues.ADDED_METHOD
@@ -1081,7 +1069,7 @@ class CompatibilityCheck(
                     "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
-                throw MetalavaCliException(exitCode = -1, stderr = message)
+                cliError(message)
             }
         }
     }

@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -38,6 +39,7 @@ import com.intellij.psi.impl.source.SourceTreeToPsiMap
 import com.intellij.psi.impl.source.javadoc.PsiDocMethodOrFieldRef
 import com.intellij.psi.impl.source.tree.CompositePsiElement
 import com.intellij.psi.impl.source.tree.JavaDocElementType
+import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.javadoc.PsiDocToken
 import com.intellij.psi.javadoc.PsiInlineDocTag
@@ -604,8 +606,8 @@ internal class PsiItemDocumentation(
                 // package from a `package-info.java` or `package.html` file. Make sure that they
                 // are included in the `ItemDocumentation`, otherwise package hiding will not work.
                 extraDocs?.toItemDocumentationFactory()
-                // Otherwise, there is no documentation to use.
-                ?: ItemDocumentation.NONE_FACTORY
+                    // Otherwise, there is no documentation to use.
+                    ?: ItemDocumentation.NONE_FACTORY
             }
 
         // Gets the javadoc of the current element
@@ -624,8 +626,7 @@ internal class PsiItemDocumentation(
                     return comments.firstNotNullOfOrNull {
                         val text = it.text
                         if (text.startsWith("/**")) text else null
-                    }
-                        ?: ""
+                    } ?: ""
                 } else {
                     // Temporary workaround: UAST seems to not return document nodes
                     // https://youtrack.jetbrains.com/issue/KT-22135
@@ -636,8 +637,46 @@ internal class PsiItemDocumentation(
                 }
             }
 
-            if (element is PsiDocCommentOwner && element.docComment !is PsiCompiledElement) {
-                return element.docComment?.text ?: ""
+            if (element is PsiDocCommentOwner) {
+                val docComment = element.docComment
+                if (docComment != null && docComment !is PsiCompiledElement) {
+                    val text = docComment.text
+                    // Make sure that the text is a doc comment, i.e. starts with /**.
+                    if (text != null) {
+                        if (text.startsWith("/**")) {
+                            return text
+                        } else {
+                            // Workaround for b/391104222.
+                            //
+                            // Scan through the previous nodes for the first real doc comment up to
+                            // the first non-white space node. The latter ensures it does not find a
+                            // doc comment that belongs to another item.
+                            var node = element.node
+                            while (true) {
+                                node = node.treePrev ?: break
+
+                                // Ignore white space or empty marker nodes, e.g. ImportListElement,
+                                // that are inserted to mark semantically significant locations but
+                                // do not actually have any content. They may be added between an
+                                // item like a class and its corresponding doc comment.
+                                if (node is PsiWhiteSpace || node.textLength == 0) continue
+
+                                // Stop searching as soon as the first non PsiComment is found.
+                                val psiComment = node as? PsiComment ?: break
+
+                                // If the comment is not a doc comment (with the correct type AND
+                                // content) then ignore it.
+                                if (
+                                    psiComment !is PsiDocComment ||
+                                        !psiComment.text.startsWith("/**")
+                                )
+                                    continue
+
+                                return psiComment.text
+                            }
+                        }
+                    }
+                }
             }
 
             return ""
