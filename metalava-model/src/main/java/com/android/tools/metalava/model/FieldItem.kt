@@ -192,7 +192,10 @@ interface FieldItem : MemberItem, InheritableItem {
         writer: PrintWriter,
         nonConstantExpressionProvider: ((FieldItem) -> String?)? = null,
     ): Boolean {
-        when (val value = legacyInitialValue(true)) {
+        // Only write a value for static final fields.
+        val value =
+            if (modifiers.isStatic() && modifiers.isFinal()) legacyInitialValue(true) else null
+        when (value) {
             is Int -> {
                 writer.print(" = ")
                 writer.print(value)
