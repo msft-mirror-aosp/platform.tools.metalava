@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.lint
 
-import com.android.tools.metalava.ARG_API_LINT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -165,6 +165,32 @@ class ThrowsLintTest : DriverTest() {
                         }
                     """
                     ),
+                )
+        )
+    }
+
+    @Test
+    fun `Hidden Unchecked exceptions allowed`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        public class Foo {
+                           public void a() throws NullPointerException;
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        /**
+                        * @hide
+                        */
+                        package test.pkg;
+                    """
+                    )
                 )
         )
     }

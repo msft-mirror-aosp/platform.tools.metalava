@@ -18,6 +18,9 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
 /**
@@ -28,10 +31,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
  */
 class MarkPackagesAsRecent(val filter: PackageFilter) :
     ApiVisitor(
-        filterEmit = apiPredicate(),
-        filterReference = apiPredicate(),
-        includeEmptyOuterClasses = true,
-        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        apiFilters = apiFilters(),
     ) {
     override fun include(cls: ClassItem): Boolean {
         return filter.matches(cls.containingPackage())
@@ -45,3 +45,5 @@ class MarkPackagesAsRecent(val filter: PackageFilter) :
 @Suppress("DEPRECATION")
 private fun apiPredicate() =
     ApiPredicate(config = options.apiPredicateConfig.copy(ignoreShown = true))
+
+private fun apiFilters() = apiPredicate().let { ApiFilters(emit = it, reference = it) }

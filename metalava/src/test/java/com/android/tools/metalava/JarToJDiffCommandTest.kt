@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.testing.jarFromSources
+import com.android.tools.metalava.testing.java
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert
@@ -63,6 +65,79 @@ Arguments:
 <api xmlns:metalava="http://www.android.com/metalava/">
 <package name="android.test"
 >
+<class name="ClassAddedAndDeprecatedInApi30"
+ extends="java.lang.Object"
+ abstract="false"
+ static="false"
+ final="false"
+ deprecated="deprecated"
+ visibility="public"
+>
+<constructor name="ClassAddedAndDeprecatedInApi30"
+ type="android.test.ClassAddedAndDeprecatedInApi30"
+ static="false"
+ final="false"
+ deprecated="deprecated"
+ visibility="public"
+>
+<parameter name="null" type="float">
+</parameter>
+</constructor>
+<constructor name="ClassAddedAndDeprecatedInApi30"
+ type="android.test.ClassAddedAndDeprecatedInApi30"
+ static="false"
+ final="false"
+ deprecated="not deprecated"
+ visibility="public"
+>
+<parameter name="null" type="int">
+</parameter>
+</constructor>
+<method name="methodExplicitlyDeprecated"
+ return="void"
+ abstract="false"
+ native="false"
+ synchronized="false"
+ static="false"
+ final="false"
+ deprecated="deprecated"
+ visibility="public"
+>
+</method>
+<method name="methodImplicitlyDeprecated"
+ return="void"
+ abstract="false"
+ native="false"
+ synchronized="false"
+ static="false"
+ final="false"
+ deprecated="not deprecated"
+ visibility="public"
+>
+</method>
+<field name="FIELD_EXPLICITLY_DEPRECATED"
+ type="int"
+ transient="false"
+ volatile="false"
+ value="1"
+ static="true"
+ final="true"
+ deprecated="deprecated"
+ visibility="public"
+>
+</field>
+<field name="FIELD_IMPLICITLY_DEPRECATED"
+ type="int"
+ transient="false"
+ volatile="false"
+ value="2"
+ static="true"
+ final="true"
+ deprecated="not deprecated"
+ visibility="public"
+>
+</field>
+</class>
 <class name="ClassAddedInApi30"
  extends="java.lang.Object"
  abstract="false"
@@ -112,10 +187,64 @@ Arguments:
             val folder = folder("jdiff")
 
             args += "jar-to-jdiff"
-            args += androidJar.path
+            args += androidJar
 
             val xmlFile = outputFile("api.xml", parentDir = folder)
-            args += xmlFile.path
+            args += xmlFile
+
+            // Verify that the generate file is correct.
+            verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }
+        }
+    }
+
+    @Test
+    fun `Test enums`() {
+        commandTest {
+            args += "jar-to-jdiff"
+            args +=
+                jarFromSources(
+                    "test.jar",
+                    java(
+                        """
+                        package test.pkg;
+                        public enum Foo {
+                            CONSTANT
+                        }
+                    """
+                    )
+                )
+
+            val xmlFile = outputFile("api.xml")
+            args += xmlFile
+
+            val expectedXml =
+                """
+                    <api xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Foo"
+                     extends="java.lang.Enum"
+                     abstract="false"
+                     static="false"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <field name="CONSTANT"
+                     type="test.pkg.Foo"
+                     transient="false"
+                     volatile="false"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                     metalava:enumConstant="true"
+                    >
+                    </field>
+                    </class>
+                    </package>
+                    </api>
+                """
 
             // Verify that the generate file is correct.
             verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }

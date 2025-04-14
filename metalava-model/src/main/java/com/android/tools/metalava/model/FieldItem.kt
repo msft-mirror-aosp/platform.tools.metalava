@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.FieldValue
+import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.Value
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem {
+interface FieldItem : MemberItem, InheritableItem {
     /** The property this field backs; inverse of [PropertyItem.backingField] */
     val property: PropertyItem?
         get() = null
@@ -27,14 +30,46 @@ interface FieldItem : MemberItem {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        containingClass().findCorrespondingItemIn(codebase)?.findField(name())
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
     /**
-     * The initial/constant value, if any. If [requireConstant] the initial value will only be
-     * returned if it's constant.
+     * The optional value of this [FieldItem].
+     *
+     * This is called `legacy` because this an old, inconsistent representation of the field value
+     * that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
      */
-    fun initialValue(requireConstant: Boolean = true): Any?
+    val legacyFieldValue: FieldValue?
+
+    /**
+     * The legacy initial/constant value, if any. If [requireConstant] the initial value will only
+     * be returned if it's constant.
+     *
+     * This is called `legacy` because this an old, inconsistent representation of the field value
+     * that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
+     */
+    fun legacyInitialValue(requireConstant: Boolean = true): Any?
+
+    /**
+     * The optional initial value of the field.
+     *
+     * Replacement for [legacyInitialValue] and [legacyFieldValue].
+     *
+     * The [Value] may be the result of a constant expression as defined by JLS 15.28, i.e. a value
+     * of a primitive or [String] type (see [ConstantValue]), or it could be some other value, e.g.
+     * enum, class literal, etc.
+     *
+     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
+     * behavior is correctly maintained, i.e.:
+     * * `legacyInitialValue(true)` will become `initialValue as? ConstantValue`.
+     * * `legacyInitialValue(false)` will become `initialValue`.
+     */
+    val initialValue: Value?
 
     /**
      * An enum can contain both enum constants and fields; this method provides a way to distinguish
@@ -55,6 +90,17 @@ interface FieldItem : MemberItem {
         visitor.visit(this)
     }
 
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FieldItem) return false
+
+        return name() == other.name() && containingClass() == other.containingClass()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
+    }
+
     override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
 
     /**
@@ -62,8 +108,8 @@ interface FieldItem : MemberItem {
      * toolchains with different fp -> string conversions.
      */
     fun hasSameValue(other: FieldItem): Boolean {
-        val thisConstant = initialValue()
-        val otherConstant = other.initialValue()
+        val thisConstant = legacyInitialValue()
+        val otherConstant = other.legacyInitialValue()
         if (thisConstant == null != (otherConstant == null)) {
             return false
         }
@@ -91,34 +137,21 @@ interface FieldItem : MemberItem {
         return false
     }
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        if (type() is PrimitiveTypeItem) {
-            return false
-        }
-
-        if (modifiers.isFinal() && initialValue(true) != null) {
-            return false
-        }
-
-        return true
-    }
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
         }
+
+        /**
+         * Comparator that will order [FieldItem]s such that those for which
+         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
+         */
+        val comparatorEnumConstantFirst: java.util.Comparator<FieldItem> =
+            Comparator.comparing(FieldItem::isEnumConstant).reversed().thenComparing(comparator)
     }
 
     /**
-     * If this field has an initial value, it just writes ";", otherwise it writes " = value;" with
+     * If this field has no initial value, it just writes ";", otherwise it writes " = value;" with
      * the correct Java syntax for the initial value
      */
     fun writeValueWithSemicolon(
@@ -127,7 +160,7 @@ interface FieldItem : MemberItem {
         requireInitialValue: Boolean = false
     ) {
         val value =
-            initialValue(!allowDefaultValue)
+            legacyInitialValue(!allowDefaultValue)
                 ?: if (allowDefaultValue && !containingClass().isClass()) type().defaultValue()
                 else null
         if (value != null) {
@@ -179,7 +212,7 @@ interface FieldItem : MemberItem {
                         value == java.lang.Float.MIN_NORMAL ->
                             writer.format("1.17549435E-38f;", value)
                         else -> {
-                            writer.print(canonicalizeFloatingPointString(value.toString()))
+                            writer.print(value.toString())
                             writer.print("f;")
                         }
                     }
@@ -191,7 +224,7 @@ interface FieldItem : MemberItem {
                         value == Double.NEGATIVE_INFINITY -> writer.print("(-1.0/0.0);")
                         java.lang.Double.isNaN(value) -> writer.print("(0.0/0.0);")
                         else -> {
-                            writer.print(canonicalizeFloatingPointString(value.toString()))
+                            writer.print(value.toString())
                             writer.print(";")
                         }
                     }
@@ -344,25 +377,4 @@ fun javaUnescapeString(str: String): String {
         throw IllegalArgumentException("unfinished escape sequence: $str")
     }
     return buf.toString()
-}
-
-/**
- * Returns a canonical string representation of a floating point number. The representation is
- * suitable for use as Java source code. This method also addresses bug #4428022 in the Sun JDK.
- */
-// From doclava1
-fun canonicalizeFloatingPointString(value: String): String {
-    var str = value
-    if (str.indexOf('E') != -1) {
-        return str
-    }
-
-    // 1.0 is the only case where a trailing "0" is allowed.
-    // 1.00 is canonicalized as 1.0.
-    var i = str.length - 1
-    val d = str.indexOf('.')
-    while (i >= d + 2 && str[i] == '0') {
-        str = str.substring(0, i--)
-    }
-    return str
 }

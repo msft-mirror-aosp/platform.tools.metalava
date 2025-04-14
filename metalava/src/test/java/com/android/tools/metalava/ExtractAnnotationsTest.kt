@@ -75,7 +75,7 @@ class ExtractAnnotationsTest : DriverTest() {
                 )
                 .indented(),
             intDefAnnotationSource,
-            intRangeAnnotationSource
+            intRangeAnnotationSource,
         )
 
     @Test
@@ -556,8 +556,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `No typedef signatures in api files`() {
         check(
-            extraArguments =
-                arrayOf(ARG_HIDE_PACKAGE, "android.annotation", ARG_TYPEDEFS_IN_SIGNATURES, "none"),
+            extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "none"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
             api =
@@ -590,13 +589,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Inlining typedef signatures in api files`() {
         check(
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                    ARG_TYPEDEFS_IN_SIGNATURES,
-                    "inline"
-                ),
+            extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "inline"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
             api =
@@ -629,8 +622,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Referencing typedef signatures in api files`() {
         check(
-            extraArguments =
-                arrayOf(ARG_HIDE_PACKAGE, "android.annotation", ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
+            extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
             api =
@@ -831,6 +823,44 @@ class ExtractAnnotationsTest : DriverTest() {
                             </root>
                         """
                 )
+        )
+    }
+
+    @Test
+    fun `Extract annotations from class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import androidx.annotation.UiThread;
+
+                            @UiThread
+                            public class Test {
+                                @UiThread
+                                public Test() {}
+                            }
+                        """
+                    ),
+                    uiThreadSource,
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <root>
+                              <item name="test.pkg.Test">
+                                <annotation name="androidx.annotation.UiThread"/>
+                              </item>
+                              <item name="test.pkg.Test Test()">
+                                <annotation name="androidx.annotation.UiThread"/>
+                              </item>
+                            </root>
+                        """,
+                ),
         )
     }
 }

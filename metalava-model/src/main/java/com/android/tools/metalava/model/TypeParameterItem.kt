@@ -17,13 +17,15 @@
 package com.android.tools.metalava.model
 
 @MetalavaApi
-interface TypeParameterItem : Item {
+interface TypeParameterItem {
+    /** Return the modifiers of this class */
+    @MetalavaApi val modifiers: ModifierList
 
     /** The name of the type parameter. */
     fun name(): String
 
     /** The [VariableTypeItem] representing the type of this type parameter. */
-    override fun type(): VariableTypeItem
+    fun type(): VariableTypeItem
 
     fun typeBounds(): List<BoundsTypeItem>
 
@@ -32,12 +34,13 @@ interface TypeParameterItem : Item {
      * something of this type. That is either the first bound (the super class) or
      * `java.lang.Object` if there are no bounds.
      */
-    fun asErasedType(): BoundsTypeItem? =
-        typeBounds().firstOrNull() ?: codebase.resolveClass(JAVA_LANG_OBJECT)?.type()
+    fun asErasedType(): BoundsTypeItem?
 
     fun isReified(): Boolean
 
-    fun toSource(): String {
+    fun toSource(
+        configuration: TypeStringConfiguration = SOURCE_TYPE_STRING_CONFIGURATION
+    ): String {
         return buildString {
             if (isReified()) {
                 append("reified ")
@@ -56,35 +59,15 @@ interface TypeParameterItem : Item {
                         append(" ")
                     }
                     first = false
-                    append(bound.toTypeString(spaceBetweenParameters = true))
+                    append(bound.toTypeString(configuration))
                 }
             }
         }
     }
 
-    override fun toStringForItem(): String =
-        if (typeBounds().isEmpty() && !isReified()) name()
-        else
-            buildString {
-                if (isReified()) append("reified ")
-                append(name())
-                if (typeBounds().isNotEmpty()) {
-                    append(" extends ")
-                    typeBounds().joinTo(this, " & ")
-                }
-            }
-
-    // Methods from [Item] that are not needed. They will be removed in a follow-up change.
-    override fun parent() = error("Not needed for TypeParameterItem")
-
-    override fun baselineElementId() = error("Not needed for TypeParameterItem")
-
-    override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
-
-    override fun containingPackage() = error("Not needed for TypeParameterItem")
-
-    override fun containingClass() = error("Not needed for TypeParameterItem")
-
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        error("Not needed for TypeParameterItem")
+    companion object {
+        /** [TypeStringConfiguration] for use by [toSource]. */
+        internal val SOURCE_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(spaceBetweenTypeArguments = true)
+    }
 }
