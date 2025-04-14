@@ -88,7 +88,7 @@ class ValueParser(
             text[0] == '{' -> {
                 // The text looks like it is an array literal that could contain multiple values so
                 // it will require splitting into separate parts, so create a Tokenizer to do that.
-                val tokenizer = Tokenizer(Path.of("unknown"), text.toCharArray())
+                val tokenizer = tokenizerOf(text)
                 parseWithTokenizer(optionalTypeItem, tokenizer)
             }
             optionalTypeItem is ArrayTypeItem -> {
@@ -104,6 +104,9 @@ class ValueParser(
                 parseArrayElementValue(optionalTypeItem, text)
             }
         }
+
+    /** Create a [Tokenizer] of [text]. */
+    private fun tokenizerOf(text: String) = Tokenizer(Path.of("unknown"), text.toCharArray())
 
     /** Parse a [Value] of the [optionalTypeItem] from [tokenizer]. */
     private fun parseWithTokenizer(optionalTypeItem: TypeItem?, tokenizer: Tokenizer) =
@@ -213,8 +216,12 @@ class ValueParser(
                 ?: createEnumConstantValue(classTypeItem, fieldName)
         }
 
-        throw ValueProviderException("Unknown token <$text> of $optionalTypeItem")
+        unknownToken(optionalTypeItem, text)
     }
+
+    /** Throw an exception when [text] cannot be parsed. */
+    private fun unknownToken(optionalTypeItem: TypeItem?, text: String): Nothing =
+        throw ValueProviderException("Unknown token <$text> of $optionalTypeItem")
 
     /**
      * Parse a number from [text].
