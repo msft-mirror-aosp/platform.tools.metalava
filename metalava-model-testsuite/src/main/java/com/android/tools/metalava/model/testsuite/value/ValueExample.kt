@@ -891,6 +891,20 @@ constructor(
                     expectedLegacyValue = expectations { common = -1.7976931348623157E308 },
                     expectedValue = expectations { common = literalValue(-Double.MAX_VALUE) },
                 ),
+                ValueExample(
+                    name = "double - hex",
+                    javaType = "double",
+                    javaExpression = "0x1p3",
+                    // Kotlin does not support hex floating point numbers.
+                    validForInputFormats = notValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "8.0"
+                            source { attributeValue = "0x1p3" }
+                        },
+                    expectedLegacyValue = expectations { common = 8.0 },
+                    expectedValue = expectations { common = literalValue(8.0) },
+                ),
                 // Check an enum literal.
                 ValueExample(
                     name = "enum",
@@ -948,6 +962,61 @@ constructor(
                             jar {
                                 // The compiler will always inline a constant field value.
                                 common = literalValue("constant")
+                            }
+                        },
+                ),
+                // Check the behavior of using an int constant field with a long value.
+                ValueExample(
+                    name = "field - long with int constant",
+                    javaType = "long",
+                    javaExpression = "Constants.INT_CONSTANT",
+                    kotlinType = "Long",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT",
+                    expectedLegacySource =
+                        expectations {
+                            common = "37L"
+
+                            source {
+                                common = "test.pkg.Constants.INT_CONSTANT"
+                                // TODO(b/354633349): Fully qualified is better.
+                                attributeValue = "Constants.INT_CONSTANT"
+                                // TODO(b/354633349): Should probably be a field reference, at least
+                                //   in some cases.
+                                fieldWriteWithSemicolon = "37L"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            annotationToSource = "test.pkg.Constants.INT_CONSTANT"
+                            fieldWriteWithSemicolon = "37"
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = 37
+                            source { fieldValue = 37L }
+                            jar {
+                                // The compiler will always inline a constant field value using the
+                                // correct type.
+                                common = 37L
+                            }
+                        },
+                    expectedKotlinLegacyValue =
+                        expectations {
+                            fieldValue = 37
+                            fieldWriteWithSemicolon = 37
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                constantFieldValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(Primitive.LONG, 37)
+                                )
+                            jar {
+                                // The compiler will always inline a constant field value using the
+                                // correct type.
+                                common = literalValue(37L)
                             }
                         },
                 ),
@@ -1177,6 +1246,20 @@ constructor(
                     expectedKotlinLegacyValue =
                         expectations { source { attributeValue = Double.NEGATIVE_INFINITY } },
                     expectedValue = expectations { common = literalValue(Float.NEGATIVE_INFINITY) },
+                ),
+                ValueExample(
+                    name = "float - hex",
+                    javaType = "float",
+                    javaExpression = "0x1p3f",
+                    // Kotlin does not support hex floating point numbers.
+                    validForInputFormats = notValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "8.0f"
+                            source { attributeValue = "0x1p3f" }
+                        },
+                    expectedLegacyValue = expectations { common = 8.0f },
+                    expectedValue = expectations { common = literalValue(8.0f) },
                 ),
                 // Check a simple int.
                 ValueExample(
@@ -1472,7 +1555,67 @@ constructor(
                     expectedLegacySource = expectations { common = null },
                     expectedLegacyValue = expectations { common = null },
                     expectedValue = expectations { common = null },
-                )
+                ),
+                // Null value
+                ValueExample(
+                    name = "null",
+                    javaType = "String",
+                    javaExpression = "null",
+                    // Only suitable for use in fields.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    // Signature never has a null field value.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource = expectations { common = null },
+                    expectedLegacyValue = expectations { common = null },
+                    expectedValue = expectations { common = null },
+                ),
+                // Check a constant value used with a non-constant type that should result in a null
+                // value.
+                ValueExample(
+                    name = "null - constant value with non-constant type",
+                    javaType = "java.lang.CharSequence",
+                    javaExpression = "\"string\"",
+                    // Only suitable for use in fields. Annotations cannot use a CharSequence type.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    // Signature never has a null field value.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource = expectations { common = null },
+                    expectedLegacyValue = expectations { common = null },
+                    expectedValue = expectations { common = null },
+                ),
+                // Check an expression that results in a primitive value via an intermediate
+                // non-constant expression results in a null value.
+                ValueExample(
+                    name = "null - intermediate non-constant expression",
+                    javaType = "int",
+                    javaExpression = "(new int[]{1})[0]",
+                    kotlinType = "Int",
+                    kotlinExpression = "arrayOf(1)[0]",
+                    // Only suitable for use in fields. Annotations cannot use a non-constant
+                    // expression.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    // Signature never has a null field value.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource = expectations { common = null },
+                    expectedLegacyValue = expectations { common = null },
+                    expectedValue = expectations { common = null },
+                ),
+                // Check an expression that creates a fixed size array.
+                ValueExample(
+                    name = "null - fixed array",
+                    javaType = "int[]",
+                    javaExpression = "new int[0]",
+                    kotlinType = "IntArray",
+                    kotlinExpression = "emptyArray()",
+                    // Only suitable for use in fields. Annotations cannot use `new ...`
+                    // expressions.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    // Signature never has a null field value.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource = expectations { common = null },
+                    expectedLegacyValue = expectations { common = null },
+                    expectedValue = expectations { common = null },
+                ),
             )
 
         /**

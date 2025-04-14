@@ -213,6 +213,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                       }
                       public interface Constants {
                         field public static final String STRING_CONSTANT = "constant";
+                        field public static final int INT_CONSTANT = 37;
                       }
                       public enum TestEnum {
                         enum_constant public static final test.pkg.TestEnum DEFAULT;
