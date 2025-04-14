@@ -19,10 +19,14 @@ package com.android.tools.metalava.model.testsuite.classitem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNullableSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSource
 import com.android.tools.metalava.testing.java
@@ -65,7 +69,6 @@ class CommonClassItemTest : BaseModelTest() {
             assertEquals("Test", testClass.fullName())
             assertEquals("test/pkg/Test", testClass.internalName())
             assertEquals("test.pkg.Test", testClass.qualifiedName())
-            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarNestedClasses())
             assertEquals(1, testClass.constructors().size)
             assertEquals(emptyList(), testClass.methods())
             assertEquals(emptyList(), testClass.fields())
@@ -418,7 +421,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fooSuperClass = fooClass.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, fooSuperClass)
 
@@ -523,7 +526,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fooSuperClass = fooClass.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, fooSuperClass)
 
@@ -601,7 +604,7 @@ class CommonClassItemTest : BaseModelTest() {
             inputSet(
                 signature(
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Generic<T, U> {
                           }
@@ -653,7 +656,7 @@ class CommonClassItemTest : BaseModelTest() {
             val superClassType = fooClass.superClassType()!!
             assertEquals(
                 "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
-                superClassType.toTypeString(kotlinStyleNulls = true)
+                superClassType.testTypeString(kotlinStyleNulls = true)
             )
         }
     }
@@ -664,7 +667,7 @@ class CommonClassItemTest : BaseModelTest() {
             inputSet(
                 signature(
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public interface Generic<T, U> {
                           }
@@ -716,7 +719,7 @@ class CommonClassItemTest : BaseModelTest() {
             val superClassType = fooClass.interfaceTypes().single()
             assertEquals(
                 "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
-                superClassType.toTypeString(kotlinStyleNulls = true)
+                superClassType.testTypeString(kotlinStyleNulls = true)
             )
         }
     }
@@ -757,6 +760,7 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     /**
+                     * @noinspection DeprecatedIsStillUsed
                      * @deprecated
                      */
                     public class Bar {}
@@ -764,8 +768,48 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is not treated as deprecated by @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertNotDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is treated as deprecated if @deprecated comes after @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     * @deprecated Really deprecated
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -785,6 +829,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
+                    /** @noinspection DeprecatedIsStillUsed */
                     @Deprecated
                     public class Bar {}
                 """
@@ -799,8 +844,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -832,8 +876,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(false, barClass.originallyDeprecated)
-            assertEquals(false, barClass.effectivelyDeprecated)
+            barClass.assertNotDeprecated()
         }
     }
 
@@ -1294,8 +1337,7 @@ class CommonClassItemTest : BaseModelTest() {
                 kotlin(
                     """
                         package test.pkg
-                        /** @hide */
-                        open class HiddenClass {
+                        internal open class HiddenClass {
                             fun foo() {}
                         }
                     """
@@ -1308,7 +1350,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
             val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
@@ -1377,7 +1419,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypes =
@@ -1400,7 +1442,7 @@ class CommonClassItemTest : BaseModelTest() {
 
                 val parameterType = inheritedMethod.parameters().single().type()
                 assertWithMessage("testing type of $name")
-                    .that(parameterType.toTypeString(kotlinStyleNulls = true))
+                    .that(parameterType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedTypes[name])
             }
         }
@@ -1413,8 +1455,8 @@ class CommonClassItemTest : BaseModelTest() {
         // nullability annotation.
         runSourceCodebaseTest(
             inputSet(
-                typeUseOnlyNonNullSource,
-                typeUseOnlyNullableSource,
+                notTypeUseNonNullSource,
+                notTypeUseNullableSource,
                 java(
                     """
                         package test.pkg;
@@ -1435,7 +1477,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypesAndNullability =
@@ -1454,7 +1496,7 @@ class CommonClassItemTest : BaseModelTest() {
                 val returnType = inheritedMethod.returnType()
                 val (expectedType, expectedNullability) = expectedTypesAndNullability[name]!!
                 assertWithMessage("testing type of $name")
-                    .that(returnType.toTypeString(kotlinStyleNulls = true))
+                    .that(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
 
                 assertWithMessage("testing type nullability of $name")
@@ -1635,7 +1677,11 @@ class CommonClassItemTest : BaseModelTest() {
         expectedOrigin: ClassOrigin,
     ) {
         // Make sure to resolve any class requested just in case it is on the class path.
-        val testClass = codebase.assertResolvedClass(name)
+        val testClass =
+            codebase.assertResolvedClass(
+                name,
+                expectedEmit = expectedOrigin == ClassOrigin.COMMAND_LINE,
+            )
         assertEquals(expectedOrigin, testClass.origin, message = "$name origin")
     }
 
@@ -1707,6 +1753,71 @@ class CommonClassItemTest : BaseModelTest() {
                 "test.pkg.SourcePathClass",
                 expectedOrigin = ClassOrigin.SOURCE_PATH,
             )
+        }
+    }
+
+    @Test
+    fun `Test class on source path`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class SourcePathClass {}
+                            """
+                        )
+                    ),
+            )
+        ) {
+            // Make sure that a class defined on the source class path can be resolved but is not
+            // emitted.
+            codebase.assertResolvedClass("test.pkg.SourcePathClass")
+        }
+    }
+
+    @Test
+    fun `Test class excluded by package filter`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.excluded.pkg;
+
+                        public class Excluded {
+                            private Excluded() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            // Make sure that a class defined excluded by a package filter can be resolved but is
+            // not emitted.
+            codebase.assertResolvedClass("test.excluded.pkg.Excluded")
         }
     }
 }

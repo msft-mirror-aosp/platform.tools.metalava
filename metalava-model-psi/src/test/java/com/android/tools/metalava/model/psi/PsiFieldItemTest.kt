@@ -51,26 +51,28 @@ class PsiFieldItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val x = fooClass.fields().single()
-            assertNull(x.initialValue(false))
+            assertNull(x.legacyInitialValue(false))
         }
     }
 
     @Test
     fun `Duplicated field has correct nullability`() {
         runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-                    public class Foo {
-                        public final String foo = "string";
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Bar extends Foo {}
-                """
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo {
+                            public final String foo = "string";
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Bar extends Foo {}
+                    """
+                )
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")

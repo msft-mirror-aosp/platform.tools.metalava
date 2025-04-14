@@ -35,7 +35,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter
-import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.psi.uAnnotation
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -67,7 +66,7 @@ class ExtractAnnotations(
     private val outputFile: File,
 ) :
     ApiVisitor(
-        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
@@ -160,6 +159,7 @@ class ExtractAnnotations(
     private fun addItem(item: Item, annotation: AnnotationItem) {
         val pkg =
             when (item) {
+                is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
                 is ParameterItem -> item.containingCallable().containingClass().containingPackage()
                 else -> return
@@ -173,6 +173,10 @@ class ExtractAnnotations(
                     new
                 }
         list.add(Pair(item, annotation))
+    }
+
+    override fun visitClass(cls: ClassItem) {
+        checkItem(cls)
     }
 
     override fun visitField(field: FieldItem) {
@@ -388,6 +392,10 @@ class ExtractAnnotations(
         if (attributes.size == 1 && Extractor.REQUIRES_PERMISSION.isPrefix(qualifiedName, true)) {
             val expression = attributes[0].expression
             if (expression is UAnnotation) {
+                // TODO(b/354633349): Remove this branch once it has been shown that it is never
+                // taken.
+                error("$expression is both a UExpression and a UAnnotation")
+            } else if (expression is UCallExpression) {
                 // The external annotations format does not allow for nested/complex annotations.
                 // However, these special annotations (@RequiresPermission.Read,
                 // @RequiresPermission.Write, etc.) are known to only be simple containers with a
@@ -397,9 +405,6 @@ class ExtractAnnotations(
                 //      @RequiresPermission.Read(allOf({P1,P2},conditional=true)
                 // That's setting attributes that don't actually exist on the container permission,
                 // but we'll counteract that on the read-annotations side.
-                val annotation = expression as UAnnotation
-                attributes = annotation.attributeValues
-            } else if (expression is UCallExpression) {
                 val nestedPsi = expression.sourcePsi as? PsiAnnotation
                 val annotation =
                     nestedPsi?.let {
@@ -440,10 +445,16 @@ class ExtractAnnotations(
                 continue
             }
 
+            // The value could contain fully qualified references to enum values that are in the
+            // android.annotation package. If so, then replace them with references in the
+            // androidx.annotation package.
+            val normalizedValue =
+                value.replace(ANDROID_ANNOTATION_PREFIX, ANDROIDX_ANNOTATION_PREFIX)
+
             writer.print("      <val name=\"")
             writer.print(name)
             writer.print("\" val=\"")
-            writer.print(escapeXml(value))
+            writer.print(escapeXml(normalizedValue))
             writer.println("\" />")
         }
 

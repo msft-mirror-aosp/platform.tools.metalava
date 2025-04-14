@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
@@ -303,7 +304,7 @@ class CommonFieldItemTest : BaseModelTest() {
                 // Compare the kotlin style format of the field to ensure that only the outermost
                 // type is affected by the not-type-use nullability annotation.
                 assertWithMessage(name)
-                    .that(field.type().toTypeString(kotlinStyleNulls = true))
+                    .that(field.type().testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -364,7 +365,7 @@ class CommonFieldItemTest : BaseModelTest() {
                 // Compare the kotlin style format of the field to ensure that only the outermost
                 // type is affected by the not-type-use nullability annotation.
                 assertWithMessage(name)
-                    .that(field.type().toTypeString(kotlinStyleNulls = true))
+                    .that(field.type().testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -498,7 +499,7 @@ class CommonFieldItemTest : BaseModelTest() {
             val fields = testClass.fields()
             assertEquals(3, fields.size, message = "field count")
             for (field in fields) {
-                val value = field.initialValue(true) as Float
+                val value = field.legacyInitialValue(true) as Float
                 val valueBits = value.toBits()
                 assertEquals(
                     minNormalBits,

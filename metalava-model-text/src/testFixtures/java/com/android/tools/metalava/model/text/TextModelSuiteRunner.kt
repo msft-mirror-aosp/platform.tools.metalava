@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
@@ -48,13 +47,22 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         inputs: ModelSuiteRunner.TestInputs,
         test: (Codebase) -> Unit
     ) {
-        if (inputs.commonSourceDir != null) {
-            error("text model does not support common sources")
+        if (inputs.projectDescription != null) {
+            error("text model does not support project description")
         }
 
-        val signatureFiles = SignatureFile.fromFiles(inputs.mainSourceDir.createFiles())
-        val resolver = ClassLoaderBasedClassResolver(getAndroidJar())
-        val codebase = ApiFile.parseApi(signatureFiles, classResolver = resolver)
+        val testFixture = inputs.testFixture
+        val codebaseConfig = testFixture.codebaseConfig
+
+        val signatureFiles = SignatureFile.forTest(inputs.mainSourceDir.createFiles())
+        val classPath = listOf(getAndroidJar()) + inputs.testFixture.additionalClassPath
+        val resolver = ClassLoaderBasedClassResolver(classPath, codebaseConfig)
+        val codebase =
+            ApiFile.parseApi(
+                signatureFiles,
+                codebaseConfig = codebaseConfig,
+                classResolver = resolver,
+            )
 
         // If available, transform the codebase for testing, otherwise use the one provided.
         val transformedCodebase = CodebaseTransformer.transformIfAvailable(codebase)
@@ -77,14 +85,18 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
  * change in the future.
  */
-class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
+class ClassLoaderBasedClassResolver(
+    jars: List<File>,
+    codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
+) : ClassResolver {
 
     private val assembler by
         lazy(LazyThreadSafetyMode.NONE) {
+            val location = jars.first()
             TextCodebaseAssembler.createAssembler(
-                location = jar,
-                description = "Codebase for resolving classes in $jar for tests",
-                annotationManager = noOpAnnotationManager,
+                location = location,
+                description = "Codebase for resolving classes in $location for tests",
+                codebaseConfig = codebaseConfig,
                 classResolver = null,
             )
         }
@@ -92,7 +104,10 @@ class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
     private val codebase by lazy(LazyThreadSafetyMode.NONE) { assembler.codebase }
 
     private val classLoader by
-        lazy(LazyThreadSafetyMode.NONE) { URLClassLoader(arrayOf(jar.toURI().toURL()), null) }
+        lazy(LazyThreadSafetyMode.NONE) {
+            val urls = jars.map { it.toURI().toURL() }.toTypedArray()
+            URLClassLoader(urls, null)
+        }
 
     private fun findClassInClassLoader(qualifiedName: String): Class<*>? {
         var binaryName = qualifiedName

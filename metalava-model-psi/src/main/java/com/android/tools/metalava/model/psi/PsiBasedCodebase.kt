@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
@@ -49,22 +49,21 @@ const val METHOD_ESTIMATE = 1000
 internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
-    annotationManager: AnnotationManager,
-    override val reporter: Reporter,
+    config: Codebase.Config,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
+    val isMultiplatform: Boolean,
 ) :
     DefaultCodebase(
         location = location,
         description = description,
         preFiltered = false,
-        annotationManager = annotationManager,
+        config = config,
         trustedApi = false,
         supportsDocumentation = true,
         assembler = assembler,
-    ),
-    MutableCodebase {
+    ) {
 
     internal val psiAssembler = assembler
 
@@ -88,13 +87,17 @@ internal class PsiBasedCodebase(
     internal val globalTypeItemFactory
         get() = psiAssembler.globalTypeItemFactory
 
+    /** Creates [ValueProvider]s and [Value]s from Psi classes. */
+    internal val valueFactory by
+        lazy(LazyThreadSafetyMode.NONE) { PsiValueFactory(this, globalTypeItemFactory) }
+
     override fun dispose() {
         psiAssembler.dispose()
         super.dispose()
     }
 
     fun findClass(psiClass: PsiClass): ClassItem? {
-        val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
+        val qualifiedName: String = psiClass.classQualifiedName
         return findClass(qualifiedName)
     }
 

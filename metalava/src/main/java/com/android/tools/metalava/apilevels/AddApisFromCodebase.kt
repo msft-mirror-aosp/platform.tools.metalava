@@ -16,37 +16,33 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
-import java.util.function.Predicate
+import com.android.tools.metalava.model.MethodItem
 
 /**
- * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
- * [providedFilterEmit] and [providedFilterReference] are non-null, they are used to determine which
- * [Item]s should be added to the [api]. Otherwise, the [ApiVisitor] default filters are used.
+ * Visits the API codebase and inserts into the [Api] the classes, methods and fields.
+ *
+ * The [Item]s to be visited is determined by the [codebaseFragment].
  */
 fun addApisFromCodebase(
     api: Api,
-    apiLevel: Int,
-    codebase: Codebase,
-    useInternalNames: Boolean,
-    providedFilterEmit: Predicate<Item>? = null,
-    providedFilterReference: Predicate<Item>? = null
+    updater: ApiHistoryUpdater,
+    codebaseFragment: CodebaseFragment,
 ) {
-    codebase.accept(
-        object :
-            ApiVisitor(
-                preserveClassNesting = false,
-                filterEmit = providedFilterEmit,
-                filterReference = providedFilterReference,
-                config = @Suppress("DEPRECATION") options.apiVisitorConfig,
-            ) {
+    val useInternalNames = api.useInternalNames
+
+    // Keep track of the versions added to this api, if necessary.
+    updater.update(api)
+
+    val delegatedVisitor =
+        object : DelegatedVisitor {
 
             var currentClass: ApiClass? = null
 
@@ -54,123 +50,74 @@ fun addApisFromCodebase(
                 currentClass = null
             }
 
-            /**
-             * Get the value of [Item.originallyDeprecated] from the [Item.actualItem], i.e. the
-             * item that would actually be written out.
-             */
-            private val Item.actualDeprecated
-                get() = actualItem.effectivelyDeprecated
-
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)
+                val newClass = api.updateClass(cls.nameInApi(), updater, cls.effectivelyDeprecated)
                 currentClass = newClass
 
-                if (cls.isClass()) {
-                    // The jar files historically contain package private parents instead of
-                    // the real API so we need to correct the data we've already read in
-
-                    val filteredSuperClass = cls.filteredSuperclass(filterReference)
-                    val superClass = cls.superClass()
-                    if (filteredSuperClass != superClass && filteredSuperClass != null) {
-                        val existing = newClass.superClasses.firstOrNull()?.name
-                        val superName = superClass?.nameInApi()
-                        if (existing == superName) {
-                            // The bytecode used to point to the old hidden super class. Point
-                            // to the real one (that the signature files referenced) instead.
-                            val removed = superName?.let { newClass.removeSuperClass(it) }
-                            val since = removed?.since ?: apiLevel
-                            val entry =
-                                newClass.addSuperClass(filteredSuperClass.nameInApi(), since)
-                            // Show that it's also seen here
-                            entry.update(apiLevel)
-
-                            // Also inherit the interfaces from that API level, unless it was added
-                            // later
-                            val superClassEntry = api.findClass(superName)
-                            if (superClassEntry != null) {
-                                for (interfaceType in
-                                    superClass!!.filteredInterfaceTypes(filterReference)) {
-                                    val interfaceClass = interfaceType.asClass() ?: return
-                                    var mergedSince = since
-                                    val interfaceName = interfaceClass.nameInApi()
-                                    for (itf in superClassEntry.interfaces) {
-                                        val currentInterface = itf.name
-                                        if (interfaceName == currentInterface) {
-                                            mergedSince = itf.since
-                                            break
-                                        }
-                                    }
-                                    newClass.addInterface(interfaceClass.nameInApi(), mergedSince)
-                                }
-                            }
-                        } else {
-                            newClass.addSuperClass(filteredSuperClass.nameInApi(), apiLevel)
+                when (cls.classKind) {
+                    ClassKind.CLASS -> {
+                        val superClass = cls.superClass()
+                        if (superClass != null) {
+                            newClass.updateSuperClass(superClass.nameInApi(), updater)
                         }
-                    } else if (superClass != null) {
-                        newClass.addSuperClass(superClass.nameInApi(), apiLevel)
                     }
-                } else if (cls.isInterface()) {
-                    val superClass = cls.superClass()
-                    if (superClass != null && !superClass.isJavaLangObject()) {
-                        newClass.addInterface(superClass.nameInApi(), apiLevel)
+                    ClassKind.INTERFACE -> {
+                        // Implicit super class; match convention from bytecode
+                        newClass.updateSuperClass(objectClass, updater)
                     }
-                } else if (cls.isEnum()) {
-                    // Implicit super class; match convention from bytecode
-                    if (newClass.name != enumClass) {
-                        newClass.addSuperClass(enumClass, apiLevel)
-                    }
+                    ClassKind.ENUM -> {
+                        // Implicit super class; match convention from bytecode
+                        if (newClass.name != enumClass) {
+                            newClass.updateSuperClass(enumClass, updater)
+                        }
 
-                    // Mimic doclava enum methods
-                    enumMethodNames(newClass.name).forEach { name ->
-                        newClass.addMethod(name, apiLevel, false)
+                        // Mimic doclava enum methods
+                        enumMethodNames(newClass.name).forEach { name ->
+                            newClass.updateMethod(name, updater, false)
+                        }
                     }
-                } else if (cls.isAnnotationType()) {
-                    // Implicit super class; match convention from bytecode
-                    if (newClass.name != annotationClass) {
-                        newClass.addSuperClass(objectClass, apiLevel)
-                        newClass.addInterface(annotationClass, apiLevel)
+                    ClassKind.ANNOTATION_TYPE -> {
+                        // Implicit super class; match convention from bytecode
+                        if (newClass.name != annotationClass) {
+                            newClass.updateSuperClass(objectClass, updater)
+                            newClass.updateInterface(annotationClass, updater)
+                        }
                     }
                 }
 
-                // Ensure we don't end up with
-                //    -  <extends name="java/lang/Object"/>
-                //    +  <extends name="java/lang/Object" removed="29"/>
-                // which can happen because the bytecode always explicitly contains extends
-                // java.lang.Object
-                // but in the source code we don't see it, and the lack of presence of this
-                // shouldn't be
-                // taken as a sign that we no longer extend object. But only do this if the class
-                // didn't
-                // previously extend object and now extends something else.
-                if (
-                    (cls.isClass() || cls.isInterface()) &&
-                        newClass.superClasses.size == 1 &&
-                        newClass.superClasses[0].name == objectClass
-                ) {
-                    newClass.addSuperClass(objectClass, apiLevel)
-                }
-
-                for (interfaceType in cls.filteredInterfaceTypes(filterReference)) {
+                for (interfaceType in cls.interfaceTypes()) {
                     val interfaceClass = interfaceType.asClass() ?: return
-                    newClass.addInterface(interfaceClass.nameInApi(), apiLevel)
+                    newClass.updateInterface(interfaceClass.nameInApi(), updater)
                 }
             }
 
-            override fun visitCallable(callable: CallableItem) {
+            private fun visitCallable(callable: CallableItem) {
                 if (callable.isPrivate || callable.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(callable.nameInApi(), apiLevel, callable.actualDeprecated)
+                currentClass?.updateMethod(
+                    callable.nameInApi(),
+                    updater,
+                    callable.effectivelyDeprecated
+                )
+            }
+
+            override fun visitConstructor(constructor: ConstructorItem) {
+                visitCallable(constructor)
+            }
+
+            override fun visitMethod(method: MethodItem) {
+                visitCallable(method)
             }
 
             override fun visitField(field: FieldItem) {
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-                currentClass?.addField(field.nameInApi(), apiLevel, field.actualDeprecated)
+                currentClass?.updateField(field.nameInApi(), updater, field.effectivelyDeprecated)
             }
 
-            /** The name of the field in this [Api], based on [useInternalNames] */
+            /** The name of the field in this [Api], based on [Api.useInternalNames] */
             fun FieldItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName()
@@ -179,7 +126,7 @@ fun addApisFromCodebase(
                 }
             }
 
-            /** The name of the method in this [Api], based on [useInternalNames] */
+            /** The name of the method in this [Api], based on [Api.useInternalNames] */
             fun CallableItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName() +
@@ -193,7 +140,7 @@ fun addApisFromCodebase(
                 }
             }
 
-            /** The name of the class in this [Api], based on [useInternalNames] */
+            /** The name of the class in this [Api], based on [Api.useInternalNames] */
             fun ClassItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName()
@@ -213,7 +160,7 @@ fun addApisFromCodebase(
                 return nameParts.joinToString(separator)
             }
 
-            /** The names of the doclava enum methods, based on [useInternalNames] */
+            /** The names of the doclava enum methods, based on [Api.useInternalNames] */
             fun enumMethodNames(className: String): List<String> {
                 return if (useInternalNames) {
                     listOf("valueOf(Ljava/lang/String;)L$className;", "values()[L$className;")
@@ -222,7 +169,8 @@ fun addApisFromCodebase(
                 }
             }
         }
-    )
+
+    codebaseFragment.accept(delegatedVisitor)
 }
 
 /**

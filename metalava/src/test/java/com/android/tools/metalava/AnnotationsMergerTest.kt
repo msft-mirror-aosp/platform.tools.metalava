@@ -19,8 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.testing.KnownSourceFiles
-import com.android.tools.metalava.testing.KnownSourceFiles.androidxAnnotationHide
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -37,7 +35,6 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
-                    androidxAnnotationHide,
                     androidxNullableSource,
                     androidxNonNullSource,
                     java(
@@ -88,7 +85,6 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
-                    androidxAnnotationHide,
                     androidxNullableSource,
                     androidxNonNullSource,
                     java(
@@ -160,10 +156,6 @@ class AnnotationsMergerTest : DriverTest() {
                     intRangeAnnotationSource,
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -258,7 +250,7 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             mergeSignatureAnnotations =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public interface Appendable {
                     method public test.pkg.Appendable append(java.lang.CharSequence?);
@@ -305,8 +297,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -435,8 +425,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -481,8 +469,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -492,7 +478,7 @@ class AnnotationsMergerTest : DriverTest() {
                 import libcore.util.Nullable;
 
                 public class PublicClass {
-                    @NonNull public @NonNull String publicMethod(@Nullable Object object) {return "";}
+                    @NonNull public String publicMethod(@Nullable Object object) {return "";}
                 }
                 """,
             api =
@@ -513,7 +499,7 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             expectedIssues =
                 """
-                    inclusion/src/test/pkg/Example.java:13: warning: inclusion annotations were given for method test.pkg.HiddenExample.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
+                    inclusion1/src/test/pkg/HiddenExample.java:7: warning: inclusion annotations were given for method test.pkg.HiddenExample.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
                 """,
             sourceFiles =
                 arrayOf(
@@ -554,6 +540,11 @@ class AnnotationsMergerTest : DriverTest() {
                                 @test.annotation.Hide void bHidden();
                                 @test.annotation.Hide @test.annotation.Show void cShown();
                             }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
 
                             @test.annotation.Hide
                             public interface HiddenExample {

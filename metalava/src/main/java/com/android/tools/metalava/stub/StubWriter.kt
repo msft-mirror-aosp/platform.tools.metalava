@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ApiPredicate
-import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -26,15 +23,16 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
-import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
-import com.android.tools.metalava.model.removeDeprecatedSection
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -50,6 +48,7 @@ internal class StubWriter(
     private val docStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
+    private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
     /**
@@ -143,14 +142,8 @@ internal class StubWriter(
         assert(classItem.containingClass() == null) { "Should only be called on top level classes" }
         val packageDir = getPackageDir(classItem.containingPackage())
 
-        // Kotlin From-text stub generation is not supported.
-        // This method will raise an error if
-        // config.kotlinStubs == true and classItem is TextClassItem.
-        return if (config.kotlinStubs && classItem.isKotlin()) {
-            File(packageDir, "${classItem.simpleName()}.kt")
-        } else {
-            File(packageDir, "${classItem.simpleName()}.java")
-        }
+        // Kotlin stub generation is not supported.
+        return File(packageDir, "${classItem.simpleName()}.java")
     }
 
     /**
@@ -197,26 +190,23 @@ internal class StubWriter(
                     errorTextWriter
                 }
 
-            val kotlin = config.kotlinStubs && cls.isKotlin()
-            val language = if (kotlin) Language.KOTLIN else Language.JAVA
-
             val modifierListWriter =
                 ModifierListWriter.forStubs(
                     writer = textWriter,
                     docStubs = docStubs,
                     runtimeAnnotationsOnly = !generateAnnotations,
-                    language = language,
                 )
 
             stubWriter =
-                if (kotlin) {
-                    error("Generating Kotlin stubs is not supported")
-                } else {
-                    JavaStubWriter(textWriter, modifierListWriter, config)
-                }
+                JavaStubWriter(
+                    textWriter,
+                    modifierListWriter,
+                    config,
+                    stubConstructorManager,
+                )
 
             // Copyright statements from the original file?
-            cls.getSourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
+            cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
         }
         stubWriter?.visitClass(cls)
 
@@ -225,19 +215,15 @@ internal class StubWriter(
 
     /**
      * Stubs that have no accessible constructor may still need to generate one and that constructor
-     * is available from [ClassItem.stubConstructor].
-     *
-     * However, sometimes that constructor is ignored by this because it is not accessible either,
-     * e.g. it might be package private. In that case this will pass it to [visitConstructor]
-     * directly.
+     * is available from [StubConstructorManager.optionalSyntheticConstructor].
      */
     private fun dispatchStubsConstructorIfAvailable(cls: ClassItem) {
-        val clsStubConstructor = cls.stubConstructor
-        val constructors = cls.constructors()
-        // If the default stub constructor is not publicly visible then it won't be output during
-        // the normal visiting so visit it specially to ensure that it is output.
-        if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
-            visitConstructor(clsStubConstructor)
+        // If a special constructor had to be synthesized for the class then it will not be in the
+        // ClassItem's list of constructors that would be visited automatically. So, this will visit
+        // it explicitly to make sure it appears in the stubs.
+        val syntheticConstructor = stubConstructorManager.optionalSyntheticConstructor(cls)
+        if (syntheticConstructor != null) {
+            visitConstructor(syntheticConstructor)
         }
     }
 
@@ -274,25 +260,31 @@ fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
     docStubs: Boolean,
     preFiltered: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
+    ignoreEmit: Boolean = false,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
             includeDocOnly = docStubs,
-            config = apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            config = apiPredicateConfig.copy(ignoreShown = true),
         )
-    val filterEmit = FilterPredicate(filterReference)
+    val filterEmit = MatchOverridingMethodPredicate(filterReference)
+    val apiFilters =
+        ApiFilters(
+            emit = filterEmit,
+            reference = filterReference,
+        )
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        // Methods are by default sorted in source order in stubs, to encourage methods
-        // that are near each other in the source to show up near each other in the
-        // documentation
-        callableComparator = CallableItem.sourceOrderComparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        // Sort methods in stubs based on their signature. The order of methods in stubs is
+        // irrelevant, e.g. it does not affect compilation or document generation. However, having a
+        // consistent order will prevent churn in the generated stubs caused by changes to Metalava
+        // itself or changes to the order of methods in the sources.
+        callableComparator = CallableItem.comparator,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
-        config = apiVisitorConfig,
+        ignoreEmit = ignoreEmit,
     )
 }
 
@@ -302,35 +294,8 @@ internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWr
         val text = documentation.fullyQualifiedDocumentation()
         if (text.isNotBlank()) {
             val trimmed = trimDocIndent(text)
-            val output = revertDocumentationDeprecationChange(item, trimmed)
-            writer.println(output)
+            writer.println(trimmed)
             writer.println()
         }
     }
-}
-
-/**
- * Revert the documentation change that accompanied a deprecation change.
- *
- * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc tag
- * with text that explains why it is being deprecated and what will replace it. When the deprecation
- * change is being reverted then this will remove the `@deprecated` tag and its associated text to
- * avoid warnings when compiling and misleading information being written into the Javadoc.
- */
-fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
-    val actualItem = currentItem.actualItem
-    // The documentation does not need to be reverted if...
-    if (
-        // the current item is not being reverted
-        currentItem === actualItem
-        // or if the current item and the actual item have the same deprecation setting
-        ||
-            currentItem.effectivelyDeprecated == actualItem.effectivelyDeprecated
-            // or if the actual item is deprecated
-            ||
-            actualItem.effectivelyDeprecated
-    )
-        return docs
-
-    return removeDeprecatedSection(docs)
 }
