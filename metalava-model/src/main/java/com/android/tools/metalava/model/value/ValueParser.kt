@@ -209,7 +209,7 @@ class ValueParser(
                     includeSuperClasses = true,
                     includeInterfaces = true,
                 )
-                ?.let { fieldItem -> createFieldReferenceValue(fieldItem) }
+                ?.let { fieldItem -> createFieldReferenceValue(optionalTypeItem, fieldItem) }
                 ?: createEnumConstantValue(classTypeItem, fieldName)
         }
 
@@ -230,6 +230,19 @@ class ValueParser(
         // Handle hexadecimal numbers first as they could end with a 'f' which would be treated as
         // a float below.
         if (text.startsWith("0x")) {
+            // Check for a binary exponent as that means it is a hex floating point number.
+            if (text.any { it == 'p' || it == 'P' }) {
+                // Floating point hex value.
+                val last = text.last()
+                val number =
+                    if (last == 'f') {
+                        text.substring(0, text.length - 1).toFloat()
+                    } else {
+                        text.toDouble()
+                    }
+                return createLiteralValue(optionalTypeItem, number)
+            }
+
             // Remove the leading "0x"
             val withoutLeading0x = text.substring(2)
 
