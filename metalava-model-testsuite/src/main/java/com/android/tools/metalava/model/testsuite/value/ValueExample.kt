@@ -57,6 +57,9 @@ constructor(
     /** The java expression for the value. */
     val javaExpression: String,
 
+    /** The optional java imports. */
+    val javaImports: List<String> = emptyList(),
+
     /**
      * The Kotlin type.
      *
@@ -87,10 +90,16 @@ constructor(
      * Kotlin automatically maps between [KClass] and [Class] when creating, using and reading
      * annotations so annotations it must use `<class>::class` not `<class>::class.java`.
      */
-    val kotlinExpressionForAnnotation: String = kotlinExpression.substringBefore(".class"),
+    val kotlinExpressionForAnnotation: String = kotlinExpression.substringBefore(".java"),
 
-    /** The optional java imports. */
-    val javaImports: List<String> = emptyList(),
+    /**
+     * The optional Kotlin imports.
+     *
+     * Automatically adds `kotlin.reflect.KClass` if needed.
+     */
+    val kotlinImports: List<String> =
+        if (kotlinTypeForAnnotation == "KClass<*>") javaImports + "kotlin.reflect.KClass"
+        else javaImports,
 
     /**
      * The signature type, defaults to [javaType] as signature files generally use Java types and
@@ -504,9 +513,8 @@ constructor(
                                 attributeDefaultValue = "java.util.BitSet.class"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { common = "BitSet::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "BitSet::class" },
                     expectedLegacyValue = expectations { common = "java.util.BitSet" },
-                    expectedKotlinLegacyValue = expectations { common = "BitSet::class.java" },
                     expectedValue =
                         expectations {
                             common = Value.createClassObjectValue(classTypeItem("java.util.BitSet"))
@@ -530,9 +538,9 @@ constructor(
                                 attributeDefaultValue = "java.util.List.class"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { common = "List::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "List::class" },
                     expectedLegacyValue = expectations { common = "java.util.List" },
-                    expectedKotlinLegacyValue = expectations { common = "List::class.java" },
+                    expectedKotlinLegacyValue = expectations { common = "java.util.List<?>" },
                     expectedValue =
                         expectations {
                             common = Value.createClassObjectValue(classTypeItem("java.util.List"))
@@ -557,10 +565,8 @@ constructor(
                             }
                         },
                     expectedKotlinLegacySource =
-                        expectations { source { common = "Array<BitSet>::class.java" } },
+                        expectations { source { common = "Array<BitSet>::class" } },
                     expectedLegacyValue = expectations { common = "java.util.BitSet[]" },
-                    expectedKotlinLegacyValue =
-                        expectations { source { common = "Array<BitSet>::class.java" } },
                     expectedValue =
                         expectations {
                             common =
@@ -630,11 +636,8 @@ constructor(
                                 annotationToSource = "Void.class"
                             }
                         },
-                    expectedKotlinLegacySource =
-                        expectations { common = "java.lang.Void::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "java.lang.Void::class" },
                     expectedLegacyValue = expectations { common = "java.lang.Void" },
-                    expectedKotlinLegacyValue =
-                        expectations { common = "java.lang.Void::class.java" },
                     expectedValue =
                         expectations {
                             common = Value.createClassObjectValue(classTypeItem("java.lang.Void"))
@@ -647,9 +650,9 @@ constructor(
                     kotlinType = "Class<*>",
                     kotlinExpression = "Int::class.java",
                     expectedLegacySource = expectations { common = "int.class" },
-                    expectedKotlinLegacySource = expectations { common = "Int::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "Int::class" },
                     expectedLegacyValue = expectations { common = "int" },
-                    expectedKotlinLegacyValue = expectations { common = "Int::class.java" },
+                    expectedKotlinLegacyValue = expectations { common = "java.lang.Integer" },
                     expectedValue =
                         expectations {
                             common =
@@ -672,9 +675,8 @@ constructor(
                                 annotationToSource = "Integer.class"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { common = "Integer::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "Integer::class" },
                     expectedLegacyValue = expectations { common = "java.lang.Integer" },
-                    expectedKotlinLegacyValue = expectations { common = "Integer::class.java" },
                     expectedValue =
                         expectations {
                             common =
@@ -689,9 +691,8 @@ constructor(
                     kotlinType = "Class<*>",
                     kotlinExpression = "IntArray::class.java",
                     expectedLegacySource = expectations { common = "int[].class" },
-                    expectedKotlinLegacySource = expectations { common = "IntArray::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "IntArray::class" },
                     expectedLegacyValue = expectations { common = "int[]" },
-                    expectedKotlinLegacyValue = expectations { common = "IntArray::class.java" },
                     expectedValue =
                         expectations {
                             common =

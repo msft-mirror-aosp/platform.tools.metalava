@@ -797,9 +797,9 @@ object KotlinTestClassCreator : TestClassCreator {
 
     /** Append all the imports provided by this list to [buffer]. */
     private fun appendImportsTo(valueExample: ValueExample, buffer: StringBuilder) {
-        for (javaImport in valueExample.javaImports) {
+        for (kotlinImport in valueExample.kotlinImports) {
             buffer.append("import ")
-            buffer.append(javaImport)
+            buffer.append(kotlinImport)
             buffer.append("\n")
         }
     }
