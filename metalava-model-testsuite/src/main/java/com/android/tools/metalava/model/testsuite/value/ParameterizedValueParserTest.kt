@@ -210,15 +210,12 @@ class ParameterizedValueParserTest : BaseModelTest() {
                 // The above produces a lot of duplicates so remove them.
                 .distinct()
                 // Put them in order.
-                .sortedWith(compareBy({ it.label }))
+                .sortedWith(compareBy { it.label })
                 // Apply some filtering to remove known problematic cases.
                 .filter {
-                    // TODO(b/354633349): Support Kotlin syntax for class literals in signature
-                    //  files.
-                    !it.input.contains("::class") &&
-                        // Ignore test cases that require imports as they are not fully qualified
-                        // and signature files require class types to be fully qualified.
-                        it.valueExample.javaImports.isEmpty() &&
+                    // Ignore test cases that require imports as they are not fully qualified and
+                    // signature files require class types to be fully qualified.
+                    it.valueExample.javaImports.isEmpty() &&
                         // Ignore test cases that have an empty string as an input as they are in
                         // error.
                         it.input.isNotEmpty()
