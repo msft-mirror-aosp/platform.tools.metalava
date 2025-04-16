@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -84,8 +85,8 @@ open class DefaultFieldItem(
 
     final override fun legacyInitialValue() = legacyFieldValue?.initialValue(requireConstant = true)
 
-    final override val initialValue
-        get() = constantValueProvider?.optionalValue
+    final override val constantValue
+        get() = constantValueProvider?.optionalValue?.let { it as ConstantValue }
 
     final override fun isEnumConstant(): Boolean = isEnumConstant
 }

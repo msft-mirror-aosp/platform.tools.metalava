@@ -18,7 +18,6 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.value.ConstantValue
-import com.android.tools.metalava.model.value.Value
 import java.io.PrintWriter
 
 @MetalavaApi
@@ -57,25 +56,10 @@ interface FieldItem : MemberItem, InheritableItem {
     fun legacyInitialValue(): Any?
 
     /**
-     * The optional initial value of the field.
-     *
-     * This is the [Value] provided in the source (or for constant fields in the jar) and may not be
-     * included in the API even if the [FieldItem] is. See [constantValue] for the API value. This
-     * may differ between implementation models and is likely to be removed.
-     *
-     * Replacement for [legacyInitialValue] and [legacyFieldValue].
-     *
-     * The [Value] may be the result of a constant expression as defined by JLS 15.28, i.e. a value
-     * of a primitive or [String] type (see [ConstantValue]), or it could be some other value, e.g.
-     * enum, class literal, etc.
-     */
-    val initialValue: Value?
-
-    /**
      * The optional constant value of the field.
      *
      * This is the [constantValue] provided in the source or in the jar and will be part of the API
-     * if the [FieldItem] is. See [initialValue] for the API value.
+     * if the [FieldItem] is.
      *
      * Replacement for [legacyInitialValue] and [legacyFieldValue].
      *
@@ -84,10 +68,6 @@ interface FieldItem : MemberItem, InheritableItem {
      * `final`.
      */
     val constantValue: ConstantValue?
-        get() =
-            // Make sure the field is static and final and return the constant value.
-            if (modifiers.isStatic() && modifiers.isFinal()) initialValue?.asLiteralValue()
-            else null
 
     /**
      * An enum can contain both enum constants and fields; this method provides a way to distinguish
