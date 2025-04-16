@@ -30,12 +30,14 @@ import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Annotation that is added on a line before the item being annotated. */
@@ -731,6 +733,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 "enumArrayValue",
                 listOf("test.pkg.Enum.ENUM1", "test.pkg.Enum.ENUM2")
             )
+
+            // Make sure that the enum value resolves to the enum field.
+            val enumValue = anno.assertAttribute("enumValue").value as FieldReferenceValue
+            val enum1Field = codebase.assertClass("test.pkg.Enum").assertField("ENUM1")
+            assertSame(enum1Field, enumValue.resolve(), message = "enumValue.resolve()")
+
+            val enumArrayValue =
+                anno.assertAttribute("enumArrayValue").value.asFlatList().map {
+                    it as FieldReferenceValue
+                }
+            assertSame(enum1Field, enumArrayValue[0].resolve(), "enumArrayValue[0].resolve()")
         }
     }
 

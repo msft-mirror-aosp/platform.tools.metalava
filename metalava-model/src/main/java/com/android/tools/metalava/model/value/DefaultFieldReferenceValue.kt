@@ -16,11 +16,17 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.value.Value.Companion.toString
+import java.util.Optional
+import kotlin.jvm.optionals.getOrNull
 
 internal class DefaultFieldReferenceValue(
-    final override val qualifiedClassName: String,
-    final override val fieldName: String,
+    private val classResolver: ClassResolver,
+    override val qualifiedClassName: String,
+    override val fieldName: String,
 
     /**
      * The optional constant value of this field.
@@ -33,6 +39,41 @@ internal class DefaultFieldReferenceValue(
      */
     private val constantValue: ConstantValue? = null,
 ) : DefaultValue(), FieldReferenceValue {
+
+    private lateinit var optionalFieldItem: Optional<FieldItem>
+
+    override fun resolve(): FieldItem? {
+        if (!::optionalFieldItem.isInitialized) {
+            if (qualifiedClassName == "") {
+                optionalFieldItem = Optional.empty()
+            } else {
+                optionalFieldItem =
+                    Optional.ofNullable(
+                        classResolver
+                            .resolveClass(qualifiedClassName)
+                            ?.findField(
+                                fieldName,
+                                includeSuperClasses = true,
+                                includeInterfaces = true,
+                            )
+                    )
+            }
+        }
+        return optionalFieldItem.getOrNull()
+    }
+
+    /**
+     * Implement this here rather than in [FieldReferenceValue] as it needs to access
+     * [constantValue] which is an implementation detail.
+     */
+    override fun snapshot(targetCodebase: Codebase) =
+        Value.createFieldReferenceValue(
+            targetCodebase,
+            qualifiedClassName,
+            fieldName,
+            constantValue,
+        )
+
     /** The [constantValue], if present, may be a [LiteralValue]. */
     override fun asLiteralValue() = constantValue?.asLiteralValue()
 }

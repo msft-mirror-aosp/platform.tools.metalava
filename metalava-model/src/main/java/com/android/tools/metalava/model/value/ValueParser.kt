@@ -229,7 +229,11 @@ class ValueParser(
                     includeInterfaces = true,
                 )
                 ?.let { fieldItem -> createFieldReferenceValue(optionalTypeItem, fieldItem) }
-                ?: createFieldReferenceValue(classTypeItem.qualifiedName, fieldName)
+                ?: createFieldReferenceValue(
+                    annotationContext,
+                    classTypeItem.qualifiedName,
+                    fieldName,
+                )
         }
 
         // Handle a Java style annotation value which starts with an '@'.

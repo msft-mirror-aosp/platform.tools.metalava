@@ -242,7 +242,7 @@ internal class PsiValueFactory(
                             // Handle an unknown, unresolvable field.
                             val receiverText = uExpression.receiver.asRenderString()
                             val selectorText = selector.asRenderString()
-                            return createFieldReferenceValue(receiverText, selectorText)
+                            return createFieldReferenceValue(codebase, receiverText, selectorText)
                         }
                     }
                 }
@@ -255,7 +255,7 @@ internal class PsiValueFactory(
                 }
 
                 // Handle an unknown, unresolvable field.
-                return createFieldReferenceValue("", uExpression.identifier)
+                return createFieldReferenceValue(codebase, "", uExpression.identifier)
             }
             is UClassLiteralExpression -> {
                 uClassLiteralExpressionToClassObjectValue(uExpression)?.let {
@@ -561,7 +561,7 @@ internal class PsiValueFactory(
                 val qualifierText = psiValue.qualifierExpression?.text ?: ""
                 val referenceName = psiValue.referenceName
                 if (referenceName != null) {
-                    return createFieldReferenceValue(qualifierText, referenceName)
+                    return createFieldReferenceValue(codebase, qualifierText, referenceName)
                 }
             }
             // An annotation value.

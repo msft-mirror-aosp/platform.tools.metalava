@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -138,7 +139,7 @@ interface ValueFactory {
      * the same [Value.kind] (excluding [ValueKind.FIELD]). This will throw an exception if it does
      * not.
      */
-    fun createArrayValue(elements: List<ArrayElementValue>): Value {
+    fun createArrayValue(elements: List<ArrayElementValue>): ArrayValue {
         if (elements.isEmpty()) return EMPTY_ARRAY
         val groupedByKind = elements.groupBy { it.kind }
         val kindCount = groupedByKind.size
@@ -180,7 +181,7 @@ interface ValueFactory {
         val qualifiedClassName = fieldItem.containingClass().qualifiedName()
         val fieldName = fieldItem.name()
         return if (fieldItem.isEnumConstant()) {
-            createFieldReferenceValue(qualifiedClassName, fieldName)
+            createFieldReferenceValue(fieldItem.codebase, qualifiedClassName, fieldName)
         } else {
             // The actual constant value of a field reference is affected by the type of where it is
             // used, just as it would if the field reference was replaced by its constant value. So,
@@ -201,7 +202,12 @@ interface ValueFactory {
                         // Otherwise, just use the field's constant value as is.
                         ?: fieldConstantValue
                 }
-            createFieldReferenceValue(qualifiedClassName, fieldName, constantValue)
+            createFieldReferenceValue(
+                fieldItem.codebase,
+                qualifiedClassName,
+                fieldName,
+                constantValue
+            )
         }
     }
 
@@ -210,6 +216,7 @@ interface ValueFactory {
      * [constantValue].
      */
     fun createFieldReferenceValue(
+        classResolver: ClassResolver,
         qualifiedClassName: String,
         fieldName: String,
         constantValue: ConstantValue? = null,
@@ -217,6 +224,7 @@ interface ValueFactory {
         // Create a field.
         val fieldReferenceValue =
             DefaultFieldReferenceValue(
+                classResolver,
                 qualifiedClassName,
                 fieldName,
                 constantValue,
@@ -278,7 +286,7 @@ interface ValueFactory {
          * Note: This does not work for fields in nested classes.
          */
         private fun fieldReference(qualifiedName: String, fieldName: String) =
-            DefaultFieldReferenceValue(qualifiedName, fieldName)
+            DefaultFieldReferenceValue(ClassResolver.THROWING, qualifiedName, fieldName)
 
         /**
          * Adds mappings for special fields [field] of [type] to [value].
