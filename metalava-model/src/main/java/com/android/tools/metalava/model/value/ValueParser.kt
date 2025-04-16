@@ -79,7 +79,18 @@ class ValueParser(
         optionalTypeItem: TypeItem?,
         implementationValue: String,
         valueUseSite: ValueUseSite
-    ) = parse(optionalTypeItem, implementationValue)
+    ) =
+        when (valueUseSite) {
+            ValueUseSite.ANNOTATION -> {
+                // For annotations convert to any Value.
+                parse(optionalTypeItem, implementationValue)
+            }
+            ValueUseSite.FIELD -> {
+                // For fields convert to ConstantValues if possible, otherwise throw an exception.
+                parseConstant(optionalTypeItem, implementationValue)
+                    ?: unknownToken(optionalTypeItem, implementationValue)
+            }
+        }
 
     /** Parse the [text] to provide a [Value] of the [optionalTypeItem]. */
     fun parse(optionalTypeItem: TypeItem?, text: String): Value? =
