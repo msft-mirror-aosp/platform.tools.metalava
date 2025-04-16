@@ -1,6 +1,3 @@
-com.android.tools.metalava.AndroidApiChecksTest
-  Document Permissions[turbine]
-
 com.android.tools.metalava.AnnotationsMergerTest
   Merge type use qualifier annotations from Java stub files[turbine]
   Signature files contain annotations[turbine]

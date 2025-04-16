@@ -27,7 +27,6 @@ import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -53,6 +52,7 @@ import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -338,26 +338,10 @@ class DocAnalyzer(
                     if (item !is MemberItem) {
                         return
                     }
-                    var values: List<AnnotationAttributeValue>? = null
-                    var any = false
-                    var conditional = false
-                    for (attribute in annotation.attributes) {
-                        when (attribute.name) {
-                            "value",
-                            "allOf" -> {
-                                values = attribute.leafValues()
-                            }
-                            "anyOf" -> {
-                                any = true
-                                values = attribute.leafValues()
-                            }
-                            "conditional" -> {
-                                conditional = attribute.value.asBoolean() == true
-                            }
-                        }
-                    }
 
-                    if (!values.isNullOrEmpty() && !conditional) {
+                    val requiresPermissionInfo = annotation.getRequiresPermissionInfo() ?: return
+                    val (values, any, conditional) = requiresPermissionInfo
+                    if (values.isNotEmpty() && !conditional) {
                         // Look at macros_override.cs for the usage of these
                         // tags. In particular, search for def:dump_permission
 
@@ -371,23 +355,25 @@ class DocAnalyzer(
                                 else -> sb.append(" and ")
                             }
 
-                            val resolved = value.resolve()
+                            val resolvedField = (value as? FieldReferenceValue)?.resolve()
                             val field =
-                                if (resolved is FieldItem) resolved
-                                else {
-                                    val v: Any = value.value() ?: value.toSource()
+                                if (resolvedField == null) {
+                                    val v = value.asString() ?: value.toValueString()
                                     if (v == CARRIER_PRIVILEGES_MARKER) {
                                         // TODO: Warn if using allOf with carrier
                                         sb.append(
                                             "{@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges}"
                                         )
                                         continue
+                                    } else {
+                                        findPermissionField(codebase, v)
                                     }
-                                    findPermissionField(codebase, v)
-                                }
+                                } else resolvedField
                             if (field == null) {
-                                val v = value.value()?.toString() ?: value.toSource()
-                                if (editDistance(CARRIER_PRIVILEGES_MARKER, v, 3) < 3) {
+                                val v = value.asString()
+                                if (
+                                    v != null && editDistance(CARRIER_PRIVILEGES_MARKER, v, 3) < 3
+                                ) {
                                     reporter.report(
                                         Issues.MISSING_PERMISSION,
                                         item,
@@ -397,10 +383,10 @@ class DocAnalyzer(
                                     reporter.report(
                                         Issues.MISSING_PERMISSION,
                                         item,
-                                        "Cannot find permission field for $value required by $item (may be hidden or removed)"
+                                        "Cannot find permission field for ${value.toValueString()} required by $item (may be hidden or removed)"
                                     )
                                 }
-                                sb.append(value.toSource())
+                                sb.append(value.toValueString())
                             } else {
                                 if (filterReference.test(field)) {
                                     sb.append(
