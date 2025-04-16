@@ -209,6 +209,9 @@ fun Value.asAny() = asLiteralValue()?.underlyingValue
 /** Get this [Value] as a [Boolean], or `null` if it cannot be represented as a [Boolean]. */
 fun Value.asBoolean() = (asLiteralValue() as? BooleanValue)?.underlyingValue
 
+/** Get this [Value] as a [Double], or `null` if it cannot be represented as a [Double]. */
+fun Value.asDouble() = (asLiteralValue() as? DoubleValue)?.underlyingValue
+
 /** Get this [Value] as a [Float], or `null` if it cannot be represented as a [Float]. */
 fun Value.asFloat() = (asLiteralValue() as? FloatValue)?.underlyingValue
 
