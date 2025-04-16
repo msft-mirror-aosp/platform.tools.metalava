@@ -46,14 +46,15 @@ interface FieldItem : MemberItem, InheritableItem {
     val legacyFieldValue: FieldValue?
 
     /**
-     * The legacy initial/constant value, if any. If [requireConstant] the initial value will only
-     * be returned if it's constant.
+     * The legacy constant value, if any.
+     *
+     * The initial value will only be returned if it's constant.
      *
      * This is called `legacy` because this an old, inconsistent representation of the field value
      * that exposes implementation details. It will be replaced by a properly modelled value
      * representation.
      */
-    fun legacyInitialValue(requireConstant: Boolean = true): Any?
+    fun legacyInitialValue(): Any?
 
     /**
      * The optional initial value of the field.
@@ -67,11 +68,6 @@ interface FieldItem : MemberItem, InheritableItem {
      * The [Value] may be the result of a constant expression as defined by JLS 15.28, i.e. a value
      * of a primitive or [String] type (see [ConstantValue]), or it could be some other value, e.g.
      * enum, class literal, etc.
-     *
-     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
-     * behavior is correctly maintained, i.e.:
-     * * `legacyInitialValue(true)` will become [constantValue].
-     * * `legacyInitialValue(false)` will become [initialValue].
      */
     val initialValue: Value?
 
@@ -86,11 +82,6 @@ interface FieldItem : MemberItem, InheritableItem {
      * The [ConstantValue] is the result of a constant expression as defined by JLS 15.28, i.e. a
      * value of a primitive or [String] type (see [ConstantValue]) on a field which is `static` and
      * `final`.
-     *
-     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
-     * behavior is correctly maintained, i.e.:
-     * * `legacyInitialValue(true)` will become [constantValue].
-     * * `legacyInitialValue(false)` will become [initialValue].
      */
     val constantValue: ConstantValue?
         get() =
@@ -193,8 +184,7 @@ interface FieldItem : MemberItem, InheritableItem {
         nonConstantExpressionProvider: ((FieldItem) -> String?)? = null,
     ): Boolean {
         // Only write a value for static final fields.
-        val value =
-            if (modifiers.isStatic() && modifiers.isFinal()) legacyInitialValue(true) else null
+        val value = if (modifiers.isStatic() && modifiers.isFinal()) legacyInitialValue() else null
         when (value) {
             is Int -> {
                 writer.print(" = ")

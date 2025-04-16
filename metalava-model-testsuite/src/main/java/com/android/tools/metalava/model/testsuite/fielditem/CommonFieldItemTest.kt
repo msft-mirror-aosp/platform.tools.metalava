@@ -500,7 +500,7 @@ class CommonFieldItemTest : BaseModelTest() {
             val fields = testClass.fields()
             assertEquals(3, fields.size, message = "field count")
             for (field in fields) {
-                val legacyValue = field.legacyInitialValue(true) as Float
+                val legacyValue = field.legacyInitialValue() as Float
                 val legacyValueBits = legacyValue.toBits()
                 assertEquals(
                     minNormalBits,

@@ -348,7 +348,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         val initialValueProvider =
             object : OptionalValueProvider {
                 override val optionalValue: Value?
-                    get() = fieldToSnapshot.initialValue?.snapshot(snapshotCodebase)
+                    get() = fieldToSnapshot.constantValue?.snapshot(snapshotCodebase)
             }
 
         val containingClass = field.containingClass().getSnapshotClass()

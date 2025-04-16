@@ -82,8 +82,7 @@ open class DefaultFieldItem(
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-    final override fun legacyInitialValue(requireConstant: Boolean) =
-        legacyFieldValue?.initialValue(requireConstant)
+    final override fun legacyInitialValue() = legacyFieldValue?.initialValue(requireConstant = true)
 
     final override val initialValue
         get() = initialValueProvider?.optionalValue

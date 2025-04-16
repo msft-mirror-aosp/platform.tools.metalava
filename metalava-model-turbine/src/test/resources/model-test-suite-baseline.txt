@@ -13,7 +13,6 @@ com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
 
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field
-  test non final field with default value as constant expression
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
