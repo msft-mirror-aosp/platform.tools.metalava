@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -123,28 +124,22 @@ internal class PsiFieldItem(
                     },
                 )
 
-            // Get a ValueProvider for the constant, if possible.
-            val constantValueProvider =
-                when (psiField) {
-                    is UField -> {
-                        psiField.uastInitializer?.let { uastInitializer ->
-                            codebase.valueFactory.providerFor(
-                                fieldType,
-                                uastInitializer,
-                                ValueUseSite.FIELD,
-                            )
-                        }
-                    }
-                    else -> {
-                        psiField.initializer?.let { psiInitializer ->
-                            codebase.valueFactory.providerFor(
-                                fieldType,
-                                psiInitializer,
-                                ValueUseSite.FIELD,
-                            )
-                        }
-                    }
+            // Check to see whether the field could have a constant value.
+            val couldHaveConstantValue =
+                when (psiField.sourceLanguage) {
+                    // In Kotlin the `const` modifier is what determines whether the field could
+                    // have a constant value.
+                    SourceLanguage.KOTLIN -> modifiers.isConst()
+                    // In Java fields have to be static and final in order for them to have a
+                    // constant value but that is not sufficient.
+                    else -> modifiers.isStatic() && modifiers.isFinal()
                 }
+
+            // Get a ValueProvider for the initializer, if possible.
+            val constantValueProvider =
+                if (couldHaveConstantValue)
+                    constantValueProviderForField(psiField, codebase, fieldType)
+                else null
 
             return PsiFieldItem(
                 codebase = codebase,
@@ -159,6 +154,41 @@ internal class PsiFieldItem(
                 legacyFieldValue = fieldValue,
             )
         }
+
+        /**
+         * Get an [OptionalValueProvider] for the [psiField]'s constant value.
+         *
+         * This will return 'null' if the [psiField] has no initializer at all.
+         *
+         * The returned [OptionalValueProvider]'s [OptionalValueProvider.optionalValue] property
+         * will be `null` if the field is a Java field which does not have an initializer which is a
+         * constant expression.
+         */
+        private fun constantValueProviderForField(
+            psiField: PsiField,
+            codebase: PsiBasedCodebase,
+            fieldType: TypeItem
+        ) =
+            when (psiField) {
+                is UField -> {
+                    psiField.uastInitializer?.let { uastInitializer ->
+                        codebase.valueFactory.providerFor(
+                            fieldType,
+                            uastInitializer,
+                            ValueUseSite.FIELD,
+                        )
+                    }
+                }
+                else -> {
+                    psiField.initializer?.let { psiInitializer ->
+                        codebase.valueFactory.providerFor(
+                            fieldType,
+                            psiInitializer,
+                            ValueUseSite.FIELD,
+                        )
+                    }
+                }
+            }
     }
 }
 
