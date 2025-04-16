@@ -194,6 +194,9 @@ sealed interface Value {
 /** Get this [Value] as an [Any], or `null` if it cannot be represented as an [Any]. */
 fun Value.asAny() = asLiteralValue()?.underlyingValue
 
+/** Get this [Value] as a [Boolean], or `null` if it cannot be represented as a [Boolean]. */
+fun Value.asBoolean() = (asLiteralValue() as? BooleanValue)?.underlyingValue
+
 /** Get this [Value] as a [Float], or `null` if it cannot be represented as a [Float]. */
 fun Value.asFloat() = (asLiteralValue() as? FloatValue)?.underlyingValue
 
