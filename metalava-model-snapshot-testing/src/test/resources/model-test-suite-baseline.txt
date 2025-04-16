@@ -41,7 +41,6 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation toSource() with char values[text]
   annotation toSource() with class values[text]
-  annotation toSource() with compound expression values[text]
   annotation toSource() with compound expression values[turbine]
   annotation toSource() with constant literal values[turbine]
   annotation toSource() with number values[text]
