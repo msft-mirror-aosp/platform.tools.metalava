@@ -345,7 +345,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         // This makes it easier to incrementally expand the Value model without breaking existing
         // snapshot tests.
         // TODO(b/354633349): Stop deferring retrieval.
-        val initialValueProvider =
+        val constantValueProvider =
             object : OptionalValueProvider {
                 override val optionalValue: Value?
                     get() = fieldToSnapshot.constantValue?.snapshot(snapshotCodebase)
@@ -366,7 +366,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     type = fieldToSnapshot.type().snapshot(),
                     isEnumConstant = fieldToSnapshot.isEnumConstant(),
                     fieldValue = fieldToSnapshot.legacyFieldValue?.snapshot(),
-                    initialValueProvider = initialValueProvider,
+                    constantValueProvider = constantValueProvider,
                 )
             }
         newField.copySelectedApiVariants(fieldToSnapshot)

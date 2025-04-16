@@ -51,7 +51,7 @@ internal class PsiFieldItem(
     containingClass: ClassItem,
     type: TypeItem,
     private val isEnumConstant: Boolean,
-    initialValueProvider: OptionalValueProvider?,
+    constantValueProvider: OptionalValueProvider?,
     override val legacyFieldValue: FieldValue?,
 ) :
     DefaultFieldItem(
@@ -66,7 +66,7 @@ internal class PsiFieldItem(
         containingClass = containingClass,
         type = type,
         isEnumConstant = isEnumConstant,
-        initialValueProvider = initialValueProvider,
+        constantValueProvider = constantValueProvider,
         legacyFieldValue = legacyFieldValue,
     ),
     FieldItem,
@@ -123,8 +123,8 @@ internal class PsiFieldItem(
                     },
                 )
 
-            // Get a ValueProvider for the initializer, if possible.
-            val initialValueProvider =
+            // Get a ValueProvider for the constant, if possible.
+            val constantValueProvider =
                 when (psiField) {
                     is UField -> {
                         psiField.uastInitializer?.let { uastInitializer ->
@@ -155,7 +155,7 @@ internal class PsiFieldItem(
                 containingClass = containingClass,
                 type = fieldType,
                 isEnumConstant = isEnumConstant,
-                initialValueProvider = initialValueProvider,
+                constantValueProvider = constantValueProvider,
                 legacyFieldValue = fieldValue,
             )
         }

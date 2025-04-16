@@ -409,7 +409,7 @@ internal class TurbineClassBuilder(
                     }
                 )
 
-            val initialFieldValueProvider =
+            val constantValueProvider =
                 field.value()?.let { const ->
                     val expr = field.decl()?.init()?.getOrNull()
                     val turbineValue = TurbineValue(const, expr, fieldResolver)
@@ -426,7 +426,7 @@ internal class TurbineClassBuilder(
                     containingClass = classItem,
                     type = type,
                     isEnumConstant = isEnumConstant,
-                    initialValueProvider = initialFieldValueProvider,
+                    constantValueProvider = constantValueProvider,
                     fieldValue = fieldValue,
                 )
 

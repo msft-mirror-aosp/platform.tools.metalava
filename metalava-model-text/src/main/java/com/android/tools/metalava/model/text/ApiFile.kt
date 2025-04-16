@@ -1364,7 +1364,7 @@ private constructor(
         // Defer parsing the value string until needed.
         val fieldValue = valueString?.let { TextFieldValue(type, it) }
 
-        val initialValueProvider =
+        val constantValueProvider =
             valueString?.let { valueParser.providerFor(type, it, ValueUseSite.FIELD) }
 
         if (";" != token) {
@@ -1379,7 +1379,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                initialValueProvider = initialValueProvider,
+                constantValueProvider = constantValueProvider,
                 fieldValue = fieldValue,
             )
         field.markForMainApiSurface()
