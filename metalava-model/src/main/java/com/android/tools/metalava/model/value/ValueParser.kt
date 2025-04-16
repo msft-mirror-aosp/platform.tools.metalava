@@ -148,31 +148,10 @@ class ValueParser(
         optionalTypeItem: TypeItem?,
         text: String
     ): ArrayElementValue {
-        knownSpecialValues[text]?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
-        }
-
-        val first = text.first()
-        when {
-            first == '"' -> {
-                val last = text.last()
-                if (last != '"') error("string '$text' starts with \" but does not end with \"")
-                val string = javaUnescapeString(text.substring(1, text.length - 1))
-                return createLiteralValue(optionalTypeItem, string)
-            }
-            first == '\'' -> {
-                val last = text.last()
-                if (last != '\'') error("character \"$text\" starts with ' but does not end with '")
-                val string = javaUnescapeString(text.substring(1, text.length - 1))
-                if (string.length != 1)
-                    error(
-                        "character \"$text\" should contain a single character but contains ${string.length}"
-                    )
-                val char = string[0]
-                return createLiteralValue(optionalTypeItem, char)
-            }
-            first == '+' || first == '-' || first.isDigit() ->
-                return parseNumber(optionalTypeItem, text)
+        // Try and parse the constants first as they will be more prevalent and the following code
+        // is more expensive.
+        parseConstant(optionalTypeItem, text)?.let {
+            return it
         }
 
         // If the text matches the pattern then extract the `<type>`, parse using `typeItemParser`
@@ -217,6 +196,39 @@ class ValueParser(
         }
 
         unknownToken(optionalTypeItem, text)
+    }
+
+    /** Parse the [text] to provide a [ConstantValue] of the [optionalTypeItem]. */
+    private fun parseConstant(optionalTypeItem: TypeItem?, text: String): ConstantValue? {
+
+        knownSpecialValues[text]?.let { value ->
+            return createLiteralValue(optionalTypeItem, value)
+        }
+
+        val first = text.first()
+        when {
+            first == '"' -> {
+                val last = text.last()
+                if (last != '"') error("string '$text' starts with \" but does not end with \"")
+                val string = javaUnescapeString(text.substring(1, text.length - 1))
+                return createLiteralValue(optionalTypeItem, string)
+            }
+            first == '\'' -> {
+                val last = text.last()
+                if (last != '\'') error("character \"$text\" starts with ' but does not end with '")
+                val string = javaUnescapeString(text.substring(1, text.length - 1))
+                if (string.length != 1)
+                    error(
+                        "character \"$text\" should contain a single character but contains ${string.length}"
+                    )
+                val char = string[0]
+                return createLiteralValue(optionalTypeItem, char)
+            }
+            first == '+' || first == '-' || first.isDigit() ->
+                return parseNumber(optionalTypeItem, text)
+        }
+
+        return null
     }
 
     /** Throw an exception when [text] cannot be parsed. */
