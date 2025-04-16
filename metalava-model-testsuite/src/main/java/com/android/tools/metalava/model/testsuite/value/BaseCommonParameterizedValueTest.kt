@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Compani
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.cacheIn
@@ -488,12 +489,23 @@ abstract class BaseCommonParameterizedValueTest(
         runTestOnCodebase {
             // Get the expected value.
             expectation.expectationFor(producerKind, legacyValueUseSite).runValueTest { expected ->
+                // Filter the expected value for fields. FieldItem.constantValue can only be a
+                // constant value, i.e. a primitive or String literal. However, the source can be
+                // given a non-constant value, e.g. an array, field reference, etc. A reference to
+                // a constant field will be replaced with its constant value but otherwise the field
+                // will have a null expectation. This ensures that the expectation is correct.
+                val filteredExpected =
+                    if (expected != null && legacyValueUseSite.valueUseSite == ValueUseSite.FIELD) {
+                        // Fields only use constant literal values.
+                        expected.asLiteralValue()
+                    } else expected
+
                 // Get the actual value.
                 val actual = actualValueGetter()
 
                 // Strictly compare the Values to ensure that where necessary they have included any
                 // information needed to generate correct legacy string representations.
-                assertValuesAreStrictlyEqual(expected, actual)
+                assertValuesAreStrictlyEqual(filteredExpected, actual)
             }
         }
     }
