@@ -122,18 +122,38 @@ internal class PsiValueFactory(
         implementationValue: Any,
         valueUseSite: ValueUseSite,
     ): Value? {
-        val value =
-            when (implementationValue) {
-                is UExpression -> uExpressionToValue(optionalTypeItem, implementationValue)
-                is PsiAnnotationMemberValue -> psiToValue(optionalTypeItem, implementationValue)
-                else -> null
+        return when (valueUseSite) {
+            ValueUseSite.ANNOTATION -> {
+                // For annotations convert to any Value.
+                val value =
+                    when (implementationValue) {
+                        is UExpression -> {
+                            uExpressionToValue(optionalTypeItem, implementationValue)
+                        }
+                        is PsiAnnotationMemberValue -> {
+                            psiToValue(optionalTypeItem, implementationValue)
+                        }
+                        else -> null
+                    }
+
+                if (value == null) {
+                    unknownExpression(optionalTypeItem, implementationValue)
+                }
+                value
             }
-
-        if (valueUseSite == ValueUseSite.ANNOTATION && value == null) {
-            unknownExpression(optionalTypeItem, implementationValue)
+            ValueUseSite.FIELD -> {
+                // For fields convert to ConstantValues.
+                when (implementationValue) {
+                    is UExpression -> {
+                        uExpressionToConstant(optionalTypeItem, implementationValue)
+                    }
+                    is PsiAnnotationMemberValue -> {
+                        psiToConstant(optionalTypeItem, implementationValue)
+                    }
+                    else -> null
+                }
+            }
         }
-
-        return value
     }
 
     /**
