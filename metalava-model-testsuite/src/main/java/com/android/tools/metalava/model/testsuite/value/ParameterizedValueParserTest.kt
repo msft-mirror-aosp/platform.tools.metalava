@@ -148,7 +148,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                             // Get the expected value. Uses LegacyValueUseSite.ATTRIBUTE_VALUE but
                             // any would be ok as all use sites have the same expected value.
                             val expectedValue =
-                                valueExample.expectedValue?.expectationFor(
+                                valueExample.expectedValue.expectationFor(
                                     producerKind,
                                     LegacyValueUseSite.ATTRIBUTE_VALUE
                                 ) ?: continue

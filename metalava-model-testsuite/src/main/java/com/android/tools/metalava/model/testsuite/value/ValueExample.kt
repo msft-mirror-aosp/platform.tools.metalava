@@ -161,13 +161,8 @@ constructor(
      * The expected [Value] for this case.
      *
      * This may differ by [ProducerKind] and [LegacyValueUseSite].
-     *
-     * This is optional at the moment to allow the expected value to be added incrementally as the
-     * [Value] model is expanded.
-     *
-     * TODO(b/354633349): Make this required.
      */
-    val expectedValue: Expectation<Value?>? = null,
+    val expectedValue: Expectation<Value?>,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -1095,6 +1090,7 @@ constructor(
                     expectedLegacySource = expectations { common = "3.141f" },
                     expectedLegacyValue = expectations { common = 3.141f },
                     expectedKotlinLegacySource = expectations { attributeDefaultValue = "3.141" },
+                    expectedValue = expectations { common = literalValue(3.141f) },
                 ),
                 // Check a special float - Nan.
                 ValueExample(
