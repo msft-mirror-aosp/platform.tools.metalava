@@ -213,12 +213,9 @@ class ParameterizedValueParserTest : BaseModelTest() {
                 .sortedWith(compareBy { it.label })
                 // Apply some filtering to remove known problematic cases.
                 .filter {
-                    // Ignore test cases that require imports as they are not fully qualified and
-                    // signature files require class types to be fully qualified.
-                    it.valueExample.javaImports.isEmpty() &&
-                        // Ignore test cases that have an empty string as an input as they are in
-                        // error.
-                        it.input.isNotEmpty()
+                    // Ignore any tests that use Kotlin syntax for representing array types as they
+                    // cannot yet be converted from `Array<X>` into `X[]`.
+                    !it.input.startsWith("Array<")
                 }
 
         /** Supply the list of test cases as the parameters for this test class. */
