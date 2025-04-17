@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
@@ -41,6 +42,7 @@ open class DefaultClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -58,6 +60,7 @@ open class DefaultClassItem(
         codebase = codebase,
         fileLocation = fileLocation,
         sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,

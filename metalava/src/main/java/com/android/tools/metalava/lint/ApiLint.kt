@@ -79,6 +79,7 @@ import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -514,16 +515,18 @@ private constructor(
             item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
         val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
 
-        if (attr.legacyValue.resolve() == null) {
-            val value = attr.legacyValue.value() as? String
-            if (value == attr.legacyValue.toSource()) {
-                // For a string literal, source and value are never the same, so this happens only
-                // when a reference isn't resolvable.
-                return
-            }
+        // Get the flag value, should be a reference to a constant field.
+        val flagValue = attr.value
+        if (flagValue.kind != ValueKind.CONSTANT_FIELD) {
+            // It is not a reference to a constant field so get the string value and try and see if
+            // the field could be found.
+            val value = flagValue.asString()
 
+            // Reverse engineer the string value to a field reference and resolve it to a FieldItem,
+            // if possible.
             val field = value?.let { aconfigFlagLiteralToFieldOrNull(item.codebase, it) }
 
+            // Generate some helpful text so the developer knows what to do to fix it.
             val replacement =
                 if (field != null) {
                     val (fieldSource, fieldItem) = field
@@ -671,7 +674,7 @@ private constructor(
             )
         } else if (
             (field.type() is PrimitiveTypeItem || field.type().isString()) &&
-                field.initialValue?.asLiteralValue() == null
+                field.constantValue?.asLiteralValue() == null
         ) {
             report(
                 COMPILE_TIME_CONSTANT,
@@ -821,7 +824,7 @@ private constructor(
         if (!field.type().isString()) {
             return
         }
-        val value = field.initialValue?.asString() ?: return
+        val value = field.constantValue?.asString() ?: return
         if (!(name.contains("_ACTION") || name.contains("ACTION_") || value.contains(".action."))) {
             return
         }
@@ -862,7 +865,7 @@ private constructor(
         if (name.startsWith("ACTION_") || !field.type().isString()) {
             return
         }
-        val value = field.initialValue?.asString() ?: return
+        val value = field.constantValue?.asString() ?: return
         if (!(name.contains("_EXTRA") || name.contains("EXTRA_") || value.contains(".extra"))) {
             return
         }
@@ -1153,7 +1156,7 @@ private constructor(
             fields
                 .firstOrNull { it.name() == fieldName }
                 ?.let { field ->
-                    if (field.initialValue?.asString() != fieldValue) {
+                    if (field.constantValue?.asString() != fieldValue) {
                         report(
                             INTERFACE_CONSTANT,
                             field,
@@ -1800,7 +1803,7 @@ private constructor(
             val name = field.name()
             val index = name.indexOf("FLAG_")
             if (index != -1) {
-                val value = field.initialValue?.asInt() ?: continue
+                val value = field.constantValue?.asInt() ?: continue
                 val scope = name.substring(0, index)
                 val prev = known?.get(scope) ?: 0
                 if (known != null && (prev and value) != 0) {
@@ -2994,7 +2997,7 @@ private constructor(
         }
         val name = field.name()
         val endsWithService = name.endsWith("_SERVICE")
-        val value = field.initialValue?.asString()
+        val value = field.constantValue?.asString()
 
         if (value == null) {
             val mustEndInService =

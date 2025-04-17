@@ -60,6 +60,7 @@ import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.parser.FileLocationTracker
+import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -1345,7 +1346,7 @@ private constructor(
         // Get the optional value.
         val valueString =
             if ("=" == token) {
-                token = tokenizer.requireToken(parenIsSep = false)
+                token = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
                 token.also { token = tokenizer.requireToken() }
             } else null
 

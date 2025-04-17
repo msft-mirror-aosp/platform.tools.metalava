@@ -37,6 +37,8 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -67,11 +69,13 @@ class DefaultItemFactory(
         qualifiedName: String,
         containingPackage: PackageItem?,
         overviewDocumentation: ResourceFile?,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
     ): DefaultPackageItem {
         return DefaultPackageItem(
             codebase,
             fileLocation,
             defaultSourceLanguage,
+            targetLanguages,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
@@ -85,6 +89,7 @@ class DefaultItemFactory(
     fun createClassItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         source: SourceFile? = null,
@@ -101,6 +106,7 @@ class DefaultItemFactory(
             codebase,
             fileLocation,
             sourceLanguage,
+            targetLanguages,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
@@ -119,6 +125,7 @@ class DefaultItemFactory(
     fun createConstructorItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
@@ -135,6 +142,7 @@ class DefaultItemFactory(
             codebase,
             fileLocation,
             sourceLanguage,
+            targetLanguages,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
@@ -153,6 +161,7 @@ class DefaultItemFactory(
     fun createFieldItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
@@ -166,6 +175,7 @@ class DefaultItemFactory(
             codebase,
             fileLocation,
             sourceLanguage,
+            targetLanguages,
             defaultVariantSelectorsFactory,
             modifiers,
             documentationFactory,
@@ -181,6 +191,7 @@ class DefaultItemFactory(
     fun createMethodItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
@@ -197,6 +208,7 @@ class DefaultItemFactory(
             codebase,
             fileLocation,
             sourceLanguage,
+            targetLanguages,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,

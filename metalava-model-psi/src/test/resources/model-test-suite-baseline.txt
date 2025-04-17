@@ -6,6 +6,9 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[java,k1]
   modifiers public explicitly final method in final class[java,k2]
 
+com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test type aliases can only be used from Kotlin[kotlin,k1]
+
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
@@ -48,3 +51,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[kotlin,k1,source,annotation - multiple attributes]
   testLegacyValue[kotlin,k1,source,annotation - no attributes]
   testLegacyValue[kotlin,k1,source,annotation - single value]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[kotlin,k1,source,null - intermediate non-constant expression]
+  testFieldValue[kotlin,k2,source,null - intermediate non-constant expression]

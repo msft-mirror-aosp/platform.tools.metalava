@@ -23,12 +23,14 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.reporter.FileLocation
 
 abstract class DefaultMemberItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -39,6 +41,7 @@ abstract class DefaultMemberItem(
         codebase = codebase,
         fileLocation = fileLocation,
         sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
