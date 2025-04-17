@@ -432,7 +432,6 @@ internal class TurbineClassBuilder(
                     type = type,
                     isEnumConstant = isEnumConstant,
                     constantValueProvider = constantValueProvider,
-                    fieldValue = fieldValue,
                 )
 
             classItem.addField(fieldItem)

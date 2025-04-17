@@ -1361,9 +1361,6 @@ private constructor(
             )
         synchronizeNullability(type, modifiers)
 
-        // Defer parsing the value string until needed.
-        val fieldValue = valueString?.let { TextFieldValue(type, it) }
-
         // In signature files fields have to be static and final in order for them to have a
         // constant value in addition to a value.
         val constantValueProvider =
@@ -1393,7 +1390,6 @@ private constructor(
                 type = type,
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
-                fieldValue = fieldValue,
             )
         field.markForMainApiSurface()
         cl.addField(field)

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
@@ -35,15 +34,6 @@ interface FieldItem : MemberItem, InheritableItem {
         superMethods: Boolean,
         duplicate: Boolean,
     ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
-
-    /**
-     * The optional value of this [FieldItem].
-     *
-     * This is called `legacy` because this an old, inconsistent representation of the field value
-     * that exposes implementation details. It will be replaced by a properly modelled value
-     * representation.
-     */
-    val legacyFieldValue: FieldValue?
 
     /**
      * The optional constant value of the field.
