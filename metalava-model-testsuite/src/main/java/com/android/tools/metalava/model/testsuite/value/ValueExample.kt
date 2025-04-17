@@ -927,8 +927,7 @@ constructor(
                     name = "field - generic class constant",
                     javaType = "String",
                     javaExpression = "GenericClass.STRING_CONSTANT",
-                    // TODO(b/354633349): Signature files does not support field references.
-                    validForInputFormats = notValidForSignature,
+                    signatureExpression = "test.pkg.GenericClass.STRING_CONSTANT",
                     expectedLegacySource =
                         expectations {
                             common = "\"constant\""
@@ -1532,7 +1531,8 @@ constructor(
                     name = "method call",
                     javaType = "String",
                     javaExpression = "System.getProperty(\"PROPERTY\")",
-                    // Only suitable for use in fields.
+                    // Only suitable for use in fields as annotations cannot use non-constant
+                    // methods.
                     suitableFor = allFieldLegacyValueUseSites,
                     // Signature never has a method call for a value.
                     validForInputFormats = notValidForSignature,
@@ -1545,7 +1545,7 @@ constructor(
                     name = "null",
                     javaType = "String",
                     javaExpression = "null",
-                    // Only suitable for use in fields.
+                    // Only suitable for use in fields as annotations cannot have `null` values.
                     suitableFor = allFieldLegacyValueUseSites,
                     // Signature never has a null field value.
                     validForInputFormats = notValidForSignature,
