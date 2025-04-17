@@ -226,8 +226,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 )
             val formatter = LegacyValueFormatter(settings)
             val actual = formatter.format(arrayValue(DOUBLE_NAN), field)
-            // TODO(b/354633349): Values are not being replaced in an array.
-            assertEquals("{(0.0/0.0)}", actual)
+            assertEquals("{NOT_A_NUMBER}", actual)
         }
     }
 
@@ -250,8 +249,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                     ),
                     field
                 )
-            // TODO(b/354633349): Values are not being replaced in an annotation.
-            assertEquals("@test.pkg.Anno(other = (0.0/0.0))", actual)
+            assertEquals("@test.pkg.Anno(other = NOT_A_NUMBER)", actual)
         }
     }
 

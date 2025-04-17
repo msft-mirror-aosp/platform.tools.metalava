@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SourceLanguage
+import java.lang.StringBuilder
 
 /**
  * Provide support for formatting [Value]s consistently with various legacy string representations.
@@ -50,14 +51,33 @@ import com.android.tools.metalava.model.SourceLanguage
  *   loaded from a jar; defaults to [javaSettings].
  */
 class LegacyValueFormatter(
-    private val javaSettings: Settings,
-    private val kotlinSettings: Settings = javaSettings,
-    private val jarSettings: Settings = javaSettings,
+    javaSettings: Settings,
+    kotlinSettings: Settings = javaSettings,
+    jarSettings: Settings = javaSettings,
 ) {
+    /**
+     * Copy the [javaSettings] and bind it to this [LegacyValueFormatter] so that
+     * [ appendFormattedValue] will be called for nested [Value]s.
+     */
+    private val javaSettings = javaSettings.bindTo(this)
+
+    /**
+     * Copy the [kotlinSettings] and bind it to this [LegacyValueFormatter] so that
+     * [ appendFormattedValue] will be called for nested [Value]s.
+     */
+    private val kotlinSettings = kotlinSettings.bindTo(this)
+
+    /**
+     * Copy the [jarSettings] and bind it to this [LegacyValueFormatter] so that
+     * [ appendFormattedValue] will be called for nested [Value]s.
+     */
+    private val jarSettings = jarSettings.bindTo(this)
+
     /** Settings that affect the formatting of a [Value]. */
     data class Settings(
-        /** The configuration that is used when calling [Value.toValueString]. */
-        val valueStringConfiguration: ValueStringConfiguration = ValueStringConfiguration.DEFAULT,
+        /** The configuration that is used as the basis for [boundConfiguration]. */
+        private val valueStringConfiguration: ValueStringConfiguration =
+            ValueStringConfiguration.DEFAULT,
 
         /**
          * A map from [Value] to the string representation to use in place of the [Value]'s string
@@ -67,7 +87,34 @@ class LegacyValueFormatter(
          * point numbers.
          */
         val stringReplacement: Map<Value, String> = emptyMap(),
-    )
+
+        /** The lambda that will be invoked to append nested [Value]s. */
+        val nestedValueAppender: (Value, StringBuilder, Settings) -> Unit = { value, builder, _ ->
+            value.appendValueStringTo(builder)
+        },
+    ) {
+        /**
+         * The configuration that must be used when calling [Value.toValueString].
+         *
+         * This is a copy of [valueStringConfiguration] with its
+         * [ValueStringConfiguration.nestedValueAppender] set to redirect the call to
+         * [nestedValueAppender].
+         */
+        val boundConfiguration =
+            valueStringConfiguration.copy(
+                nestedValueAppender = { value, builder, _ ->
+                    nestedValueAppender(value, builder, this)
+                }
+            )
+
+        /**
+         * Create a copy of this which delegates calls to [nestedValueAppender] to
+         * [nestedFormatter]'s [LegacyValueFormatter.appendFormattedValue] method.
+         */
+        fun bindTo(nestedFormatter: LegacyValueFormatter): Settings {
+            return copy(nestedValueAppender = nestedFormatter::appendFormattedValue)
+        }
+    }
 
     /**
      * Format [value] within the optional [context].
@@ -87,12 +134,23 @@ class LegacyValueFormatter(
                 else -> javaSettings
             }
 
+        return format(settings, value)
+    }
+
+    /** Format [value] according to [settings]. */
+    private fun format(settings: Settings, value: Value) = buildString {
+        appendFormattedValue(value, this, settings)
+    }
+
+    /** Append the formatted [value] to [builder] according to [settings]. */
+    private fun appendFormattedValue(value: Value, builder: StringBuilder, settings: Settings) {
         // If there is a string replacement then return it.
         settings.stringReplacement[value]?.let { replacement ->
-            return replacement
+            builder.append(replacement)
+            return
         }
 
         // Fallback to just using the default value representation according to the settings.
-        return value.toValueString(settings.valueStringConfiguration)
+        value.appendValueStringTo(builder, settings.boundConfiguration)
     }
 }
