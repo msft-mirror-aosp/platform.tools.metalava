@@ -716,7 +716,6 @@ constructor(
                                 annotationToSource = "3"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { source { common = "3" } },
                     expectedLegacyValue =
                         expectations {
                             common = 3.0
@@ -753,6 +752,8 @@ constructor(
                     kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(0.0/0.0)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Double.NaN` when that is how
                             //   it is referenced in the source and some expression like `(0.0/0.0)`
@@ -762,14 +763,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.NaN"
                                 attributeValue = "Double.NaN"
                                 annotationToSource = "java.lang.Double.NaN"
-                                fieldWriteWithSemicolon = "(0.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0d / 0.0"
                                 annotationToSource = "0.0 / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -792,6 +791,8 @@ constructor(
                     kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(1.0/0.0)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Double.NaN` when that is how
                             //   it is referenced in the source and some expression like `(1.0/0.0)`
@@ -801,14 +802,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.POSITIVE_INFINITY"
                                 attributeValue = "Double.POSITIVE_INFINITY"
                                 annotationToSource = "java.lang.Double.POSITIVE_INFINITY"
-                                fieldWriteWithSemicolon = "(1.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0 / 0.0"
                                 annotationToSource = "1.0 / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -833,6 +832,8 @@ constructor(
                     kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(-1.0/0.0)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Double.NaN` when that is how
                             //   it is referenced in the source and some expression like `(1.0/0.0)`
@@ -842,14 +843,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.NEGATIVE_INFINITY"
                                 attributeValue = "Double.NEGATIVE_INFINITY"
                                 annotationToSource = "java.lang.Double.NEGATIVE_INFINITY"
-                                fieldWriteWithSemicolon = "(-1.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0 / 0.0"
                                 annotationToSource = "-1.0 / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -962,18 +961,11 @@ constructor(
                             common = "37L"
 
                             source {
-                                common = "test.pkg.Constants.INT_CONSTANT"
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
                                 // TODO(b/354633349): Fully qualified is better.
                                 attributeValue = "Constants.INT_CONSTANT"
-                                // TODO(b/354633349): Should probably be a field reference, at least
-                                //   in some cases.
-                                fieldWriteWithSemicolon = "37L"
                             }
-                        },
-                    expectedKotlinLegacySource =
-                        expectations {
-                            annotationToSource = "test.pkg.Constants.INT_CONSTANT"
-                            fieldWriteWithSemicolon = "37"
                         },
                     expectedLegacyValue =
                         expectations {
@@ -985,11 +977,7 @@ constructor(
                                 common = 37L
                             }
                         },
-                    expectedKotlinLegacyValue =
-                        expectations {
-                            fieldValue = 37
-                            fieldWriteWithSemicolon = 37
-                        },
+                    expectedKotlinLegacyValue = expectations { fieldValue = 37 },
                     expectedValue =
                         expectations {
                             common =
@@ -1033,7 +1021,6 @@ constructor(
 
                             fieldWriteWithSemicolon = "3.0f"
                         },
-                    expectedKotlinLegacySource = expectations { source { common = "3" } },
                     expectedLegacyValue =
                         expectations {
                             common = 3.0f
@@ -1106,6 +1093,8 @@ constructor(
                     kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(0.0f/0.0f)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Float.NaN` when that is how it
                             //   is referenced in the source and some expression like `(0.0f/0.0f)`
@@ -1114,14 +1103,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.NaN"
                                 attributeValue = "Float.NaN"
                                 annotationToSource = "java.lang.Float.NaN"
-                                fieldWriteWithSemicolon = "(0.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0f / 0.0"
                                 annotationToSource = "0.0f / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -1149,6 +1136,8 @@ constructor(
                     kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(1.0f/0.0f)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Float.NaN` when that is how it
                             //   is referenced in the source and some expression like `(1.0f/0.0f)`
@@ -1158,14 +1147,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.POSITIVE_INFINITY"
                                 attributeValue = "Float.POSITIVE_INFINITY"
                                 annotationToSource = "java.lang.Float.POSITIVE_INFINITY"
-                                fieldWriteWithSemicolon = "(1.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0f / 0.0"
                                 annotationToSource = "1.0f / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -1194,6 +1181,8 @@ constructor(
                     kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(-1.0f/0.0f)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Float.NaN` when that is how it
                             //   is referenced in the source and some expression like `(1.0f/0.0f)`
@@ -1203,14 +1192,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.NEGATIVE_INFINITY"
                                 attributeValue = "Float.NEGATIVE_INFINITY"
                                 annotationToSource = "java.lang.Float.NEGATIVE_INFINITY"
-                                fieldWriteWithSemicolon = "(-1.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0f / 0.0"
                                 annotationToSource = "-1.0F / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =

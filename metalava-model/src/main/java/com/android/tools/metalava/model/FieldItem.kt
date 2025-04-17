@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 @MetalavaApi
@@ -163,9 +164,8 @@ interface FieldItem : MemberItem, InheritableItem {
         writer: PrintWriter,
         nonConstantExpressionProvider: ((FieldItem) -> String?)? = null,
     ): Boolean {
-        // Only write a value for static final fields.
-        val value = if (modifiers.isStatic() && modifiers.isFinal()) legacyInitialValue() else null
-        when (value) {
+        // Use [constantValue] which is only non-null on static final fields.
+        when (val value = constantValue?.asAny()) {
             is Int -> {
                 writer.print(" = ")
                 writer.print(value)
