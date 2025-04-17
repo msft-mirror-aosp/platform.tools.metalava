@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.annotationValue
-import com.android.tools.metalava.model.testing.value.annotationValueFromSource
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.constantFieldValue
 import com.android.tools.metalava.model.testing.value.enumConstantValue
@@ -292,7 +291,10 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                annotationValueFromSource("@test.pkg.OtherAnnotation(intType=1)")
+                                annotationValue(
+                                    "test.pkg.OtherAnnotation",
+                                    "intType" to literalValue(1),
+                                )
                         },
                 ),
                 ValueExample(
@@ -373,8 +375,10 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                annotationValueFromSource(
-                                    "@test.pkg.OtherAnnotation(intType=3, stringType=\"one\")"
+                                annotationValue(
+                                    "test.pkg.OtherAnnotation",
+                                    "intType" to literalValue(3),
+                                    "stringType" to literalValue("one"),
                                 )
                         },
                 ),
@@ -392,6 +396,14 @@ constructor(
                         expectations { common = "test.pkg.SingleValueAnnotation(\"text\")" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations {
+                            common =
+                                annotationValue(
+                                    "test.pkg.SingleValueAnnotation",
+                                    "value" to literalValue("text"),
+                                )
+                        },
                 ),
                 // Check a simple boolean true value.
                 ValueExample(
