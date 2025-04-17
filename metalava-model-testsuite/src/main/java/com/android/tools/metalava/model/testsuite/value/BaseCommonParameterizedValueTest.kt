@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Compani
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
@@ -426,6 +427,16 @@ abstract class BaseCommonParameterizedValueTest(
         actualGetter: TestCaseContext.() -> T,
     ) {
         runTestOnCodebase {
+            // If a test is not valid for the expected value then it is not valid for any other
+            // tests from the same example so check to make sure that it is valid, skipping if it is
+            // not.
+            skipTestIfNotValidForExpectedValue(
+                testCase.valueExample.expectedValue?.expectationFor(
+                    producerKind,
+                    legacyValueUseSite
+                )
+            )
+
             // Get the actual value.
             val actual = actualGetter()
 
@@ -489,6 +500,9 @@ abstract class BaseCommonParameterizedValueTest(
         runTestOnCodebase {
             // Get the expected value.
             expectation.expectationFor(producerKind, legacyValueUseSite).runValueTest { expected ->
+                // Make sure the expected value is valid for this test.
+                skipTestIfNotValidForExpectedValue(expected)
+
                 // Filter the expected value for fields. FieldItem.constantValue can only be a
                 // constant value, i.e. a primitive or String literal. However, the source can be
                 // given a non-constant value, e.g. an array, field reference, etc. A reference to
@@ -507,6 +521,30 @@ abstract class BaseCommonParameterizedValueTest(
                 // information needed to generate correct legacy string representations.
                 assertValuesAreStrictlyEqual(filteredExpected, actual)
             }
+        }
+    }
+
+    /**
+     * Check to make sure that the test is valid for the combination of [expectedValue],
+     * [inputFormat] and [legacyValueUseSite].
+     *
+     * These tests cannot be filtered out by the [ParameterFilter] as that only has access to the
+     * first two.
+     */
+    private fun skipTestIfNotValidForExpectedValue(expectedValue: Value?) {
+        // Null expected values are ok.
+        if (expectedValue == null) return
+
+        // Only fields have special restrictions.
+        if (legacyValueUseSite.valueUseSite != ValueUseSite.FIELD) return
+
+        // Signature file fields only use literal values in their initializers. So, using any other
+        // kind is invalid.
+        val kind = expectedValue.kind
+        if (inputFormat == InputFormat.SIGNATURE && kind !in ValueKind.LITERAL_KINDS) {
+            throw AssumptionViolatedException(
+                "Using value `$expectedValue` as an initializer for a field in a signature file is invalid; ignoring"
+            )
         }
     }
 }
