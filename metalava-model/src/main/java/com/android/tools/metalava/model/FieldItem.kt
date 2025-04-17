@@ -46,23 +46,10 @@ interface FieldItem : MemberItem, InheritableItem {
     val legacyFieldValue: FieldValue?
 
     /**
-     * The legacy constant value, if any.
-     *
-     * The initial value will only be returned if it's constant.
-     *
-     * This is called `legacy` because this an old, inconsistent representation of the field value
-     * that exposes implementation details. It will be replaced by a properly modelled value
-     * representation.
-     */
-    fun legacyInitialValue(): Any?
-
-    /**
      * The optional constant value of the field.
      *
      * This is the [constantValue] provided in the source or in the jar and will be part of the API
      * if the [FieldItem] is.
-     *
-     * Replacement for [legacyInitialValue] and [legacyFieldValue].
      *
      * The [ConstantValue] is the result of a constant expression as defined by JLS 15.28, i.e. a
      * value of a primitive or [String] type (see [ConstantValue]) on a field which is `static` and
