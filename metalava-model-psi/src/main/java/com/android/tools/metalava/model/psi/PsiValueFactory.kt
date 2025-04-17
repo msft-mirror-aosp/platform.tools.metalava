@@ -198,6 +198,11 @@ internal class PsiValueFactory(
                     return it
                 }
             }
+            is UClassLiteralExpression -> {
+                uClassLiteralExpressionToClassObjectValue(uExpression)?.let {
+                    return it
+                }
+            }
             is UCallExpression -> {
                 uCallExpressionToAnnotationValue(uExpression)?.let {
                     return it
@@ -210,10 +215,10 @@ internal class PsiValueFactory(
     }
 
     /**
-     * Checks to see if [uExpression] is of the form `<class>::class.java`, if not it returns null
+     * Checks to see if [uExpression] is of the form `<type>::class.java`, if not it returns null
      * otherwise it creates a [ClassObjectValue] for it.
      *
-     * In this case `<class>` can be either a primitive, a normal class, or an array (possibly
+     * In this case `<type>` can be either a primitive, a normal class, or an array (possibly
      * multidimensional) of them.
      */
     private fun uReferenceExpressionToClassObjectValue(
@@ -230,9 +235,21 @@ internal class PsiValueFactory(
 
         // Check to make sure the receiver is the `<class>::class` part.
         val receiver = uExpression.receiver as? UClassLiteralExpression ?: return null
+        return uClassLiteralExpressionToClassObjectValue(receiver)
+    }
 
+    /**
+     * Checks to see if [uExpression] is of the form `<type>::class`, if not it returns null
+     * otherwise it creates a [ClassObjectValue] for it.
+     *
+     * In this case `<type>` can be either a primitive, a normal class, or an array (possibly
+     * multidimensional) of them.
+     */
+    private fun uClassLiteralExpressionToClassObjectValue(
+        uExpression: UClassLiteralExpression
+    ): ClassObjectValue? {
         // Make sure the type is present.
-        val type = receiver.type ?: return null
+        val type = uExpression.type ?: return null
 
         // Get the type of the class literal. e.g. if the expression was `X::class` then this
         // will be of type `X`, or if the expression was of type `Array<X>.class` then this will
@@ -243,7 +260,7 @@ internal class PsiValueFactory(
                 contextNullability = ContextNullability.forceNonNull,
             )
 
-        val unboxedTypeItem = unboxTypeItemIfNeeded(receiverTypeItem, receiver)
+        val unboxedTypeItem = unboxTypeItemIfNeeded(receiverTypeItem, uExpression)
 
         // If it is a ClassTypeItem then make sure it does not have any arguments. It is not
         // necessary to check array components as Kotlin does not support class literals for arrays

@@ -88,7 +88,7 @@ class ValueParser(
             text[0] == '{' -> {
                 // The text looks like it is an array literal that could contain multiple values so
                 // it will require splitting into separate parts, so create a Tokenizer to do that.
-                val tokenizer = Tokenizer(Path.of("unknown"), text.toCharArray())
+                val tokenizer = tokenizerOf(text)
                 parseWithTokenizer(optionalTypeItem, tokenizer)
             }
             optionalTypeItem is ArrayTypeItem -> {
@@ -104,6 +104,9 @@ class ValueParser(
                 parseArrayElementValue(optionalTypeItem, text)
             }
         }
+
+    /** Create a [Tokenizer] of [text]. */
+    private fun tokenizerOf(text: String) = Tokenizer(Path.of("unknown"), text.toCharArray())
 
     /** Parse a [Value] of the [optionalTypeItem] from [tokenizer]. */
     private fun parseWithTokenizer(optionalTypeItem: TypeItem?, tokenizer: Tokenizer) =
@@ -172,14 +175,14 @@ class ValueParser(
                 return parseNumber(optionalTypeItem, text)
         }
 
-        // If the text ends with `.class` then it is a class literal of the form `<type>.class` so
-        // remove the `.class` suffix and then parse the remaining `<type>` using `typeItemParser`.
-        text.removeSuffix(".class").let { typeString ->
-            if (typeString != text) {
-                val classLiteralTypeItem =
-                    typeItemParser.obtainTypeFromString(typeString, TypeParameterScope.empty)
-                return createClassObjectValue(classLiteralTypeItem)
-            }
+        // If the text matches the pattern then extract the `<type>`, parse using `typeItemParser`
+        // and wrap in a `ClassObjectValue`.
+        classLiteralPattern.matchEntire(text)?.let { matchResult ->
+            // Get the type string. The pattern requires it so it is safe to assume it is available.
+            val typeString = matchResult.groups[TYPE_GROUP_INDEX]!!.value
+            val classLiteralTypeItem =
+                typeItemParser.obtainTypeFromString(typeString, TypeParameterScope.empty)
+            return createClassObjectValue(classLiteralTypeItem)
         }
 
         // Check to see if it looks like a field reference.
@@ -213,8 +216,12 @@ class ValueParser(
                 ?: createEnumConstantValue(classTypeItem, fieldName)
         }
 
-        throw ValueProviderException("Unknown token <$text> of $optionalTypeItem")
+        unknownToken(optionalTypeItem, text)
     }
+
+    /** Throw an exception when [text] cannot be parsed. */
+    private fun unknownToken(optionalTypeItem: TypeItem?, text: String): Nothing =
+        throw ValueProviderException("Unknown token <$text> of $optionalTypeItem")
 
     /**
      * Parse a number from [text].
@@ -365,6 +372,25 @@ class ValueParser(
                 "false" to false,
                 "true" to true,
             ) + specialFloats.flatMap { (value, alternatives) -> alternatives.map { it to value } }
+
+        /**
+         * Pattern to match a class literal of the following forms:
+         * * <type>.class - Java form.
+         * * <type>::class - Kotlin form used in annotations.
+         * * <type>::class.java - Kotlin form used in fields. It matches this for legacy reasons but
+         *   fields should not be class literals as they are not constants.
+         *
+         * Where `<type>` can be a primitive, class type or array type.
+         *
+         * The pattern matches a possibly qualified identifier, followed by type information like a
+         * type argument list (e.g. in `java.util.List<*>`, or `Array<String>`) or array dimensions
+         * (e.g. `int[]`) following by either `::class`, `::class.java` or `.class`.
+         */
+        internal val classLiteralPattern =
+            Regex("""(([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)[^:.]*)(::class(\.java)?|\.class)""")
+
+        /** Index of type group in [classLiteralPattern]. */
+        private const val TYPE_GROUP_INDEX = 1
 
         /** Pattern to match a field, including a class literal of the form `<class>.class`. */
         internal val fieldReferencePattern =
