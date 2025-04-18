@@ -19,29 +19,32 @@ package com.android.tools.metalava.cli.historical
 import com.android.SdkConstants
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.JarCodebaseLoader
 import com.android.tools.metalava.NullnessMigration
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
-import com.android.tools.metalava.createFilteringVisitorForSignatures
 import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.text.SignatureWriter
+import com.android.tools.metalava.model.text.SnapshotDeltaMaker
+import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -67,29 +70,19 @@ class ConvertJarsToSignatureFiles(
     private val progressTracker: ProgressTracker,
     private val fileFormat: FileFormat,
     private val apiVersions: Set<ApiVersion>?,
-    private val apiSurfaceNames: Set<String>,
+    private val apiSurfaces: ApiSurfaces,
+    private val selectedApiSurfaces: List<ApiSurface>,
     private val jarCodebaseLoader: JarCodebaseLoader,
     private val root: File
 ) {
     private val reporter = BasicReporter(stderr)
-
-    private val apiSurfaces =
-        ApiSurfaces.build {
-            for ((index, apiSurfaceName) in apiSurfaceNames.withIndex()) {
-                // The main surface is irrelevant at the moment because this always generates
-                // the whole API surface. However, a main surface is required so this just uses
-                // the first one as the main surface for now.
-                val isMain = index == 0
-                createSurface(apiSurfaceName, isMain = isMain)
-            }
-        }
 
     fun convertJars() {
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = root,
                 apiVersionFilter = apiVersions?.let { it::contains },
-                apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
+                apiSurfaceByName = apiSurfaces.byName,
             )
 
         val historicalApis =
@@ -102,7 +95,11 @@ class ConvertJarsToSignatureFiles(
             )
 
         for (historicalApi in historicalApis) {
-            for (surfaceInfo in historicalApi.infoBySurface.values) {
+            // Only convert the files of the selected ApiSurfaces, even if the other surfaces
+            // contribute to this, e.g. if `system` extends `public` and only `system` is selected
+            // then do not convert `public` files.
+            for (selectedApiSurface in selectedApiSurfaces) {
+                val surfaceInfo = historicalApi.infoBySurface[selectedApiSurface] ?: continue
                 convertJar(historicalApi.version, surfaceInfo)
             }
         }
@@ -113,12 +110,10 @@ class ConvertJarsToSignatureFiles(
      * file, i.e. [SurfaceInfo.signatureFile].
      */
     private fun convertJar(version: ApiVersion, surfaceInfo: SurfaceInfo) {
-        val relativeJarFile = surfaceInfo.jarFile
-        val jarFile = root.resolve(relativeJarFile)
-        val relativeSignatureFile = surfaceInfo.signatureFile
-        val signatureFile = root.resolve(relativeSignatureFile)
+        val jarFile = surfaceInfo.jarFile
+        val signatureFile = surfaceInfo.signatureFile
 
-        progressTracker.progress("Writing signature files $relativeSignatureFile for $jarFile")
+        progressTracker.progress("Writing signature files $signatureFile for $jarFile")
 
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =
@@ -129,7 +124,12 @@ class ConvertJarsToSignatureFiles(
             )
         val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
-        val jarCodebase = jarCodebaseLoader.loadFromJarFile(jarFile)
+        val jarCodebase =
+            jarCodebaseLoader.loadFromJarFile(
+                jarFile,
+                // Do not freeze codebases after loading as they may need to be modified.
+                freezeCodebase = false,
+            )
 
         if (version.major >= 28) {
             // As of API 28 we'll put nullness annotations into the jar but some of them may be
@@ -174,7 +174,11 @@ class ConvertJarsToSignatureFiles(
         // ASM doesn't seem to pick up everything that's actually there according to javap. So as
         // another fallback, read from the existing signature files:
         try {
-            val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(signatureFile))
+            // Read all the signature files that contribute to this surface to ensure that any
+            // deprecated classes in the extended surface are also deprecated in the extending
+            // surface.
+            val signatureFiles = surfaceInfo.contributingSignatureFiles()
+            val oldCodebase = signatureFileLoader.load(signatureFiles)
             val visitor =
                 object : ComparisonVisitor() {
                     override fun compareItems(old: Item, new: Item) {
@@ -185,23 +189,45 @@ class ConvertJarsToSignatureFiles(
                 }
             CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
         } catch (e: Exception) {
-            throw IllegalStateException("Could not load $signatureFile: ${e.message}", e)
+            throw IllegalStateException("Could not load existing signature file: ${e.message}", e)
         }
 
-        createReportFile(progressTracker, jarCodebase, signatureFile, "API") { printWriter ->
-            val signatureWriter =
-                SignatureWriter(
-                    writer = printWriter,
-                    fileFormat = fileFormat,
-                )
+        val jarCodebaseFragment =
+            CodebaseFragment.create(
+                jarCodebase,
+                { delegate ->
+                    createFilteringVisitorForSignatures(
+                        delegate = delegate,
+                        fileFormat = fileFormat,
+                        apiType = ApiType.PUBLIC_API,
+                        preFiltered = jarCodebase.preFiltered,
+                        showUnannotated = false,
+                        apiPredicateConfig =
+                            ApiPredicate.Config(
+                                addAdditionalOverrides = fileFormat.addAdditionalOverrides,
+                            ),
+                    )
+                }
+            )
 
-            createFilteringVisitorForSignatures(
-                delegate = signatureWriter,
+        val extendsInfo = surfaceInfo.extends
+        val outputCodebaseFragment =
+            if (extendsInfo == null) jarCodebaseFragment
+            else {
+                val signatureFiles = extendsInfo.contributingSignatureFiles()
+                val extendedCodebase = signatureFileLoader.load(signatureFiles)
+
+                SnapshotDeltaMaker.createDelta(
+                    base = extendedCodebase,
+                    codebaseFragment = jarCodebaseFragment,
+                )
+            }
+
+        createReportFile(progressTracker, outputCodebaseFragment, signatureFile, "API") {
+            printWriter ->
+            SignatureWriter(
+                writer = printWriter,
                 fileFormat = fileFormat,
-                apiType = ApiType.PUBLIC_API,
-                preFiltered = jarCodebase.preFiltered,
-                showUnannotated = false,
-                apiPredicateConfig = ApiPredicate.Config()
             )
         }
     }
@@ -287,7 +313,16 @@ class ConvertJarsToSignatureFiles(
         this ?: return
         if (!originallyDeprecated) {
             // Set the deprecated flag in the modifiers which underpins [originallyDeprecated].
-            mutateModifiers { setDeprecated(true) }
+            mutateModifiers {
+                setDeprecated(true)
+                // Add a Deprecated annotation to be consistent with model providers.
+                addAnnotation(
+                    codebase.createAnnotationFromAttributes(
+                        JAVA_LANG_DEPRECATED,
+                        context = this@deprecateIfRequired
+                    )
+                )
+            }
             progressTracker.progress("Turned deprecation on for $this from $source")
         }
     }
