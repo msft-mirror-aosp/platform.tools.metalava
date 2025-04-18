@@ -746,7 +746,7 @@ class DefaultAnnotationAttribute(
                 // use one that will throw an exception when called.
                 if (annotationItem == null) ValueProvider.UNSUPPORTED
                 else valueParser.providerForAnnotationValue(annotationItem, name, value),
-                DefaultAnnotationValue.create(value),
+                DefaultAnnotationAttributeValue.create(value),
             )
         }
 
@@ -861,9 +861,10 @@ fun Value.asAnnotationAttributeValue(): AnnotationAttributeValue =
             )
     }
 
-abstract class DefaultAnnotationValue(sourceGetter: () -> String) : AnnotationAttributeValue {
+abstract class DefaultAnnotationAttributeValue(sourceGetter: () -> String) :
+    AnnotationAttributeValue {
     companion object {
-        fun create(valueSource: String): DefaultAnnotationValue {
+        fun create(valueSource: String): DefaultAnnotationAttributeValue {
             return if (valueSource.startsWith("{")) { // Array
                 DefaultAnnotationArrayAttributeValue(
                     { valueSource },
@@ -927,7 +928,7 @@ abstract class DefaultAnnotationValue(sourceGetter: () -> String) : AnnotationAt
 open class DefaultAnnotationSingleAttributeValue(
     sourceGetter: () -> String,
     valueGetter: () -> Any?
-) : DefaultAnnotationValue(sourceGetter), AnnotationSingleAttributeValue {
+) : DefaultAnnotationAttributeValue(sourceGetter), AnnotationSingleAttributeValue {
 
     override val value by lazy(LazyThreadSafetyMode.NONE, valueGetter)
 
@@ -958,7 +959,7 @@ open class DefaultAnnotationSingleAttributeValue(
 class DefaultAnnotationArrayAttributeValue(
     sourceGetter: () -> String,
     valuesGetter: () -> List<AnnotationAttributeValue>
-) : DefaultAnnotationValue(sourceGetter), AnnotationArrayAttributeValue {
+) : DefaultAnnotationAttributeValue(sourceGetter), AnnotationArrayAttributeValue {
 
     override val values by lazy(LazyThreadSafetyMode.NONE, valuesGetter)
 
