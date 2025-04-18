@@ -164,7 +164,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public static int bar = 0;
+                    field public static int bar;
                   }
                 }
             """,
@@ -216,7 +216,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public int bar = 0;
+                    field public int bar;
                   }
                 }
             """,
@@ -224,7 +224,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public static int bar = 0;
+                    field public static int bar;
                   }
                 }
             """
@@ -242,7 +242,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public static int bar = 0;
+                    field public static int bar;
                   }
                 }
             """,
@@ -250,7 +250,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public int bar = 0;
+                    field public int bar;
                   }
                 }
             """
@@ -264,7 +264,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public int bar = 0;
+                    field public int bar;
                   }
                 }
             """,
@@ -272,7 +272,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public transient int bar = 0;
+                    field public transient int bar;
                   }
                 }
             """
@@ -286,7 +286,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public transient int bar = 0;
+                    field public transient int bar;
                   }
                 }
             """,
@@ -294,7 +294,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public int bar = 0;
+                    field public int bar;
                   }
                 }
             """

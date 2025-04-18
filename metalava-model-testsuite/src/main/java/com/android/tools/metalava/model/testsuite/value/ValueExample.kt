@@ -57,6 +57,9 @@ constructor(
     /** The java expression for the value. */
     val javaExpression: String,
 
+    /** The optional java imports. */
+    val javaImports: List<String> = emptyList(),
+
     /**
      * The Kotlin type.
      *
@@ -87,10 +90,16 @@ constructor(
      * Kotlin automatically maps between [KClass] and [Class] when creating, using and reading
      * annotations so annotations it must use `<class>::class` not `<class>::class.java`.
      */
-    val kotlinExpressionForAnnotation: String = kotlinExpression.substringBefore(".class"),
+    val kotlinExpressionForAnnotation: String = kotlinExpression.substringBefore(".java"),
 
-    /** The optional java imports. */
-    val javaImports: List<String> = emptyList(),
+    /**
+     * The optional Kotlin imports.
+     *
+     * Automatically adds `kotlin.reflect.KClass` if needed.
+     */
+    val kotlinImports: List<String> =
+        if (kotlinTypeForAnnotation == "KClass<*>") javaImports + "kotlin.reflect.KClass"
+        else javaImports,
 
     /**
      * The signature type, defaults to [javaType] as signature files generally use Java types and
@@ -159,7 +168,7 @@ constructor(
      *
      * TODO(b/354633349): Make this required.
      */
-    expectedValue: Expectation<Value?>? = null,
+    val expectedValue: Expectation<Value?>? = null,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -183,22 +192,12 @@ constructor(
     /**
      * Enforces that field values are constant.
      *
-     * This has to deal with two different issues:
-     * 1. If the example is not for a constant type then replace the [Expectation] for fields with
-     *    `null`.
-     * 2. If the example is for a constant type then make sure that the expectations do not include
-     *    a constant field. This is automatically handled for legacy source and values as they
-     *    replace the constant field with its constant value. However, that is not true for the new
-     *    `Value`s as the expectations can specify a `ConstantFieldValue`.
-     *
-     * @param constantTransform the transform to apply to the constant expectations, defaults to the
-     *   identity transform.
+     * If the example is not for a constant type then this returns an [Expectation] that will
+     * replace the expected value for fields with `null`. Otherwise, this just returns this
+     * [Expectation].
      */
-    private fun <T : Any> Expectation<T?>.enforceFieldValuesAreConstant(
-        constantTransform: (T) -> T? = { it }
-    ): Expectation<T?> =
-        if (isConstant) TransformFieldExpectation(this, constantTransform)
-        else TransformFieldExpectation(this, { null })
+    private fun <T : Any> Expectation<T?>.enforceFieldValuesAreConstant(): Expectation<T?> =
+        if (isConstant) this else TransformFieldExpectation(this, { null })
 
     /** Get the expected legacy source for [inputFormat]. */
     fun expectedLegacySourceFor(inputFormat: InputFormat) =
@@ -218,12 +217,6 @@ constructor(
                 else expectedKotlinLegacyValue?.fallBackTo(expectedLegacyValue)
             else -> expectedLegacyValue
         }?.enforceFieldValuesAreConstant()
-
-    /**
-     * Get the [Expectation]s for [Value], making sure that any [Value]s for [ValueUseSite.FIELD]s
-     * are constants.
-     */
-    val expectedValue = expectedValue?.enforceFieldValuesAreConstant { it.asLiteralValue() }
 
     /** The suffix to add to class names to make them specific to this example. */
     val classSuffix = name.replace(' ', '_').replace('-', '_')
@@ -504,9 +497,8 @@ constructor(
                                 attributeDefaultValue = "java.util.BitSet.class"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { common = "BitSet::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "BitSet::class" },
                     expectedLegacyValue = expectations { common = "java.util.BitSet" },
-                    expectedKotlinLegacyValue = expectations { common = "BitSet::class.java" },
                     expectedValue =
                         expectations {
                             common = Value.createClassObjectValue(classTypeItem("java.util.BitSet"))
@@ -530,9 +522,9 @@ constructor(
                                 attributeDefaultValue = "java.util.List.class"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { common = "List::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "List::class" },
                     expectedLegacyValue = expectations { common = "java.util.List" },
-                    expectedKotlinLegacyValue = expectations { common = "List::class.java" },
+                    expectedKotlinLegacyValue = expectations { common = "java.util.List<?>" },
                     expectedValue =
                         expectations {
                             common = Value.createClassObjectValue(classTypeItem("java.util.List"))
@@ -557,10 +549,8 @@ constructor(
                             }
                         },
                     expectedKotlinLegacySource =
-                        expectations { source { common = "Array<BitSet>::class.java" } },
+                        expectations { source { common = "Array<BitSet>::class" } },
                     expectedLegacyValue = expectations { common = "java.util.BitSet[]" },
-                    expectedKotlinLegacyValue =
-                        expectations { source { common = "Array<BitSet>::class.java" } },
                     expectedValue =
                         expectations {
                             common =
@@ -630,11 +620,8 @@ constructor(
                                 annotationToSource = "Void.class"
                             }
                         },
-                    expectedKotlinLegacySource =
-                        expectations { common = "java.lang.Void::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "java.lang.Void::class" },
                     expectedLegacyValue = expectations { common = "java.lang.Void" },
-                    expectedKotlinLegacyValue =
-                        expectations { common = "java.lang.Void::class.java" },
                     expectedValue =
                         expectations {
                             common = Value.createClassObjectValue(classTypeItem("java.lang.Void"))
@@ -647,9 +634,9 @@ constructor(
                     kotlinType = "Class<*>",
                     kotlinExpression = "Int::class.java",
                     expectedLegacySource = expectations { common = "int.class" },
-                    expectedKotlinLegacySource = expectations { common = "Int::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "Int::class" },
                     expectedLegacyValue = expectations { common = "int" },
-                    expectedKotlinLegacyValue = expectations { common = "Int::class.java" },
+                    expectedKotlinLegacyValue = expectations { common = "java.lang.Integer" },
                     expectedValue =
                         expectations {
                             common =
@@ -672,9 +659,8 @@ constructor(
                                 annotationToSource = "Integer.class"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { common = "Integer::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "Integer::class" },
                     expectedLegacyValue = expectations { common = "java.lang.Integer" },
-                    expectedKotlinLegacyValue = expectations { common = "Integer::class.java" },
                     expectedValue =
                         expectations {
                             common =
@@ -689,9 +675,8 @@ constructor(
                     kotlinType = "Class<*>",
                     kotlinExpression = "IntArray::class.java",
                     expectedLegacySource = expectations { common = "int[].class" },
-                    expectedKotlinLegacySource = expectations { common = "IntArray::class.java" },
+                    expectedKotlinLegacySource = expectations { common = "IntArray::class" },
                     expectedLegacyValue = expectations { common = "int[]" },
-                    expectedKotlinLegacyValue = expectations { common = "IntArray::class.java" },
                     expectedValue =
                         expectations {
                             common =
@@ -731,7 +716,6 @@ constructor(
                                 annotationToSource = "3"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { source { common = "3" } },
                     expectedLegacyValue =
                         expectations {
                             common = 3.0
@@ -768,6 +752,8 @@ constructor(
                     kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(0.0/0.0)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Double.NaN` when that is how
                             //   it is referenced in the source and some expression like `(0.0/0.0)`
@@ -777,14 +763,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.NaN"
                                 attributeValue = "Double.NaN"
                                 annotationToSource = "java.lang.Double.NaN"
-                                fieldWriteWithSemicolon = "(0.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0d / 0.0"
                                 annotationToSource = "0.0 / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -807,6 +791,8 @@ constructor(
                     kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(1.0/0.0)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Double.NaN` when that is how
                             //   it is referenced in the source and some expression like `(1.0/0.0)`
@@ -816,14 +802,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.POSITIVE_INFINITY"
                                 attributeValue = "Double.POSITIVE_INFINITY"
                                 annotationToSource = "java.lang.Double.POSITIVE_INFINITY"
-                                fieldWriteWithSemicolon = "(1.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0 / 0.0"
                                 annotationToSource = "1.0 / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -848,6 +832,8 @@ constructor(
                     kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(-1.0/0.0)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Double.NaN` when that is how
                             //   it is referenced in the source and some expression like `(1.0/0.0)`
@@ -857,14 +843,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Double.NEGATIVE_INFINITY"
                                 attributeValue = "Double.NEGATIVE_INFINITY"
                                 annotationToSource = "java.lang.Double.NEGATIVE_INFINITY"
-                                fieldWriteWithSemicolon = "(-1.0/0.0)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0 / 0.0"
                                 annotationToSource = "-1.0 / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -977,18 +961,11 @@ constructor(
                             common = "37L"
 
                             source {
-                                common = "test.pkg.Constants.INT_CONSTANT"
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
                                 // TODO(b/354633349): Fully qualified is better.
                                 attributeValue = "Constants.INT_CONSTANT"
-                                // TODO(b/354633349): Should probably be a field reference, at least
-                                //   in some cases.
-                                fieldWriteWithSemicolon = "37L"
                             }
-                        },
-                    expectedKotlinLegacySource =
-                        expectations {
-                            annotationToSource = "test.pkg.Constants.INT_CONSTANT"
-                            fieldWriteWithSemicolon = "37"
                         },
                     expectedLegacyValue =
                         expectations {
@@ -1000,11 +977,7 @@ constructor(
                                 common = 37L
                             }
                         },
-                    expectedKotlinLegacyValue =
-                        expectations {
-                            fieldValue = 37
-                            fieldWriteWithSemicolon = 37
-                        },
+                    expectedKotlinLegacyValue = expectations { fieldValue = 37 },
                     expectedValue =
                         expectations {
                             common =
@@ -1048,7 +1021,6 @@ constructor(
 
                             fieldWriteWithSemicolon = "3.0f"
                         },
-                    expectedKotlinLegacySource = expectations { source { common = "3" } },
                     expectedLegacyValue =
                         expectations {
                             common = 3.0f
@@ -1121,6 +1093,8 @@ constructor(
                     kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(0.0f/0.0f)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Float.NaN` when that is how it
                             //   is referenced in the source and some expression like `(0.0f/0.0f)`
@@ -1129,14 +1103,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.NaN"
                                 attributeValue = "Float.NaN"
                                 annotationToSource = "java.lang.Float.NaN"
-                                fieldWriteWithSemicolon = "(0.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(0.0/0.0)"
                                 attributeValue = "0.0f / 0.0"
                                 annotationToSource = "0.0f / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -1164,6 +1136,8 @@ constructor(
                     kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(1.0f/0.0f)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Float.NaN` when that is how it
                             //   is referenced in the source and some expression like `(1.0f/0.0f)`
@@ -1173,14 +1147,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.POSITIVE_INFINITY"
                                 attributeValue = "Float.POSITIVE_INFINITY"
                                 annotationToSource = "java.lang.Float.POSITIVE_INFINITY"
-                                fieldWriteWithSemicolon = "(1.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(1.0/0.0)"
                                 attributeValue = "1.0f / 0.0"
                                 annotationToSource = "1.0f / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =
@@ -1209,6 +1181,8 @@ constructor(
                     kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
+                            fieldWriteWithSemicolon = "(-1.0f/0.0f)"
+
                             // TODO(b/354633349): Every single use has a different representation!?
                             //   Ideally, this should just `java.lang.Float.NaN` when that is how it
                             //   is referenced in the source and some expression like `(1.0f/0.0f)`
@@ -1218,14 +1192,12 @@ constructor(
                                 attributeDefaultValue = "java.lang.Float.NEGATIVE_INFINITY"
                                 attributeValue = "Float.NEGATIVE_INFINITY"
                                 annotationToSource = "java.lang.Float.NEGATIVE_INFINITY"
-                                fieldWriteWithSemicolon = "(-1.0f/0.0f)"
                             }
 
                             jar {
                                 attributeDefaultValue = "(-1.0/0.0)"
                                 attributeValue = "-1.0f / 0.0"
                                 annotationToSource = "-1.0F / 0.0"
-                                fieldWriteWithSemicolon = null
                             }
                         },
                     expectedKotlinLegacySource =

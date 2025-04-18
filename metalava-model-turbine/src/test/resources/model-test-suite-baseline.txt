@@ -13,7 +13,6 @@ com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
 
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field
-  test non final field with default value as constant expression
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
@@ -127,11 +126,3 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTe
   testLegacyValue[jar,float NaN]
   testLegacyValue[jar,float negative infinity]
   testLegacyValue[jar,float positive infinity]
-
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
-  testLegacySource[jar,double NaN]
-  testLegacySource[jar,double negative infinity]
-  testLegacySource[jar,double positive infinity]
-  testLegacySource[jar,float NaN]
-  testLegacySource[jar,float negative infinity]
-  testLegacySource[jar,float positive infinity]

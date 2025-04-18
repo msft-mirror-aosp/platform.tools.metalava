@@ -55,3 +55,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[kotlin,k1,source,null - intermediate non-constant expression]
   testFieldValue[kotlin,k2,source,null - intermediate non-constant expression]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[kotlin,k1,source,null - intermediate non-constant expression]
+  testLegacySource[kotlin,k2,source,null - intermediate non-constant expression]
