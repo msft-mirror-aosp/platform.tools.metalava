@@ -23,16 +23,19 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultMethodItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -43,12 +46,14 @@ open class DefaultMethodItem(
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
+    private val defaultValueProvider: OptionalValueProvider?,
     private val annotationDefault: String = "",
 ) :
     DefaultCallableItem(
         codebase,
         fileLocation,
-        itemLanguage,
+        sourceLanguage,
+        targetLanguages,
         modifiers,
         documentationFactory,
         variantSelectorsFactory,
@@ -66,7 +71,10 @@ open class DefaultMethodItem(
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
-    override fun defaultValue() = annotationDefault
+    override fun legacyDefaultValue() = annotationDefault
+
+    final override val defaultValue
+        get() = defaultValueProvider?.optionalValue
 
     private lateinit var superMethodList: List<MethodItem>
 
@@ -102,7 +110,8 @@ open class DefaultMethodItem(
         return DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
-                itemLanguage = itemLanguage,
+                sourceLanguage = sourceLanguage,
+                targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
                 variantSelectorsFactory = variantSelectors::duplicate,
@@ -115,8 +124,9 @@ open class DefaultMethodItem(
                     parameters.map { it.duplicate(containingCallable, typeVariableMap) }
                 },
                 throwsTypes = throwsTypes,
-                annotationDefault = annotationDefault,
                 callableBodyFactory = body::duplicate,
+                defaultValueProvider = defaultValueProvider,
+                annotationDefault = annotationDefault,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -213,8 +223,8 @@ open class DefaultMethodItem(
                     methods.add(superMethod)
                 }
             }
-            // A method could not be found in this interface so search its interfaces.
-            ?: appendSuperMethodsFromInterfaces(methods, itfClass)
+                // A method could not be found in this interface so search its interfaces.
+                ?: appendSuperMethodsFromInterfaces(methods, itfClass)
         }
     }
 
