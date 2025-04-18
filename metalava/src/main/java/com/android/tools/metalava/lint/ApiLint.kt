@@ -71,6 +71,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -78,6 +79,9 @@ import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.value.ValueKind
+import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -103,6 +107,7 @@ import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
+import com.android.tools.metalava.reporter.Issues.DATA_CLASS_DEFINITION
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
 import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
@@ -419,6 +424,10 @@ private constructor(
         }
     }
 
+    override fun visitProperty(property: PropertyItem) {
+        reporter.withContext(property) { kotlinInterop.checkProperty(property) }
+    }
+
     private fun checkType(type: TypeItem, item: Item) {
         val typeString = type.toTypeString()
         checkPfd(typeString, item)
@@ -476,6 +485,7 @@ private constructor(
         checkHasFlaggedApi(cls)
         checkFlaggedApiLiteral(cls)
         checkAccessorNullabilityMatches(methods)
+        checkDataClass(cls)
     }
 
     private fun checkField(field: FieldItem) {
@@ -505,16 +515,18 @@ private constructor(
             item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
         val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
 
-        if (attr.value.resolve() == null) {
-            val value = attr.value.value() as? String
-            if (value == attr.value.toSource()) {
-                // For a string literal, source and value are never the same, so this happens only
-                // when a reference isn't resolvable.
-                return
-            }
+        // Get the flag value, should be a reference to a constant field.
+        val flagValue = attr.value
+        if (flagValue.kind != ValueKind.CONSTANT_FIELD) {
+            // It is not a reference to a constant field so get the string value and try and see if
+            // the field could be found.
+            val value = flagValue.asString()
 
+            // Reverse engineer the string value to a field reference and resolve it to a FieldItem,
+            // if possible.
             val field = value?.let { aconfigFlagLiteralToFieldOrNull(item.codebase, it) }
 
+            // Generate some helpful text so the developer knows what to do to fix it.
             val replacement =
                 if (field != null) {
                     val (fieldSource, fieldItem) = field
@@ -662,7 +674,7 @@ private constructor(
             )
         } else if (
             (field.type() is PrimitiveTypeItem || field.type().isString()) &&
-                field.initialValue(true) == null
+                field.constantValue?.asLiteralValue() == null
         ) {
             report(
                 COMPILE_TIME_CONSTANT,
@@ -812,7 +824,7 @@ private constructor(
         if (!field.type().isString()) {
             return
         }
-        val value = field.initialValue(true) as? String ?: return
+        val value = field.constantValue?.asString() ?: return
         if (!(name.contains("_ACTION") || name.contains("ACTION_") || value.contains(".action."))) {
             return
         }
@@ -853,7 +865,7 @@ private constructor(
         if (name.startsWith("ACTION_") || !field.type().isString()) {
             return
         }
-        val value = field.initialValue(true) as? String ?: return
+        val value = field.constantValue?.asString() ?: return
         if (!(name.contains("_EXTRA") || name.contains("EXTRA_") || value.contains(".extra"))) {
             return
         }
@@ -1144,7 +1156,7 @@ private constructor(
             fields
                 .firstOrNull { it.name() == fieldName }
                 ?.let { field ->
-                    if (field.initialValue(true) != fieldValue) {
+                    if (field.constantValue?.asString() != fieldValue) {
                         report(
                             INTERFACE_CONSTANT,
                             field,
@@ -1791,7 +1803,7 @@ private constructor(
             val name = field.name()
             val index = name.indexOf("FLAG_")
             if (index != -1) {
-                val value = field.initialValue() as? Int ?: continue
+                val value = field.constantValue?.asInt() ?: continue
                 val scope = name.substring(0, index)
                 val prev = known?.get(scope) ?: 0
                 if (known != null && (prev and value) != 0) {
@@ -2050,7 +2062,7 @@ private constructor(
                     writer,
                     skipNullnessAnnotations = true,
                 )
-            modifierListWriter.writeKeywords(item, normalize = true)
+            modifierListWriter.writeKeywords(item, normalizeFinal = true)
             writer.toString().trim()
         }
     }
@@ -2070,8 +2082,7 @@ private constructor(
                         it.parameters().find { param ->
                             item.parameterIndex == param.parameterIndex
                         }
-                    }
-                        ?: emptyList()
+                    } ?: emptyList()
                 is MethodItem -> item.superMethods()
                 else -> emptyList()
             }
@@ -2986,7 +2997,7 @@ private constructor(
         }
         val name = field.name()
         val endsWithService = name.endsWith("_SERVICE")
-        val value = field.initialValue(requireConstant = true) as? String
+        val value = field.constantValue?.asString()
 
         if (value == null) {
             val mustEndInService =
@@ -3263,8 +3274,7 @@ private constructor(
                 } else {
                     requiredParameters.last()
                 }
-                ?.parameterIndex
-                ?: return
+                ?.parameterIndex ?: return
         optionalParameters.forEach { parameter ->
             if (parameter.parameterIndex < lastRequiredParameterIndex) {
                 report(
@@ -3312,8 +3322,7 @@ private constructor(
             val setter =
                 methods.singleOrNull {
                     it.name() == expectedSetterName && it.parameters().size == 1
-                }
-                    ?: continue
+                } ?: continue
 
             val getterReturnType = getter.returnType()
             val setterParamType = setter.parameters().single().type()
@@ -3332,6 +3341,17 @@ private constructor(
                     }
                 },
                 listOf(setterParamType)
+            )
+        }
+    }
+
+    private fun checkDataClass(cls: ClassItem) {
+        if (cls.modifiers.isData()) {
+            report(
+                DATA_CLASS_DEFINITION,
+                cls,
+                "Exposing data classes as public API is discouraged because they are " +
+                    "difficult to update while maintaining binary compatibility."
             )
         }
     }
@@ -3387,8 +3407,7 @@ private constructor(
             name.startsWith(prop(it)) &&
                 name.getOrNull(prop(it).length)?.let { charAfterPrefix ->
                     charAfterPrefix.isUpperCase() || charAfterPrefix.isDigit()
-                }
-                    ?: false
+                } ?: false
         }
 
         private val badBooleanGetterPrefixes = listOf("isHas", "isCan", "isShould", "get", "is")
@@ -3500,8 +3519,8 @@ private constructor(
         private fun isServiceDumpMethod(item: Item) =
             when (item) {
                 is MethodItem -> isServiceDumpMethod(item)
-                is ParameterItem -> item.possibleContainingMethod()?.let { isServiceDumpMethod(it) }
-                        ?: false
+                is ParameterItem ->
+                    item.possibleContainingMethod()?.let { isServiceDumpMethod(it) } ?: false
                 else -> false
             }
 

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.DefaultAnnotationItem.Companion.formatAnnotationItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -25,7 +26,7 @@ import java.io.File
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase {
+interface Codebase : ClassResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -40,9 +41,6 @@ interface Codebase {
 
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
-
-    /** The manager of annotations within this codebase. */
-    val annotationManager: AnnotationManager
 
     /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
     val apiSurfaces: ApiSurfaces
@@ -83,10 +81,13 @@ interface Codebase {
      * available). That may include fabricating the [ClassItem] from nothing in the case of models
      * that work with a partial set of classes (like text model).
      */
-    fun resolveClass(className: String): ClassItem?
+    override fun resolveClass(erasedName: String): ClassItem?
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
+
+    /** Returns a typealias identified by fully qualified name, if in the codebase */
+    fun findTypeAlias(typeAliasName: String): TypeAliasItem?
 
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean
@@ -112,6 +113,19 @@ interface Codebase {
         context: Item? = null,
     ): AnnotationItem?
 
+    /**
+     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
+     * a source representation of the annotation and the calling [createAnnotation].
+     */
+    fun createAnnotationFromAttributes(
+        originalName: String,
+        attributes: List<AnnotationAttribute> = emptyList(),
+        context: Item? = null
+    ): AnnotationItem? {
+        val source = formatAnnotationItem(originalName, attributes)
+        return createAnnotation(source, context)
+    }
+
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing {
         error(
@@ -129,6 +143,12 @@ interface Codebase {
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
     }
+
+    /** Indicates whether this [Codebase] contains a reverted item, or not. */
+    val containsRevertedItem: Boolean
+
+    /** Record that this [Codebase] contains at least one reverted item. */
+    fun markContainsRevertedItem()
 
     /**
      * Contains configuration for [Codebase] that can, or at least could, come from command line
