@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
@@ -575,29 +576,12 @@ protected constructor(
             annotationContext: AnnotationContext,
             source: String,
         ): AnnotationItem? {
-            val valueParser = ValueParser.DEFAULT
-            val index = source.indexOf("(")
-            val originalName =
-                if (index == -1) source.substring(1) // Strip @
-                else source.substring(1, index)
-
-            fun attributes(annotationItem: AnnotationItem): List<AnnotationAttribute> =
-                if (index == -1) {
-                    emptyList()
-                } else {
-                    DefaultAnnotationAttribute.createList(
-                        annotationItem,
-                        source.substring(index + 1, source.lastIndexOf(')')),
-                        valueParser,
-                    )
-                }
-
-            return createAttributesLazily(
-                annotationContext,
-                FileLocation.UNKNOWN,
-                originalName,
-                ::attributes
-            )
+            val valueParser =
+                ValueParser(
+                    annotationContext,
+                    TypeItemParser.forValueParser(annotationContext),
+                )
+            return valueParser.parseAnnotationItem(source)
         }
 
         /**
@@ -747,85 +731,6 @@ class DefaultAnnotationAttribute(
                 else valueParser.providerForAnnotationValue(annotationItem, name, value),
                 DefaultAnnotationAttributeValue.create(value),
             )
-        }
-
-        fun createList(
-            annotationItem: AnnotationItem?,
-            source: String,
-            valueParser: ValueParser = ValueParser.DEFAULT,
-        ): List<AnnotationAttribute> {
-            val list = mutableListOf<AnnotationAttribute>() // TODO: default size = 2
-            var begin = 0
-            var index = 0
-            val length = source.length
-            while (index < length) {
-                val c = source[index]
-                if (c == '{') {
-                    index = findEnd(source, index + 1, length, '}')
-                } else if (c == '"') {
-                    index = findEnd(source, index + 1, length, '"')
-                } else if (c == ',') {
-                    addAttribute(valueParser, annotationItem, list, source, begin, index)
-                    index++
-                    begin = index
-                    continue
-                } else if (c == ' ' && index == begin) {
-                    begin++
-                }
-
-                index++
-            }
-
-            if (begin < length) {
-                addAttribute(valueParser, annotationItem, list, source, begin, length)
-            }
-
-            return list
-        }
-
-        private fun findEnd(source: String, from: Int, to: Int, sentinel: Char): Int {
-            var i = from
-            while (i < to) {
-                val c = source[i]
-                if (c == '\\') {
-                    i++
-                } else if (c == sentinel) {
-                    return i
-                }
-                i++
-            }
-            return to
-        }
-
-        private fun addAttribute(
-            valueParser: ValueParser,
-            annotationItem: AnnotationItem?,
-            list: MutableList<AnnotationAttribute>,
-            source: String,
-            from: Int,
-            to: Int
-        ) {
-            var split = source.indexOf('=', from)
-            if (split >= to) {
-                split = -1
-            }
-            val name: String
-            val value: String
-            val valueBegin: Int
-            val valueEnd: Int
-            if (split == -1) {
-                valueBegin = from
-                valueEnd = to
-                name = "value"
-            } else {
-                name = source.substring(from, split).trim()
-                valueBegin = split + 1
-                valueEnd = to
-            }
-            value = source.substring(valueBegin, valueEnd).trim()
-            if (!value.isEmpty()) {
-                list.add(create(annotationItem, name, value, valueParser))
-            }
         }
     }
 
