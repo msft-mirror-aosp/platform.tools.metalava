@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.testing.value.annotationItem
+import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.testing.EntryPointCallerRule
@@ -141,6 +142,62 @@ class ParameterizedAnnotationParserTestCase {
                         annotationItem(
                             "test.pkg.Anno",
                             "other" to literalValue(0x3fffffff),
+                        ),
+                ),
+                TestCase(
+                    "nested annotation - no attributes",
+                    input = "@test.pkg.Anno(other = @test.pkg.OtherAnno)",
+                    expected =
+                        annotationItem(
+                            "test.pkg.Anno",
+                            "other" to annotationValue("test.pkg.OtherAnno"),
+                        ),
+                ),
+                TestCase(
+                    "nested annotation - empty attributes",
+                    input = "@test.pkg.Anno(other = @test.pkg.OtherAnno())",
+                    expected =
+                        annotationItem(
+                            "test.pkg.Anno",
+                            "other" to annotationValue("test.pkg.OtherAnno"),
+                        ),
+                ),
+                TestCase(
+                    "nested annotation - kotlin style - empty attributes",
+                    input = "@test.pkg.Anno(other = test.pkg.OtherAnno())",
+                    expected =
+                        annotationItem(
+                            "test.pkg.Anno",
+                            "other" to annotationValue("test.pkg.OtherAnno"),
+                        ),
+                ),
+                TestCase(
+                    "nested annotation - multiple attributes",
+                    input = "@test.pkg.Anno(other = @test.pkg.OtherAnno(value = 'a', attr = 1.0))",
+                    expected =
+                        annotationItem(
+                            "test.pkg.Anno",
+                            "other" to
+                                annotationValue(
+                                    "test.pkg.OtherAnno",
+                                    "value" to literalValue('a'),
+                                    "attr" to literalValue(1.0),
+                                ),
+                        ),
+                ),
+                TestCase(
+                    "nested annotation - kotlin style - multiple attributes",
+                    // Kotlin style.
+                    input = "@test.pkg.Anno(other = test.pkg.OtherAnno(value = 'a', attr = 1.0))",
+                    expected =
+                        annotationItem(
+                            "test.pkg.Anno",
+                            "other" to
+                                annotationValue(
+                                    "test.pkg.OtherAnno",
+                                    "value" to literalValue('a'),
+                                    "attr" to literalValue(1.0),
+                                ),
                         ),
                 ),
             )

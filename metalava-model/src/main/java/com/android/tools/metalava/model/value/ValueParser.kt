@@ -232,6 +232,22 @@ class ValueParser(
                 ?: createEnumConstantValue(classTypeItem, fieldName)
         }
 
+        // Handle a Java style annotation value which starts with an '@'.
+        val first = text.first()
+        if (first == '@') {
+            parseAnnotationValue(text)?.let {
+                return it
+            } ?: unknownToken(optionalTypeItem, text)
+        }
+
+        // Check to see if it is a Kotlin annotation value, which looks like a constructor call for
+        // the annotation class.
+        annotationConstructorPattern.matchAt(text, 0)?.let {
+            parseAnnotationValue(text)?.let {
+                return it
+            } ?: unknownToken(optionalTypeItem, text)
+        }
+
         unknownToken(optionalTypeItem, text)
     }
 
@@ -352,6 +368,12 @@ class ValueParser(
         }
 
         throw ValueProviderException("Unsupported numeric value <$text> of $optionalTypeItem")
+    }
+
+    /** Parse [text] to produce an [AnnotationValue], if possible. */
+    private fun parseAnnotationValue(text: String): AnnotationValue? {
+        val annotationItem = parseAnnotationItem(text) ?: return null
+        return createAnnotationValue(annotationItem)
     }
 
     /** Parse [text] to produce an [AnnotationItem], if possible. */
@@ -616,5 +638,12 @@ class ValueParser(
 
         /** Index of field name group in [fieldReferencePattern]. */
         private const val FIELD_NAME_GROUP_INDEX = 2
+
+        /**
+         * Pattern to match a Kotlin style annotation value which looks like a constructor call for
+         * the annotation's class.
+         */
+        internal val annotationConstructorPattern =
+            Regex("""([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\(""")
     }
 }
