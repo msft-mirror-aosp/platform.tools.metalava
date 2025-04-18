@@ -574,8 +574,8 @@ protected constructor(
         fun createFromSource(
             annotationContext: AnnotationContext,
             source: String,
-            valueParser: ValueParser = ValueParser.DEFAULT,
         ): AnnotationItem? {
+            val valueParser = ValueParser.DEFAULT
             val index = source.indexOf("(")
             val originalName =
                 if (index == -1) source.substring(1) // Strip @

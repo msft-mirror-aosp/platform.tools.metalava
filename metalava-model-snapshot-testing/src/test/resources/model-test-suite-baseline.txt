@@ -230,7 +230,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testLegacySource[text,source,String using constant]
-  testLegacySource[text,source,annotation - multiple attributes]
   testLegacySource[text,source,annotation]
   testLegacySource[text,source,char escaped]
   testLegacySource[text,source,char unicode]
@@ -279,7 +278,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[psi,kotlin,k1,source,annotation - no attributes]
   testLegacyValue[psi,kotlin,k1,source,annotation - single value]
   testLegacyValue[text,source,String using constant]
-  testLegacyValue[text,source,annotation - multiple attributes]
   testLegacyValue[text,source,annotation]
   testLegacyValue[text,source,array - empty]
   testLegacyValue[text,source,byte]
