@@ -452,6 +452,25 @@ class ValueParser(
                         ANNOTATION_ATTR_VALUE to token
                     }
 
+                // Patch the value if necessary.
+                val patchedValue =
+                    if (tokenizer.current == "-") {
+                        // TODO(b/354633349): Temporary workaround that is needed because some
+                        //  historical files from `prebuilts/sdk` have expressions like
+                        //  `0x400000000 - 1`. Those files have been fixed downstream but the
+                        //  `prebuilts/sdk` repository is not modifiable in aosp/metalava-main.
+                        val expectingOne =
+                            tokenizer.requireToken(purpose = TokenPurpose.VALUE) == "1"
+                        require(expectingOne) {
+                            """Expected "... - 1" but found "... - $expectingOne""""
+                        }
+
+                        // Get the next token ready in the tokenizer.
+                        tokenizer.requireToken()
+
+                        (Integer.decode(valueText) - 1).toString()
+                    } else valueText
+
                 // At this point there are two possibilities:
                 // * ",", i.e. the separator between this and the next attribute.
                 // * "," followed by ")", i.e. an unnecessary comma following by the closing
@@ -478,7 +497,7 @@ class ValueParser(
                     providerForAnnotationValue(
                         annotationClassName,
                         attributeName,
-                        valueText,
+                        patchedValue,
                     )
 
                 // Add the attribute to the list.

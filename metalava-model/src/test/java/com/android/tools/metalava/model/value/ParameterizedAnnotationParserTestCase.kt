@@ -134,6 +134,15 @@ class ParameterizedAnnotationParserTestCase {
                             "another" to literalValue(2L),
                         ),
                 ),
+                TestCase(
+                    "legacy attributes - subtract one",
+                    input = "@test.pkg.Anno(other = 0x40000000 - 1)",
+                    expected =
+                        annotationItem(
+                            "test.pkg.Anno",
+                            "other" to literalValue(0x3fffffff),
+                        ),
+                ),
             )
 
         /** Supply the list of test cases as the parameters for this test class. */
