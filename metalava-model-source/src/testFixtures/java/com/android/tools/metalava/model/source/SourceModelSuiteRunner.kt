@@ -54,6 +54,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                 if (inputs.inputFormat == InputFormat.KOTLIN) {
                     addAll(getKotlinStdlibPaths())
                 }
+                addAll(inputs.testFixture.additionalClassPath)
             }
             val codebase =
                 createTestCodebase(
@@ -82,10 +83,10 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             )
         return sourceParser.parseSources(
             sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
-            sourceSet(inputs.commonSourceDir),
             description = "Test Codebase",
             classPath = classPath,
             apiPackages = testFixture.apiPackages,
+            projectDescription = inputs.projectDescription,
         )
     }
 

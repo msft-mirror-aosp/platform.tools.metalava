@@ -23,6 +23,7 @@ import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.SdkExtension
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
@@ -51,7 +52,6 @@ import java.io.File
 import java.nio.file.Files
 import java.util.regex.Pattern
 import javax.xml.parsers.SAXParserFactory
-import kotlin.math.min
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
@@ -59,21 +59,21 @@ private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSy
 
 private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 
-/** Lambda that when given an API level will return a string label for it. */
-typealias ApiLevelLabelProvider = (Int) -> String
+/** Lambda that when given an [ApiVersion] will return a string label for it. */
+typealias ApiVersionLabelProvider = (ApiVersion) -> String
 
 /**
- * Lambda that when given an API level will return `true` if it can be referenced from within the
+ * Lambda that when given an [ApiVersion] will return `true` if it can be referenced from within the
  * documentation and `false` if it cannot.
  */
-typealias ApiLevelFilter = (Int) -> Boolean
+typealias ApiVersionFilter = (ApiVersion) -> Boolean
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
  * - Looking for annotations and converting them to auxiliary tags that will be processed by the
  *   documentation tools later.
- * - Reading lint's API database and inserting metadata into the documentation like api levels and
- *   deprecation levels.
+ * - Reading lint's API database and inserting metadata into the documentation like api versions and
+ *   deprecation versions.
  * - Transferring docs from hidden super methods.
  * - Performing tweaks for common documentation mistakes, such as ending the first sentence with ",
  *   e.g. " where javadoc will sadly see the ". " and think "aha, that's the end of the sentence!"
@@ -85,11 +85,11 @@ class DocAnalyzer(
     private val codebase: Codebase,
     private val reporter: Reporter,
 
-    /** Provides a string label for each API level. */
-    private val apiLevelLabelProvider: ApiLevelLabelProvider,
+    /** Provides a string label for each [ApiVersion]. */
+    private val apiVersionLabelProvider: ApiVersionLabelProvider,
 
-    /** Filter that determines whether an API level should be mentioned in the documentation. */
-    private val apiLevelFilter: ApiLevelFilter,
+    /** Filter that determines whether an [ApiVersion] should be mentioned in the documentation. */
+    private val apiVersionFilter: ApiVersionFilter,
 
     /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
     private val apiPredicateConfig: ApiPredicate.Config,
@@ -177,7 +177,9 @@ class DocAnalyzer(
                     val permClass = codebase.findClass("android.Manifest.permission")
                     permClass
                         ?.fields()
-                        ?.filter { it.initialValue(requireConstant = false)?.toString() == perm }
+                        ?.filter {
+                            it.legacyInitialValue(requireConstant = false)?.toString() == perm
+                        }
                         ?.forEach {
                             return it
                         }
@@ -223,11 +225,13 @@ class DocAnalyzer(
                             if (item is SelectableItem) handleRequiresApi(annotation, item)
                         "android.provider.Column" -> handleColumn(annotation, item)
                         "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
+                        "androidx.annotation.RestrictedForEnvironment" ->
+                            handleRestrictedForEnvironment(annotation, item)
                     }
 
                     visitedClasses.add(name)
                     // Thread annotations are ignored here because they're handled as a group
-                    // afterwards
+                    // afterward.
 
                     // TODO: Resource type annotations
 
@@ -248,10 +252,9 @@ class DocAnalyzer(
                     val text =
                         (annotation.findAttribute("message")
                                 ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
-                            ?.value
+                            ?.legacyValue
                             ?.value()
-                            ?.toString()
-                            ?: return
+                            ?.toString() ?: return
                     if (text.isBlank() || item.documentation.contains(text)) {
                         return
                     }
@@ -272,8 +275,7 @@ class DocAnalyzer(
                                     item
                                         .containingCallable()
                                         .documentation
-                                        .findTagDocumentation("param", item.name())
-                                        ?: ""
+                                        .findTagDocumentation("param", item.name()) ?: ""
                                 }
                                 is CallableItem -> {
                                     // Don't inspect param docs (and other tags) for this purpose.
@@ -324,7 +326,7 @@ class DocAnalyzer(
                                 values = attribute.leafValues()
                             }
                             "conditional" -> {
-                                conditional = attribute.value.value() == true
+                                conditional = attribute.legacyValue.value() == true
                             }
                         }
                     }
@@ -396,8 +398,8 @@ class DocAnalyzer(
                 }
 
                 private fun handleRange(annotation: AnnotationItem, item: Item) {
-                    val from: String? = annotation.findAttribute("from")?.value?.toSource()
-                    val to: String? = annotation.findAttribute("to")?.value?.toSource()
+                    val from: String? = annotation.findAttribute("from")?.legacyValue?.toSource()
+                    val to: String? = annotation.findAttribute("to")?.legacyValue?.toSource()
                     // TODO: inclusive/exclusive attributes on FloatRange!
                     if (from != null || to != null) {
                         val args = HashMap<String, String>()
@@ -418,7 +420,7 @@ class DocAnalyzer(
 
                 private fun handleTypeDef(annotation: AnnotationItem, item: Item) {
                     val values = annotation.findAttribute("value")?.leafValues() ?: return
-                    val flag = annotation.findAttribute("flag")?.value?.toSource() == "true"
+                    val flag = annotation.findAttribute("flag")?.legacyValue?.toSource() == "true"
 
                     // Look at macros_override.cs for the usage of these
                     // tags. In particular, search for def:dump_int_def
@@ -548,8 +550,43 @@ class DocAnalyzer(
                     }
 
                     if (level is Int) {
-                        addApiLevelDocumentation(level, item)
+                        addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
                     }
+                }
+
+                private fun handleRestrictedForEnvironment(
+                    annotationItem: AnnotationItem,
+                    item: Item
+                ) {
+                    val environmentsValue: String? =
+                        annotationItem.findAttribute("environments")?.legacyValue?.value()
+                            as String?
+                    val fromValue: String? =
+                        annotationItem.findAttribute("from")?.legacyValue?.toSource()
+
+                    if (environmentsValue == null) {
+                        reporter.report(
+                            Issues.MISSING_ENVIRONMENTS_VALUE,
+                            item,
+                            "Missing 'environments' value for @RestrictedForEnvironment annotation"
+                        )
+                        return
+                    }
+
+                    if (fromValue == null) {
+                        reporter.report(
+                            Issues.MISSING_FROM_VALUE,
+                            item,
+                            "Missing 'from' value for @RestrictedForEnvironment annotation"
+                        )
+                        return
+                    }
+
+                    appendDocumentation(
+                        "Restricted for $environmentsValue environment in API level $fromValue.\n",
+                        item,
+                        false
+                    )
                 }
 
                 private fun handleColumn(annotation: AnnotationItem, item: Item) {
@@ -719,15 +756,15 @@ class DocAnalyzer(
         )
     }
 
-    fun applyApiLevels(applyApiLevelsXml: File) {
+    fun applyApiVersions(apiVersionsFile: File) {
         val apiLookup =
             getApiLookup(
-                xmlFile = applyApiLevelsXml,
+                xmlFile = apiVersionsFile,
                 underTest = executionEnvironment.isUnderTest(),
             )
-        val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(applyApiLevelsXml)
+        val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(apiVersionsFile)
 
-        val pkgApi = HashMap<PackageItem, Int?>(300)
+        val packageToVersion = HashMap<PackageItem, ApiVersion>(300)
         codebase.accept(
             object :
                 ApiVisitor(
@@ -743,7 +780,7 @@ class DocAnalyzer(
                     if (callable is ConstructorItem && callable.isImplicitConstructor()) {
                         return
                     }
-                    addApiLevelDocumentation(apiLookup.getCallableVersion(callable), callable)
+                    addApiVersionDocumentation(apiLookup.getCallableVersion(callable), callable)
                     val methodName = callable.name()
                     val key = "${callable.containingClass().qualifiedName()}#$methodName"
                     elementToSdkExtSinceMap[key]?.let {
@@ -758,13 +795,15 @@ class DocAnalyzer(
                 override fun visitClass(cls: ClassItem) {
                     val qualifiedName = cls.qualifiedName()
                     val since = apiLookup.getClassVersion(cls)
-                    if (since != -1) {
-                        addApiLevelDocumentation(since, cls)
+                    if (since != null) {
+                        addApiVersionDocumentation(since, cls)
 
                         // Compute since version for the package: it's the min of all the classes in
                         // the package
                         val pkg = cls.containingPackage()
-                        pkgApi[pkg] = min(pkgApi[pkg] ?: Integer.MAX_VALUE, since)
+                        packageToVersion[pkg] =
+                            packageToVersion[pkg]?.let { existing -> minOf(existing, since) }
+                                ?: since
                     }
                     elementToSdkExtSinceMap[qualifiedName]?.let {
                         addApiExtensionsDocumentation(it, cls)
@@ -773,7 +812,7 @@ class DocAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    addApiLevelDocumentation(apiLookup.getFieldVersion(field), field)
+                    addApiVersionDocumentation(apiLookup.getFieldVersion(field), field)
                     elementToSdkExtSinceMap[
                             "${field.containingClass().qualifiedName()}#${field.name()}"]
                         ?.let { addApiExtensionsDocumentation(it, field) }
@@ -782,38 +821,37 @@ class DocAnalyzer(
             }
         )
 
-        for ((pkg, api) in pkgApi.entries) {
-            val code = api ?: 1
-            addApiLevelDocumentation(code, pkg)
+        for ((pkg, version) in packageToVersion.entries) {
+            addApiVersionDocumentation(version, pkg)
         }
     }
 
     /**
-     * Add API level documentation to the [item].
+     * Add API version documentation to the [item].
      *
      * This only applies to classes and class members, i.e. not parameters.
      */
-    private fun addApiLevelDocumentation(level: Int, item: SelectableItem) {
-        if (level > 0) {
+    private fun addApiVersionDocumentation(apiVersion: ApiVersion?, item: SelectableItem) {
+        if (apiVersion != null) {
             if (item.originallyHidden) {
-                // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have
+                // @SystemApi, @TestApi etc -- don't apply API versions here since we don't have
                 // accurate historical data
                 return
             }
 
-            // Check to see whether an API level should not be included in the documentation.
-            if (!apiLevelFilter(level)) {
+            // Check to see whether an API version should not be included in the documentation.
+            if (!apiVersionFilter(apiVersion)) {
                 return
             }
 
-            val apiLevelLabel = apiLevelLabelProvider(level)
+            val apiVersionLabel = apiVersionLabelProvider(apiVersion)
 
             // Also add @since tag, unless already manually entered.
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
-            // are talking about language levels rather than API levels!
+            // are talking about language levels rather than API versions!
             if (!item.documentation.contains("@apiSince")) {
-                item.appendDocumentation(apiLevelLabel, "@apiSince")
+                item.appendDocumentation(apiVersionLabel, "@apiSince")
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
@@ -851,17 +889,17 @@ class DocAnalyzer(
      *
      * This only applies to classes and class members, i.e. not parameters.
      */
-    private fun addDeprecatedDocumentation(level: Int, item: SelectableItem) {
-        if (level > 0) {
+    private fun addDeprecatedDocumentation(version: ApiVersion?, item: SelectableItem) {
+        if (version != null) {
             if (item.originallyHidden) {
-                // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have
+                // @SystemApi, @TestApi etc -- don't apply API versions here since we don't have
                 // accurate historical data
                 return
             }
-            val apiLevelLabel = apiLevelLabelProvider(level)
+            val apiVersionLabel = apiVersionLabelProvider(version)
 
             if (!item.documentation.contains("@deprecatedSince")) {
-                item.appendDocumentation(apiLevelLabel, "@deprecatedSince")
+                item.appendDocumentation(apiVersionLabel, "@deprecatedSince")
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
@@ -878,57 +916,63 @@ class DocAnalyzer(
 val androidSdkConstraint = ApiConstraint.get(1)
 
 /**
- * Get the min API level, i.e. the lowest version of the Android Platform SDK.
+ * Get the min [ApiVersion], i.e. the lowest version of the Android Platform SDK.
  *
  * TODO(b/282932318): Replace with call to ApiConstraint.min() when bug is fixed.
  */
-fun ApiConstraint.minApiLevel(): Int {
+fun ApiConstraint.minApiVersion(): ApiVersion? {
     return getConstraints()
         .filter { it != ApiConstraint.UNKNOWN }
         // Remove any constraints that are not for the Android Platform SDK.
         .filter { it.isAtLeast(androidSdkConstraint) }
-        // Get the minimum of all the lowest API levels, or -1 if there are no API levels in the
+        // Get the minimum of all the lowest ApiVersions, or null if there are no ApiVersions in the
         // constraints.
-        .minOfOrNull { it.fromInclusive() }
-        ?: -1
+        .minOfOrNull {
+            val major = it.fromInclusive()
+            val minor = it.fromInclusiveMinor()
+            ApiVersion.fromMajorMinor(
+                major,
+                if (minor == 0) null else minor,
+            )
+        }
 }
 
-fun ApiLookup.getClassVersion(cls: ClassItem): Int {
+fun ApiLookup.getClassVersion(cls: ClassItem): ApiVersion? {
     val owner = cls.qualifiedName()
-    return getClassVersions(owner).minApiLevel()
+    return getClassVersions(owner).minApiVersion()
 }
 
-fun ApiLookup.getCallableVersion(method: CallableItem): Int {
+fun ApiLookup.getCallableVersion(method: CallableItem): ApiVersion? {
     val containingClass = method.containingClass()
     val owner = containingClass.qualifiedName()
     val desc = method.getCallableParameterDescriptorUsingDots()
     // Metalava uses the class name as the name of the constructor but the ApiLookup uses <init>.
     val name = if (method.isConstructor()) "<init>" else method.name()
-    return getMethodVersions(owner, name, desc).minApiLevel()
+    return getMethodVersions(owner, name, desc).minApiVersion()
 }
 
-fun ApiLookup.getFieldVersion(field: FieldItem): Int {
+fun ApiLookup.getFieldVersion(field: FieldItem): ApiVersion? {
     val containingClass = field.containingClass()
     val owner = containingClass.qualifiedName()
-    return getFieldVersions(owner, field.name()).minApiLevel()
+    return getFieldVersions(owner, field.name()).minApiVersion()
 }
 
-fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): Int {
+fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): ApiVersion? {
     val owner = cls.qualifiedName()
-    return getClassDeprecatedInVersions(owner).minApiLevel()
+    return getClassDeprecatedInVersions(owner).minApiVersion()
 }
 
-fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): Int {
+fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): ApiVersion? {
     val containingClass = callable.containingClass()
     val owner = containingClass.qualifiedName()
-    val desc = callable.getCallableParameterDescriptorUsingDots() ?: return -1
-    return getMethodDeprecatedInVersions(owner, callable.name(), desc).minApiLevel()
+    val desc = callable.getCallableParameterDescriptorUsingDots() ?: return null
+    return getMethodDeprecatedInVersions(owner, callable.name(), desc).minApiVersion()
 }
 
-fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): Int {
+fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): ApiVersion? {
     val containingClass = field.containingClass()
     val owner = containingClass.qualifiedName()
-    return getFieldDeprecatedInVersions(owner, field.name()).minApiLevel()
+    return getFieldDeprecatedInVersions(owner, field.name()).minApiVersion()
 }
 
 fun getApiLookup(

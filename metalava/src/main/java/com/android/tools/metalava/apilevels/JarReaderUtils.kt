@@ -25,32 +25,25 @@ import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.MethodNode
 
-fun Api.readAndroidJar(sdkVersion: ApiVersion, jar: File) {
-    update(sdkVersion)
-    val updater = ApiElement.Updater.forApiVersion(sdkVersion)
-    readJar(jar, updater)
-}
-
-fun Api.readExtensionJar(
-    extVersion: ExtVersion,
-    module: String,
+fun Api.readJar(
     jar: File,
-    nextSdkVersion: ApiVersion
+    updater: ApiHistoryUpdater,
+    filter: ((String) -> Boolean)? = null,
 ) {
-    val updater = ApiElement.Updater.forExtVersion(nextSdkVersion, extVersion, module)
-    readJar(jar, updater)
-}
-
-private fun Api.readJar(
-    jar: File,
-    updater: ApiElement.Updater,
-) {
+    require(useInternalNames) { "Cannot add jars to Api that does not use internal names" }
+    // Update the Api for this version of the jar.
+    updater.update(this)
     val fis = FileInputStream(jar)
     ZipInputStream(fis).use { zis ->
-        var entry = zis.nextEntry
-        while (entry != null) {
-            if (!entry.name.endsWith(SdkConstants.DOT_CLASS)) {
-                entry = zis.nextEntry
+        while (true) {
+            val entry = zis.nextEntry ?: break
+            val entryName = entry.name
+            if (!entryName.endsWith(SdkConstants.DOT_CLASS)) {
+                continue
+            }
+
+            // If a filter is provided and returns false then ignore the entry.
+            if (filter != null && !filter(entryName)) {
                 continue
             }
             val bytes = zis.readBytes()
@@ -107,8 +100,6 @@ private fun Api.readJar(
                     )
                 }
             }
-
-            entry = zis.nextEntry
         }
     }
 }

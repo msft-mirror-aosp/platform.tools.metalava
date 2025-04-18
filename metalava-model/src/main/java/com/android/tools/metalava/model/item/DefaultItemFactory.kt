@@ -37,8 +37,10 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -157,6 +159,7 @@ class DefaultItemFactory(
         containingClass: ClassItem,
         type: TypeItem,
         isEnumConstant: Boolean,
+        initialValueProvider: OptionalValueProvider?,
         fieldValue: FieldValue?,
     ): FieldItem =
         DefaultFieldItem(
@@ -170,6 +173,7 @@ class DefaultItemFactory(
             containingClass,
             type,
             isEnumConstant,
+            initialValueProvider,
             fieldValue,
         )
 
@@ -186,6 +190,7 @@ class DefaultItemFactory(
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
+        defaultValueProvider: OptionalValueProvider?,
         annotationDefault: String,
     ): MethodItem =
         DefaultMethodItem(
@@ -202,6 +207,7 @@ class DefaultItemFactory(
             parameterItemsFactory,
             throwsTypes,
             callableBodyFactory,
+            defaultValueProvider,
             annotationDefault,
         )
 
@@ -215,7 +221,7 @@ class DefaultItemFactory(
         containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
-        defaultValueFactory: DefaultValueFactory,
+        defaultValueFactory: ParameterDefaultValueFactory,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
@@ -239,6 +245,8 @@ class DefaultItemFactory(
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
+        receiver: TypeItem?,
+        typeParameterList: TypeParameterList,
         getter: MethodItem? = null,
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
@@ -258,6 +266,30 @@ class DefaultItemFactory(
             setter,
             constructorParameter,
             backingField,
+            receiver,
+            typeParameterList,
+        )
+
+    /** Create a [TypeAliasItem]. */
+    fun createTypeAliasItem(
+        fileLocation: FileLocation,
+        modifiers: BaseModifierList,
+        qualifiedName: String,
+        containingPackage: DefaultPackageItem,
+        aliasedType: TypeItem,
+        typeParameterList: TypeParameterList,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+    ): TypeAliasItem =
+        DefaultTypeAliasItem(
+            codebase,
+            fileLocation,
+            modifiers,
+            documentationFactory,
+            defaultVariantSelectorsFactory,
+            aliasedType,
+            qualifiedName,
+            typeParameterList,
+            containingPackage
         )
 
     /**

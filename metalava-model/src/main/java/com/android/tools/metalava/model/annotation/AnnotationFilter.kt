@@ -27,17 +27,20 @@ import java.util.TreeMap
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter
     fun matches(annotation: AnnotationItem): Boolean
+
     // tells whether an annotation is included by this filter
     fun matches(annotationSource: String): Boolean
 
     // Returns a sorted set of fully qualified annotation names that may be included by this filter.
     // Note that this filter might incorporate parameters but this function strips them.
     fun getIncludedAnnotationNames(): Set<String>
+
     // Returns true if [getIncludedAnnotationNames] includes the given qualified name
     fun matchesAnnotationName(qualifiedName: String): Boolean
 
     // Returns true if nothing is matched by this filter
     fun isEmpty(): Boolean
+
     // Returns true if some annotation is matched by this filter
     fun isNotEmpty(): Boolean
 
@@ -160,18 +163,18 @@ private class ImmutableAnnotationFilter(
             return false
         }
         for (attribute in filter.attributes) {
-            val existingValue = existingAnnotation.findAttribute(attribute.name)?.value
+            val existingValue = existingAnnotation.findAttribute(attribute.name)?.legacyValue
             val existingValueSource = existingValue?.toSource()
-            val attributeValueSource = attribute.value.toSource()
+            val attributeValueSource = attribute.legacyValue.toSource()
             if (attribute.name == "value") {
                 // Special-case where varargs value annotation attribute can be specified with
                 // either @Foo(BAR) or @Foo({BAR}) and they are equivalent.
                 when {
-                    attribute.value is AnnotationSingleAttributeValue &&
+                    attribute.legacyValue is AnnotationSingleAttributeValue &&
                         existingValue is AnnotationArrayAttributeValue -> {
                         if (existingValueSource != "{$attributeValueSource}") return false
                     }
-                    attribute.value is AnnotationArrayAttributeValue &&
+                    attribute.legacyValue is AnnotationArrayAttributeValue &&
                         existingValue is AnnotationSingleAttributeValue -> {
                         if ("{$existingValueSource}" != attributeValueSource) return false
                     }

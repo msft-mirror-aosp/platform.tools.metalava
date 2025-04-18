@@ -160,6 +160,7 @@ class ExtractAnnotations(
     private fun addItem(item: Item, annotation: AnnotationItem) {
         val pkg =
             when (item) {
+                is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
                 is ParameterItem -> item.containingCallable().containingClass().containingPackage()
                 else -> return
@@ -173,6 +174,10 @@ class ExtractAnnotations(
                     new
                 }
         list.add(Pair(item, annotation))
+    }
+
+    override fun visitClass(cls: ClassItem) {
+        checkItem(cls)
     }
 
     override fun visitField(field: FieldItem) {
@@ -440,10 +445,16 @@ class ExtractAnnotations(
                 continue
             }
 
+            // The value could contain fully qualified references to enum values that are in the
+            // android.annotation package. If so, then replace them with references in the
+            // androidx.annotation package.
+            val normalizedValue =
+                value.replace(ANDROID_ANNOTATION_PREFIX, ANDROIDX_ANNOTATION_PREFIX)
+
             writer.print("      <val name=\"")
             writer.print(name)
             writer.print("\" val=\"")
-            writer.print(escapeXml(value))
+            writer.print(escapeXml(normalizedValue))
             writer.println("\" />")
         }
 

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
@@ -32,6 +33,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
@@ -94,6 +96,38 @@ internal class PsiTypeItemFactory(
         return getType(underlyingType.psiType, underlyingType.context, contextNullability)
     }
 
+    override fun getMethodParameterType(
+        underlyingParameterType: PsiTypeInfo,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        parameterIndex: Int,
+        isVarArg: Boolean
+    ): TypeItem {
+        // Workaround for b/388030457, b/388508139: when a vararg is used in kotlin for a parameter
+        // that isn't final, it should be a regular PsiArrayType, not a PsiEllipsisType, but psi
+        // gets it wrong in some cases.
+        val fixedUnderlyingParameterType =
+            if (
+                underlyingParameterType.context?.isKotlin() == true &&
+                    underlyingParameterType.psiType is PsiEllipsisType &&
+                    parameterIndex + 1 != fingerprint.parameterCount
+            ) {
+                underlyingParameterType.copy(
+                    psiType = underlyingParameterType.psiType.toArrayType()
+                )
+            } else {
+                underlyingParameterType
+            }
+
+        return super.getMethodParameterType(
+            fixedUnderlyingParameterType,
+            itemAnnotations,
+            fingerprint,
+            parameterIndex,
+            isVarArg
+        )
+    }
+
     /**
      * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
      * information for Kotlin types.
@@ -154,7 +188,7 @@ internal class PsiTypeItemFactory(
      * no [PsiElement] with a defined [PsiType].
      */
     @OptIn(KaExperimentalApi::class)
-    internal fun getTypeForProperty(
+    internal fun getTypeForKtElement(
         ktElement: KtElement,
     ): PsiTypeItem? {
         val kotlinTypeInfo = KotlinTypeInfo.fromContext(ktElement)
@@ -265,12 +299,14 @@ internal class PsiTypeItemFactory(
                             contextNullability = contextNullability,
                         )
                     } else {
-                        createClassTypeItem(
-                            psiType = psiType,
-                            kotlinType = kotlinType,
-                            contextNullability = contextNullability,
-                            creatingClassTypeForClass = creatingClassTypeForClass,
-                        )
+                        val classType =
+                            createClassTypeItem(
+                                psiType = psiType,
+                                kotlinType = kotlinType,
+                                contextNullability = contextNullability,
+                                creatingClassTypeForClass = creatingClassTypeForClass,
+                            )
+                        checkForTypeAliasSubstitution(classType, contextNullability) ?: classType
                     }
                 }
             }
@@ -293,6 +329,51 @@ internal class PsiTypeItemFactory(
         }
     }
 
+    /**
+     * Checks if there are is a type alias matching the name of the [classTypeItem]. If there is,
+     * converts the aliased type for this usage (mapping type parameters and adjusting nullability).
+     *
+     * If there is no matching type alias, returns null.
+     */
+    private fun checkForTypeAliasSubstitution(
+        classTypeItem: PsiClassTypeItem,
+        contextNullability: ContextNullability
+    ): PsiTypeItem? {
+        // Don't bother checking for type aliases in non-KMP codebases because the substitution will
+        // already have happened in the UAST representation. Substitution won't have happened for
+        // expect/actual type aliases used from a common source set because the type is platform
+        // dependent. Metalava is just modeling the android/jvm platform, so the substitution needs
+        // to happen here.
+        if (!codebase.isMultiplatform) return null
+
+        val typeAlias = codebase.findTypeAlias(classTypeItem.qualifiedName) ?: return null
+
+        // Map type parameters of the type alias, if applicable.
+        val convertedType =
+            if (typeAlias.typeParameterList.isEmpty()) {
+                typeAlias.aliasedType
+            } else {
+                val typeParameterBindings =
+                    typeAlias.typeParameterList
+                        .zip(classTypeItem.arguments.map { it as ReferenceTypeItem })
+                        .toMap()
+                typeAlias.aliasedType.convertType(typeParameterBindings)
+            }
+
+        // Update type nullability: if the context requires a specific nullability, use that.
+        // If the aliased type is nullable, that propagates to the usage. Otherwise, use the
+        // nullability set by the usage site.
+        val nullability =
+            contextNullability.forcedNullability
+                ?: if (typeAlias.aliasedType.modifiers.isNullable) {
+                    TypeNullability.NULLABLE
+                } else {
+                    classTypeItem.modifiers.nullability
+                }
+
+        return convertedType.substitute(nullability) as PsiTypeItem
+    }
+
     /** Create a [PsiPrimitiveTypeItem]. */
     private fun createPrimitiveTypeItem(
         psiType: PsiPrimitiveType,
@@ -302,6 +383,7 @@ internal class PsiTypeItemFactory(
             psiType = psiType,
             kind = getKind(psiType),
             modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceNonNull),
+            kotlinTypeInfo = kotlinType,
         )
 
     /** Get the [PrimitiveTypeItem.Primitive] enum from the [PsiPrimitiveType]. */
@@ -342,6 +424,7 @@ internal class PsiTypeItemFactory(
                 ),
             isVarargs = psiType is PsiEllipsisType,
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
+            kotlinTypeInfo = kotlinType,
         )
 
     /** Create a [PsiClassTypeItem]. */
@@ -369,6 +452,7 @@ internal class PsiTypeItemFactory(
                     creatingClassTypeForClass = true,
                 ),
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
+            kotlinTypeInfo = kotlinType,
         )
     }
 
@@ -388,8 +472,7 @@ internal class PsiTypeItemFactory(
                     (ktType as? KaClassType)?.typeArguments?.ifNotEmpty {
                         fixUpPsiTypeMissingTypeArguments(psiType, kotlinType)
                     }
-                }
-                    ?: emptyList()
+                } ?: emptyList()
             }
 
         return psiParameters.mapIndexed { i, param ->
@@ -663,6 +746,7 @@ internal class PsiTypeItemFactory(
             receiverType = receiverType,
             parameterTypes = parameterTypes,
             returnType = returnType,
+            kotlinTypeInfo = kotlinType,
         )
     }
 
@@ -677,6 +761,7 @@ internal class PsiTypeItemFactory(
             psiType = psiType,
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             asTypeParameter = typeParameterItem,
+            kotlinTypeInfo = kotlinType,
         )
 
     /** Create a [PsiWildcardTypeItem]. */
@@ -709,6 +794,7 @@ internal class PsiTypeItemFactory(
                     kotlinType.takeIf { psiType.isSuper },
                 ),
             modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceUndefined),
+            kotlinTypeInfo = kotlinType,
         )
 
     /**
