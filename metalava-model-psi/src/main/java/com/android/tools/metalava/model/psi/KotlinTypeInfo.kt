@@ -98,6 +98,11 @@ private constructor(
         }
     }
 
+    /** Checks whether the [kaType] is a value class type. */
+    fun isValueClassType(): Boolean {
+        return kaType?.let { analysisSession?.typeForValueClass(it) } ?: false
+    }
+
     /**
      * Creates [KotlinTypeInfo] for the component type of this [kaType], assuming it is an array.
      */
@@ -181,8 +186,7 @@ private constructor(
                         typeFromSyntheticElement(context)
                     }
                 }
-            }
-                ?: KotlinTypeInfo(context)
+            } ?: KotlinTypeInfo(context)
         }
 
         /**
@@ -202,8 +206,7 @@ private constructor(
                                 // delegate, if any.
                                 context is UField -> ktElement.delegateExpression?.expressionType
                                 else -> null
-                            }
-                                ?: ktElement.returnType
+                            } ?: ktElement.returnType
                         KotlinTypeInfo(this, ktType, ktElement)
                     }
                 }
@@ -360,6 +363,13 @@ private constructor(
                 !ktType.isMarkedNullable &&
                 // non-null upper bound, e.g., T : Any
                 ktType.canBeNull
+        }
+
+        // Mimic `typeForValueClass` in
+        // `org.jetbrains.kotlin.light.classes.symbol.classes.symbolLightClassUtils.kt`
+        private fun KaSession.typeForValueClass(type: KaType): Boolean {
+            val symbol = type.expandedSymbol as? KaNamedClassSymbol ?: return false
+            return symbol.isInline
         }
     }
 }

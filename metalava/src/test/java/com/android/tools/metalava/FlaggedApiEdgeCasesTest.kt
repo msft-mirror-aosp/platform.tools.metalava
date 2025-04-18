@@ -21,16 +21,17 @@ import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
-/** Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [FlaggedApiTest]. */
+/**
+ * Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [ParameterizedFlaggedApiTest].
+ */
 class FlaggedApiEdgeCasesTest : DriverTest() {
     @Test
     fun `Test override flagged method from source path no previously released API`() {
         check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
             extraArguments =
                 arrayOf(
-                    // Revert all FlaggedApi annotations.
-                    ARG_REVERT_ANNOTATION,
-                    ANDROID_FLAGGED_API,
                     // Ignore any classes other than test.pkg.
                     ARG_STUB_PACKAGES,
                     "test.pkg*"
@@ -44,6 +45,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     java(
                         """
                             package other.pkg;
+                            import $ANDROID_FLAGGED_API;
 
                             public abstract class Other {
                                 @$ANDROID_FLAGGED_API("flag.name")
@@ -66,6 +68,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource
                 ),
             stubFiles =
                 arrayOf(
@@ -86,11 +89,10 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     @Test
     fun `Test override flagged method from source path with previously released API`() {
         check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
             extraArguments =
                 arrayOf(
-                    // Revert all FlaggedApi annotations.
-                    ARG_REVERT_ANNOTATION,
-                    ANDROID_FLAGGED_API,
                     // Ignore any classes other than test.pkg.
                     ARG_STUB_PACKAGES,
                     "test.pkg*"
@@ -126,6 +128,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -147,6 +150,61 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Test javadoc for flagged class includes @apiSince`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                            * Javadoc for Test
+                            */
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            docStubs = true,
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                      <class name="test/pkg/Test" since="31">
+                      </class>
+                    </api>
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * Javadoc for Test
+                             * @apiSince 31
+                             */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
         )
     }
 }

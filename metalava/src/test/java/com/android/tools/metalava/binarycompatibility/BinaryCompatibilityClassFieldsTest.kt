@@ -151,10 +151,15 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
     @Test
     fun `Change final to non-final, static with compile-time constant value (Incompatible)`() {
         check(
+            // The value change is caused by the removal of `final`. Removing `final` turns the
+            // field from one that always has a value of `0` which is inlined by the compiler to a
+            // field which is initialized with a value of `0` but may be changed and will not be
+            // inlined by the compiler.
             expectedIssues =
                 """
-                load-api.txt:4: error: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
-            """,
+                    load-api.txt:4: error: Field test.pkg.Foo.bar has changed value from 0 to nothing/not constant [ChangedValue]
+                    load-api.txt:4: error: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
+                """,
             signatureSource =
                 """
                 package test.pkg {

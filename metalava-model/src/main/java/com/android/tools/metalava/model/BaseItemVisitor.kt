@@ -163,9 +163,7 @@ open class BaseItemVisitor(
     }
 
     override fun visit(pkg: PackageItem) {
-        // Ignore any packages whose `emit` property is `false`. That is basically any package that
-        // does not contain at least one class that could be emitted as part of the API.
-        if (!pkg.emit) {
+        if (skipPackage(pkg)) {
             return
         }
 
@@ -180,9 +178,19 @@ open class BaseItemVisitor(
                 cls.accept(this)
             }
 
+            for (typeAlias in pkg.typeAliases()) {
+                typeAlias.accept(this)
+            }
+
             afterVisitPackage(pkg)
         }
     }
+
+    /**
+     * Ignore any packages whose `emit` property is `false`. That is basically any package that does
+     * not contain at least one class that could be emitted as part of the API.
+     */
+    open fun skipPackage(pkg: PackageItem) = !pkg.emit
 
     override fun visit(parameter: ParameterItem) {
         if (skip(parameter)) {
@@ -198,6 +206,14 @@ open class BaseItemVisitor(
         }
 
         wrapBodyWithCallsToVisitMethodsForSelectableItem(property) { visitProperty(property) }
+    }
+
+    override fun visit(typeAlias: TypeAliasItem) {
+        if (skip(typeAlias)) {
+            return
+        }
+
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(typeAlias) { visitTypeAlias(typeAlias) }
     }
 
     open fun skip(item: Item): Boolean = false
@@ -235,6 +251,8 @@ open class BaseItemVisitor(
     open fun visitParameter(parameter: ParameterItem) {}
 
     open fun visitProperty(property: PropertyItem) {}
+
+    open fun visitTypeAlias(typeAlias: TypeAliasItem) {}
 
     /**
      * Visits any [SelectableItem], i.e. everything for which [afterVisitItem] is called except
