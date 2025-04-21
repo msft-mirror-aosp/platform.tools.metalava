@@ -535,7 +535,6 @@ protected constructor(
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val qualifiedName =
             annotationContext.annotationManager.normalizeOutputName(qualifiedName, target)
-                ?: return ""
 
         return formatAnnotationItem(qualifiedName, attributes)
     }

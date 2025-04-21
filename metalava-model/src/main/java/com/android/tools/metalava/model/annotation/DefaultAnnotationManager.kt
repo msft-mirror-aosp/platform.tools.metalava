@@ -171,8 +171,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return LazyAnnotationInfo(this, config, annotationItem)
     }
 
-    override fun normalizeInputName(qualifiedName: String?): String? {
-        qualifiedName ?: return null
+    override fun normalizeInputName(qualifiedName: String): String? {
         if (passThroughAnnotation(qualifiedName)) {
             return qualifiedName
         }
@@ -328,8 +327,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
     }
 
-    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
-        qualifiedName ?: return null
+    override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
         if (passThroughAnnotation(qualifiedName)) {
             return qualifiedName
         }
