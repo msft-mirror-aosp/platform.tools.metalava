@@ -29,9 +29,6 @@ interface AnnotationFilter {
     // tells whether an annotation is included by the filter
     fun matches(annotation: AnnotationItem): Boolean
 
-    // tells whether an annotation is included by this filter
-    fun matches(annotationSource: String): Boolean
-
     // Returns a sorted set of fully qualified annotation names that may be included by this filter.
     // Note that this filter might incorporate parameters but this function strips them.
     fun getIncludedAnnotationNames(): Set<String>
@@ -118,11 +115,6 @@ class AnnotationFilterBuilder {
 private class ImmutableAnnotationFilter(
     private val qualifiedNameToEntries: Map<String, List<AnnotationFilterEntry>>
 ) : AnnotationFilter {
-
-    override fun matches(annotationSource: String): Boolean {
-        val wrapper = AnnotationFilterEntry.fromSource(annotationSource)
-        return matches(wrapper)
-    }
 
     override fun matches(annotation: AnnotationItem): Boolean {
         val qualifiedName = annotation.qualifiedName
