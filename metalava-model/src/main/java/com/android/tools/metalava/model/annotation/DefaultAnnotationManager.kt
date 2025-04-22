@@ -357,8 +357,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
     private fun passThroughAnnotation(qualifiedName: String) =
         config.passThroughAnnotations.contains(qualifiedName) ||
-            config.allShowAnnotations.matches(qualifiedName) ||
-            config.hideAnnotations.matches(qualifiedName)
+            config.allShowAnnotations.matchesAnnotationName(qualifiedName) ||
+            config.hideAnnotations.matchesAnnotationName(qualifiedName)
 
     private val TYPEDEF_ANNOTATION_TARGETS =
         if (

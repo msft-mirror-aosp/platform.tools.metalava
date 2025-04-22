@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -513,9 +514,17 @@ class ApiAnalyzer(
             return
         }
 
+        // Create an @SystemApi annotation with no attributes to match the previous behavior. This
+        // will not work in Android as it expects all `@SystemApi` annotations to have a `client`
+        // attribute. It does work in SystemServerCheckTest though.
+        // TODO(b/412743564): Fix this so it works in Android.
+        val systemApiAnnotation =
+            DefaultAnnotationItem.createFromSource(codebase, "@$ANDROID_SYSTEM_API")
+
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
-                config.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
+                systemApiAnnotation != null &&
+                config.allShowAnnotations.matches(systemApiAnnotation) &&
                 !config.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
