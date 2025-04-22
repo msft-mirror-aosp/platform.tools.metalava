@@ -1963,8 +1963,7 @@ enum class SystemApiType(
 ) {
     PRIVILEGED_APPS(
         annotationClass = ANDROID_SYSTEM_API,
-        // TODO(b/412581637): Should specify client=PRIVILEGED_APPS to be accurate.
-        annotationFilter = ANDROID_SYSTEM_API,
+        annotationFilter = "$ANDROID_SYSTEM_API(client=$ANDROID_SYSTEM_API.Client.PRIVILEGED_APPS)",
     ),
     // MODULE_LIBRARIES is not required yet.
     // SYSTEM_SERVER is not required yet.
