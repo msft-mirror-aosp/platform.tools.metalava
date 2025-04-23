@@ -321,6 +321,11 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                     qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
                         return qualifiedName
                     }
+
+                    // Ravenwood annotations are meaningless to Metalava.
+                    qualifiedName.startsWith("android.ravenwood.") -> return null
+
+                    // Keep any other unknown annotations.
                     else -> qualifiedName
                 }
             }
