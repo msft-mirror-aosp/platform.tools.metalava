@@ -78,8 +78,8 @@ enum class LegacyValueUseSite(
             // Get the annotation to test.
             val annotation = testClassItem.modifiers.annotations().first()
 
-            // Generate the whole annotation representation.
-            val wholeAnnotation = annotation.toSource()
+            // Generate the whole annotation representation, including default values.
+            val wholeAnnotation = annotation.toSource(showDefaultAttrs = true)
 
             // Extract the value from the whole annotation.
             wholeAnnotation.substringAfter("=").substringBeforeLast(")")

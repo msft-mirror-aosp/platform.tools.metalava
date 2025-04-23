@@ -242,7 +242,7 @@ private class AnnotationFilterEntry(
             // @SystemApi actually is converted into @android.annotation.SystemApi(\
             // client=android.annotation.SystemApi.Client.PRIVILEGED_APPS,\
             // process=android.annotation.SystemApi.Process.ALL)
-            return fromSource(annotationItem.toSource())
+            return fromSource(annotationItem.toSource(showDefaultAttrs = true))
         }
     }
 }
