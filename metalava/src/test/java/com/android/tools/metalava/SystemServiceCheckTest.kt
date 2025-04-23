@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -29,7 +28,7 @@ class SystemServiceCheckTest : DriverTest() {
             expectedIssues = "", // OK
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -69,7 +68,7 @@ class SystemServiceCheckTest : DriverTest() {
             expectedIssues = "", // OK
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -112,7 +111,7 @@ class SystemServiceCheckTest : DriverTest() {
                 "src/test/pkg/MyTest1.java:4: error: Method 'myMethod2' must be protected with a system permission. [RequiresPermission]",
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -141,7 +140,7 @@ class SystemServiceCheckTest : DriverTest() {
             expectedIssues = "",
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -182,7 +181,7 @@ class SystemServiceCheckTest : DriverTest() {
                 """,
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -215,7 +214,7 @@ class SystemServiceCheckTest : DriverTest() {
                 "src/test/pkg/MyTest2.java:6: error: Permission 'foo.bar.PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]",
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -256,7 +255,7 @@ class SystemServiceCheckTest : DriverTest() {
                     "foo.bar.PERMISSION2] [RequiresPermission]",
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -304,7 +303,7 @@ class SystemServiceCheckTest : DriverTest() {
                 """,
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -343,7 +342,7 @@ class SystemServiceCheckTest : DriverTest() {
                 """,
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
@@ -375,7 +374,7 @@ class SystemServiceCheckTest : DriverTest() {
             expectedIssues = "", // OK (suppressed)
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
             //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API),
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
             sourceFiles =
                 arrayOf(
                     java(
