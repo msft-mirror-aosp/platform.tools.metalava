@@ -540,7 +540,11 @@ protected constructor(
         return formatAnnotationItem(qualifiedName, attributes)
     }
 
-    final override fun toString() = toSource()
+    final override fun toString() =
+        // Do not show default attributes as that requires resolving the annotation class which has
+        // side effects and side effects in a [toString] method makes debugging harder. Also, adding
+        // in the defaults can make this appear as though it has attributes when it does not.
+        toSource(showDefaultAttrs = false)
 
     companion object {
         fun formatAnnotationItem(

@@ -105,7 +105,6 @@ com.android.tools.metalava.RequiresFeatureTest
 com.android.tools.metalava.ShowAnnotationTest
   Basic showAnnotation test[turbine]
   Basic showAnnotation with showUnannotated test[turbine]
-  Can't expose item from a hidden parent[turbine]
   Testing parsing an annotation whose attribute references the annotated class[turbine]
   showAnnotation with default parameters[turbine]
 
