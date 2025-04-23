@@ -247,6 +247,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacySource[turbine,source,double positive infinity]
   testLegacySource[turbine,source,double with exponent]
   testLegacySource[turbine,source,double with int]
+  testLegacySource[turbine,source,enum - static import]
   testLegacySource[turbine,source,enum]
   testLegacySource[turbine,source,field - generic class constant]
   testLegacySource[turbine,source,field - long with int constant]

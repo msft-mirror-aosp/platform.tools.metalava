@@ -898,6 +898,31 @@ constructor(
                             common = fieldReferenceValue("test.pkg.TestEnum", "VALUE1")
                         },
                 ),
+                // Check a statically imported enum literal.
+                ValueExample(
+                    name = "enum - static import",
+                    javaType = "TestEnum",
+                    javaExpression = "VALUE1",
+                    javaImports = listOf("static test.pkg.TestEnum.VALUE1"),
+                    kotlinImports = listOf("test.pkg.TestEnum.VALUE1"),
+                    // Signature files does not support unqualified fields.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.TestEnum.VALUE1"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better.
+                                attributeValue = "VALUE1"
+                            }
+                        },
+                    // Intentionally do not test the value of this because it returns an internal,
+                    // model specific object.
+                    //   expectedLegacyValue = expectations {},
+                    expectedValue =
+                        expectations {
+                            common = fieldReferenceValue("test.pkg.TestEnum", "VALUE1")
+                        },
+                ),
                 ValueExample(
                     name = "field - generic class constant",
                     javaType = "String",
