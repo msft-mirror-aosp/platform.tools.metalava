@@ -52,11 +52,14 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
+import com.intellij.psi.PsiLiteral
 import com.intellij.psi.PsiLiteralExpression
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiNewExpression
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiTypes
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
@@ -562,6 +565,25 @@ internal class PsiValueFactory(
                 val referenceName = psiValue.referenceName
                 if (referenceName != null) {
                     return createFieldReferenceValue(codebase, qualifierText, referenceName)
+                }
+            }
+            is PsiLiteral -> {
+                val underlyingPsiValue = psiValue.value
+                if (underlyingPsiValue is Pair<*, *>) {
+                    // Needed for field reference in some special Kotlin annotations, e.g.
+                    // @file:RestrictTo(RestrictTo.Scope.LIBRARY).
+                    val (first, second) = underlyingPsiValue
+                    if (first is ClassId && second is Name) {
+                        val qualifiedClassName = first.asFqNameString()
+                        val fieldName = second.asString()
+
+                        return createFieldReferenceValueWithDeferredConstantValue(
+                            codebase,
+                            qualifiedClassName,
+                            fieldName,
+                            optionalTypeItem,
+                        )
+                    }
                 }
             }
             // An annotation value.

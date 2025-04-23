@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqu
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -1609,6 +1610,43 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 "@test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY, java.lang.Double.NEGATIVE_INFINITY})",
                 anno.toSource()
             )
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `annotation on @file`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        @file:RestrictTo(RestrictTo.Scope.LIBRARY)
+                        package test.pkg
+
+                        import androidx.annotation.RestrictTo
+
+                        class Foo
+
+                        const val CONSTANT = 1
+                    """
+                ),
+                KnownSourceFiles.restrictToSource,
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.FooKt")
+            val anno = testClass.modifiers.annotations().single()
+
+            val attribute = anno.assertAttribute("value")
+            val expected =
+                arrayValue(
+                    Value.createFieldReferenceValue(
+                        codebase,
+                        "androidx.annotation.RestrictTo.Scope",
+                        "LIBRARY"
+                    ),
+                )
+            val actual = attribute.value
+            assertEquals(expected, actual)
         }
     }
 
