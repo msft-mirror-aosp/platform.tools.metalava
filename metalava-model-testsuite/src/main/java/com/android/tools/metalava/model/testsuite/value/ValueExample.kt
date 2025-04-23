@@ -258,15 +258,7 @@ constructor(
                         expectations {
                             common = "@test.pkg.OtherAnnotation(intType = 1)"
                             source { attributeValue = "@OtherAnnotation(intType = 1)" }
-
-                            annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=1," +
-                                    " stringType=\"default\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                            annotationToSource = "@test.pkg.OtherAnnotation(intType=1)"
                         },
                     expectedKotlinLegacySource =
                         expectations {
@@ -303,14 +295,7 @@ constructor(
                         expectations {
                             common = "@test.pkg.OtherAnnotation"
 
-                            annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=0xffffffff," +
-                                    " stringType=\"default\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                            annotationToSource = "@test.pkg.OtherAnnotation"
                         },
                     expectedKotlinLegacySource =
                         expectations {
@@ -335,13 +320,7 @@ constructor(
                             common = "@test.pkg.OtherAnnotation(stringType = \"one\", intType = 3)"
 
                             annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=3," +
-                                    " stringType=\"one\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                                "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
                             source {
                                 attributeValue =
                                     "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
