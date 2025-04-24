@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
@@ -31,7 +30,7 @@ import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
-import com.android.tools.metalava.model.value.CachingAnnotationValueProvider
+import com.android.tools.metalava.model.value.BaseCachingDeferredTypeValueProvider
 import com.android.tools.metalava.model.value.CachingValueProvider
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.CombinedValueProvider
@@ -49,6 +48,7 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
@@ -81,36 +81,44 @@ internal class PsiValueFactory(
     private val globalTypeItemFactory: PsiTypeItemFactory,
 ) : ValueFactory, ImplementationValueToModelFactory<Any> {
     /**
-     * Get a [CombinedValueProvider] that will create (and cache) a [Value] of [typeItem] from
-     * [anyValue].
+     * Get a [CombinedValueProvider] that will create (and cache) a [Value] of [optionalTypeItem]
+     * from [anyValue].
      *
-     * @param typeItem the required type for the value, e.g. [MethodItem.returnType] or
-     *   [FieldItem.type].
+     * @param optionalTypeItem the optional type for the value, e.g. [MethodItem.returnType] (for
+     *   attribute or attribute default values) or [FieldItem.type].
      * @param anyValue the underlying Psi specific value. It is of type [Any] to avoid having to
      *   duplicate everything for [UExpression] and [PsiAnnotationMemberValue].
      * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
      */
     fun providerFor(
-        typeItem: TypeItem,
+        optionalTypeItem: TypeItem?,
         anyValue: Any,
         valueUseSite: ValueUseSite
-    ): CombinedValueProvider = CachingValueProvider(this, typeItem, anyValue, valueUseSite)
+    ): CombinedValueProvider = CachingValueProvider(this, optionalTypeItem, anyValue, valueUseSite)
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
-     * [attributeName] of [annotationItem] from [anyValue].
+     * [attributeName] of [annotationPsiClass] from [anyValue].
      *
-     * @param annotationItem the containing [AnnotationItem].
+     * @param annotationPsiClass the optional [PsiClass].
      * @param attributeName the name of the attribute whose value it will provide.
      * @param anyValue the underlying Psi specific value. It is of type [Any] to avoid having to
      *   duplicate everything for [UExpression] and [PsiAnnotationMemberValue].
      */
     fun providerForAnnotationValue(
-        annotationItem: AnnotationItem,
+        annotationPsiClass: PsiClass?,
         attributeName: String,
         anyValue: Any
     ): CombinedValueProvider =
-        CachingAnnotationValueProvider(this, annotationItem, attributeName, anyValue)
+        annotationPsiClass?.let {
+            PsiCachingAnnotationValueProvider(
+                this,
+                anyValue,
+                globalTypeItemFactory,
+                annotationPsiClass,
+                attributeName
+            )
+        } ?: providerFor(null, anyValue, ValueUseSite.ANNOTATION)
 
     /**
      * Create a [Value] of [optionalTypeItem] from [implementationValue].
@@ -588,4 +596,41 @@ internal class PsiValueFactory(
 
         return null
     }
+}
+
+/**
+ * A [BaseCachingDeferredTypeValueProvider] that is used for annotation attribute values.
+ *
+ * It will attempt to find the [optionalTypeItem] by looking for the attribute method called
+ * [attributeName] in [annotationPsiClass] and if found, converting its return type to a [TypeItem]
+ * using [globalTypeItemFactory].
+ */
+private class PsiCachingAnnotationValueProvider(
+    factory: ImplementationValueToModelFactory<Any>,
+    implementationValue: Any,
+    private val globalTypeItemFactory: PsiTypeItemFactory,
+    private val annotationPsiClass: PsiClass,
+    private val attributeName: String,
+) :
+    BaseCachingDeferredTypeValueProvider<Any>(
+        factory,
+        implementationValue,
+        ValueUseSite.ANNOTATION,
+    ) {
+
+    override fun optionalTypeItem() =
+        annotationPsiClass
+            // Find the attribute method.
+            .methods
+            .firstOrNull { it.name == attributeName }
+            // If found then convert its return type to a TypeItem.
+            ?.let { psiMethod ->
+                psiMethod.returnType?.let { psiType ->
+                    globalTypeItemFactory.getType(
+                        psiType,
+                        psiMethod,
+                        ContextNullability.forceNonNull
+                    )
+                }
+            }
 }
