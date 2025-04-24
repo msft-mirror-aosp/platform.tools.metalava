@@ -495,7 +495,7 @@ sealed interface StringValue : LiteralValue<String> {
 }
 
 /**
- * A [Value] that references a field in [classTypeItem] with name [fieldName].
+ * A [Value] that references a field in [qualifiedClassName] with name [fieldName].
  *
  * It has an optional [constantValue].
  */
@@ -503,8 +503,8 @@ sealed interface FieldReferenceValue : ArrayElementValue {
     override val kind: ValueKind
         get() = ValueKind.FIELD
 
-    /** The class type that contains the field. */
-    val classTypeItem: ClassTypeItem
+    /** The qualified name of the class that contains the field. */
+    val qualifiedClassName: String
 
     /** The name of the field. */
     val fieldName: String
@@ -525,16 +525,16 @@ sealed interface FieldReferenceValue : ArrayElementValue {
 
     override fun equalToValue(other: Value) =
         other is FieldReferenceValue &&
-            classTypeItem == other.classTypeItem &&
+            qualifiedClassName == other.qualifiedClassName &&
             fieldName == other.fieldName
 
-    override fun hashCodeForValue() = Objects.hash(classTypeItem, fieldName)
+    override fun hashCodeForValue() = Objects.hash(qualifiedClassName, fieldName)
 
     override fun appendValueStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        builder.append(classTypeItem).append('.').append(fieldName)
+        builder.append(qualifiedClassName).append('.').append(fieldName)
     }
 }
 

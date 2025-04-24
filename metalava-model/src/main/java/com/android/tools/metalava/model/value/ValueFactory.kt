@@ -174,11 +174,10 @@ interface ValueFactory {
         optionalTypeItem: TypeItem?,
         fieldItem: FieldItem
     ): ArrayElementValue {
-        // Make sure that the class type item does not have any arguments.
-        val classTypeItem = fieldItem.containingClass().type().substitute(arguments = emptyList())
+        val qualifiedClassName = fieldItem.containingClass().qualifiedName()
         val fieldName = fieldItem.name()
         return if (fieldItem.isEnumConstant()) {
-            createFieldReferenceValue(classTypeItem, fieldName)
+            createFieldReferenceValue(qualifiedClassName, fieldName)
         } else {
             // The actual constant value of a field reference is affected by the type of where it is
             // used, just as it would if the field reference was replaced by its constant value. So,
@@ -199,16 +198,16 @@ interface ValueFactory {
                         // Otherwise, just use the field's constant value as is.
                         ?: fieldConstantValue
                 }
-            createFieldReferenceValue(classTypeItem, fieldName, constantValue)
+            createFieldReferenceValue(qualifiedClassName, fieldName, constantValue)
         }
     }
 
     /**
-     * Create a [FieldReferenceValue] called [fieldName] in [classTypeItem] with an optional
+     * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional
      * [constantValue].
      */
     fun createFieldReferenceValue(
-        classTypeItem: ClassTypeItem,
+        qualifiedClassName: String,
         fieldName: String,
         constantValue: ConstantValue? = null,
     ): ArrayElementValue {
@@ -219,7 +218,7 @@ interface ValueFactory {
         }
 
         return DefaultFieldReferenceValue(
-            classTypeItem,
+            qualifiedClassName,
             fieldName,
             constantValue,
         )

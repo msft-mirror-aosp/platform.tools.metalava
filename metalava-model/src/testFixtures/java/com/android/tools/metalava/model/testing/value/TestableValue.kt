@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.asAnnotationAttributeValue
-import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -66,7 +65,7 @@ fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     constantValue: ConstantValue? = null
-) = Value.createFieldReferenceValue(classTypeItem(qualifiedClassName), fieldName, constantValue)
+) = Value.createFieldReferenceValue(qualifiedClassName, fieldName, constantValue)
 
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =

@@ -16,16 +16,8 @@
 
 package com.android.tools.metalava.model.value
 
-import com.android.tools.metalava.model.ClassTypeItem
-
 internal class DefaultFieldReferenceValue(
-    final override val classTypeItem: ClassTypeItem,
+    final override val qualifiedClassName: String,
     final override val fieldName: String,
     final override val constantValue: ConstantValue? = null,
-) : DefaultValue(), FieldReferenceValue {
-    init {
-        require(classTypeItem.arguments.isEmpty()) {
-            "Class type item ($classTypeItem) should not have any arguments"
-        }
-    }
-}
+) : DefaultValue(), FieldReferenceValue

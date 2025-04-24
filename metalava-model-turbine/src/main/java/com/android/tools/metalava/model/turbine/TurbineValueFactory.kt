@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
@@ -36,14 +35,12 @@ import com.android.tools.metalava.model.value.ValueUseSite
 import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineAnnotationValue
 import com.google.turbine.binder.bound.TurbineClassValue
-import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.ArrayInitValue
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.ConstVarName
-import com.google.turbine.type.Type
 
 internal class TurbineValueFactory(private val globalContext: TurbineGlobalContext) :
     ValueFactory,
@@ -155,7 +152,7 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
                 // Create an EnumConstantValue for the underlying Turbine EnumConstantValue.
                 val fieldSymbol = const.sym()
                 return createFieldReferenceValue(
-                    fieldSymbol.owner().classTypeItem(),
+                    fieldSymbol.owner().qualifiedName,
                     fieldSymbol.name(),
                 )
             }
@@ -172,7 +169,7 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
                 val constantValue = toConstant(optionalTypeItem)
 
                 return createFieldReferenceValue(
-                    fieldSymbol.owner().classTypeItem(),
+                    fieldSymbol.owner().qualifiedName,
                     fieldSymbol.name(),
                     constantValue,
                 )
@@ -180,14 +177,6 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
         }
 
         return toConstant(optionalTypeItem)
-    }
-
-    /** Get a [ClassTypeItem] for this [ClassSymbol]. */
-    private fun ClassSymbol.classTypeItem(): ClassTypeItem {
-        // Create a raw type for this ClassSymbol.
-        val rawClassType: Type.ClassTy = Type.ClassTy.asNonParametricClassTy(this)
-        // Construct a ClassTypeItem from it.
-        return globalTypeItemFactory.getClassReferenceType(rawClassType)
     }
 
     /** Create a [ConstantValue] of [optionalTypeItem] from this [TurbineValue]. */
