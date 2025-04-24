@@ -683,8 +683,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                          method public Enum stringValue();
-                          method public Enum[] stringArrayValue();
+                          method public Enum enumValue();
+                          method public Enum[] enumArrayValue();
                       }
 
                       public enum Enum {
