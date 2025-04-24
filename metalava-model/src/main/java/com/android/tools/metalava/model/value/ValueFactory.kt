@@ -178,7 +178,7 @@ interface ValueFactory {
         val classTypeItem = fieldItem.containingClass().type().substitute(arguments = emptyList())
         val fieldName = fieldItem.name()
         return if (fieldItem.isEnumConstant()) {
-            createEnumConstantValue(classTypeItem, fieldName)
+            createFieldReferenceValue(classTypeItem, fieldName)
         } else {
             // The actual constant value of a field reference is affected by the type of where it is
             // used, just as it would if the field reference was replaced by its constant value. So,
@@ -225,11 +225,11 @@ interface ValueFactory {
         )
     }
 
-    /** Create an [EnumConstantValue] called [fieldName] in [classTypeItem]. */
-    fun createEnumConstantValue(
+    /** Create a [FieldReferenceValue] called [fieldName] in [classTypeItem]. */
+    fun createFieldReferenceValue(
         classTypeItem: ClassTypeItem,
         fieldName: String,
-    ): ArrayElementValue = DefaultEnumConstantValue(classTypeItem, fieldName)
+    ): ArrayElementValue = DefaultFieldReferenceValue(classTypeItem, fieldName)
 
     /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =

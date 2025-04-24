@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.ConstantFieldValue
 import com.android.tools.metalava.model.value.ConstantValue
-import com.android.tools.metalava.model.value.EnumConstantValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
@@ -69,11 +69,11 @@ fun constantFieldValue(
     constantValue: ConstantValue? = null
 ) = Value.createConstantFieldValue(classTypeItem(qualifiedClassName), fieldName, constantValue)
 
-/** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
-fun enumConstantValue(
+/** Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName]. */
+fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
-) = Value.createEnumConstantValue(classTypeItem(qualifiedClassName), fieldName)
+) = Value.createFieldReferenceValue(classTypeItem(qualifiedClassName), fieldName)
 
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =

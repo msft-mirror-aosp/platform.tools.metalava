@@ -497,14 +497,7 @@ sealed interface StringValue : LiteralValue<String> {
 /**
  * A [Value] that references a field in [classTypeItem] with name [fieldName].
  *
- * Sub-interfaces specialize this for [EnumConstantValue] and [ConstantFieldValue]. The reasons why
- * they are modelled as two separate interfaces are:
- * 1. They have different behavior, e.g. [ConstantFieldValue] has an optional [ConstantValue] but
- *    [EnumConstantValue] does not.
- * 2. The underlying models treat them differently, e.g. they need to do extra work to provide the
- *    [ConstantValue] for the [ConstantFieldValue].
- * 3. They are processed differently, e.g. sometimes the [ConstantFieldValue] is used directly,
- *    other times its [ConstantValue] is used.
+ * This is currently subclassed by [ConstantFieldValue] but that will be removed in future.
  */
 sealed interface FieldReferenceValue : ArrayElementValue {
     override val kind: ValueKind
@@ -521,6 +514,11 @@ sealed interface FieldReferenceValue : ArrayElementValue {
     }
 
     fun hashCodeForFieldReferenceValue() = Objects.hash(classTypeItem, fieldName)
+
+    override fun equalToValue(other: Value) =
+        other is FieldReferenceValue && equalToFieldReferenceValue(other)
+
+    override fun hashCodeForValue() = hashCodeForFieldReferenceValue()
 
     override fun appendValueStringTo(
         builder: StringBuilder,
@@ -549,14 +547,6 @@ sealed interface ConstantFieldValue : FieldReferenceValue {
 
     override fun hashCodeForValue() =
         hashCodeForFieldReferenceValue() * 31 + constantValue.hashCode()
-}
-
-/** A [Value] that represents an enum constant. */
-sealed interface EnumConstantValue : FieldReferenceValue {
-    override fun equalToValue(other: Value) =
-        other is EnumConstantValue && equalToFieldReferenceValue(other)
-
-    override fun hashCodeForValue() = hashCodeForFieldReferenceValue() * 31
 }
 
 /** A [Value] wrapper around an [annotationItem]. */

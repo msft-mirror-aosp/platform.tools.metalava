@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.constantFieldValue
-import com.android.tools.metalava.model.testing.value.enumConstantValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.value.Value
@@ -895,7 +895,9 @@ constructor(
                     // model specific object.
                     //   expectedLegacyValue = expectations {},
                     expectedValue =
-                        expectations { common = enumConstantValue("test.pkg.TestEnum", "VALUE1") },
+                        expectations {
+                            common = fieldReferenceValue("test.pkg.TestEnum", "VALUE1")
+                        },
                 ),
                 ValueExample(
                     name = "field - generic class constant",

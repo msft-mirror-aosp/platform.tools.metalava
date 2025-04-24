@@ -26,7 +26,7 @@ import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.constantFieldValue
-import com.android.tools.metalava.model.testing.value.enumConstantValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.testing.EntryPoint
@@ -428,7 +428,7 @@ class ParameterizedValueStringTest {
                 },
                 // ********************************* Enum *********************************
                 testCasesForValue(
-                    value = enumConstantValue("test.pkg.EnumClass", "VALUE1"),
+                    value = fieldReferenceValue("test.pkg.EnumClass", "VALUE1"),
                     expectedDefaultValueString = "test.pkg.EnumClass.VALUE1",
                 ),
                 // ********************************* Floats *********************************

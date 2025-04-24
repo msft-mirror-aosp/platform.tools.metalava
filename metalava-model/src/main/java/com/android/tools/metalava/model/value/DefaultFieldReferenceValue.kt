@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.ClassTypeItem
 
 /** Base class for [FieldReferenceValue] implementations. */
-internal abstract class DefaultFieldReferenceValue(
+internal open class DefaultFieldReferenceValue(
     final override val classTypeItem: ClassTypeItem,
     final override val fieldName: String,
 ) : DefaultValue(), FieldReferenceValue {
@@ -35,8 +35,3 @@ internal class DefaultConstantFieldValue(
     fieldName: String,
     override val constantValue: ConstantValue?,
 ) : DefaultFieldReferenceValue(classTypeItem, fieldName), ConstantFieldValue
-
-internal class DefaultEnumConstantValue(
-    classTypeItem: ClassTypeItem,
-    fieldName: String,
-) : DefaultFieldReferenceValue(classTypeItem, fieldName), EnumConstantValue

@@ -154,7 +154,7 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
                 const as EnumConstantValue
                 // Create an EnumConstantValue for the underlying Turbine EnumConstantValue.
                 val fieldSymbol = const.sym()
-                return createEnumConstantValue(
+                return createFieldReferenceValue(
                     fieldSymbol.owner().classTypeItem(),
                     fieldSymbol.name(),
                 )
