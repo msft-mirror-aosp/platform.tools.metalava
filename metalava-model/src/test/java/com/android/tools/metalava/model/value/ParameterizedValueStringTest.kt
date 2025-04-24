@@ -235,12 +235,12 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno(intValue = 1)"),
                     expectedDefaultValueString = "@test.pkg.Anno(intValue = 1)",
-                    expectedDefaultDebugString = "@test.pkg.Anno(intValue = DefaultIntValue(1))",
+                    expectedDefaultDebugString = "@test.pkg.Anno(intValue = IntValue(1))",
                 ),
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno(value = 1)"),
                     expectedDefaultValueString = "@test.pkg.Anno(value = 1)",
-                    expectedDefaultDebugString = "@test.pkg.Anno(value = DefaultIntValue(1))",
+                    expectedDefaultDebugString = "@test.pkg.Anno(value = IntValue(1))",
                 ),
                 testCasesForValue(
                     // Create an annotation with attribute in non-alphabetical order.
@@ -248,7 +248,7 @@ class ParameterizedValueStringTest {
                         annotationValueFromSource("@test.pkg.Anno(longValue = 1L, intValue = 1)"),
                     expectedDefaultValueString = "@test.pkg.Anno(intValue = 1, longValue = 1L)",
                     expectedDefaultDebugString =
-                        "@test.pkg.Anno(intValue = DefaultIntValue(1), longValue = DefaultLongValue(1L))",
+                        "@test.pkg.Anno(intValue = IntValue(1), longValue = LongValue(1L))",
                 ),
                 testCasesForValue(
                     value =
@@ -258,7 +258,7 @@ class ParameterizedValueStringTest {
                         ),
                     expectedDefaultValueString = "@test.pkg.Anno(nested = @other.pkg.OtherAnno)",
                     expectedDefaultDebugString =
-                        "@test.pkg.Anno(nested = DefaultAnnotationValue(@other.pkg.OtherAnno))",
+                        "@test.pkg.Anno(nested = AnnotationValue(@other.pkg.OtherAnno))",
                 ),
                 // ********************************* Arrays *********************************
                 testCasesForValue(
@@ -271,7 +271,7 @@ class ParameterizedValueStringTest {
                     valueLabel = "single integer",
                     value = arrayValueFromAny(1),
                     expectedDefaultValueString = "{1}",
-                    expectedDefaultDebugString = "{DefaultIntValue(1)}",
+                    expectedDefaultDebugString = "{IntValue(1)}",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT,
@@ -282,7 +282,7 @@ class ParameterizedValueStringTest {
                     valueLabel = "single string",
                     value = arrayValueFromAny("single"),
                     expectedDefaultValueString = "{\"single\"}",
-                    expectedDefaultDebugString = "{DefaultStringValue(\"single\")}",
+                    expectedDefaultDebugString = "{StringValue(\"single\")}",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT,
@@ -293,8 +293,7 @@ class ParameterizedValueStringTest {
                     valueLabel = "integers",
                     value = arrayValueFromAny(1, 2, 3),
                     expectedDefaultValueString = "{1, 2, 3}",
-                    expectedDefaultDebugString =
-                        "{DefaultIntValue(1), DefaultIntValue(2), DefaultIntValue(3)}",
+                    expectedDefaultDebugString = "{IntValue(1), IntValue(2), IntValue(3)}",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT)
                 },
@@ -303,7 +302,7 @@ class ParameterizedValueStringTest {
                     value = arrayValueFromAny("first", "second", "third"),
                     expectedDefaultValueString = "{\"first\", \"second\", \"third\"}",
                     expectedDefaultDebugString =
-                        "{DefaultStringValue(\"first\"), DefaultStringValue(\"second\"), DefaultStringValue(\"third\")}",
+                        "{StringValue(\"first\"), StringValue(\"second\"), StringValue(\"third\")}",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.UNWRAP_SINGLE_ARRAY_ELEMENT)
                 },
@@ -311,7 +310,7 @@ class ParameterizedValueStringTest {
                     valueLabel = "array of long as int",
                     value = arrayValue(primitiveValueForKind(Primitive.LONG, 3)),
                     expectedDefaultValueString = "{3L}",
-                    expectedDefaultDebugString = "{DefaultLongValue(3L,asInt)}",
+                    expectedDefaultDebugString = "{LongValue(3L,asInt)}",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.TREAT_AS_INT_UNWRAP_SINGLE_ARRAY_ELEMENT,

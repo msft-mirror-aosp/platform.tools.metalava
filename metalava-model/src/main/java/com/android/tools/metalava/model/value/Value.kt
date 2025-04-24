@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.model.value.Value.Companion.toString
 import java.util.EnumSet
 import java.util.Objects
+import kotlin.reflect.KClass
 
 /**
  * Represents a value in a [Codebase].
@@ -242,36 +243,57 @@ data class ValueStringConfiguration(
 }
 
 /** Enumeration of the different types of [ValueKind]. */
-enum class ValueKind(val primitiveKind: Primitive? = null) {
-    ANNOTATION,
-    ARRAY,
+enum class ValueKind(
+    val valueKClass: KClass<out Value>,
+    val primitiveKind: Primitive? = null,
+) {
+    ANNOTATION(
+        valueKClass = AnnotationValue::class,
+    ),
+    ARRAY(
+        valueKClass = ArrayValue::class,
+    ),
     BOOLEAN(
+        valueKClass = BooleanValue::class,
         primitiveKind = Primitive.BOOLEAN,
     ),
     BYTE(
+        valueKClass = ByteValue::class,
         primitiveKind = Primitive.BYTE,
     ),
     CHAR(
+        valueKClass = CharValue::class,
         primitiveKind = Primitive.CHAR,
     ),
-    CLASS,
+    CLASS(
+        valueKClass = ClassObjectValue::class,
+    ),
     DOUBLE(
+        valueKClass = DoubleValue::class,
         primitiveKind = Primitive.DOUBLE,
     ),
-    FIELD,
+    FIELD(
+        valueKClass = FieldReferenceValue::class,
+    ),
     FLOAT(
+        valueKClass = FloatValue::class,
         primitiveKind = Primitive.FLOAT,
     ),
     INT(
+        valueKClass = IntValue::class,
         primitiveKind = Primitive.INT,
     ),
     LONG(
+        valueKClass = LongValue::class,
         primitiveKind = Primitive.LONG,
     ),
     SHORT(
+        valueKClass = ShortValue::class,
         primitiveKind = Primitive.SHORT,
     ),
-    STRING,
+    STRING(
+        valueKClass = StringValue::class,
+    ),
     ;
 
     override fun toString() = super.toString().lowercase()
@@ -650,7 +672,7 @@ internal sealed class DefaultValue : Value {
 
     @Suppress("DEPRECATION")
     final override fun appendToStringTo(builder: StringBuilder) {
-        builder.append(javaClass.simpleName)
+        builder.append(kind.valueKClass.java.simpleName)
         builder.append("(")
         builder.append(debugStringForValue())
         builder.append(")")
