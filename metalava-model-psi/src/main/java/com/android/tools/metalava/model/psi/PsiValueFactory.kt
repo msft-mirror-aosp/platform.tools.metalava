@@ -35,8 +35,8 @@ import com.android.tools.metalava.model.value.CachingAnnotationValueProvider
 import com.android.tools.metalava.model.value.CachingValueProvider
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.CombinedValueProvider
-import com.android.tools.metalava.model.value.ConstantFieldValue
 import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
@@ -551,7 +551,7 @@ internal class PsiValueFactory(
      * Try and convert the [resolved] [PsiElement] to an [ArrayElementValue].
      *
      * If [resolved] is a [PsiField] and it is not an enum constant then it will call
-     * [FieldItem.constantValue] to find the [ConstantValue] for the [ConstantFieldValue].
+     * [FieldItem.constantValue] to find the [ConstantValue] for the [FieldReferenceValue].
      */
     private fun resolvedPsiElementToValue(
         optionalTypeItem: TypeItem?,

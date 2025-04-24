@@ -94,8 +94,8 @@ sealed interface Value {
      * Get this [Value] as a [LiteralValue], or return `null` if it cannot be represented as one.
      *
      * This will return `null` for every [Value] except [LiteralValue] and maybe
-     * [ConstantFieldValue], which will return delegate this call to its
-     * [ConstantFieldValue.constantValue].
+     * [FieldReferenceValue], which will return delegate this call to its
+     * [FieldReferenceValue.constantValue] if it has one.
      */
     fun asLiteralValue(): LiteralValue<*>? = null
 
@@ -497,7 +497,7 @@ sealed interface StringValue : LiteralValue<String> {
 /**
  * A [Value] that references a field in [classTypeItem] with name [fieldName].
  *
- * This is currently subclassed by [ConstantFieldValue] but that will be removed in future.
+ * It has an optional [constantValue].
  */
 sealed interface FieldReferenceValue : ArrayElementValue {
     override val kind: ValueKind
@@ -509,31 +509,14 @@ sealed interface FieldReferenceValue : ArrayElementValue {
     /** The name of the field. */
     val fieldName: String
 
-    fun equalToFieldReferenceValue(other: FieldReferenceValue): Boolean {
-        return classTypeItem == other.classTypeItem && fieldName == other.fieldName
-    }
-
-    fun hashCodeForFieldReferenceValue() = Objects.hash(classTypeItem, fieldName)
-
-    override fun equalToValue(other: Value) =
-        other is FieldReferenceValue && equalToFieldReferenceValue(other)
-
-    override fun hashCodeForValue() = hashCodeForFieldReferenceValue()
-
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        builder.append(classTypeItem).append('.').append(fieldName)
-    }
-}
-
-/** A [Value] that represents the initial value of a constant field. */
-sealed interface ConstantFieldValue : FieldReferenceValue {
     /**
      * The optional constant value of this field.
      *
      * Is `null` if the field does not reference a constant value.
+     *
+     * Note: This is NOT used in [equals], [hashCode] or [toString]. That is because this may be
+     * provided lazily and accessing it may have side effects but those methods are not expected to
+     * have side effects.
      */
     val constantValue: ConstantValue?
 
@@ -541,12 +524,18 @@ sealed interface ConstantFieldValue : FieldReferenceValue {
     override fun asLiteralValue() = constantValue?.asLiteralValue()
 
     override fun equalToValue(other: Value) =
-        other is ConstantFieldValue &&
-            equalToFieldReferenceValue(other) &&
-            constantValue == other.constantValue
+        other is FieldReferenceValue &&
+            classTypeItem == other.classTypeItem &&
+            fieldName == other.fieldName
 
-    override fun hashCodeForValue() =
-        hashCodeForFieldReferenceValue() * 31 + constantValue.hashCode()
+    override fun hashCodeForValue() = Objects.hash(classTypeItem, fieldName)
+
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        builder.append(classTypeItem).append('.').append(fieldName)
+    }
 }
 
 /** A [Value] wrapper around an [annotationItem]. */

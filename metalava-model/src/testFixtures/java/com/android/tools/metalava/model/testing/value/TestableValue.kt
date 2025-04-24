@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
-import com.android.tools.metalava.model.value.ConstantFieldValue
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.LiteralValue
@@ -60,20 +59,14 @@ fun arrayValue(vararg values: ArrayElementValue) = Value.createArrayValue(values
 fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
 
 /**
- * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+ * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional
  * [constantValue].
  */
-fun constantFieldValue(
-    qualifiedClassName: String,
-    fieldName: String,
-    constantValue: ConstantValue? = null
-) = Value.createConstantFieldValue(classTypeItem(qualifiedClassName), fieldName, constantValue)
-
-/** Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName]. */
 fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
-) = Value.createFieldReferenceValue(classTypeItem(qualifiedClassName), fieldName)
+    constantValue: ConstantValue? = null
+) = Value.createFieldReferenceValue(classTypeItem(qualifiedClassName), fieldName, constantValue)
 
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =

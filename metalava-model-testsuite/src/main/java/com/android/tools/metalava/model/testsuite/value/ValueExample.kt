@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
-import com.android.tools.metalava.model.testing.value.constantFieldValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
@@ -925,7 +924,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.GenericClass",
                                     "STRING_CONSTANT",
                                     literalValue("constant")
@@ -968,7 +967,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.Constants",
                                     "INT_CONSTANT",
                                     primitiveValueForKind(Primitive.LONG, 37)
@@ -1489,7 +1488,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.Constants",
                                     "STRING_CONSTANT",
                                     literalValue("constant")

@@ -199,18 +199,18 @@ interface ValueFactory {
                         // Otherwise, just use the field's constant value as is.
                         ?: fieldConstantValue
                 }
-            createConstantFieldValue(classTypeItem, fieldName, constantValue)
+            createFieldReferenceValue(classTypeItem, fieldName, constantValue)
         }
     }
 
     /**
-     * Create a [ConstantFieldValue] called [fieldName] in [classTypeItem] with an optional
+     * Create a [FieldReferenceValue] called [fieldName] in [classTypeItem] with an optional
      * [constantValue].
      */
-    fun createConstantFieldValue(
+    fun createFieldReferenceValue(
         classTypeItem: ClassTypeItem,
         fieldName: String,
-        constantValue: ConstantValue?,
+        constantValue: ConstantValue? = null,
     ): ArrayElementValue {
         // Some special values need to be used instead of their fields (which can differ between
         // Java and Kotlin).
@@ -218,18 +218,12 @@ interface ValueFactory {
             return constantValue
         }
 
-        return DefaultConstantFieldValue(
+        return DefaultFieldReferenceValue(
             classTypeItem,
             fieldName,
             constantValue,
         )
     }
-
-    /** Create a [FieldReferenceValue] called [fieldName] in [classTypeItem]. */
-    fun createFieldReferenceValue(
-        classTypeItem: ClassTypeItem,
-        fieldName: String,
-    ): ArrayElementValue = DefaultFieldReferenceValue(classTypeItem, fieldName)
 
     /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =

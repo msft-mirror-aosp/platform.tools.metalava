@@ -18,10 +18,10 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.ClassTypeItem
 
-/** Base class for [FieldReferenceValue] implementations. */
-internal open class DefaultFieldReferenceValue(
+internal class DefaultFieldReferenceValue(
     final override val classTypeItem: ClassTypeItem,
     final override val fieldName: String,
+    final override val constantValue: ConstantValue? = null,
 ) : DefaultValue(), FieldReferenceValue {
     init {
         require(classTypeItem.arguments.isEmpty()) {
@@ -29,9 +29,3 @@ internal open class DefaultFieldReferenceValue(
         }
     }
 }
-
-internal class DefaultConstantFieldValue(
-    classTypeItem: ClassTypeItem,
-    fieldName: String,
-    override val constantValue: ConstantValue?,
-) : DefaultFieldReferenceValue(classTypeItem, fieldName), ConstantFieldValue

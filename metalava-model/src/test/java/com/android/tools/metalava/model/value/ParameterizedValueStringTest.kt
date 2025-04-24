@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.testing.value.annotationValueFromSource
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
-import com.android.tools.metalava.model.testing.value.constantFieldValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
@@ -381,11 +380,11 @@ class ParameterizedValueStringTest {
                 ),
                 // ****************************** Constant Fields ******************************
                 testCasesForValue(
-                    value = constantFieldValue("test.pkg.AClass", "FIELD"),
+                    value = fieldReferenceValue("test.pkg.AClass", "FIELD"),
                     expectedDefaultValueString = "test.pkg.AClass.FIELD",
                 ),
                 testCasesForValue(
-                    value = constantFieldValue("test.pkg.AClass", "FIELD", literalValue(2)),
+                    value = fieldReferenceValue("test.pkg.AClass", "FIELD", literalValue(2)),
                     expectedDefaultValueString = "test.pkg.AClass.FIELD",
                 ),
                 // ********************************* Doubles *********************************

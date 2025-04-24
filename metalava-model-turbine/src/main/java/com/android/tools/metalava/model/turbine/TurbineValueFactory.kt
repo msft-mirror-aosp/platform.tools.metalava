@@ -171,7 +171,7 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
                 // Get the constant value first.
                 val constantValue = toConstant(optionalTypeItem)
 
-                return createConstantFieldValue(
+                return createFieldReferenceValue(
                     fieldSymbol.owner().classTypeItem(),
                     fieldSymbol.name(),
                     constantValue,
