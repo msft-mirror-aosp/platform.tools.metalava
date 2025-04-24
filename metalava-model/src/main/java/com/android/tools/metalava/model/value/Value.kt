@@ -541,7 +541,10 @@ sealed interface FieldReferenceValue : ArrayElementValue {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        builder.append(qualifiedClassName).append('.').append(fieldName)
+        if (qualifiedClassName != "") {
+            builder.append(qualifiedClassName).append('.')
+        }
+        builder.append(fieldName)
     }
 }
 
