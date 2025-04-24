@@ -16,8 +16,23 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.value.Value.Companion.toString
+
 internal class DefaultFieldReferenceValue(
     final override val qualifiedClassName: String,
     final override val fieldName: String,
-    final override val constantValue: ConstantValue? = null,
-) : DefaultValue(), FieldReferenceValue
+
+    /**
+     * The optional constant value of this field.
+     *
+     * Is `null` if the field does not reference a constant value.
+     *
+     * Note: This is NOT used in [equals], [hashCode] or [toString]. That is because this may be
+     * provided lazily and accessing it may have side effects but those methods are not expected to
+     * have side effects.
+     */
+    private val constantValue: ConstantValue? = null,
+) : DefaultValue(), FieldReferenceValue {
+    /** The [constantValue], if present, may be a [LiteralValue]. */
+    override fun asLiteralValue() = constantValue?.asLiteralValue()
+}

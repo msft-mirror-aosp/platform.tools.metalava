@@ -94,8 +94,7 @@ sealed interface Value {
      * Get this [Value] as a [LiteralValue], or return `null` if it cannot be represented as one.
      *
      * This will return `null` for every [Value] except [LiteralValue] and maybe
-     * [FieldReferenceValue], which will return delegate this call to its
-     * [FieldReferenceValue.constantValue] if it has one.
+     * [FieldReferenceValue], which will return its constant value if it has one.
      */
     fun asLiteralValue(): LiteralValue<*>? = null
 
@@ -508,20 +507,6 @@ sealed interface FieldReferenceValue : ArrayElementValue {
 
     /** The name of the field. */
     val fieldName: String
-
-    /**
-     * The optional constant value of this field.
-     *
-     * Is `null` if the field does not reference a constant value.
-     *
-     * Note: This is NOT used in [equals], [hashCode] or [toString]. That is because this may be
-     * provided lazily and accessing it may have side effects but those methods are not expected to
-     * have side effects.
-     */
-    val constantValue: ConstantValue?
-
-    /** The [constantValue], if present, may be a [LiteralValue]. */
-    override fun asLiteralValue() = constantValue?.asLiteralValue()
 
     override fun equalToValue(other: Value) =
         other is FieldReferenceValue &&
