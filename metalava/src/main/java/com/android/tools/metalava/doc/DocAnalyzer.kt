@@ -441,7 +441,7 @@ class DocAnalyzer(
                 }
 
                 private fun handleTypeDef(annotation: AnnotationItem, item: Item) {
-                    val values = annotation.findAttribute("value")?.leafValues() ?: return
+                    val values = annotation.findAttribute("value")?.value?.asFlatList() ?: return
                     val flag = annotation.findAttribute("flag")?.value?.asBoolean() == true
 
                     // Look at macros_override.cs for the usage of these
@@ -475,7 +475,7 @@ class DocAnalyzer(
                             }
                         )
 
-                        val field = value.resolve()
+                        val field = (value as? FieldReferenceValue)?.resolve()
                         if (field is FieldItem)
                             if (filterReference.test(field)) {
                                 sb.append(
@@ -496,25 +496,23 @@ class DocAnalyzer(
                                 )
                             }
                         else {
-                            sb.append(value.toSource())
+                            sb.append(value.toValueString())
                         }
                     }
                     appendDocumentation(sb.toString(), item, true)
                 }
 
                 private fun handleRequiresFeature(annotation: AnnotationItem, item: Item) {
-                    val value =
-                        annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                    val resolved = value.resolve()
-                    val field = resolved as? FieldItem
+                    val value = annotation.findAttribute("value")?.value ?: return
+                    val field = (value as? FieldReferenceValue)?.resolve()
                     val featureField =
                         if (field == null) {
                             reporter.report(
                                 Issues.MISSING_PERMISSION,
                                 item,
-                                "Cannot find feature field for $value required by $item (may be hidden or removed)"
+                                "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                             )
-                            "{@link ${value.toSource()}}"
+                            "{@link ${value.toValueString()}}"
                         } else {
                             if (filterReference.test(field)) {
                                 "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}}"
@@ -522,7 +520,7 @@ class DocAnalyzer(
                                 reporter.report(
                                     Issues.MISSING_PERMISSION,
                                     item,
-                                    "Feature field $value required by $item is hidden or removed"
+                                    "Feature field ${value.toValueString()} required by $item is hidden or removed"
                                 )
                                 "${field.containingClass().simpleName()}#${field.name()}"
                             }
@@ -611,12 +609,10 @@ class DocAnalyzer(
                 }
 
                 private fun handleColumn(annotation: AnnotationItem, item: Item) {
-                    val value =
-                        annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
+                    val value = annotation.findAttribute("value")?.value ?: return
                     val readOnly = annotation.findAttribute("readOnly")?.value?.asBoolean() == true
                     val sb = StringBuilder(100)
-                    val resolved = value.resolve()
-                    val field = resolved as? FieldItem
+                    val field = (value as? FieldReferenceValue)?.resolve()
                     sb.append("This constant represents a column name that can be used with a ")
                     sb.append("{@link android.content.ContentProvider}")
                     sb.append(" through a ")
@@ -629,9 +625,9 @@ class DocAnalyzer(
                         reporter.report(
                             Issues.MISSING_COLUMN,
                             item,
-                            "Cannot find feature field for $value required by $item (may be hidden or removed)"
+                            "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                         )
-                        sb.append("{@link ${value.toSource()}}")
+                        sb.append("{@link ${value.toValueString()}}")
                     } else {
                         if (filterReference.test(field)) {
                             sb.append(
@@ -641,7 +637,7 @@ class DocAnalyzer(
                             reporter.report(
                                 Issues.MISSING_COLUMN,
                                 item,
-                                "Feature field $value required by $item is hidden or removed"
+                                "Feature field ${value.toValueString()} required by $item is hidden or removed"
                             )
                             sb.append("${field.containingClass().simpleName()}#${field.name()} ")
                         }
