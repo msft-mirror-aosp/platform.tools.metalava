@@ -112,8 +112,7 @@ private val fullySupportedValueKinds =
         addAll(ValueKind.LITERAL_KINDS)
         add(ValueKind.ARRAY)
         add(ValueKind.CLASS)
-        add(ValueKind.CONSTANT_FIELD)
-        add(ValueKind.ENUM)
+        add(ValueKind.FIELD)
     }
 
 /**

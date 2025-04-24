@@ -256,11 +256,10 @@ enum class ValueKind(val primitiveKind: Primitive? = null) {
         primitiveKind = Primitive.CHAR,
     ),
     CLASS,
-    CONSTANT_FIELD,
     DOUBLE(
         primitiveKind = Primitive.DOUBLE,
     ),
-    ENUM,
+    FIELD,
     FLOAT(
         primitiveKind = Primitive.FLOAT,
     ),
@@ -508,6 +507,9 @@ sealed interface StringValue : LiteralValue<String> {
  *    other times its [ConstantValue] is used.
  */
 sealed interface FieldReferenceValue : ArrayElementValue {
+    override val kind: ValueKind
+        get() = ValueKind.FIELD
+
     /** The class type that contains the field. */
     val classTypeItem: ClassTypeItem
 
@@ -530,9 +532,6 @@ sealed interface FieldReferenceValue : ArrayElementValue {
 
 /** A [Value] that represents the initial value of a constant field. */
 sealed interface ConstantFieldValue : FieldReferenceValue {
-    override val kind: ValueKind
-        get() = ValueKind.CONSTANT_FIELD
-
     /**
      * The optional constant value of this field.
      *
@@ -554,9 +553,6 @@ sealed interface ConstantFieldValue : FieldReferenceValue {
 
 /** A [Value] that represents an enum constant. */
 sealed interface EnumConstantValue : FieldReferenceValue {
-    override val kind: ValueKind
-        get() = ValueKind.ENUM
-
     override fun equalToValue(other: Value) =
         other is EnumConstantValue && equalToFieldReferenceValue(other)
 
