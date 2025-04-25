@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.value.Value.Companion.toString
 import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
@@ -84,4 +85,67 @@ internal class DefaultFieldReferenceValue(
 
     /** The [constantValue], if present, may be a [LiteralValue]. */
     override fun asLiteralValue() = constantValue?.asLiteralValue()
+}
+
+internal class LazyFieldReferenceValue(
+    classResolver: ClassResolver,
+    qualifiedClassName: String,
+    fieldName: String,
+    private val optionalTypeItem: TypeItem?,
+) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName) {
+
+    private lateinit var optionalConstantValue: Optional<ConstantValue>
+
+    private fun constantValue(): ConstantValue? {
+        if (!::optionalConstantValue.isInitialized) {
+            optionalConstantValue = Optional.ofNullable(retrieveConstantValue())
+        }
+
+        return optionalConstantValue.getOrNull()
+    }
+
+    private fun retrieveConstantValue(): ConstantValue? {
+        val fieldItem = resolve() ?: return null
+        if (fieldItem.isEnumConstant()) return null
+
+        // The actual constant value of a field reference is affected by the type of where it is
+        // used, just as it would if the field reference was replaced by its constant value. So,
+        // an `int` constant field that is used where a `long` is expected will be represented
+        // as a `LongValue` that was originally specified as an int.
+        val constantValue =
+            fieldItem.constantValue?.let { fieldConstantValue ->
+                fieldConstantValue
+                    // If an optional type item is provided then it needs to be applied to the
+                    // field's constant value.
+                    .takeIf { optionalTypeItem != null }
+                    // So, get the field's underlying value.
+                    ?.asAny()
+                    // Then, create a LiteralValue of the correct type.
+                    ?.let { underlyingValue ->
+                        Value.createLiteralValue(optionalTypeItem, underlyingValue)
+                    }
+                    // Otherwise, just use the field's constant value as is.
+                    ?: fieldConstantValue
+            }
+
+        return constantValue
+    }
+
+    /**
+     * Implement this here rather than in [FieldReferenceValue] as it needs to access
+     * [constantValue] which is an implementation detail.
+     *
+     * This retrieves the [constantValue] before creating the [FieldReferenceValue] to ensure that
+     * the snapshot has the corrent value.
+     */
+    override fun snapshot(targetCodebase: Codebase) =
+        Value.createFieldReferenceValue(
+            targetCodebase,
+            qualifiedClassName,
+            fieldName,
+            constantValue(),
+        )
+
+    /** The [optionalConstantValue], if present, may be a [LiteralValue]. */
+    override fun asLiteralValue() = constantValue()?.asLiteralValue()
 }

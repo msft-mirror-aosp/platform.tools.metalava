@@ -622,9 +622,14 @@ internal class PsiValueFactory(
         resolved: PsiElement?,
     ): ArrayElementValue? {
         if (resolved is PsiField) {
-            codebase.findField(resolved)?.let { fieldItem ->
-                return createFieldReferenceValue(optionalTypeItem, fieldItem)
-            }
+            val qualifiedClassName = resolved.containingClass?.qualifiedName ?: ""
+            val fieldName = resolved.name
+            return createFieldReferenceValueWithDeferredConstantValue(
+                codebase,
+                qualifiedClassName,
+                fieldName,
+                optionalTypeItem,
+            )
         }
 
         return null

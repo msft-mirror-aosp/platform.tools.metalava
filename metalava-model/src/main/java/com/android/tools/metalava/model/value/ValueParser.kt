@@ -217,23 +217,13 @@ class ValueParser(
                     ContextNullability.forceNonNull,
                 ) as ClassTypeItem
 
-            // Resolve the class type item to a ClassItem and find its FieldItem. If no such
-            // FieldItem exists then assume it is an enum constant as without a field there is no
-            // constant value.
-            return classTypeItem
-                .asClass()
-                // Search through the super class and interface hierarchy to find the field.
-                ?.findField(
-                    fieldName,
-                    includeSuperClasses = true,
-                    includeInterfaces = true,
-                )
-                ?.let { fieldItem -> createFieldReferenceValue(optionalTypeItem, fieldItem) }
-                ?: createFieldReferenceValue(
-                    annotationContext,
-                    classTypeItem.qualifiedName,
-                    fieldName,
-                )
+            val qualifiedClassName = classTypeItem.qualifiedName
+            return createFieldReferenceValueWithDeferredConstantValue(
+                annotationContext,
+                qualifiedClassName,
+                fieldName,
+                optionalTypeItem,
+            )
         }
 
         // Handle a Java style annotation value which starts with an '@'.

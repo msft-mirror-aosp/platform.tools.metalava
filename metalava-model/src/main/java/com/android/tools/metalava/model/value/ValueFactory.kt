@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -173,42 +173,38 @@ interface ValueFactory {
         return DefaultClassObjectValue(typeItem)
     }
 
-    /** Create a [FieldReferenceValue] from [fieldItem]. */
-    fun createFieldReferenceValue(
+    /**
+     * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName].
+     *
+     * If the field has a constant initializer then it will be retrieved when calling
+     * [FieldReferenceValue.asLiteralValue].
+     *
+     * @param classResolver used to resolve [qualifiedClassName] to a [ClassItem] in
+     *   [FieldReferenceValue.resolve]
+     * @param qualifiedClassName the qualified name of the class containing the field. Is an empty
+     *   string if the field is unqualified.
+     * @param fieldName the name of the field.
+     * @param optionalTypeItem the optional [TypeItem] determined by the context within which the
+     *   [FieldReferenceValue] will be used.
+     */
+    fun createFieldReferenceValueWithDeferredConstantValue(
+        classResolver: ClassResolver,
+        qualifiedClassName: String,
+        fieldName: String,
         optionalTypeItem: TypeItem?,
-        fieldItem: FieldItem
     ): ArrayElementValue {
-        val qualifiedClassName = fieldItem.containingClass().qualifiedName()
-        val fieldName = fieldItem.name()
-        return if (fieldItem.isEnumConstant()) {
-            createFieldReferenceValue(fieldItem.codebase, qualifiedClassName, fieldName)
-        } else {
-            // The actual constant value of a field reference is affected by the type of where it is
-            // used, just as it would if the field reference was replaced by its constant value. So,
-            // an `int` constant field that is used where a `long` is expected will be represented
-            // as a `LongValue` that was originally specified as an int.
-            val constantValue =
-                fieldItem.constantValue?.let { fieldConstantValue ->
-                    fieldConstantValue
-                        // If an optional type item is provided then it needs to be applied to the
-                        // field's constant value.
-                        .takeIf { optionalTypeItem != null }
-                        // So, get the field's underlying value.
-                        ?.asAny()
-                        // Then, create a LiteralValue of the correct type.
-                        ?.let { underlyingValue ->
-                            createLiteralValue(optionalTypeItem, underlyingValue)
-                        }
-                        // Otherwise, just use the field's constant value as is.
-                        ?: fieldConstantValue
-                }
-            createFieldReferenceValue(
-                fieldItem.codebase,
+        // Create a field.
+        val fieldReferenceValue =
+            LazyFieldReferenceValue(
+                classResolver,
                 qualifiedClassName,
                 fieldName,
-                constantValue
+                optionalTypeItem,
             )
-        }
+
+        // The field may need mapping to a constant value to eliminate differences between Kotlin
+        // and Java.
+        return normalizeFieldReferenceValue(fieldReferenceValue)
     }
 
     /**
@@ -232,6 +228,13 @@ interface ValueFactory {
 
         // The field may need mapping to a constant value to eliminate differences between Kotlin
         // and Java.
+        return normalizeFieldReferenceValue(fieldReferenceValue)
+    }
+
+    /** Normalize [FieldReferenceValue]s to eliminate differences between Java and Kotlin. */
+    private fun normalizeFieldReferenceValue(
+        fieldReferenceValue: FieldReferenceValue
+    ): ArrayElementValue {
         return specialFieldsToReplacementValue[fieldReferenceValue] ?: fieldReferenceValue
     }
 
