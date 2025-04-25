@@ -102,6 +102,7 @@ fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, V
 private val fullySupportedValueKinds =
     EnumSet.noneOf(ValueKind::class.java).apply {
         addAll(ValueKind.LITERAL_KINDS)
+        add(ValueKind.ANNOTATION)
         add(ValueKind.ARRAY)
         add(ValueKind.CLASS)
         add(ValueKind.FIELD)

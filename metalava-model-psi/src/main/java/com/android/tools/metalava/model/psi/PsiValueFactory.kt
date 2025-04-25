@@ -225,6 +225,21 @@ internal class PsiValueFactory(
                 uResolvableToValue(optionalTypeItem, uExpression)?.let {
                     return it
                 }
+
+                // Ignore any other access type than a simple '.'.
+                if (uExpression.accessType == UastQualifiedExpressionAccessType.SIMPLE) {
+                    // The `receiver` is the qualifier and the `selector` is what is being
+                    // qualified.
+                    when (val selector = uExpression.selector) {
+                        is UCallExpression -> {
+                            // Nested annotations are represented as a call to an annotation class
+                            // constructor so check to see if that is the case.
+                            uCallExpressionToAnnotationValue(selector)?.let {
+                                return it
+                            }
+                        }
+                    }
+                }
             }
             // Handle an unqualified reference, i.e. one of the form <identifier>.
             is USimpleNameReferenceExpression -> {
@@ -239,6 +254,8 @@ internal class PsiValueFactory(
                 }
             }
             is UCallExpression -> {
+                // Nested annotations are represented as a call to an annotation class constructor
+                // so check to see if that is the case.
                 uCallExpressionToAnnotationValue(uExpression)?.let {
                     return it
                 }
