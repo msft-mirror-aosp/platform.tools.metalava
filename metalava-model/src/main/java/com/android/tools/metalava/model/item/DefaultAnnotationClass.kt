@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.value.FieldReferenceValue
 
 class DefaultAnnotationClass(private val classItem: ClassItem) : AnnotationClass {
     override val retention by lazy(LazyThreadSafetyMode.NONE) { findRetention(classItem) }
@@ -46,16 +47,11 @@ class DefaultAnnotationClass(private val classItem: ClassItem) : AnnotationClass
         private fun findRetention(cls: ClassItem): AnnotationRetention {
             val modifiers = cls.modifiers
             val annotation = modifiers.findAnnotation(AnnotationItem::isRetention)
-            val value = annotation?.findAttribute(ANNOTATION_ATTR_VALUE)
-            val source = value?.legacyValue?.toSource()
-            return when {
-                source == null -> AnnotationRetention.getDefault(cls)
-                source.contains("CLASS") -> AnnotationRetention.CLASS
-                source.contains("RUNTIME") -> AnnotationRetention.RUNTIME
-                source.contains("SOURCE") -> AnnotationRetention.SOURCE
-                source.contains("BINARY") -> AnnotationRetention.BINARY
-                else -> AnnotationRetention.getDefault(cls)
-            }
+            val value = annotation?.findAttribute(ANNOTATION_ATTR_VALUE)?.value
+            val fieldName =
+                (value as? FieldReferenceValue)?.fieldName
+                    ?: return AnnotationRetention.getDefault(cls)
+            return AnnotationRetention.valueOf(fieldName)
         }
     }
 }
