@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -391,6 +392,16 @@ private fun convertValue(
 interface AnnotationContext : ClassResolver {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
+
+    /**
+     * Get the defaults for the annotation class called [qualifiedName].
+     *
+     * While the default implementation is in terms of [resolveClass] this is separate to allow
+     * subclasses to provide defaults without resolving a [ClassItem] as that can have side effects
+     * which cause problems if done during [Codebase] construction.
+     */
+    fun defaultsForAnnotationClass(qualifiedName: String) =
+        resolveClass(qualifiedName)?.annotationClass?.defaults ?: AnnotationDefaults.EMPTY
 
     companion object {
         /**

@@ -21,10 +21,25 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.findAnnotation
 
 class DefaultAnnotationClass(private val classItem: ClassItem) : AnnotationClass {
     override val retention by lazy(LazyThreadSafetyMode.NONE) { findRetention(classItem) }
+
+    override val defaults by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val nameToValue =
+                classItem
+                    .methods()
+                    .mapNotNull {
+                        val value = it.defaultValue ?: return@mapNotNull null
+                        val name = it.name()
+                        name to value
+                    }
+                    .toMap()
+            if (nameToValue.isEmpty()) AnnotationDefaults.EMPTY else AnnotationDefaults(nameToValue)
+        }
 
     companion object {
         /** Looks up the retention policy for the given class */

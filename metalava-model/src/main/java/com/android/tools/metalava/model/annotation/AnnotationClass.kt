@@ -30,4 +30,7 @@ interface AnnotationClass {
      * specific default.
      */
     val retention: AnnotationRetention
+
+    /** Get the annotation defaults for the associated [ClassItem]. */
+    val defaults: AnnotationDefaults
 }
