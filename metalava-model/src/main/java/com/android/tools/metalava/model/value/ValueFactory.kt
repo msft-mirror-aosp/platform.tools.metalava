@@ -135,13 +135,16 @@ interface ValueFactory {
      *
      * Every call that supplies an empty [elements] will return the same instance of [ArrayValue].
      * It is the caller's responsibility to ensure that every [ArrayElementValue] in [elements] has
-     * the same [Value.kind]. This will throw an exception if it does not.
+     * the same [Value.kind] (excluding [ValueKind.FIELD]). This will throw an exception if it does
+     * not.
      */
     fun createArrayValue(elements: List<ArrayElementValue>): Value {
         if (elements.isEmpty()) return EMPTY_ARRAY
         val groupedByKind = elements.groupBy { it.kind }
         val kindCount = groupedByKind.size
-        if (kindCount == 1) return DefaultArrayValue(elements)
+        // Only allow 1 kind or 2 if one of them is field.
+        if (kindCount == 1 || (kindCount == 2 && ValueKind.FIELD in groupedByKind))
+            return DefaultArrayValue(elements)
         val message = buildString {
             append("Expected array elements to be all of the same kind but found ")
             append(kindCount)
