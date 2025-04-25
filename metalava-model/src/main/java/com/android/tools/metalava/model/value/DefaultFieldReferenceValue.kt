@@ -23,21 +23,11 @@ import com.android.tools.metalava.model.value.Value.Companion.toString
 import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
-internal class DefaultFieldReferenceValue(
+/** Base class for [FieldReferenceValue] implementations. */
+internal abstract class BaseFieldReferenceValue(
     private val classResolver: ClassResolver,
     override val qualifiedClassName: String,
     override val fieldName: String,
-
-    /**
-     * The optional constant value of this field.
-     *
-     * Is `null` if the field does not reference a constant value.
-     *
-     * Note: This is NOT used in [equals], [hashCode] or [toString]. That is because this may be
-     * provided lazily and accessing it may have side effects but those methods are not expected to
-     * have side effects.
-     */
-    private val constantValue: ConstantValue? = null,
 ) : DefaultValue(), FieldReferenceValue {
 
     private lateinit var optionalFieldItem: Optional<FieldItem>
@@ -61,6 +51,24 @@ internal class DefaultFieldReferenceValue(
         }
         return optionalFieldItem.getOrNull()
     }
+}
+
+internal class DefaultFieldReferenceValue(
+    classResolver: ClassResolver,
+    qualifiedClassName: String,
+    fieldName: String,
+
+    /**
+     * The optional constant value of this field.
+     *
+     * Is `null` if the field does not reference a constant value.
+     *
+     * Note: This is NOT used in [equals], [hashCode] or [toString]. That is because this may be
+     * provided lazily and accessing it may have side effects but those methods are not expected to
+     * have side effects.
+     */
+    private val constantValue: ConstantValue? = null,
+) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName) {
 
     /**
      * Implement this here rather than in [FieldReferenceValue] as it needs to access
