@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
-import com.android.tools.metalava.model.Item
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
@@ -334,16 +333,6 @@ internal class UAnnotationSingleAttributeValue(
 
             return getText(psiValue).removeSurrounding("\"")
         }
-    }
-
-    override fun resolve(): Item? {
-        if (psiValue is UReferenceExpression) {
-            when (val resolved = psiValue.resolve()) {
-                is PsiField -> return codebase.findField(resolved)
-                is PsiClass -> return codebase.findOrCreateClass(resolved)
-            }
-        }
-        return null
     }
 }
 

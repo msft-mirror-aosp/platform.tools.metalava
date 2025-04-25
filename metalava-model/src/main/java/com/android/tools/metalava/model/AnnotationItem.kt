@@ -672,11 +672,6 @@ sealed interface AnnotationAttributeValue {
     fun value(): Any?
 
     /**
-     * If the annotation declaration references a field (or class etc.), return the resolved class
-     */
-    fun resolve(): Item?
-
-    /**
      * Take a snapshot of this [AnnotationAttributeValue] suitable for use in a snapshot [Codebase].
      */
     fun snapshot(): AnnotationAttributeValue
@@ -708,10 +703,6 @@ sealed interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
 sealed interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
     /** The annotation values */
     val values: List<AnnotationAttributeValue>
-
-    override fun resolve(): Item? {
-        error("resolve() should not be called on an array value")
-    }
 
     override fun value() = values.mapNotNull { it.value() }.toTypedArray()
 }
@@ -847,8 +838,6 @@ open class DefaultAnnotationSingleAttributeValue(
 ) : DefaultAnnotationAttributeValue(sourceGetter), AnnotationSingleAttributeValue {
 
     override val value by lazy(LazyThreadSafetyMode.NONE, valueGetter)
-
-    override fun resolve(): Item? = null
 
     override fun snapshot(): AnnotationSingleAttributeValue {
         // Take a snapshot of the value and sources by immediately forcing them to be initialized

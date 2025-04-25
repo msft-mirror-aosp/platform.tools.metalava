@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -30,7 +29,6 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import java.io.File
 import org.jetbrains.uast.UMethod
@@ -139,12 +137,6 @@ internal class PsiBasedCodebase(
         }
 
         return methodItem
-    }
-
-    internal fun findField(field: PsiField): FieldItem? {
-        val containingClass = field.containingClass ?: return null
-        val cls = findOrCreateClass(containingClass)
-        return cls.findField(field.name)
     }
 
     private fun registerCallablesByPsiMethod(
