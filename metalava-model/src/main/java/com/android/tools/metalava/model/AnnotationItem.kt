@@ -197,7 +197,7 @@ sealed interface AnnotationItem {
             val cls = resolve()
             if (cls != null) {
                 if (cls.isAnnotationType()) {
-                    return cls.getRetention()
+                    return cls.annotationClass.retention
                 }
             }
 

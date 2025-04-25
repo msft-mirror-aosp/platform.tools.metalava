@@ -232,7 +232,7 @@ class ExtractAnnotations(
                     typeDefClass.modifiers.findAnnotation(AnnotationItem::isTypeDefAnnotation)
                 if (typeDefAnnotation != null) {
                     // Make sure it has the right retention
-                    if (typeDefClass.getRetention() != AnnotationRetention.SOURCE) {
+                    if (typeDefClass.annotationClass.retention != AnnotationRetention.SOURCE) {
                         reporter.report(
                             Issues.ANNOTATION_EXTRACTION,
                             typeDefClass,
