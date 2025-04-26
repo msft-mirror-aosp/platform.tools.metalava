@@ -418,11 +418,11 @@ class ExtractAnnotations(
             }
         }
 
-        val inlineConstants = isInlinedConstant(annotationItem)
+        val keepFieldReferences = keepFieldReferences(annotationItem)
         var empty = true
         for (pair in attributes) {
             val expression = pair.expression
-            val value = attributeString(expression, inlineConstants) ?: continue
+            val value = attributeString(expression, keepFieldReferences) ?: continue
             empty = false
             var name = pair.name
             if (name == null) {
@@ -463,18 +463,19 @@ class ExtractAnnotations(
         writer.println("    </annotation>")
     }
 
-    private fun attributeString(value: UExpression?, inlineConstants: Boolean): String? {
+    private fun attributeString(value: UExpression?, keepFieldReferences: Boolean): String? {
         val printer =
-            if (inlineConstants) {
-                fieldValuePrinter
-            } else {
+            if (keepFieldReferences) {
                 fieldNamePrinter
+            } else {
+                fieldValuePrinter
             }
 
         return printer.toSourceString(value)
     }
 
-    private fun isInlinedConstant(annotationItem: AnnotationItem): Boolean {
+    /** Type def annotations must keep field references. */
+    private fun keepFieldReferences(annotationItem: AnnotationItem): Boolean {
         return annotationItem.isTypeDefAnnotation()
     }
 }
