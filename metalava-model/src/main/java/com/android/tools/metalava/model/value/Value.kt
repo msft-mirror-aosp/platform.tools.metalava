@@ -111,6 +111,14 @@ sealed interface Value {
     fun snapshot(targetCodebase: Codebase) = this
 
     /**
+     * Transform this [Value].
+     *
+     * @param transformer transforms an [ArrayElementValue] to either another [ArrayElementValue] or
+     *   `null` if the input [ArrayElementValue] should be ignored for some reason.
+     */
+    fun transform(transformer: (ArrayElementValue) -> ArrayElementValue?): Value?
+
+    /**
      * A string representation of the value.
      *
      * See [appendValueStringTo] for more details.
@@ -317,6 +325,10 @@ sealed interface ArrayElementValue : Value {
 
     /** Override to specialize the return type. */
     override fun snapshot(targetCodebase: Codebase): ArrayElementValue = this
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: (ArrayElementValue) -> ArrayElementValue?) =
+        transformer(this)
 }
 
 /** A [Value] that can be used in a constant field as defined by JLS 15.28. */
@@ -666,6 +678,19 @@ sealed interface ArrayValue : Value {
         if (elements.isEmpty()) return this
         val snapshotElements = elements.map { it.snapshot(targetCodebase) }
         return Value.createArrayValue(snapshotElements)
+    }
+
+    /**
+     * Transform this [ArrayValue].
+     *
+     * Applies [transformer] to each of the [ArrayElementValue]s in [elements] to create a new list
+     * and then wraps it in a new [ArrayValue]. If [transformer] returns `null` for an element then
+     * it is not added to the resulting list.
+     */
+    override fun transform(transformer: (ArrayElementValue) -> ArrayElementValue?): ArrayValue? {
+        if (elements.isEmpty()) return this
+        val transformedElements = elements.mapNotNull { transformer(it) }
+        return Value.createArrayValue(transformedElements)
     }
 }
 
