@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.LintCliClient.Companion.printWriter
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
@@ -46,10 +47,8 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.PrintWriter
-import java.io.StringWriter
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
-import kotlin.text.Charsets.UTF_8
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UExpression
@@ -106,6 +105,10 @@ class ExtractAnnotations(
                         .sortedBy { it.qualifiedName() }
                         .toList()
 
+                // Create a print writer to the JarOutputStream. Care must be taken not to close
+                // this until all entries have been written.
+                val printWriter = zos.printWriter()
+
                 for (pkg in sortedPackages) {
                     // Note: Using / rather than File.separator: jar lib requires it
                     val name = pkg.qualifiedName().replace('.', '/') + "/annotations.xml"
@@ -121,7 +124,7 @@ class ExtractAnnotations(
                         pairs.sortBy { it.first.getExternalAnnotationSignature() }
                     }
 
-                    StringPrintWriter.create().use { writer ->
+                    printWriter.let { writer ->
                         writer.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>")
 
                         var open = false
@@ -147,11 +150,15 @@ class ExtractAnnotations(
                             writer.println()
                         }
                         writer.println("</root>\n")
-                        writer.close()
-                        val bytes = writer.contents.toByteArray(UTF_8)
-                        zos.write(bytes)
-                        zos.closeEntry()
+
+                        // Flush the writer to ensure all the data is written to the zip entry
+                        // before it is closed. Do not close the writer as that will close the whole
+                        // zip output stream.
+                        writer.flush()
                     }
+
+                    // Close the zip entry.
+                    zos.closeEntry()
                 }
             }
         }
@@ -263,27 +270,6 @@ class ExtractAnnotations(
         }
     }
 
-    /**
-     * A writer which stores all its contents into a string and has the ability to mark a certain
-     * freeze point and then reset back to it
-     */
-    private class StringPrintWriter(private val stringWriter: StringWriter) :
-        PrintWriter(stringWriter) {
-
-        val contents: String
-            get() = stringWriter.toString()
-
-        override fun toString(): String {
-            return contents
-        }
-
-        companion object {
-            fun create(): StringPrintWriter {
-                return StringPrintWriter(StringWriter(1000))
-            }
-        }
-    }
-
     private fun escapeXml(unescaped: String): String {
         return XmlEscapers.xmlAttributeEscaper().escape(unescaped)
     }
@@ -349,11 +335,7 @@ class ExtractAnnotations(
         return null
     }
 
-    private fun writeAnnotation(
-        writer: StringPrintWriter,
-        item: Item,
-        annotationItem: AnnotationItem
-    ) {
+    private fun writeAnnotation(writer: PrintWriter, item: Item, annotationItem: AnnotationItem) {
         // Retrieve the attributes from the annotation item, returning if they could not be found.
         val attributes = retrieveAttributes(annotationItem) ?: return
 
@@ -454,7 +436,7 @@ class ExtractAnnotations(
      * @param attributes the attributes, as a list of name/value pairs.
      */
     private fun writeAnnotationElement(
-        writer: StringPrintWriter,
+        writer: PrintWriter,
         qualifiedName: String,
         attributes: List<Pair<String, String>>
     ) {
