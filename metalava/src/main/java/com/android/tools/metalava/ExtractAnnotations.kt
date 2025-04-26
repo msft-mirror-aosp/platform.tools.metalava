@@ -53,6 +53,7 @@ import kotlin.text.Charsets.UTF_8
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UExpression
+import org.jetbrains.uast.UNamedExpression
 import org.jetbrains.uast.UastEmptyExpression
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.toUElement
@@ -266,21 +267,11 @@ class ExtractAnnotations(
      * A writer which stores all its contents into a string and has the ability to mark a certain
      * freeze point and then reset back to it
      */
-    private class StringPrintWriter constructor(private val stringWriter: StringWriter) :
+    private class StringPrintWriter(private val stringWriter: StringWriter) :
         PrintWriter(stringWriter) {
-        private var mark: Int = 0
 
         val contents: String
             get() = stringWriter.toString()
-
-        fun mark() {
-            flush()
-            mark = stringWriter.buffer.length
-        }
-
-        fun reset() {
-            stringWriter.buffer.setLength(mark)
-        }
 
         override fun toString(): String {
             return contents
@@ -363,14 +354,53 @@ class ExtractAnnotations(
         item: Item,
         annotationItem: AnnotationItem
     ) {
-        val uAnnotation = annotationItem.uAnnotation ?: return
+        // Retrieve the attributes from the annotation item, returning if they could not be found.
+        val attributes = retrieveAttributes(annotationItem) ?: return
+
+        // Some annotations need to keep field references and some need to replace them with their
+        // constant value.
+        val keepFieldReferences = keepFieldReferences(annotationItem)
+
+        // Perform some transformations and filtering on the attributes.
+        val transformedAttributes =
+            attributes.mapNotNull { attribute ->
+                val name = attribute.name ?: ANNOTATION_ATTR_VALUE // default name
+                // Platform typedef annotations declare prefix/suffix attributes for historical
+                // reasons, and they are no longer necessary; they should also not be part of the
+                // extracted metadata.
+                if (
+                    ("prefix" == name || "suffix" == name) && annotationItem.isTypeDefAnnotation()
+                ) {
+                    reporter.report(
+                        Issues.SUPERFLUOUS_PREFIX,
+                        item,
+                        "Superfluous $name attribute on typedef"
+                    )
+                    return@mapNotNull null
+                }
+
+                val expression = attribute.expression
+                val value =
+                    attributeString(expression, keepFieldReferences) ?: return@mapNotNull null
+                name to value
+            }
+
+        // If an annotation had attributes, but they were all filtered out then the chances are that
+        // the annotation is worthless so drop it altogether.
+        if (attributes.isNotEmpty() && transformedAttributes.isEmpty()) {
+            // All items were filtered out: don't write the annotation at all
+            return
+        }
+
+        // Write the annotation element.
         val qualifiedName = annotationItem.qualifiedName
+        writeAnnotationElement(writer, qualifiedName, transformedAttributes)
+    }
 
-        writer.mark()
-        writer.print("    <annotation name=\"")
-        writer.print(qualifiedName)
-
-        var attributes =
+    /** Retrieve the attributes from [annotationItem]. */
+    private fun retrieveAttributes(annotationItem: AnnotationItem): List<UNamedExpression>? {
+        val uAnnotation = annotationItem.uAnnotation ?: return null
+        val attributes =
             // Ensure consistent ordering.
             uAnnotation.attributeValues.sortedWith(
                 compareBy(
@@ -380,15 +410,7 @@ class ExtractAnnotations(
                 )
             )
 
-        if (attributes.isEmpty()) {
-            writer.print("\"/>")
-            writer.println()
-            return
-        }
-
-        writer.print("\">")
-        writer.println()
-
+        val qualifiedName = annotationItem.qualifiedName
         if (attributes.size == 1 && Extractor.REQUIRES_PERMISSION.isPrefix(qualifiedName, true)) {
             val expression = attributes[0].expression
             if (expression is UCallExpression) {
@@ -398,7 +420,7 @@ class ExtractAnnotations(
                 // single permission child, so instead we "inline" the content:
                 //  @Read(@RequiresPermission(allOf={P1,P2},conditional=true)
                 //     =>
-                //      @RequiresPermission.Read(allOf({P1,P2},conditional=true)
+                //  @RequiresPermission.Read(allOf({P1,P2},conditional=true)
                 // That's setting attributes that don't actually exist on the container permission,
                 // but we'll counteract that on the read-annotations side.
                 val nestedPsi = expression.sourcePsi as? PsiAnnotation
@@ -406,58 +428,64 @@ class ExtractAnnotations(
                     nestedPsi?.let {
                         UastFacade.convertElement(it, expression, UAnnotation::class.java)
                     } as? UAnnotation
-                annotation?.attributeValues?.let { attributes = it }
+                annotation?.attributeValues?.let {
+                    return it
+                }
             } else if (
                 expression is UastEmptyExpression && attributes[0].sourcePsi is PsiNameValuePair
             ) {
                 val memberValue = (attributes[0].sourcePsi as PsiNameValuePair).value
                 if (memberValue is PsiAnnotation) {
                     val annotation = memberValue.toUElement(UAnnotation::class.java)
-                    annotation?.attributeValues?.let { attributes = it }
+                    annotation?.attributeValues?.let {
+                        return it
+                    }
                 }
             }
         }
 
-        val keepFieldReferences = keepFieldReferences(annotationItem)
-        var empty = true
-        for (pair in attributes) {
-            val expression = pair.expression
-            val value = attributeString(expression, keepFieldReferences) ?: continue
-            empty = false
-            var name = pair.name
-            if (name == null) {
-                name = ANNOTATION_ATTR_VALUE // default name
-            }
+        return attributes
+    }
 
-            // Platform typedef annotations declare prefix/suffix attributes for historical reasons,
-            // and they are no longer necessary; they should also not be part of the extracted
-            // metadata.
-            if (("prefix" == name || "suffix" == name) && annotationItem.isTypeDefAnnotation()) {
-                reporter.report(
-                    Issues.SUPERFLUOUS_PREFIX,
-                    item,
-                    "Superfluous $name attribute on typedef"
-                )
-                continue
-            }
+    /**
+     * Write the annotation element to [writer].
+     *
+     * @param qualifiedName the name of the annotation class.
+     * @param attributes the attributes, as a list of name/value pairs.
+     */
+    private fun writeAnnotationElement(
+        writer: StringPrintWriter,
+        qualifiedName: String,
+        attributes: List<Pair<String, String>>
+    ) {
+        // Begin the annotation element.
+        writer.print("    <annotation name=\"")
+        writer.print(qualifiedName)
 
+        // If no attributes are provided then close it immediately.
+        if (attributes.isEmpty()) {
+            writer.print("\"/>")
+            writer.println()
+            return
+        }
+
+        // Complete the open annotation element.
+        writer.print("\">")
+        writer.println()
+
+        // Add entries for each attribute.
+        for ((name, valueString) in attributes) {
             // The value could contain fully qualified references to enum values that are in the
             // android.annotation package. If so, then replace them with references in the
             // androidx.annotation package.
-            val normalizedValue =
-                value.replace(ANDROID_ANNOTATION_PREFIX, ANDROIDX_ANNOTATION_PREFIX)
+            val normalizedValueString =
+                valueString.replace(ANDROID_ANNOTATION_PREFIX, ANDROIDX_ANNOTATION_PREFIX)
 
             writer.print("      <val name=\"")
             writer.print(name)
             writer.print("\" val=\"")
-            writer.print(escapeXml(normalizedValue))
+            writer.print(escapeXml(normalizedValueString))
             writer.println("\" />")
-        }
-
-        if (empty && attributes.isNotEmpty()) {
-            // All items were filtered out: don't write the annotation at all
-            writer.reset()
-            return
         }
 
         writer.println("    </annotation>")
