@@ -17,16 +17,21 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.LintCliClient.Companion.printWriter
-import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_READ
+import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_WRITE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -34,28 +39,26 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.psi.CodePrinter
-import com.android.tools.metalava.model.psi.uAnnotation
+import com.android.tools.metalava.model.value.AnnotationValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueStringConfiguration
+import com.android.tools.metalava.model.value.asDouble
+import com.android.tools.metalava.model.value.asLong
+import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.xml.XmlEscapers
-import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiNameValuePair
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.PrintWriter
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
-import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UCallExpression
-import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.UNamedExpression
-import org.jetbrains.uast.UastEmptyExpression
-import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.toUElement
 
 // Like the tools/base Extractor class, but limited to our own (mapped) AnnotationItems,
 // and only those with source retention (and in particular right now that just means the
@@ -72,24 +75,6 @@ class ExtractAnnotations(
     // method etc
     private val packageToAnnotationPairs =
         LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationItem>>>()
-
-    private val fieldNamePrinter =
-        CodePrinter(
-            codebase = codebase,
-            reporter = reporter,
-            filterReference = filterReference,
-            inlineFieldValues = false,
-            skipUnknown = true,
-        )
-
-    private val fieldValuePrinter =
-        CodePrinter(
-            codebase = codebase,
-            reporter = reporter,
-            filterReference = filterReference,
-            inlineFieldValues = true,
-            skipUnknown = true,
-        )
 
     private val classToAnnotationHolder = mutableMapOf<String, AnnotationItem>()
 
@@ -336,8 +321,8 @@ class ExtractAnnotations(
     }
 
     private fun writeAnnotation(writer: PrintWriter, item: Item, annotationItem: AnnotationItem) {
-        // Retrieve the attributes from the annotation item, returning if they could not be found.
-        val attributes = retrieveAttributes(annotationItem) ?: return
+        // Retrieve the attributes from the annotation item.
+        val attributes = retrieveAttributes(item, annotationItem)
 
         // Some annotations need to keep field references and some need to replace them with their
         // constant value.
@@ -346,7 +331,8 @@ class ExtractAnnotations(
         // Perform some transformations and filtering on the attributes.
         val transformedAttributes =
             attributes.mapNotNull { attribute ->
-                val name = attribute.name ?: ANNOTATION_ATTR_VALUE // default name
+                val name = attribute.name
+
                 // Platform typedef annotations declare prefix/suffix attributes for historical
                 // reasons, and they are no longer necessary; they should also not be part of the
                 // extracted metadata.
@@ -361,10 +347,51 @@ class ExtractAnnotations(
                     return@mapNotNull null
                 }
 
-                val expression = attribute.expression
-                val value =
-                    attributeString(expression, keepFieldReferences) ?: return@mapNotNull null
-                name to value
+                // Transform/filter the value.
+                val transformedValue =
+                    attribute.value.transform { value ->
+                        when (value) {
+                            // If the value is a field then it needs some additional checking.
+                            is FieldReferenceValue -> {
+                                // Make sure it can be resolved, if not report an issue.
+                                val fieldItem = value.resolve()
+                                if (fieldItem == null) {
+                                    reporter.report(
+                                        Issues.INTERNAL_ERROR,
+                                        reportable = null,
+                                        "Unexpected reference to ${value.toValueString()}",
+                                        location = annotationItem.fileLocation,
+                                    )
+                                    return@transform null
+                                }
+
+                                if (keepFieldReferences) {
+                                    // If keeping the field then make sure it can be referenced from
+                                    // the API. If not then discard it.
+                                    if (!filterReference.test(fieldItem)) {
+                                        // This field is not visible: remove from typedef
+                                        reporter.report(
+                                            Issues.HIDDEN_TYPEDEF_CONSTANT,
+                                            fieldItem,
+                                            "Typedef class references hidden field $fieldItem: removed from typedef metadata"
+                                        )
+                                        return@transform null
+                                    }
+
+                                    value
+                                } else {
+                                    value.asLiteralValue()
+                                }
+                            }
+                            // Other values can just be passed straight through.
+                            else -> value
+                        }
+                    }
+
+                // If the transformed value is null then filter it out.
+                transformedValue ?: return@mapNotNull null
+
+                name to transformedValue
             }
 
         // If an annotation had attributes, but they were all filtered out then the chances are that
@@ -380,47 +407,86 @@ class ExtractAnnotations(
     }
 
     /** Retrieve the attributes from [annotationItem]. */
-    private fun retrieveAttributes(annotationItem: AnnotationItem): List<UNamedExpression>? {
-        val uAnnotation = annotationItem.uAnnotation ?: return null
+    private fun retrieveAttributes(
+        item: Item,
+        annotationItem: AnnotationItem
+    ): List<AnnotationAttribute> {
+        val qualifiedName = annotationItem.qualifiedName
+
+        // Ensure consistent ordering.
         val attributes =
-            // Ensure consistent ordering.
-            uAnnotation.attributeValues.sortedWith(
+            annotationItem.attributes.sortedWith(
                 compareBy(
                     // Ensure that the value attribute is written first
-                    { (it.name ?: ANNOTATION_ATTR_VALUE) != ANNOTATION_ATTR_VALUE },
-                    { it.name }
+                    { it.name != ANNOTATION_ATTR_VALUE },
+                    { it.name },
                 )
             )
 
-        val qualifiedName = annotationItem.qualifiedName
-        if (attributes.size == 1 && Extractor.REQUIRES_PERMISSION.isPrefix(qualifiedName, true)) {
-            val expression = attributes[0].expression
-            if (expression is UCallExpression) {
-                // The external annotations format does not allow for nested/complex annotations.
-                // However, these special annotations (@RequiresPermission.Read,
-                // @RequiresPermission.Write, etc.) are known to only be simple containers with a
-                // single permission child, so instead we "inline" the content:
-                //  @Read(@RequiresPermission(allOf={P1,P2},conditional=true)
-                //     =>
-                //  @RequiresPermission.Read(allOf({P1,P2},conditional=true)
-                // That's setting attributes that don't actually exist on the container permission,
-                // but we'll counteract that on the read-annotations side.
-                val nestedPsi = expression.sourcePsi as? PsiAnnotation
-                val annotation =
-                    nestedPsi?.let {
-                        UastFacade.convertElement(it, expression, UAnnotation::class.java)
-                    } as? UAnnotation
-                annotation?.attributeValues?.let {
-                    return it
+        when (qualifiedName) {
+            ANDROIDX_REQUIRES_PERMISSION_READ,
+            ANDROIDX_REQUIRES_PERMISSION_WRITE -> {
+                if (attributes.size == 1) {
+                    // The external annotations format does not allow for nested/complex
+                    // annotations. However, these special annotations (@RequiresPermission.Read,
+                    // @RequiresPermission.Write) are known to only be simple containers with a
+                    // single permission child, so instead we "inline" the content:
+                    //  @Read(@RequiresPermission(allOf={P1,P2},conditional=true)
+                    //     =>
+                    //  @RequiresPermission.Read(allOf({P1,P2},conditional=true)
+                    //
+                    // That's setting attributes that don't actually exist on the container
+                    // permission, but we'll counteract that on the read-annotations side.
+                    (attributes[0].value as? AnnotationValue)?.let { value ->
+                        return value.annotationItem.attributes
+                    }
                 }
-            } else if (
-                expression is UastEmptyExpression && attributes[0].sourcePsi is PsiNameValuePair
-            ) {
-                val memberValue = (attributes[0].sourcePsi as PsiNameValuePair).value
-                if (memberValue is PsiAnnotation) {
-                    val annotation = memberValue.toUElement(UAnnotation::class.java)
-                    annotation?.attributeValues?.let {
-                        return it
+            }
+            // `@IntRange` can be used to set the range of both `int`s and `long`s. As a result its
+            // `from` and `to` attributes are `long` as that covers both types. However, it makes
+            // little sense to use `long` values when the type to which it is applied is an `int`.
+            // In that case this converts those attributes to `int`s.
+            // TODO(b/354633349): Consider moving this to annotation item creation to make the value
+            //   types appropriate for the annotated item everywhere not just here.
+            ANDROIDX_INT_RANGE -> {
+                val type = item.type()
+                if (type is PrimitiveTypeItem && type.kind == PrimitiveTypeItem.Primitive.INT) {
+                    return attributes.mapNotNull { attribute ->
+                        val name = attribute.name
+                        if (name == "from" || name == "to") {
+                            attribute.value.asLong()?.let { long ->
+                                val intValue = Value.createLiteralValue(null, long.toInt())
+                                DefaultAnnotationAttribute(
+                                    name,
+                                    intValue.provider(),
+                                    intValue.asAnnotationAttributeValue()
+                                )
+                            }
+                        } else attribute
+                    }
+                }
+            }
+            // `@FloatRange` can be used to set the range of both `float`s and `doubles`s. As a
+            // result its `from` and `to` attributes are `doubles` as that covers both types.
+            // However, it makes little sense to use `doubles` values when the type to which it is
+            // applied is a `float`. Especially given that converting a `float` to a `double` can
+            // result in a different serialized form. In that case this converts those attributes to
+            // `float`s.
+            ANDROIDX_FLOAT_RANGE -> {
+                val type = item.type()
+                if (type is PrimitiveTypeItem && type.kind == PrimitiveTypeItem.Primitive.FLOAT) {
+                    return attributes.mapNotNull { attribute ->
+                        val name = attribute.name
+                        if (name == "from" || name == "to") {
+                            attribute.value.asDouble()?.let { double ->
+                                val floatValue = Value.createLiteralValue(null, double.toFloat())
+                                DefaultAnnotationAttribute(
+                                    name,
+                                    floatValue.provider(),
+                                    floatValue.asAnnotationAttributeValue()
+                                )
+                            }
+                        } else attribute
                     }
                 }
             }
@@ -438,7 +504,7 @@ class ExtractAnnotations(
     private fun writeAnnotationElement(
         writer: PrintWriter,
         qualifiedName: String,
-        attributes: List<Pair<String, String>>
+        attributes: List<Pair<String, Value>>
     ) {
         // Begin the annotation element.
         writer.print("    <annotation name=\"")
@@ -456,7 +522,9 @@ class ExtractAnnotations(
         writer.println()
 
         // Add entries for each attribute.
-        for ((name, valueString) in attributes) {
+        for ((name, value) in attributes) {
+            val valueString = value.toValueString(EXTRACT_VALUE_STRING_CONFIGURATION)
+
             // The value could contain fully qualified references to enum values that are in the
             // android.annotation package. If so, then replace them with references in the
             // androidx.annotation package.
@@ -473,19 +541,19 @@ class ExtractAnnotations(
         writer.println("    </annotation>")
     }
 
-    private fun attributeString(value: UExpression?, keepFieldReferences: Boolean): String? {
-        val printer =
-            if (keepFieldReferences) {
-                fieldNamePrinter
-            } else {
-                fieldValuePrinter
-            }
-
-        return printer.toSourceString(value)
-    }
-
     /** Type def annotations must keep field references. */
     private fun keepFieldReferences(annotationItem: AnnotationItem): Boolean {
         return annotationItem.isTypeDefAnnotation()
+    }
+
+    companion object {
+        /**
+         * [ValueStringConfiguration] that is used when serializing [Value]s to an `annotations.xml`
+         * file.
+         */
+        private val EXTRACT_VALUE_STRING_CONFIGURATION =
+            ValueStringConfiguration(
+                unwrapSingleArrayElement = true,
+            )
     }
 }
