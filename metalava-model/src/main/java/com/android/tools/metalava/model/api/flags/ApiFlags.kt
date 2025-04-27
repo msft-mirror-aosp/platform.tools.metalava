@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.value.asString
 
 /**
  * The available set of configured [ApiFlag]s.
@@ -107,6 +108,6 @@ private constructor(
 val AnnotationItem.optionalFlagName: String?
     get() {
         if (qualifiedName != ANDROID_FLAGGED_API) return null
-        val valueAttribute = attributes.find { it.name == ANNOTATION_ATTR_VALUE } ?: return null
-        return valueAttribute.legacyValue.value() as String
+        val valueAttribute = findAttribute(ANNOTATION_ATTR_VALUE) ?: return null
+        return valueAttribute.value.asString()
     }
