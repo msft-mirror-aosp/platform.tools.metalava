@@ -88,24 +88,21 @@ internal class TurbineValue(
             Kind.PRIMITIVE -> {
                 when ((const as Value).constantTypeKind()) {
                     TurbineConstantTypeKind.FLOAT -> {
-                        val value = (const as Const.FloatValue).value()
-                        when {
-                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
-                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
+                        when (val value = (const as Const.FloatValue).value()) {
+                            Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
+                            Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
                             else -> value.toString() + "f"
                         }
                     }
                     TurbineConstantTypeKind.DOUBLE -> {
                         val value = (const as Const.DoubleValue).value()
-                        when {
-                            value == Double.POSITIVE_INFINITY ->
-                                "java.lang.Double.POSITIVE_INFINITY"
-                            value == Double.NEGATIVE_INFINITY ->
-                                "java.lang.Double.NEGATIVE_INFINITY"
+                        when (value) {
+                            Double.POSITIVE_INFINITY -> "java.lang.Double.POSITIVE_INFINITY"
+                            Double.NEGATIVE_INFINITY -> "java.lang.Double.NEGATIVE_INFINITY"
                             else -> const.toString()
                         }
                     }
-                    TurbineConstantTypeKind.BYTE -> const.getValue().toString()
+                    TurbineConstantTypeKind.BYTE -> const.value.toString()
                     else -> const.toString()
                 }
             }
@@ -153,15 +150,13 @@ internal class TurbineValue(
                     }
                     TurbineConstantTypeKind.DOUBLE -> {
                         val value = (const as Const.DoubleValue).value()
-                        when {
-                            value == Double.POSITIVE_INFINITY ->
-                                "java.lang.Double.POSITIVE_INFINITY"
-                            value == Double.NEGATIVE_INFINITY ->
-                                "java.lang.Double.NEGATIVE_INFINITY"
+                        when (value) {
+                            Double.POSITIVE_INFINITY -> "java.lang.Double.POSITIVE_INFINITY"
+                            Double.NEGATIVE_INFINITY -> "java.lang.Double.NEGATIVE_INFINITY"
                             else -> const.toString()
                         }
                     }
-                    TurbineConstantTypeKind.BYTE -> const.getValue().toString()
+                    TurbineConstantTypeKind.BYTE -> const.value.toString()
                     else -> const.toString()
                 }
             }
