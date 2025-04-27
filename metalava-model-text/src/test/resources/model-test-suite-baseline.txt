@@ -1,8 +1,3 @@
-com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with class values
-  annotation with constant literal values
-  annotation with infinity values
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[boxedInt to primitiveInt]
   Test assignability without unboxing[number to boxedInt]

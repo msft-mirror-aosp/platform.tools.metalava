@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.LegacyValueFormatter.Companion.ANNOTATION_SOURCE_FORMATTER
@@ -362,15 +363,14 @@ inline fun <reified T : Any> AnnotationItem.getAttributeValue(name: String): T? 
  */
 @PublishedApi
 internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
-    val attributeValue = findAttribute(name)?.legacyValue ?: return null
+    val attributeValue = findAttribute(name)?.value ?: return null
     val value =
         when (attributeValue) {
-            is AnnotationArrayAttributeValue ->
-                throw IllegalStateException("Annotation attribute is of type array")
-            else -> attributeValue.value()
-        } ?: return null
+            is ArrayValue -> throw IllegalStateException("Annotation attribute is of type array")
+            else -> attributeValue.asLiteralValue()?.underlyingValue ?: attributeValue
+        }
 
-    return convertValue(annotationContext, kClass, value)
+    return convertValue(kClass, value)
 }
 
 /**
@@ -396,14 +396,10 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
     name: String,
     caster: (Any) -> T
 ): List<T>? {
-    val attributeValue = findAttribute(name)?.legacyValue ?: return null
-    val values =
-        when (attributeValue) {
-            is AnnotationArrayAttributeValue -> attributeValue.values.mapNotNull { it.value() }
-            else -> listOfNotNull(attributeValue.value())
-        }
+    val attributeValue = findAttribute(name)?.value ?: return null
+    val values = attributeValue.asFlatList().map { it.asLiteralValue()?.underlyingValue ?: it }
 
-    return values.mapNotNull { convertValue(annotationContext, kClass, it) }.map { caster(it) }
+    return values.map { convertValue(kClass, it) }.map { caster(it) }
 }
 
 /**
@@ -413,11 +409,7 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
  * simply returns the value it is given. It is the caller's responsibility to actually cast the
  * returned value to the correct type.
  */
-private fun convertValue(
-    annotationContext: AnnotationContext,
-    kClass: KClass<*>,
-    value: Any
-): Any? {
+private fun convertValue(kClass: KClass<*>, value: Any): Any {
     // The value stored for number types is not always the same as the type of the annotation
     // attributes. This is for a number of reasons, e.g.
     // * In a .class file annotation values are stored in the constant pool and some number types do
@@ -441,9 +433,8 @@ private fun convertValue(
         }
     }
 
-    // TODO: Push down into the model as that is likely to be more efficient.
     if (kClass == AnnotationItem::class) {
-        return DefaultAnnotationItem.createFromSource(annotationContext, value as String)
+        return (value as AnnotationValue).annotationItem
     }
 
     return value

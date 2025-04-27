@@ -36,7 +36,7 @@ import java.lang.StringBuilder
  *
  * Legacy string representations of values are extremely inconsistent and vary by:
  * * The legacy use site, e.g. [FieldItem.writeValueWithSemicolon], [MethodItem.legacyDefaultValue],
- *   [AnnotationAttribute.legacyValue]. [AnnotationItem.toSource].
+ *   [AnnotationItem.toSource].
  * * The [ClassItem.origin], i.e. sources or jars.
  * * The source language, i.e. Kotlin or Java. Signature files are not a factor because they
  *   preserve what was written into them from sources.

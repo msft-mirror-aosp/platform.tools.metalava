@@ -39,11 +39,8 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
   Test type aliases can only be used from Kotlin[psi,kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with class values[text]
-  annotation with constant literal values[text]
   annotation with enum values[psi,java,k1]
   annotation with enum values[psi,java,k2]
-  annotation with infinity values[text]
   annotation with unknown field[turbine]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
