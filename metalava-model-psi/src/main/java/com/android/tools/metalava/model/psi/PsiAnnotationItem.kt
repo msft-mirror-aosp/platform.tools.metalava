@@ -57,9 +57,7 @@ private constructor(
         fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
         originalName = originalName,
         qualifiedName = qualifiedName,
-        attributesGetter = { annotationItem ->
-            getAnnotationAttributes(annotationContext, annotationItem, psiAnnotation)
-        },
+        attributesGetter = { getAnnotationAttributes(annotationContext, psiAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -88,25 +86,27 @@ private constructor(
     companion object {
         private fun getAnnotationAttributes(
             codebase: PsiBasedCodebase,
-            annotationItem: AnnotationItem,
             psiAnnotation: PsiAnnotation
-        ): List<AnnotationAttribute> =
-            psiAnnotation.parameterList.attributes
+        ): List<AnnotationAttribute> {
+            val annotationPsiClass = psiAnnotation.resolveAnnotationType()
+            return psiAnnotation.parameterList.attributes
                 .mapNotNull { attribute ->
                     attribute.value?.let { value ->
                         val name = attribute.name ?: ANNOTATION_ATTR_VALUE
+
                         DefaultAnnotationAttribute(
                             name,
                             codebase.valueFactory.providerForAnnotationValue(
-                                annotationItem,
+                                annotationPsiClass,
                                 name,
-                                value
+                                value,
                             ),
                             createValue(codebase, value),
                         )
                     }
                 }
                 .toList()
+        }
 
         fun create(
             codebase: PsiBasedCodebase,
