@@ -645,16 +645,6 @@ sealed interface AnnotationAttribute {
      * fields.
      */
     val value: Value
-
-    /**
-     * Return all leaf values; this flattens the complication of handling
-     * {@code @SuppressLint("warning")} and {@code @SuppressLint({"warning1","warning2"})
-     */
-    fun leafValues(): List<AnnotationAttributeValue> {
-        val result = mutableListOf<AnnotationAttributeValue>()
-        AnnotationAttributeValue.addValues(legacyValue, result)
-        return result
-    }
 }
 
 const val ANNOTATION_VALUE_FALSE = "false"
