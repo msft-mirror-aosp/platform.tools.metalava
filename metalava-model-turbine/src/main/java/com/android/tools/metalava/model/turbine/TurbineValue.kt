@@ -57,7 +57,7 @@ internal class TurbineValue(
     val expr: Expression?,
 
     /** If available, then can be used to resolve [ConstVarName] to [TypeBoundClass.FieldInfo]. */
-    val fieldResolver: TurbineFieldResolver? = null,
+    val fieldResolver: TurbineFieldResolver?,
 ) {
     /**
      * Get the source representation of this value suitable for use when writing a method's default
@@ -115,7 +115,8 @@ internal class TurbineValue(
                 // single non-array element
                 // For e.g. char[] letter() default 'a';
                 if (const.elements().count() == 1 && expr != null && expr !is ArrayInit) {
-                    TurbineValue(const.elements().single(), expr).getSourceForMethodDefault()
+                    TurbineValue(const.elements().single(), expr, fieldResolver)
+                        .getSourceForMethodDefault()
                 } else const.underlyingValue.toString()
             }
             Kind.CLASS_LITERAL -> "${const.underlyingValue}.class"
@@ -168,8 +169,14 @@ internal class TurbineValue(
                 const as ArrayInitValue
                 val values =
                     if (expr != null)
-                        const.elements().zip((expr as ArrayInit).exprs(), ::TurbineValue)
-                    else const.elements().map { TurbineValue(it, null) }
+                        const.elements().zip((expr as ArrayInit).exprs()) { const, expr ->
+                            TurbineValue(
+                                const,
+                                expr,
+                                fieldResolver,
+                            )
+                        }
+                    else const.elements().map { TurbineValue(it, null, fieldResolver) }
                 values.joinToString(prefix = "{", postfix = "}") {
                     it.getSourceForAnnotationValue()
                 }
