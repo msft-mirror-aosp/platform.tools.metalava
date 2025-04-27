@@ -725,17 +725,17 @@ class DefaultAnnotationAttribute(
     }
 
     override fun toString(): String {
-        return "$name=$legacyValue"
+        return "$name=${value.toValueString()}"
     }
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationAttribute) return false
-        return name == other.name && legacyValue == other.legacyValue
+        return name == other.name && value == other.value
     }
 
     override fun hashCode(): Int {
         var result = name.hashCode()
-        result = 31 * result + legacyValue.hashCode()
+        result = 31 * result + value.hashCode()
         return result
     }
 }
