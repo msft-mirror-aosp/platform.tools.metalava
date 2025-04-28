@@ -238,9 +238,23 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "@test.pkg.Anno(intValue = IntValue(1))",
                 ),
                 testCasesForValue(
+                    // An annotation with an explicit value attribute
                     value = annotationValueFromSource("@test.pkg.Anno(value = 1)"),
-                    expectedDefaultValueString = "@test.pkg.Anno(value = 1)",
-                    expectedDefaultDebugString = "@test.pkg.Anno(value = IntValue(1))",
+                    expectedDefaultValueString = "@test.pkg.Anno(1)",
+                    expectedDefaultDebugString = "@test.pkg.Anno(IntValue(1))",
+                ),
+                testCasesForValue(
+                    // An annotation with an implicit value attribute
+                    value = annotationValueFromSource("@test.pkg.Anno(1)"),
+                    expectedDefaultValueString = "@test.pkg.Anno(1)",
+                    expectedDefaultDebugString = "@test.pkg.Anno(IntValue(1))",
+                ),
+                testCasesForValue(
+                    // An annotation with an explicit value attribute and another attribute.
+                    value = annotationValueFromSource("@test.pkg.Anno(value = 1, intValue = 3)"),
+                    expectedDefaultValueString = "@test.pkg.Anno(intValue = 3, value = 1)",
+                    expectedDefaultDebugString =
+                        "@test.pkg.Anno(intValue = IntValue(3), value = IntValue(1))",
                 ),
                 testCasesForValue(
                     // Create an annotation with attribute in non-alphabetical order.

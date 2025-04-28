@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
@@ -608,13 +609,25 @@ sealed interface AnnotationValue : ArrayElementValue {
         val attributes = annotationItem.attributes
         if (attributes.isNotEmpty()) {
             builder.append("(")
-            var separator = ""
-            for (attribute in attributes.sortedBy { it.name }) {
-                builder.append(separator).append(attribute.name).append(" = ")
 
-                configuration.appendNestedValueTo(builder, attribute.value)
-                separator = ", "
+            val singleAttribute = attributes.singleOrNull()
+            if (singleAttribute == null) {
+                var separator = ""
+                for (attribute in attributes.sortedBy { it.name }) {
+                    builder.append(separator)
+                    builder.append(attribute.name).append(" = ")
+                    configuration.appendNestedValueTo(builder, attribute.value)
+                    separator = ", "
+                }
+            } else {
+                // A single attribute whose attribute name is "value" can just use the value.
+                val name = singleAttribute.name
+                if (name != ANNOTATION_ATTR_VALUE) {
+                    builder.append(name).append(" = ")
+                }
+                configuration.appendNestedValueTo(builder, singleAttribute.value)
             }
+
             builder.append(")")
         }
     }
