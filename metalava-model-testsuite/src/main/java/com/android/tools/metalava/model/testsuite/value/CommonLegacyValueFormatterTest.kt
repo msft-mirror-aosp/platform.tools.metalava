@@ -27,6 +27,8 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.value.LegacyValueFormatter
@@ -203,12 +205,53 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 Settings(
                     stringReplacement =
                         mapOf(
-                            DOUBLE_NAN to "Double Not A Number",
+                            DOUBLE_NAN to "NOT_A_NUMBER",
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
             val actual = formatter.format(DOUBLE_NAN, field)
-            assertEquals("Double Not A Number", actual)
+            assertEquals("NOT_A_NUMBER", actual)
+        }
+    }
+
+    @Test
+    fun `Test replacement values in array - replaces`() {
+        checkFormatting {
+            val settings =
+                Settings(
+                    stringReplacement =
+                        mapOf(
+                            DOUBLE_NAN to "NOT_A_NUMBER",
+                        )
+                )
+            val formatter = LegacyValueFormatter(settings)
+            val actual = formatter.format(arrayValue(DOUBLE_NAN), field)
+            // TODO(b/354633349): Values are not being replaced in an array.
+            assertEquals("{(0.0/0.0)}", actual)
+        }
+    }
+
+    @Test
+    fun `Test replacement values in annotation - replaces`() {
+        checkFormatting {
+            val settings =
+                Settings(
+                    stringReplacement =
+                        mapOf(
+                            DOUBLE_NAN to "NOT_A_NUMBER",
+                        )
+                )
+            val formatter = LegacyValueFormatter(settings)
+            val actual =
+                formatter.format(
+                    annotationValue(
+                        "test.pkg.Anno",
+                        "other" to DOUBLE_NAN,
+                    ),
+                    field
+                )
+            // TODO(b/354633349): Values are not being replaced in an annotation.
+            assertEquals("@test.pkg.Anno(other = (0.0/0.0))", actual)
         }
     }
 
@@ -219,7 +262,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 Settings(
                     stringReplacement =
                         mapOf(
-                            DOUBLE_NAN to "Double Not A Number",
+                            DOUBLE_NAN to "NOT_A_NUMBER",
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
