@@ -625,4 +625,340 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(barClass.methods()).hasSize(2)
         }
     }
+
+    @Test
+    fun `Test functions returning value class types and visibility`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        @JvmInline
+                        value class IntValue(val intValue: Int)
+
+                        open class Foo {
+                            fun publicValueClassFunction() = IntValue(0)
+                            protected fun protectedValueClassFunction() = IntValue(0)
+                            @PublishedApi internal fun internalValueClassFunction() = IntValue(0)
+                            private fun privateValueClassFunction() = IntValue(0)
+                        }
+                        """
+                )
+            ),
+            // Compiled from the Kotlin source file above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31WeTjUaxv+YRqEaEyNpbJLNDMmWSYUacRMlpElMWosY5kx" +
+                        "k4xiThsijl1lK04bp7JMYx/78iGyJjEkhHDsJTKO8el81/V96vrqea/7v/e5" +
+                        "3+t9rue578caJwCCAkJCQgAAKABbAwqAAAuMrTHc3NIUaWFsaW6KOW2LsDDl" +
+                        "tQDAZ4vWV6dwcESXGA6u3t7aUWCj+UZrePwiAmtx0NyiK+B5oc0CFu6njm1t" +
+                        "1bBfaEc2N7eOjn8Y5wescYJCTMkDTPTmA7qbsP7p87BN0D386cgLZE+kOZVu" +
+                        "T6QEeCDcKER//6u2g6dl7aAbg/eYbaTge502+Q+WTQZuxqk2nM2GPrEmw0zw" +
+                        "T/G/I3F9wiLNqiTdU3JB3dU1gufoS7WwfXTTYJbWjte6G6pNi+/aVInHG1PT" +
+                        "1/zmVtfb2dX+c7z1ebnr/KVRSOnEjHEGm+uC9tRz6co5nCslFdqnvdLm3EBv" +
+                        "YffkErLHGiRcze7AmbONEi3uYuCGOamUhwpglR2xeiZ9AyxC+EhdmFCBqICL" +
+                        "7yC5zzKoP++thmiylmlxZwzniFK1RmVxQxaBUyyDEkWdkOuLnW1bS4VqKyfY" +
+                        "KGi2xvucbCm8fe/0hVSAVElFD4h2p0bVIhrFXdt8SkPw5ukkqfnkyaAm1JQe" +
+                        "Ym8yb2gxYOorWLgvKWTEJitOSCZvpGyp0jgtLeaiSz0AtoOsqk6VupXp44p8" +
+                        "NTpRp6bw+ETC7sQ6dVytqprtgFM9NF9dFZWroOSwB63O/GLXnVPK12PWqLZ0" +
+                        "qZayjA7tpxf7IK8gxWhK6l2XpRW1aU0+8V9h+CdXos7uLpN7Fq6fkmAwX5Jn" +
+                        "bbszKQyamTbKiCE1Z2uHFN65RDlWT/ljLjF9wSjR8EnSO8/OdoKGVRBJ1MQl" +
+                        "tHf+JTE8cPtv2kxXffbgug81qNpHrzCBkEaRyzmTwfZlqHICA46diLvVrIAQ" +
+                        "tL5jmF/9YjyWf8FXkTe1NFzWcpLd0jAVjJWD/d5yV6hNOO3xYfHXrXcLmDBT" +
+                        "K3FSYAZ8R+ajkGkDuSNrKBn7OsX8HJGw5UVpzFNG4J1xzm2HoWJLyeNOu12N" +
+                        "GLdjVouNjwuhTuh0sVQwPnAO0U5N0jDnBGZmRrbR4zn9apnRI/j7WcM4dXmn" +
+                        "m8SnRuoGvvYlOY1a/tmuza/fYkmZXjoUtni0wHSGY78TarrWhcDUllWZZsF1" +
+                        "p4qyRjl22V7lOulH6ffTPBk6dnfV25+9PMTA8rS9VERgxncOYvrHn7w4fFL1" +
+                        "WijDTCS2wzua2yhRtcBXJQApfOTz8vLOG0MqtKCka8Isv2jcswSlSe5OF0mO" +
+                        "krNh3b3qrwnlyt4V4xM1Y2QRMypYWu1QqOS7vxrU0muWwvlbYy695QpT5ZYB" +
+                        "xXT50+nkZVDzimuZ8WQkKMWuLJ2ic/UTcmFeQnivZUaI3Eg6+urfv7HFSpb6" +
+                        "H6DA+zYEQ+EtOw9BDpqZ5M0l2B4KXgtEyicHJLj4pXaOCZPKpYuGF+WV2J9G" +
+                        "Ql7BYDUTAqVH/KLZkayhh7z+kktwRFF9JteiJsK/Suljj5Fs3srzOie40uuv" +
+                        "gEjwCtw1yXMxeViWi9r92/SupkRxbEu1Pa2yn9DIpdvLxC0QO9Yh3D7xiLDr" +
+                        "pnpvdukfd0Xe71UPbgp+I3xlbChulD3Pk9bxfv+wRzJNLARBU3QfdhPYJqAR" +
+                        "iMXlyHwF/UENYZ+p56qGE7wQGeyI1dGKqJyoiKinUWtV4/sqNWBaiCxnd2fn" +
+                        "zzECCPCGwDf1kT53swINAoAlwV+pD2Sr+pjSaP8RnpjTHVaSeAnee3L5IFWE" +
+                        "4l3Lz3swLG5EFFnMQhlDPqQ9Alsg97QWD9Y8HhgkDZFHWYvH8EwXA3ODFDCN" +
+                        "h2/k2ETfteHUV6SufryXqktbnmDShvgMbjbE4/Ns7bP9vGbBxpDoWoNLR2LH" +
+                        "0byHX/IZM29tISjwLGshjFEn4eSY6x5/gyQfq2zivFe4WdORp9+lFN5gX/5X" +
+                        "5NmGxf652Akz9sAyGQvica9llq0WV/VaeWi5b0j4nvtSfzvlgY5PMNKuL++Z" +
+                        "vDOsLelkpv2MnX7ogRSwaoLHGWpY8KMdg9zSQ7g6B+qk/vvSB6kXlawzFnId" +
+                        "8AOfXubSSkCEx33bMU34OT3q8v3yCfU/59RuBVZwIruiHZVtEgABcvxGekQO" +
+                        "xPuLRbhVJfX98DbqhYJe7dL2DlFCr6dI5dxuJOvPyO44Gd3Vz9JaOh24Rc+Z" +
+                        "JuHpAHNN/g+MujdC2GWFo6JTV9V6bn2ojze2bj91slMzHlXUvWJgAYfG3LzG" +
+                        "HSFFYnKprEn+z8lWiQoOVQvxh2+xcRNNLzQ/rkptT4ZLmHArakxNus7OgAKS" +
+                        "ic8PXlnBlDsG1Ota9ih10NFPMZXhivmC7WHrxcwT3UXrsfEhzgNVcmr7safI" +
+                        "lIod/cS2wV34yXfyhRcVJDAXzm5M4jqdJ2nybGzSLkP/McLa9nWRA3vIykVa" +
+                        "++dut4ouQUWPFJitGJqM9QlnHdsweWsa//klIeb+Hke01T7e9fyjIX+fv9He" +
+                        "iY7hZAckyCREuFUiHV4YTxwl9gpp7JEnubU3VsRsc96/S5fy7l+5ApqRGKi4" +
+                        "pgLR7KC5F+QVpETlE0Q6Uh9SALmschGyovy6mu9bz9bHBQ7T+QFgFvSrnpXd" +
+                        "xH8N25foTUWQaXSKN/WcL809gOLhdv78edImQK6WYDVr105X4B83/qJYUSm5" +
+                        "mSn1jxvz8UOB/7Fvdepv68D38bPl4EeWrRMH+47h+s89/keSrSWAfEeyDvp/" +
+                        "o/pj/tZvyn6XzxL8ZdmscdvA366BNg+UDwDEvvEB/wY/8WT0NwkAAA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val publicMangledMethod = fooClass.assertMethod("publicValueClassFunction-RVb1_dM", "")
+            assertThat(publicMangledMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(publicMangledMethod.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+            publicMangledMethod.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            }
+
+            val protectedMangledMethod =
+                fooClass.assertMethod("protectedValueClassFunction-RVb1_dM", "")
+            assertThat(protectedMangledMethod.targetLanguages)
+                .containsExactly(TargetLanguage.BYTECODE)
+            assertThat(protectedMangledMethod.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PROTECTED)
+            protectedMangledMethod.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            }
+
+            val internalMangledMethod =
+                fooClass.assertMethod("internalValueClassFunction-RVb1_dM", "")
+            assertThat(internalMangledMethod.targetLanguages)
+                .containsExactly(TargetLanguage.BYTECODE)
+            assertThat(internalMangledMethod.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+            internalMangledMethod.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            }
+
+            // There isn't a private mangled method since those don't need to be tracked.
+
+            // TODO(b/407735992): non-mangled methods should be kotlin only and have IntValue return
+            // type instead of int
+            fooClass.assertMethod("publicValueClassFunction", "")
+            fooClass.assertMethod("protectedValueClassFunction", "")
+            fooClass.assertMethod("internalValueClassFunction", "")
+            fooClass.assertMethod("privateValueClassFunction", "")
+
+            assertThat(fooClass.methods()).hasSize(7)
+        }
+    }
+
+    @Test
+    fun `Test internal visibility value class constructor`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline
+                    value class IntValue internal constructor(val v: Int)
+                    """
+                ),
+            ),
+            // Compiled from the Kotlin source file above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9OBCX" +
+                        "pBaX6Bdkp+t75pWEJeaUpuol5yQWF9eG3A2WDhX5f3f2+rNpjbMvBG1a8M35" +
+                        "dku/2tGo1SJLFmztXhi6IvDUZaGyQ06bOm/6Luvf8zL+QbO+ld0Lbn6r4MaN" +
+                        "xnyPZtdPflzxLm2ygeJjnyL7c7b771t+Lz93d///v3/5Gco3Hp3wRef66avf" +
+                        "T1se/tiVtjTz6AGJI/NuGhWLXtZ8Pi/vfaSqfpuA846cSte2ALVsgw1if3l5" +
+                        "DTUKC468vHF7a2zbxUOs5yrbFNdve2ias9wmO/y1aNtpSeXoF66Z8yfen1p3" +
+                        "u+jyujcRvRJuEov4c45/E/sr0iU1yWOlgESqR4lSahQ3l97k5ZHro8/xHc55" +
+                        "ljSlu7FZ4bPUuoSYomWSauypFfcKnaz8vI5P/V9eE2u17+CCEpOEHVMkC6p5" +
+                        "rxfE/rqnYHjWzXJ9IsdhrZXVk1numN69O/VWnyiHxLIvK3hOynFnJkxdGhQs" +
+                        "surx2kS2SNHLM65OmKjdJ/MytfaqiXaeg+k0Q66/rPPP26UHzD5X9rb1/dKH" +
+                        "uS6qv/Sclzx7G8XbdsVVRPP+smmici6rHvI9Uzn/+622SGhLKqvrymc74hZH" +
+                        "fsrqVdBdKnz7vIH1grUp3DYTUvgltxSHnwrukzw8IfzBV+uiGcp9h+rOrr7h" +
+                        "l7c+9OzabavanKVvzjp57uCspzOtl6VP6g2PVqxS9uErtGzYVTv/jX7OzsUM" +
+                        "Ne0d9Va2O9Z9KlxXVFi14FI/t+tTr5ZnLGcDZ7VnPjt187r34+XsxTbnp00+" +
+                        "9dJRS2vHuc8LN8svTlTVUVq9KyBDfn5wy6r245HzbP+9vv0t0yljtROPZ/4m" +
+                        "w/tmPhyKbifUdm1b4rFWffcaLtXF7VNXdMytPbzjzDSRAzvbi6rvL2Y6wZco" +
+                        "oTlBwH/W1dzVH8/cWRexadPWSZGas3ij3zE/vtCWPu3b9TNVG8LNs866naxK" +
+                        "Oe1btfdlRdlVrVvrfJfzyy5/NnOer+vSpuJVG3vmTYrnjjq5y1VA9fTzLac9" +
+                        "czP7fPa2VHlw9yn1Bt6XOCRud6DcoSksROCnDtOH3U90z19ar2DWX6hpWsYS" +
+                        "a38oW6m6ZbV7xWdx+6J+ld7tf2Rm1OQwnjyrwOyaVtAU/VdiqfSMeQENOy+e" +
+                        "jLI/+PawncMS6ZRl1Wf3Kfys89Hn2DuB4fOUPPXfvvP/Cf+xdnFqv7z8gXtF" +
+                        "uuP8P3F5h3P37ltiyCb3n/1w7ilDIyEdD+d17yaGGDX+rtBXmF46Ma5w5oUv" +
+                        "nM+qJbc+/KigvPPTw6bT7OIHxJl3WJX2tK7svL/gn9WGsly9raeX/vI90FG8" +
+                        "UfvZVQfpdd9XH7qtq3zpB4N343fdpGnpH8MfzP5lOO33a1F+B8+fF1+tD19+" +
+                        "+kbDOa9kVvlvd/UX+v9piPiR3uJsu1FZ5dulyrVCPzQmWDW6//trYVb7Pb3C" +
+                        "77PeWrtlPw0de3VbeNZI/TjiwJi95Yhwc9bfl2Izus9v2NcaKD6rm1fcsD6m" +
+                        "ZGKpYKFgaeH97XcWlz9NOne0p7unO3tf4YmjH+pBpc6WtUpvDVkYGO6x4yt1" +
+                        "pIEYXujlJmbm6WXnl+Rk5sXn5qeU5qQmJyQkpAExS5Ifm0ZA0oUkBnCJ9lVp" +
+                        "z15hoE4JcInGyCTCgDAdubQDFamoAFcBi24KsuvFUUyox11OohuC7ExpFEO+" +
+                        "suD1doA3KxtIGTMQXgHSgawgHgAluPxSOwYAAA=="
+                )
+        ) {
+            val intValue = codebase.assertClass("test.pkg.IntValue")
+
+            val ctorImpl = intValue.assertMethod("constructor-impl", "int")
+            assertThat(ctorImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(ctorImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
+
+            // TODO(b/407735992): constructor itself should be Kotlin only
+            intValue.assertConstructor("int")
+        }
+    }
+
+    @Test
+    fun `Test properties of value class types and visibility`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        @JvmInline
+                        value class IntValue(val intValue: Int)
+
+                        open class Foo {
+                            var publicValueClassProperty = IntValue(0)
+                            protected var protectedValueClassProperty = IntValue(0)
+                            @PublishedApi internal var internalValueClassProperty = IntValue(0)
+                        }
+                        """
+                )
+            ),
+            // Compiled from the Kotlin source file above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/32WeTTUex/Hf7YxsjOMpe5YMkfDjBCZJCTbiOwtIjMyZQzu" +
+                        "ZAhR1/rIRNlDlC4elQhDZrJFTMYQiowl+40kuxjb1X3OeR51nvp8z/u/7+f9" +
+                        "Pd/POZ/3edla8fBCADAYDACAIrC7IAAvYG3qaIy0tDHTsDa2sTQzdXBEWZtt" +
+                        "MQFg0ZrVetIKieoUtkIi2llvyu0PvtMenriCwlirW1p3Bjym2s9hkCQEhsVS" +
+                        "c55r12hpYY1NjE5wA7ZW/OASyQMl6J0HDu/I9qfPQ3dE9vQna/zufUnD0pfs" +
+                        "jCUGeKI8iFh//zDHQQd5J8j2YFZJGz48q8O+7MGKSX/UbXjTuSeQPFtvqIld" +
+                        "oV2chlWvgGALHH/4JCz4bV09/wXy0kvob2Sz8FJtka7D23DG/EAbHHu8OSN7" +
+                        "nfRlbbOdVuf/ZWtzFnaDu4qiIZuUMxFC47ihL+m5dRYdeiojE9mr87XtfBOZ" +
+                        "Set+6vpkvEkMZ5GCLJlpFmNeFAY1fZG5m6sIUhFJ0DPp7S91jRlpiAaXC/G4" +
+                        "+Qx699oE9xX3qAmla5tVdsSzjyjXqdVUNhW4sivlNIU0T8B6E2ba1jMgOvsT" +
+                        "7RUPsu4QzJnU5CyH3zMAfI0vul/obQblJapZFNdGqIqws8zGy8ymTwYzNKf0" +
+                        "UPvSt4bmA6ZWQQK9aREj9gW3wXLFI/SlGuPMzPgrbo0AyEliDT5V5UHXt6rw" +
+                        "UevQPDllZ5fkKp3UgLB6CVd17HdphJQh4JpPFZVP70UjSpad3hZVcXVbNKsu" +
+                        "Bb4krqAj+8iVBI1QDWE/ZUTnVVklHT8G4c4q1C4vlHJOmg57FKN/N/Ho7PNi" +
+                        "W0fxtGhIfuZYSDy+5YlOBDUlkGjYSLz/JSl7zijJIC9t4FJHu6vaqWC8kIlb" +
+                        "5PvZ19iYoD3XdEpw+rTBTYJvcB1Bj5romkmEFZ3JofmEwNlBAYYnbv+rRRHF" +
+                        "b5tiUFb3bCKBe85HaWtqaZjONKcxm6bCMTBoHDMV3CaQ+ech0S5WankJ1OyU" +
+                        "KD4oBymS/zBi+ijsyLqmnHODUlmRYPTKvKxpYUhQygQ7+fRQpY3kcRdpnFFI" +
+                        "cvxapfFxsOYJ3c5SFVMCko11UpU0KDph+vmzfLPnY3IY3egh8sOMwW2EgksU" +
+                        "ttAIcdTH+XlRs7b/E1xLVw8Gn39Zl0gTvcUznXO2z0Vz+qWba4mOvMp0KfLw" +
+                        "VEXBGNvpyeUXutnHyPcyL4XoOqUi2h+91grBbOlcVhGEGqeom/ZN5D07ZA6/" +
+                        "HhliIZjwxusWp1msdo6rlkeC+pDw+qr4H0MqfsFp1wVKSbesHiUqT3LE3STZ" +
+                        "yucNGrLqVhNf7PeqnvhYP+4taOELklXVipQc+NSkml2/FMPNig/s4Qj4wlYA" +
+                        "pWwFh2zvFd6Wrzi68eRN3rtO9GyibtiCxtysmMA+m5wI2Eg2OmzjGk34+VLf" +
+                        "A03Qb9v8kUimuJaEuoVJ8ZdER63w9SANhfSARDdSRse4AP6FbMXwvIIybWEk" +
+                        "ohUKrf/IU3WEdIt2s3Qod6vveSASVdGYz7Guj/WvVf6r20i++OvjBhekctcq" +
+                        "IBj+FYlLuzSfPizP0ZS+Ni3FSBLFMOuc/Wr6XJs5ZGe523PYN5sSnF7R2Ogb" +
+                        "ZnrvpPSP4zTuvUeEM8LfCYSOD90eo81uyep6fcjtlswUjkD5KV0c9uDh41EL" +
+                        "wlgVya3y3veNoJ1p5MBjXC+jcmixa2PVlCJKLKWQsl478VuNGlQbVXD+4vnz" +
+                        "i/E8KNA2z7f0kb0QVY3mBYAl/l+lj8Tu9DHz8/tP8MQ7Dp3qd4ZsFS82JmgO" +
+                        "zykLW+amcEdCLNyJM3QC0vPxxQMzCF3P1Du66Jt8Ma8SQv1krrUWeG0zOAPQ" +
+                        "PJunKwdN2f1bhQRGoIXs3cK00PYaxtDal6vtNe+3a7en/YD+1SRjSWloU8+8" +
+                        "8fyjaaa7ECcxGCctX+Bvu1EQcrE76paMyULuTO+oWkwvk2Bqwm0pRXotNMUV" +
+                        "PhIbx77somX/yt5/H6o60LrqA32QqCMzqtb8OBfLm7lH6k8htvOLvmfexl2+" +
+                        "jeMb0R8r1U9tsOrBeiIGfAJeMaGt/nwHSj+dLpWDmwxATNoDoybQeOU9aQLY" +
+                        "wxaxelR045k13Mw7ij5/WhApPm+5BhOwyOCUP+ACYdfEiBPUNYepJT11WoOC" +
+                        "4f4ljvKnD2V1r5abQs94Zojyi6SdUTIb6yszFEPN51ZxDf1lPo/MTBjb49BL" +
+                        "bRV6O+Fx+hDx3zLkKNi55ew0a2Hr+4z7ZxuKshry7r47erNzxKPWcg1E7acW" +
+                        "kwnr5RLxn7KEBn0vYVLLkhBTgwmIA/Z6dodUkmcCK/MkriVN1mAwdOrzAsYV" +
+                        "+wPX6/qDB2aqP29qrbzR75m5g+V9LRZ+RPy0BD2Fombp6harFpfT59JhvpGX" +
+                        "XjO0xf8+TI+rAtCTAxjHh2cT6+eBwulHH0q6YjNtQ26wUmWmqmfelzZtfIK3" +
+                        "ni4GL2PHQ6tJ6pMPPtMDKNhqon7PYmA5IXgooxtkCmf6tg2B36x83HzAqehe" +
+                        "KMq0NI9EMdz6xQPfat2TzOpfCvs42lM4RPcpwRtUbFZnHKNe4YvtJ+uMvtuW" +
+                        "CaYHHUraoEitnhyWQkQXG7B9MsNOkR6LlEc/t91TelVmXVIyzHDwK7tcYVO7" +
+                        "TBbDV0NS6lDwiJv07drwjyMoiuPvKN83y6mNokA2y0c+Sn1wH13+Q12WNxma" +
+                        "JBk5fpa1nAwTO7dAij5qqU9htUfFXq80pJtWaCUdhh3AccrA6OOvIDra9q+W" +
+                        "PMUXbMW91E/EvXaTzj0ROGpDjf3sKc48KL7Uej6PpD4sa7r6rLx+UPDz5rFO" +
+                        "e6N1U3fDfJVwmCr9ZMQxtjmrPi7ciYdvIF+xR6jIwwN2y8EzPywPfWVv1l7L" +
+                        "BCGGNEOJwc2wtjE8xyJN7k3eu0i2QTejF/aWb3N928pCHbqXMw8ANIN+tZXy" +
+                        "O/ovkvhgvXxR3n5kopfvBR+/iwFETw93d3f8jnhxNiBVW1wHDviHN5aVqmsk" +
+                        "dzpl/uENLm4I8D/33SzyDXi+r5/hz48uuzMF+p3DjZ9TzI8mu0cg8Z3JJu//" +
+                        "C6Mf+3d/U/67/mTwL8dma8UH+naNd+dAuABg9psf8De6dQ/VGQoAAA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val publicMangledGetter =
+                fooClass.assertMethod("getPublicValueClassProperty-RVb1_dM", "")
+            assertThat(publicMangledGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(publicMangledGetter.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+            publicMangledGetter.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            }
+            val publicMangledSetter =
+                fooClass.assertMethod("setPublicValueClassProperty-Vxmw0xk", "int")
+            assertThat(publicMangledSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(publicMangledSetter.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+            publicMangledSetter.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+
+            val protectedMangledGetter =
+                fooClass.assertMethod("getProtectedValueClassProperty-RVb1_dM", "")
+            assertThat(protectedMangledGetter.targetLanguages)
+                .containsExactly(TargetLanguage.BYTECODE)
+            assertThat(protectedMangledGetter.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PROTECTED)
+            protectedMangledGetter.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            }
+            val protectedMangledSetter =
+                fooClass.assertMethod("setProtectedValueClassProperty-Vxmw0xk", "int")
+            assertThat(protectedMangledSetter.targetLanguages)
+                .containsExactly(TargetLanguage.BYTECODE)
+            assertThat(protectedMangledSetter.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PROTECTED)
+            protectedMangledSetter.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+
+            val internalMangledGetter =
+                fooClass.assertMethod("getInternalValueClassProperty-RVb1_dM", "")
+            assertThat(internalMangledGetter.targetLanguages)
+                .containsExactly(TargetLanguage.BYTECODE)
+            assertThat(internalMangledGetter.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+            internalMangledGetter.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            }
+            val internalMangledSetter =
+                fooClass.assertMethod("setInternalValueClassProperty-Vxmw0xk", "int")
+            assertThat(internalMangledSetter.targetLanguages)
+                .containsExactly(TargetLanguage.BYTECODE)
+            assertThat(internalMangledSetter.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+            internalMangledSetter.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+
+            // TODO(b/407735992): non-mangled accessors should be kotlin only and use IntValue
+            // type instead of int
+            fooClass.assertMethod("getPublicValueClassProperty", "")
+            fooClass.assertMethod("setPublicValueClassProperty", "int")
+            fooClass.assertMethod("getProtectedValueClassProperty", "")
+            fooClass.assertMethod("setProtectedValueClassProperty", "int")
+            // TODO(b/407735992): name in psi is different between k1 and k2 (k2 has mangled suffix
+            // with $)
+            fooClass.methods().single {
+                it.name() == "getInternalValueClassProperty" ||
+                    it.name().startsWith("getInternalValueClassProperty\$")
+            }
+            fooClass.methods().single {
+                it.name() == "setInternalValueClassProperty" ||
+                    it.name().startsWith("setInternalValueClassProperty\$")
+            }
+
+            assertThat(fooClass.methods()).hasSize(12)
+        }
+    }
 }
