@@ -229,6 +229,8 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * Configuration options for how to represent a value as a string.
  *
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
+ * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
+ *   they were added.
  * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
  *   `int` if it was originally specified as an `int`.
  * @param unwrapSingleArrayElement Whether to add braces around an array that contains only a single
@@ -237,6 +239,7 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 data class ValueStringConfiguration(
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
+    val sortAnnotationAttributes: Boolean = true,
     val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
     val unwrapSingleArrayElement: Boolean = false,
 ) {
@@ -613,7 +616,13 @@ sealed interface AnnotationValue : ArrayElementValue {
             val singleAttribute = attributes.singleOrNull()
             if (singleAttribute == null) {
                 var separator = ""
-                for (attribute in attributes.sortedBy { it.name }) {
+
+                // Get the attributes in the correct order.
+                val orderedAttributes =
+                    if (configuration.sortAnnotationAttributes) attributes.sortedBy { it.name }
+                    else attributes
+
+                for (attribute in orderedAttributes) {
                     builder.append(separator)
                     builder.append(attribute.name).append(" = ")
                     configuration.appendNestedValueTo(builder, attribute.value)

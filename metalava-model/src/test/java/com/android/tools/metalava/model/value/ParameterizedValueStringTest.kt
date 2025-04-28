@@ -121,6 +121,12 @@ class ParameterizedValueStringTest {
                     ),
                 )
 
+            val UNSORTED_ATTRIBUTES =
+                LabelledConfig(
+                    "unsorted",
+                    ValueStringConfiguration(sortAnnotationAttributes = false)
+                )
+
             val UNWRAP_SINGLE_ARRAY_ELEMENT =
                 LabelledConfig("unwrap", ValueStringConfiguration(unwrapSingleArrayElement = true))
         }
@@ -255,7 +261,12 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "@test.pkg.Anno(intValue = 3, value = 1)",
                     expectedDefaultDebugString =
                         "@test.pkg.Anno(intValue = IntValue(3), value = IntValue(1))",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.UNSORTED_ATTRIBUTES,
+                        "@test.pkg.Anno(value = 1, intValue = 3)"
+                    )
+                },
                 testCasesForValue(
                     // Create an annotation with attribute in non-alphabetical order.
                     value =
@@ -263,7 +274,12 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "@test.pkg.Anno(intValue = 1, longValue = 1L)",
                     expectedDefaultDebugString =
                         "@test.pkg.Anno(intValue = IntValue(1), longValue = LongValue(1L))",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.UNSORTED_ATTRIBUTES,
+                        "@test.pkg.Anno(longValue = 1L, intValue = 1)"
+                    )
+                },
                 testCasesForValue(
                     value =
                         annotationValue(
