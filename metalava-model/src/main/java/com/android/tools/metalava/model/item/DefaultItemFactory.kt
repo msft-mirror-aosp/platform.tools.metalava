@@ -200,7 +200,7 @@ class DefaultItemFactory(
         throwsTypes: List<ExceptionTypeItem>,
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         defaultValueProvider: OptionalValueProvider?,
-        annotationDefault: String,
+        annotationDefault: String? = null,
     ): MethodItem =
         DefaultMethodItem(
             codebase,

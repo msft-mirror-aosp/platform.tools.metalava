@@ -153,4 +153,101 @@ class LegacyValueFormatter(
         // Fallback to just using the default value representation according to the settings.
         value.appendValueStringTo(builder, settings.boundConfiguration)
     }
+
+    companion object {
+        /** Setting for formatting [MethodItem.defaultValue] from Java sources. */
+        private val ATTRIBUTE_DEFAULT_JAVA_SETTINGS =
+            Settings(
+                valueStringConfiguration =
+                    ValueStringConfiguration(
+                        // Annotation attributes are not sorted in the default values.
+                        sortAnnotationAttributes = false,
+
+                        // In the source, values that were written as ints were formatted as ints
+                        // even if they were `double`, `float`, or `long`.
+                        treatAsIntIfOriginallySpecifiedAsInt = true,
+
+                        // Unwrap a single array element when formatting a value from source as they
+                        // were unwrapped in the source.
+                        unwrapSingleArrayElement = true,
+                    ),
+                stringReplacement =
+                    mapOf(
+                        DoubleValue.NaN to "java.lang.Double.NaN",
+                        DoubleValue.NEGATIVE_INFINITY to "java.lang.Double.NEGATIVE_INFINITY",
+                        DoubleValue.POSITIVE_INFINITY to "java.lang.Double.POSITIVE_INFINITY",
+                        FloatValue.NaN to "java.lang.Float.NaN",
+                        FloatValue.NEGATIVE_INFINITY to "java.lang.Float.NEGATIVE_INFINITY",
+                        FloatValue.POSITIVE_INFINITY to "java.lang.Float.POSITIVE_INFINITY",
+                    )
+            )
+
+        /** Setting for formatting [MethodItem.defaultValue] from Kotlin sources. */
+        private val ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS =
+            Settings(
+                valueStringConfiguration =
+                    ValueStringConfiguration(
+                        // Annotation attributes are not sorted in the default values.
+                        sortAnnotationAttributes = false,
+
+                        // In the source, values that were written as ints were formatted as ints
+                        // even if they were `double`, `float`, or `long`.
+                        treatAsIntIfOriginallySpecifiedAsInt = true,
+
+                        // Unwrap a single array element when formatting a value from source as they
+                        // were unwrapped in the source.
+                        unwrapSingleArrayElement = true,
+                    ),
+                stringReplacement =
+                    mapOf(
+                        DoubleValue.NaN to "kotlin.jvm.internal.DoubleCompanionObject.NaN",
+                        DoubleValue.NEGATIVE_INFINITY to
+                            "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY",
+                        DoubleValue.POSITIVE_INFINITY to
+                            "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY",
+                        FloatValue.NaN to "kotlin.jvm.internal.FloatCompanionObject.NaN",
+                        FloatValue.NEGATIVE_INFINITY to
+                            "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
+                        FloatValue.POSITIVE_INFINITY to
+                            "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY",
+                    )
+            )
+
+        /** Setting for formatting [MethodItem.defaultValue] from Jar classes. */
+        private val ATTRIBUTE_DEFAULT_JAR_SETTINGS =
+            Settings(
+                valueStringConfiguration =
+                    ValueStringConfiguration(
+                        // Annotation attributes are not sorted in the default values.
+                        sortAnnotationAttributes = false,
+
+                        // In the jar, values are always stored as their actual type so were never
+                        // represented as an int.
+                        treatAsIntIfOriginallySpecifiedAsInt = false,
+
+                        // Do not unwrap a single array element when formatting a value from a jar
+                        // as they were never unwrapped.
+                        unwrapSingleArrayElement = false,
+                    ),
+                // In the jar file special values were always stored as their constant value so they
+                // were never formatted as their fields.
+                stringReplacement =
+                    mapOf(
+                        DoubleValue.NaN to "(0.0/0.0)",
+                        DoubleValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
+                        DoubleValue.POSITIVE_INFINITY to "(1.0/0.0)",
+                        FloatValue.NaN to "(0.0/0.0)",
+                        FloatValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
+                        FloatValue.POSITIVE_INFINITY to "(1.0/0.0)",
+                    ),
+            )
+
+        /** A [LegacyValueFormatter] for formatting [MethodItem.defaultValue]s. */
+        val ATTRIBUTE_DEFAULT_FORMATTER =
+            LegacyValueFormatter(
+                javaSettings = ATTRIBUTE_DEFAULT_JAVA_SETTINGS,
+                kotlinSettings = ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS,
+                jarSettings = ATTRIBUTE_DEFAULT_JAR_SETTINGS,
+            )
+    }
 }

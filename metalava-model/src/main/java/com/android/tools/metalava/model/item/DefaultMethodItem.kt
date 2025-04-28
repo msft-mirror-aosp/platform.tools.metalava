@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.value.LegacyValueFormatter
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -47,7 +48,7 @@ open class DefaultMethodItem(
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
-    private val annotationDefault: String = "",
+    private val annotationDefault: String? = null,
 ) :
     DefaultCallableItem(
         codebase,
@@ -71,7 +72,12 @@ open class DefaultMethodItem(
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
-    override fun legacyDefaultValue() = annotationDefault
+    override fun legacyDefaultValue() =
+        annotationDefault
+            ?: defaultValue?.let { value ->
+                LegacyValueFormatter.ATTRIBUTE_DEFAULT_FORMATTER.format(value, this)
+            }
+            ?: ""
 
     final override val defaultValue
         get() = defaultValueProvider?.optionalValue
