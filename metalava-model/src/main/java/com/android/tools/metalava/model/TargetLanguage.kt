@@ -108,4 +108,11 @@ object TargetLanguageSet {
             "@InaccessibleFromKotlin" to NOT_KOTLIN,
             "@InaccessibleFromJava" to NOT_JAVA,
         )
+
+    /**
+     * Reverse of [modifierToSet]: mapping from a target language set to the corresponding modifier
+     * to use in signature files.
+     */
+    val targetLanguageSetToSignatureFileRepresentation =
+        signatureFileRepresentationToTargetLanguageSet.entries.associate { it.value to it.key }
 }
