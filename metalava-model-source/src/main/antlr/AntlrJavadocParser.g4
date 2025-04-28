@@ -61,12 +61,7 @@ description
     ;
 
 descriptionLine
-    : descriptionLineStart descriptionLineElement*
-    | inlineTag descriptionLineElement*
-    ;
-
-descriptionLineStart
-    : SPACE? descriptionLineNoSpaceNoAt+ (descriptionLineNoSpaceNoAt | SPACE | AT)*
+    : descriptionLineElement*
     ;
 
 descriptionLineNoSpaceNoAt

@@ -38,4 +38,42 @@ class JavadocParserTest {
     fun `Test comment with nested javadoc start`() {
         JavadocParser.parse("/** /** */\n")
     }
+
+    @Test
+    fun `Test link - standalone`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@link Class}
+                 */
+            """
+                .trimIndent()
+        )
+    }
+
+    @Test
+    fun `Test link - in text`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * Text before link {@link Class} and some text after.
+                 */
+            """
+                .trimIndent()
+        )
+    }
+
+    @Test
+    fun `Test link - on new line`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * Text before link
+                 * {@link Class}
+                 * and some text after.
+                 */
+            """
+                .trimIndent()
+        )
+    }
 }
