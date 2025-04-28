@@ -16,31 +16,30 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ANDROID_SYSTEM_API
-import com.android.tools.metalava.ANDROID_TEST_API
-import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
@@ -48,19 +47,17 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
-import com.intellij.psi.PsiField
-import java.util.function.Predicate
 
 /**
  * Compares the current API with a previous version and makes sure the changes are compatible. For
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
 class CompatibilityCheck(
-    val filterReference: Predicate<Item>,
-    private val apiType: ApiType,
+    private val filterReference: FilterPredicate,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
     private val apiCompatAnnotations: Set<String>,
+    private val apiName: String?,
 ) : ComparisonVisitor() {
 
     var foundProblems = false
@@ -172,7 +169,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: Item, new: Item) {
+    override fun compareItems(old: Item, new: Item) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
         if (oldModifiers.isOperator() && !newModifiers.isOperator()) {
@@ -221,7 +218,7 @@ class CompatibilityCheck(
         compareItemNullability(old, new)
     }
 
-    override fun compare(old: ParameterItem, new: ParameterItem) {
+    override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
         val prevName = old.publicName()
         val newName = new.publicName()
         if (prevName != null) {
@@ -266,7 +263,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: ClassItem, new: ClassItem) {
+    override fun compareClassItems(old: ClassItem, new: ClassItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -481,7 +478,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: CallableItem, new: CallableItem) {
+    override fun compareCallableItems(old: CallableItem, new: CallableItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -542,7 +539,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: MethodItem, new: MethodItem) {
+    override fun compareMethodItems(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -562,9 +559,9 @@ class CompatibilityCheck(
         if (
             new.containingClass().isAnnotationType() &&
                 old.containingClass().isAnnotationType() &&
-                new.defaultValue() != old.defaultValue()
+                new.legacyDefaultValue() != old.legacyDefaultValue()
         ) {
-            val prevValue = old.defaultValue()
+            val prevValue = old.legacyDefaultValue()
             val prevString =
                 if (prevValue.isEmpty()) {
                     "nothing"
@@ -572,7 +569,7 @@ class CompatibilityCheck(
                     prevValue
                 }
 
-            val newValue = new.defaultValue()
+            val newValue = new.legacyDefaultValue()
             val newString =
                 if (newValue.isEmpty()) {
                     "nothing"
@@ -587,7 +584,7 @@ class CompatibilityCheck(
 
             // Adding a default value to an annotation method is safe
             val annotationMethodAddingDefaultValue =
-                new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+                new.containingClass().isAnnotationType() && old.legacyDefaultValue().isEmpty()
 
             if (!annotationMethodAddingDefaultValue) {
                 report(Issues.CHANGED_VALUE, new, message)
@@ -714,7 +711,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: FieldItem, new: FieldItem) {
+    override fun compareFieldItems(old: FieldItem, new: FieldItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -725,27 +722,16 @@ class CompatibilityCheck(
                 val message =
                     "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
-            } else if (!old.hasSameValue(new)) {
-                val prevValue = old.initialValue()
-                val prevString =
-                    if (prevValue == null && !old.modifiers.isFinal()) {
-                        "nothing/not constant"
-                    } else {
-                        prevValue
-                    }
-
-                val newValue = new.initialValue()
-                val newString =
-                    if (newValue is PsiField) {
-                        newValue.containingClass?.qualifiedName + "." + newValue.name
-                    } else {
-                        newValue
-                    }
+            } else if (!old.hasSameConstantValue(new)) {
+                val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
+                val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
                 val message =
-                    "${describe(
-                    new,
-                    capitalize = true
-                )} has changed value from $prevString to $newString"
+                    "${
+                        describe(
+                            new,
+                            capitalize = true
+                        )
+                    } has changed value from $oldString to $newString"
 
                 report(Issues.CHANGED_VALUE, new, message)
             }
@@ -788,7 +774,7 @@ class CompatibilityCheck(
             oldModifiers.isFinal() &&
                 !newModifiers.isFinal() &&
                 oldModifiers.isStatic() &&
-                old.initialValue() != null
+                old.constantValue != null
         ) {
             report(
                 Issues.REMOVED_FINAL,
@@ -817,7 +803,6 @@ class CompatibilityCheck(
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: SelectableItem) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -831,23 +816,20 @@ class CompatibilityCheck(
             return
         }
 
-        var message = "Added ${describe(item)}"
-
-        // Clarify error message for removed API to make it less ambiguous
-        if (apiType == ApiType.REMOVED) {
-            message += " to the removed API"
-        } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesAnnotationName(ANDROID_SYSTEM_API)) {
-                message += " to the system API"
-            } else if (options.allShowAnnotations.matchesAnnotationName(ANDROID_TEST_API)) {
-                message += " to the test API"
+        val message = buildString {
+            append("Added ")
+            append(describe(item))
+            if (apiName != null) {
+                append(" to the ")
+                append(apiName)
+                append(" API")
             }
         }
 
         report(issue, item, message)
     }
 
-    private fun handleRemoved(issue: Issue, item: Item) {
+    private fun handleRemoved(issue: Issue, item: SelectableItem) {
         if (!item.emit) {
             // It's a stub; this can happen when analyzing partial APIs
             // such as a signature file for a library referencing types
@@ -862,11 +844,11 @@ class CompatibilityCheck(
         )
     }
 
-    override fun added(new: PackageItem) {
+    override fun addedPackageItem(new: PackageItem) {
         handleAdded(Issues.ADDED_PACKAGE, new)
     }
 
-    override fun added(new: ClassItem) {
+    override fun addedClassItem(new: ClassItem) {
         val error =
             if (new.isInterface()) {
                 Issues.ADDED_INTERFACE
@@ -876,7 +858,7 @@ class CompatibilityCheck(
         handleAdded(error, new)
     }
 
-    override fun added(new: CallableItem) {
+    override fun addedCallableItem(new: CallableItem) {
         if (new is MethodItem) {
             // *Overriding* methods from super classes that are outside the
             // API is OK (e.g. overriding toString() from java.lang.Object)
@@ -892,7 +874,7 @@ class CompatibilityCheck(
             // two interfaces that each now define methods with the same signature.
             // Annotation types cannot implement other interfaces, however, so it is permitted to
             // add new default methods to annotation types.
-            if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
+            if (new.containingClass().isAnnotationType() && new.legacyDefaultValue() != "") {
                 return
             }
         }
@@ -927,7 +909,7 @@ class CompatibilityCheck(
                                 // Hack to always mark added Kotlin interface methods as abstract
                                 // until we properly support JVM default methods for Kotlin.
                                 // TODO(b/200077254): Remove Kotlin special case
-                                if (new.itemLanguage == ItemLanguage.KOTLIN) {
+                                if (new.sourceLanguage == SourceLanguage.KOTLIN) {
                                     Issues.ADDED_ABSTRACT_METHOD
                                 } else {
                                     Issues.ADDED_METHOD
@@ -941,15 +923,15 @@ class CompatibilityCheck(
         }
     }
 
-    override fun added(new: FieldItem) {
+    override fun addedFieldItem(new: FieldItem) {
         handleAdded(Issues.ADDED_FIELD, new)
     }
 
-    override fun removed(old: PackageItem, from: Item?) {
+    override fun removedPackageItem(old: PackageItem, from: PackageItem?) {
         handleRemoved(Issues.REMOVED_PACKAGE, old)
     }
 
-    override fun removed(old: ClassItem, from: Item?) {
+    override fun removedClassItem(old: ClassItem, from: SelectableItem) {
         val error =
             when {
                 old.isInterface() -> Issues.REMOVED_INTERFACE
@@ -960,13 +942,13 @@ class CompatibilityCheck(
         handleRemoved(error, old)
     }
 
-    override fun removed(old: CallableItem, from: ClassItem?) {
+    override fun removedCallableItem(old: CallableItem, from: ClassItem) {
         // See if there's a member from inherited class
         val inherited =
             if (old is MethodItem) {
                 // This can also return self, specially handled below
                 from
-                    ?.findMethod(
+                    .findMethod(
                         old,
                         includeSuperClasses = true,
                         includeInterfaces = from.isInterface()
@@ -1000,9 +982,9 @@ class CompatibilityCheck(
     private fun MethodItem.treatAsRemoved(possibleMatch: MethodItem) =
         !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
 
-    override fun removed(old: FieldItem, from: ClassItem?) {
+    override fun removedFieldItem(old: FieldItem, from: ClassItem) {
         val inherited =
-            from?.findField(
+            from.findField(
                 old.name(),
                 includeSuperClasses = true,
                 includeInterfaces = from.isInterface()
@@ -1047,6 +1029,7 @@ class CompatibilityCheck(
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
+            apiName: String?,
         ) {
             val filter =
                 apiType
@@ -1058,10 +1041,10 @@ class CompatibilityCheck(
             val checker =
                 CompatibilityCheck(
                     filter,
-                    apiType,
                     reporter,
                     issueConfiguration,
                     apiCompatAnnotations,
+                    apiName,
                 )
 
             val oldFullCodebase =
@@ -1074,17 +1057,14 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator(
-                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                )
-                .compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +
                     "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
-                throw MetalavaCliException(exitCode = -1, stderr = message)
+                cliError(message)
             }
         }
     }

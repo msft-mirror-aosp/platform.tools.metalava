@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
+import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiAnnotationMethod
@@ -40,29 +41,35 @@ import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteral
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 
 internal class PsiAnnotationItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    override val annotationContext: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
     originalName: String,
     qualifiedName: String,
 ) :
     DefaultAnnotationItem(
-        codebase = codebase,
+        annotationContext = annotationContext,
         fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
         originalName = originalName,
         qualifiedName = qualifiedName,
-        attributesGetter = { getAnnotationAttributes(codebase, psiAnnotation) },
+        attributesGetter = { getAnnotationAttributes(annotationContext, psiAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
-        appendAnnotation(codebase, sb, psiAnnotation, qualifiedName, target, showDefaultAttrs)
+        appendAnnotation(
+            annotationContext,
+            sb,
+            psiAnnotation,
+            qualifiedName,
+            target,
+            showDefaultAttrs
+        )
         return sb.toString()
     }
 
@@ -76,35 +83,46 @@ private constructor(
         return super.isNonNull()
     }
 
-    override val targets: Set<AnnotationTarget> by lazy {
-        codebase.annotationManager.computeTargets(this, codebase::resolveClass)
-    }
-
     companion object {
         private fun getAnnotationAttributes(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation
-        ): List<AnnotationAttribute> =
-            psiAnnotation.parameterList.attributes
+        ): List<AnnotationAttribute> {
+            val annotationPsiClass = psiAnnotation.resolveAnnotationType()
+            return psiAnnotation.parameterList.attributes
                 .mapNotNull { attribute ->
                     attribute.value?.let { value ->
+                        val name = attribute.name ?: ANNOTATION_ATTR_VALUE
+
                         DefaultAnnotationAttribute(
-                            attribute.name ?: ANNOTATION_ATTR_VALUE,
+                            name,
+                            codebase.valueFactory.providerForAnnotationValue(
+                                annotationPsiClass,
+                                name,
+                                value,
+                            ),
                             createValue(codebase, value),
                         )
                     }
                 }
                 .toList()
+        }
 
         fun create(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation,
         ): AnnotationItem? {
-            val originalName = psiAnnotation.qualifiedName ?: return null
+            // If the qualified name is a typealias, convert it to the aliased type because that is
+            // the version that will be present as a class in the codebase.
+            val originalName =
+                psiAnnotation.qualifiedName?.let {
+                    (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
+                        ?: it
+                } ?: return null
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return PsiAnnotationItem(
-                codebase = codebase,
+                annotationContext = codebase,
                 psiAnnotation = psiAnnotation,
                 originalName = originalName,
                 qualifiedName = qualifiedName,
@@ -140,10 +158,10 @@ private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val alwaysInlineValues = qualifiedName == "android.annotation.FlaggedApi"
-            val outputName =
-                codebase.annotationManager.normalizeOutputName(qualifiedName, target) ?: return
+            qualifiedName ?: return
+            val outputName = codebase.annotationManager.normalizeOutputName(qualifiedName, target)
 
+            val alwaysInlineValues = qualifiedName == "android.annotation.FlaggedApi"
             val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
                 sb.append("@$outputName")
@@ -243,27 +261,6 @@ private constructor(
                         }
                     }
                 }
-                is PsiBinaryExpression -> {
-                    appendValue(
-                        codebase,
-                        sb,
-                        value.lOperand,
-                        target,
-                        showDefaultAttrs = showDefaultAttrs,
-                        alwaysInlineValues = alwaysInlineValues,
-                    )
-                    sb.append(' ')
-                    sb.append(value.operationSign.text)
-                    sb.append(' ')
-                    appendValue(
-                        codebase,
-                        sb,
-                        value.rOperand,
-                        target,
-                        showDefaultAttrs = showDefaultAttrs,
-                        alwaysInlineValues = alwaysInlineValues,
-                    )
-                }
                 is PsiArrayInitializerMemberValue -> {
                     sb.append('{')
                     var first = true
@@ -285,17 +282,42 @@ private constructor(
                     sb.append('}')
                 }
                 is PsiAnnotation -> {
-                    appendAnnotation(
-                        codebase,
-                        sb,
-                        value,
-                        // Normalize the input name of the annotation.
-                        codebase.annotationManager.normalizeInputName(value.qualifiedName),
-                        target,
-                        showDefaultAttrs
-                    )
+                    value.qualifiedName?.let { qualifiedName ->
+                        appendAnnotation(
+                            codebase,
+                            sb,
+                            value,
+                            // Normalize the input name of the annotation.
+                            codebase.annotationManager.normalizeInputName(qualifiedName),
+                            target,
+                            showDefaultAttrs
+                        )
+                    }
                 }
                 else -> {
+                    // Special case the formatting of special floating point numbers which are
+                    // defined in terms of division by 0.
+                    if (
+                        value is PsiBinaryExpression &&
+                            value.operationTokenType == JavaTokenType.DIV
+                    ) {
+                        val right = value.rOperand
+                        if (right is PsiLiteral) {
+                            if (right.value == 0.0f || right.value == 0.0) {
+                                val left = value.lOperand
+                                if (left is PsiLiteral) {
+                                    sb.append(constantToSource(left.value))
+                                } else {
+                                    val source = getConstantSource(left)
+                                    sb.append(source)
+                                }
+                                sb.append(" / ")
+                                sb.append(constantToSource(right.value))
+                                return
+                            }
+                        }
+                    }
+
                     if (value is PsiExpression) {
                         val source = getConstantSource(value)
                         if (source != null) {
@@ -360,7 +382,6 @@ internal class PsiAnnotationSingleAttributeValue(
             when (val resolved = psiValue.resolve()) {
                 is PsiField -> return codebase.findField(resolved)
                 is PsiClass -> return codebase.findOrCreateClass(resolved)
-                is PsiMethod -> return codebase.findCallableByPsiMethod(resolved)
             }
         }
         return null

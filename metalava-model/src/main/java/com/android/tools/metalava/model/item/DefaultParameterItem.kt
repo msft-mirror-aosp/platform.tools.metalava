@@ -16,14 +16,14 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.reporter.FileLocation
@@ -31,22 +31,21 @@ import com.android.tools.metalava.reporter.FileLocation
 open class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     private val name: String,
     protected val publicNameProvider: PublicNameProvider,
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    defaultValueFactory: DefaultValueFactory,
+    defaultValueFactory: ParameterDefaultValueFactory,
 ) :
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     ParameterItem {
 
@@ -56,8 +55,8 @@ open class DefaultParameterItem(
     }
 
     /**
-     * Create the [DefaultValue] during initialization of this parameter to allow it to contain an
-     * immutable reference to this object.
+     * Create the [ParameterDefaultValue] during initialization of this parameter to allow it to
+     * contain an immutable reference to this object.
      */
     final override val defaultValue = defaultValueFactory(this)
 
@@ -75,10 +74,6 @@ open class DefaultParameterItem(
 
     final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
 
-    final override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
-
-    final override fun defaultValueAsString(): String? = defaultValue.value()
-
     override fun duplicate(
         containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings,
@@ -86,7 +81,7 @@ open class DefaultParameterItem(
         DefaultParameterItem(
             codebase,
             fileLocation,
-            itemLanguage,
+            sourceLanguage,
             modifiers,
             name(),
             publicNameProvider,

@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -54,7 +55,8 @@ internal constructor(
     DefaultClassItem(
         codebase = codebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiClass),
-        itemLanguage = psiClass.itemLanguage,
+        sourceLanguage = psiClass.sourceLanguage,
+        targetLanguages = TargetLanguageSet.ALL,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -79,9 +81,10 @@ internal constructor(
     override fun createClassTypeItemForThis() =
         codebase.globalTypeItemFactory.getClassTypeForClass(this)
 
-    override fun getSourceFile(): SourceFile? {
+    override fun sourceFile(): SourceFile? {
         if (isNestedClass()) {
-            return null
+            // Retrieve the SourceFile from the top level class.
+            return containingClass()?.sourceFile()
         }
 
         val containingFile = psiClass.containingFile ?: return null

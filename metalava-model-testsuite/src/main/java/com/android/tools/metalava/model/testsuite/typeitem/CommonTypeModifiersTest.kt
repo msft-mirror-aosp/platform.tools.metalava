@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
@@ -75,8 +76,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertThat(methods).hasSize(3)
@@ -203,7 +209,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     @Target(AnnotationTarget.FUNCTION, AnnotationTarget.TYPE)
                     annotation class A
                 """
-            )
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertThat(methods).hasSize(3)
@@ -539,7 +551,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer<O> {
                         ctor public Outer();
@@ -1630,7 +1642,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                 package test.pkg;
                 public class Foo {
-                    public final String nonNullStringConstant = "non null value";
+                    public static final String nonNullStringConstant = "non null value";
                     public final String nullStringConstant = null;
                     public String nonConstantString = "non null value";
                 }
@@ -1642,7 +1654,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 // Signature format: 2.0
                 package test.pkg {
                   public class Foo {
-                    field public final String nonNullStringConstant = "non null value";
+                    field public static final String nonNullStringConstant = "non null value";
                     field public final String nullStringConstant;
                     field public String nonConstantString;
                   }

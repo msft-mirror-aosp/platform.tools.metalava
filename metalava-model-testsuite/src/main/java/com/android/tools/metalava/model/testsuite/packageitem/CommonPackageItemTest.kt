@@ -17,10 +17,13 @@
 package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import org.junit.Test
@@ -134,6 +137,12 @@ class CommonPackageItemTest : BaseModelTest() {
                         .trimIndent()
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(
@@ -208,7 +217,7 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageItem = codebase.assertPackage("test.pkg")
             val packageLocation = packageItem.fileLocation.path.toString()
 
-            assertEquals("TESTROOT/api.txt", removeTestSpecificDirectories(packageLocation))
+            assertEquals("MAIN_SRC/api.txt", removeTestSpecificDirectories(packageLocation))
         }
     }
 
@@ -236,7 +245,7 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageLocation = packageItem.fileLocation.path.toString()
 
             assertEquals(
-                "TESTROOT/src/test/pkg/package-info.java",
+                "MAIN_SRC/src/test/pkg/package-info.java",
                 removeTestSpecificDirectories(packageLocation)
             )
         }
@@ -299,7 +308,7 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageLocation = packageItem.fileLocation.path.toString()
 
             assertEquals(
-                "TESTROOT/src/test/pkg/package.html",
+                "MAIN_SRC/src/test/pkg/package.html",
                 removeTestSpecificDirectories(packageLocation)
             )
         }
@@ -414,6 +423,7 @@ class CommonPackageItemTest : BaseModelTest() {
 
     @Test
     fun `Test mismatching between package and directory`() {
+        val recordingReporter = RecordingReporter()
         runCodebaseTest(
             java(
                 "src/test/other/Foo.java",
@@ -424,8 +434,20 @@ class CommonPackageItemTest : BaseModelTest() {
                     }
                 """
             ),
+            testFixture = TestFixture(reporter = recordingReporter),
         ) {
             codebase.assertClass("test.pkg.Foo")
+            // Make sure that if any errors are reported that they are included in this list of
+            // known errors. This is needed because K1 produces both errors, but K2 only produces
+            // the first error. This test is currently broken for Turbine.
+            assertContains(
+                """
+                    MAIN_SRC/src/test/other/Foo.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path MAIN_SRC/src/test/other/Foo.java to end with /test/pkg/Foo.java [IoError]
+                    MAIN_SRC/src/test/other/Foo.java:3: error: Could not find package test.pkg for class test.pkg.Foo. This is most likely due to a mismatch between the package statement and the directory MAIN_SRC/src/test/other [InvalidPackage]
+                """
+                    .trimIndent(),
+                removeTestSpecificDirectories(recordingReporter.issues)
+            )
         }
     }
 }

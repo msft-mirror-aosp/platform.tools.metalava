@@ -16,15 +16,17 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.DefaultAnnotationItem.Companion.formatAnnotationItem
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import java.io.File
 
 /**
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase {
+interface Codebase : ClassResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -34,11 +36,14 @@ interface Codebase {
      */
     val location: File
 
+    /** Configuration of this [Codebase], typically comes from the command line. */
+    val config: Config
+
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
 
-    /** The manager of annotations within this codebase. */
-    val annotationManager: AnnotationManager
+    /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
+    val apiSurfaces: ApiSurfaces
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
@@ -58,6 +63,14 @@ interface Codebase {
      */
     fun isFromClassPath(): Boolean = false
 
+    /**
+     * Freeze all the classes loaded from sources, along with their super classes.
+     *
+     * This does not prevent adding new classes and does automatically freeze classes added after
+     * this is called.
+     */
+    fun freezeClasses()
+
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
 
@@ -68,10 +81,13 @@ interface Codebase {
      * available). That may include fabricating the [ClassItem] from nothing in the case of models
      * that work with a partial set of classes (like text model).
      */
-    fun resolveClass(className: String): ClassItem?
+    override fun resolveClass(erasedName: String): ClassItem?
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
+
+    /** Returns a typealias identified by fully qualified name, if in the codebase */
+    fun findTypeAlias(typeAliasName: String): TypeAliasItem?
 
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean
@@ -97,6 +113,19 @@ interface Codebase {
         context: Item? = null,
     ): AnnotationItem?
 
+    /**
+     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
+     * a source representation of the annotation and the calling [createAnnotation].
+     */
+    fun createAnnotationFromAttributes(
+        originalName: String,
+        attributes: List<AnnotationAttribute> = emptyList(),
+        context: Item? = null
+    ): AnnotationItem? {
+        val source = formatAnnotationItem(originalName, attributes)
+        return createAnnotation(source, context)
+    }
+
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing {
         error(
@@ -114,43 +143,36 @@ interface Codebase {
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
     }
-}
 
-sealed class MinSdkVersion
+    /** Indicates whether this [Codebase] contains a reverted item, or not. */
+    val containsRevertedItem: Boolean
 
-data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
+    /** Record that this [Codebase] contains at least one reverted item. */
+    fun markContainsRevertedItem()
 
-object UnsetMinSdkVersion : MinSdkVersion()
-
-const val CLASS_ESTIMATE = 15000
-
-abstract class AbstractCodebase(
-    final override var location: File,
-    description: String,
-    final override val preFiltered: Boolean,
-    final override val annotationManager: AnnotationManager,
-    private val trustedApi: Boolean,
-    private val supportsDocumentation: Boolean,
-) : Codebase {
-
-    final override var description: String = description
-        private set
-
-    final override fun trustedApi() = trustedApi
-
-    final override fun supportsDocumentation() = supportsDocumentation
-
-    final override fun toString() = description
-
-    override fun dispose() {
-        description += " [disposed]"
-    }
-}
-
-interface MutableCodebase : Codebase {
     /**
-     * Register the class by name, return `true` if the class was registered and `false` if it was
-     * not, i.e. because it is a duplicate.
+     * Contains configuration for [Codebase] that can, or at least could, come from command line
+     * options.
      */
-    fun registerClass(classItem: DefaultClassItem): Boolean
+    data class Config(
+        /** Determines how annotations will affect the [Codebase]. */
+        val annotationManager: AnnotationManager,
+
+        /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
+        /** The reporter to use for issues found during processing of the [Codebase]. */
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
+    ) {
+        companion object {
+            /**
+             * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
+             * reporter.
+             */
+            val NOOP =
+                Config(
+                    annotationManager = noOpAnnotationManager,
+                )
+        }
+    }
 }

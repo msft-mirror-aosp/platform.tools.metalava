@@ -18,7 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.value.asString
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
@@ -73,24 +73,25 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
             // first check constant fields for the SdkConstant annotation.
             val fields = clazz.fields()
             for (field in fields) {
-                val value = field.initialValue() ?: continue
-                val annotations = field.modifiers.annotations()
-                for (annotation in annotations) {
-                    if (ANDROID_SDK_CONSTANT == annotation.qualifiedName) {
-                        val resolved =
-                            annotation.findAttribute(null)?.leafValues()?.firstOrNull()?.resolve()
-                                as? FieldItem
-                                ?: continue
-                        when (resolved.containingClass().qualifiedName() + "." + resolved.name()) {
-                            SDK_CONSTANT_TYPE_ACTIVITY_ACTION ->
-                                activityActions.add(value.toString())
-                            SDK_CONSTANT_TYPE_BROADCAST_ACTION ->
-                                broadcastActions.add(value.toString())
-                            SDK_CONSTANT_TYPE_SERVICE_ACTION -> serviceActions.add(value.toString())
-                            SDK_CONSTANT_TYPE_CATEGORY -> categories.add(value.toString())
-                            SDK_CONSTANT_TYPE_FEATURE -> features.add(value.toString())
-                        }
-                    }
+                // Only interested in ones annotated with SdkConstant.
+                val sdkConstantAnnotation =
+                    field.modifiers.findAnnotation(ANDROID_SDK_CONSTANT) ?: continue
+
+                // Get the value of the field, as a string even if it is defined in terms of another
+                // field. If it has no such value ignore the field.
+                val underlyingString = field.constantValue?.asString() ?: continue
+
+                // Get the SdkConstantType from the SdkConstant annotation's `value` attribute,
+                // if available.
+                val sdkConstantType = sdkConstantAnnotation.findAttribute(null)?.value ?: continue
+
+                // Add the field value to the appropriate collection for the SdkConstantType.
+                when (sdkConstantType.toValueString()) {
+                    SDK_CONSTANT_TYPE_ACTIVITY_ACTION -> activityActions.add(underlyingString)
+                    SDK_CONSTANT_TYPE_BROADCAST_ACTION -> broadcastActions.add(underlyingString)
+                    SDK_CONSTANT_TYPE_SERVICE_ACTION -> serviceActions.add(underlyingString)
+                    SDK_CONSTANT_TYPE_CATEGORY -> categories.add(underlyingString)
+                    SDK_CONSTANT_TYPE_FEATURE -> features.add(underlyingString)
                 }
             }
 
@@ -264,7 +265,6 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
      * @param prefix the prefix to put at the beginning of the line.
      * @throws IOException
      */
-    @Throws(IOException::class)
     private fun writeClass(writer: BufferedWriter, clazz: ClassItem, prefix: Char) {
         writer.append(prefix).append(clazz.qualifiedName())
         for (superClass in clazz.allSuperClasses()) {

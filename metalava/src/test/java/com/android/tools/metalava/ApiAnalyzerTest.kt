@@ -17,10 +17,13 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -299,10 +302,10 @@ class ApiAnalyzerTest : DriverTest() {
                             /** @deprecated */
                             @Deprecated
                             public void bar() { throw new RuntimeException("Stub!"); }
+                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             /** @deprecated */
                             @Deprecated
                             public <T> void foo(@Deprecated T t) { throw new RuntimeException("Stub!"); }
-                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
@@ -364,14 +367,15 @@ class ApiAnalyzerTest : DriverTest() {
                             /** @deprecated */
                             @Deprecated
                             public void bar() { throw new RuntimeException("Stub!"); }
+                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             /** @deprecated */
                             @Deprecated
                             public void foo(@Deprecated java.lang.String t) { throw new RuntimeException("Stub!"); }
-                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
                 ),
+            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
         )
     }
 
@@ -393,10 +397,9 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             api =
                 """
-                    // Signature format: 2.0
                     package test.pkg {
                       @Deprecated public final class Foo {
                         ctor @Deprecated public Foo(@Deprecated int i, @Deprecated boolean b);
@@ -404,8 +407,8 @@ class ApiAnalyzerTest : DriverTest() {
                         method @Deprecated public int getI();
                         method @Deprecated public void setB(boolean);
                         method @Deprecated public void setI(int);
-                        property @Deprecated public final boolean b;
-                        property @Deprecated public final int i;
+                        property @Deprecated public boolean b;
+                        property @Deprecated public int i;
                       }
                     }
                 """,
@@ -445,7 +448,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
@@ -506,42 +509,6 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-        )
-    }
-
-    @Test
-    fun `Test deprecated status not propagated to removed items`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-
-                            /**
-                             * @deprecated
-                             * @removed
-                             */
-                            public class Concrete {
-                                public void bar() {}
-                            }
-                        """
-                    ),
-                ),
-            format = FileFormat.V2,
-            api = """
-                    // Signature format: 2.0
-                """,
-            removedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @Deprecated public class Concrete {
-                        ctor public Concrete();
-                        method public void bar();
-                      }
-                    }
-                """,
         )
     }
 
@@ -766,11 +733,10 @@ class ApiAnalyzerTest : DriverTest() {
 
     @Test
     fun `Test propagation of @hide through package and class nesting`() {
-        //
         check(
             // Include system API annotations as a show annotation overrides hidden on a class that
             // is in a hidden package.
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             // This is set to true so any class that is incorrectly unhidden will be included in the
             // generated API and fail the test.
             showUnannotated = true,
@@ -830,6 +796,7 @@ class ApiAnalyzerTest : DriverTest() {
                             public class C {}
                         """
                     ),
+                    KnownSourceFiles.systemApiSource,
                 ),
             api =
                 """
@@ -844,6 +811,62 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Fail when erased type changes after pushing down methods from hidden super class`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Hidden.java:3: error: Explicitly override method test.pkg.Hidden.bad1() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ltest/pkg/Hidden; to ()Ltest/pkg/Public;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:4: error: Explicitly override method test.pkg.Hidden.bad1(T) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ltest/pkg/Hidden;)V to (Ltest/pkg/Public;)V, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:6: error: Explicitly override method test.pkg.Hidden.bad2() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ljava/lang/Object; to ()Ljava/lang/Integer;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:7: error: Explicitly override method test.pkg.Hidden.bad2(U) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ljava/lang/Object;)V to (Ljava/lang/Integer;)V, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:9: error: Explicitly override method test.pkg.Hidden.bad3() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ljava/lang/Object; to ()Ljava/lang/Number;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:10: error: Explicitly override method test.pkg.Hidden.bad3(V) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ljava/lang/Object;)V to (Ljava/lang/Number;)V, and cause failures at runtime. [InheritChangesSignature]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Public<N extends Number, O> extends Hidden<Public, Integer, N, O> {
+                                @Override
+                                public Public overriddenOk() { return null; }
+                                @Override
+                                public void overriddenOk(Public t) { return null; }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            class Hidden<T extends Hidden, U, V, W> {
+                                public T bad1() { return null; }
+                                public void bad1(T t) {}
+
+                                public U bad2() { return null; }
+                                public void bad2(U t) {}
+
+                                public V bad3() { return null; }
+                                public void bad3(V t) {}
+
+                                public W ok() { return null; }
+                                public void ok(W t) { }
+
+                                public T overriddenOk() { return null; }
+                                public void overriddenOk(T t) { }
+
+                                /** @hide */
+                                public T hiddenOk() { return null; }
+                                /** @hide */
+                                public void hiddenOk(T t) { }
+                            }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_ERROR, Issues.INHERIT_CHANGES_SIGNATURE.name)
         )
     }
 }
