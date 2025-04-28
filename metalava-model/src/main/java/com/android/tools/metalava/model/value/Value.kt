@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -313,6 +314,9 @@ enum class ValueKind(
 /** A [Value] that is allowed to be used in [ArrayValue.elements]. */
 sealed interface ArrayElementValue : Value {
     override fun asFlatList() = listOf(this)
+
+    /** Override to specialize the return type. */
+    override fun snapshot(targetCodebase: Codebase): ArrayElementValue = this
 }
 
 /** A [Value] that can be used in a constant field as defined by JLS 15.28. */
@@ -530,6 +534,9 @@ sealed interface FieldReferenceValue : ArrayElementValue {
     /** The name of the field. */
     val fieldName: String
 
+    /** Resolve this to a [FieldItem], if possible. */
+    fun resolve(): FieldItem?
+
     override fun equalToValue(other: Value) =
         other is FieldReferenceValue &&
             qualifiedClassName == other.qualifiedClassName &&
@@ -541,7 +548,10 @@ sealed interface FieldReferenceValue : ArrayElementValue {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        builder.append(qualifiedClassName).append('.').append(fieldName)
+        if (qualifiedClassName != "") {
+            builder.append(qualifiedClassName).append('.')
+        }
+        builder.append(fieldName)
     }
 }
 
@@ -650,6 +660,12 @@ sealed interface ArrayValue : Value {
             }
             builder.append('}')
         }
+    }
+
+    override fun snapshot(targetCodebase: Codebase): ArrayValue {
+        if (elements.isEmpty()) return this
+        val snapshotElements = elements.map { it.snapshot(targetCodebase) }
+        return Value.createArrayValue(snapshotElements)
     }
 }
 
