@@ -203,6 +203,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[text,source,float with upper F]
   testLegacySource[text,source,int positive]
   testLegacySource[text,source,long with lower l]
+  testLegacySource[turbine,source,array - single]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testLegacySource[text,source,String using constant]
@@ -257,6 +258,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[text,source,String using constant]
   testLegacyValue[text,source,annotation]
   testLegacyValue[text,source,array - empty]
+  testLegacyValue[text,source,array - single]
   testLegacyValue[text,source,byte]
   testLegacyValue[text,source,char escaped]
   testLegacyValue[text,source,char unicode]

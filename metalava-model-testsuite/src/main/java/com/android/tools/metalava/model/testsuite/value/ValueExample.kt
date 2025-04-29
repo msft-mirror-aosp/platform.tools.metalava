@@ -1452,6 +1452,23 @@ constructor(
                     expectedLegacyValue = expectations { common = emptyArray<Int>() },
                     expectedValue = expectations { common = arrayValueFromAny() },
                 ),
+                ValueExample(
+                    name = "array - single",
+                    javaType = "int[]",
+                    javaExpression = "{1}",
+                    kotlinType = "IntArray",
+                    kotlinExpression = "[1]",
+                    // Literal arrays are only allowed in annotations not fields.
+                    suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedLegacySource = expectations { common = "{1}" },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            attributeValue = "[1]"
+                            attributeDefaultValue = "{1}"
+                        },
+                    expectedLegacyValue = expectations { common = arrayOf(1) },
+                    expectedValue = expectations { common = arrayValueFromAny(1) },
+                ),
                 // Check a simple string array.
                 ValueExample(
                     name = "String array",
