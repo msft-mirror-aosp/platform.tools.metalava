@@ -228,6 +228,7 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 /**
  * Configuration options for how to represent a value as a string.
  *
+ * @param classObjectValueFormat How to format a [ClassObjectValue].
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
@@ -236,6 +237,7 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  *   `int` if it was originally specified as an `int`.
  */
 data class ValueStringConfiguration(
+    val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
@@ -258,6 +260,19 @@ data class ValueStringConfiguration(
                 nestedValueAppender = { value, builder, _ -> value.appendToStringTo(builder) },
             )
     }
+}
+
+/** Enumeration of how a [ClassObjectValue] should be formatted. */
+enum class ClassObjectValueFormat {
+    /** Use Java style, i.e. <type>.class. */
+    JAVA,
+
+    /**
+     * Use the same representation as the source, i.e. if the source was unqualified Kotlin style
+     * class literal then use that. If the source representation is not available then behave as
+     * [JAVA].
+     */
+    SOURCE,
 }
 
 /** Enumeration of how an array containing a single element should be formatted. */

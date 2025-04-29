@@ -196,7 +196,7 @@ class ValueParser(
             val typeString = matchResult.groups[TYPE_GROUP_INDEX]!!.value
             val classLiteralTypeItem =
                 typeItemParser.obtainTypeFromString(typeString, TypeParameterScope.empty)
-            return createClassObjectValue(classLiteralTypeItem)
+            return createClassObjectValue(classLiteralTypeItem, text)
         }
 
         // Check to see if it looks like a field reference.

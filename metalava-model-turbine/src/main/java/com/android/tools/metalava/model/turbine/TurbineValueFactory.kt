@@ -162,7 +162,11 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                         ContextNullability.forceNonNull
                     )
 
-                return createClassObjectValue(classLiteralTypeItem)
+                return createClassObjectValue(
+                    classLiteralTypeItem,
+                    // Java does not need the source expression.
+                    null,
+                )
             }
             Const.Kind.ANNOTATION -> {
                 const as TurbineAnnotationValue

@@ -334,7 +334,7 @@ internal class PsiValueFactory(
                 unboxedTypeItem.substitute(arguments = emptyList())
             else unboxedTypeItem
 
-        return createClassObjectValue(classLiteralTypeItem)
+        return createClassObjectValue(classLiteralTypeItem, uExpression.asSourceString())
     }
 
     /** Try and convert a [UResolvable] to an [ArrayElementValue]. */
@@ -550,7 +550,11 @@ internal class PsiValueFactory(
                         contextNullability = ContextNullability.forceNonNull,
                     )
 
-                return createClassObjectValue(classLiteralTypeItem)
+                return createClassObjectValue(
+                    classLiteralTypeItem,
+                    // Java does not need the source expression.
+                    null,
+                )
             }
             // Field reference.
             is PsiReferenceExpression -> {

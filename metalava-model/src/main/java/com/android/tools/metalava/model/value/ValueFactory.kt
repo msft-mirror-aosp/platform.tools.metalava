@@ -173,9 +173,9 @@ interface ValueFactory {
      * * A [ClassTypeItem] with no [ClassTypeItem.arguments].
      * * An [ArrayTypeItem] of one of these (including [ArrayTypeItem]).
      */
-    fun createClassObjectValue(typeItem: TypeItem): ClassObjectValue {
+    fun createClassObjectValue(typeItem: TypeItem, sourceExpression: String?): ClassObjectValue {
         typeItem.accept(classObjectValueTypeChecker)
-        return DefaultClassObjectValue(typeItem)
+        return DefaultClassObjectValue(typeItem, sourceExpression)
     }
 
     /**

@@ -104,6 +104,12 @@ class ParameterizedValueStringTest {
         companion object {
             val DEFAULT = LabelledConfig("default", ValueStringConfiguration.DEFAULT)
 
+            val CLASS_OBJECT_VALUE_SOURCE =
+                LabelledConfig(
+                    "class-object-value-as-source",
+                    ValueStringConfiguration(classObjectValueFormat = ClassObjectValueFormat.SOURCE)
+                )
+
             val TREAT_AS_INT =
                 LabelledConfig(
                     "treat-as-int",
@@ -405,13 +411,28 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "java.lang.String.class",
                 ),
                 testCasesForValue(
-                    value = classObjectValue(arrayTypeItem(primitiveTypeForKind(Primitive.INT))),
+                    value =
+                        classObjectValue(
+                            arrayTypeItem(primitiveTypeForKind(Primitive.INT)),
+                            sourceExpression = "IntArray::class"
+                        ),
                     expectedDefaultValueString = "int[].class",
-                ),
+                ) {
+                    // The value being tested has a source expression so this configuration will
+                    // produce a different result than the default.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.CLASS_OBJECT_VALUE_SOURCE,
+                        "IntArray::class"
+                    )
+                },
                 testCasesForValue(
                     value = classObjectValue(arrayTypeItem(arrayTypeItem(stringType()))),
                     expectedDefaultValueString = "java.lang.String[][].class",
-                ),
+                ) {
+                    // The value being tested does not have a source expression so this
+                    // configuration will not produce a different result than the default.
+                    verifyConfigMatchesDefault(LabelledConfig.CLASS_OBJECT_VALUE_SOURCE)
+                },
                 // ****************************** Constant Fields ******************************
                 testCasesForValue(
                     value = fieldReferenceValue("test.pkg.AClass", "FIELD"),

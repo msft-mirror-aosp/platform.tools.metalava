@@ -197,6 +197,9 @@ class LegacyValueFormatter(
                         // In the source, values that were written as ints were formatted as ints
                         // even if they were `double`, `float`, or `long`.
                         treatAsIntIfOriginallySpecifiedAsInt = true,
+
+                        // ClassObjectValues are output using their source expression in Kotlin.
+                        classObjectValueFormat = ClassObjectValueFormat.SOURCE,
                     ),
                 stringReplacement =
                     mapOf(

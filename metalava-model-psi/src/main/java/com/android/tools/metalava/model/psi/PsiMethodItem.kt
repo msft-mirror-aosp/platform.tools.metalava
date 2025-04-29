@@ -117,7 +117,6 @@ internal class PsiMethodItem(
                     ValueKind.ANNOTATION,
                     ValueKind.ARRAY,
                     ValueKind.CHAR,
-                    ValueKind.CLASS,
                     ValueKind.FLOAT,
                     ValueKind.INT,
                     ValueKind.LONG -> {
