@@ -160,16 +160,16 @@ class LegacyValueFormatter(
             Settings(
                 valueStringConfiguration =
                     ValueStringConfiguration(
+                        // Unwrap a single array element when formatting a value from source as they
+                        // were unwrapped in the source.
+                        singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+
                         // Annotation attributes are not sorted in the default values.
                         sortAnnotationAttributes = false,
 
                         // In the source, values that were written as ints were formatted as ints
                         // even if they were `double`, `float`, or `long`.
                         treatAsIntIfOriginallySpecifiedAsInt = true,
-
-                        // Unwrap a single array element when formatting a value from source as they
-                        // were unwrapped in the source.
-                        unwrapSingleArrayElement = true,
                     ),
                 stringReplacement =
                     mapOf(
@@ -187,16 +187,16 @@ class LegacyValueFormatter(
             Settings(
                 valueStringConfiguration =
                     ValueStringConfiguration(
+                        // Unwrap a single array element when formatting a value from source as they
+                        // were unwrapped in the source.
+                        singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+
                         // Annotation attributes are not sorted in the default values.
                         sortAnnotationAttributes = false,
 
                         // In the source, values that were written as ints were formatted as ints
                         // even if they were `double`, `float`, or `long`.
                         treatAsIntIfOriginallySpecifiedAsInt = true,
-
-                        // Unwrap a single array element when formatting a value from source as they
-                        // were unwrapped in the source.
-                        unwrapSingleArrayElement = true,
                     ),
                 stringReplacement =
                     mapOf(
@@ -218,16 +218,16 @@ class LegacyValueFormatter(
             Settings(
                 valueStringConfiguration =
                     ValueStringConfiguration(
+                        // Do not unwrap a single array element when formatting a value from a jar
+                        // as they were never unwrapped.
+                        singleArrayElementFormat = SingleArrayElementFormat.WRAP,
+
                         // Annotation attributes are not sorted in the default values.
                         sortAnnotationAttributes = false,
 
                         // In the jar, values are always stored as their actual type so were never
                         // represented as an int.
                         treatAsIntIfOriginallySpecifiedAsInt = false,
-
-                        // Do not unwrap a single array element when formatting a value from a jar
-                        // as they were never unwrapped.
-                        unwrapSingleArrayElement = false,
                     ),
                 // In the jar file special values were always stored as their constant value so they
                 // were never formatted as their fields.

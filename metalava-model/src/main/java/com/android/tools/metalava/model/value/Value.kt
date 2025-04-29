@@ -229,19 +229,18 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * Configuration options for how to represent a value as a string.
  *
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
+ * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
  *   they were added.
  * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
  *   `int` if it was originally specified as an `int`.
- * @param unwrapSingleArrayElement Whether to add braces around an array that contains only a single
- *   element.
  */
 data class ValueStringConfiguration(
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
+    val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
     val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
-    val unwrapSingleArrayElement: Boolean = false,
 ) {
     /** Use the [nestedValueAppender] to append a string representation of [Value] to [builder]. */
     fun appendNestedValueTo(builder: StringBuilder, value: Value) {
@@ -259,6 +258,15 @@ data class ValueStringConfiguration(
                 nestedValueAppender = { value, builder, _ -> value.appendToStringTo(builder) },
             )
     }
+}
+
+/** Enumeration of how an array containing a single element should be formatted. */
+enum class SingleArrayElementFormat {
+    /** Always wrap the element inside an array. */
+    WRAP,
+
+    /** Do not wrap the element inside an array. */
+    UNWRAP,
 }
 
 /** Enumeration of the different types of [ValueKind]. */
@@ -688,7 +696,10 @@ sealed interface ArrayValue : Value {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        if (configuration.unwrapSingleArrayElement && elements.size == 1) {
+        if (
+            elements.size == 1 &&
+                configuration.singleArrayElementFormat == SingleArrayElementFormat.UNWRAP
+        ) {
             configuration.appendNestedValueTo(builder, elements[0])
         } else {
             builder.append('{')

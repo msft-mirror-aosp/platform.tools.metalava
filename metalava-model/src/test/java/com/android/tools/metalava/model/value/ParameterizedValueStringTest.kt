@@ -117,7 +117,7 @@ class ParameterizedValueStringTest {
                     "treat-as-int/unwrap",
                     ValueStringConfiguration(
                         treatAsIntIfOriginallySpecifiedAsInt = true,
-                        unwrapSingleArrayElement = true,
+                        singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
                     ),
                 )
 
@@ -128,7 +128,12 @@ class ParameterizedValueStringTest {
                 )
 
             val UNWRAP_SINGLE_ARRAY_ELEMENT =
-                LabelledConfig("unwrap", ValueStringConfiguration(unwrapSingleArrayElement = true))
+                LabelledConfig(
+                    "unwrap",
+                    ValueStringConfiguration(
+                        singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                    )
+                )
         }
     }
 
