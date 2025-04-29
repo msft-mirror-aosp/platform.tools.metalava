@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
@@ -486,7 +487,7 @@ constructor(
                     expectedLegacyValue = expectations { common = "java.util.BitSet" },
                     expectedValue =
                         expectations {
-                            common = Value.createClassObjectValue(classTypeItem("java.util.BitSet"))
+                            common = classObjectValue(classTypeItem("java.util.BitSet"))
                         },
                 ),
                 // Check a class literal for a generic class.
@@ -511,9 +512,7 @@ constructor(
                     expectedLegacyValue = expectations { common = "java.util.List" },
                     expectedKotlinLegacyValue = expectations { common = "java.util.List<?>" },
                     expectedValue =
-                        expectations {
-                            common = Value.createClassObjectValue(classTypeItem("java.util.List"))
-                        },
+                        expectations { common = classObjectValue(classTypeItem("java.util.List")) },
                 ),
                 // Check an array of a basic class literal.
                 ValueExample(
@@ -539,9 +538,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                Value.createClassObjectValue(
-                                    arrayTypeItem(classTypeItem("java.util.BitSet"))
-                                )
+                                classObjectValue(arrayTypeItem(classTypeItem("java.util.BitSet")))
                         },
                 ),
                 // Check an array of a generic class literal.
@@ -567,9 +564,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                Value.createClassObjectValue(
-                                    arrayTypeItem(classTypeItem("java.util.List"))
-                                )
+                                classObjectValue(arrayTypeItem(classTypeItem("java.util.List")))
                         },
                 ),
                 // Check a primitive void class literal.
@@ -584,8 +579,7 @@ constructor(
                     expectedLegacyValue = expectations { common = "void" },
                     expectedValue =
                         expectations {
-                            common =
-                                Value.createClassObjectValue(primitiveTypeForKind(Primitive.VOID))
+                            common = classObjectValue(primitiveTypeForKind(Primitive.VOID))
                         },
                 ),
                 // Check a primitive void wrapper class literal.
@@ -608,9 +602,7 @@ constructor(
                     expectedKotlinLegacySource = expectations { common = "java.lang.Void::class" },
                     expectedLegacyValue = expectations { common = "java.lang.Void" },
                     expectedValue =
-                        expectations {
-                            common = Value.createClassObjectValue(classTypeItem("java.lang.Void"))
-                        },
+                        expectations { common = classObjectValue(classTypeItem("java.lang.Void")) },
                 ),
                 ValueExample(
                     name = "class literal - int primitive",
@@ -624,8 +616,7 @@ constructor(
                     expectedKotlinLegacyValue = expectations { common = "java.lang.Integer" },
                     expectedValue =
                         expectations {
-                            common =
-                                Value.createClassObjectValue(primitiveTypeForKind(Primitive.INT))
+                            common = classObjectValue(primitiveTypeForKind(Primitive.INT))
                         },
                 ),
                 ValueExample(
@@ -648,8 +639,7 @@ constructor(
                     expectedLegacyValue = expectations { common = "java.lang.Integer" },
                     expectedValue =
                         expectations {
-                            common =
-                                Value.createClassObjectValue(classTypeItem("java.lang.Integer"))
+                            common = classObjectValue(classTypeItem("java.lang.Integer"))
                         },
                 ),
                 // Check a primitive array class literal.
@@ -665,9 +655,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                Value.createClassObjectValue(
-                                    arrayTypeItem(primitiveTypeForKind(Primitive.INT))
-                                )
+                                classObjectValue(arrayTypeItem(primitiveTypeForKind(Primitive.INT)))
                         },
                 ),
                 // Check a simple double.
