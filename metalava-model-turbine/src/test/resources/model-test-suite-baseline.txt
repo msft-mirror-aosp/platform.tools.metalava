@@ -45,9 +45,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[source,int positive]
   testLegacySource[source,long with int]
 
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
-  testLegacySource[source,array - single]
-
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testLegacySource[jar,annotation - multiple attributes]
   testLegacySource[jar,annotation]

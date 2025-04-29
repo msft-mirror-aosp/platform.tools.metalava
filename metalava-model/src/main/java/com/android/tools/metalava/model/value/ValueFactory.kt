@@ -139,13 +139,18 @@ interface ValueFactory {
      * the same [Value.kind] (excluding [ValueKind.FIELD]). This will throw an exception if it does
      * not.
      */
-    fun createArrayValue(elements: List<ArrayElementValue>): ArrayValue {
+    fun createArrayValue(
+        elements: List<ArrayElementValue>,
+        wasUnwrappedInSource: Boolean = false
+    ): ArrayValue {
         if (elements.isEmpty()) return EMPTY_ARRAY
+        if (wasUnwrappedInSource && elements.size != 1)
+            error("wasUnwrappedInSource was set to true but array does not contain 1 element")
         val groupedByKind = elements.groupBy { it.kind }
         val kindCount = groupedByKind.size
         // Only allow 1 kind or 2 if one of them is field.
         if (kindCount == 1 || (kindCount == 2 && ValueKind.FIELD in groupedByKind))
-            return DefaultArrayValue(elements)
+            return DefaultArrayValue(elements, wasUnwrappedInSource)
         val message = buildString {
             append("Expected array elements to be all of the same kind but found ")
             append(kindCount)
@@ -477,7 +482,7 @@ interface ValueFactory {
         }
 
         /** An empty [ArrayValue]. */
-        private val EMPTY_ARRAY = DefaultArrayValue(emptyList())
+        private val EMPTY_ARRAY = DefaultArrayValue(emptyList(), wasUnwrappedInSource = false)
 
         /** Checks the [TypeItem] supplied to [createClassObjectValue]. */
         val classObjectValueTypeChecker =

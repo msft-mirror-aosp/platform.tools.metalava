@@ -160,9 +160,9 @@ class LegacyValueFormatter(
             Settings(
                 valueStringConfiguration =
                     ValueStringConfiguration(
-                        // Unwrap a single array element when formatting a value from source as they
-                        // were unwrapped in the source.
-                        singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                        // Use the source representation of a single array element when formatting.
+                        singleArrayElementFormat =
+                            @Suppress("DEPRECATION") SingleArrayElementFormat.SOURCE,
 
                         // Annotation attributes are not sorted in the default values.
                         sortAnnotationAttributes = false,

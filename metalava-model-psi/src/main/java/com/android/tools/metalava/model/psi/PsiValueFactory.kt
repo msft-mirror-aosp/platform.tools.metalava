@@ -203,7 +203,7 @@ internal class PsiValueFactory(
             // then wrap it in an ArrayValue.
             uExpressionToArrayElementValue(optionalTypeItem.componentType, uExpression)?.let {
                 singleValue ->
-                createArrayValue(listOf(singleValue))
+                createArrayValue(listOf(singleValue), wasUnwrappedInSource = true)
             }
         } else {
             uExpressionToArrayElementValue(optionalTypeItem, uExpression)
@@ -525,7 +525,7 @@ internal class PsiValueFactory(
                     // component type and then wrap it in an ArrayValue.
                     psiToArrayElementValue(optionalTypeItem.componentType, psiValue)?.let {
                         singleValue ->
-                        createArrayValue(listOf(singleValue))
+                        createArrayValue(listOf(singleValue), wasUnwrappedInSource = true)
                     }
                 } else {
                     psiToArrayElementValue(optionalTypeItem, psiValue)

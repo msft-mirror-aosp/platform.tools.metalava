@@ -130,12 +130,10 @@ class ValueParser(
             }
             optionalTypeItem is ArrayTypeItem -> {
                 // The type is an array so this is an example of not having to add curly braces
-                // around a
-                // single value in an annotation attribute. Create a value for the component type
-                // and
-                // then wrap it in an ArrayValue.
+                // around a single value in an annotation attribute. Create a value for the
+                // component type and then wrap it in an ArrayValue.
                 val singleValue = parseArrayElementValue(optionalTypeItem.componentType, text)
-                createArrayValue(listOf(singleValue))
+                createArrayValue(listOf(singleValue), wasUnwrappedInSource = true)
             }
             else -> {
                 parseArrayElementValue(optionalTypeItem, text)

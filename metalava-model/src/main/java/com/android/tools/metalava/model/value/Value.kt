@@ -267,6 +267,16 @@ enum class SingleArrayElementFormat {
 
     /** Do not wrap the element inside an array. */
     UNWRAP,
+
+    /**
+     * Use the same representation as the source, i.e. if the source was unwrapped then leave it
+     * unwrapped, otherwise wrap it.
+     */
+    @Deprecated(
+        message = "Relying on the source representation leads to inconsistencies",
+        replaceWith = ReplaceWith("WRAP"),
+    )
+    SOURCE,
 }
 
 /** Enumeration of the different types of [ValueKind]. */
