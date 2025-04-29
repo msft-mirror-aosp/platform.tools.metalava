@@ -252,11 +252,7 @@ constructor(
                             annotationToSource = "@test.pkg.OtherAnnotation(intType=1)"
                         },
                     expectedKotlinLegacySource =
-                        expectations {
-                            common = "OtherAnnotation(intType = 1)"
-
-                            source { attributeDefaultValue = "test.pkg.OtherAnnotation(intType=1)" }
-                        },
+                        expectations { common = "test.pkg.OtherAnnotation(intType=1)" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
                     expectedValue =
@@ -306,8 +302,6 @@ constructor(
                     expectedKotlinLegacySource =
                         expectations {
                             common = "test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
-
-                            annotationToSource = "test.pkg.OtherAnnotation(\"one\", 3)"
                         },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
@@ -358,11 +352,7 @@ constructor(
                     expectedKotlinLegacySource =
                         expectations {
                             common =
-                                "[test.pkg.OtherAnnotation(intType = 1), test.pkg.OtherAnnotation(intType = 2)]"
-                            attributeDefaultValue =
                                 "{test.pkg.OtherAnnotation(intType=1), test.pkg.OtherAnnotation(intType=2)}"
-                            annotationToSource =
-                                "{test.pkg.OtherAnnotation(1), test.pkg.OtherAnnotation(2)}"
                         },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
@@ -433,8 +423,6 @@ constructor(
                     kotlinType = "Byte",
                     kotlinExpression = "116.toByte()",
                     expectedLegacySource = expectations { common = "116" },
-                    expectedKotlinLegacySource =
-                        expectations { source { annotationToSource = "116.toByte()" } },
                     expectedValue =
                         expectations {
                             common = literalValue(116.toByte(), nonLiteralInSource = true)
@@ -697,6 +685,7 @@ constructor(
                                 fieldWriteWithSemicolon = "3.0"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "3.0" },
                     expectedValue =
                         expectations {
                             // Expect a double value created from an int.
@@ -720,6 +709,7 @@ constructor(
                                 annotationToSource = "0xfffffffe"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "-2.0" },
                     expectedValue =
                         expectations {
                             // Expect a double value created from an int.
@@ -742,9 +732,10 @@ constructor(
                                 annotationToSource = "2.0f"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "2.0" },
                     expectedValue =
                         expectations {
-                            // Expect a double value created from an int.
+                            // Expect a double value created from a float.
                             common = primitiveValueForKind(Primitive.DOUBLE, 2.0f)
                             jar { common = literalValue(2.0) }
                         },
@@ -765,6 +756,7 @@ constructor(
                                 annotationToSource = "-2.0F"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "-2.0" },
                     expectedValue =
                         expectations {
                             // Expect a double value created from a float
@@ -1237,7 +1229,11 @@ constructor(
                             // TODO(b/354633349): Consistency is good.
                             annotationToSource = "-2.7F"
                         },
-                    expectedKotlinLegacySource = expectations { attributeDefaultValue = "-2.7" },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            annotationToSource = "-2.7f"
+                            attributeDefaultValue = "-2.7"
+                        },
                     expectedValue =
                         expectations {
                             // Expect a float value created from an int.
@@ -1270,6 +1266,7 @@ constructor(
 
                             fieldWriteWithSemicolon = "3.0f"
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "3.0f" },
                     expectedValue =
                         expectations {
                             // Expect a float value created from an int.
@@ -1302,6 +1299,7 @@ constructor(
                                 annotationToSource = "-2.0F"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "-2.0f" },
                     expectedValue =
                         expectations {
                             // Expect a float value created from an int.
@@ -1486,7 +1484,12 @@ constructor(
                             source { annotationToSource = "3.1875F" }
                         },
                     expectedKotlinLegacySource =
-                        expectations { source { attributeDefaultValue = "3.1875" } },
+                        expectations {
+                            source {
+                                annotationToSource = "3.1875f"
+                                attributeDefaultValue = "3.1875"
+                            }
+                        },
                     expectedValue =
                         expectations {
                             common = literalValue(3.1875f, nonLiteralInSource = true)
@@ -1685,8 +1688,6 @@ constructor(
                     kotlinType = "Short",
                     kotlinExpression = "32000.toShort()",
                     expectedLegacySource = expectations { common = "32000" },
-                    expectedKotlinLegacySource =
-                        expectations { annotationToSource = "32000.toShort()" },
                     expectedValue =
                         expectations {
                             common = literalValue(32000.toShort(), nonLiteralInSource = true)

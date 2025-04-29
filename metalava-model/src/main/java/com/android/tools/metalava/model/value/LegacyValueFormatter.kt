@@ -451,6 +451,50 @@ class LegacyValueFormatter(
                     ),
             )
 
+        /** Setting for formatting [AnnotationItem.toSource] from Kotlin sources. */
+        private val ANNOTATION_SOURCE_KOTLIN_SETTINGS =
+            ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS.copy(
+                valueStringConfiguration =
+                    ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS.boundConfiguration.copy(
+                        // Legacy AnnotationItem.toSource() formats Kotlin annotations with spaces
+                        // around the `=` in `attr = value`.
+                        annotationAttributeNameValueSeparator =
+                            AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+
+                        // Legacy AnnotationItem.toSource() formats ints as hexadecimals if they
+                        // were not specified as literals in the source.
+                        nonLiteralIntFormat = IntFormat.HEXADECIMAL,
+
+                        // Legacy AnnotationItem.toSource() includes the companion object's class
+                        // name in references to fields defined in a companion object.
+                        showKotlinCompanionClass = true,
+
+                        // Legacy AnnotationItem.toSource() includes a call to a numeric conversion
+                        // function, e.g. `INT_FIELD.toLong()`.
+                        showKotlinConversionFunction = true,
+
+                        // Legacy AnnotationItem.toSource() formats numbers based on the literal
+                        // they used in the source/constant type in class constant pool.
+                        useOriginalValueForNumbers = false,
+                    ),
+
+                // Override [ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS] which does not handle empty arrays
+                // correctly while this does.
+                stringReplacement = emptyMap(),
+
+                // Legacy AnnotationItem.toSource() adds double quotes around chars from Kotlin
+                // sources.
+                useDoubleQuotesForChar = false,
+
+                // Legacy AnnotationItem.toSource() does not add long or float suffixes for values
+                // obtained from Kotlin sources.
+                dropLongAndFloatTypeSuffix = false,
+
+                // Legacy AnnotationItem.toSource() only inlined hidden or removed fields used in
+                // Kotlin sources. It would keep non-public fields.
+                inlineFields = InlineFieldValue.WHEN_HIDDEN_OR_REMOVED,
+            )
+
         /** Setting for formatting [AnnotationItem.toSource] from Jar classes. */
         private val ANNOTATION_SOURCE_JAR_SETTINGS =
             Settings(
@@ -497,6 +541,7 @@ class LegacyValueFormatter(
         val ANNOTATION_SOURCE_FORMATTER =
             LegacyValueFormatter(
                 javaSettings = ANNOTATION_SOURCE_JAVA_SETTINGS,
+                kotlinSettings = ANNOTATION_SOURCE_KOTLIN_SETTINGS,
                 jarSettings = ANNOTATION_SOURCE_JAR_SETTINGS,
             )
     }
