@@ -27,13 +27,11 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
-import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiBinaryExpression
 import com.intellij.psi.PsiClass
@@ -60,7 +58,7 @@ private constructor(
         attributesGetter = { getAnnotationAttributes(annotationContext, psiAnnotation) },
     ) {
 
-    override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
+    override fun toSource(target: AnnotationTarget): String {
         val sb = StringBuilder(60)
         appendAnnotation(
             annotationContext,
@@ -68,7 +66,6 @@ private constructor(
             psiAnnotation,
             qualifiedName,
             target,
-            showDefaultAttrs
         )
         return sb.toString()
     }
@@ -129,40 +126,18 @@ private constructor(
             )
         }
 
-        private fun getAttributes(
-            annotation: PsiAnnotation,
-            showDefaultAttrs: Boolean
-        ): List<Pair<String?, PsiAnnotationMemberValue?>> {
-            val annotationClass = annotation.nameReferenceElement?.resolve() as? PsiClass
-            val list = mutableListOf<Pair<String?, PsiAnnotationMemberValue?>>()
-            if (annotationClass != null && showDefaultAttrs) {
-                for (method in annotationClass.methods) {
-                    if (method !is PsiAnnotationMethod) {
-                        continue
-                    }
-                    list.add(Pair(method.name, annotation.findAttributeValue(method.name)))
-                }
-            } else {
-                for (attr in annotation.parameterList.attributes) {
-                    list.add(Pair(attr.name, attr.value))
-                }
-            }
-            return list
-        }
-
         private fun appendAnnotation(
             codebase: PsiBasedCodebase,
             sb: StringBuilder,
             psiAnnotation: PsiAnnotation,
             qualifiedName: String?,
             target: AnnotationTarget,
-            showDefaultAttrs: Boolean
         ) {
             qualifiedName ?: return
             val outputName = codebase.annotationManager.normalizeOutputName(qualifiedName, target)
 
             val alwaysInlineValues = qualifiedName == "android.annotation.FlaggedApi"
-            val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
+            val attributes = psiAnnotation.parameterList.attributes
             if (attributes.isEmpty()) {
                 sb.append("@$outputName")
                 return
@@ -173,15 +148,14 @@ private constructor(
             sb.append("(")
             if (
                 attributes.size == 1 &&
-                    (attributes[0].first == null || attributes[0].first == ANNOTATION_ATTR_VALUE)
+                    (attributes[0].name == null || attributes[0].name == ANNOTATION_ATTR_VALUE)
             ) {
                 // Special case: omit "value" if it's the only attribute
                 appendValue(
                     codebase,
                     sb,
-                    attributes[0].second,
+                    attributes[0].value,
                     target,
-                    showDefaultAttrs = showDefaultAttrs,
                     alwaysInlineValues = alwaysInlineValues,
                 )
             } else {
@@ -192,14 +166,13 @@ private constructor(
                     } else {
                         sb.append(", ")
                     }
-                    sb.append(attribute.first ?: ANNOTATION_ATTR_VALUE)
+                    sb.append(attribute.name ?: ANNOTATION_ATTR_VALUE)
                     sb.append('=')
                     appendValue(
                         codebase,
                         sb,
-                        attribute.second,
+                        attribute.value,
                         target,
-                        showDefaultAttrs = showDefaultAttrs,
                         alwaysInlineValues = alwaysInlineValues,
                     )
                 }
@@ -212,7 +185,6 @@ private constructor(
             sb: StringBuilder,
             value: PsiAnnotationMemberValue?,
             target: AnnotationTarget,
-            showDefaultAttrs: Boolean,
             alwaysInlineValues: Boolean,
         ) {
             // Compute annotation string -- we don't just use value.text here
@@ -275,7 +247,6 @@ private constructor(
                             sb,
                             initializer,
                             target,
-                            showDefaultAttrs = showDefaultAttrs,
                             alwaysInlineValues = alwaysInlineValues,
                         )
                     }
@@ -290,7 +261,6 @@ private constructor(
                             // Normalize the input name of the annotation.
                             codebase.annotationManager.normalizeInputName(qualifiedName),
                             target,
-                            showDefaultAttrs
                         )
                     }
                 }
@@ -375,15 +345,5 @@ internal class PsiAnnotationSingleAttributeValue(
 
             return psiValue.text ?: psiValue.text.removeSurrounding("\"")
         }
-    }
-
-    override fun resolve(): Item? {
-        if (psiValue is PsiReference) {
-            when (val resolved = psiValue.resolve()) {
-                is PsiField -> return codebase.findField(resolved)
-                is PsiClass -> return codebase.findOrCreateClass(resolved)
-            }
-        }
-        return null
     }
 }
