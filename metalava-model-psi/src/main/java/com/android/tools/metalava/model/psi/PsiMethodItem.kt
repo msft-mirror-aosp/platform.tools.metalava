@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsType
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
@@ -108,7 +109,28 @@ internal class PsiMethodItem(
     override fun legacyDefaultValue() =
         when (psiMethod) {
             is UAnnotationMethod -> {
-                psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
+                when (defaultValue?.kind) {
+                    null -> ""
+                    // The following kinds are not currently handled the same way by
+                    // DefaultMethodItem.legacyDefaultValue() as they are by
+                    // CodePrinter.toSourceString() so use the latter for them.
+                    ValueKind.ANNOTATION,
+                    ValueKind.ARRAY,
+                    ValueKind.CHAR,
+                    ValueKind.CLASS,
+                    ValueKind.FLOAT,
+                    ValueKind.INT,
+                    ValueKind.LONG -> {
+                        psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) }
+                            ?: ""
+                    }
+                    // Use the DefaultMethodItem.legacyDefaultValue() implementation for all value
+                    // kinds that it currently handles in the same way as
+                    // CodePrinter.toSourceString().
+                    else -> {
+                        super.legacyDefaultValue()
+                    }
+                }
             }
             else -> super.legacyDefaultValue()
         }
