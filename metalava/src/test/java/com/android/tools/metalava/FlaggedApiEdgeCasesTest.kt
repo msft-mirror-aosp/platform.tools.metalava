@@ -207,4 +207,53 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test unresolvable flag field`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @$ANDROID_FLAGGED_API(UnresolvableFlag.FLAG_NAME)
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      @FlaggedApi(UnresolvableFlag.FLAG_NAME) public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @android.annotation.FlaggedApi(UnresolvableFlag.FLAG_NAME)
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+        )
+    }
 }
