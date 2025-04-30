@@ -104,10 +104,19 @@ private constructor(
  *
  * Returns `null` if this is not [ANDROID_FLAGGED_API] and does not have a `value` attribute.
  * Otherwise, it returns the value attribute as a [String].
+ *
+ * If the value exists but is not resolvable this returns the name of the field to preserve previous
+ * behavior.
  */
 val AnnotationItem.optionalFlagName: String?
     get() {
         if (qualifiedName != ANDROID_FLAGGED_API) return null
         val valueAttribute = findAttribute(ANNOTATION_ATTR_VALUE) ?: return null
-        return valueAttribute.value.asString()
+        return valueAttribute.value.let { value ->
+            // Use the literal string value, if possible. It will not be possible if the value is
+            // an unresolvable field reference.
+            value.asString()
+                // Fallback to using the string representation of the field reference.
+                ?: value.toValueString()
+        }
     }

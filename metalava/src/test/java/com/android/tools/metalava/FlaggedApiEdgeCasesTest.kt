@@ -228,8 +228,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      @FlaggedApi(UnresolvableFlag.FLAG_NAME) public class Test {
-                        ctor public Test();
+                      public class Test {
                       }
                     }
                 """,
@@ -239,9 +238,8 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            @android.annotation.FlaggedApi(UnresolvableFlag.FLAG_NAME)
                             public class Test {
-                            public Test() { throw new RuntimeException("Stub!"); }
+                            Test() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     )
