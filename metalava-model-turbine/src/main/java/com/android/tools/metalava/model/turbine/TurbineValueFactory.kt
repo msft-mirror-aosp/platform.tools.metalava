@@ -121,7 +121,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             val exprElements = (expr as? ArrayInit)?.exprs()
             val turbineValues =
                 elements.mapIndexed { index, element ->
-                    TurbineValue(element, exprElements?.get(index))
+                    TurbineValue(element, exprElements?.get(index), fieldResolver)
                 }
 
             val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
@@ -158,7 +158,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             }
             Const.Kind.ANNOTATION -> {
                 const as TurbineAnnotationValue
-                val annotation = annotationFactory.createAnnotation(const.info())!!
+                val annotation = annotationFactory.createAnnotation(const.info(), fieldResolver)!!
                 return createAnnotationValue(annotation)
             }
             Const.Kind.ENUM_CONSTANT -> {
