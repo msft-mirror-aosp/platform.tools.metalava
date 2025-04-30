@@ -1043,7 +1043,7 @@ class ApiGeneratorTest : DriverTest() {
                 <api version="3" min="39">
                     <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
                     <sdk id="40" shortname="K-ext" name="K Extensions" reference="VersionCode.K"/>
-                    <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39" deprecated="41">
+                    <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39" deprecated="40">
                     </class>
                 </api>
             """
