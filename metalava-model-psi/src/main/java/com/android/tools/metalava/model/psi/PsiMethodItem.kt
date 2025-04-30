@@ -105,18 +105,13 @@ internal class PsiMethodItem(
                     (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
 
-    override fun legacyDefaultValue(): String {
-        return when (psiMethod) {
+    override fun legacyDefaultValue() =
+        when (psiMethod) {
             is UAnnotationMethod -> {
                 psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
             }
-            is PsiAnnotationMethod -> {
-                psiMethod.defaultValue?.let { codebase.printer.toSourceExpression(it, this) }
-                    ?: super.legacyDefaultValue()
-            }
             else -> super.legacyDefaultValue()
         }
-    }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
         // If duplicating within the same codebase type then map the type variables, otherwise do

@@ -463,7 +463,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     method public abstract float floating() default 1.0f;
                     method public abstract boolean formatToHexString() default false;
                     method public abstract double from() default java.lang.Double.NEGATIVE_INFINITY;
-                    method public abstract double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
+                    method public abstract double fromWithCast() default java.lang.Double.NEGATIVE_INFINITY;
                     method public abstract boolean hasAdjacentMapping() default false;
                     method public abstract int integer() default 1;
                     method public abstract double large_floating() default 1.0;
@@ -503,7 +503,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public float floating() default 1.0f;
                 public boolean formatToHexString() default false;
                 public double from() default java.lang.Double.NEGATIVE_INFINITY;
-                public double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
+                public double fromWithCast() default java.lang.Double.NEGATIVE_INFINITY;
                 public boolean hasAdjacentMapping() default false;
                 public int integer() default 1;
                 public double large_floating() default 1.0;

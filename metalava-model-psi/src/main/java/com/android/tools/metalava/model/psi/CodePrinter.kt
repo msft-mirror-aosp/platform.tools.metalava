@@ -16,24 +16,15 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants.DOT_CLASS
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiAnnotationMemberValue
-import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
-import com.intellij.psi.PsiLiteral
-import com.intellij.psi.PsiReference
-import com.intellij.psi.PsiTypeCastExpression
 import com.intellij.psi.PsiVariable
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
@@ -76,165 +67,6 @@ class CodePrinter(
 
     private fun warning(message: String, uElement: UElement) {
         warning(message, uElement.sourcePsi ?: uElement.javaPsi)
-    }
-
-    /** Given an annotation member value, returns the corresponding Java source expression */
-    internal fun toSourceExpression(value: PsiAnnotationMemberValue, owner: Item): String {
-        val sb = StringBuilder()
-        appendSourceExpression(value, sb, owner)
-        return sb.toString()
-    }
-
-    private fun appendSourceExpression(
-        value: PsiAnnotationMemberValue,
-        sb: StringBuilder,
-        owner: Item
-    ): Boolean {
-        if (value is PsiReference) {
-            val resolved = value.resolve()
-            if (resolved is PsiField) {
-                sb.append(resolved.containingClass?.qualifiedName).append('.').append(resolved.name)
-                return true
-            }
-        } else if (value is PsiLiteral) {
-            return appendSourceLiteral(value.value, sb, owner)
-        } else if (value is PsiClassObjectAccessExpression) {
-            sb.append(value.operand.type.canonicalText).append(DOT_CLASS)
-            return true
-        } else if (value is PsiArrayInitializerMemberValue) {
-            sb.append('{')
-            var first = true
-            val initialLength = sb.length
-            for (e in value.initializers) {
-                val length = sb.length
-                if (first) {
-                    first = false
-                } else {
-                    sb.append(", ")
-                }
-                val appended = appendSourceExpression(e, sb, owner)
-                if (!appended) {
-                    // trunk off comma if it bailed for some reason (e.g. constant
-                    // filtered out by API etc)
-                    sb.setLength(length)
-                    if (length == initialLength) {
-                        first = true
-                    }
-                }
-            }
-            sb.append('}')
-            return true
-        } else if (value is PsiAnnotation) {
-            sb.append('@').append(value.qualifiedName)
-            val attributes = value.parameterList.attributes
-            if (attributes.isNotEmpty()) {
-                sb.append('(')
-                var separator = ""
-                for (attribute in attributes) {
-                    val attributeValue = attribute.value ?: continue
-                    sb.append(separator)
-                    attribute.name?.let { attributeName ->
-                        sb.append(attribute.attributeName).append(" = ")
-                    }
-                    appendSourceExpression(attributeValue, sb, owner)
-                    separator = ", "
-                }
-                sb.append(')')
-            }
-            return true
-        } else {
-            if (value is PsiTypeCastExpression) {
-                val type = value.castType?.type
-                val operand = value.operand
-                if (type != null && operand is PsiAnnotationMemberValue) {
-                    sb.append('(')
-                    sb.append(type.canonicalText)
-                    sb.append(')')
-                    return appendSourceExpression(operand, sb, owner)
-                }
-            }
-            val constant = ConstantEvaluator.evaluate(null, value)
-            if (constant != null) {
-                return appendSourceLiteral(constant, sb, owner)
-            }
-        }
-        reporter.report(Issues.INTERNAL_ERROR, owner, "Unexpected annotation default value $value")
-        return false
-    }
-
-    private fun appendSourceLiteral(v: Any?, sb: StringBuilder, owner: Item): Boolean {
-        if (v == null) {
-            sb.append("null")
-            return true
-        }
-        when (v) {
-            is Int,
-            is Boolean,
-            is Byte,
-            is Short -> {
-                sb.append(v.toString())
-                return true
-            }
-            is Long -> {
-                sb.append(v.toString()).append('L')
-                return true
-            }
-            is String -> {
-                sb.append('"').append(javaEscapeString(v)).append('"')
-                return true
-            }
-            is Float -> {
-                return when {
-                    v == Float.POSITIVE_INFINITY -> {
-                        // This convention (displaying fractions) is inherited from doclava
-                        sb.append("(1.0f/0.0f)")
-                        true
-                    }
-                    v == Float.NEGATIVE_INFINITY -> {
-                        sb.append("(-1.0f/0.0f)")
-                        true
-                    }
-                    java.lang.Float.isNaN(v) -> {
-                        sb.append("(0.0f/0.0f)")
-                        true
-                    }
-                    else -> {
-                        sb.append(v.toString() + "f")
-                        true
-                    }
-                }
-            }
-            is Double -> {
-                return when {
-                    v == Double.POSITIVE_INFINITY -> {
-                        // This convention (displaying fractions) is inherited from doclava
-                        sb.append("(1.0/0.0)")
-                        true
-                    }
-                    v == Double.NEGATIVE_INFINITY -> {
-                        sb.append("(-1.0/0.0)")
-                        true
-                    }
-                    java.lang.Double.isNaN(v) -> {
-                        sb.append("(0.0/0.0)")
-                        true
-                    }
-                    else -> {
-                        sb.append(v.toString())
-                        true
-                    }
-                }
-            }
-            is Char -> {
-                sb.append('\'').append(javaEscapeString(v.toString())).append('\'')
-                return true
-            }
-            else -> {
-                reporter.report(Issues.INTERNAL_ERROR, owner, "Unexpected literal value $v")
-            }
-        }
-
-        return false
     }
 
     fun toSourceString(value: UExpression?): String? {
