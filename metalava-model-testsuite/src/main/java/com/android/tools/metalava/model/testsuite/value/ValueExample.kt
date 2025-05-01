@@ -1259,7 +1259,6 @@ constructor(
                                 annotationToSource = "0x11"
                             }
                         },
-                    expectedKotlinLegacySource = expectations { attributeDefaultValue = "+17" },
                     expectedLegacyValue = expectations { common = 17 },
                     expectedValue = expectations { common = literalValue(17) },
                 ),

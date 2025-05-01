@@ -118,7 +118,6 @@ internal class PsiMethodItem(
                     ValueKind.ARRAY,
                     ValueKind.CHAR,
                     ValueKind.FLOAT,
-                    ValueKind.INT,
                     ValueKind.LONG -> {
                         psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) }
                             ?: ""
