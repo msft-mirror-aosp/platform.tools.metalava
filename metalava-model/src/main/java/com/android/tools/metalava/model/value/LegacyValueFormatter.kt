@@ -216,6 +216,14 @@ class LegacyValueFormatter(
             Settings(
                 valueStringConfiguration =
                     ValueStringConfiguration(
+                        // Legacy formatting of annotations in Kotlin default methods do not use
+                        // spaces in the separator between attribute name and value.
+                        annotationAttributeNameValueSeparator =
+                            AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+
+                        // ClassObjectValues are output using their source expression in Kotlin.
+                        classObjectValueFormat = ClassObjectValueFormat.SOURCE,
+
                         // Use the source representation of a single array element when formatting.
                         singleArrayElementFormat =
                             @Suppress("DEPRECATION") SingleArrayElementFormat.SOURCE,
@@ -227,8 +235,8 @@ class LegacyValueFormatter(
                         // even if they were `double`, `float`, or `long`.
                         treatAsIntIfOriginallySpecifiedAsInt = true,
 
-                        // ClassObjectValues are output using their source expression in Kotlin.
-                        classObjectValueFormat = ClassObjectValueFormat.SOURCE,
+                        // Use Kotlin formatting of values.
+                        valueLanguage = ValueLanguage.KOTLIN,
                     ),
                 stringReplacement =
                     mapOf(

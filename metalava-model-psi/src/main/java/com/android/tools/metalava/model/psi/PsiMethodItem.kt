@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsType
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.OptionalValueProvider
-import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
@@ -105,29 +104,6 @@ internal class PsiMethodItem(
                 psiMethod.sourcePsi is KtParameter &&
                     (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
-
-    override fun legacyDefaultValue() =
-        when (psiMethod) {
-            is UAnnotationMethod -> {
-                when (defaultValue?.kind) {
-                    null -> ""
-                    // The following kinds are not currently handled the same way by
-                    // DefaultMethodItem.legacyDefaultValue() as they are by
-                    // CodePrinter.toSourceString() so use the latter for them.
-                    ValueKind.ANNOTATION -> {
-                        psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) }
-                            ?: ""
-                    }
-                    // Use the DefaultMethodItem.legacyDefaultValue() implementation for all value
-                    // kinds that it currently handles in the same way as
-                    // CodePrinter.toSourceString().
-                    else -> {
-                        super.legacyDefaultValue()
-                    }
-                }
-            }
-            else -> super.legacyDefaultValue()
-        }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
         // If duplicating within the same codebase type then map the type variables, otherwise do

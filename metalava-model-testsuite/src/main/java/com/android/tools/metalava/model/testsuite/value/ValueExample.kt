@@ -264,7 +264,7 @@ constructor(
                         expectations {
                             common = "OtherAnnotation(intType = 1)"
 
-                            source { attributeDefaultValue = "test.pkg.OtherAnnotation(1)" }
+                            source { attributeDefaultValue = "test.pkg.OtherAnnotation(intType=1)" }
                         },
                     expectedLegacyValue =
                         expectations {
