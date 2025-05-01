@@ -235,6 +235,7 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  *   they were added.
  * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
  *   `int` if it was originally specified as an `int`.
+ * @param valueLanguage The language whose representation of [Value] should be used.
  */
 data class ValueStringConfiguration(
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
@@ -243,6 +244,7 @@ data class ValueStringConfiguration(
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
     val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
+    val valueLanguage: ValueLanguage = ValueLanguage.JAVA,
 ) {
     /** Use the [nestedValueAppender] to append a string representation of [Value] to [builder]. */
     fun appendNestedValueTo(builder: StringBuilder, value: Value) {
@@ -292,6 +294,32 @@ enum class SingleArrayElementFormat {
         replaceWith = ReplaceWith("WRAP"),
     )
     SOURCE,
+}
+
+/** Enumeration of the language the value should be formatted for. */
+enum class ValueLanguage(
+    /** Prefix to add before an annotation class name. */
+    val annotationClassPrefix: String,
+
+    /**
+     * `true` if the annotation requires parentheses even if the attributes are empty, `false`
+     * otherwise.
+     */
+    val annotationAttributesListRequiresParentheses: Boolean,
+) {
+    /** Values should be represented as they would in Java. */
+    JAVA(
+        /** Java style annotations, e.g. @MarkerAnnotation. */
+        annotationClassPrefix = "@",
+        annotationAttributesListRequiresParentheses = false,
+    ),
+
+    /** Values should be represented as they would in Kotlin. */
+    KOTLIN(
+        /** Kotlin style annotations, e.g. MarkerAnnotation(). */
+        annotationClassPrefix = "",
+        annotationAttributesListRequiresParentheses = true,
+    ),
 }
 
 /** Enumeration of the different types of [ValueKind]. */
@@ -640,10 +668,11 @@ sealed interface AnnotationValue : ArrayElementValue {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        builder.append("@")
+        val language = configuration.valueLanguage
+        builder.append(language.annotationClassPrefix)
         builder.append(annotationItem.qualifiedName)
         val attributes = annotationItem.attributes
-        if (attributes.isNotEmpty()) {
+        if (language.annotationAttributesListRequiresParentheses || attributes.isNotEmpty()) {
             builder.append("(")
 
             val singleAttribute = attributes.singleOrNull()

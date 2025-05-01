@@ -140,6 +140,12 @@ class ParameterizedValueStringTest {
                         singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
                     )
                 )
+
+            val VALUE_LANGUAGE_KOTLIN =
+                LabelledConfig(
+                    "value-language-kotlin",
+                    ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN)
+                )
         }
     }
 
@@ -248,12 +254,22 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno"),
                     expectedDefaultValueString = "@test.pkg.Anno",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.VALUE_LANGUAGE_KOTLIN,
+                        "test.pkg.Anno()"
+                    )
+                },
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno(intValue = 1)"),
                     expectedDefaultValueString = "@test.pkg.Anno(intValue = 1)",
                     expectedDefaultDebugString = "@test.pkg.Anno(intValue = IntValue(1))",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.VALUE_LANGUAGE_KOTLIN,
+                        "test.pkg.Anno(intValue = 1)"
+                    )
+                },
                 testCasesForValue(
                     // An annotation with an explicit value attribute
                     value = annotationValueFromSource("@test.pkg.Anno(value = 1)"),
@@ -300,7 +316,12 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "@test.pkg.Anno(nested = @other.pkg.OtherAnno)",
                     expectedDefaultDebugString =
                         "@test.pkg.Anno(nested = AnnotationValue(@other.pkg.OtherAnno))",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.VALUE_LANGUAGE_KOTLIN,
+                        "test.pkg.Anno(nested = other.pkg.OtherAnno())"
+                    )
+                },
                 // ********************************* Arrays *********************************
                 testCasesForValue(
                     value = arrayValueFromAny(),
