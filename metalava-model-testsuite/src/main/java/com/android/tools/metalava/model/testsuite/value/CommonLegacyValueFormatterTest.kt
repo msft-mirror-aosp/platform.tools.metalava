@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.value.LegacyValueFormatter
@@ -300,6 +301,26 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             val actual = formatter.format(DOUBLE_NAN, method)
             val expected = if (inputFormat == InputFormat.JAVA) "Java" else "Kotlin"
             assertEquals(expected, actual)
+        }
+    }
+
+    @Test
+    fun `Test char - useDoubleQuotesForChar = false`() {
+        checkFormatting {
+            val javaSettings = Settings(useDoubleQuotesForChar = false)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            val actual = formatter.format(literalValue('a'), method)
+            assertEquals("'a'", actual)
+        }
+    }
+
+    @Test
+    fun `Test char - useDoubleQuotesForChar = true`() {
+        checkFormatting {
+            val javaSettings = Settings(useDoubleQuotesForChar = true)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            val actual = formatter.format(literalValue('a'), method)
+            assertEquals("\"a\"", actual)
         }
     }
 }

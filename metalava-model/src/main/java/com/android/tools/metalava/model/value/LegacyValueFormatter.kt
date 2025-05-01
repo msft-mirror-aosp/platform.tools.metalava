@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.javaEscapeString
 import java.lang.StringBuilder
 
 /**
@@ -92,6 +93,12 @@ class LegacyValueFormatter(
         val nestedValueAppender: (Value, StringBuilder, Settings) -> Unit = { value, builder, _ ->
             value.appendValueStringTo(builder)
         },
+
+        /**
+         * If `true` then just use double quotes for [CharValue] not single quotes, which is the
+         * default.
+         */
+        val useDoubleQuotesForChar: Boolean = false,
     ) {
         /**
          * The configuration that must be used when calling [Value.toValueString].
@@ -147,6 +154,12 @@ class LegacyValueFormatter(
         // If there is a string replacement then return it.
         settings.stringReplacement[value]?.let { replacement ->
             builder.append(replacement)
+            return
+        }
+
+        if (settings.useDoubleQuotesForChar && value is CharValue) {
+            val underlyingValue = value.underlyingValue
+            builder.append('"').append(javaEscapeString(underlyingValue.toString())).append('"')
             return
         }
 
@@ -213,7 +226,11 @@ class LegacyValueFormatter(
                             "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
                         FloatValue.POSITIVE_INFINITY to
                             "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY",
-                    )
+                    ),
+
+                // Chars are wrapped in double quotes for method default values created from
+                // Kotlin sources.
+                useDoubleQuotesForChar = true,
             )
 
         /** Setting for formatting [MethodItem.defaultValue] from Jar classes. */
