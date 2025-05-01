@@ -216,9 +216,9 @@ class LegacyValueFormatter(
             Settings(
                 valueStringConfiguration =
                     ValueStringConfiguration(
-                        // Unwrap a single array element when formatting a value from source as they
-                        // were unwrapped in the source.
-                        singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                        // Use the source representation of a single array element when formatting.
+                        singleArrayElementFormat =
+                            @Suppress("DEPRECATION") SingleArrayElementFormat.SOURCE,
 
                         // Annotation attributes are not sorted in the default values.
                         sortAnnotationAttributes = false,
@@ -242,6 +242,10 @@ class LegacyValueFormatter(
                             "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
                         FloatValue.POSITIVE_INFINITY to
                             "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY",
+
+                        // Ignore an empty array as that is the legacy behavior for method default
+                        // values created from Kotlin sources.
+                        Value.createArrayValue(emptyList()) to "",
                     ),
 
                 // Method default values from Kotlin sources do not add a type suffix character for
