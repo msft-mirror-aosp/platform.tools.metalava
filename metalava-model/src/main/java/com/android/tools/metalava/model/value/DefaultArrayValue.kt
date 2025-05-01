@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.Codebase
+
 internal class DefaultArrayValue(
     override val elements: List<ArrayElementValue>,
     private val wasUnwrappedInSource: Boolean,
@@ -31,5 +33,11 @@ internal class DefaultArrayValue(
         ) {
             configuration.appendNestedValueTo(builder, elements[0])
         } else super.appendValueStringTo(builder, configuration)
+    }
+
+    override fun snapshot(targetCodebase: Codebase): ArrayValue {
+        if (elements.isEmpty()) return this
+        val snapshotElements = elements.map { it.snapshot(targetCodebase) }
+        return Value.createArrayValue(snapshotElements, wasUnwrappedInSource)
     }
 }

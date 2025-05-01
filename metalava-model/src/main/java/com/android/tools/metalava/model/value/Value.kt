@@ -778,12 +778,6 @@ sealed interface ArrayValue : Value {
         }
     }
 
-    override fun snapshot(targetCodebase: Codebase): ArrayValue {
-        if (elements.isEmpty()) return this
-        val snapshotElements = elements.map { it.snapshot(targetCodebase) }
-        return Value.createArrayValue(snapshotElements)
-    }
-
     /**
      * Transform this [ArrayValue].
      *
