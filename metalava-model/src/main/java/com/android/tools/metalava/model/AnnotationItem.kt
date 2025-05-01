@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
+import com.android.tools.metalava.model.value.LegacyValueFormatter.Companion.ANNOTATION_SOURCE_FORMATTER
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
@@ -596,10 +597,7 @@ protected constructor(
     }
 
     override fun toSource(target: AnnotationTarget, context: Item?): String {
-        val qualifiedName =
-            annotationContext.annotationManager.normalizeOutputName(qualifiedName, target)
-
-        return formatAnnotationItem(qualifiedName, attributes, context)
+        return ANNOTATION_SOURCE_FORMATTER.annotationItemToSource(this, target, context)
     }
 
     final override fun toString() = buildString {
@@ -612,35 +610,6 @@ protected constructor(
     }
 
     companion object {
-        private fun formatAnnotationItem(
-            qualifiedName: String,
-            attributes: List<AnnotationAttribute>,
-            context: Item?,
-        ): String {
-            return buildString {
-                append("@")
-                append(qualifiedName)
-                if (attributes.isNotEmpty()) {
-                    val suppressDefaultAnnotationAttribute = attributes.size == 1
-                    append("(")
-                    attributes.forEachIndexed { i, attribute ->
-                        if (i != 0) {
-                            append(", ")
-                        }
-                        if (
-                            !suppressDefaultAnnotationAttribute ||
-                                attribute.name != ANNOTATION_ATTR_VALUE
-                        ) {
-                            append(attribute.name)
-                            append("=")
-                        }
-                        append(attribute.legacyValue)
-                    }
-                    append(")")
-                }
-            }
-        }
-
         /** Create an annotation from [source]. */
         fun createFromSource(
             annotationContext: AnnotationContext,

@@ -1,9 +1,7 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation toSource() with char values
   annotation with class values
   annotation with constant literal values
   annotation with infinity values
-  annotation with negative number values
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[boxedInt to primitiveInt]
@@ -15,35 +13,12 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
-  testLegacySource[source,annotation - array of annotations]
-  testLegacySource[source,annotation]
   testLegacySource[source,byte - cast]
-  testLegacySource[source,byte - negative int]
-  testLegacySource[source,char escaped]
-  testLegacySource[source,char unicode]
-  testLegacySource[source,char]
   testLegacySource[source,class literal - array of basic class]
   testLegacySource[source,class literal - array of generic class]
   testLegacySource[source,class literal - basic class]
   testLegacySource[source,class literal - generic class]
-  testLegacySource[source,double - hex]
-  testLegacySource[source,double - negative int]
-  testLegacySource[source,double NaN]
-  testLegacySource[source,double negative infinity]
-  testLegacySource[source,double positive infinity]
-  testLegacySource[source,double with exponent]
-  testLegacySource[source,float - hex]
-  testLegacySource[source,float - negative int]
-  testLegacySource[source,float - negative]
-  testLegacySource[source,float NaN]
-  testLegacySource[source,float negative infinity]
-  testLegacySource[source,float positive infinity]
-  testLegacySource[source,float with exponent]
-  testLegacySource[source,int negative]
-  testLegacySource[source,long - with negative int]
-  testLegacySource[source,long with lower l]
   testLegacySource[source,short - cast]
-  testLegacySource[source,short - negative int]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
   testLegacySource[source,byte - cast]
