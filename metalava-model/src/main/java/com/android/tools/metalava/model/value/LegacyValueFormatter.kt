@@ -18,9 +18,11 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -137,7 +139,7 @@ class LegacyValueFormatter(
     }
 
     /**
-     * Format [value] within the optional [context].
+     * Format [value] within the [context].
      *
      * The [context] must be provided as follows:
      * * When formatting a [Value] from [FieldItem.constantValue] it must be the [FieldItem].
@@ -146,16 +148,22 @@ class LegacyValueFormatter(
      * This is not suitable for formatting a [Value] from [AnnotationAttribute.value].
      */
     fun format(value: Value, context: MemberItem): String {
-        // Select the settings to use based on whether it is from the classpath (a jar) or sources.
-        val settings =
-            when {
-                context.containingClass().origin == ClassOrigin.CLASS_PATH -> jarSettings
-                context.sourceLanguage == SourceLanguage.KOTLIN -> kotlinSettings
-                else -> javaSettings
-            }
-
+        val settings = selectSettingsForContext(context)
         return format(settings, value)
     }
+
+    /**
+     * Select the settings to use based on whether it is from the classpath (a jar) or sources. That
+     * determination is made using [context]. If that is `null` then this will use the
+     * [javaSettings] by default.
+     */
+    private fun selectSettingsForContext(context: Item?) =
+        when {
+            context == null -> javaSettings
+            context is ClassContentItem && context.origin == ClassOrigin.CLASS_PATH -> jarSettings
+            context.sourceLanguage == SourceLanguage.KOTLIN -> kotlinSettings
+            else -> javaSettings
+        }
 
     /** Format [value] according to [settings]. */
     private fun format(settings: Settings, value: Value) = buildString {
