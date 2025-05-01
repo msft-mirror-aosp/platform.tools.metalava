@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.Item
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
@@ -57,7 +58,7 @@ private constructor(
         attributesGetter = { getAnnotationAttributes(annotationContext, uAnnotation) },
     ) {
 
-    override fun toSource(target: AnnotationTarget): String {
+    override fun toSource(target: AnnotationTarget, context: Item?): String {
         val sb = StringBuilder(60)
         appendAnnotation(
             annotationContext,

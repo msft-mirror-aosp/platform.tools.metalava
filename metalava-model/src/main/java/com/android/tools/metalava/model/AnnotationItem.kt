@@ -134,7 +134,10 @@ sealed interface AnnotationItem {
      *
      * @param target the [AnnotationTarget] for which this is being generated.
      */
-    fun toSource(target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE): String
+    fun toSource(
+        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
+        context: Item? = null,
+    ): String
 
     /** The applicable targets for this annotation */
     val targets: Set<AnnotationTarget>
@@ -577,11 +580,11 @@ protected constructor(
         return result
     }
 
-    override fun toSource(target: AnnotationTarget): String {
+    override fun toSource(target: AnnotationTarget, context: Item?): String {
         val qualifiedName =
             annotationContext.annotationManager.normalizeOutputName(qualifiedName, target)
 
-        return formatAnnotationItem(qualifiedName, attributes)
+        return formatAnnotationItem(qualifiedName, attributes, context)
     }
 
     final override fun toString() = buildString {
@@ -592,6 +595,7 @@ protected constructor(
         private fun formatAnnotationItem(
             qualifiedName: String,
             attributes: List<AnnotationAttribute>,
+            context: Item?,
         ): String {
             return buildString {
                 append("@")

@@ -79,7 +79,7 @@ enum class LegacyValueUseSite(
             val annotation = testClassItem.modifiers.annotations().first()
 
             // Generate the whole annotation representation, not including default values.
-            val wholeAnnotation = annotation.toSource()
+            val wholeAnnotation = annotation.toSource(context = testClassItem)
 
             // Extract the value from the whole annotation.
             wholeAnnotation
