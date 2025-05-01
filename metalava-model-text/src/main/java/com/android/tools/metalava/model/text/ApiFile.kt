@@ -1253,7 +1253,7 @@ private constructor(
         }
 
         var throwsList = emptyList<ExceptionTypeItem>()
-        var defaultAnnotationMethodValue = ""
+        var defaultAnnotationMethodValue: String? = null
 
         when (token) {
             "throws" -> {
@@ -1270,13 +1270,9 @@ private constructor(
         }
 
         val defaultValueProvider =
-            if (defaultAnnotationMethodValue.isNotEmpty())
-                valueParser.providerFor(
-                    returnType,
-                    defaultAnnotationMethodValue,
-                    ValueUseSite.ANNOTATION,
-                )
-            else null
+            defaultAnnotationMethodValue?.let { valueString ->
+                valueParser.providerFor(returnType, valueString, ValueUseSite.ANNOTATION)
+            }
 
         method =
             itemFactory.createMethodItem(
@@ -1292,7 +1288,6 @@ private constructor(
                 },
                 throwsTypes = throwsList,
                 defaultValueProvider = defaultValueProvider,
-                annotationDefault = defaultAnnotationMethodValue,
             )
 
         // Ignore enum synthetic methods. They are no longer included in signature files as they add
