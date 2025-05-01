@@ -95,6 +95,12 @@ class LegacyValueFormatter(
         },
 
         /**
+         * If `true` then just use the [Number.toString] method for [LiteralValue.underlyingValue]s
+         * that are [Number]s.
+         */
+        val dropLongAndFloatTypeSuffix: Boolean = false,
+
+        /**
          * If `true` then just use double quotes for [CharValue] not single quotes, which is the
          * default.
          */
@@ -165,6 +171,16 @@ class LegacyValueFormatter(
 
         // Fallback to just using the default value representation according to the settings.
         value.appendValueStringTo(builder, settings.boundConfiguration)
+
+        if (settings.dropLongAndFloatTypeSuffix) {
+            val lastCharIndex = builder.length - 1
+            if (
+                (value is LongValue && builder[lastCharIndex] == 'L') ||
+                    (value is FloatValue && builder[lastCharIndex] == 'f')
+            ) {
+                builder.setLength(lastCharIndex)
+            }
+        }
     }
 
     companion object {
@@ -227,6 +243,10 @@ class LegacyValueFormatter(
                         FloatValue.POSITIVE_INFINITY to
                             "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY",
                     ),
+
+                // Method default values from Kotlin sources do not add a type suffix character for
+                // long or float.
+                dropLongAndFloatTypeSuffix = true,
 
                 // Chars are wrapped in double quotes for method default values created from
                 // Kotlin sources.

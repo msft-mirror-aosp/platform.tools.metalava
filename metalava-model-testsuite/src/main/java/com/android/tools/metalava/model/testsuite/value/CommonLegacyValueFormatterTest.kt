@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.Assertions.Companion.assertResolvedClass
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
@@ -30,11 +31,13 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.literalValue
+import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.value.LegacyValueFormatter
 import com.android.tools.metalava.model.value.LegacyValueFormatter.Settings
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
@@ -321,6 +324,50 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             val formatter = LegacyValueFormatter(javaSettings = javaSettings)
             val actual = formatter.format(literalValue('a'), method)
             assertEquals("\"a\"", actual)
+        }
+    }
+
+    @Test
+    fun `Test char - dropLongAndFloatTypeSuffix = false`() {
+        checkFormatting {
+            val javaSettings =
+                Settings(
+                    valueStringConfiguration =
+                        ValueStringConfiguration(
+                            treatAsIntIfOriginallySpecifiedAsInt = true,
+                        ),
+                    dropLongAndFloatTypeSuffix = false,
+                )
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            fun assertFormattedValue(expected: String, value: Value) {
+                assertEquals(expected, formatter.format(value, method), message = value.toString())
+            }
+            assertFormattedValue("10L", literalValue(10L))
+            assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
+            assertFormattedValue("2.3f", literalValue(2.3f))
+            assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
+        }
+    }
+
+    @Test
+    fun `Test char - dropLongAndFloatTypeSuffix = true`() {
+        checkFormatting {
+            val javaSettings =
+                Settings(
+                    valueStringConfiguration =
+                        ValueStringConfiguration(
+                            treatAsIntIfOriginallySpecifiedAsInt = true,
+                        ),
+                    dropLongAndFloatTypeSuffix = true,
+                )
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            fun assertFormattedValue(expected: String, value: Value) {
+                assertEquals(expected, formatter.format(value, method), message = value.toString())
+            }
+            assertFormattedValue("10", literalValue(10L))
+            assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
+            assertFormattedValue("2.3", literalValue(2.3f))
+            assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
         }
     }
 }

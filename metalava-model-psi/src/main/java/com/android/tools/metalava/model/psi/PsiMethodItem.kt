@@ -115,9 +115,7 @@ internal class PsiMethodItem(
                     // DefaultMethodItem.legacyDefaultValue() as they are by
                     // CodePrinter.toSourceString() so use the latter for them.
                     ValueKind.ANNOTATION,
-                    ValueKind.ARRAY,
-                    ValueKind.FLOAT,
-                    ValueKind.LONG -> {
+                    ValueKind.ARRAY -> {
                         psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) }
                             ?: ""
                     }
