@@ -60,7 +60,6 @@ import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiTypes
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
@@ -70,6 +69,7 @@ import org.jetbrains.uast.UResolvable
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastCallKind
 import org.jetbrains.uast.UastQualifiedExpressionAccessType
+import org.jetbrains.uast.getParameterForArgument
 
 /**
  * Creates [ValueProvider]s that will delegate to [implementationValueToModelValue] to create
@@ -407,14 +407,13 @@ internal class PsiValueFactory(
         val qualifiedClassName = psiClass?.qualifiedName ?: return null
 
         fun attributesProvider() =
-            // Iterate over the parameters of the annotation constructor as this needs to get the
-            // parameter name for each argument to use as the attribute name and its type for use
-            // to guide conversion.
-            resolved.psiParameters.mapNotNull { psiParameter ->
-                val index = psiParameter.parameterIndex()
-                // Get the argument for this parameter, if no argument is provided then ignore the
-                // parameter.
-                val uArgument = uExpression.getArgumentForParameter(index) ?: return@mapNotNull null
+            // Iterate over the arguments as the order in which they are specified if important.
+            uExpression.valueArguments.mapNotNull { uArgument ->
+
+                // Get the parameter for this argument, if no parameter is provided then ignore the
+                // argument.
+                val psiParameter =
+                    uExpression.getParameterForArgument(uArgument) ?: return@mapNotNull null
 
                 // Get the name and type from the parameter.
                 val name = psiParameter.name
