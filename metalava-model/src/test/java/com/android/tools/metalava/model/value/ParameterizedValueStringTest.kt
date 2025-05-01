@@ -104,6 +104,15 @@ class ParameterizedValueStringTest {
         companion object {
             val DEFAULT = LabelledConfig("default", ValueStringConfiguration.DEFAULT)
 
+            val ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES =
+                LabelledConfig(
+                    "annotation-attribute-name-value-without-spaces",
+                    ValueStringConfiguration(
+                        annotationAttributeNameValueSeparator =
+                            AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+                    )
+                )
+
             val CLASS_OBJECT_VALUE_SOURCE =
                 LabelledConfig(
                     "class-object-value-as-source",
@@ -259,6 +268,10 @@ class ParameterizedValueStringTest {
                         LabelledConfig.VALUE_LANGUAGE_KOTLIN,
                         "test.pkg.Anno()"
                     )
+
+                    verifyConfigMatchesDefault(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES
+                    )
                 },
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno(intValue = 1)"),
@@ -269,19 +282,32 @@ class ParameterizedValueStringTest {
                         LabelledConfig.VALUE_LANGUAGE_KOTLIN,
                         "test.pkg.Anno(intValue = 1)"
                     )
+
+                    verifyConfigChangesOutput(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES,
+                        "@test.pkg.Anno(intValue=1)"
+                    )
                 },
                 testCasesForValue(
                     // An annotation with an explicit value attribute
                     value = annotationValueFromSource("@test.pkg.Anno(value = 1)"),
                     expectedDefaultValueString = "@test.pkg.Anno(1)",
                     expectedDefaultDebugString = "@test.pkg.Anno(IntValue(1))",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES
+                    )
+                },
                 testCasesForValue(
                     // An annotation with an implicit value attribute
                     value = annotationValueFromSource("@test.pkg.Anno(1)"),
                     expectedDefaultValueString = "@test.pkg.Anno(1)",
                     expectedDefaultDebugString = "@test.pkg.Anno(IntValue(1))",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES
+                    )
+                },
                 testCasesForValue(
                     // An annotation with an explicit value attribute and another attribute.
                     value = annotationValueFromSource("@test.pkg.Anno(value = 1, intValue = 3)"),
@@ -292,6 +318,11 @@ class ParameterizedValueStringTest {
                     verifyConfigChangesOutput(
                         LabelledConfig.UNSORTED_ATTRIBUTES,
                         "@test.pkg.Anno(value = 1, intValue = 3)"
+                    )
+
+                    verifyConfigChangesOutput(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES,
+                        "@test.pkg.Anno(intValue=3, value=1)"
                     )
                 },
                 testCasesForValue(

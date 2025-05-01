@@ -228,6 +228,8 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 /**
  * Configuration options for how to represent a value as a string.
  *
+ * @param annotationAttributeNameValueSeparator The string to use to separate annotation attribute
+ *   name and value.
  * @param classObjectValueFormat How to format a [ClassObjectValue].
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
@@ -238,6 +240,8 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * @param valueLanguage The language whose representation of [Value] should be used.
  */
 data class ValueStringConfiguration(
+    val annotationAttributeNameValueSeparator: AnnotationAttributeNameValueSeparator =
+        AnnotationAttributeNameValueSeparator.WITH_SPACES,
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
@@ -262,6 +266,11 @@ data class ValueStringConfiguration(
                 nestedValueAppender = { value, builder, _ -> value.appendToStringTo(builder) },
             )
     }
+}
+
+enum class AnnotationAttributeNameValueSeparator(val text: String) {
+    WITH_SPACES(text = " = "),
+    WITHOUT_SPACES(text = "="),
 }
 
 /** Enumeration of how a [ClassObjectValue] should be formatted. */
@@ -675,6 +684,8 @@ sealed interface AnnotationValue : ArrayElementValue {
         if (language.annotationAttributesListRequiresParentheses || attributes.isNotEmpty()) {
             builder.append("(")
 
+            val nameValueSeparator = configuration.annotationAttributeNameValueSeparator.text
+
             val singleAttribute = attributes.singleOrNull()
             if (singleAttribute == null) {
                 var separator = ""
@@ -686,7 +697,7 @@ sealed interface AnnotationValue : ArrayElementValue {
 
                 for (attribute in orderedAttributes) {
                     builder.append(separator)
-                    builder.append(attribute.name).append(" = ")
+                    builder.append(attribute.name).append(nameValueSeparator)
                     configuration.appendNestedValueTo(builder, attribute.value)
                     separator = ", "
                 }
@@ -694,7 +705,7 @@ sealed interface AnnotationValue : ArrayElementValue {
                 // A single attribute whose attribute name is "value" can just use the value.
                 val name = singleAttribute.name
                 if (name != ANNOTATION_ATTR_VALUE) {
-                    builder.append(name).append(" = ")
+                    builder.append(name).append(nameValueSeparator)
                 }
                 configuration.appendNestedValueTo(builder, singleAttribute.value)
             }
