@@ -877,9 +877,6 @@ class ApiAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass-Vxmw0xk(int) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
-                warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass-Vxmw0xk() [UnavailableSymbol]
-                error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass-Vxmw0xk(int) [ReferencesHidden]
                 src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(int) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
                 src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
                 src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(int) [ReferencesHidden]
