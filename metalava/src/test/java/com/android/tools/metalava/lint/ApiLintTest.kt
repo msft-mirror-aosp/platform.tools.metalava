@@ -3242,12 +3242,9 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
         check(
             apiLint = "", // enabled
             expectedFail = DefaultLintErrorMessage,
-            // Error should only be on the source element, not the mangled version in bytecode.
+            // Error is only on the source element, not the mangled version in bytecode.
             expectedIssues =
-                """
-                error: Method name must start with lowercase char: FunWithBadName-Vxmw0xk [StartWithLower]
-                src/test/pkg/IntValue.kt:4: error: Method name must start with lowercase char: FunWithBadName [StartWithLower]
-                """,
+                "src/test/pkg/IntValue.kt:4: error: Method name must start with lowercase char: FunWithBadName [StartWithLower]",
             extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
             sourceFiles =
                 arrayOf(
