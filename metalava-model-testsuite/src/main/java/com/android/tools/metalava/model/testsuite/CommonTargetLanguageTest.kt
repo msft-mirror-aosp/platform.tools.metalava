@@ -31,6 +31,10 @@ import org.junit.Test
  *
  * To generate a jar file from Kotlin source files, see [generateBase64gzipFromKotlin]. The output
  * can be used with [base64gzip] in tests.
+ *
+ * Most of the tests below do not have signature file cases because they are mainly supposed to test
+ * how Kotlin language features translate to target languages. Parsing of target languages is tested
+ * in the ApiFileTest in the metalava-model-text module.
  */
 class CommonTargetLanguageTest : BaseModelTest() {
     @Test

@@ -96,4 +96,16 @@ object TargetLanguageSet {
      * a visitor which wants to skip APIs that only exist in bytecode.
      */
     val SOURCE: Set<TargetLanguage> = EnumSet.of(TargetLanguage.JAVA, TargetLanguage.KOTLIN)
+
+    /**
+     * Mapping from the representation used in signature files to the corresponding target language
+     * set.
+     */
+    val signatureFileRepresentationToTargetLanguageSet =
+        mapOf(
+            "@KotlinOnly" to KOTLIN_ONLY,
+            "@BytecodeOnly" to BYTECODE_ONLY,
+            "@InaccessibleFromKotlin" to NOT_KOTLIN,
+            "@InaccessibleFromJava" to NOT_JAVA,
+        )
 }
