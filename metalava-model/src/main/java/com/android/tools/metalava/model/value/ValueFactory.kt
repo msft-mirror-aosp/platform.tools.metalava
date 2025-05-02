@@ -95,7 +95,7 @@ interface ValueFactory {
                 }
                 is ClassTypeItem -> {
                     // The only allowable class type is a String.
-                    if (optionalTypeItem.isString() && underlyingValue is String)
+                    if (optionalTypeItem.isPossiblyUnresolvedString() && underlyingValue is String)
                         DefaultStringValue(underlyingValue)
                     else null
                 }
@@ -247,8 +247,19 @@ interface ValueFactory {
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
         DefaultAnnotationValue(annotationItem)
 
+    /**
+     * Check to see whether this [TypeItem] is `java.lang.String`.
+     *
+     * As the definition of `java.lang.String` may not have been provided to Metalava also check for
+     * `String` as that is most likely to be an unresolved reference to `java.lang.String`. If it
+     * was a custom class then presumably that would be defined somewhere in which case it would
+     * have been resolved to the class and so would not be an unqualified name.
+     */
+    fun TypeItem.isPossiblyUnresolvedString() =
+        isString() || (this is ClassTypeItem && qualifiedName == "String")
+
     /** Check if this [TypeItem] is a constant type, i.e. a [String] or a primitive type. */
-    fun TypeItem.isConstantType() = isString() || this is PrimitiveTypeItem
+    fun TypeItem.isConstantType() = isPossiblyUnresolvedString() || this is PrimitiveTypeItem
 
     companion object {
         /**
