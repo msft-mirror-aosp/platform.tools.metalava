@@ -124,7 +124,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
     private fun versionedJarApi(classFiles: Set<String>): VersionedApiFactory = { version ->
         VersionedJarApi(
             // `prebuilts/sdk/30/public/android.jar`
-            getAndroidJar(30),
+            listOf(getAndroidJar(30)),
             ApiHistoryUpdater.forApiVersion(version),
             filter = { it in classFiles },
         )
