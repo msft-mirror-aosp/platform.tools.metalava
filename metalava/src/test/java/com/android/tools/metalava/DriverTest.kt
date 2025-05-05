@@ -1569,7 +1569,6 @@ private fun restrictedForEnvironmentClass(packageName: String): TestFile =
             import java.lang.annotation.*;
             import static java.lang.annotation.ElementType.*;
             import static java.lang.annotation.RetentionPolicy.SOURCE;
-            /** @hide */
             @Retention(SOURCE)
             @Target({TYPE})
             public @interface RestrictedForEnvironment {

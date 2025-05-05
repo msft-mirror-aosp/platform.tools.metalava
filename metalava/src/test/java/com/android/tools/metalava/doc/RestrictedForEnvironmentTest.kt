@@ -32,7 +32,6 @@ class RestrictedForEnvironmentTest : DriverTest() {
         packageName: String = ANDROIDX_ANNOTATION_PACKAGE,
         restrictedForEnvironmentClass: TestFile = androidXRestrictedForEnvironment,
     ) {
-        val packageDir = packageName.replace(".", "/")
         check(
             sourceFiles =
                 arrayOf(
@@ -61,9 +60,6 @@ class RestrictedForEnvironmentTest : DriverTest() {
                 """,
             docStubs = true,
             skipEmitPackages = listOf(packageName),
-            // TODO(b/396346859): Resolve hidden environments field
-            expectedIssues =
-                "src/$packageDir/RestrictedForEnvironment.java:12: error: Typedef class references hidden field field RestrictedForEnvironment.Environment.SDK_SANDBOX: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
@@ -72,6 +68,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
+                                  <val name="environments" val="androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX" />
                                   <val name="from" val="14" />
                                 </annotation>
                               </item>
@@ -155,9 +152,6 @@ class RestrictedForEnvironmentTest : DriverTest() {
                 ),
             docStubs = true,
             skipEmitPackages = listOf("androidx.annotation"),
-            // TODO(b/396346859): Resolve hidden environments field
-            expectedIssues =
-                "src/androidx/annotation/RestrictedForEnvironment.java:12: error: Typedef class references hidden field field RestrictedForEnvironment.Environment.SDK_SANDBOX: removed from typedef metadata [HiddenTypedefConstant]\nsrc/androidx/annotation/RestrictedForEnvironment.java:12: error: Typedef class references hidden field field RestrictedForEnvironment.Environment.SDK_SANDBOX: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
@@ -166,9 +160,11 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
+                                  <val name="environments" val="androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX" />
                                   <val name="from" val="14" />
                                 </annotation>
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
+                                  <val name="environments" val="androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX" />
                                   <val name="from" val="16" />
                                 </annotation>
                               </item>
