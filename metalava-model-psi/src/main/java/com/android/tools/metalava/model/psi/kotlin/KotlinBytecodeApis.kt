@@ -63,6 +63,13 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     /** Class names to process. Populated by [listClassesInJar] and used by [loadPsiFromProject]. */
     private val qualifiedClassNames = mutableListOf<String>()
 
+    /**
+     * A map from the fully qualified name of a multi-file class facade to the paths of the class
+     * files that make it up. Each class part corresponds to a source file, and metadata for the
+     * entries can only be found in the class part, not the multi-file class facade.
+     */
+    private val multiFileClassParts: MutableMap<String, List<String>> = mutableMapOf()
+
     /** Processes the [jarFile] to save the qualified names of all classes in the jar. */
     fun listClassesInJar(jarFile: File) {
         ZipFile(jarFile).use { jar ->
@@ -102,8 +109,25 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             val classItem = codebase.findClass(qualifiedName) as? DefaultClassItem ?: continue
             // Find associated Kotlin metadata for the class. If there isn't any, this wasn't a
             // Kotlin source class and can be skipped.
-            val metadataContainer = psiClass.getMetadataContainer(codebase) ?: continue
+            val metadataContainer = psiClass.getMetadataContainer() ?: continue
             addMethodsToClass(psiClass, classItem, metadataContainer)
+        }
+
+        // Process all multi-file classes. Each multi-file class is made up of parts from classes
+        // generated from each file of the multi-file class. The class parts have the kotlin
+        // metadata for the class members, while the multi-file class does not.
+        for ((qualifiedName, classParts) in multiFileClassParts) {
+            // Find the multi-file class itself in the codebase.
+            val multiFileClassItem =
+                codebase.findClass(qualifiedName) as? DefaultClassItem ?: continue
+            for (classPartPath in classParts) {
+                // Find the psi and metadata corresponding to this part of the multi-file class.
+                val psiClassPart =
+                    facade.findClass(classPartPath.replace("/", "."), scope) ?: continue
+                val metadataContainer = psiClassPart.getMetadataContainer() ?: continue
+                // Use the class part and metadata to add entries to the multi-file class item.
+                addMethodsToClass(psiClassPart, multiFileClassItem, metadataContainer)
+            }
         }
     }
 
@@ -244,7 +268,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * Loads the Kotlin metadata for the class and returns the [KmDeclarationContainer] where
      * information about the class members is stored.
      */
-    private fun PsiClass.getMetadataContainer(codebase: PsiBasedCodebase): KmDeclarationContainer? {
+    private fun PsiClass.getMetadataContainer(): KmDeclarationContainer? {
         // Find a @Metadata annotation on the class, and convert to Kotlin metadata
         val metadataAnnotation =
             annotations.singleOrNull { it.qualifiedName == KOTLIN_METADATA } ?: return null
@@ -259,8 +283,15 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             is KotlinClassMetadata.Class -> classMetadata.kmClass
             is KotlinClassMetadata.FileFacade -> classMetadata.kmPackage
             is KotlinClassMetadata.MultiFileClassPart -> classMetadata.kmPackage
+            is KotlinClassMetadata.MultiFileClassFacade -> {
+                // A multi-file class facade does not have the metadata for the class members. Each
+                // class part corresponding to a source file contains the metadata for the members
+                // from that file. Track what the parts of this multi-file class are, so they can be
+                // processed later.
+                qualifiedName?.let { multiFileClassParts[it] = classMetadata.partClassNames }
+                null
+            }
             is KotlinClassMetadata.SyntheticClass,
-            is KotlinClassMetadata.MultiFileClassFacade,
             is KotlinClassMetadata.Unknown -> null
         }
     }
