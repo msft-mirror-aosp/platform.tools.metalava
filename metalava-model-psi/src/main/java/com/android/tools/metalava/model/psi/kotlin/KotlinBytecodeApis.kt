@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi.kotlin
 import com.android.SdkConstants
 import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.KOTLIN_METADATA
@@ -29,6 +28,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiCallableItem
 import com.android.tools.metalava.model.psi.PsiConstructorItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.psiParameters
@@ -46,13 +46,16 @@ import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import kotlin.metadata.KmClass
 import kotlin.metadata.KmDeclarationContainer
+import kotlin.metadata.KmProperty
 import kotlin.metadata.Visibility
+import kotlin.metadata.hasAnnotations
 import kotlin.metadata.jvm.JvmMethodSignature
 import kotlin.metadata.jvm.KotlinClassMetadata
 import kotlin.metadata.jvm.Metadata
 import kotlin.metadata.jvm.getterSignature
 import kotlin.metadata.jvm.setterSignature
 import kotlin.metadata.jvm.signature
+import kotlin.metadata.jvm.syntheticMethodForAnnotations
 import kotlin.metadata.visibility
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
@@ -281,7 +284,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             }
 
             // Update the visibility of the item based on metadata, if needed.
-            if (callableItem.isInternal(metadataContainer)) {
+            if (callableItem.isInternal(metadataContainer, psiClass)) {
                 callableItem.mutateModifiers { setVisibilityLevel(VisibilityLevel.INTERNAL) }
             }
 
@@ -406,7 +409,10 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     }
 
     /** Checks if the item's true visibility is internal based on the metadata from [container]. */
-    private fun CallableItem.isInternal(container: KmDeclarationContainer?): Boolean {
+    private fun PsiCallableItem.isInternal(
+        container: KmDeclarationContainer?,
+        psiClass: PsiClass
+    ): Boolean {
         if (container == null) return false
         val expectedDescriptor = internalDesc(voidConstructorTypes = true)
         val visibility =
@@ -427,9 +433,15 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                     // No matching function, check if this is a property accessor.
                     ?: container.properties.firstNotNullOfOrNull {
                         if (it.getterSignature.matches(name(), expectedDescriptor)) {
+                            // If this property was annotated with @PublishedApi, that won't have
+                            // been propagated to the getter, do so manually.
+                            propagatePublishedAnnotationIfNeeded(it, psiClass)
                             // A getter always has the same visibility as the property.
                             it.visibility
                         } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
+                            // If this property was annotated with @PublishedApi, that won't have
+                            // been propagated to the setter, do so manually.
+                            propagatePublishedAnnotationIfNeeded(it, psiClass)
                             // A setter's visibility can be different from the property.
                             it.setter?.visibility
                         } else {
@@ -447,5 +459,30 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         expectedDescriptor: String,
     ): Boolean {
         return this != null && expectedName == name && descriptor == expectedDescriptor
+    }
+
+    /**
+     * Checks if the [kmProperty] was annotated in source with the [PublishedApi] annotation, and if
+     * it was, adds the annotation to the callable item.
+     */
+    private fun PsiCallableItem.propagatePublishedAnnotationIfNeeded(
+        kmProperty: KmProperty,
+        psiClass: PsiClass,
+    ) {
+        if (kmProperty.visibility == Visibility.INTERNAL && kmProperty.hasAnnotations) {
+            // The annotations on a property in source end up in bytecode on a synthetic method
+            // generated to track the annotations. Find that method in the psi class.
+            val annotationMethodSignature = kmProperty.syntheticMethodForAnnotations ?: return
+            val annotationMethod =
+                psiClass.methods.singleOrNull { it.name == annotationMethodSignature.name }
+                    ?: return
+            // Check if the method is @PublishedApi, propagate it to the accessor method if so.
+            val publishedAnnotation =
+                annotationMethod.annotations.firstOrNull {
+                    it.qualifiedName == "kotlin.PublishedApi"
+                } ?: return
+            val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
+            mutateModifiers { addAnnotation(annotationItem) }
+        }
     }
 }

@@ -1191,4 +1191,89 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(fooClass.methods()).hasSize(2)
         }
     }
+
+    @Test
+    fun `Test propagating PublishedApi from properties to accessors`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    class Foo {
+                        @PublishedApi internal var foo = IntValue(0)
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                // Compiled from the source above with [generateBase64gzipFromKotlin]
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31WeTgU6hofW0aNfZkxJabsMTOUY4uyz9gJyXIZY2lixjJj" +
+                        "jeyyX51cWyEnlLEdKhzrVCrLIMwgocmaPUuGujjqPs+96rn1fs/vv+/9vc/3" +
+                        "Pt/7+72WJmzsQgAgEAgAAGCAwyEEYAeYGdjoKKLNDRFmOuZoQ4NLNnAzw70u" +
+                        "AGDDjNptaqII7+c2UZTvpfY9skbSzjJmAuDGZgpos/5A8mPrj8aK/vLGVOoZ" +
+                        "u4+9iM5O6tTM5AwrwNKEE1gtKFetflBA9QCWPy0PPgDJg0hC+Hl7IdAEkh3G" +
+                        "J9ADjvXBEIkRNj3EtzZ8+y1ziCt2J97gBu25XvNeXQ6nEWRLMqSL0XK2flBU" +
+                        "Mowb/KJfzdjnjX3tg1djDASDwnGExykgShSlTErgmk9rS8KMyHQGvVxD3g9d" +
+                        "XW4df7eyF1S4t8f85wWWsRfZILlh0lg4tu33YXy9u42jJyhVZ/zsqGHrtZF/" +
+                        "/Xt0q+BKEBaohBIerMcAPYgaesXLJqaX+WKFOI3uwpZWHHieo9ZYt048z3B8" +
+                        "53cnyzm35lqa/POZioIzW3/sBLsHl7jU02rJmp5nEzAJH9i668Y4EGm/xwgN" +
+                        "KNukIkHBpzxaqLNSTtLe9/uRy2IJuUsvUOBYzuhZIaenOZQepCmoa735fQPy" +
+                        "Ll9C977vdiMyPLZh6SPFT04zioVj2M95ZEJCN82z5J4rEJ0LaUVLrkB7VwIi" +
+                        "XoFQoEthtHQb3vgQ5JmYSvRReo0dMu1uqhxVtiNZ0KgAhrlBVyabA1Ty6Cm7" +
+                        "PYXdWl4ZjltBu/FeJQy8fjzTGRrd2OT9m+gAuCUxVNyBFMr3MEYzR1ht9YtU" +
+                        "pnucAZgeMB405lm+NHRHx8Fapi4bQ6BcTVIKkaCcHDhfJ5pJ9BCW7auoSlEO" +
+                        "mUq39+R60OASXJ6V/857eP3Mch7htoThOfpf9irO2Fd+3ANrDpr6vglJUnAR" +
+                        "y8yIgbY/4/RZtnlY9klhfs6zWKfZhfloU/HLUrkm/KOCj41wFgO9JY+qwa/M" +
+                        "eT1DoxW5H9yXHw6Bkbaw5xTi6R3JpcaSr7ykbIeeYSsoBc2fh9rMHnYlk3m4" +
+                        "vAeULLIleW3FpPNH6SW0zTByiryVtIN9MrnmkS8EXGa9Y3PxD72J5YhsDQnD" +
+                        "uALLW/Yho2T8nR6vl0F0ocrK7LRrnVcddHky9Y5XWU24qECjFXxpjj21OyMC" +
+                        "up4tHk12PQpX0g3qefFNK9AqA+eSdOK12sQCkTaQRtJLAz4ps6TiZomsrY5p" +
+                        "3wzeecqaeqWVReda/BxDVEJHZiEhBBy90eQOW1FGFBFOTlmHbQLzguKGaWP8" +
+                        "VSff97g0d2hlgCbWA1wnn3BIqMaCJG895SJ8+oIap2wmsBYez694IjimvURM" +
+                        "JMWaBncvHbP+wJznKJIR2K6wCnQbeVzWRmnTkySpBR69ERc8+yRpNR6ytTNa" +
+                        "rHLk5D4nWjwgM3NapBhmzkyUv0WJaAZHpbQCyxtQVxfYiS2p4cyQjFtqoSvy" +
+                        "YATczwU4NtOJpVqk7/PsDEe3bNRMw7OWuFlOU+PhuZfZCA1DfUeZRoY9DDaF" +
+                        "I0P1iYL+4Eiu1jIxbFmbi7/CdXO5teGF1cteXSNRnV0Mfu2lckRR2n6U/bZX" +
+                        "nJ5W7Wn9rcnQKoGQE5b5FKN/RJzo09ro+9PgCzy/4HXV7cUuEV0N7SErWk3y" +
+                        "A1J7XrrFx3mRnNhAHx9Me/QkIzc2px6u1qGeqJao0bCKW+lvCkAuuo7qDD1V" +
+                        "sVCfltgR/6o+F9O9stXZAYBFzl+pj8Bh9TH09f2P8HhYv7MYtIRoMeveNhJS" +
+                        "CRSInhWfsDQ2dts1M/EhDKdMu3fFNAQ5bldU4Z09rjnt/7nwwyOEJDSJ1zPX" +
+                        "d8/qZfW4xOmt91/8P+cTLdreXoiM3GP1Ez8OQuOOXbmmymvS1CrOhkWmVwqW" +
+                        "TztMYOY9lkequiFCCR+yptTXlWJrax3MTsU85BFWStgsiZrvJM8ELUMmi62Z" +
+                        "WjDN8cZNTYMH9CBRmjCRbnoquphHTFDy0wRTFIK5jZxkoAYzzgew65GVVxb5" +
+                        "WW7WFZMbXCrxzd5L8dqmMS/4qgrqtDMt7jzXI4NqFMOsxqTbdsrbPbo3wnHo" +
+                        "m0tKVJu8VpJY9SbZkSjm764aNMqTn9VKYfrgVBRw/C8dZY7i0zhgJ9kzgjVu" +
+                        "FWroXC4l6xwL/NKCy59r6E27YTEHFf/N4dzwKn5d+TpUNDwpIHa1WtS4IJvO" +
+                        "uTtx+8bqMgO7wFRfZMoioR0Czn0PHdoZobYp0Bop28HUbYagxQd+/MfQIiqK" +
+                        "qKRGvM1hXiq/P84Wau5EWzRDN4XOqvokdCZPvUE0VuaNh2LpTrrKwm2Ev2zL" +
+                        "p9h3gbTCt8vpzvXF464571bDBnBvSoMngTcnVlOrrSKXgzUDrw9zhRDv9y9E" +
+                        "xo7c07R7/mKN0VVmXVYameQW3Yh/Nu+NtNpmqbx39/QnsdyzrGorVqYw+8e6" +
+                        "ksLoLm+a1E12U0xeAPRsR3q78dNdy3ShVtjGJ2tJaMwCRD0AXWBA0L+BGjyf" +
+                        "A6e61CB7e3lkDJfu5d33dduUmSuz083nAokHiZS6QYaNdDeKfORSy2UvVfGF" +
+                        "pYGcL0S5uT1t5xZUrUFJZZmOPVtnyaHgx9Qv6ro6MKou2rhauxpIIJCnM4Rz" +
+                        "hDu4IPvfrLRbX1M7jRUAmGP71Wc+foD/OjkegyPAvX1JPjiCC97XPdDHA+vq" +
+                        "6up5AHY38yOylm6v3QDfuD+dam4RPMiEfLNpFlYhwP/YD1v41z3h+/jZ1vAj" +
+                        "y+FRBH/HEPlz8/+R5HALBL4j2WX/fzP8Y/7hZx7/Lr+L85dtszThOPL1GvvB" +
+                        "EWIBAKS/8gH+BkSorclQCQAA"
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val property = fooClass.assertProperty("foo")
+            assertThat(property.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
+            assertThat(property.annotationNames()).contains("kotlin.PublishedApi")
+
+            val getter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            assertThat(getter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
+            assertThat(getter.annotationNames()).contains("kotlin.PublishedApi")
+
+            val setter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            assertThat(setter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
+            assertThat(setter.annotationNames()).contains("kotlin.PublishedApi")
+        }
+    }
 }
