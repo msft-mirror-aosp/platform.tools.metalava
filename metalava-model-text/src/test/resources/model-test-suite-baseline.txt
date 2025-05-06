@@ -89,6 +89,3 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[source,int]
   testLegacyValue[source,long with int]
   testLegacyValue[source,short]
-
-com.android.tools.metalava.model.text.ApiFileTest
-  Test classes split across multiple files
