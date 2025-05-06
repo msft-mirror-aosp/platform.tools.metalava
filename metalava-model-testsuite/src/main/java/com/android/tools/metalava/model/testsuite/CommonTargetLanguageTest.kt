@@ -146,7 +146,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test value class constructor`() {
+    fun `Test value class constructor and boxing methods`() {
         runCodebaseTest(
             inputSet(
                 kotlin(
@@ -205,9 +205,34 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
             assertThat(ctorImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(ctorImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(ctorImpl.modifiers.isStatic()).isTrue()
+
+            val boxImpl = intValue.assertMethod("box-impl", "int")
+            boxImpl.returnType().assertClassTypeItem {
+                assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
+            }
+            assertThat(boxImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(boxImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(boxImpl.modifiers.isStatic()).isTrue()
+
+            val unboxImpl = intValue.assertMethod("unbox-impl", "")
+            unboxImpl.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            }
+            assertThat(unboxImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(unboxImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(unboxImpl.modifiers.isStatic()).isFalse()
 
             assertThat(intValue.methods().map { it.name() })
-                .containsExactly("constructor-impl", "getV", "toString", "hashCode", "equals")
+                .containsExactly(
+                    "constructor-impl",
+                    "box-impl",
+                    "unbox-impl",
+                    "getV",
+                    "toString",
+                    "hashCode",
+                    "equals"
+                )
 
             // TODO(b/407735992): constructor itself should be Kotlin only
             intValue.assertConstructor("int")
@@ -371,6 +396,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                     "toString",
                     "hashCode",
                     "equals",
+                    "box-impl",
+                    "unbox-impl",
                 )
         }
     }
@@ -1077,6 +1104,91 @@ class CommonTargetLanguageTest : BaseModelTest() {
             fooClass.assertMethod("fooB", "int")
 
             assertThat(fooClass.methods()).hasSize(4)
+        }
+    }
+
+    @Test
+    fun `Test hidden deprecation level with value class type`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val v: Int)
+                    class Foo {
+                        @Deprecated(level = DeprecationLevel.HIDDEN, message = "")
+                        fun foo(iv: IntValue) = Unit
+                    }
+                    """
+                )
+            ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31VezgTbBsf5pDzYXKuly3mtDm8kjNpK5uJkUwOjQgv5rAp" +
+                        "osWLq/hKkrN8bXmlkuMoWc7KGEL0zlTTSNMqEjnmVd91fZ+6vrqf6/fHc13P" +
+                        "/buv577u+/dzRQsBQQAxMTEAAKAJ2B4gABCAQXg4GDq5IOEYBxcnJMLdA4ZB" +
+                        "fukFABYwzD5ntCFsSAptqDfAHKzHGj015UzHwFAYAyfMEOk2DTuHMozWQzGZ" +
+                        "+p5zA3AGg8mdfjUtCHBFi4pVK+hWW2wVMN+C60/LK22BGBRLhEf9cRLuFEn0" +
+                        "xIeTgmCB4fjY2CSP5+5qR0Cbz4ur+4OTi59g664vObJTs7S7ve+Ayq43ZFKO" +
+                        "VLj1jsjHdeyvu8DClGfRef6cP+GWqxwJGUv35FpT6VfF5Bzu6ffBOUaaXOcY" +
+                        "uwGbmVMDK9dilz6QyZtCbb7hxhCbvsWYxY2YgSg6FRfqbWwkUnuykenTText" +
+                        "usk+48nI1OyShR3zy9a8ylCVrESQHR0lUerq0QlLcRH5eFqUQGwpvudOxGkp" +
+                        "tu7g+GhC2mTMo56dCX7jhLJTf/k3TtD0rTzB6XLpb4TYtQ8RdqnUdAhWD4hU" +
+                        "kdc4XDiWktJXFjr2Nq++06i46c00ldvGoKfrK+cXhKYzHORKj5ZczsjBRk9v" +
+                        "KvrnZxCMoBrSyrAgkRPVk6pV6OdqB8pZ0BkzSbzXnjiCfHJzeXMzll0rKNgJ" +
+                        "2pWryXLUlK6sOxGW4UOimTF/uxOgWq9q8rErG9xSWV0U3C11/ZEJktLKWWDN" +
+                        "SIaNsKoezjX8Tr9YQWvpk70V3+z5pyZpKKOA4NgnLiM4GiUaKz+zESeOUMTj" +
+                        "HNxuW1Q9C8mje4PF0LzlJTBTOkSfJSgD+dtR5J0PKj7DOFDZRNivFZxv0QHl" +
+                        "P6NnvJta8h6dCLsTto+YfbeQb12JK20KTNBmnG5QpKrgYy70CT99twYh4/vU" +
+                        "LDhWwPURXjspNys2N3NEKPesD1TvqBZNJyRr2NbZ6uhAi5+qnU0BN77R+kqG" +
+                        "eNVC4hv+4xCvHZk9t2GgB49nQJTZyei8k1mbq40bRbLjt2UdscUnmPlSOWmy" +
+                        "YIiCLw5bNpbj65GmNdSJ8ugaaMH7pKN43ImrEy8+n09i7ZIECwdMOtU/iDAr" +
+                        "LWQrovMaPE30EfX4vjO/qY/PMYe/FOFk3s8i77KguKzweKdqc43BKm8Eu4G3" +
+                        "SOE+tR6pv0X1iHARznvh/tHdQQdHE6NCVkoiLZwM3mXfyneV4bW5lZnNSli0" +
+                        "zEklCkPeHBi9bCqn3IpW/Wi4IR6woJyPDTz4ZBFM1647eD8h1Zw8b/PZfvh0" +
+                        "X1Yyw0nCPlJEDmqSojAxe8/twaXQs4LFatcqFhUmbPmm54nXmMQRfuyVD/d4" +
+                        "FpR5sfBSbFwd6xPPrr3VEULclyR+NvXUzk+MD9NmE6/for0DOfNko4l0dbBm" +
+                        "oTC+Z8SGihKJ2v1BmFMHw+rDhIps2xPh1MZ46/OHShNj26dpwq8zk5ssSf9K" +
+                        "u3Xh5fUvljVxEQYNmX+tYtrEYmvRr0fPqVV9ru9gG4KHlwHo5CXDVwdauv2T" +
+                        "CbOPvd5XH7U2QvXCPckPLX0fiRA9VfWXa+CtqbbzQgGT/5aTXuy5JMtCzzSh" +
+                        "ODfOzQJ3raxEh6/ODs6VLPlaJjmvBZqYNcqa1IRxFISEK4fkDkveXrx57DjM" +
+                        "tnN1J9I3BLbXp2udNIQYQ3QhnnYn+cdkve7tLslUUVJRepY4eTlzcvOb5njw" +
+                        "5JThQACALforzZHfrjlIAuE/cuPrhiGM2MsmNV+ym00dC71OE+g1hxzi/J6i" +
+                        "ILYD6nZxfzYAt9+miYFtjObrNe+wQa4rLIuW2Ku7giLXoV2VaAHSnsGW+IVg" +
+                        "+trSTDXhpcAEIodCTRuebD8O5081STyS5evkQJxzwuGJtc3whPG0bo715cKn" +
+                        "MiqVSNOqtnTuDWA+peylU3fN3xvkJ0npH9nWrRq7pV/ekxYtCzvQX0AZ05iy" +
+                        "zMXd15VGUvNDhnRuWYFQe86kCEjG6WlrBXlZ6ebGj5ntCYtqpPb332RL+rgo" +
+                        "e3W52njaKVnydCw1FXe7GDzQNsW3A4sG3hisuxZVIipa2+eC995dS8xdsy7A" +
+                        "JL1XaUsSkpqZH2XR+o/xa202p1yncTY1s/QjYVbJmOb66S/LvcHuennW5nOv" +
+                        "d99/y36xzk3ILNxNYxjHdPhsVDu4lXMhGhLcYeMW0ydTwzn0wzADUpB24+NO" +
+                        "X+OEa/zyLoNTC35XHjEOFa3L8DZNs/kJFgM09QwvPafRg7i8tx2mCWqbR2x3" +
+                        "LR44WC6oxvkUGRwduFc946iuxEULGvteS9uaz9VqN6L4cAcpIxcssJMj5KAY" +
+                        "FFBJXfGj6JAP7x1HcHvd5itq7c1Kyk/f6IkcvufM0sUa6hloylbIdw5By311" +
+                        "QRrYEkq8vlWNVsnFGlW8FClln9KkNYx/TreS+0p6Jyix6AYH6qNnj5ms24+j" +
+                        "fFT7Okz18RsrUoIAwJrgr4ZJbQv/9c8IfGgk7A8CMTw00j+CcIIUHhR4/Pjx" +
+                        "4C0AA1xEoK4BTwIA3wZ1UYv+UGErU/mbOQoIggD/Y99unF/d+fv4mVf/yLJ9" +
+                        "FZS+YyD/3HJ/JNneAvnvSBaA/2+Hfszf/k217/LtRX/ZNle0sMjXZ8CtAxIA" +
+                        "AEpEv97+AaE81ZDGCAAA"
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val mangledMethod = fooClass.assertMethod("foo-Vxmw0xk", "int")
+            assertThat(mangledMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            mangledMethod.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+            assertThat(mangledMethod.modifiers.isDeprecated()).isTrue()
+
+            // TODO(b/407735992): non-mangled method should be kotlin only and have IntValue param
+            // type instead of int
+            fooClass.assertMethod("foo", "int")
+
+            assertThat(fooClass.methods()).hasSize(2)
         }
     }
 }

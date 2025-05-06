@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi.kotlin
 
 import com.android.SdkConstants
+import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -40,7 +41,9 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 import kotlin.metadata.KmClass
 import kotlin.metadata.KmDeclarationContainer
 import kotlin.metadata.Visibility
@@ -51,16 +54,22 @@ import kotlin.metadata.jvm.getterSignature
 import kotlin.metadata.jvm.setterSignature
 import kotlin.metadata.jvm.signature
 import kotlin.metadata.visibility
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
 
 /**
  * Functionality for loading APIs from jar files compiled from Kotlin source code.
  *
- * First, the jar file needs to be processed by [listClassesInJar] to track all the qualified names
- * of classes present in the jar. Then, [loadPsiFromProject] will search for the class names from
- * the jar in a psi project to add APIs to the [codebase].
+ * First, the jar file needs to be processed by [rewriteJar] to remove the `ACC_SYNTHETIC` modifier
+ * from methods to allow them to be read by psi, and to track all the qualified names of classes
+ * present in the jar. Then, [loadPsiFromProject] will search for the class names from the jar in a
+ * psi project to add APIs to the [codebase].
  */
 internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
-    /** Class names to process. Populated by [listClassesInJar] and used by [loadPsiFromProject]. */
+    /** Class names to process. Populated by [rewriteJar] and used by [loadPsiFromProject]. */
     private val qualifiedClassNames = mutableListOf<String>()
 
     /**
@@ -70,16 +79,26 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      */
     private val multiFileClassParts: MutableMap<String, List<String>> = mutableMapOf()
 
-    /** Processes the [jarFile] to save the qualified names of all classes in the jar. */
-    fun listClassesInJar(jarFile: File) {
-        ZipFile(jarFile).use { jar ->
+    /**
+     * Processes the [originalJarFile] to remove the `ACC_SYNTHETIC` modifier from methods. This is
+     * done because psi does not process synthetic members, but they can be important for API
+     * tracking (e.g. methods annotated with [DeprecationLevel.HIDDEN]).
+     *
+     * Also saves the qualified names of all classes in the jar.
+     */
+    fun rewriteJar(originalJarFile: File): File {
+        val newJarFile = kotlin.io.path.createTempFile(suffix = ".jar").toFile()
+        val outputStream = ZipOutputStream(newJarFile.outputStream())
+        ZipFile(originalJarFile).use { jar ->
             for (entry in jar.entries().iterator()) {
                 val fileName = entry.name
                 if (
                     !fileName.endsWith(SdkConstants.DOT_CLASS) ||
                         fileName.endsWith("package-info.class")
                 ) {
-                    // skip entries that are not .class files.
+                    // for entries that are not .class files, just write them to the new jar
+                    outputStream.putNextEntry(entry)
+                    outputStream.write(jar.readAllBytes(entry))
                     continue
                 }
 
@@ -89,13 +108,57 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                         .replace('/', '.')
                         .replace('$', '.')
                 qualifiedClassNames.add(qualifiedName)
+
+                // Create a reader for the old jar, and a writer for the new.
+                val classReader = ClassReader(jar.getInputStream(entry))
+                val classWriter = ClassWriter(/* flags= */ 0)
+                // Process the class with a visitor that defers to the writer in all cases except
+                // for methods.
+                classReader.accept(
+                    object : ClassVisitor(Opcodes.ASM9, classWriter) {
+                        override fun visitMethod(
+                            access: Int,
+                            name: String,
+                            descriptor: String?,
+                            signature: String?,
+                            exceptions: Array<String>?
+                        ): MethodVisitor {
+                            // Update the access flags of the method
+                            val newAccess =
+                                if (access and Opcodes.ACC_BRIDGE != 0) {
+                                    // If this is a bridge method, leave the accessors as-is, since
+                                    // we don't need to track these (these are generated by the java
+                                    // compiler to handle type erasure).
+                                    access
+                                } else {
+                                    // Otherwise, unset the synthetic flag so this method can be
+                                    // processed by psi
+                                    access and Opcodes.ACC_SYNTHETIC.inv()
+                                }
+                            // Visit the method with the class writer, using the new access flags
+                            return super.visitMethod(
+                                newAccess,
+                                name,
+                                descriptor,
+                                signature,
+                                exceptions
+                            )
+                        }
+                    },
+                    ClassReader.SKIP_CODE
+                )
+                outputStream.putNextEntry(ZipEntry(fileName))
+                outputStream.write(classWriter.toByteArray())
             }
         }
+        outputStream.flush()
+        outputStream.close()
+        return newJarFile
     }
 
     /**
-     * Uses the [project] to load the psi for all classes previously found by [listClassesInJar],
-     * and adds members to the [codebase].
+     * Uses the [project] to load the psi for all classes previously found by [rewriteJar], and adds
+     * members to the [codebase].
      *
      * This will not add any classes to the [codebase], but for any existing classes, it will add
      * any callables which are not already present in the class item in the codebase.
@@ -146,6 +209,17 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             if (
                 !psiMethod.modifierList.hasModifierProperty(PsiModifier.PUBLIC) &&
                     !psiMethod.modifierList.hasModifierProperty(PsiModifier.PROTECTED)
+            )
+                continue
+
+            // Skip tracking constructors with the kotlin DefaultConstructorMarker. Every Kotlin
+            // source class gets a constructor like this generated from the default constructor.
+            // TODO(b/417740481): decide if it is ever worth tracking these
+            if (
+                psiMethod.isConstructor &&
+                    psiMethod.psiParameters.any {
+                        it.type.canonicalText == "kotlin.jvm.internal.DefaultConstructorMarker"
+                    }
             )
                 continue
 
