@@ -361,13 +361,9 @@ class ApiLevelsGenerationOptions(
         files: List<MatchedPatternFile>,
     ): VersionedApi {
         val version = updater.apiVersion
-        val jar =
-            files.singleOrNull()?.file
-                ?: error(
-                    "Expected only one jar file for version $version but found ${files.size}:\n${files.joinToString("\n") {"    $it"}}"
-                )
-        verbosePrint { "Found API $version at $jar" }
-        return VersionedJarApi(jar, updater)
+        val jarFiles = files.map { it.file }
+        verbosePrint { "Found API $version at ${jarFiles.joinToString()}" }
+        return VersionedJarApi(jarFiles, updater)
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
