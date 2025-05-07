@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.provider
+package android.test;
 
-/** The set of different capabilities that a codebase creator can provide. */
-enum class Capability() {
-    /** Can parse java files. */
-    JAVA,
-
-    /** Can parse kotlin files. */
-    KOTLIN,
-
-    /** Has access to the method body. */
-    METHOD_BODY,
-
-    /** Has access to documentation. */
-    DOCUMENTATION,
-
-    /** Can load additional APIs from a jar file when creating an API from source files. */
-    JAR_WITH_SOURCES,
+public interface MarkerInterface {
 }
