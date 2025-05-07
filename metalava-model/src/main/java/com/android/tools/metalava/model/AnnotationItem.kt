@@ -662,21 +662,6 @@ sealed interface AnnotationAttributeValue {
      * Take a snapshot of this [AnnotationAttributeValue] suitable for use in a snapshot [Codebase].
      */
     fun snapshot(): AnnotationAttributeValue
-
-    companion object {
-        fun addValues(
-            value: AnnotationAttributeValue,
-            into: MutableList<AnnotationAttributeValue>
-        ) {
-            if (value is AnnotationArrayAttributeValue) {
-                for (v in value.values) {
-                    addValues(v, into)
-                }
-            } else if (value is AnnotationSingleAttributeValue) {
-                into.add(value)
-            }
-        }
-    }
 }
 
 /** An annotation value (for a single item, not an array) */
