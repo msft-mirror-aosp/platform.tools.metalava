@@ -552,7 +552,7 @@ protected constructor(
     final override fun toString() = toSource()
 
     companion object {
-        fun formatAnnotationItem(
+        private fun formatAnnotationItem(
             qualifiedName: String,
             attributes: List<AnnotationAttribute>,
         ): String {
@@ -687,27 +687,6 @@ class DefaultAnnotationAttribute(
 
     override val value: Value
         get() = valueProvider.value
-
-    companion object {
-        /** Overload to supply `null` [AnnotationItem] to the following method. */
-        fun create(name: String, value: String) = create(null, name, value)
-
-        fun create(
-            annotationItem: AnnotationItem?,
-            name: String,
-            value: String,
-            valueParser: ValueParser = ValueParser.DEFAULT,
-        ): DefaultAnnotationAttribute {
-            return DefaultAnnotationAttribute(
-                name,
-                // If annotation item is null then the [ValueProvider] is not going to be used so
-                // use one that will throw an exception when called.
-                if (annotationItem == null) ValueProvider.UNSUPPORTED
-                else valueParser.providerForAnnotationValue(annotationItem, name, value),
-                DefaultAnnotationAttributeValue.create(value),
-            )
-        }
-    }
 
     override fun toString(): String {
         return "$name=${value.toValueString()}"
