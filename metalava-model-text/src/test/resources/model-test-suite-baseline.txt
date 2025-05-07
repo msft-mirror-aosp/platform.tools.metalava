@@ -41,12 +41,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[source,int positive]
   testLegacySource[source,long with lower l]
 
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
-  testLegacySource[source,annotation - array of annotations]
-  testMethodDefaultValue[source,annotation - array of annotations]
-
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
-  testAttributeValue[source,annotation - array of annotations]
   testLegacySource[source,String using constant]
   testLegacySource[source,annotation]
   testLegacySource[source,char escaped]
@@ -95,9 +90,3 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[source,int]
   testLegacyValue[source,long with int]
   testLegacyValue[source,short]
-
-com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
-  Test parse[annotation - array of annotations,annotation_to_source,java,jar]
-  Test parse[annotation - array of annotations,annotation_to_source,kotlin,jar]
-  Test parse[annotation - array of annotations,attribute_default_value,kotlin,jar]
-  Test parse[annotation - array of annotations,signatureExpression,jar]
