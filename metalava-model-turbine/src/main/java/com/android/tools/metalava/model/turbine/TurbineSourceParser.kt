@@ -43,6 +43,10 @@ internal class TurbineSourceParser(
         apiPackages: PackageFilter?,
         projectDescription: File?
     ): Codebase {
+        if (projectDescription != null) {
+            error("Turbine model does not support --project")
+        }
+
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
         val assembler =
