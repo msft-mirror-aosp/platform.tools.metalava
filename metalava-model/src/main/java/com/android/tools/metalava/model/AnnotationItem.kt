@@ -25,7 +25,9 @@ import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
+import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.reporter.FileLocation
+import java.lang.StringBuilder
 import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
@@ -78,6 +80,50 @@ sealed interface AnnotationItem {
      * [ApiFlag.REVERT_FLAGGED_API].
      */
     val apiFlag: ApiFlag?
+
+    /**
+     * Append the string representation of this annotation to the [builder] according to
+     * [configuration].
+     */
+    fun appendAnnotationStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration,
+    ) {
+        val language = configuration.valueLanguage
+        builder.append(language.annotationClassPrefix)
+        builder.append(qualifiedName)
+        if (language.annotationAttributesListRequiresParentheses || attributes.isNotEmpty()) {
+            builder.append("(")
+
+            val nameValueSeparator = configuration.annotationAttributeNameValueSeparator.text
+
+            val singleAttribute = attributes.singleOrNull()
+            if (singleAttribute == null) {
+                var separator = ""
+
+                // Get the attributes in the correct order.
+                val orderedAttributes =
+                    if (configuration.sortAnnotationAttributes) attributes.sortedBy { it.name }
+                    else attributes
+
+                for (attribute in orderedAttributes) {
+                    builder.append(separator)
+                    builder.append(attribute.name).append(nameValueSeparator)
+                    configuration.appendNestedValueTo(builder, attribute.value)
+                    separator = ", "
+                }
+            } else {
+                // A single attribute whose attribute name is "value" can just use the value.
+                val name = singleAttribute.name
+                if (name != ANNOTATION_ATTR_VALUE) {
+                    builder.append(name).append(nameValueSeparator)
+                }
+                configuration.appendNestedValueTo(builder, singleAttribute.value)
+            }
+
+            builder.append(")")
+        }
+    }
 
     /**
      * Generates source code for this annotation (using fully qualified names).
@@ -549,7 +595,9 @@ protected constructor(
         return formatAnnotationItem(qualifiedName, attributes)
     }
 
-    final override fun toString() = toSource()
+    final override fun toString() = buildString {
+        appendAnnotationStringTo(this, ValueStringConfiguration.DEFAULT)
+    }
 
     companion object {
         private fun formatAnnotationItem(
