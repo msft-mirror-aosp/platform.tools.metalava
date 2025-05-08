@@ -255,7 +255,6 @@ class CommonDataClassTest : BaseModelTest() {
     @Test
     fun `Test data class copy method visibility with ConsistentCopyVisibility`() {
         // @ConsistentCopyVisibility makes the copy method visibility match the constructor
-        // b/414785453: @ConsistentCopyVisibility with internal constructor isn't working
         runCodebaseTest(
             kotlin(
                 """
@@ -285,9 +284,8 @@ class CommonDataClassTest : BaseModelTest() {
             // The copy method gets a mangled name with K2 (copy$<module name>).
             val internalCtorCopy =
                 internalCtorClass.methods().single { it.name().startsWith("copy") }
-            // TODO(b/414785453): copy should be internal
             assertThat(internalCtorCopy.modifiers.getVisibilityLevel())
-                .isEqualTo(VisibilityLevel.PUBLIC)
+                .isEqualTo(VisibilityLevel.INTERNAL)
 
             val internalPublishedCtorClass =
                 codebase.assertClass("test.pkg.InternalPublishedConstructor")
@@ -298,9 +296,8 @@ class CommonDataClassTest : BaseModelTest() {
             // The copy method gets a mangled name with K2 (copy$<module name>).
             val internalPublishedCtorCopy =
                 internalPublishedCtorClass.methods().single { it.name().startsWith("copy") }
-            // TODO(b/414785453): copy should be internal
             assertThat(internalPublishedCtorCopy.modifiers.getVisibilityLevel())
-                .isEqualTo(VisibilityLevel.PUBLIC)
+                .isEqualTo(VisibilityLevel.INTERNAL)
             // Note: @ConsistentCopyVisibility on an internal @PublishedApi constructor does not
             // make the copy method @PublishedApi, just internal.
             assertThat(internalPublishedCtorCopy.annotationNames())
