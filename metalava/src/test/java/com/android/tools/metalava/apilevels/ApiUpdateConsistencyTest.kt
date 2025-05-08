@@ -110,6 +110,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
                     classPath,
                     apiPackages = null,
                     projectDescription = null,
+                    compiledSourceJar = null,
                 )
 
             val codebaseFragment = CodebaseFragment.create(codebase, ::EmittableDelegatingVisitor)
