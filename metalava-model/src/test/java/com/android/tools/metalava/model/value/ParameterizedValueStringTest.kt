@@ -113,6 +113,19 @@ class ParameterizedValueStringTest {
                     )
                 )
 
+            val ANNOTATION_CLASS_RENAMER =
+                LabelledConfig(
+                    "annotation-class-renamer",
+                    ValueStringConfiguration(
+                        annotationQualifiedNameGetter = { annotationItem ->
+                            annotationItem.qualifiedName.replace(
+                                "android.annotation.",
+                                "androidx.annotation."
+                            )
+                        }
+                    )
+                )
+
             val CLASS_OBJECT_VALUE_SOURCE =
                 LabelledConfig(
                     "class-object-value-as-source",
@@ -272,6 +285,10 @@ class ParameterizedValueStringTest {
                     verifyConfigMatchesDefault(
                         LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES
                     )
+
+                    // Renaming android.annotation. to androidx.annotation does not affect this
+                    // annotation.
+                    verifyConfigMatchesDefault(LabelledConfig.ANNOTATION_CLASS_RENAMER)
                 },
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno(intValue = 1)"),
@@ -351,6 +368,22 @@ class ParameterizedValueStringTest {
                     verifyConfigChangesOutput(
                         LabelledConfig.VALUE_LANGUAGE_KOTLIN,
                         "test.pkg.Anno(nested = other.pkg.OtherAnno())"
+                    )
+                },
+                testCasesForValue(
+                    value =
+                        annotationValue(
+                            "android.annotation.Test",
+                            "nested" to annotationValue("android.annotation.Nested"),
+                        ),
+                    expectedDefaultValueString =
+                        "@android.annotation.Test(nested = @android.annotation.Nested)",
+                    expectedDefaultDebugString =
+                        "@android.annotation.Test(nested = AnnotationValue(@android.annotation.Nested))",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.ANNOTATION_CLASS_RENAMER,
+                        "@androidx.annotation.Test(nested = @androidx.annotation.Nested)"
                     )
                 },
                 // ********************************* Arrays *********************************

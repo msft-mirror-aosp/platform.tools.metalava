@@ -229,6 +229,8 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  *
  * @param annotationAttributeNameValueSeparator The string to use to separate annotation attribute
  *   name and value.
+ * @param annotationQualifiedNameGetter The lambda to call to retrieve the qualified class name for
+ *   an [AnnotationItem].
  * @param classObjectValueFormat How to format a [ClassObjectValue].
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
@@ -241,6 +243,7 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 data class ValueStringConfiguration(
     val annotationAttributeNameValueSeparator: AnnotationAttributeNameValueSeparator =
         AnnotationAttributeNameValueSeparator.WITH_SPACES,
+    val annotationQualifiedNameGetter: (AnnotationItem) -> String = { it.qualifiedName },
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
