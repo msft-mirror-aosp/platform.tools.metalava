@@ -174,6 +174,8 @@ class ApiUpdateConsistencyTest : DriverTest() {
         message: String,
     ) {
         val api = createApiFromVersionedApis(useInternalNames = true, versionedApis)
+        // Clean the API as is done when generating it properly.
+        api.clean()
         val writer = StringWriter()
         val printer = ApiXmlPrinter(null, versionedApis)
         PrintWriter(writer).use { printWriter -> printer.print(api, printWriter) }
@@ -405,27 +407,10 @@ class ApiUpdateConsistencyTest : DriverTest() {
                         }
                     """
             ),
-            // This will incorrectly un-deprecate the methods.
             versionedSourceApi(deprecatedEnumClass),
-            // This will re-deprecate the methods as if the API was part of an extension.
+            // Emulates an extension jar being applied after the main API.
             versionedJarApiFromTestFile(deprecatedEnumJarCached),
-            // This incorrectly reports that the methods were deprecated in version 4 when in fact
-            // they were deprecated in version 1.
-            // TODO(b/409725916): Fix this
             expected =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="3">
-                        <class name="test/pkg/DeprecatedEnum" since="1" deprecated="1">
-                            <extends name="java/lang/Enum"/>
-                            <method name="valueOf(Ljava/lang/String;)Ltest/pkg/DeprecatedEnum;" deprecated="4"/>
-                            <method name="values()[Ltest/pkg/DeprecatedEnum;" deprecated="4"/>
-                            <field name="CONSTANT"/>
-                        </class>
-                    </api>
-                """,
-            // This is correct.
-            expectedReversedVersions =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="3">
