@@ -217,7 +217,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Foo(@test.pkg.MyAnnotation int p1, String p2);
                     method public int component1();
                     method public String component2();
-                    method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
+                    method public test.pkg.Foo copy(optional @test.pkg.MyAnnotation int p1, optional String p2);
                     method public int getP1();
                     method public String getP2();
                     property @test.pkg.MyAnnotation public int p1;
@@ -2075,7 +2075,7 @@ abstract class UastTestBase : DriverTest() {
                   public final class Foo<T> {
                     ctor public Foo(java.util.List<? extends T> items);
                     method public java.util.List<T> component1();
-                    method public test.pkg.Foo<T> copy(java.util.List<? extends T> items);
+                    method public test.pkg.Foo<T> copy(optional java.util.List<? extends T> items);
                     method public java.util.List<T> getItems();
                     property public java.util.List<T> items;
                   }
