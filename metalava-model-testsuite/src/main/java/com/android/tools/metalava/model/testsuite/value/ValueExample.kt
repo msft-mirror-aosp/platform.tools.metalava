@@ -486,6 +486,39 @@ constructor(
                     expectedKotlinLegacyValue = expectations { attributeValue = 116.toByte() },
                     expectedValue = expectations { common = literalValue(116.toByte()) },
                 ),
+                // Check a byte cast expression.
+                ValueExample(
+                    name = "byte - cast",
+                    javaType = "byte",
+                    javaExpression = "(byte) 116",
+                    kotlinType = "Byte",
+                    kotlinExpression = "116.toByte()",
+                    expectedLegacySource =
+                        expectations {
+                            common = "116"
+                            source {
+                                // TODO(b/354633349): This is BAD, it is actually a hexadecimal but
+                                //   without the leading `0x` it will be treated as decimal.
+                                annotationToSource = "74"
+
+                                attributeValue = "(byte) 116"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "116.toByte()"
+                                attributeValue = "116.toByte()"
+                            }
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = 116.toByte()
+                            jar { attributeValue = 116 }
+                        },
+                    expectedKotlinLegacyValue = expectations { attributeValue = 116.toByte() },
+                    expectedValue = expectations { common = literalValue(116.toByte()) },
+                ),
                 // Check a simple char.
                 ValueExample(
                     name = "char",
@@ -1459,7 +1492,7 @@ constructor(
                     expectedLegacyValue = expectations { common = Long.MIN_VALUE },
                     expectedValue = expectations { common = literalValue(Long.MIN_VALUE) },
                 ),
-                // Check a simple short with a lower case suffix.
+                // Check a simple short.
                 ValueExample(
                     name = "short",
                     javaType = "short",
@@ -1471,6 +1504,38 @@ constructor(
                             common = 32000.toShort()
 
                             attributeValue = 32000
+                        },
+                    expectedKotlinLegacyValue = expectations { attributeValue = 32000.toShort() },
+                    expectedValue = expectations { common = literalValue(32000.toShort()) },
+                ),
+                // Check a short cast expression.
+                ValueExample(
+                    name = "short - cast",
+                    javaType = "short",
+                    javaExpression = "(short) 32000",
+                    kotlinType = "Short",
+                    kotlinExpression = "32000.toShort()",
+                    expectedLegacySource =
+                        expectations {
+                            common = "32000"
+                            source {
+                                // TODO(b/354633349): This is BAD, it is actually a hexadecimal but
+                                //   without the leading `0x` it will be treated as decimal.
+                                annotationToSource = "7d00"
+
+                                attributeValue = "(short) 32000"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            annotationToSource = "32000.toShort()"
+                            attributeValue = "32000.toShort()"
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = 32000.toShort()
+
+                            jar { attributeValue = 32000 }
                         },
                     expectedKotlinLegacyValue = expectations { attributeValue = 32000.toShort() },
                     expectedValue = expectations { common = literalValue(32000.toShort()) },
