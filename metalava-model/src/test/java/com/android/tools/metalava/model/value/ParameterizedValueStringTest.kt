@@ -138,6 +138,12 @@ class ParameterizedValueStringTest {
                     ValueStringConfiguration(nonLiteralFloatSuffix = 'F')
                 )
 
+            val NON_LITERAL_INT_HEX =
+                LabelledConfig(
+                    "non-literal-int-hex",
+                    ValueStringConfiguration(nonLiteralIntFormat = IntFormat.HEXADECIMAL)
+                )
+
             val SPECIAL_VALUES =
                 LabelledConfig(
                     "special-values",
@@ -678,15 +684,31 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(0),
                     expectedDefaultValueString = "0",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.NON_LITERAL_INT_HEX)
+                },
                 testCasesForValue(
                     value = literalValue(Int.MAX_VALUE),
                     expectedDefaultValueString = "2147483647",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.NON_LITERAL_INT_HEX)
+                },
                 testCasesForValue(
                     value = literalValue(Int.MIN_VALUE),
                     expectedDefaultValueString = "-2147483648",
-                ),
+                    expectedDefaultDebugString = "-2147483648,nonLiteral",
+                ) {
+                    // Negative ints are considered as being a unary minus expression of the
+                    // absolute value.
+                    verifyConfigChangesOutput(LabelledConfig.NON_LITERAL_INT_HEX, "0x80000000")
+                },
+                testCasesForValue(
+                    value = literalValue(892536243, nonLiteralInSource = true),
+                    expectedDefaultValueString = "892536243",
+                    expectedDefaultDebugString = "892536243,nonLiteral",
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.NON_LITERAL_INT_HEX, "0x353305b3")
+                },
                 // ********************************* Longs *********************************
                 testCasesForValue(
                     value = literalValue(0L),

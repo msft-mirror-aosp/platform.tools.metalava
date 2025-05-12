@@ -1406,6 +1406,11 @@ constructor(
                     javaType = "int",
                     javaExpression = "+17",
                     kotlinType = "Int",
+                    // Signature files do not contain ints with a leading + but ints with a leading
+                    // + in the source are written out as hexadecimal (as the leading + makes it a
+                    // unary plus expression and so not a literal). Hence, the hexadecimal form is
+                    // used here.
+                    signatureExpression = "0x11",
                     expectedLegacySource =
                         expectations {
                             common = "17"
@@ -1417,7 +1422,11 @@ constructor(
                             }
                         },
                     expectedLegacyValue = expectations { common = 17 },
-                    expectedValue = expectations { common = literalValue(17) },
+                    expectedValue =
+                        expectations {
+                            common = literalValue(17, nonLiteralInSource = true)
+                            jar { common = literalValue(17) }
+                        },
                 ),
                 // Check an int with a unary minus.
                 ValueExample(
@@ -1465,7 +1474,11 @@ constructor(
                     expectedLegacyValue = expectations { common = 1599098439 },
                     expectedKotlinLegacyValue =
                         expectations { source { attributeValue = 1599098439 } },
-                    expectedValue = expectations { common = literalValue(1599098439) },
+                    expectedValue =
+                        expectations {
+                            common = literalValue(1599098439, nonLiteralInSource = true)
+                            jar { common = literalValue(1599098439) }
+                        },
                 ),
                 // Check a simple long with an integer value.
                 ValueExample(

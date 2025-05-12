@@ -107,8 +107,31 @@ internal class DefaultFloatValue(
     }
 }
 
-internal class DefaultIntValue(override val underlyingValue: Int) :
-    DefaultPrimitiveValue<Int>(), IntValue
+internal class DefaultIntValue(
+    override val underlyingValue: Int,
+    private val nonLiteralInSource: Boolean = false,
+) : DefaultPrimitiveValue<Int>(), IntValue {
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        if (nonLiteralInSource) {
+            when (configuration.nonLiteralIntFormat) {
+                IntFormat.HEXADECIMAL -> {
+                    builder.append("0x").append(Integer.toHexString(underlyingValue))
+                    return
+                }
+                else -> {}
+            }
+        }
+
+        super<IntValue>.appendValueStringTo(builder, configuration)
+    }
+
+    override fun appendLegacyStateTo(builder: StringBuilder) {
+        if (nonLiteralInSource) builder.append(",nonLiteral")
+    }
+}
 
 internal class DefaultLongValue(
     override val underlyingValue: Long,

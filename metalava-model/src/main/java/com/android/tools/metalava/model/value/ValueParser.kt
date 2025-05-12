@@ -322,7 +322,15 @@ class ValueParser(
             // larger than the largest positive int. They will become negative numbers. However,
             // that is what the original number was so it is ok.
             val int = withoutLeading0x.toLong(16).toInt()
-            return createLiteralValue(optionalTypeItem, int)
+            return createLiteralValue(
+                optionalTypeItem,
+                int,
+                // AnnotationItem.toSource() will use format ints obtained from literals as decimals
+                // and ints obtained from complex expressions as decimals so treat hexadecimals as
+                // if they are not literals. That should allow signature files to be read and then
+                // written out again without changing the formatting.
+                nonLiteralInSource = true
+            )
         }
 
         // Check the last character to see if it indicated the type of the number.

@@ -246,6 +246,8 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * @param nonLiteralFloatSuffix The suffix to use for a [FloatValue] that was represented in the
  *   source as an expression (including negative numbers which are represented as a unary minus
  *   expression).
+ * @param nonLiteralIntFormat How to format an [IntValue] that was represented in the source as an
+ *   expression (including negative numbers which are represented as a unary minus expression).
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
  *   they were added.
@@ -261,6 +263,7 @@ data class ValueStringConfiguration(
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
     val nonLiteralFloatSuffix: Char = 'f',
+    val nonLiteralIntFormat: IntFormat = IntFormat.DECIMAL,
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
     val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
@@ -316,6 +319,15 @@ enum class ClassObjectValueFormat {
      * [JAVA].
      */
     SOURCE,
+}
+
+/** Possible ways to format an [IntValue]. */
+enum class IntFormat {
+    /** Format as a decimal number. */
+    DECIMAL,
+
+    /** Format as a hexadecimal number with a leader 0x. */
+    HEXADECIMAL,
 }
 
 /** Enumeration of how an array containing a single element should be formatted. */

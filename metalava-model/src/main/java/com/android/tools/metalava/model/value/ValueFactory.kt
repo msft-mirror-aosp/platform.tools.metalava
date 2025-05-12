@@ -318,8 +318,15 @@ interface ValueFactory {
                         )
                     },
                 Primitive.INT to
-                    { underlyingValue, _, _ ->
-                        DefaultIntValue(underlyingValue as Int)
+                    { underlyingValue, _, nonLiteralInSource ->
+                        val intValue = underlyingValue as Int
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                intValue < 0
+                        DefaultIntValue(intValue, effectivelyNonLiteralInSource)
                     },
                 Primitive.LONG to
                     { underlyingValue, originalValue, _ ->
