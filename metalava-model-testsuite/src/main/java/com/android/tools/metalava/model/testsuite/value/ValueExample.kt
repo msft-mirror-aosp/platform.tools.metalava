@@ -1175,6 +1175,10 @@ constructor(
                     javaType = "float",
                     javaExpression = "3.141F",
                     kotlinType = "Float",
+                    // Signature files only contain a float with an 'F' suffix in annotations when
+                    // the source expression was not a literal. Use 'f' suffix here as this is a
+                    // literal. The 'F' suffix is tested below in the "float - expression" example.
+                    signatureExpression = "3.141f",
                     expectedLegacySource =
                         expectations {
                             common = "3.141F"
@@ -1246,7 +1250,10 @@ constructor(
                         },
                     expectedKotlinLegacyValue =
                         expectations { source { attributeValue = Double.NaN } },
-                    expectedValue = expectations { common = literalValue(Float.NaN) },
+                    expectedValue =
+                        expectations {
+                            common = literalValue(Float.NaN, nonLiteralInSource = true)
+                        },
                 ),
                 // Check a special float - +infinity.
                 ValueExample(
@@ -1292,7 +1299,11 @@ constructor(
                         },
                     expectedKotlinLegacyValue =
                         expectations { source { attributeValue = Double.POSITIVE_INFINITY } },
-                    expectedValue = expectations { common = literalValue(Float.POSITIVE_INFINITY) },
+                    expectedValue =
+                        expectations {
+                            common =
+                                literalValue(Float.POSITIVE_INFINITY, nonLiteralInSource = true)
+                        },
                 ),
                 ValueExample(
                     name = "float negative infinity",
@@ -1358,8 +1369,10 @@ constructor(
                     javaType = "float",
                     javaExpression = "2.125f * 1.5f",
                     kotlinType = "Float",
-                    // Signature does not support expressions.
-                    validForInputFormats = notValidForSignature,
+                    // Signature files do not support expressions but a float that was represented
+                    // by an expression in the source will use an 'F' suffix so use that here
+                    // instead to ensure the correct value is created.
+                    signatureExpression = "3.1875F",
                     expectedLegacySource =
                         expectations {
                             common = "3.1875f"
@@ -1371,7 +1384,11 @@ constructor(
                     expectedKotlinLegacySource =
                         expectations { source { attributeDefaultValue = "3.1875" } },
                     expectedLegacyValue = expectations { common = 3.1875f },
-                    expectedValue = expectations { common = literalValue(3.1875f) },
+                    expectedValue =
+                        expectations {
+                            common = literalValue(3.1875f, nonLiteralInSource = true)
+                            jar { common = literalValue(3.1875f) }
+                        },
                 ),
                 // Check a simple int.
                 ValueExample(

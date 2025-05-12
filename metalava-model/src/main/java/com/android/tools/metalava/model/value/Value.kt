@@ -587,7 +587,7 @@ sealed interface FloatValue : FloatingPointValue<Float> {
 
     companion object {
         // These are all non-literals as there is no source literal for these. They all either
-        // require using a division-by-zero expression or a field.
+        // require using a division-by-zero expression or a field that itself uses division-by-zero.
         val NaN: FloatValue = DefaultFloatValue(Float.NaN, nonLiteralInSource = true)
         val NEGATIVE_INFINITY: FloatValue =
             DefaultFloatValue(Float.NEGATIVE_INFINITY, nonLiteralInSource = true)

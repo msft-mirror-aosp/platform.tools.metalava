@@ -226,7 +226,11 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                     }
                     else -> underlyingValue
                 }
-            return createLiteralValue(optionalTypeItem, transformedValue)
+
+            // A value is considered non-literal if an expression was provided, and it was not a
+            // literal expression.
+            val nonLiteralInSource = expr != null && expr !is Tree.Literal
+            return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
         }
 
         throw ValueProviderException(

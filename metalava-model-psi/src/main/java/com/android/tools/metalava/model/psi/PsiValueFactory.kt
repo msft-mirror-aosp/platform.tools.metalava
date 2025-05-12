@@ -499,7 +499,11 @@ internal class PsiValueFactory(
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, uExpression)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return createLiteralValue(
+                optionalTypeItem,
+                value,
+                nonLiteralInSource = true,
+            )
         }
 
         // An unknown expression was found so return null and the caller will handle as needed.
@@ -635,14 +639,22 @@ internal class PsiValueFactory(
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, psiValue)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return createLiteralValue(
+                optionalTypeItem,
+                value,
+                nonLiteralInSource = true,
+            )
         }
 
         // Temporarily fall through to use PsiConstantEvaluationHelper
         // TODO(b/408445860): Remove once ConstantEvaluator can handle the necessary cases.
         val javaPsiFacade = JavaPsiFacade.getInstance(codebase.project)
         javaPsiFacade.constantEvaluationHelper.computeConstantExpression(psiValue)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return createLiteralValue(
+                optionalTypeItem,
+                value,
+                nonLiteralInSource = true,
+            )
         }
 
         // An unknown expression was found so return null and the caller will handle as needed.
