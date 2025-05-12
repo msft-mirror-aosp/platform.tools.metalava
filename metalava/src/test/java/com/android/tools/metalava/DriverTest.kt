@@ -17,10 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_TXT
-import com.android.ide.common.process.DefaultProcessExecutor
-import com.android.ide.common.process.LoggedProcessOutputHandler
-import com.android.ide.common.process.ProcessException
-import com.android.ide.common.process.ProcessInfoBuilder
 import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
@@ -30,13 +26,15 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
-import com.android.tools.metalava.cli.common.ARG_COMMON_SOURCE_PATH
+import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.common.CheckerContext
+import com.android.tools.metalava.cli.common.CheckerFunction
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.TestEnvironment
 import com.android.tools.metalava.cli.compatibility.ARG_API_COMPAT_ANNOTATION
@@ -51,6 +49,12 @@ import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.ANDROID_TEST_API
+import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -66,12 +70,13 @@ import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.testing.JavacHelper
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.utils.SdkUtils
-import com.android.utils.StdLogger
 import com.google.common.io.Closeables
 import com.intellij.openapi.util.Disposer
 import java.io.ByteArrayOutputStream
@@ -80,7 +85,7 @@ import java.io.FileNotFoundException
 import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.net.URL
+import java.net.URI
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -94,7 +99,8 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 
 @RunWith(DriverTestRunner::class)
-abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, TemporaryFolderOwner {
+abstract class DriverTest :
+    CodebaseCreatorConfigAware<SourceModelProvider>, TemporaryFolderOwner, Assertions {
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
     @get:Rule val errorCollector = ErrorCollector()
@@ -247,22 +253,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         }
     }
 
-    private fun getJdkPath(): String? {
-        val javaHome = System.getProperty("java.home")
-        if (javaHome != null) {
-            var javaHomeFile = File(javaHome)
-            if (File(javaHomeFile, "bin${File.separator}javac").exists()) {
-                return javaHome
-            } else if (javaHomeFile.name == "jre") {
-                javaHomeFile = javaHomeFile.parentFile
-                if (File(javaHomeFile, "bin${File.separator}javac").exists()) {
-                    return javaHomeFile.path
-                }
-            }
-        }
-        return System.getenv("JAVA_HOME")
-    }
-
     private fun <T> buildOptionalArgs(option: T?, converter: (T) -> Array<String>): Array<String> {
         return if (option != null) {
             converter(option)
@@ -371,12 +361,12 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                     baselineFile,
                     inputContents,
                 )
-        }
-            ?: BaselineCheck("", emptyArray(), null, "")
+        } ?: BaselineCheck("", emptyArray(), null, "")
     }
 
     @Suppress("DEPRECATION")
     protected fun check(
+        configFiles: Array<TestFile> = emptyArray(),
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
@@ -463,7 +453,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         /** If using [showAnnotations], whether to include unannotated */
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
-        extraArguments: Array<String> = emptyArray(),
+        extraArguments: Array<out String> = emptyArray(),
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
@@ -475,13 +465,18 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
          * files etc
          */
         importedPackages: List<String> = emptyList(),
-        /** See [TestEnvironment.skipEmitPackages] */
-        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
+        /** See [TestEnvironment.skipEmitPackages], defaults to [DEFAULT_SKIP_EMIT_PACKAGES]. */
+        skipEmitPackages: List<String>? = null,
         /** Whether we should include --showAnnotations=android.annotation.SystemApi */
-        includeSystemApiAnnotations: Boolean = false,
+        includeSystemApiAnnotations: SystemApiType? = null,
         /** Whether we should warn about super classes that are stripped because they are hidden */
         includeStrippedSuperclassWarnings: Boolean = false,
-        /** Apply level to XML */
+        /**
+         * Apply level to XML.
+         *
+         * This can either be the name of a file or the contents of the XML file. In the latter case
+         * the contents are trimmed and written to a file.
+         */
         applyApiLevelsXml: String? = null,
         /** Corresponds to SDK constants file broadcast_actions.txt */
         sdkBroadcastActions: String? = null,
@@ -531,10 +526,21 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         @Language("TEXT") apiLint: String? = null,
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
-        /** The common source files to pass to the analyzer */
-        commonSourceFiles: Array<TestFile> = emptyArray(),
+        /** Lint project description */
+        projectDescription: TestFile? = null,
+        /** Jar file with the compiled sources loaded in addition to [sourceFiles]. */
+        compiledSourceJar: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
-        repeatErrorsMax: Int = 0
+        repeatErrorsMax: Int = 0,
+        /**
+         * Called on a [CheckerContext] after the analysis phase in the metalava main command.
+         *
+         * This allows testing of the internal state of the metalava main command. Ideally, tests
+         * should not use this as it makes the tests more fragile and can increase the cost of
+         * refactoring. However, it is often the only way to verify the effects of changes that
+         * start to add a new feature but which does not yet have any effect on the output.
+         */
+        postAnalysisChecker: CheckerFunction? = null,
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -550,13 +556,16 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
         // Verify that a test that provided kotlin code is only being run against a provider that
         // supports kotlin code.
-        val anyKotlin =
-            sourceFiles.any { it.targetPath.endsWith(DOT_KT) } ||
-                commonSourceFiles.any { it.targetPath.endsWith(DOT_KT) }
-        if (anyKotlin && Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
-            error(
-                "Provider ${codebaseCreatorConfig.providerName} does not support Kotlin; please add `@RequiresCapabilities(Capability.KOTLIN)` to the test"
-            )
+        val anyKotlin = sourceFiles.any { it.targetPath.endsWith(DOT_KT) }
+        if (anyKotlin) {
+            if (Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
+                error(
+                    "Provider ${codebaseCreatorConfig.providerName} does not support Kotlin; please add `@RequiresCapabilities(Capability.KOTLIN)` to the test"
+                )
+            }
+            if (format.version < FileFormat.Version.V4) {
+                error("Kotlin test must use FileFormat.V4 or higher")
+            }
         }
 
         val releasedApiCheck =
@@ -587,7 +596,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
 
-        val project = createProject(sourceFiles + commonSourceFiles)
+        val project = createProject(sourceFiles)
 
         val sourcePathDir = File(project, "src")
         if (!sourcePathDir.isDirectory) {
@@ -595,7 +604,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         }
 
         var sourcePath = sourcePathDir.path
-        var commonSourcePath: String? = null
 
         // Make it easy to configure a source path with more than one source root: src and src2
         if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
@@ -604,14 +612,18 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
         fun pathUnderProject(path: String): String = File(project, path).path
 
-        if (commonSourceFiles.isNotEmpty()) {
-            // Assume common/source are placed in different folders, e.g., commonMain, androidMain
-            sourcePath =
-                pathUnderProject(sourceFiles.first().targetPath.substringBefore("src") + "src")
-            commonSourcePath =
-                pathUnderProject(
-                    commonSourceFiles.first().targetPath.substringBefore("src") + "src"
-                )
+        val projectDescriptionFile = projectDescription?.createFile(project)
+
+        val compiledSourceJarFile = compiledSourceJar?.createFile(project)
+        if (
+            compiledSourceJarFile != null &&
+                Capability.JAR_WITH_SOURCES !in codebaseCreatorConfig.creator.capabilities
+        ) {
+            error(
+                "Provider ${codebaseCreatorConfig.providerName} does not support compiled " +
+                    "sources; please add `@RequiresCapabilities(Capability.JAR_WITH_SOURCES)` to " +
+                    "the test"
+            )
         }
 
         val apiClassResolutionArgs =
@@ -645,7 +657,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 }
                 arrayOf(apiJar.path)
             } else {
-                (sourceFiles + commonSourceFiles)
+                sourceFiles
                     .asSequence()
                     .map { pathUnderProject(it.targetPath) }
                     .toList()
@@ -679,6 +691,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                     allReportedIssues.append(cleanedUpMessage).append('\n')
                 }
             }
+
+        val configFileArgs =
+            configFiles
+                .flatMap { listOf(ARG_CONFIG_FILE, it.indented().createFile(project).path) }
+                .toTypedArray()
 
         val mergeAnnotationsArgs =
             if (mergeXmlAnnotations != null) {
@@ -788,19 +805,16 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             }
 
         val showAnnotationArguments =
-            if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations) {
+            if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations != null) {
                 val args = mutableListOf<String>()
                 for (annotation in showAnnotations) {
                     args.add(ARG_SHOW_ANNOTATION)
                     args.add(annotation)
                 }
-                if (includeSystemApiAnnotations && !args.contains("android.annotation.SystemApi")) {
-                    args.add(ARG_SHOW_ANNOTATION)
-                    args.add("android.annotation.SystemApi")
-                }
-                if (includeSystemApiAnnotations && !args.contains("android.annotation.TestApi")) {
-                    args.add(ARG_SHOW_ANNOTATION)
-                    args.add("android.annotation.TestApi")
+                if (includeSystemApiAnnotations != null) {
+                    if (!args.contains(includeSystemApiAnnotations.annotationClass)) {
+                        args.addAll(includeSystemApiAnnotations.extraArguments)
+                    }
                 }
                 args.toTypedArray()
             } else {
@@ -860,7 +874,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             }
 
         // Always pass apiArgs and generate API text file in runDriver
-        val apiFile: File = newFile("public-api.txt")
+        val apiFile: File = getOrCreateFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
 
         val subtractApiFile: File?
@@ -876,7 +890,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         var stubsDir: File? = null
         val stubsArgs =
             if (stubFiles.isNotEmpty() || stubPaths != null) {
-                stubsDir = newFolder("stubs")
+                stubsDir = getOrCreateFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
                 } else {
@@ -886,7 +900,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 emptyArray()
             }
 
-        val applyApiLevelsXmlFile: File?
         val applyApiLevelsXmlArgs =
             if (applyApiLevelsXml != null) {
                 ApiLookup::class
@@ -894,8 +907,10 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                     .getDeclaredMethod("dispose")
                     .apply { isAccessible = true }
                     .invoke(null)
-                applyApiLevelsXmlFile = temporaryFolder.newFile("api-versions.xml")
-                applyApiLevelsXmlFile?.writeText(applyApiLevelsXml.trimIndent())
+                val applyApiLevelsXmlFile =
+                    useExistingFileOrCreateNewFile(project, applyApiLevelsXml, "api-versions.xml") {
+                        it.trimIndent()
+                    }
                 arrayOf(ARG_APPLY_API_LEVELS, applyApiLevelsXmlFile.path)
             } else {
                 emptyArray()
@@ -1013,17 +1028,15 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 // test root folder such that we clean up the output strings referencing
                 // paths to the temp folder
                 "--temp-folder",
-                newFolder("temp").path,
+                getOrCreateFolder("temp").path,
 
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
                 ARG_INCLUDE_ANNOTATIONS,
                 ARG_SOURCE_PATH,
                 sourcePath,
-                ARG_CLASS_PATH,
-                androidJar.path,
-                *classpathArgs,
-                *kotlinPathArgs,
+                *sourceList,
+                *configFileArgs,
                 *removedArgs,
                 *apiArgs,
                 *subtractApiArgs,
@@ -1055,7 +1068,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *validateNullabilityFromListArgs,
                 format.outputFlags(),
                 *apiClassResolutionArgs,
-                *sourceList,
                 *extraArguments,
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
@@ -1064,18 +1076,31 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *apiLintArgs,
             ) +
                 buildList {
-                        if (commonSourcePath != null) {
-                            add(ARG_COMMON_SOURCE_PATH)
-                            add(commonSourcePath)
+                        if (projectDescriptionFile != null) {
+                            // Classpath isn't needed when it is specified through the project xml
+                            add(ARG_PROJECT)
+                            add(projectDescriptionFile.absolutePath)
+                            // When project description is provided,
+                            // skip listing (common) sources
+                        } else {
+                            add(ARG_CLASS_PATH)
+                            add(androidJar.path)
+                            addAll(classpathArgs)
+                            addAll(kotlinPathArgs)
+                        }
+                        if (compiledSourceJarFile != null) {
+                            add(ARG_COMPILED_SOURCES)
+                            add(compiledSourceJarFile.absolutePath)
                         }
                     }
                     .toTypedArray()
 
         val testEnvironment =
             TestEnvironment(
-                skipEmitPackages = skipEmitPackages,
+                skipEmitPackages = skipEmitPackages ?: DEFAULT_SKIP_EMIT_PACKAGES,
                 sourceModelProvider = codebaseCreatorConfig.creator,
                 modelOptions = codebaseCreatorConfig.modelOptions,
+                postAnalysisChecker = postAnalysisChecker,
             )
 
         val actualOutput =
@@ -1116,7 +1141,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             )
             assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFile(apiFile), options.annotationManager)
+            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), options.codebaseConfig)
         }
 
         baselineCheck.apply()
@@ -1134,7 +1159,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 expectedFormat = format
             )
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFile(removedApiFile), options.annotationManager)
+            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), options.codebaseConfig)
         }
 
         if (proguard != null && proguardFile != null) {
@@ -1229,40 +1254,14 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
         if (checkCompilation && stubsDir != null) {
             val generated =
-                SourceSet.createFromSourcePath(options.reporter, listOf(stubsDir))
-                    .sources
-                    .asSequence()
-                    .map { it.path }
-                    .toList()
-                    .toTypedArray()
+                SourceSet.createFromSourcePath(options.reporter, listOf(stubsDir)).sources
 
-            // Also need to include on the compile path annotation classes referenced in the stubs
-            val extraAnnotationsDir = File("../stub-annotations/src/main/java")
-            if (!extraAnnotationsDir.isDirectory) {
-                fail(
-                    "Couldn't find $extraAnnotationsDir: Is the pwd set to the root of the metalava source code?"
-                )
-                fail(
-                    "Couldn't find $extraAnnotationsDir: Is the pwd set to the root of an Android source tree?"
-                )
-            }
-            val extraAnnotations =
-                SourceSet.createFromSourcePath(options.reporter, listOf(extraAnnotationsDir))
-                    .sources
-                    .asSequence()
-                    .map { it.path }
-                    .toList()
-                    .toTypedArray()
-
-            if (
-                !runCommand(
-                    "${getJdkPath()}/bin/javac",
-                    arrayOf("-d", project.path, *generated, *extraAnnotations)
-                )
-            ) {
-                fail("Couldn't compile stub file -- compilation problems")
-                return
-            }
+            // Compile the stubs, throwing an exception if it fails.
+            JavacHelper.compile(
+                outputDirectory = project,
+                sources = generated,
+                classPath = listOf(KnownJarFiles.stubAnnotationsJar),
+            )
         }
     }
 
@@ -1306,13 +1305,14 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         assertNotNull(output)
         assertTrue(output.exists())
         val url =
-            URL(
-                "jar:" +
-                    SdkUtils.fileToUrlString(output) +
-                    "!/" +
-                    pkg.replace('.', '/') +
-                    "/annotations.xml"
-            )
+            URI(
+                    "jar:" +
+                        SdkUtils.fileToUrlString(output) +
+                        "!/" +
+                        pkg.replace('.', '/') +
+                        "/annotations.xml"
+                )
+                .toURL()
         val stream = url.openStream()
         try {
             val bytes = stream.readBytes()
@@ -1324,26 +1324,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         }
     }
 
-    private fun runCommand(executable: String, args: Array<String>): Boolean {
-        try {
-            val logger = StdLogger(StdLogger.Level.ERROR)
-            val processExecutor = DefaultProcessExecutor(logger)
-            val processInfo =
-                ProcessInfoBuilder().setExecutable(executable).addArgs(args).createProcess()
-
-            val processOutputHandler = LoggedProcessOutputHandler(logger)
-            val result = processExecutor.execute(processInfo, processOutputHandler)
-
-            result.rethrowFailure().assertNormalExitValue()
-        } catch (e: ProcessException) {
-            fail(
-                "Failed to run $executable (${e.message}): not verifying this API on the old doclava engine"
-            )
-            return false
-        }
-        return true
-    }
-
     companion object {
         @JvmStatic
         protected fun readFile(file: File): String {
@@ -1353,7 +1333,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         }
 
         /**
-         * Get an optional signature API [File] from either a file path or its contents.
+         * Get a signature API [File] from either a file path or its contents.
          *
          * @param project the directory in which to create a new file.
          * @param fileOrFileContents either a path to an existing file or the contents of the
@@ -1363,16 +1343,34 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
          */
         private fun useExistingSignatureFileOrCreateNewFile(
             project: File,
-            fileOrFileContents: String?,
+            fileOrFileContents: String,
             newBasename: String
         ) =
-            fileOrFileContents?.let {
-                val maybeFile = File(fileOrFileContents)
+            useExistingFileOrCreateNewFile(project, fileOrFileContents, newBasename) {
+                prepareSignatureFileForTest(it, FileFormat.V2)
+            }
+
+        /**
+         * Get an optional [File] from either a file path or its contents.
+         *
+         * @param project the directory in which to create a new file.
+         * @param fileOrFileContents either a path to an existing file or the contents of the file.
+         *   If the latter the [transformer] will be applied to [fileOrFileContents] and written to
+         *   a new file created within [project].
+         * @param newBasename the basename of a new file created.
+         */
+        private fun useExistingFileOrCreateNewFile(
+            project: File,
+            fileOrFileContents: String,
+            newBasename: String,
+            transformer: (String) -> String,
+        ) =
+            File(fileOrFileContents).let { maybeFile ->
                 if (maybeFile.isFile) {
                     maybeFile
                 } else {
                     val file = findNonExistentFile(project, newBasename)
-                    file.writeSignatureText(fileOrFileContents)
+                    file.writeText(transformer(fileOrFileContents))
                     file
                 }
             }
@@ -1396,9 +1394,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         ): Array<String> {
             if (isEmpty()) return emptyArray()
 
-            val paths = mapNotNull {
-                useExistingSignatureFileOrCreateNewFile(project, it, baseName)?.path
-            }
+            val paths = map { useExistingSignatureFileOrCreateNewFile(project, it, baseName).path }
 
             // For each path in the list generate an option with the path as the value.
             return paths.flatMap { listOf(optionName, it) }.toTypedArray()
@@ -1447,22 +1443,7 @@ fun findKotlinStdlibPathArgs(sources: Array<String>): Array<String> {
         )
 }
 
-val intRangeAnnotationSource: TestFile =
-    java(
-            """
-        package android.annotation;
-        import java.lang.annotation.*;
-        import static java.lang.annotation.ElementType.*;
-        import static java.lang.annotation.RetentionPolicy.SOURCE;
-        @Retention(SOURCE)
-        @Target({METHOD,PARAMETER,FIELD,LOCAL_VARIABLE,ANNOTATION_TYPE})
-        public @interface IntRange {
-            long from() default Long.MIN_VALUE;
-            long to() default Long.MAX_VALUE;
-        }
-        """
-        )
-        .indented()
+val intRangeAnnotationSource = KnownSourceFiles.intRangeAnnotationSource
 
 val intDefAnnotationSource: TestFile =
     java(
@@ -1583,6 +1564,63 @@ val requiresApiSource: TestFile =
         )
         .indented()
 
+val flaggedApiSource: TestFile =
+    java(
+            """
+        package android.annotation;
+        import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+        import static java.lang.annotation.ElementType.CONSTRUCTOR;
+        import static java.lang.annotation.ElementType.FIELD;
+        import static java.lang.annotation.ElementType.METHOD;
+        import static java.lang.annotation.ElementType.TYPE;
+
+        import java.lang.annotation.Retention;
+        import java.lang.annotation.RetentionPolicy;
+        import java.lang.annotation.Target;
+        /** @hide */
+        @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
+        @Retention(RetentionPolicy.CLASS)
+        public @interface FlaggedApi {
+            String value();
+        }
+    """
+        )
+        .indented()
+
+private fun restrictedForEnvironmentClass(packageName: String): TestFile =
+    java(
+            """
+            package $packageName;
+            import java.lang.annotation.*;
+            import static java.lang.annotation.ElementType.*;
+            import static java.lang.annotation.RetentionPolicy;
+            /** @hide */
+            @Retention(RetentionPolicy.RUNTIME)
+            @Target({TYPE})
+            public @interface RestrictedForEnvironment {
+              @Environment String[] environments();
+              int from();
+              String ENVIRONMENT_SDK_RUNTIME = "SDK Runtime";
+              /** @hide */
+              @StringDef(prefix = "ENVIRONMENT_", value = {
+                ENVIRONMENT_SDK_RUNTIME
+              })
+              @Retention(RetentionPolicy.SOURCE)
+              @interface Environment {}
+
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target(TYPE)
+              @interface Container {
+                  RestrictedForEnvironment[] value();
+              }
+            }
+        """
+        )
+        .indented()
+
+val androidXRestrictedForEnvironment = restrictedForEnvironmentClass(ANDROIDX_ANNOTATION_PACKAGE)
+val androidRestrictedForEnvironment = restrictedForEnvironmentClass(ANDROID_ANNOTATION_PACKAGE)
+
 val sdkConstantSource: TestFile =
     java(
             """
@@ -1682,42 +1720,6 @@ val recentlyNullableSource: TestFile =
         )
         .indented()
 
-val androidxIntRangeSource: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @Retention(CLASS)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, ANNOTATION_TYPE})
-    public @interface IntRange {
-        long from() default Long.MIN_VALUE;
-        long to() default Long.MAX_VALUE;
-    }
-    """
-        )
-        .indented()
-
-val supportParameterName = KnownSourceFiles.supportParameterName
-
-val supportDefaultValue: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD})
-    public @interface DefaultValue {
-        String value();
-    }
-    """
-        )
-        .indented()
-
 val uiThreadSource: TestFile =
     java(
             """
@@ -1799,46 +1801,7 @@ val systemServiceSource: TestFile =
         )
         .indented()
 
-val systemApiSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import static java.lang.annotation.ElementType.*;
-    import java.lang.annotation.*;
-    @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface SystemApi {
-        enum Client {
-            /**
-             * Specifies that the intended clients of a SystemApi are privileged apps.
-             * This is the default value for {@link #client}.
-             */
-            PRIVILEGED_APPS,
-
-            /**
-             * Specifies that the intended clients of a SystemApi are used by classes in
-             * <pre>BOOTCLASSPATH</pre> in mainline modules. Mainline modules can also expose
-             * this type of system APIs too when they're used only by the non-updatable
-             * platform code.
-             */
-            MODULE_LIBRARIES,
-
-            /**
-             * Specifies that the system API is available only in the system server process.
-             * Use this to expose APIs from code loaded by the system server process <em>but</em>
-             * not in <pre>BOOTCLASSPATH</pre>.
-             */
-            SYSTEM_SERVER
-        }
-
-        /**
-         * The intended client of this SystemAPI.
-         */
-        Client client() default android.annotation.SystemApi.Client.PRIVILEGED_APPS;
-    }
-    """
-        )
-        .indented()
+val systemApiSource = KnownSourceFiles.systemApiSource
 
 val testApiSource: TestFile =
     java(
@@ -1867,44 +1830,7 @@ val widgetSource: TestFile =
         )
         .indented()
 
-val restrictToSource: TestFile =
-    kotlin(
-            """
-    package androidx.annotation
-
-    import androidx.annotation.RestrictTo.Scope
-    import java.lang.annotation.ElementType.*
-
-    @MustBeDocumented
-    @Retention(AnnotationRetention.BINARY)
-    @Target(
-        AnnotationTarget.ANNOTATION_CLASS,
-        AnnotationTarget.CLASS,
-        AnnotationTarget.FUNCTION,
-        AnnotationTarget.PROPERTY_GETTER,
-        AnnotationTarget.PROPERTY_SETTER,
-        AnnotationTarget.CONSTRUCTOR,
-        AnnotationTarget.FIELD,
-        AnnotationTarget.FILE
-    )
-    // Needed due to Kotlin's lack of PACKAGE annotation target
-    // https://youtrack.jetbrains.com/issue/KT-45921
-    @Suppress("DEPRECATED_JAVA_ANNOTATION")
-    @java.lang.annotation.Target(ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE)
-    annotation class RestrictTo(vararg val value: Scope) {
-        enum class Scope {
-            LIBRARY,
-            LIBRARY_GROUP,
-            LIBRARY_GROUP_PREFIX,
-            @Deprecated("Use LIBRARY_GROUP_PREFIX instead.")
-            GROUP_ID,
-            TESTS,
-            SUBCLASSES,
-        }
-    }
-    """
-        )
-        .indented()
+val restrictToSource = KnownSourceFiles.restrictToSource
 
 val visibleForTestingSource: TestFile =
     java(
@@ -1952,31 +1878,6 @@ val columnSource: TestFile =
         )
         .indented()
 
-val flaggedApiSource: TestFile =
-    java(
-            """
-    package android.annotation;
-
-    import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
-    import static java.lang.annotation.ElementType.CONSTRUCTOR;
-    import static java.lang.annotation.ElementType.FIELD;
-    import static java.lang.annotation.ElementType.METHOD;
-    import static java.lang.annotation.ElementType.TYPE;
-
-    import java.lang.annotation.Retention;
-    import java.lang.annotation.RetentionPolicy;
-    import java.lang.annotation.Target;
-
-    /** @hide */
-    @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface FlaggedApi {
-        String value();
-    }
-    """
-        )
-        .indented()
-
 val publishedApiSource: TestFile =
     kotlin(
             """
@@ -2000,19 +1901,69 @@ val publishedApiSource: TestFile =
         )
         .indented()
 
-val deprecatedForSdkSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.Retention;
-    /** @hide */
-    @Retention(SOURCE)
-    @SuppressWarnings("WeakerAccess")
-    public @interface DeprecatedForSdk {
-        String value();
-        Class<?>[] allowIn() default {};
-    }
-    """
-        )
-        .indented()
+val DEFAULT_SKIP_EMIT_PACKAGES =
+    listOf(
+        // Do not emit classes in a number of java packages. While tests will
+        // use those classes they generally do not want to emit definitions of
+        // those classes as part of a signature or stubs files.
+        "java.lang",
+        "java.util",
+        "java.io",
+        // Ditto for android.annotation and androidx.annotation classes.
+        ANDROID_ANNOTATION_PACKAGE,
+        ANDROIDX_ANNOTATION_PACKAGE,
+        // Ditto for libcore.util.
+        "libcore.util",
+    )
+
+/**
+ * A special [FileFormat] used by tests that want to output type use annotations to signature files.
+ */
+val TYPE_USE_FORMAT =
+    FileFormat.V5.copy(
+        kotlinNameTypeOrder = true,
+        includeTypeUseAnnotations = true,
+        kotlinStyleNulls = false,
+        specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+    )
+
+/**
+ * Enumeration of the different types of system APIs used in Android.
+ *
+ * While this is Android specific it does test behavior relied upon by other users of Metalava, e.g.
+ * AndroidX.
+ *
+ * @param annotationClass The annotation class name, used to check to see if this is present in the
+ *   arguments already.
+ * @param annotationFilter The annotation filter to pass on the command line, e.g. for a
+ *   `--show-annotation` option.
+ */
+enum class SystemApiType(
+    val annotationClass: String,
+    private val annotationFilter: String = ANDROID_SYSTEM_API,
+    private val forStubs: List<SystemApiType> = emptyList()
+) {
+    PRIVILEGED_APPS(
+        annotationClass = ANDROID_SYSTEM_API,
+        annotationFilter = "$ANDROID_SYSTEM_API(client=$ANDROID_SYSTEM_API.Client.PRIVILEGED_APPS)",
+    ),
+    // MODULE_LIBRARIES is not required yet.
+    // SYSTEM_SERVER is not required yet.
+    TEST(
+        annotationClass = ANDROID_TEST_API,
+        annotationFilter = ANDROID_TEST_API,
+        forStubs = listOf(PRIVILEGED_APPS),
+    ),
+    ;
+
+    /** The arguments to pass on the command line. */
+    val extraArguments
+        get() = buildList {
+            add(ARG_SHOW_ANNOTATION)
+            add(annotationFilter)
+            for (forStub in forStubs) {
+                add(ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION)
+                add(forStub.annotationFilter)
+            }
+        }
+}

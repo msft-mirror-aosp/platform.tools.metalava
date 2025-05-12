@@ -17,11 +17,13 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.RECENTLY_NONNULL
+import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.findAnnotation
@@ -36,7 +38,7 @@ import com.android.tools.metalava.model.hasAnnotation
  *   {@code @NonNull List<@Nullable String>} to {@code @NonNull List<@NonNull String>} is forbidden.
  */
 class NullnessMigration : ComparisonVisitor() {
-    override fun compare(old: Item, new: Item) {
+    override fun compareItems(old: Item, new: Item) {
         if (hasNullnessInformation(new) && !hasNullnessInformation(old)) {
             new.markRecent()
         }
@@ -46,7 +48,7 @@ class NullnessMigration : ComparisonVisitor() {
     // having nullness annotations: those APIs are themselves new, so there's no reason
     // to mark the nullness contract as migration (warning- rather than error-severity)
 
-    override fun compare(old: MethodItem, new: MethodItem) {
+    override fun compareCallableItems(old: CallableItem, new: CallableItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
             val newType = new.returnType()
@@ -55,7 +57,7 @@ class NullnessMigration : ComparisonVisitor() {
         }
     }
 
-    override fun compare(old: FieldItem, new: FieldItem) {
+    override fun compareFieldItems(old: FieldItem, new: FieldItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
             val newType = new.type()
@@ -64,7 +66,7 @@ class NullnessMigration : ComparisonVisitor() {
         }
     }
 
-    override fun compare(old: ParameterItem, new: ParameterItem) {
+    override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
             val newType = new.type()
@@ -93,10 +95,7 @@ class NullnessMigration : ComparisonVisitor() {
 
     companion object {
         fun migrateNulls(codebase: Codebase, previous: Codebase) {
-            CodebaseComparator(
-                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                )
-                .compare(NullnessMigration(), previous, codebase)
+            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
         }
 
         fun hasNullnessInformation(item: Item): Boolean {
@@ -126,8 +125,12 @@ fun Item.markRecent() {
     // Nullness information change: Add migration annotation
     val annotationClass = if (annotation.isNullable()) RECENTLY_NULLABLE else RECENTLY_NONNULL
 
-    val modifiers = mutableModifiers()
-    modifiers.removeAnnotation(annotation)
+    val replacementAnnotation = codebase.createAnnotation("@$annotationClass", this)
 
-    modifiers.addAnnotation(codebase.createAnnotation("@$annotationClass", this))
+    mutateModifiers {
+        mutateAnnotations {
+            remove(annotation)
+            replacementAnnotation?.let { add(it) }
+        }
+    }
 }

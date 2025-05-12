@@ -214,9 +214,7 @@ class DefaultReporter(
     }
 
     private fun reportEvenIfSuppressed(report: Report): Boolean {
-        config.reportEvenIfSuppressedWriter?.let {
-            println(config.fileReportFormatter.format(report))
-        }
+        config.reportEvenIfSuppressedWriter?.println(config.fileReportFormatter.format(report))
         return true
     }
 
@@ -247,15 +245,6 @@ class DefaultReporter(
     fun writeErrorMessage(writer: PrintWriter) {
         if (hasErrors()) {
             errorMessage?.let { writer.write(it) }
-        }
-    }
-
-    fun getBaselineDescription(): String {
-        val file = baseline?.file
-        return if (file != null) {
-            "baseline ${file.path}"
-        } else {
-            "no baseline"
         }
     }
 

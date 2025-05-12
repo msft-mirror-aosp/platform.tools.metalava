@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model
 
 import java.util.Objects
-import java.util.function.Predicate
 
 /** Common to [MethodItem] and [ConstructorItem]. */
 @MetalavaApi
@@ -41,6 +40,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /** Types of exceptions that this callable can throw */
     fun throwsTypes(): List<ExceptionTypeItem>
 
+    /** The body of this, may not be available. */
+    val body: CallableBody
+
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
@@ -53,7 +55,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         return false
     }
 
-    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ExceptionTypeItem> {
+    fun filteredThrowsTypes(predicate: FilterPredicate): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
@@ -61,7 +63,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     }
 
     private fun filteredThrowsTypes(
-        predicate: Predicate<Item>,
+        predicate: FilterPredicate,
         throwsTypes: LinkedHashSet<ExceptionTypeItem>
     ): LinkedHashSet<ExceptionTypeItem> {
         for (exceptionType in throwsTypes()) {
@@ -104,22 +106,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         return "${if (isConstructor()) "constructor" else "method"} ${
             containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
     }
-
-    /**
-     * Finds uncaught exceptions actually thrown inside this callable (as opposed to ones declared
-     * in the signature)
-     */
-    fun findThrownExceptions(): Set<ClassItem> = codebase.unsupported()
-
-    /**
-     * Returns true if overloads of this callable should be checked separately when checking the
-     * signature of this callable.
-     *
-     * This works around the issue of actual callable not generating overloads for @JvmOverloads
-     * annotation when the default is specified on expect side
-     * (https://youtrack.jetbrains.com/issue/KT-57537).
-     */
-    fun shouldExpandOverloads(): Boolean = false
 
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
@@ -214,7 +200,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
      * Returns whether this callable has any types in its signature that does not match the given
      * filter.
      */
-    fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
+    fun hasHiddenType(filterReference: FilterPredicate): Boolean {
         for (parameter in parameters()) {
             if (parameter.type().hasHiddenType(filterReference)) return true
         }
@@ -229,7 +215,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     }
 
     /** Checks if there is a reference to a hidden class anywhere in the type. */
-    private fun TypeItem.hasHiddenType(filterReference: Predicate<Item>): Boolean {
+    private fun TypeItem.hasHiddenType(filterReference: FilterPredicate): Boolean {
         return when (this) {
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
@@ -237,11 +223,118 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                 asClass()?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
-            is VariableTypeItem -> !filterReference.test(asTypeParameter)
+            is VariableTypeItem ->
+                // There is no need to check if a type variable contains a reference to a hidden
+                // class as it is only a reference to a type parameter, and they are checked above
+                // to make sure that their type bounds do not contain a reference to a hidden
+                // class.
+                false
             is WildcardTypeItem ->
                 extendsBound?.hasHiddenType(filterReference) == true ||
                     superBound?.hasHiddenType(filterReference) == true
             else -> throw IllegalStateException("Unrecognized type: $this")
         }
     }
+
+    /**
+     * Like [CallableItem.internalName] but is the desc-portion of the internal signature, e.g. for
+     * the method "void create(int x, int y)" the internal name of the constructor is "create" and
+     * the desc is "(II)V"
+     */
+    fun internalDesc(voidConstructorTypes: Boolean = false): String {
+        val sb = StringBuilder()
+        sb.append("(")
+
+        // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
+        // outer type
+        if (
+            isConstructor() &&
+                containingClass().containingClass() != null &&
+                !containingClass().modifiers.isStatic()
+        ) {
+            sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
+        }
+
+        for (parameter in parameters()) {
+            sb.append(parameter.type().internalName())
+        }
+
+        sb.append(")")
+        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
+        return sb.toString()
+    }
+
+    companion object {
+        private fun compareCallables(
+            o1: CallableItem,
+            o2: CallableItem,
+            overloadsInSourceOrder: Boolean
+        ): Int {
+            val name1 = o1.name()
+            val name2 = o2.name()
+            if (name1 == name2) {
+                if (overloadsInSourceOrder) {
+                    val rankDelta = o1.sortingRank - o2.sortingRank
+                    if (rankDelta != 0) {
+                        return rankDelta
+                    }
+                }
+
+                // Compare by the rest of the signature to ensure stable output (we don't need to
+                // sort
+                // by return value or modifiers or modifiers or throws-lists since methods can't be
+                // overloaded
+                // by just those attributes
+                val p1 = o1.parameters()
+                val p2 = o2.parameters()
+                val p1n = p1.size
+                val p2n = p2.size
+                for (i in 0 until minOf(p1n, p2n)) {
+                    val compareTypes =
+                        p1[i]
+                            .type()
+                            .toTypeString()
+                            .compareTo(p2[i].type().toTypeString(), ignoreCase = true)
+                    if (compareTypes != 0) {
+                        return compareTypes
+                    }
+                    // (Don't compare names; they're not part of the signatures)
+                }
+                return p1n.compareTo(p2n)
+            }
+
+            return name1.compareTo(name2)
+        }
+
+        val comparator: Comparator<CallableItem> = Comparator { o1, o2 ->
+            compareCallables(o1, o2, false)
+        }
+        val sourceOrderForOverloadedMethodsComparator: Comparator<CallableItem> =
+            Comparator { o1, o2 ->
+                compareCallables(o1, o2, true)
+            }
+    }
+}
+
+/**
+ * Get the JVM-like descriptor of this [CallableItem] for just parameters (not return type) and
+ * using dots ('.') instead of slash (`/`) and dollar sign (`$`) characters.
+ *
+ * Due to legacy reasons it will return `null` for the constructor of an inner class.
+ */
+fun CallableItem.getCallableParameterDescriptorUsingDots(): String? {
+    return if (
+        isConstructor() &&
+            containingClass().isNestedClass() &&
+            !containingClass().modifiers.isStatic()
+    )
+        null
+    else
+        buildString {
+            append("(")
+            for (parameter in parameters()) {
+                append(parameter.type().internalName().replace('/', '.').replace('$', '.'))
+            }
+            append(")")
+        }
 }

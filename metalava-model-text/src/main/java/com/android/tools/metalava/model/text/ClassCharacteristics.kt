@@ -51,7 +51,7 @@ internal data class ClassCharacteristics(
 
     /** The super class type . */
     val superClassType: ClassTypeItem?,
-// TODO(b/323168612): Add interface type strings.
+    // TODO(b/323168612): Add interface type strings.
 ) {
     /**
      * Checks if the [other] from different signature file can be merged with this
@@ -68,7 +68,7 @@ internal data class ClassCharacteristics(
         // TextClassItem
         return fullName == other.fullName &&
             classKind == other.classKind &&
-            modifiers.equivalentTo(other.modifiers)
+            modifiers.equivalentTo(null, other.modifiers)
     }
 
     companion object {

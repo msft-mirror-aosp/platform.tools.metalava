@@ -17,52 +17,63 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
-import com.android.tools.metalava.model.AnnotationAttributeValue
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
 import java.util.regex.Pattern
 
 /** Misc API suggestions */
 class AndroidApiChecks(val reporter: Reporter) {
     fun check(codebase: Codebase) {
-        codebase.accept(
+        for (packageItem in codebase.getPackages().packages) {
+            // Get the package name with a trailing `.` to simplify prefix checking below. Without
+            // it the checks would have to check for `android` and `android.` separately.
+            val name = packageItem.qualifiedName() + "."
+
+            // Limit the checks to the android.* namespace (except for ICU)
+            if (!name.startsWith("android.") || name.startsWith("android.icu.")) continue
+
+            checkPackage(packageItem)
+        }
+    }
+
+    private fun checkPackage(packageItem: PackageItem) {
+        packageItem.accept(
             object :
                 ApiVisitor(
-                    // Sort by source order such that warnings follow source line number order
-                    methodComparator = MethodItem.sourceOrderComparator,
-                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
                 ) {
-                override fun skip(item: Item): Boolean {
-                    // Limit the checks to the android.* namespace (except for ICU)
-                    if (item is ClassItem) {
-                        val name = item.qualifiedName()
-                        return !(name.startsWith("android.") && !name.startsWith("android.icu."))
-                    }
-                    return super.skip(item)
-                }
 
-                override fun visitItem(item: Item) {
+                override fun visitSelectableItem(item: SelectableItem) {
+                    // TODOs are only checked on [Item]s with documentation and [ParameterItem]s
+                    // do not have any. Documentation for parameters is stored within the containing
+                    // callable in @param sections.
                     checkTodos(item)
                 }
 
+                override fun visitCallable(callable: CallableItem) {
+                    checkRequiresPermission(callable)
+                }
+
                 override fun visitMethod(method: MethodItem) {
-                    checkRequiresPermission(method)
-                    if (!method.isConstructor()) {
-                        checkVariable(
-                            method,
-                            "@return",
-                            "Return value of '" + method.name() + "'",
-                            method.returnType()
-                        )
-                    }
+                    checkVariable(
+                        method,
+                        "@return",
+                        "Return value of '" + method.name() + "'",
+                        method.returnType()
+                    )
                 }
 
                 override fun visitField(field: FieldItem) {
@@ -79,7 +90,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                         "Parameter '" +
                             parameter.name() +
                             "' of '" +
-                            parameter.containingMethod().name() +
+                            parameter.containingCallable().name() +
                             "'",
                         parameter.type()
                     )
@@ -106,7 +117,7 @@ class AndroidApiChecks(val reporter: Reporter) {
 
     private fun findDocumentation(item: Item, tag: String?): String {
         if (item is ParameterItem) {
-            return findDocumentation(item.containingMethod(), item.name())
+            return findDocumentation(item.containingCallable(), item.name())
         }
 
         val doc = item.documentation.text
@@ -187,39 +198,35 @@ class AndroidApiChecks(val reporter: Reporter) {
         }
     }
 
-    private fun checkRequiresPermission(method: MethodItem) {
-        val text = method.documentation
+    private fun checkRequiresPermission(callable: CallableItem) {
+        val text = callable.documentation
 
-        val annotation = method.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
-        if (annotation != null) {
-            for (attribute in annotation.attributes) {
-                var values: List<AnnotationAttributeValue>? = null
-                when (attribute.name) {
-                    "value",
-                    "allOf",
-                    "anyOf" -> {
-                        values = attribute.leafValues()
-                    }
-                }
-                if (values == null || values.isEmpty()) {
-                    continue
-                }
-
-                for (value in values) {
-                    // var perm = String.valueOf(value.value())
-                    var perm = value.toSource()
-                    if (perm.indexOf('.') >= 0) perm = perm.substring(perm.lastIndexOf('.') + 1)
-                    if (text.contains(perm)) {
-                        reporter.report(
-                            // Why is that a problem? Sometimes you want to describe
-                            // particular use cases.
-                            Issues.REQUIRES_PERMISSION,
-                            method,
-                            "Method '" +
-                                method.name() +
-                                "' documentation mentions permissions already declared by @RequiresPermission"
-                        )
-                    }
+        val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
+        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
+        if (requiresPermissionInfo != null) {
+            val conditional = requiresPermissionInfo.conditional
+            val permissions = requiresPermissionInfo.permissionValues.mapNotNull { it.asString() }
+            for (item in permissions) {
+                val perm = item.substringAfterLast('.')
+                // Search for the permission name as a whole word.
+                val regex = Regex("""\b\Q$perm\E\b""")
+                val mentioned = text.contains(regex)
+                if (mentioned && !conditional) {
+                    reporter.report(
+                        Issues.REQUIRES_PERMISSION,
+                        callable,
+                        "Method '${callable.name()}' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation",
+                        // TODO(b/414336151): Temporarily downgrade severity to error-when-new as
+                        //   there are a few issues in Android that were not being reported
+                        //   correctly before switching to the new Value model.
+                        maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW,
+                    )
+                } else if (!mentioned && conditional) {
+                    reporter.report(
+                        Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED,
+                        callable,
+                        "Method '${callable.name()}' documentation does not explain when the conditional permission '$perm' is required."
+                    )
                 }
             }
         } else if (
@@ -227,9 +234,9 @@ class AndroidApiChecks(val reporter: Reporter) {
         ) {
             reporter.report(
                 Issues.REQUIRES_PERMISSION,
-                method,
+                callable,
                 "Method '" +
-                    method.name() +
+                    callable.name() +
                     "' documentation mentions permissions without declaring @RequiresPermission"
             )
         }

@@ -17,25 +17,32 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.CallableBody
+import com.android.tools.metalava.model.CallableBodyFactory
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -49,63 +56,77 @@ class DefaultItemFactory(
     private val codebase: DefaultCodebase,
 
     /** The default language for [Item]s created by this. */
-    private val defaultItemLanguage: ItemLanguage,
+    private val defaultSourceLanguage: SourceLanguage,
 
     /** The default [ApiVariantSelectorsFactory] for [Item]s created by this. */
     private val defaultVariantSelectorsFactory: ApiVariantSelectorsFactory,
 ) {
     /** Create a [PackageItem]. */
     fun createPackageItem(
-        fileLocation: FileLocation = FileLocation.UNKNOWN,
-        modifiers: DefaultModifierList = DefaultModifierList(codebase),
-        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+        fileLocation: FileLocation,
+        modifiers: BaseModifierList,
+        documentationFactory: ItemDocumentationFactory,
         qualifiedName: String,
+        containingPackage: PackageItem?,
+        overviewDocumentation: ResourceFile?,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
     ): DefaultPackageItem {
-        modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
         return DefaultPackageItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            defaultSourceLanguage,
+            targetLanguages,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
             qualifiedName,
+            containingPackage,
+            overviewDocumentation,
         )
     }
 
     /** Create a [ConstructorItem]. */
     fun createClassItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         source: SourceFile? = null,
         classKind: ClassKind,
         containingClass: ClassItem?,
+        containingPackage: PackageItem,
         qualifiedName: String = "",
-        simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-        fullName: String = simpleName,
         typeParameterList: TypeParameterList,
+        origin: ClassOrigin,
+        superClassType: ClassTypeItem?,
+        interfaceTypes: List<ClassTypeItem>,
     ) =
         DefaultClassItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            sourceLanguage,
+            targetLanguages,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
             source,
             classKind,
             containingClass,
+            containingPackage,
             qualifiedName,
-            simpleName,
-            fullName,
             typeParameterList,
+            origin,
+            superClassType,
+            interfaceTypes,
         )
 
     /** Create a [ConstructorItem]. */
     fun createConstructorItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
@@ -113,12 +134,15 @@ class DefaultItemFactory(
         returnType: ClassTypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
+        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         implicitConstructor: Boolean,
+        isPrimary: Boolean = false,
     ): ConstructorItem =
         DefaultConstructorItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            sourceLanguage,
+            targetLanguages,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
@@ -128,24 +152,29 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            callableBodyFactory,
             implicitConstructor,
+            isPrimary,
         )
 
     /** Create a [FieldItem]. */
     fun createFieldItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
         isEnumConstant: Boolean,
-        fieldValue: FieldValue?,
+        constantValueProvider: OptionalValueProvider?,
     ): FieldItem =
         DefaultFieldItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            sourceLanguage,
+            targetLanguages,
             defaultVariantSelectorsFactory,
             modifiers,
             documentationFactory,
@@ -153,13 +182,15 @@ class DefaultItemFactory(
             containingClass,
             type,
             isEnumConstant,
-            fieldValue,
+            constantValueProvider,
         )
 
     /** Create a [MethodItem]. */
     fun createMethodItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
@@ -167,12 +198,14 @@ class DefaultItemFactory(
         returnType: TypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
-        annotationDefault: String,
+        callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
+        defaultValueProvider: OptionalValueProvider?,
     ): MethodItem =
         DefaultMethodItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            sourceLanguage,
+            targetLanguages,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
@@ -182,51 +215,89 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
-            annotationDefault,
+            callableBodyFactory,
+            defaultValueProvider,
         )
 
     /** Create a [ParameterItem]. */
     fun createParameterItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        modifiers: BaseModifierList,
         name: String,
         publicNameProvider: PublicNameProvider,
-        containingMethod: MethodItem,
+        containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
-        defaultValue: DefaultValue,
+        defaultValueFactory: ParameterDefaultValueFactory,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            sourceLanguage,
             modifiers,
-            defaultVariantSelectorsFactory,
             name,
             publicNameProvider,
-            containingMethod,
+            containingCallable,
             parameterIndex,
             type,
-            defaultValue,
+            defaultValueFactory,
         )
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        sourceLanguage: SourceLanguage = defaultSourceLanguage,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+        modifiers: BaseModifierList,
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
+        receiver: TypeItem?,
+        typeParameterList: TypeParameterList,
+        getter: MethodItem? = null,
+        setter: MethodItem? = null,
+        constructorParameter: ParameterItem? = null,
+        backingField: FieldItem? = null,
     ): PropertyItem =
         DefaultPropertyItem(
             codebase,
             fileLocation,
-            defaultItemLanguage,
+            sourceLanguage,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             modifiers,
             name,
             containingClass,
             type,
+            getter,
+            setter,
+            constructorParameter,
+            backingField,
+            receiver,
+            typeParameterList,
+        )
+
+    /** Create a [TypeAliasItem]. */
+    fun createTypeAliasItem(
+        fileLocation: FileLocation,
+        modifiers: BaseModifierList,
+        qualifiedName: String,
+        containingPackage: DefaultPackageItem,
+        aliasedType: TypeItem,
+        typeParameterList: TypeParameterList,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+    ): TypeAliasItem =
+        DefaultTypeAliasItem(
+            codebase,
+            fileLocation,
+            modifiers,
+            documentationFactory,
+            defaultVariantSelectorsFactory,
+            aliasedType,
+            qualifiedName,
+            typeParameterList,
+            containingPackage
         )
 
     /**
@@ -239,15 +310,13 @@ class DefaultItemFactory(
      * TODO(b/351410134): Provide support in this factory for two stage initialization.
      */
     fun createTypeParameterItem(
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         name: String,
         isReified: Boolean,
     ) =
         DefaultTypeParameterItem(
             codebase,
-            defaultItemLanguage,
             modifiers,
-            defaultVariantSelectorsFactory,
             name,
             isReified,
         )

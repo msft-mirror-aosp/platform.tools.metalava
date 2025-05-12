@@ -17,39 +17,55 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class DefaultPropertyItem(
-    codebase: DefaultCodebase,
+open class DefaultPropertyItem(
+    codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
-    apiVariantSelectorsFactory: ApiVariantSelectorsFactory,
-    modifiers: DefaultModifierList,
+    sourceLanguage: SourceLanguage,
+    documentationFactory: ItemDocumentationFactory,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
+    modifiers: BaseModifierList,
     name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
+    override val getter: MethodItem?,
+    override val setter: MethodItem?,
+    override val constructorParameter: ParameterItem?,
+    override val backingField: FieldItem?,
+    override val receiver: TypeItem?,
+    override val typeParameterList: TypeParameterList,
 ) :
     DefaultMemberItem(
         codebase,
         fileLocation,
-        itemLanguage,
+        sourceLanguage,
+        // Properties can only be used directly from Kotlin. They are used from Java through their
+        // accessors and/or backing field.
+        targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
         modifiers,
-        ItemDocumentation.NONE_FACTORY,
-        apiVariantSelectorsFactory,
+        documentationFactory,
+        variantSelectorsFactory,
         name,
         containingClass,
     ),
     PropertyItem {
 
-    override fun type(): TypeItem = type
+    final override fun type(): TypeItem = type
 
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
 }

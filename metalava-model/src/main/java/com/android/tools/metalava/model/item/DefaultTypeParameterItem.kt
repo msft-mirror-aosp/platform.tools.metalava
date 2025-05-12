@@ -16,45 +16,71 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.BoundsTypeItem
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.reporter.FileLocation
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
-class DefaultTypeParameterItem(
-    codebase: DefaultCodebase,
-    itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
+open class DefaultTypeParameterItem(
+    protected open val classResolver: ClassResolver,
+    modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,
-) :
-    DefaultItem(
-        codebase = codebase,
-        fileLocation = FileLocation.UNKNOWN,
-        itemLanguage = itemLanguage,
-        modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = variantSelectorsFactory,
-    ),
-    TypeParameterItem {
+) : TypeParameterItem {
+
+    final override val modifiers: ModifierList = modifiers.toImmutable()
+
+    final override fun name() = name
+
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var variableTypeItem: VariableTypeItem
+
+    override fun type(): VariableTypeItem {
+        if (!::variableTypeItem.isInitialized) {
+            variableTypeItem = createVariableTypeItem()
+        }
+        return variableTypeItem
+    }
+
+    /** Create a [VariableTypeItem] for this [TypeParameterItem]. */
+    protected open fun createVariableTypeItem(): VariableTypeItem =
+        DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
 
     lateinit var bounds: List<BoundsTypeItem>
 
-    override fun name() = name
+    final override fun typeBounds(): List<BoundsTypeItem> = bounds
 
-    override fun type(): VariableTypeItem {
-        return DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
+    override fun asErasedType() =
+        typeBounds().firstOrNull() ?: classResolver.resolveClass(JAVA_LANG_OBJECT)?.type()
+
+    final override fun isReified(): Boolean = isReified
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name() == other.name()
     }
 
-    override fun typeBounds(): List<BoundsTypeItem> = bounds
+    override fun hashCode(): Int {
+        return name().hashCode()
+    }
 
-    override fun isReified(): Boolean = isReified
+    override fun toString(): String =
+        if (typeBounds().isEmpty() && !isReified()) name()
+        else
+            buildString {
+                if (isReified()) append("reified ")
+                append(name())
+                if (typeBounds().isNotEmpty()) {
+                    append(" extends ")
+                    typeBounds().joinTo(this, " & ")
+                }
+            }
 }

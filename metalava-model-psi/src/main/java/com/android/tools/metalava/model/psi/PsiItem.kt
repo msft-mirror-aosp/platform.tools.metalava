@@ -16,61 +16,29 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AbstractItem
-import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SourceLanguage
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiModifierListOwner
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.uast.UElement
 
-abstract class PsiItem
-internal constructor(
-    final override val codebase: PsiBasedCodebase,
-    element: PsiElement,
-    fileLocation: FileLocation = PsiFileLocation(element),
-    modifiers: DefaultModifierList,
-    documentationFactory: ItemDocumentationFactory,
-) :
-    AbstractItem(
-        fileLocation = fileLocation,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-    ) {
+internal interface PsiItem : Item {
+
+    override val codebase: PsiBasedCodebase
 
     /** The source PSI provided by UAST */
-    internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
+    val sourcePsi
+        get() = (psi() as? UElement)?.sourcePsi
 
     /** Returns the PSI element for this item */
-    abstract fun psi(): PsiElement
-
-    override fun isFromClassPath(): Boolean {
-        return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
-    }
-
-    final override fun isJava(): Boolean {
-        return !isKotlin()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return psi().isKotlin()
-    }
-
-    companion object {
-
-        internal fun modifiers(
-            codebase: PsiBasedCodebase,
-            element: PsiModifierListOwner,
-        ): DefaultModifierList {
-            return PsiModifierItem.create(codebase, element)
-        }
-    }
+    fun psi(): PsiElement
 }
 
-/** Check whether a [PsiElement] is Kotlin or not. */
+/** Get the [SourceLanguage] for this [PsiElement]. */
+val PsiElement.sourceLanguage
+    get() = if (isKotlin()) SourceLanguage.KOTLIN else SourceLanguage.JAVA
+
+/** Check whether this [PsiElement] is Kotlin or not. */
 fun PsiElement.isKotlin(): Boolean {
     return language === KotlinLanguage.INSTANCE
 }

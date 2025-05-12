@@ -41,6 +41,14 @@ abstract class TraversingVisitor : ItemVisitor {
     /** Visit the item returning an action for the [TraversingVisitor] to take. */
     abstract fun visitItem(item: Item): TraversalAction
 
+    override fun visit(codebase: Codebase) {
+        val packageList = codebase.getPackages()
+        for (it in packageList.packages) {
+            it.accept(this)
+            if (traversalFinished) return
+        }
+    }
+
     final override fun visit(cls: ClassItem) {
         when (visitItem(cls)) {
             TraversalAction.SKIP_TRAVERSAL -> {
@@ -83,6 +91,11 @@ abstract class TraversingVisitor : ItemVisitor {
         traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
     }
 
+    final override fun visit(constructor: ConstructorItem) {
+        val action = visitItem(constructor)
+        traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
+    }
+
     final override fun visit(method: MethodItem) {
         val action = visitItem(method)
         traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
@@ -101,14 +114,11 @@ abstract class TraversingVisitor : ItemVisitor {
                     cls.accept(this)
                     if (traversalFinished) return
                 }
+                for (typeAlias in pkg.typeAliases()) {
+                    typeAlias.accept(this)
+                    if (traversalFinished) return
+                }
             }
-        }
-    }
-
-    final override fun visit(packageList: PackageList) {
-        for (it in packageList.packages) {
-            it.accept(this)
-            if (traversalFinished) return
         }
     }
 
@@ -118,6 +128,11 @@ abstract class TraversingVisitor : ItemVisitor {
 
     final override fun visit(property: PropertyItem) {
         val action = visitItem(property)
+        traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
+    }
+
+    final override fun visit(typeAlias: TypeAliasItem) {
+        val action = visitItem(typeAlias)
         traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
     }
 }
