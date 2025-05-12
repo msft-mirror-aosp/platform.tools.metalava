@@ -218,7 +218,7 @@ constructor(
 
     /** True if this is supported to be a field constant. */
     internal val isConstant
-        get() = javaType in constantTypeNames
+        get() = javaType in constantTypeNames || kotlinType in unsignedConstantTypeNames
 
     companion object {
         /** Names of constant types used in [ValueExample.javaType]. */
@@ -229,11 +229,25 @@ constructor(
             add("String")
         }
 
+        /**
+         * Unsigned types are mapped to their signed types so should be treated as being constant.
+         */
+        private val unsignedConstantTypeNames =
+            setOf(
+                "UByte",
+                "UInt",
+                "ULong",
+                "UShort",
+            )
+
         /** All the [InputFormat]s. */
         private val allInputFormats = EnumSet.allOf(InputFormat::class.java)
 
         /** All except Kotlin. */
         private val notValidForKotlin = EnumSet.complementOf(EnumSet.of(InputFormat.KOTLIN))
+
+        /** Only Kotlin. */
+        private val onlyValidForKotlin = EnumSet.of(InputFormat.KOTLIN)
 
         /** All except Signature. */
         private val notValidForSignature = EnumSet.complementOf(EnumSet.of(InputFormat.SIGNATURE))
@@ -1658,6 +1672,90 @@ constructor(
                     expectedLegacySource = expectations { common = null },
                     expectedLegacyValue = expectations { common = null },
                     expectedValue = expectations { common = null },
+                ),
+                ValueExample(
+                    name = "unsigned byte - basic",
+                    kotlinType = "UByte",
+                    kotlinExpression = "95U",
+                    // Only suitable for use in fields. Annotations cannot use Kotlin unsigned
+                    // values.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    validForInputFormats = onlyValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "95U"
+
+                            fieldWriteWithSemicolon = "95"
+                        },
+                    expectedValue =
+                        expectations {
+                            // Modelled as a signed byte value.
+                            common = literalValue(95.toByte())
+                        },
+                    testThis = true,
+                ),
+                ValueExample(
+                    name = "unsigned int - basic",
+                    kotlinType = "UInt",
+                    kotlinExpression = "53U",
+                    // Only suitable for use in fields. Annotations cannot use Kotlin unsigned
+                    // values.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    validForInputFormats = onlyValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "53"
+
+                            fieldWriteWithSemicolon = "53"
+                        },
+                    expectedValue =
+                        expectations {
+                            // Modelled as a signed int value.
+                            common = literalValue(53)
+                        },
+                    testThis = true,
+                ),
+                ValueExample(
+                    name = "unsigned long - basic",
+                    kotlinType = "ULong",
+                    kotlinExpression = "37UL",
+                    // Only suitable for use in fields. Annotations cannot use Kotlin unsigned
+                    // values.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    validForInputFormats = onlyValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "37"
+
+                            fieldWriteWithSemicolon = "37L"
+                        },
+                    expectedValue =
+                        expectations {
+                            // Modelled as a signed long value.
+                            common = literalValue(37L)
+                        },
+                    testThis = true,
+                ),
+                ValueExample(
+                    name = "unsigned short - basic",
+                    kotlinType = "UShort",
+                    kotlinExpression = "103U",
+                    // Only suitable for use in fields. Annotations cannot use Kotlin unsigned
+                    // values.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    validForInputFormats = onlyValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "103"
+
+                            fieldWriteWithSemicolon = "103"
+                        },
+                    expectedValue =
+                        expectations {
+                            // Modelled as a signed short value.
+                            common = literalValue(103.toShort())
+                        },
+                    testThis = true,
                 ),
             )
 
