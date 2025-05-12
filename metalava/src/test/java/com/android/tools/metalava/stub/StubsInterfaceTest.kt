@@ -16,13 +16,9 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
-import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL")
@@ -131,13 +127,13 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 package test.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public interface MyClass {
-                public static final java.lang.String[] CONSTANT1 = null;
-                public static final boolean CONSTANT2 = false;
-                public static final int CONSTANT3 = 0; // 0x0
-                public static final java.lang.String CONSTANT4 = null;
+                public static final java.lang.String[] CONSTANT1 = null; // Not compile-time constant
+                public static final boolean CONSTANT2 = java.lang.Boolean.parseBoolean("false"); // Not compile-time constant
+                public static final int CONSTANT3 = java.lang.Integer.parseInt("0"); // Not compile-time constant
+                public static final java.lang.String CONSTANT4 = java.lang.String.valueOf(0); // Not compile-time constant
                 }
                 """,
-            checkTextStubEquivalence = true
+            checkTextStubEquivalence = true,
         )
     }
 
@@ -279,12 +275,12 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass extends test.pkg.PublicSuperParent implements test.pkg.PublicInterface, test.pkg.PublicInterface2 {
                 public MyClass() { throw new RuntimeException("Stub!"); }
+                public void inheritedMethod2() { throw new RuntimeException("Stub!"); }
                 public void myMethod() { throw new RuntimeException("Stub!"); }
+                public void publicInterfaceMethod() { throw new RuntimeException("Stub!"); }
                 public void publicInterfaceMethod2() { throw new RuntimeException("Stub!"); }
                 public void publicMethod() { throw new RuntimeException("Stub!"); }
                 public void publicMethod2() { throw new RuntimeException("Stub!"); }
-                public void publicInterfaceMethod() { throw new RuntimeException("Stub!"); }
-                public void inheritedMethod2() { throw new RuntimeException("Stub!"); }
                 public static final int MY_CONSTANT = 5; // 0x5
                 }
                 """
@@ -391,8 +387,8 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                 public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                 }
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static interface PublicInterface<A, B> {
@@ -458,7 +454,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                         """
                     package android.content.res;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser, android.util.AttributeSet, java.lang.AutoCloseable {
+                    public interface XmlResourceParser extends android.util.AttributeSet, java.lang.AutoCloseable, org.xmlpull.v1.XmlPullParser {
                     public void close();
                     }
                     """
@@ -495,39 +491,6 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 }
                 """,
             checkTextStubEquivalence = true
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
-        check(
-            extraArguments = arrayOf(ARG_KOTLIN_STUBS),
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    class MainClass: MyParentClass(), MyInterface1, MyInterface2
-
-                    open class MyParentClass
-                    interface MyInterface1
-                    interface MyInterface2
-                """
-                    )
-                ),
-            stubFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        @file:Suppress("ALL")
-                        class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
-                        open fun MainClass(): test.pkg.MainClass = error("Stub!")
-                        }
-                    """
-                    )
-                )
         )
     }
 

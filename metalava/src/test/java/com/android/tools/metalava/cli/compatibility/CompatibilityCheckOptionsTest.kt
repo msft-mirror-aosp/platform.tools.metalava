@@ -16,12 +16,10 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
-import com.android.tools.metalava.cli.common.JarBasedApi
 import com.android.tools.metalava.cli.common.SignatureBasedApi
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
@@ -34,11 +32,6 @@ Compatibility Checks:
 
   Options controlling which, if any, compatibility checks are performed against a previously released API.
 
-  --check-compatibility:base <file>          When performing a compat check, use the provided signature file as a base
-                                             api, which is treated as part of the API being checked. This allows us to
-                                             compute the full API surface from a partial API surface (e.g. the current
-                                             @SystemApi txt file), which allows us to recognize when an API is moved
-                                             from the partial API to the base API and avoid incorrectly flagging this
   --check-compatibility:api:released <file>  Check compatibility of the previously released API.
 
                                              When multiple files are provided any files that are a delta on another file
@@ -52,6 +45,10 @@ Compatibility Checks:
                                              must come after the other file, e.g. if `system` is a delta on `public`
                                              then `public` must come first, then `system`. Or, in other words, they must
                                              be provided in order from the narrowest API to the widest API.
+  --api-compat-annotation <annotation>       Specify an annotation important for API compatibility.
+
+                                             Adding/removing this annotation will be considered an incompatible change.
+                                             The fully qualified name of the annotation should be passed.
   --error-message:compatibility:released <message>
                                              If set, this is output when errors are detected in
                                              --check-compatibility:api:released or
@@ -130,7 +127,11 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
+                            previouslyReleasedApi =
+                                SignatureBasedApi.fromFiles(
+                                    listOf(file),
+                                    apiVariantType = ApiVariantType.REMOVED,
+                                ),
                             apiType = ApiType.REMOVED,
                         ),
                     )
@@ -147,17 +148,17 @@ class CompatibilityCheckOptionsTest :
     @Test
     fun `check compatibility api released from jar`() {
         val jarFile = fakeJar()
-        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
-            assertThat(options.compatibilityChecks)
-                .isEqualTo(
-                    listOf(
-                        CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(jarFile),
-                            apiType = ApiType.PUBLIC_API,
-                        ),
-                    )
-                )
-        }
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
+                    options.compatibilityChecks
+                }
+            }
+
+        assertThat(exception.message)
+            .isEqualTo(
+                "$ARG_CHECK_COMPATIBILITY_API_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
+            )
     }
 
     @Test
@@ -180,7 +181,7 @@ class CompatibilityCheckOptionsTest :
 
         assertThat(exception.message)
             .isEqualTo(
-                "--check-compatibility:api:released: Cannot mix jar files (e.g. $jarFile) and signature files (e.g. $signatureFile)"
+                "$ARG_CHECK_COMPATIBILITY_API_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
             )
     }
 
@@ -196,33 +197,20 @@ class CompatibilityCheckOptionsTest :
             }
         assertThat(exception.message)
             .isEqualTo(
-                "--check-compatibility:removed:released: Cannot specify jar files for removed API but found $jarFile"
+                "$ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
             )
     }
 
     @Test
-    fun `check compatibility api released jar is not supported for --revert-annotation`() {
-        val jarFile = fakeJar()
-        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
-            assertThat(options.compatibilityChecks)
-                .isEqualTo(
-                    listOf(
-                        CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(jarFile),
-                            apiType = ApiType.PUBLIC_API,
-                        ),
-                    )
-                )
-
-            val exception =
-                assertThrows(IllegalStateException::class.java) {
-                    options.previouslyReleasedCodebases(SignatureFileCache(noOpAnnotationManager))
-                }
-
-            assertThat(exception.message)
-                .isEqualTo(
-                    "Unexpected file $jarFile: jar files do not work with --revert-annotation"
-                )
+    fun `api compat annotations multiple values`() {
+        runTest(
+            ARG_API_COMPAT_ANNOTATION,
+            "com.example.MyAnnotation",
+            ARG_API_COMPAT_ANNOTATION,
+            "com.example.MyOtherAnnotation",
+        ) {
+            assertThat(options.apiCompatAnnotations)
+                .containsExactly("com.example.MyAnnotation", "com.example.MyOtherAnnotation")
         }
     }
 }
