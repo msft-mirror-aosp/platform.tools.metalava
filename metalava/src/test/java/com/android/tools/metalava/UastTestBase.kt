@@ -2083,4 +2083,55 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Annotations on property of value class type`() {
+        // b/417181888 -- the accessor representation depends on if the type is specified in source
+        val extraAnno = if (isK2) "@test.pkg.Anno " else ""
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        annotation class Anno
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val value: Int) {
+                            companion object {
+                                @Anno val withValueClassTypeSpecified: IntValue = IntValue(0)
+                                @Anno val withValueClassTypeUnspecified = IntValue(0)
+                                @Anno val withNonValueClassTypeSpecified: Int = 0
+                            }
+                        }
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Anno {
+                  }
+                  @kotlin.jvm.JvmInline public final value class IntValue {
+                    ctor public IntValue(int value);
+                    method public int getValue();
+                    property public int value;
+                    field public static final test.pkg.IntValue.Companion Companion;
+                  }
+                  public static final class IntValue.Companion {
+                    method public int getWithNonValueClassTypeSpecified();
+                    method ${extraAnno}public int getWithValueClassTypeSpecified();
+                    method public int getWithValueClassTypeUnspecified();
+                    property @test.pkg.Anno public int withNonValueClassTypeSpecified;
+                    property @test.pkg.Anno public int withValueClassTypeSpecified;
+                    property @test.pkg.Anno public int withValueClassTypeUnspecified;
+                  }
+                }
+                """
+        )
+    }
 }
