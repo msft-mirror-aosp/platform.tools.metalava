@@ -496,13 +496,7 @@ constructor(
                     expectedLegacySource =
                         expectations {
                             common = "116"
-                            source {
-                                // TODO(b/354633349): This is BAD, it is actually a hexadecimal but
-                                //   without the leading `0x` it will be treated as decimal.
-                                annotationToSource = "74"
-
-                                attributeValue = "(byte) 116"
-                            }
+                            source { attributeValue = "(byte) 116" }
                         },
                     expectedKotlinLegacySource =
                         expectations {
@@ -1518,13 +1512,7 @@ constructor(
                     expectedLegacySource =
                         expectations {
                             common = "32000"
-                            source {
-                                // TODO(b/354633349): This is BAD, it is actually a hexadecimal but
-                                //   without the leading `0x` it will be treated as decimal.
-                                annotationToSource = "7d00"
-
-                                attributeValue = "(short) 32000"
-                            }
+                            source { attributeValue = "(short) 32000" }
                         },
                     expectedKotlinLegacySource =
                         expectations {
