@@ -52,10 +52,10 @@ constructor(
     val name: String,
 
     /** The java type. */
-    val javaType: String,
+    val javaType: String = "",
 
     /** The java expression for the value. */
-    val javaExpression: String,
+    val javaExpression: String = "",
 
     /** The optional java imports. */
     val javaImports: List<String> = emptyList(),
