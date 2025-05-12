@@ -128,8 +128,12 @@ internal class PsiCodebaseAssembler(
      */
     private val deferredHeavyweightPsiClasses = mutableMapOf<String, PsiClass>()
 
+    /** If [PsiSourceParser.mergeFromJar] is used, this is the environment used to load the jar. */
+    var mergedJarEnvironment: UastEnvironment? = null
+
     fun dispose() {
         uastEnvironment.dispose()
+        mergedJarEnvironment?.dispose()
     }
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)
@@ -409,8 +413,7 @@ internal class PsiCodebaseAssembler(
                         accessors = accessors[ktProperty] ?: emptyList(),
                         constructorParameter = null,
                         backingField = backingFields[ktProperty],
-                    )
-                        ?: continue
+                    ) ?: continue
                 classItem.addProperty(property)
             }
 
@@ -439,8 +442,7 @@ internal class PsiCodebaseAssembler(
                             accessors = accessors[ktParameter] ?: emptyList(),
                             constructorParameter = constructorParameters[ktParameter.name],
                             backingField = backingFields[ktParameter],
-                        )
-                            ?: continue
+                        ) ?: continue
                     classItem.addProperty(property)
                 }
             }
@@ -672,17 +674,23 @@ internal class PsiCodebaseAssembler(
             return it
         }
 
-        // Create the ClassItem from a heavyweight PsiClass, if available.
-        deferredHeavyweightPsiClasses.remove(qualifiedName)?.let {
-            return findOrCreateClass(it)
+        return findPsiClass(qualifiedName)?.let {
+            // Remove it, if it was a heavyweight PsiClass.
+            deferredHeavyweightPsiClasses.remove(qualifiedName)
+            findOrCreateClass(it)
+        }
+    }
+
+    internal fun findPsiClass(qualifiedName: String): PsiClass? {
+        // Return a heavyweight PsiClass, if available.
+        deferredHeavyweightPsiClasses[qualifiedName]?.let {
+            return it
         }
 
         // The following cannot find a class whose name does not correspond to the file name, e.g.
         // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
-        val psiClass =
-            finder.findClass(qualifiedName, GlobalSearchScope.allScope(project)) ?: return null
-        return findOrCreateClass(psiClass)
+        return finder.findClass(qualifiedName, GlobalSearchScope.allScope(project))
     }
 
     /**
@@ -955,8 +963,7 @@ internal class PsiCodebaseAssembler(
                     psiClass,
                     // Sources always come from the command line.
                     ClassOrigin.COMMAND_LINE,
-                )
-                    ?: continue
+                ) ?: continue
             codebase.addTopLevelClassFromSource(classItem)
         }
     }
@@ -969,9 +976,7 @@ internal class PsiCodebaseAssembler(
         val typeAliases =
             psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
         for (typeAlias in typeAliases) {
-            val qualifiedTypeAliasName = typeAlias.getClassId()?.asFqNameString() ?: continue
-            val value = codebase.globalTypeItemFactory.getTypeForKtElement(typeAlias) ?: continue
-            codebase.typeAliases[qualifiedTypeAliasName] = value
+            PsiTypeAliasItem.create(typeAlias, codebase)
         }
     }
 
@@ -982,8 +987,7 @@ internal class PsiCodebaseAssembler(
     private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
         return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
             it.declarations
-        }
-            ?: emptyList()
+        } ?: emptyList()
     }
 
     /**

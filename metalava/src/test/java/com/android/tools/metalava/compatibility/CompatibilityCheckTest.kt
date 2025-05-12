@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
@@ -35,7 +36,6 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -160,7 +160,7 @@ class CompatibilityCheckTest : DriverTest() {
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -170,7 +170,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             signatureSource =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -589,7 +589,8 @@ class CompatibilityCheckTest : DriverTest() {
         // Make sure that we correctly compare effectively final (inherited from surrounding class)
         // between the signature file codebase and the real codebase
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -631,7 +632,8 @@ class CompatibilityCheckTest : DriverTest() {
         // abstract methods. We don't want to list these as having changed
         // their abstractness.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -670,7 +672,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Implicit modifiers from inherited super classes`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -723,7 +726,8 @@ class CompatibilityCheckTest : DriverTest() {
         // abstract methods. We don't want to list these as having changed
         // their abstractness.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -866,14 +870,14 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
-                    ctor public Foo(String? s1 = null);
+                    ctor public Foo(optional String? s1);
                     method public final void method1(boolean b, String? s1);
                     method public final void method2(boolean b, String? s1);
-                    method public final void method3(boolean b, String? s1 = "null");
-                    method public final void method4(boolean b, String? s1 = "null");
+                    method public final void method3(boolean b, optional String? s1);
+                    method public final void method4(boolean b, optional String? s1);
                   }
                 }
                 """,
@@ -907,7 +911,7 @@ class CompatibilityCheckTest : DriverTest() {
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(optional String? s1);
@@ -939,7 +943,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Removing method or field when still available via inheritance is OK`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1007,7 +1012,7 @@ class CompatibilityCheckTest : DriverTest() {
                     field public static final int field1 = 1; // 0x1
                     field public static final int field2 = 2; // 0x2
                     field public int field3;
-                    field public int field4 = 4; // 0x4
+                    field public int field4;
                     field public int field5;
                     field public int field6;
                     field public int field7;
@@ -1048,8 +1053,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     suppressLintSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
         )
     }
@@ -1065,7 +1068,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public @interface ExportedProperty {
                     method public abstract boolean resolveId() default false;
@@ -1790,11 +1793,11 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin extensions`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.content {
                   public final class ContentValuesKt {
                     method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,Object?>... pairs);
@@ -1840,11 +1843,11 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin type bounds`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.navigation {
                   public final class NavDestination {
                     ctor public NavDestination();
@@ -1879,7 +1882,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test inherited methods`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1981,7 +1985,7 @@ class CompatibilityCheckTest : DriverTest() {
         // from the base API. When parsing these code bases we need to gracefully handle
         // references to inner classes.
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             expectedIssues =
                 """
                 released-api.txt:5: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
@@ -2029,13 +2033,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2054,7 +2051,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Incompatible changes to a released System API should be detected
         // In this case removing final and changing value of constant
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.TEST,
             expectedIssues =
                 """
                 src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
@@ -2077,13 +2074,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2136,8 +2126,6 @@ class CompatibilityCheckTest : DriverTest() {
                         )
                         .indented(),
                     testApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -2314,7 +2302,9 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            sourceFiles = arrayOf(restrictToSource)
+            sourceFiles = arrayOf(restrictToSource),
+            // Override default to emit androidx.annotation classes.
+            skipEmitPackages = emptyList(),
         )
     }
 
@@ -2379,7 +2369,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.collection {
                   public class MyMap<Key, Value> {
                     ctor public MyMap();
@@ -2442,7 +2432,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void add(T t);
@@ -2474,7 +2464,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Empty prev api with @hide and --show-annotation`() {
         check(
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 """,
             sourceFiles =
                 arrayOf(
@@ -2507,8 +2498,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -2564,8 +2553,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -2678,7 +2665,8 @@ class CompatibilityCheckTest : DriverTest() {
                     @libcore.util.Nullable public test.pkg.String getMessage() { throw new RuntimeException("Stub!"); }
                 }
             """,
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -2720,7 +2708,8 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -2766,7 +2755,8 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -2817,8 +2807,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -2906,15 +2894,14 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -3127,7 +3114,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Ignore hidden references`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -3179,7 +3167,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package com.android.location.provider {
                   public class LocationProviderBase1 {
                     ctor public LocationProviderBase1();
@@ -3242,7 +3230,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.coordinatorlayout.widget {
                   public class CoordinatorLayout {
                     ctor public CoordinatorLayout();
@@ -3269,8 +3257,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
         )
     }
@@ -3285,7 +3271,7 @@ class CompatibilityCheckTest : DriverTest() {
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg.sample {
                   public abstract class SampleClass {
                     method public <Number> Number! convert(Number);
@@ -3295,7 +3281,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             signatureSource =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg.sample {
                   public abstract class SampleClass {
                     // Here the generic type parameter applies to both the function argument and the function return type
@@ -3312,11 +3298,12 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Check generic type argument when showUnannotated is explicitly enabled`() {
         // Regression test for 130567941
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.versionedparcelable {
                   public abstract class VersionedParcel {
                     method public <T> T![]! readArray();
@@ -3345,7 +3332,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Check using parameterized arrays as type parameters`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3364,7 +3351,7 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class SampleArray<D extends java.util.ArrayList> extends java.util.ArrayList<D[]> {
                     ctor public SampleArray();
@@ -3385,7 +3372,7 @@ class CompatibilityCheckTest : DriverTest() {
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.room {
                   public @interface Relation {
                   }
@@ -3555,7 +3542,7 @@ class CompatibilityCheckTest : DriverTest() {
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public interface JavaInterface {
                   }
@@ -4201,19 +4188,19 @@ class CompatibilityCheckTest : DriverTest() {
                 package test.pkg {
                   public class MyCollection<E> implements java.util.Collection<E> {
                     ctor public MyCollection();
-                    method public boolean add(E! e);
-                    method public boolean addAll(java.util.Collection<? extends E> c);
+                    method public boolean add(E!);
+                    method public boolean addAll(java.util.Collection<? extends E>);
                     method public void clear();
-                    method public boolean contains(Object! o);
-                    method public boolean containsAll(java.util.Collection<?> c);
+                    method public boolean contains(Object!);
+                    method public boolean containsAll(java.util.Collection<?>);
                     method public boolean isEmpty();
                     method public java.util.Iterator<E> iterator();
-                    method public boolean remove(Object! o);
-                    method public boolean removeAll(java.util.Collection<?> c);
-                    method public boolean retainAll(java.util.Collection<?> c);
+                    method public boolean remove(Object!);
+                    method public boolean removeAll(java.util.Collection<?>);
+                    method public boolean retainAll(java.util.Collection<?>);
                     method public int size();
                     method public Object![] toArray();
-                    method public <T> T![] toArray(T[] a);
+                    method public <T> T![] toArray(T[]);
                   }
                 }
             """,

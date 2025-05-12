@@ -26,7 +26,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Test Kotlin-style null signatures`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -45,12 +45,10 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class MyTest {
                         ctor public MyTest();
@@ -84,8 +82,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -138,8 +134,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -195,8 +189,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -251,7 +243,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Comprehensive check of migration, Kotlin-style output`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -270,8 +262,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -288,7 +278,7 @@ class NullnessMigrationTest : DriverTest() {
                 """,
             api =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class MyTest {
                         ctor public MyTest();
@@ -339,12 +329,6 @@ class NullnessMigrationTest : DriverTest() {
                 ),
             api =
                 """
-                    package libcore.util {
-                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {
-                        method public abstract int from() default java.lang.Integer.MIN_VALUE;
-                        method public abstract int to() default java.lang.Integer.MAX_VALUE;
-                      }
-                    }
                     package test.pkg {
                       public class Test {
                         ctor public Test();
@@ -358,7 +342,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Check type use annotations`() {
         check(
-            format = FileFormat.V2, // compat=false, kotlin-style-nulls=false
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -382,42 +366,25 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
-                if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            method @Nullable public @Nullable Integer compute1(@Nullable java.util.List<java.lang.@Nullable String>);
-                            method @Nullable public @Nullable Integer compute2(@Nullable java.util.List<java.util.@Nullable List<?>>);
-                            method public Integer compute3(@NonNull String[][]);
-                          }
-                        }
-                    """
-                } else {
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            method @Nullable public Integer compute1(@Nullable java.util.List<java.lang.String>);
-                            method @Nullable public Integer compute2(@Nullable java.util.List<java.util.List<?>>);
-                            method public Integer compute3(@NonNull String[][]);
-                          }
-                        }
-                    """
-                },
+                """
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method @Nullable public compute1(@Nullable _: java.util.@Nullable List<@Nullable String>): @Nullable Integer;
+                        method @Nullable public compute2(@Nullable _: java.util.@Nullable List<java.util.@Nullable List<?>>): @Nullable Integer;
+                        method public compute3(@NonNull _: @NonNull String @Nullable [] @Nullable []): Integer;
+                      }
+                    }
+                """,
         )
     }
 
     @Test
     fun `Check androidx package annotation`() {
         check(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -438,38 +405,24 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
-                if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                    """
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            method @Nullable public Integer compute1(@Nullable java.util.List<@Nullable java.lang.String>);
-                            method @Nullable public Integer compute2(@NonNull java.util.List<@NonNull java.util.List<?>>);
-                          }
-                        }
-                    """
-                } else {
-                    """
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            method @Nullable public Integer compute1(@Nullable java.util.List<java.lang.String>);
-                            method @Nullable public Integer compute2(@NonNull java.util.List<java.util.List<?>>);
-                          }
-                        }
-                    """
-                },
+                """
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method @Nullable public compute1(@Nullable _: java.util.@Nullable List<@Nullable String>): @Nullable Integer;
+                        method @Nullable public compute2(@NonNull _: java.util.@NonNull List<java.util.@NonNull List<?>>): @Nullable Integer;
+                      }
+                    }
+                """,
         )
     }
 
     @Test
     fun `Migrate nullness for type-use annotations`() {
         check(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -488,8 +441,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
@@ -545,7 +496,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Do not migrate type-use annotations when not changed`() {
         check(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -562,8 +513,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
@@ -615,7 +564,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Regression test for issue 111054266, type use annotations`() {
         check(
-            format = FileFormat.V2,
+            format = TYPE_USE_FORMAT,
             sourceFiles =
                 arrayOf(
                     java(
@@ -637,8 +586,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -691,7 +638,7 @@ class NullnessMigrationTest : DriverTest() {
     fun `Merge nullness annotations in stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -738,6 +685,7 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    KnownSourceFiles.systemApiSource,
                 ),
             migrateNullsApiList =
                 listOf(

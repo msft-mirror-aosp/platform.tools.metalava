@@ -21,11 +21,12 @@ import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -97,10 +98,10 @@ abstract class UastTestBase : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     method public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
@@ -216,7 +217,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Foo(@test.pkg.MyAnnotation int p1, String p2);
                     method public int component1();
                     method public String component2();
-                    method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
+                    method public test.pkg.Foo copy(optional @test.pkg.MyAnnotation int p1, optional String p2);
                     method public int getP1();
                     method public String getP2();
                     property @test.pkg.MyAnnotation public int p1;
@@ -234,8 +235,6 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57546
         // https://youtrack.jetbrains.com/issue/KT-57577
         // https://youtrack.jetbrains.com/issue/KT-72078
-        val horizontalType = if (isK2) "test.pkg.Alignment.Horizontal" else "int"
-        val verticalType = if (isK2) "test.pkg.Alignment.Vertical" else "int"
         check(
             sourceFiles =
                 arrayOf(
@@ -290,7 +289,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor public Alignment($horizontalType horizontal, $verticalType vertical);
+                    ctor public Alignment(int horizontal, int vertical);
                     method public int getHorizontal();
                     method public int getVertical();
                     property public int horizontal;
@@ -463,8 +462,6 @@ abstract class UastTestBase : DriverTest() {
                     """
                     ),
                     requiresApiSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1426,7 +1423,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `actual typealias -- without value class`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
-        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/PointerEvent.kt",
@@ -1471,7 +1467,7 @@ abstract class UastTestBase : DriverTest() {
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   public final class PointerKeyboardModifiers {
-                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                    ctor public PointerKeyboardModifiers(int packedValue);
                   }
                 }
                 """
@@ -1821,7 +1817,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
-    fun `default parameter value from common, with android=false for common`() {
+    fun `default parameter value from common, without jvm platform set for common`() {
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -1862,14 +1858,8 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
-    fun `default parameter value from common, with android=true for common`() {
-        // b/322156458
-        val modifier =
-            if (isK2) {
-                ""
-            } else {
-                "optional "
-            }
+    fun `default parameter value from common, with jvm platform set for common`() {
+        // Verifies that expect/actual linking works when only the JVM platform is used.
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -1897,9 +1887,10 @@ abstract class UastTestBase : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createModuleDescription(
                         moduleName = "commonMain",
-                        android = true,
+                        android = false,
+                        kotlinPlatforms = defaultJvmPlatforms,
                         sourceFiles = arrayOf(commonSource),
-                        dependsOn = emptyList()
+                        dependsOn = emptyList(),
                     ),
                 ),
             api =
@@ -1907,7 +1898,7 @@ abstract class UastTestBase : DriverTest() {
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
-                        method public int foo(${modifier}int i);
+                        method public int foo(optional int i);
                       }
                     }
                 """
@@ -1946,12 +1937,13 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Data class with value class type`() {
-        // b/388244267
-        val copySuffix =
+        // For K2, no UElement created for a method using a value class type (b/388244267).
+        // This will be resolved through b/406833486.
+        val copyEntry =
             if (isK2) {
                 ""
             } else {
-                "-Vxmw0xk"
+                "method public test.pkg.IntValueData copy-Vxmw0xk(int intValue);"
             }
         check(
             sourceFiles =
@@ -1962,7 +1954,7 @@ abstract class UastTestBase : DriverTest() {
                         @JvmInline
                         value class IntValue(val value: Int)
                         data class IntValueData(private val intValue: IntValue)
-                    """
+                        """
                     )
                 ),
             api =
@@ -1975,10 +1967,12 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class IntValueData {
                     ctor public IntValueData(int intValue);
-                    method public test.pkg.IntValueData copy$copySuffix(int intValue);
+                    $copyEntry
                   }
                 }
-            """
+                """
+                    // The copyEntry might be blank, remove it if so.
+                    .stripBlankLines()
         )
     }
 
@@ -2006,6 +2000,84 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg.main {
                   public final class Foo {
                     ctor public Foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Repeatable annotation with expect actual`() {
+        // b/399105459
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/AnnotationCanRepeat.kt",
+                """
+                    package test.pkg
+                    @Repeatable
+                    expect annotation class AnnotationCanRepeat(val value: Int)
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/AnnotationCanRepeat.android.kt",
+                """
+                    package test.pkg
+                    @JvmRepeatable(AnnotationCanRepeat.Entries::class)
+                    actual annotation class AnnotationCanRepeat
+                    actual constructor(actual val value: Int) {
+                        annotation class Entries(vararg val value: AnnotationCanRepeat)
+                    }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource))
+                ),
+            api =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) public @interface AnnotationCanRepeat {
+                    method public abstract int value();
+                    property public abstract int value;
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public static @interface AnnotationCanRepeat.Entries {
+                    method public abstract test.pkg.AnnotationCanRepeat[] value();
+                    property public abstract test.pkg.AnnotationCanRepeat[] value;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Data class value with type argument`() {
+        // Added to test that the nullability of the type argument in the copy method is correct.
+        // A K2 update to the source psi for the copy method changed how the kotlin context for the
+        // method parameters is computed.
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        data class Foo<T: Any>(val items: List<T>)
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo<T> {
+                    ctor public Foo(java.util.List<? extends T> items);
+                    method public java.util.List<T> component1();
+                    method public test.pkg.Foo<T> copy(optional java.util.List<? extends T> items);
+                    method public java.util.List<T> getItems();
+                    property public java.util.List<T> items;
                   }
                 }
                 """

@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
-import com.android.tools.metalava.ARG_API_VERSION_NAMES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
@@ -29,10 +29,10 @@ import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
-import com.android.tools.metalava.testing.xml
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -82,19 +82,7 @@ class ApiGeneratorTest : DriverTest() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
 
         check(
-            configFiles =
-                arrayOf(
-                    xml(
-                        "config.xml",
-                        """
-                            <config xmlns="http://www.google.com/tools/metalava/config">
-                                <api-surfaces>
-                                    <api-surface name="public"/>
-                                </api-surfaces>
-                            </config>
-                        """,
-                    )
-                ),
+            configFiles = arrayOf(KnownConfigFiles.configPublicSurface),
             extraArguments =
                 arrayOf(
                     ARG_API_SURFACE,
@@ -318,6 +306,41 @@ class ApiGeneratorTest : DriverTest() {
     }
 
     @Test
+    fun `Generate API for system surface from jar`() {
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
+            extraArguments =
+                arrayOf(
+                    ARG_API_SURFACE,
+                    "system",
+                    ARG_GENERATE_API_LEVELS,
+                    apiVersionsXml.path,
+                    ARG_FIRST_VERSION,
+                    "30",
+                    ARG_CURRENT_VERSION,
+                    "32",
+                    ARG_CURRENT_CODENAME,
+                    "Foo"
+                ),
+            sourceFiles =
+                arrayOf(
+                    TestFiles.jar("test.jar"),
+                ),
+        )
+
+        val expected =
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="33">
+                </api>
+            """
+
+        apiVersionsXml.checkApiVersionsXmlContent(expected)
+    }
+
+    @Test
     fun `Generate API finds missing class references`() {
         val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
         if (!testPrebuiltsRoot.isDirectory) {
@@ -446,8 +469,8 @@ class ApiGeneratorTest : DriverTest() {
                 output.path,
                 ARG_API_VERSION_SIGNATURE_FILES,
                 pastVersions.joinToString(":") { it.absolutePath },
-                ARG_API_VERSION_NAMES,
-                listOf("1.1.0", "1.2.0", "1.3.0").joinToString(" "),
+                ARG_API_VERSION_SIGNATURE_PATTERN,
+                "${temporaryFolder.root}/{version:major.minor.patch}",
                 ARG_CURRENT_VERSION,
                 "1.4.0",
             )
@@ -576,8 +599,10 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsXml.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0").joinToString(" "),
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${temporaryFolder.root}/{version:major.minor.patch}",
+                    ARG_CURRENT_VERSION,
+                    "1.2.0",
                 ),
         )
 
@@ -600,37 +625,12 @@ class ApiGeneratorTest : DriverTest() {
     }
 
     @Test
-    fun `Correct error with different number of API signature files and API version names`() {
-        val output = temporaryFolder.newFile("api-info.json")
-
-        val filePaths =
-            listOf("1.1.0", "1.2.0", "1.3.0").map { name ->
-                val file = createTextFile("$name.txt", "")
-                file.path
-            }
-
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_VERSION_HISTORY,
-                    output.path,
-                    ARG_API_VERSION_SIGNATURE_FILES,
-                    filePaths.joinToString(":"),
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0").joinToString(" ")
-                ),
-            expectedFail =
-                "Aborting: --api-version-names must have one more version than --api-version-signature-files to include the current version name as --current-version is not provided"
-        )
-    }
-
-    @Test
     fun `API levels can be generated from just the current codebase`() {
         val output = temporaryFolder.newFile("api-info.json")
 
         val api =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class Foo {
                     method public void foo(String?);
@@ -644,7 +644,7 @@ class ApiGeneratorTest : DriverTest() {
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
                     output.path,
-                    ARG_API_VERSION_NAMES,
+                    ARG_CURRENT_VERSION,
                     "0.0.0-alpha01"
                 )
         )
@@ -660,7 +660,7 @@ class ApiGeneratorTest : DriverTest() {
 
         val api =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class Foo {
                     method public void foo(String?);
@@ -737,8 +737,10 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0").joinToString(" ")
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${temporaryFolder.root}/{version:major.minor.patch}",
+                    ARG_CURRENT_VERSION,
+                    "1.2.0",
                 )
         )
 
@@ -819,8 +821,10 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0").joinToString(" ")
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${temporaryFolder.root}/{version:major.minor.patch}.txt",
+                    ARG_CURRENT_VERSION,
+                    "1.2.0",
                 )
         )
 
@@ -924,6 +928,122 @@ class ApiGeneratorTest : DriverTest() {
                     <class name="test.pkg.Foo" since="1.3">
                         <extends name="test.pkg.Bar"/>
                         <field name="field" since="2.0"/>
+                    </class>
+                </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Test deprecating SDK extension API`() {
+        val root = buildFileStructure {
+            dir("39") {
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                          }
+                        }
+                    """
+                )
+            }
+            dir("40") {
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @Deprecated public class Foo {
+                          }
+                        }
+                    """
+                )
+            }
+            dir("extensions") {
+                dir("102") {
+                    signature(
+                        "module.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                              }
+                            }
+                        """
+                    )
+                }
+                dir("103") {
+                    signature(
+                        "module.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @Deprecated public class Foo {
+                              }
+                            }
+                        """
+                    )
+                }
+            }
+        }
+
+        val sdkExtensionsInfoXml =
+            temporaryFolder.newFile("sdk-extensions-info.xml").apply {
+                writeText(
+                    """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <sdk-extensions-info>
+                        <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
+                        <sdk id="40" shortname="K-ext" name="K Extensions" reference="VersionCode.K"/>
+                        <symbol jar="module" pattern="*" sdks="J-ext,K-ext" />
+                        </sdk-extensions-info>
+                    """
+                        .trimIndent()
+                )
+            }
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @deprecated Deprecated
+                             */
+                            @Deprecated public class Foo {
+                                private Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    apiVersionsXml.path,
+                    ARG_SDK_INFO_FILE,
+                    sdkExtensionsInfoXml.path,
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "$root/{version:major.minor?}/api.txt",
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "$root/extensions/{version:extension}/{module}.txt",
+                    ARG_CURRENT_VERSION,
+                    "41",
+                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
+                ),
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="39">
+                    <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
+                    <sdk id="40" shortname="K-ext" name="K Extensions" reference="VersionCode.K"/>
+                    <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39" deprecated="40">
                     </class>
                 </api>
             """

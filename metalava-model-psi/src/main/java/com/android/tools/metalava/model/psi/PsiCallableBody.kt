@@ -107,8 +107,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                                 UTryExpression::class.java,
                                 true,
                                 UMethod::class.java
-                            )
-                                ?: return false
+                            ) ?: return false
 
                         for (catchClause in tryExpression.catchClauses) {
                             for (type in catchClause.types) {
@@ -240,8 +239,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
     }
 }
 
-/** Public for use only in ExtractAnnotations */
-val AnnotationItem.uAnnotation: UAnnotation?
+private val AnnotationItem.uAnnotation: UAnnotation?
     get() =
         when (this) {
             is UAnnotationItem -> uAnnotation

@@ -23,6 +23,7 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -87,14 +88,20 @@ internal class PsiSourceParser(
         classPath: List<File>,
         apiPackages: PackageFilter?,
         projectDescription: File?,
+        compiledSourceJar: File?,
     ): Codebase {
-        return parseAbsoluteSources(
-            sourceSet.absoluteCopy().extractRoots(reporter),
-            description,
-            classPath.map { it.absoluteFile },
-            apiPackages,
-            projectDescription,
-        )
+        val codebase =
+            parseAbsoluteSources(
+                sourceSet.absoluteCopy().extractRoots(reporter),
+                description,
+                classPath.map { it.absoluteFile },
+                apiPackages,
+                projectDescription,
+            )
+        if (compiledSourceJar != null) {
+            mergeFromJar(codebase, compiledSourceJar)
+        }
+        return codebase
     }
 
     /** Returns a codebase initialized from the given set of absolute files. */
@@ -138,6 +145,7 @@ internal class PsiSourceParser(
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
                     assembler = it,
+                    isMultiplatform = environment.isKMP,
                 )
             }
 
@@ -149,8 +157,12 @@ internal class PsiSourceParser(
         return File(homePath, "jmods").isDirectory
     }
 
-    override fun loadFromJar(apiJar: File): Codebase {
-        val environment = loadUastFromJars(listOf(apiJar))
+    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
+        val jars = buildList {
+            add(apiJar)
+            addAll(classPath)
+        }
+        val environment = loadUastFromJars(jars)
         val assembler =
             PsiCodebaseAssembler(environment) { assembler ->
                 PsiBasedCodebase(
@@ -159,11 +171,20 @@ internal class PsiSourceParser(
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
                     assembler = assembler,
+                    isMultiplatform = environment.isKMP,
                 )
             }
         val codebase = assembler.codebase
         assembler.initializeFromJar(apiJar)
         return codebase
+    }
+
+    fun mergeFromJar(existingCodebase: PsiBasedCodebase, jarFile: File) {
+        val bytecodeApis = KotlinBytecodeApis(existingCodebase)
+        bytecodeApis.listClassesInJar(jarFile)
+        val jarEnvironment = loadUastFromJars(listOf(jarFile))
+        bytecodeApis.loadPsiFromProject(jarEnvironment.ideaProject)
+        (existingCodebase.assembler as PsiCodebaseAssembler).mergedJarEnvironment = jarEnvironment
     }
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
@@ -189,7 +210,7 @@ internal class PsiSourceParser(
         // `referenceDir` is used to adjust `lib` dir accordingly if needed,
         // but we set `classpath` anyway below.
         val lintProject =
-            Project.create(lintClient, /* dir = */ rootDir, /* referenceDir = */ rootDir)
+            Project.create(lintClient, /* dir= */ rootDir, /* referenceDir= */ rootDir)
         lintProject.kotlinLanguageLevel = kotlinLanguageLevel
         lintProject.javaSourceFolders.addAll(sourceRoots)
         lintProject.javaLibraries.addAll(classpath)

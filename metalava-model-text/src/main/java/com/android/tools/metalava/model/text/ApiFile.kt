@@ -28,10 +28,8 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -41,7 +39,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -58,11 +55,18 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.model.javaUnescapeString
+import com.android.tools.metalava.model.item.ParameterDefaultValue
+import com.android.tools.metalava.model.parser.FileLocationTracker
+import com.android.tools.metalava.model.parser.TokenPurpose
+import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueParser
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -169,10 +173,10 @@ sealed class SignatureFile {
                 file.readText(UTF_8)
             } catch (ex: IOException) {
                 throw ApiParseException(
-                    "Error reading API file",
-                    location = FileLocation.createLocation(file.toPath()),
-                    cause = ex
-                )
+                        "Error reading API file",
+                        location = FileLocation.createLocation(file.toPath()),
+                    )
+                    .apply { initCause(ex) }
             }
     }
 
@@ -209,16 +213,11 @@ private constructor(
      */
     private lateinit var fileLocationTracker: FileLocationTracker
 
-    /**
-     * Report recoverable errors encountered while parsing.
-     *
-     * Retrieves the location of the error from [fileLocationTracker].
-     */
-    private val errorReporter =
-        object : SignatureErrorReporter {
+    /** Report recoverable errors encountered while parsing types. */
+    private val typeItemParserErrorReporter =
+        object : TypeItemParserErrorReporter {
             override fun report(issue: Issues.Issue, message: String) {
-                val location = fileLocationTracker.fileLocation()
-                codebase.reporter.report(issue, null, message, location)
+                reportIssue(issue, message)
             }
         }
 
@@ -230,7 +229,7 @@ private constructor(
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) {
-            TextTypeParser(codebase, kotlinStyleNulls!!, errorReporter)
+            TextTypeParser(codebase, kotlinStyleNulls!!, typeItemParserErrorReporter)
         }
 
     /**
@@ -243,6 +242,13 @@ private constructor(
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
+
+    /** The [ValueParser] to use for creating [Value]s from a signature file. */
+    private val valueParser =
+        ValueParser(
+            codebase,
+            TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter),
+        )
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -261,6 +267,19 @@ private constructor(
      * Set in [parseApiSingleFile].
      */
     private lateinit var apiVariant: ApiVariant
+
+    /**
+     * True if this is appending information from one signature file to a [Codebase] created from
+     * another signature file.
+     */
+    private var appending: Boolean = false
+
+    /**
+     * A map from [DefaultClassItem] to list of [ClassCharacteristics] for re-definition of the
+     * original class that needs to be checked for consistency against the [DefaultClassItem] and
+     * then merge any extensions into it.
+     */
+    private var deferredMerges = mutableMapOf<DefaultClassItem, MutableList<ClassCharacteristics>>()
 
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
@@ -323,6 +342,8 @@ private constructor(
                 )
                 first = false
             }
+
+            parser.performAnyDeferredMerges()
 
             apiStatsConsumer(parser.stats)
 
@@ -392,6 +413,18 @@ private constructor(
     }
 
     /**
+     * Report a recoverable issue encountered while parsing.
+     *
+     * Retrieves the location of the error from [fileLocationTracker].
+     *
+     * Note: Non-recoverable issues result in an exception being thrown.
+     */
+    private fun reportIssue(issue: Issues.Issue, message: String) {
+        val location = fileLocationTracker.fileLocation()
+        codebase.reporter.report(issue, null, message, location)
+    }
+
+    /**
      * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
      * created.
      *
@@ -453,6 +486,9 @@ private constructor(
             }
         }
 
+        // The behavior is slightly different when appending to an existing Codebase.
+        this.appending = appending
+
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
         format =
@@ -462,7 +498,7 @@ private constructor(
         // Remember the API variant of the file being parsed.
         this.apiVariant = apiVariant
 
-        val tokenizer = Tokenizer(path, apiText.toCharArray())
+        val tokenizer = Tokenizer(path, apiText.toCharArray(), ::ApiParseException)
 
         // Get the preceding tracker, if any.
         val precedingTracker =
@@ -478,7 +514,8 @@ private constructor(
         // Disallow a mixture of kotlinStyleNulls settings.
         if (kotlinStyleNulls != null && kotlinStyleNulls != format.kotlinStyleNulls) {
             val precedingFile = precedingTracker!!.fileLocation().path
-            errorReporter.report(
+            reportIssue(
+                Issues.SIGNATURE_FILE_ERROR,
                 "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
             )
         }
@@ -539,16 +576,72 @@ private constructor(
         }
     }
 
+    /**
+     * Creates a type alias in the [pkg] with the [modifiers].
+     *
+     * It is expected that the starting position of the [tokenizer] is the "typealias" keyword, and
+     * the next token will be the name and option type parameter list.
+     *
+     * When the method returns, the current [tokenizer] position will be the ";" at the end of the
+     * typealias line.
+     */
+    private fun parseTypeAlias(
+        pkg: DefaultPackageItem,
+        tokenizer: Tokenizer,
+        modifiers: MutableModifierList,
+        location: FileLocation
+    ) {
+        var token = tokenizer.requireToken()
+        tokenizer.assertIdent(token)
+
+        val typeParameterListIndex = token.indexOf("<")
+
+        val (name, typeParameterList, typeItemFactory) =
+            if (typeParameterListIndex == -1) {
+                Triple(token, TypeParameterList.NONE, globalTypeItemFactory)
+            } else {
+                val name = token.substring(0, typeParameterListIndex)
+                val typeParameterListAndFactory =
+                    createTypeParameterList(
+                        globalTypeItemFactory,
+                        "typealias $name",
+                        token.substring(typeParameterListIndex)
+                    )
+                Triple(
+                    name,
+                    typeParameterListAndFactory.typeParameterList,
+                    typeParameterListAndFactory.factory
+                )
+            }
+
+        token = tokenizer.requireToken()
+        if ("=" != token) {
+            throw ApiParseException("expected = found $token", tokenizer)
+        }
+
+        val typeString = scanForTypeString(tokenizer, tokenizer.requireToken())
+        token = tokenizer.current
+        if (";" != token) {
+            throw ApiParseException("expected ; found $token", tokenizer)
+        }
+
+        val type = typeItemFactory.getGeneralType(typeString)
+        itemFactory.createTypeAliasItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            qualifiedName = pkg.qualifiedName() + "." + name,
+            containingPackage = pkg,
+            aliasedType = type,
+            typeParameterList = typeParameterList,
+        )
+    }
+
     private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
 
-        // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
-
+        val modifiers = parseModifiers(tokenizer, token)
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
         val classPosition = tokenizer.fileLocation()
@@ -575,8 +668,17 @@ private constructor(
                 superClassType = globalTypeItemFactory.superEnumType
                 token = tokenizer.requireToken()
             }
+            "typealias" -> {
+                // Type aliases aren't classes, but they are defined at the same level as classes
+                parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
+                // Don't continue creating a class item
+                return
+            }
             else -> {
-                throw ApiParseException("missing class or interface. got: $token", tokenizer)
+                throw ApiParseException(
+                    "expected one of class, interface, @interface, enum, or typealias; found: $token",
+                    tokenizer
+                )
             }
         }
         tokenizer.assertIdent(token)
@@ -646,21 +748,34 @@ private constructor(
             modifiers.setStatic(false)
         }
 
-        // Get the characteristics of the class being added as they may be needed to compare against
-        // the characteristics of the same class from a previously processed signature file.
-        val newClassCharacteristics =
-            ClassCharacteristics(
-                fileLocation = classPosition,
-                qualifiedName = qualifiedClassName,
-                fullName = fullName,
-                classKind = classKind,
-                modifiers = modifiers.toImmutable(),
-                superClassType = superClassType,
-            )
+        // Check for the existing class from a previously parsed file. If it was found then use that
+        // and return. If it could not be found then drop through to create it.
+        codebase.findClassInCodebase(qualifiedClassName)?.let { existingClass ->
 
-        // Check to see if there is an existing class, if so merge this class definition into that
-        // one and return. Otherwise, drop through and create a whole new class.
-        if (tryMergingIntoExistingClass(tokenizer, newClassCharacteristics)) {
+            // Parse the class body adding each member created to the existing class.
+            parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
+
+            // Although the class was first defined in a separate file it is being modified in the
+            // current file so that may include it in the main API surface.
+            existingClass.markExistingClassForMainApiSurface()
+
+            // Get the characteristics of the class being added as they may be needed to compare
+            // against the characteristics of the same class from a previously processed signature
+            // file.
+            val newClassCharacteristics =
+                ClassCharacteristics(
+                    fileLocation = classPosition,
+                    qualifiedName = qualifiedClassName,
+                    fullName = fullName,
+                    classKind = classKind,
+                    modifiers = modifiers.toImmutable(),
+                    superClassType = superClassType,
+                )
+
+            // Perform any merge checks after loading all the files. That is needed because merging
+            // may resolve classes and doing that during parsing can lead to issues.
+            deferMergingIntoExistingClass(existingClass, newClassCharacteristics)
+
             return
         }
 
@@ -703,23 +818,39 @@ private constructor(
     }
 
     /**
+     * Defer merging [newClassCharacteristics] into [existingClass] until after all signature files
+     * have been resolved.
+     */
+    private fun deferMergingIntoExistingClass(
+        existingClass: DefaultClassItem,
+        newClassCharacteristics: ClassCharacteristics
+    ) {
+        val merges = deferredMerges.computeIfAbsent(existingClass) { mutableListOf() }
+        merges.add(newClassCharacteristics)
+    }
+
+    /** Perform any deferred merges added by [deferMergingIntoExistingClass]. */
+    private fun performAnyDeferredMerges() {
+        for ((existingClass, newClasses) in deferredMerges) {
+            for (newClassCharacteristics in newClasses) {
+                tryMergingIntoExistingClass(existingClass, newClassCharacteristics)
+            }
+        }
+    }
+
+    /**
      * Try merging the new class into an existing class that was previously loaded from a separate
      * signature file.
      *
-     * Will throw an exception if there is an existing class but it is not compatible with the new
+     * Will throw an exception if there is an existing class, but it is not compatible with the new
      * class.
      *
      * @return `false` if there is no existing class, `true` if there is and the merge succeeded.
      */
     private fun tryMergingIntoExistingClass(
-        tokenizer: Tokenizer,
+        existingClass: DefaultClassItem,
         newClassCharacteristics: ClassCharacteristics,
-    ): Boolean {
-        // Check for the existing class from a previously parsed file. If it could not be found
-        // then return.
-        val existingClass =
-            codebase.findClassInCodebase(newClassCharacteristics.qualifiedName) ?: return false
-
+    ) {
         // Make sure the new class characteristics are compatible with the old class
         // characteristic.
         val existingCharacteristics = ClassCharacteristics.of(existingClass)
@@ -748,15 +879,6 @@ private constructor(
             // definition found later should be prioritized, overwrite the superclass type.
             existingClass.setSuperClassType(newSuperClassType)
         }
-
-        // Parse the class body adding each member created to the existing class.
-        parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
-
-        // Although the class was first defined in a separate file it is being modified in the
-        // current file so that may include it in the main API surface.
-        existingClass.markExistingClassForMainApiSurface()
-
-        return true
     }
 
     /** Get the [TextTypeItemFactory] for a previously created [ClassItem]. */
@@ -926,8 +1048,7 @@ private constructor(
                 }
 
                 Pair(existingTypeParameterList, typeItemFactoryForClass(existingClass))
-            }
-                ?: Pair(typeParameterList, typeItemFactory)
+            } ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
             fullName = fullName,
@@ -1010,7 +1131,9 @@ private constructor(
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
+            // TODO(b/354633349): Look at just passing the tokenizer through to
+            //  parseAnnotationItem(Tokenizer) to save some time.
+            valueParser.parseAnnotationItem(annotationSource)?.let { annotationItem ->
                 add(annotationItem)
             }
         }
@@ -1042,10 +1165,7 @@ private constructor(
         var token = startingToken
         val method: ConstructorItem
 
-        // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
+        val modifiers = parseModifiers(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) =
@@ -1102,10 +1222,7 @@ private constructor(
         var token = startingToken
         val method: MethodItem
 
-        // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
+        val modifiers = parseModifiers(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
@@ -1144,7 +1261,7 @@ private constructor(
         val returnType =
             typeItemFactory.getMethodReturnType(
                 returnTypeString,
-                annotations,
+                modifiers.annotations(),
                 MethodFingerprint(name, parameters.size),
                 cl.isAnnotationType()
             )
@@ -1155,7 +1272,7 @@ private constructor(
         }
 
         var throwsList = emptyList<ExceptionTypeItem>()
-        var defaultAnnotationMethodValue = ""
+        var defaultAnnotationMethodValue: String? = null
 
         when (token) {
             "throws" -> {
@@ -1171,6 +1288,11 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
 
+        val defaultValueProvider =
+            defaultAnnotationMethodValue?.let { valueString ->
+                valueParser.providerFor(returnType, valueString, ValueUseSite.ANNOTATION)
+            }
+
         method =
             itemFactory.createMethodItem(
                 fileLocation = tokenizer.fileLocation(),
@@ -1184,7 +1306,7 @@ private constructor(
                     createParameterItems(containingCallable, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
-                annotationDefault = defaultAnnotationMethodValue,
+                defaultValueProvider = defaultValueProvider,
             )
 
         // Ignore enum synthetic methods. They are no longer included in signature files as they add
@@ -1194,9 +1316,14 @@ private constructor(
 
         method.markForMainApiSurface()
 
-        // If the method already exists in the class item because it was defined in a previous
-        // signature file then replace it with this one, otherwise just add this method.
-        cl.replaceOrAddMethod(method)
+        if (appending) {
+            // If the method already exists in the class item because it was defined in a previous
+            // signature file then replace it with this one, otherwise just add this method.
+            cl.replaceOrAddMethod(method)
+        } else {
+            // Just add the method to the class.
+            cl.addMethod(method)
+        }
     }
 
     private fun parseField(
@@ -1207,9 +1334,7 @@ private constructor(
         isEnumConstant: Boolean,
     ) {
         var token = startingToken
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
+        val modifiers = parseModifiers(tokenizer, token)
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
@@ -1234,7 +1359,7 @@ private constructor(
         // Get the optional value.
         val valueString =
             if ("=" == token) {
-                token = tokenizer.requireToken(false)
+                token = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
                 token.also { token = tokenizer.requireToken() }
             } else null
 
@@ -1245,13 +1370,25 @@ private constructor(
                 isEnumConstant = isEnumConstant,
                 isFinal = modifiers.isFinal(),
                 isInitialValueNonNull = { valueString != null && valueString != "null" },
-                itemAnnotations = annotations,
+                itemAnnotations = modifiers.annotations(),
             )
         synchronizeNullability(type, modifiers)
 
-        // Parse the value string.
-        val fieldValue =
-            valueString?.let { FixedFieldValue(parseValue(type, valueString, tokenizer)) }
+        // In signature files fields have to be static and final in order for them to have a
+        // constant value in addition to a value.
+        val constantValueProvider =
+            if (valueString != null) {
+                if (modifiers.isStatic() && modifiers.isFinal())
+                    valueParser.providerFor(type, valueString, ValueUseSite.FIELD)
+                else {
+                    // Report that the value is being ignored.
+                    reportIssue(
+                        Issues.SIGNATURE_FILE_ERROR,
+                        "Field $name in $cl has a value of `$valueString` but is not `static` and `final`; ignoring value"
+                    )
+                    null
+                }
+            } else null
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1265,20 +1402,35 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                fieldValue = fieldValue,
+                constantValueProvider = constantValueProvider,
             )
         field.markForMainApiSurface()
         cl.addField(field)
     }
 
-    private fun parseModifiers(
-        tokenizer: Tokenizer,
-        startingToken: String?,
-        annotations: List<AnnotationItem>
-    ): MutableModifierList {
-        var token = startingToken
+    /**
+     * Parses and creates modifiers, including annotations and keyword modifiers.
+     *
+     * If there is no visibility modifier, [VisibilityLevel.PACKAGE_PRIVATE] is used.
+     *
+     * When the method returns, the current token of [tokenizer] will be the first token after the
+     * modifiers.
+     */
+    private fun parseModifiers(tokenizer: Tokenizer, startingToken: String): MutableModifierList {
+        val annotations = getAnnotations(tokenizer, startingToken)
         val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
+        parseKeywordModifiers(tokenizer, modifiers)
+        return modifiers
+    }
 
+    /**
+     * Updates the [modifiers] to reflect all modifier keywords parsed from [tokenizer].
+     *
+     * The method starts processing from the current token of [tokenizer]. When the method returns,
+     * the current token of [tokenizer] will be the first token after the modifiers.
+     */
+    private fun parseKeywordModifiers(tokenizer: Tokenizer, modifiers: MutableModifierList) {
+        var token = tokenizer.current
         processModifiers@ while (true) {
             token =
                 when (token) {
@@ -1377,7 +1529,6 @@ private constructor(
                     else -> break@processModifiers
                 }
         }
-        return modifiers
     }
 
     /** Creates a [MutableModifierList], setting the deprecation based on the [annotations]. */
@@ -1393,67 +1544,6 @@ private constructor(
         return modifiers
     }
 
-    private fun parseValue(
-        type: TypeItem,
-        value: String?,
-        fileLocationTracker: FileLocationTracker,
-    ): Any? {
-        return if (value != null) {
-            if (type is PrimitiveTypeItem) {
-                parsePrimitiveValue(type, value, fileLocationTracker)
-            } else if (type.isString()) {
-                if ("null" == value) {
-                    null
-                } else {
-                    javaUnescapeString(value.substring(1, value.length - 1))
-                }
-            } else {
-                value
-            }
-        } else null
-    }
-
-    private fun parsePrimitiveValue(
-        type: PrimitiveTypeItem,
-        value: String,
-        fileLocationTracker: FileLocationTracker,
-    ): Any {
-        return when (type.kind) {
-            Primitive.BOOLEAN ->
-                if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
-            Primitive.BYTE,
-            Primitive.SHORT,
-            Primitive.INT -> Integer.valueOf(value)
-            Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-            Primitive.FLOAT ->
-                when (value) {
-                    "(1.0f/0.0f)",
-                    "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                    "(-1.0f/0.0f)",
-                    "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                    "(0.0f/0.0f)",
-                    "(0.0f / 0.0f)" -> Float.NaN
-                    else -> java.lang.Float.valueOf(value)
-                }
-            Primitive.DOUBLE ->
-                when (value) {
-                    "(1.0/0.0)",
-                    "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                    "(-1.0/0.0)",
-                    "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                    "(0.0/0.0)",
-                    "(0.0 / 0.0)" -> Double.NaN
-                    else -> java.lang.Double.valueOf(value)
-                }
-            Primitive.CHAR -> value.toInt().toChar()
-            Primitive.VOID ->
-                throw ApiParseException(
-                    "Found value $value assigned to void type",
-                    fileLocationTracker
-                )
-        }
-    }
-
     private fun parseProperty(
         tokenizer: Tokenizer,
         cl: DefaultClassItem,
@@ -1461,11 +1551,7 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-
-        // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
+        val modifiers = parseModifiers(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
@@ -1607,7 +1693,7 @@ private constructor(
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
-        val typeParameterStrings = TextTypeParser.typeParameterStrings(typeParameterListString)
+        val typeParameterStrings = TypeItemParser.typeParameterStrings(typeParameterListString)
 
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two
@@ -1687,9 +1773,9 @@ private constructor(
                 return parameters
             }
 
-            // Each item can be
-            // optional annotations optional-modifiers type-with-use-annotations-and-generics
-            // optional-name optional-equals-default-value
+            // Each item can be:
+            //   optional-"optional" annotations optional-modifiers
+            //   type-with-use-annotations-and-generics optional-name
 
             // Used to represent the presence of a default value, instead of showing the entire
             // default value
@@ -1698,10 +1784,7 @@ private constructor(
                 token = tokenizer.requireToken()
             }
 
-            // Metalava: including annotations in file now
-            val annotations = getAnnotations(tokenizer, token)
-            token = tokenizer.current
-            val modifiers = parseModifiers(tokenizer, token, annotations)
+            val modifiers = parseModifiers(tokenizer, token)
             token = tokenizer.current
 
             val typeString: String
@@ -1725,7 +1808,7 @@ private constructor(
                 // Java style: parse the type, then the public name if it has one.
                 typeString = scanForTypeString(tokenizer, token)
                 token = tokenizer.current
-                if (Tokenizer.isIdent(token) && token != "=") {
+                if (Tokenizer.isIdent(token)) {
                     name = token
                     publicName = name
                     token = tokenizer.requireToken()
@@ -1735,52 +1818,6 @@ private constructor(
                 }
             }
 
-            var defaultValueString: String? = null
-            if ("=" == token) {
-                if (hasOptionalKeyword) {
-                    throw ApiParseException(
-                        "cannot have both optional keyword and default value",
-                        tokenizer
-                    )
-                }
-                defaultValueString = tokenizer.requireToken(true)
-                val sb = StringBuilder(defaultValueString)
-                if (defaultValueString == "{") {
-                    var balance = 1
-                    while (balance > 0) {
-                        token = tokenizer.requireToken(parenIsSep = false, eatWhitespace = false)
-                        sb.append(token)
-                        if (token == "{") {
-                            balance++
-                        } else if (token == "}") {
-                            balance--
-                            if (balance == 0) {
-                                break
-                            }
-                        }
-                    }
-                    token = tokenizer.requireToken()
-                } else {
-                    var balance = if (defaultValueString == "(") 1 else 0
-                    while (true) {
-                        token = tokenizer.requireToken(parenIsSep = true, eatWhitespace = false)
-                        if ((token.endsWith(",") || token.endsWith(")")) && balance <= 0) {
-                            if (token.length > 1) {
-                                sb.append(token, 0, token.length - 1)
-                                token = token[token.length - 1].toString()
-                            }
-                            break
-                        }
-                        sb.append(token)
-                        if (token == "(") {
-                            balance++
-                        } else if (token == ")") {
-                            balance--
-                        }
-                    }
-                }
-                defaultValueString = sb.toString()
-            }
             when (token) {
                 "," -> {
                     token = tokenizer.requireToken()
@@ -1795,17 +1832,13 @@ private constructor(
 
             // Select the DefaultValue for the parameter.
             val defaultValue =
-                when {
-                    hasOptionalKeyword ->
-                        // It has an optional keyword, so it has a default value but the actual
-                        // value is not known.
-                        DefaultValue.UNKNOWN
-                    defaultValueString == null ->
-                        // It has neither an optional keyword nor an actual default value.
-                        DefaultValue.NONE
-                    else ->
-                        // It has an actual default value.
-                        DefaultValue.fixedDefaultValue(defaultValueString)
+                if (hasOptionalKeyword) {
+                    // It has an optional keyword, so it has a default value but the actual value is
+                    // not known.
+                    ParameterDefaultValue.UNKNOWN
+                } else {
+                    // It does not have an optional keyword so it has no default value.
+                    ParameterDefaultValue.NONE
                 }
             parameters.add(
                 ParameterInfo(
@@ -1831,7 +1864,7 @@ private constructor(
     private inner class ParameterInfo(
         val name: String,
         val publicName: String?,
-        val defaultValue: DefaultValue,
+        val defaultValue: ParameterDefaultValue,
         val typeString: String,
         val modifiers: MutableModifierList,
         val location: FileLocation,
