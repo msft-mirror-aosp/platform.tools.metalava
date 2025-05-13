@@ -1692,7 +1692,6 @@ constructor(
                             // Modelled as a signed byte value.
                             common = literalValue(95.toByte())
                         },
-                    testThis = true,
                 ),
                 ValueExample(
                     name = "unsigned int - basic",
@@ -1713,7 +1712,6 @@ constructor(
                             // Modelled as a signed int value.
                             common = literalValue(53)
                         },
-                    testThis = true,
                 ),
                 ValueExample(
                     name = "unsigned long - basic",
@@ -1734,7 +1732,6 @@ constructor(
                             // Modelled as a signed long value.
                             common = literalValue(37L)
                         },
-                    testThis = true,
                 ),
                 ValueExample(
                     name = "unsigned short - basic",
@@ -1755,7 +1752,6 @@ constructor(
                             // Modelled as a signed short value.
                             common = literalValue(103.toShort())
                         },
-                    testThis = true,
                 ),
             )
 
