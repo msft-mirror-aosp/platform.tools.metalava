@@ -1091,6 +1091,27 @@ constructor(
                             }
                         },
                 ),
+                // Check a negative float
+                ValueExample(
+                    name = "float - negative",
+                    javaType = "float",
+                    javaExpression = "-2.7f",
+                    kotlinType = "Float",
+                    expectedLegacySource =
+                        expectations {
+                            common = "-2.7f"
+
+                            // TODO(b/354633349): Consistency is good.
+                            annotationToSource = "-2.7F"
+                        },
+                    expectedKotlinLegacySource = expectations { attributeDefaultValue = "-2.7" },
+                    expectedLegacyValue = expectations { common = -2.7f },
+                    expectedValue =
+                        expectations {
+                            // Expect a float value created from an int.
+                            common = literalValue(-2.7f)
+                        },
+                ),
                 // Check a simple float with int
                 ValueExample(
                     name = "float with int",
@@ -1127,7 +1148,7 @@ constructor(
                     expectedKotlinLegacyValue = expectations { source { common = 3 } },
                     expectedValue =
                         expectations {
-                            // Expect a double value created from an int.
+                            // Expect a float value created from an int.
                             common = primitiveValueForKind(Primitive.FLOAT, 3)
                             jar { common = literalValue(3.0f) }
                         },
@@ -1331,6 +1352,26 @@ constructor(
                         },
                     expectedLegacyValue = expectations { common = 8.0f },
                     expectedValue = expectations { common = literalValue(8.0f) },
+                ),
+                ValueExample(
+                    name = "float - expression",
+                    javaType = "float",
+                    javaExpression = "2.125f * 1.5f",
+                    kotlinType = "Float",
+                    // Signature does not support expressions.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource =
+                        expectations {
+                            common = "3.1875f"
+                            source {
+                                annotationToSource = "3.1875F"
+                                attributeValue = "2.125f * 1.5f"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations { source { attributeDefaultValue = "3.1875" } },
+                    expectedLegacyValue = expectations { common = 3.1875f },
+                    expectedValue = expectations { common = literalValue(3.1875f) },
                 ),
                 // Check a simple int.
                 ValueExample(

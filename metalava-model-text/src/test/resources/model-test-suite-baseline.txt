@@ -33,6 +33,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[source,double positive infinity]
   testLegacySource[source,double with exponent]
   testLegacySource[source,float - hex]
+  testLegacySource[source,float - negative]
   testLegacySource[source,float NaN]
   testLegacySource[source,float negative infinity]
   testLegacySource[source,float positive infinity]
