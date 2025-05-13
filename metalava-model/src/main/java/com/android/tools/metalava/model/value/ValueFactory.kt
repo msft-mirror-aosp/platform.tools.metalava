@@ -297,8 +297,25 @@ interface ValueFactory {
                         DefaultDoubleValue(underlyingValue as Double, originalValue is Int)
                     },
                 Primitive.FLOAT to
-                    { underlyingValue, originalValue, _ ->
-                        DefaultFloatValue(underlyingValue as Float, originalValue is Int)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val floatValue = underlyingValue as Float
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                floatValue < 0 ||
+                                // Similarly, NaN, +Infinity, -Infinity are treated as if they were
+                                // an expression as there is no literal for them. That is true even
+                                // when they are read from a jar where they are stored as a special
+                                // set of bits.
+                                floatValue.isNaN() ||
+                                floatValue.isInfinite()
+                        DefaultFloatValue(
+                            floatValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource
+                        )
                     },
                 Primitive.INT to
                     { underlyingValue, _, _ ->

@@ -84,14 +84,26 @@ internal class DefaultDoubleValue(
 internal class DefaultFloatValue(
     override val underlyingValue: Float,
     override val wasOriginallySpecifiedAsInt: Boolean = false,
+    private val nonLiteralInSource: Boolean = false,
 ) : DefaultPrimitiveValue<Float>(), FloatValue, ToValueStringDependsOnSourceForm<Float> {
     override fun appendValueStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        treatAsIntIfRequired(builder, configuration) {
-            super<FloatValue>.appendValueStringTo(builder, configuration)
-        }
+        // Check for special values first.
+        configuration.specialValues[this]?.let { builder.append(it) }
+            ?: treatAsIntIfRequired(builder, configuration) {
+                // If it was not a literal then use the non-literal suffix. This is mutually
+                // exclusive with it being specified as an int so it does not matter which one is
+                // performed first.
+                val suffix = if (nonLiteralInSource) configuration.nonLiteralFloatSuffix else 'f'
+                builder.append(underlyingValue).append(suffix)
+            }
+    }
+
+    override fun appendLegacyStateTo(builder: StringBuilder) {
+        super<ToValueStringDependsOnSourceForm>.appendLegacyStateTo(builder)
+        if (nonLiteralInSource) builder.append(",nonLiteral")
     }
 }
 

@@ -132,6 +132,12 @@ class ParameterizedValueStringTest {
                     ValueStringConfiguration(classObjectValueFormat = ClassObjectValueFormat.SOURCE)
                 )
 
+            val NON_LITERAL_FLOAT_SUFFIX =
+                LabelledConfig(
+                    "non-literal-float-suffix",
+                    ValueStringConfiguration(nonLiteralFloatSuffix = 'F')
+                )
+
             val SPECIAL_VALUES =
                 LabelledConfig(
                     "special-values",
@@ -616,16 +622,34 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Float.MIN_VALUE),
                     expectedDefaultValueString = "1.4E-45f",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.NON_LITERAL_FLOAT_SUFFIX)
+                },
+                testCasesForValue(
+                    value = literalValue(-1.4f),
+                    expectedDefaultValueString = "-1.4f",
+                    expectedDefaultDebugString = "-1.4f,nonLiteral",
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.NON_LITERAL_FLOAT_SUFFIX, "-1.4F")
+                },
+                testCasesForValue(
+                    value = literalValue(7.9f, nonLiteralInSource = true),
+                    expectedDefaultValueString = "7.9f",
+                    expectedDefaultDebugString = "7.9f,nonLiteral",
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.NON_LITERAL_FLOAT_SUFFIX, "7.9F")
+                },
                 testCasesForValue(
                     value = literalValue(Float.NaN),
                     expectedDefaultValueString = "(0.0f/0.0f)",
+                    expectedDefaultDebugString = "(0.0f/0.0f),nonLiteral",
                 ) {
                     verifyConfigChangesOutput(LabelledConfig.SPECIAL_VALUES, "FloatValue.NaN")
                 },
                 testCasesForValue(
                     value = literalValue(Float.NEGATIVE_INFINITY),
                     expectedDefaultValueString = "(-1.0f/0.0f)",
+                    expectedDefaultDebugString = "(-1.0f/0.0f),nonLiteral",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.SPECIAL_VALUES,
@@ -635,6 +659,7 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Float.POSITIVE_INFINITY),
                     expectedDefaultValueString = "(1.0f/0.0f)",
+                    expectedDefaultDebugString = "(1.0f/0.0f),nonLiteral",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.SPECIAL_VALUES,

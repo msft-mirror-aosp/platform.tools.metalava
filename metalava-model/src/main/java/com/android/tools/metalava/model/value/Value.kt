@@ -243,6 +243,9 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  *   an [AnnotationItem].
  * @param classObjectValueFormat How to format a [ClassObjectValue].
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
+ * @param nonLiteralFloatSuffix The suffix to use for a [FloatValue] that was represented in the
+ *   source as an expression (including negative numbers which are represented as a unary minus
+ *   expression).
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
  *   they were added.
@@ -257,6 +260,7 @@ data class ValueStringConfiguration(
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
+    val nonLiteralFloatSuffix: Char = 'f',
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
     val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
@@ -581,18 +585,14 @@ sealed interface FloatValue : FloatingPointValue<Float> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        configuration.specialValues[this]?.let { builder.append(it) }
-            ?: builder.append(underlyingValue).append('f')
-    }
-
     companion object {
-        val NaN: FloatValue = DefaultFloatValue(Float.NaN)
-        val NEGATIVE_INFINITY: FloatValue = DefaultFloatValue(Float.NEGATIVE_INFINITY)
-        val POSITIVE_INFINITY: FloatValue = DefaultFloatValue(Float.POSITIVE_INFINITY)
+        // These are all non-literals as there is no source literal for these. They all either
+        // require using a division-by-zero expression or a field.
+        val NaN: FloatValue = DefaultFloatValue(Float.NaN, nonLiteralInSource = true)
+        val NEGATIVE_INFINITY: FloatValue =
+            DefaultFloatValue(Float.NEGATIVE_INFINITY, nonLiteralInSource = true)
+        val POSITIVE_INFINITY: FloatValue =
+            DefaultFloatValue(Float.POSITIVE_INFINITY, nonLiteralInSource = true)
     }
 }
 
