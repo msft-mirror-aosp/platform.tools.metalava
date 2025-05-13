@@ -249,6 +249,7 @@ data class ValueStringConfiguration(
         Value::appendValueStringTo,
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
+    val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
     val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
     val valueLanguage: ValueLanguage = ValueLanguage.JAVA,
 ) {
@@ -258,6 +259,21 @@ data class ValueStringConfiguration(
     }
 
     companion object {
+        /**
+         * Default set of special values.
+         *
+         * Must be initialized before any [ValueStringConfiguration], e.g. [DEFAULT], is created.
+         */
+        private val defaultSpecialValues =
+            mapOf<LiteralValue<*>, String>(
+                DoubleValue.NaN to "(0.0/0.0)",
+                DoubleValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
+                DoubleValue.POSITIVE_INFINITY to "(1.0/0.0)",
+                FloatValue.NaN to "(0.0f/0.0f)",
+                FloatValue.NEGATIVE_INFINITY to "(-1.0f/0.0f)",
+                FloatValue.POSITIVE_INFINITY to "(1.0f/0.0f)",
+            )
+
         /** Default configuration. */
         val DEFAULT = ValueStringConfiguration()
 
@@ -509,12 +525,8 @@ sealed interface DoubleValue : FloatingPointValue<Double> {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        when {
-            underlyingValue.isNaN() -> builder.append("(0.0/0.0)")
-            underlyingValue == Double.NEGATIVE_INFINITY -> builder.append("(-1.0/0.0)")
-            underlyingValue == Double.POSITIVE_INFINITY -> builder.append("(1.0/0.0)")
-            else -> builder.append(underlyingValue)
-        }
+        configuration.specialValues[this]?.let { builder.append(it) }
+            ?: builder.append(underlyingValue)
     }
 
     companion object {
@@ -540,12 +552,8 @@ sealed interface FloatValue : FloatingPointValue<Float> {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        when {
-            underlyingValue.isNaN() -> builder.append("(0.0f/0.0f)")
-            underlyingValue == Float.NEGATIVE_INFINITY -> builder.append("(-1.0f/0.0f)")
-            underlyingValue == Float.POSITIVE_INFINITY -> builder.append("(1.0f/0.0f)")
-            else -> builder.append(underlyingValue).append("f")
-        }
+        configuration.specialValues[this]?.let { builder.append(it) }
+            ?: builder.append(underlyingValue).append('f')
     }
 
     companion object {
