@@ -16,7 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
-import com.android.tools.metalava.model.source.SourceLanguage
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -25,11 +26,8 @@ import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ParameterItem]. */
-@RunWith(Parameterized::class)
 class CommonParameterItemTest : BaseModelTest() {
 
     @Test
@@ -67,13 +65,13 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameterItem =
                 codebase.assertClass("test.pkg.Bar").methods().single().parameters().single()
             val annotation = parameterItem.modifiers.annotations().single()
-            if (inputFormat.sourceLanguage == SourceLanguage.KOTLIN) {
+            if (inputFormat == InputFormat.KOTLIN) {
                 assertEquals("kotlin.Deprecated", annotation.qualifiedName)
             } else {
                 assertEquals("java.lang.Deprecated", annotation.qualifiedName)
             }
-            assertEquals("deprecated", true, parameterItem.deprecated)
             assertEquals("originallyDeprecated", true, parameterItem.originallyDeprecated)
+            assertEquals("effectivelyDeprecated", true, parameterItem.effectivelyDeprecated)
         }
     }
 
@@ -111,8 +109,8 @@ class CommonParameterItemTest : BaseModelTest() {
         ) {
             val parameterItem =
                 codebase.assertClass("test.pkg.Bar").methods().single().parameters().single()
-            assertEquals("deprecated", false, parameterItem.deprecated)
             assertEquals("originallyDeprecated", false, parameterItem.originallyDeprecated)
+            assertEquals("effectivelyDeprecated", false, parameterItem.effectivelyDeprecated)
         }
     }
 
@@ -127,20 +125,6 @@ class CommonParameterItemTest : BaseModelTest() {
                           public class Bar {
                             method public void foo(int baz);
                           }
-                        }
-                    """
-                ),
-            ),
-            inputSet(
-                KnownSourceFiles.supportParameterName,
-                java(
-                    """
-                        package test.pkg;
-
-                        import androidx.annotation.ParameterName;
-
-                        public class Bar {
-                            public void foo(@ParameterName("baz") int baz) {}
                         }
                     """
                 ),
@@ -214,11 +198,11 @@ class CommonParameterItemTest : BaseModelTest() {
                     .assertMethod("equals", "java.lang.Object")
                     .parameters()
                     .single()
-            // For some reason Object.equals(Object obj) provides the actual parameter name.
-            // Probably, because it was compiled with a late enough version of javac, and/or with
-            // the appropriate options to record the parameter name.
+            // The parameter name of the Object.equals(Object obj) method is stored in the Object
+            // class but `publicName()` should still return null because the parameter name is not
+            // part of the API of java classes.
             assertEquals("name()", "obj", parameterItem.name())
-            assertEquals("publicName()", "obj", parameterItem.publicName())
+            assertNull("publicName()", parameterItem.publicName())
         }
     }
 
@@ -245,6 +229,7 @@ class CommonParameterItemTest : BaseModelTest() {
             // actual parameter name. Probably, because it was compiled with an older version of
             // javac, and/or without the appropriate options to record the parameter name.
             val expectedNames = listOf("p", "p1", "p2", "p3", "p4")
+            assertEquals("parameter count", parameterItems.size, expectedNames.size)
             for (i in parameterItems.indices) {
                 val parameterItem = parameterItems[i]
                 val expectedName = expectedNames[i]
@@ -301,14 +286,16 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method4" to "T",
                     "method5" to "java.util.Map.Entry<T!,java.lang.String!>",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
                 // outermost type is affected by the not-type-use nullability annotation.
                 val type = method.parameters().single().type()
                 assertWithMessage(name)
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -361,14 +348,16 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method4" to "T?",
                     "method5" to "java.util.Map.Entry<T!,java.lang.String!>?",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
                 // outermost type is affected by the not-type-use nullability annotation.
                 val type = method.parameters().single().type()
                 assertWithMessage(name)
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -416,21 +405,23 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nonNull" to "java.lang.String!...",
                     "platform" to "java.lang.String!...!",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
                 // outermost type is affected by the not-type-use nullability annotation.
                 val type = method.parameters().single().type()
                 assertWithMessage(name)
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
     }
 
     @Test
-    fun `Test nullability of Kotlin varargs`() {
+    fun `Test nullability of Kotlin varargs last`() {
         runCodebaseTest(
             kotlin(
                 """
@@ -460,16 +451,222 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nullable" to "java.lang.String?...",
                     "nonNull" to "java.lang.String...",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
-                val expectedType = expectedTypes[name]!!
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
                 // Compare the kotlin style format of the parameter to ensure that only the
                 // outermost type is affected by the not-type-use nullability annotation.
-                val type = method.parameters().single().type()
-                assertWithMessage(name)
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
+                assertWithMessage("$name type")
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
+        }
+    }
+
+    @Test
+    fun `Test nullability of Kotlin varargs not-last`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    fun nullable(vararg p: Any?, i: String = "") {}
+                    fun nonNull(vararg p: Any, i: String = "") {}
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "nullable" to "java.lang.Object?[]",
+                    "nonNull" to "java.lang.Object[]",
+                )
+            val methods = codebase.assertClass("test.pkg.TestKt").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
+                val name = method.name()
+                val parameterItem = method.parameters().first()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
+                assertWithMessage(name)
+                    .that(type.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test nullability of Kotlin varargs last in inline reified fun`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    inline fun <reified T> nullable(vararg elements: T?) = listOf(*elements)
+                    inline fun <reified T> nonNull(vararg elements: T) = listOf(*elements)
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "nullable" to "T?...",
+                    "nonNull" to "T...",
+                )
+            val methods = codebase.assertClass("test.pkg.TestKt").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
+                val name = method.name()
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
+                assertWithMessage("$name type")
+                    .that(type.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test parameter isVarArgs`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void varArgsMethod(String... p);
+                        method public void nonVarArgsMethod(String[] p);
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void varArgsMethod(String... p) {}
+                        public void nonVarArgsMethod(String[] p) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun varArgsMethod(vararg p: String) {}
+                        fun nonVarArgsMethod(p: Array<String>) {}
+                    }
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "varArgsMethod" to true,
+                    "nonVarArgsMethod" to false,
+                )
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
+                val name = method.name()
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter if expected
+                val expectedVarArgs = expectedTypes[name]
+                assertWithMessage("$name isVarArgs")
+                    .that(parameterItem.isVarArgs())
+                    .isEqualTo(expectedVarArgs)
+            }
+        }
+    }
+
+    @Test
+    fun `Test no default value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - language=kotlin
+                    // - include-default-parameter-values=no
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public method(s: String?): void;
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void method(String s) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun method(s: String?) {}
+                    }
+                """
+            ),
+        ) {
+            val parameter =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertEquals("hasDefaultValue", false, parameter.hasDefaultValue())
+        }
+    }
+
+    @Test
+    fun `Test unknown default value`() {
+        runCodebaseTest(
+            // Neither Kotlin nor Java has a way to specify an unknown default property. Kotlin and
+            // Java both treat no default and unknown default as the same. Only signature file can
+            // specify that it has a default but does not know what its value is. It does that by
+            // using the `optional` pseudo modifier.
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - language=kotlin
+                    // - include-default-parameter-values=yes
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public method(optional s: String?): void;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val parameter =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
         }
     }
 }

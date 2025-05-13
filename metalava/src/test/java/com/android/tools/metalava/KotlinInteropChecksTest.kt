@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -29,9 +31,8 @@ class KotlinInteropChecksTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 """
-                src/test/pkg/Test.java:7: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
-                src/test/pkg/Test.java:8: error: Avoid parameter names that are Kotlin hard keywords ("typealias"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
-                src/test/pkg/Test.java:10: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
+                    src/test/pkg/Test.java:6: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
+                    src/test/pkg/Test.java:9: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -41,22 +42,21 @@ class KotlinInteropChecksTest : DriverTest() {
                     package test.pkg;
 
                     import androidx.annotation.NonNull;
-                    import androidx.annotation.ParameterName;
 
                     public class Test {
                         public void fun() { }
-                        public void foo(int fun, @ParameterName("typealias") int internalName) { }
+                        public void foo(int fun) { }
                         @NonNull
                         public final Object object = null;
                     }
                     """
                     ),
-                    supportParameterName,
-                    androidxNonNullSource
+                    androidxNonNullSource,
                 )
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Sam-compatible parameters should be last`() {
         check(
@@ -134,6 +134,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Companion object methods should be marked with JvmStatic`() {
         check(
@@ -150,9 +151,11 @@ class KotlinInteropChecksTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Foo.kt:8: warning: Companion object constants like BIG_INTEGER_ONE should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:11: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:12: warning: Companion object constants like WRONG2 should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:15: warning: Companion object methods like missing should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:10: warning: Companion object methods like getWrongNeedsJvmStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:10: warning: Companion object methods like setWrongNeedsJvmStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:12: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/Foo.kt:13: warning: Companion object constants like WRONG2 should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/Foo.kt:16: warning: Companion object methods like missing should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
                 """,
             sourceFiles =
                 arrayOf(
@@ -167,7 +170,8 @@ class KotlinInteropChecksTest : DriverTest() {
                             const val INTEGER_ONE = 1
                             val BIG_INTEGER_ONE = BigInteger.ONE
                             private val PRIVATE_BIG_INTEGER = BigInteger.ONE
-                            var ok = 1
+                            var wrongNeedsJvmStatic = 1
+                            @JvmStatic var ok = 1.5
                             @JvmStatic val WRONG = 2
                             @JvmStatic @JvmField val WRONG2 = 2
                             @JvmField val ok3 = 3
@@ -184,6 +188,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Methods with default parameters should specify JvmOverloads`() {
         check(
@@ -202,7 +207,7 @@ class KotlinInteropChecksTest : DriverTest() {
                         fun ok(int: Int = 0, int2: Int = 0) { }
                     }
 
-                    class Foo {
+                    class Foo(string: String = "default", long: Long = 0) {
                         fun ok1() { }
                         fun ok2(int: Int) { }
                         fun ok3(int: Int, int2: Int) { }
@@ -217,6 +222,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Methods annotated @JvmSynthetic with default parameters don't require @JvmOverloads`() {
         check(
@@ -240,6 +246,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Methods which throw exceptions should document them`() {
         check(
@@ -355,6 +362,220 @@ class KotlinInteropChecksTest : DriverTest() {
                         // be the case that it can never happen, and this might be an annoying false positive.
                     }
                     """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check value classes are banned`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Container.kt:4: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
+                    src/test/pkg/PublicValueClass.kt:3: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            @JvmInline
+                            value class PublicValueClass(val value: Int)
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Container {
+                                @JvmInline
+                                value class PublicNestedValueClass(val value: Int)
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            // This is okay, it isn't public API.
+                            @JvmInline
+                            internal value class InternalValueClass(val value: Int)
+                        """
+                    )
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check usage of JvmStatic on hidden property`() {
+        // Regression test for b/401569415 -- MissingJvmstatic should not apply to hidden properties
+        check(
+            apiLint = "",
+            expectedIssues = "",
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object {
+                                    /** @hide */
+                                    @JvmStatic
+                                    val hiddenProperty = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check usage of JvmStatic on property of value class type`() {
+        // b/401569415 -- JvmField cannot be used on properties of value class type
+        check(
+            apiLint = "",
+            expectedIssues =
+                "src/test/pkg/IntValue.kt:8: warning: Companion object methods like getValueClassTypePropertyNoAnnotation should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
+            extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            @JvmInline
+                            value class IntValue(val value: Int) {
+                                companion object {
+                                    @JvmStatic
+                                    val valueClassTypePropertyJvmStatic = IntValue(0)
+
+                                    val valueClassTypePropertyNoAnnotation = IntValue(0)
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check methods and properties in a named companion object should be annotated JvmStatic`() {
+        check(
+            apiLint = "",
+            // TODO: this is inconsistent between methods and properties
+            expectedIssues =
+                "src/test/pkg/Foo.kt:9: warning: Companion object constants like missingJvmField should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]",
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object FooCompanion {
+                                    fun missingJvmStatic() = Unit
+
+                                    @JvmStatic
+                                    fun ok() = Unit
+
+                                    val missingJvmField = 0
+
+                                    @JvmField
+                                    val ok = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check interface companion properties`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                "src/test/pkg/Foo.kt:10: warning: Companion object methods like getUnannotatedProperty should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            interface Foo {
+                                companion object {
+                                    // Cannot use @JvmField here, causes a compiler error:
+                                    // JvmField could be applied only if all interface companion
+                                    // properties are 'public final val' with '@JvmField' annotation
+                                    @JvmStatic
+                                    val jvmStaticProperty = 0
+
+                                    val unannotatedProperty = 0
+
+                                    private val privateProperty = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check companion property without backing field`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                "src/test/pkg/Foo.kt:11: warning: Companion object methods like getUnannotatedPropertyWithoutBackingField should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object {
+                                    // Cannot use @JvmField here: this annotation is not applicable
+                                    // to target 'member property without backing field or delegate'
+                                    @JvmStatic
+                                    val jvmStaticPropertyWithoutBackingField
+                                        get() = 0
+
+                                    val unannotatedPropertyWithoutBackingField
+                                        get() = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check no JvmOverloads warning for data class copy method`() {
+        check(
+            apiLint = "", // Enabled
+            expectedIssues =
+                // Line 3 is where notCopy is defined. The copy method would get line 2 (where the
+                // class/constructor is defined).
+                "src/test/pkg/Foo.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        data class Foo(val p0: Int = 0, val p1: String = "") {
+                            fun notCopy(p0: Int = 0, p1: String = "") = Unit
+                        }
+                        """
                     )
                 )
         )

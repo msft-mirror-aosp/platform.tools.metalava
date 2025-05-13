@@ -17,19 +17,20 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.item.DefaultCodebase
+import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
 import java.util.TreeSet
-import java.util.function.Predicate
 
 internal class TurbineSourceFile(
-    val codebase: TurbineBasedCodebase,
+    val codebase: DefaultCodebase,
     val compUnit: CompUnit,
 ) : SourceFile {
 
-    override fun getHeaderComments(): String? = getHeaderComments(compUnit.source().source())
+    override fun getHeaderComments() = getHeaderComments(compUnit.source().source())
 
     override fun classes(): Sequence<ClassItem> {
         val pkgName = getPackageName(compUnit)
@@ -43,11 +44,15 @@ internal class TurbineSourceFile(
         return other is TurbineSourceFile && compUnit == other.compUnit
     }
 
-    override fun getImports(predicate: Predicate<Item>): Collection<Import> {
+    override fun hashCode(): Int {
+        return compUnit.hashCode()
+    }
+
+    override fun getImports(predicate: FilterPredicate): Collection<Import> {
         val imports = TreeSet<Import>(compareBy { it.pattern })
 
         for (import in compUnit.imports()) {
-            val resolvedName = extractNameFromIdent(import.type())
+            val resolvedName = import.type().dotSeparatedName
             // Package import
             if (import.wild()) {
                 val pkgItem = codebase.findPackage(resolvedName) ?: continue
@@ -63,7 +68,7 @@ internal class TurbineSourceFile(
             }
             // Not static member import i.e. class import
             else if (!import.stat()) {
-                val classItem = codebase.findClass(resolvedName) ?: continue
+                val classItem = codebase.resolveClass(resolvedName) ?: continue
                 if (predicate.test(classItem)) {
                     imports.add(Import(classItem))
                 }
@@ -78,4 +83,18 @@ internal class TurbineSourceFile(
 
         return emptyList()
     }
+
+    /**
+     * The [LineMap] used to map positions in the source file into line numbers.
+     *
+     * Created lazily as it can be expensive to create.
+     */
+    private val lineMap by
+        lazy(LazyThreadSafetyMode.NONE) { LineMap.create(compUnit.source().source()) }
+
+    /**
+     * Get the line number for [position] which was retrieved from
+     * [com.google.turbine.tree.Tree.position].
+     */
+    fun lineForPosition(position: Int) = lineMap.lineNumber(position)
 }

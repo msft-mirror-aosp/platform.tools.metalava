@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Characteristics of a class apart from its members.
@@ -28,7 +30,7 @@ import com.android.tools.metalava.model.ModifierList
  */
 internal data class ClassCharacteristics(
     /** The position of the class definition within the API signature file. */
-    val position: SourcePositionInfo,
+    val fileLocation: FileLocation,
 
     /** Name including package and full name. */
     val qualifiedName: String,
@@ -49,15 +51,16 @@ internal data class ClassCharacteristics(
 
     /** The super class type . */
     val superClassType: ClassTypeItem?,
-// TODO(b/323168612): Add interface type strings.
+    // TODO(b/323168612): Add interface type strings.
 ) {
     /**
-     * Checks if the [cls] from different signature file can be merged with this [TextClassItem].
-     * For instance, `current.txt` and `system-current.txt` may contain equal class definitions with
-     * different class methods. This method is used to determine if the two [TextClassItem]s can be
-     * safely merged in such scenarios.
+     * Checks if the [other] from different signature file can be merged with this
+     * [ClassCharacteristics]. For instance, `current.txt` and `system-current.txt` may contain
+     * equal class definitions with different class methods. This method is used to determine if the
+     * two [ClassItem]s can be safely merged in such scenarios.
      *
-     * @param cls [TextClassItem] to be checked if it is compatible with [this] and can be merged
+     * @param other [ClassCharacteristics] to be checked if it is compatible with [this] and can be
+     *   merged
      * @return a Boolean value representing if [cls] is compatible with [this]
      */
     fun isCompatible(other: ClassCharacteristics): Boolean {
@@ -65,14 +68,14 @@ internal data class ClassCharacteristics(
         // TextClassItem
         return fullName == other.fullName &&
             classKind == other.classKind &&
-            modifiers == other.modifiers
+            modifiers.equivalentTo(null, other.modifiers)
     }
 
     companion object {
-        fun of(classItem: TextClassItem): ClassCharacteristics =
+        fun of(classItem: ClassItem): ClassCharacteristics =
             ClassCharacteristics(
-                position = classItem.position,
-                qualifiedName = classItem.qualifiedName,
+                fileLocation = classItem.fileLocation,
+                qualifiedName = classItem.qualifiedName(),
                 fullName = classItem.fullName(),
                 classKind = classItem.classKind,
                 modifiers = classItem.modifiers,

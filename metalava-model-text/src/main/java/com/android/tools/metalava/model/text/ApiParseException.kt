@@ -16,40 +16,18 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.model.parser.FileLocationTracker
+import com.android.tools.metalava.model.parser.ParseException
+import com.android.tools.metalava.reporter.FileLocation
 
 @MetalavaApi
 class ApiParseException(
     message: String,
-    private val file: String? = null,
-    private val line: Int = 0,
-    cause: Exception? = null,
-) : Exception(message, cause) {
+    location: FileLocation? = null,
+) : ParseException(message, location) {
 
     internal constructor(
         message: String,
-        tokenizer: Tokenizer,
-        cause: Exception? = null,
-    ) : this(message, file = tokenizer.fileName, line = tokenizer.line, cause = cause)
-
-    internal constructor(
-        message: String,
-        position: SourcePositionInfo,
-        cause: Exception? = null,
-    ) : this(message, file = position.file, line = position.line, cause = cause)
-
-    override val message: String
-        get() {
-            val sb = StringBuilder()
-            if (file != null) {
-                sb.append(file).append(':')
-            }
-            if (line > 0) {
-                sb.append(line).append(':')
-            }
-            if (sb.isNotEmpty()) {
-                sb.append(' ')
-            }
-            sb.append(super.message)
-            return sb.toString()
-        }
+        fileLocationTracker: FileLocationTracker,
+    ) : this(message, fileLocationTracker.fileLocation())
 }

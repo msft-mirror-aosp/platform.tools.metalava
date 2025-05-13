@@ -16,17 +16,18 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.google.turbine.diag.SourceFile
-import com.google.turbine.parse.Parser
 import java.io.File
 
-internal class TurbineSourceParser(private val annotationManager: AnnotationManager) :
-    SourceParser {
+internal class TurbineSourceParser(
+    private val codebaseConfig: Codebase.Config,
+    private val allowReadingComments: Boolean
+) : SourceParser {
 
     override fun getClassResolver(classPath: List<File>): ClassResolver {
         TODO("implement it")
@@ -37,25 +38,46 @@ internal class TurbineSourceParser(private val annotationManager: AnnotationMana
      */
     override fun parseSources(
         sourceSet: SourceSet,
-        commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-    ): TurbineBasedCodebase {
+        apiPackages: PackageFilter?,
+        projectDescription: File?,
+        compiledSourceJar: File?,
+    ): Codebase {
+        if (projectDescription != null) {
+            error("Turbine model does not support --project")
+        }
+        if (compiledSourceJar != null) {
+            error("Turbine model does not support --compiled-jar")
+        }
+
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
-        val codebase = TurbineBasedCodebase(rootDir, description, annotationManager)
 
-        val sourceFiles = getSourceFiles(sourceSet.sources)
-        val units = sourceFiles.map { Parser.parse(it) }
-        codebase.initialize(units, classPath)
+        val assembler =
+            TurbineCodebaseInitialiser(
+                codebaseFactory = { assembler ->
+                    DefaultCodebase(
+                        location = rootDir,
+                        description = description,
+                        preFiltered = false,
+                        config = codebaseConfig,
+                        trustedApi = false,
+                        supportsDocumentation = true,
+                        assembler = assembler,
+                    )
+                },
+                classpath = classPath,
+                allowReadingComments = allowReadingComments,
+            )
 
-        return codebase
+        // Initialize the codebase.
+        assembler.initialize(sourceSet, apiPackages)
+
+        // Return the newly created and initialized codebase.
+        return assembler.codebase
     }
 
-    private fun getSourceFiles(sources: List<File>): List<SourceFile> {
-        return sources.map { SourceFile(it.path, it.readText()) }
-    }
-
-    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
+    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
         TODO("b/299044569 handle this")
     }
 }

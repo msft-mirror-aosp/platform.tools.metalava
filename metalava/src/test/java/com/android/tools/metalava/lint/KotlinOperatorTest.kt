@@ -18,6 +18,8 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -55,11 +57,18 @@ class KotlinOperatorTest : DriverTest() {
                     }
                     """
                     ),
+                    java(
+                        """
+                            package android.pkg;
+                            public class JavaClass {}
+                        """
+                    ),
                     androidxNullableSource
                 )
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `KotlinOperator check only applies when not using operator modifier`() {
         check(
