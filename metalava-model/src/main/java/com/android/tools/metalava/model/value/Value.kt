@@ -490,6 +490,11 @@ sealed interface BooleanValue : PrimitiveValue<Boolean> {
         other is BooleanValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val FALSE: BooleanValue = DefaultBooleanValue(false)
+        val TRUE: BooleanValue = DefaultBooleanValue(true)
+    }
 }
 
 /** A [Value] that encapsulates an integral value, i.e. a [Byte], [Int], [Long] or [Short]. */
