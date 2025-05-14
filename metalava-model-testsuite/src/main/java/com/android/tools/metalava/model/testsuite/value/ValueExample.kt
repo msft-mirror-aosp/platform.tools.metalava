@@ -486,6 +486,27 @@ constructor(
                     expectedKotlinLegacyValue = expectations { attributeValue = 116.toByte() },
                     expectedValue = expectations { common = literalValue(116.toByte()) },
                 ),
+                // Check a negative byte.
+                ValueExample(
+                    name = "byte - negative int",
+                    javaType = "byte",
+                    javaExpression = "-7",
+                    kotlinType = "Byte",
+                    expectedLegacySource =
+                        expectations {
+                            common = "-7"
+
+                            annotationToSource = "0xfffffff9"
+                        },
+                    expectedKotlinLegacySource = expectations { common = "-7" },
+                    expectedLegacyValue =
+                        expectations {
+                            common = (-7).toByte()
+                            attributeValue = -7
+                        },
+                    expectedKotlinLegacyValue = expectations { attributeValue = -7 },
+                    expectedValue = expectations { common = literalValue((-7).toByte()) },
+                ),
                 // Check a byte cast expression.
                 ValueExample(
                     name = "byte - cast",
@@ -799,6 +820,35 @@ constructor(
                             // Expect a double value created from an int.
                             common = primitiveValueForKind(Primitive.DOUBLE, 3)
                             jar { common = literalValue(3.0) }
+                        },
+                ),
+                // Check a simple double with negative int
+                ValueExample(
+                    name = "double - negative int",
+                    javaType = "double",
+                    javaExpression = "-2",
+                    kotlinType = "Double",
+                    expectedLegacySource =
+                        expectations {
+                            common = "-2.0"
+
+                            source {
+                                // TODO(b/354633349): Consistency is good.
+                                attributeDefaultValue = "-2"
+                                attributeValue = "-2"
+                                annotationToSource = "0xfffffffe"
+                            }
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = -2.0
+                            source { attributeValue = -2 }
+                        },
+                    expectedValue =
+                        expectations {
+                            // Expect a double value created from an int.
+                            common = primitiveValueForKind(Primitive.DOUBLE, -2)
+                            jar { common = literalValue(-2.0) }
                         },
                 ),
                 // Check a simple double with exponent
@@ -1151,6 +1201,45 @@ constructor(
                             // Expect a float value created from an int.
                             common = primitiveValueForKind(Primitive.FLOAT, 3)
                             jar { common = literalValue(3.0f) }
+                        },
+                ),
+                // Check a simple float with int
+                ValueExample(
+                    name = "float - negative int",
+                    javaType = "float",
+                    javaExpression = "-2",
+                    kotlinType = "Float",
+                    expectedLegacySource =
+                        expectations {
+                            // TODO(b/354633349): Consistency is good. It's not clear what the best
+                            //  way of formatting this is. Add a trailing F to make it clear it is a
+                            //  float when parsing the signature file even if the annotation
+                            //  definition is not available or only add it when strictly necessary.
+                            common = "-2.0f"
+
+                            source {
+                                // TODO(b/354633349): Consistency is good.
+                                attributeDefaultValue = "-2"
+                                attributeValue = "-2"
+                                annotationToSource = "0xfffffffe"
+                            }
+
+                            jar {
+                                // TODO(b/354633349): Consistency is good.
+                                annotationToSource = "-2.0F"
+                            }
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = -2.0f
+                            source { attributeValue = -2 }
+                        },
+                    expectedKotlinLegacyValue = expectations { source { common = -2 } },
+                    expectedValue =
+                        expectations {
+                            // Expect a float value created from an int.
+                            common = primitiveValueForKind(Primitive.FLOAT, -2)
+                            jar { common = literalValue(-2.0f) }
                         },
                 ),
                 // Check a simple float with exponent
@@ -1513,6 +1602,39 @@ constructor(
                             jar { common = literalValue(1000L) }
                         },
                 ),
+                // Check a simple long specified with a negative integer value.
+                ValueExample(
+                    name = "long - with negative int",
+                    javaType = "long",
+                    javaExpression = "-278",
+                    kotlinType = "Long",
+                    expectedLegacySource =
+                        expectations {
+                            // TODO(b/354633349): Consistency is good. It's not clear what the best
+                            //  way of formatting this is. Add a trailing L to make it clear it is a
+                            //  long when parsing the signature file even if the annotation
+                            //  definition is not available or only add it when strictly necessary.
+                            common = "-278L"
+                            source {
+                                attributeDefaultValue = "-278"
+                                attributeValue = "-278"
+                                annotationToSource = "0xfffffeea"
+                            }
+                        },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "-278L" },
+                    expectedLegacyValue =
+                        expectations {
+                            common = -278L
+                            source { attributeValue = -278 }
+                        },
+                    expectedKotlinLegacyValue = expectations { source { attributeValue = -278 } },
+                    expectedValue =
+                        expectations {
+                            // Expect a long value created from an int.
+                            common = primitiveValueForKind(Primitive.LONG, -278)
+                            jar { common = literalValue(-278L) }
+                        },
+                ),
                 // Check a simple long with an upper case suffix.
                 ValueExample(
                     name = "long with upper L",
@@ -1572,6 +1694,27 @@ constructor(
                         },
                     expectedKotlinLegacyValue = expectations { attributeValue = 32000.toShort() },
                     expectedValue = expectations { common = literalValue(32000.toShort()) },
+                ),
+                // Check a negative short.
+                ValueExample(
+                    name = "short - negative int",
+                    javaType = "short",
+                    javaExpression = "-237",
+                    kotlinType = "Short",
+                    expectedLegacySource =
+                        expectations {
+                            common = "-237"
+                            annotationToSource = "0xffffff13"
+                        },
+                    expectedKotlinLegacySource = expectations { common = "-237" },
+                    expectedLegacyValue =
+                        expectations {
+                            common = (-237).toShort()
+
+                            attributeValue = -237
+                        },
+                    expectedKotlinLegacyValue = expectations { attributeValue = -237 },
+                    expectedValue = expectations { common = literalValue((-237).toShort()) },
                 ),
                 // Check a short cast expression.
                 ValueExample(
