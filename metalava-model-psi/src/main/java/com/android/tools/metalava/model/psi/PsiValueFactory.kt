@@ -65,10 +65,12 @@ import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
+import org.jetbrains.uast.UPrefixExpression
 import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.UResolvable
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastCallKind
+import org.jetbrains.uast.UastPrefixOperator
 import org.jetbrains.uast.UastQualifiedExpressionAccessType
 import org.jetbrains.uast.getParameterForArgument
 
@@ -460,26 +462,13 @@ internal class PsiValueFactory(
 
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
-                // Check to see if the underlying value has been already been cast from the source
-                // literal type to a type appropriate for where it is being used. If it has then
-                // reverse the cast to preserve the information about the source literal type. That
-                // is needed to enable consistent processing with legacy value handling which often
-                // uses the source type directly, e.g. when parsing `longValue = 1` it may write it
-                // as `longValue = 1` instead of the more consistent `longValue = 1L`.
+                // Get the original source value, undoing any int -> long conversions done by K2.
                 val originalSourceValue =
-                    if (underlyingValue is Long) {
-                        uExpression.sourcePsi?.text?.let { text ->
-                            // If the text ends with `L` or `l` then it was a long literal so keep
-                            // it as such.
-                            if (text.endsWith("L") || text.endsWith("l")) underlyingValue
-                            else {
-                                // Otherwise, try and see if it can be cast to an int without loss.
-                                // If it can then use the int, otherwise keep the long.
-                                val asInt = underlyingValue.toInt()
-                                if (asInt.toLong() == underlyingValue) asInt else underlyingValue
-                            }
-                        } ?: underlyingValue
-                    } else underlyingValue
+                    when (underlyingValue) {
+                        is Long ->
+                            undoConversionOfSourceIntToLongIfNeeded(underlyingValue, uExpression)
+                        else -> underlyingValue
+                    }
 
                 return uLiteralValue(optionalTypeItem, originalSourceValue)
             }
@@ -487,12 +476,52 @@ internal class PsiValueFactory(
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, uExpression)?.let { value ->
-            return uLiteralValue(optionalTypeItem, value, nonLiteralInSource = true)
+            // Get the original source value, undoing any int -> long conversions done by K2. This
+            // is only done for unary minus expressions, i.e. of the form `-<expr>`.
+            val originalSourceValue =
+                if (
+                    uExpression is UPrefixExpression &&
+                        uExpression.operator == UastPrefixOperator.UNARY_MINUS &&
+                        value is Long
+                ) {
+                    undoConversionOfSourceIntToLongIfNeeded(value, uExpression)
+                } else {
+                    value
+                }
+
+            return uLiteralValue(optionalTypeItem, originalSourceValue, nonLiteralInSource = true)
         }
 
         // An unknown expression was found so return null and the caller will handle as needed.
         return null
     }
+
+    /**
+     * Checks to see if the underlying value has been already been converted from the source literal
+     * type to a type appropriate for where it is being used; if it has then it undo the conversion
+     * to preserve the information about the source literal type.
+     *
+     * That is needed to enable consistent processing with legacy value handling which often uses
+     * the source type directly, e.g. when parsing `longValue = 1` it may write it as `longValue =
+     * 1` instead of the more consistent `longValue = 1L`.
+     *
+     * This generally only affects K2 as K1 does not bother casting to the correct type.
+     */
+    private fun undoConversionOfSourceIntToLongIfNeeded(
+        underlyingValue: Long,
+        uExpression: UExpression
+    ) =
+        uExpression.sourcePsi?.text?.let { text ->
+            // If the text ends with `L` or `l` then it was a long literal so keep it as
+            // such.
+            if (text.endsWith("L") || text.endsWith("l")) underlyingValue
+            else {
+                // Otherwise, try and see if it can be cast to an int without loss. If it
+                // can then use the int, otherwise keep the long.
+                val asInt = underlyingValue.toInt()
+                if (asInt.toLong() == underlyingValue) asInt else underlyingValue
+            }
+        } ?: underlyingValue
 
     /**
      * Create a [LiteralValue] from a [value].

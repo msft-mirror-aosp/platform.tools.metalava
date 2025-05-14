@@ -200,12 +200,10 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,short - cast]
-  testMethodDefaultValue[psi,kotlin,k2,source,long - with negative int]
   testMethodDefaultValue[text,source,byte - cast]
   testMethodDefaultValue[text,source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
-  testAttributeValue[psi,kotlin,k2,source,long - with negative int]
   testAttributeValue[text,source,byte - cast]
   testAttributeValue[text,source,short - cast]
   testLegacySource[text,source,String using constant]
@@ -348,7 +346,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[psi,kotlin,k1,source,null - intermediate non-constant expression]
-  testFieldValue[psi,kotlin,k2,source,long - with negative int]
   testFieldValue[psi,kotlin,k2,source,null - intermediate non-constant expression]
   testFieldValue[psi,kotlin,k2,source,unsigned int - expression]
   testFieldValue[text,source,byte - cast]
