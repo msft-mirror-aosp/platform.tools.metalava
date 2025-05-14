@@ -430,7 +430,16 @@ sealed interface ArrayElementValue : Value {
 }
 
 /** A [Value] that can be used in a constant field as defined by JLS 15.28. */
-sealed interface ConstantValue : ArrayElementValue
+sealed interface ConstantValue : ArrayElementValue {
+    /**
+     * Convert this [ConstantValue] to be of the [optionalTypeItem].
+     *
+     * If [optionalTypeItem] is `null` then no conversion is possible or if this is already of the
+     * correct type then no conversion is necessary. In either case this just returns itself.
+     * Otherwise, it will use [Value.createLiteralValue] to perform the conversion.
+     */
+    fun convertToType(optionalTypeItem: TypeItem?): ConstantValue
+}
 
 /**
  * A [Value] that encapsulates an [underlyingValue] that can be either a primitive or a String.
@@ -448,6 +457,15 @@ sealed interface LiteralValue<T : Any> : ConstantValue {
 
     /** This is a [LiteralValue]. */
     override fun asLiteralValue() = this
+
+    override fun convertToType(optionalTypeItem: TypeItem?): LiteralValue<*> {
+        optionalTypeItem ?: return this
+        if (optionalTypeItem.isString() && underlyingValue is String) return this
+        if (optionalTypeItem !is PrimitiveTypeItem)
+            error("Cannot convert $this to a $optionalTypeItem")
+        if (optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue)) return this
+        return Value.createLiteralValue(optionalTypeItem, underlyingValue)
+    }
 
     /**
      * Default implementation just appends the underlying value's standard [String.toString] value.
