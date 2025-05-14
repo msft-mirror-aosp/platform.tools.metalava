@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
+import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
@@ -480,34 +481,42 @@ internal class PsiValueFactory(
                         } ?: underlyingValue
                     } else underlyingValue
 
-                // Convert unsigned to signed values. It would be cleaner if these could just be
-                // treated like another Number class as then they could be handled as part of the
-                // normalization done by `createLiteralValue(...)` but unfortunately, the unsigned
-                // types are not Numbers.
-                val transformedValue =
-                    when (originalSourceValue) {
-                        is UByte -> originalSourceValue.toByte()
-                        is UInt -> originalSourceValue.toInt()
-                        is ULong -> originalSourceValue.toLong()
-                        is UShort -> originalSourceValue.toShort()
-                        else -> originalSourceValue
-                    }
-
-                return createLiteralValue(optionalTypeItem, transformedValue)
+                return uLiteralValue(optionalTypeItem, originalSourceValue)
             }
         }
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, uExpression)?.let { value ->
-            return createLiteralValue(
-                optionalTypeItem,
-                value,
-                nonLiteralInSource = true,
-            )
+            return uLiteralValue(optionalTypeItem, value, nonLiteralInSource = true)
         }
 
         // An unknown expression was found so return null and the caller will handle as needed.
         return null
+    }
+
+    /**
+     * Create a [LiteralValue] from a [value].
+     *
+     * Handles mapping Kotlin unsigned value to the equivalent Java signed value.
+     */
+    private fun uLiteralValue(
+        optionalTypeItem: TypeItem?,
+        value: Any,
+        nonLiteralInSource: Boolean = false,
+    ): LiteralValue<*> {
+        // Convert unsigned to signed values. It would be cleaner if these could just be treated
+        // like another Number class as then they could be handled as part of the normalization done
+        // by `createLiteralValue(...)` but unfortunately, the unsigned types are not Numbers.
+        val transformedValue =
+            when (value) {
+                is UByte -> value.toByte()
+                is UInt -> value.toInt()
+                is ULong -> value.toLong()
+                is UShort -> value.toShort()
+                else -> value
+            }
+
+        return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
     }
 
     /** Create a [Value] of [optionalTypeItem] from [psiValue]. */

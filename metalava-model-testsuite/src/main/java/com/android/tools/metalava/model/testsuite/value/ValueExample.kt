@@ -1838,6 +1838,26 @@ constructor(
                         },
                 ),
                 ValueExample(
+                    name = "unsigned int - expression",
+                    kotlinType = "UInt",
+                    kotlinExpression = "53U + 12U",
+                    // Only suitable for use in fields. Annotations cannot use Kotlin unsigned
+                    // values.
+                    suitableFor = allFieldLegacyValueUseSites,
+                    validForInputFormats = onlyValidForKotlin,
+                    expectedLegacySource =
+                        expectations {
+                            common = "65"
+
+                            fieldWriteWithSemicolon = "65"
+                        },
+                    expectedValue =
+                        expectations {
+                            // Modelled as a signed int value.
+                            common = literalValue(65, nonLiteralInSource = true)
+                        },
+                ),
+                ValueExample(
                     name = "unsigned long - basic",
                     kotlinType = "ULong",
                     kotlinExpression = "37UL",
