@@ -184,8 +184,18 @@ sealed interface Value {
      * interfaces this will need to be implemented in the implementation classes.
      */
     @Deprecated(message = "Do not call directly", replaceWith = ReplaceWith("toString()"))
-    fun appendDebugStringTo(builder: StringBuilder) =
+    fun appendDebugStringTo(builder: StringBuilder) {
         appendValueStringTo(builder, ValueStringConfiguration.DEBUG)
+        appendLegacyStateTo(builder)
+    }
+
+    /**
+     * Append any legacy state to the string representation.
+     *
+     * Care must be taken when deciding what legacy state needs to be included in the string
+     * representation as that will affect whether values are considered strictly equal or not.
+     */
+    fun appendLegacyStateTo(builder: StringBuilder) {}
 
     /** Append this [Value]'s [toString] result to [builder]. */
     fun appendToStringTo(builder: StringBuilder)
