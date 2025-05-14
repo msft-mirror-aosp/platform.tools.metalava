@@ -565,8 +565,7 @@ internal class PsiValueFactory(
 
                 return createClassObjectValue(
                     classLiteralTypeItem,
-                    // Java does not need the source expression.
-                    null,
+                    sourceExpression = psiValue.text,
                 )
             }
             // Field reference.

@@ -2083,4 +2083,176 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Annotations on property of value class type`() {
+        // b/417181888 -- the accessor representation depends on if the type is specified in source
+        val extraAnno = if (isK2) "@test.pkg.Anno " else ""
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        annotation class Anno
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val value: Int) {
+                            companion object {
+                                @Anno val withValueClassTypeSpecified: IntValue = IntValue(0)
+                                @Anno val withValueClassTypeUnspecified = IntValue(0)
+                                @Anno val withNonValueClassTypeSpecified: Int = 0
+                            }
+                        }
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Anno {
+                  }
+                  @kotlin.jvm.JvmInline public final value class IntValue {
+                    ctor public IntValue(int value);
+                    method public int getValue();
+                    property public int value;
+                    field public static final test.pkg.IntValue.Companion Companion;
+                  }
+                  public static final class IntValue.Companion {
+                    method public int getWithNonValueClassTypeSpecified();
+                    method ${extraAnno}public int getWithValueClassTypeSpecified();
+                    method public int getWithValueClassTypeUnspecified();
+                    property @test.pkg.Anno public int withNonValueClassTypeSpecified;
+                    property @test.pkg.Anno public int withValueClassTypeSpecified;
+                    property @test.pkg.Anno public int withValueClassTypeUnspecified;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Inherited internal constructor property-parameter`() {
+        // b/417477089 -- the internal property and accessor should not be present
+        val internalAccessorName = if (isK2) "getInternalCtorVal\$src" else "getInternalCtorVal"
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        open class ParentClass(internal open val internalCtorVal: Int) {
+                            internal open fun internalFun() = Unit
+                            internal open val internalVal: Int = 0
+                        }
+                        class ChildClass(override val internalCtorVal: Int): ParentClass(internalCtorVal) {
+                            override fun internalFun() = Unit
+                            override val internalVal: Int = 0
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class ChildClass extends test.pkg.ParentClass {
+                    ctor public ChildClass(int internalCtorVal);
+                    method public int ${internalAccessorName}();
+                    property public int internalCtorVal;
+                  }
+                  public class ParentClass {
+                    ctor public ParentClass(int internalCtorVal);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Annotation on generated no-args constructor`() {
+        // b/417687416 the annotation is dropped from the no-args constructor with K2
+        val noArgsAnnotation = if (isK2) "" else "@test.pkg.Anno "
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        annotation class Anno
+                        class Foo @Anno constructor(i: Int = 0, s: String = "")
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Anno {
+                  }
+                  public final class Foo {
+                    ctor ${noArgsAnnotation}public Foo();
+                    ctor @test.pkg.Anno public Foo(optional int i, optional String s);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `JvmMultifileClass with files in common and android`() {
+        // b/417699607 the android method is dropped from K2 tracking
+        val androidMethod = if (isK2) "" else "method public static void fooAndroid();"
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                @file:JvmMultifileClass
+                @file:JvmName("Foo")
+                package test.pkg
+                fun fooCommon() = Unit
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.android.kt",
+                """
+                @file:JvmMultifileClass
+                @file:JvmName("Foo")
+                package test.pkg
+                fun fooAndroid() = Unit
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    // Set the common module to only list the jvm platform, since it requires jvm
+                    // annotations.
+                    createModuleDescription(
+                        moduleName = "commonMain",
+                        android = false,
+                        kotlinPlatforms = defaultJvmPlatforms,
+                        sourceFiles = arrayOf(commonSource),
+                        dependsOn = emptyList(),
+                    ),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    $androidMethod
+                    method public static void fooCommon();
+                  }
+                }
+                """
+                    .stripBlankLines()
+        )
+    }
 }

@@ -184,8 +184,18 @@ sealed interface Value {
      * interfaces this will need to be implemented in the implementation classes.
      */
     @Deprecated(message = "Do not call directly", replaceWith = ReplaceWith("toString()"))
-    fun appendDebugStringTo(builder: StringBuilder) =
+    fun appendDebugStringTo(builder: StringBuilder) {
         appendValueStringTo(builder, ValueStringConfiguration.DEBUG)
+        appendLegacyStateTo(builder)
+    }
+
+    /**
+     * Append any legacy state to the string representation.
+     *
+     * Care must be taken when deciding what legacy state needs to be included in the string
+     * representation as that will affect whether values are considered strictly equal or not.
+     */
+    fun appendLegacyStateTo(builder: StringBuilder) {}
 
     /** Append this [Value]'s [toString] result to [builder]. */
     fun appendToStringTo(builder: StringBuilder)
@@ -229,6 +239,8 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  *
  * @param annotationAttributeNameValueSeparator The string to use to separate annotation attribute
  *   name and value.
+ * @param annotationQualifiedNameGetter The lambda to call to retrieve the qualified class name for
+ *   an [AnnotationItem].
  * @param classObjectValueFormat How to format a [ClassObjectValue].
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
@@ -241,11 +253,13 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 data class ValueStringConfiguration(
     val annotationAttributeNameValueSeparator: AnnotationAttributeNameValueSeparator =
         AnnotationAttributeNameValueSeparator.WITH_SPACES,
+    val annotationQualifiedNameGetter: (AnnotationItem) -> String = { it.qualifiedName },
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
+    val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
     val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
     val valueLanguage: ValueLanguage = ValueLanguage.JAVA,
 ) {
@@ -255,6 +269,21 @@ data class ValueStringConfiguration(
     }
 
     companion object {
+        /**
+         * Default set of special values.
+         *
+         * Must be initialized before any [ValueStringConfiguration], e.g. [DEFAULT], is created.
+         */
+        private val defaultSpecialValues =
+            mapOf<LiteralValue<*>, String>(
+                DoubleValue.NaN to "(0.0/0.0)",
+                DoubleValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
+                DoubleValue.POSITIVE_INFINITY to "(1.0/0.0)",
+                FloatValue.NaN to "(0.0f/0.0f)",
+                FloatValue.NEGATIVE_INFINITY to "(-1.0f/0.0f)",
+                FloatValue.POSITIVE_INFINITY to "(1.0f/0.0f)",
+            )
+
         /** Default configuration. */
         val DEFAULT = ValueStringConfiguration()
 
@@ -411,7 +440,16 @@ sealed interface ArrayElementValue : Value {
 }
 
 /** A [Value] that can be used in a constant field as defined by JLS 15.28. */
-sealed interface ConstantValue : ArrayElementValue
+sealed interface ConstantValue : ArrayElementValue {
+    /**
+     * Convert this [ConstantValue] to be of the [optionalTypeItem].
+     *
+     * If [optionalTypeItem] is `null` then no conversion is possible or if this is already of the
+     * correct type then no conversion is necessary. In either case this just returns itself.
+     * Otherwise, it will use [Value.createLiteralValue] to perform the conversion.
+     */
+    fun convertToType(optionalTypeItem: TypeItem?): ConstantValue
+}
 
 /**
  * A [Value] that encapsulates an [underlyingValue] that can be either a primitive or a String.
@@ -429,6 +467,15 @@ sealed interface LiteralValue<T : Any> : ConstantValue {
 
     /** This is a [LiteralValue]. */
     override fun asLiteralValue() = this
+
+    override fun convertToType(optionalTypeItem: TypeItem?): LiteralValue<*> {
+        optionalTypeItem ?: return this
+        if (optionalTypeItem.isString() && underlyingValue is String) return this
+        if (optionalTypeItem !is PrimitiveTypeItem)
+            error("Cannot convert $this to a $optionalTypeItem")
+        if (optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue)) return this
+        return Value.createLiteralValue(optionalTypeItem, underlyingValue)
+    }
 
     /**
      * Default implementation just appends the underlying value's standard [String.toString] value.
@@ -453,6 +500,11 @@ sealed interface BooleanValue : PrimitiveValue<Boolean> {
         other is BooleanValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val FALSE: BooleanValue = DefaultBooleanValue(false)
+        val TRUE: BooleanValue = DefaultBooleanValue(true)
+    }
 }
 
 /** A [Value] that encapsulates an integral value, i.e. a [Byte], [Int], [Long] or [Short]. */
@@ -506,12 +558,8 @@ sealed interface DoubleValue : FloatingPointValue<Double> {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        when {
-            underlyingValue.isNaN() -> builder.append("(0.0/0.0)")
-            underlyingValue == Double.NEGATIVE_INFINITY -> builder.append("(-1.0/0.0)")
-            underlyingValue == Double.POSITIVE_INFINITY -> builder.append("(1.0/0.0)")
-            else -> builder.append(underlyingValue)
-        }
+        configuration.specialValues[this]?.let { builder.append(it) }
+            ?: builder.append(underlyingValue)
     }
 
     companion object {
@@ -537,12 +585,8 @@ sealed interface FloatValue : FloatingPointValue<Float> {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        when {
-            underlyingValue.isNaN() -> builder.append("(0.0f/0.0f)")
-            underlyingValue == Float.NEGATIVE_INFINITY -> builder.append("(-1.0f/0.0f)")
-            underlyingValue == Float.POSITIVE_INFINITY -> builder.append("(1.0f/0.0f)")
-            else -> builder.append(underlyingValue).append("f")
-        }
+        configuration.specialValues[this]?.let { builder.append(it) }
+            ?: builder.append(underlyingValue).append('f')
     }
 
     companion object {
