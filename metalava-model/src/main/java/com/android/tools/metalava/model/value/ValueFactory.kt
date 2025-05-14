@@ -81,8 +81,14 @@ interface ValueFactory {
      * @param optionalTypeItem the optional [TypeItem] for the context in which the value is used,
      *   e.g. [MethodItem.returnType] for [MethodItem.defaultValue]. It should be available unless
      *   the source is incomplete, e.g. missing annotation class definitions.
+     * @param nonLiteralInSource indicates whether the value was represented as a literal in the
+     *   source, or a more complex expression. This can affect legacy formatting.
      */
-    fun createLiteralValue(optionalTypeItem: TypeItem?, underlyingValue: Any): LiteralValue<*> {
+    fun createLiteralValue(
+        optionalTypeItem: TypeItem?,
+        underlyingValue: Any,
+        nonLiteralInSource: Boolean = false,
+    ): LiteralValue<*> {
         val literalValue =
             when (optionalTypeItem) {
                 is PrimitiveTypeItem -> {
@@ -91,7 +97,12 @@ interface ValueFactory {
                     val primitiveKind = optionalTypeItem.kind
                     val primitiveValue = normalizePrimitive(underlyingValue, primitiveKind)
 
-                    createPrimitiveValueForKind(primitiveKind, primitiveValue, underlyingValue)
+                    createPrimitiveValueForKind(
+                        primitiveKind,
+                        primitiveValue,
+                        underlyingValue,
+                        nonLiteralInSource,
+                    )
                 }
                 is ClassTypeItem -> {
                     // The only allowable class type is a String.
@@ -113,7 +124,8 @@ interface ValueFactory {
                                 createPrimitiveValueForKind(
                                     primitiveKind,
                                     underlyingValue,
-                                    underlyingValue
+                                    underlyingValue,
+                                    nonLiteralInSource,
                                 )
                             }
                             ?: error(
@@ -269,32 +281,35 @@ interface ValueFactory {
         val primitiveValueFactories =
             mapOf<Primitive, PrimitiveValueFactory<*>>(
                 Primitive.BOOLEAN to
-                    { underlyingValue, _ ->
+                    { underlyingValue, _, _ ->
                         DefaultBooleanValue(underlyingValue as Boolean)
                     },
                 Primitive.BYTE to
-                    { underlyingValue, _ ->
+                    { underlyingValue, _, _ ->
                         DefaultByteValue(underlyingValue as Byte)
                     },
                 Primitive.CHAR to
-                    { underlyingValue, _ ->
+                    { underlyingValue, _, _ ->
                         DefaultCharValue(underlyingValue as Char)
                     },
                 Primitive.DOUBLE to
-                    { underlyingValue, originalValue ->
+                    { underlyingValue, originalValue, _ ->
                         DefaultDoubleValue(underlyingValue as Double, originalValue is Int)
                     },
                 Primitive.FLOAT to
-                    { underlyingValue, originalValue ->
+                    { underlyingValue, originalValue, _ ->
                         DefaultFloatValue(underlyingValue as Float, originalValue is Int)
                     },
-                Primitive.INT to { underlyingValue, _ -> DefaultIntValue(underlyingValue as Int) },
+                Primitive.INT to
+                    { underlyingValue, _, _ ->
+                        DefaultIntValue(underlyingValue as Int)
+                    },
                 Primitive.LONG to
-                    { underlyingValue, originalValue ->
+                    { underlyingValue, originalValue, _ ->
                         DefaultLongValue(underlyingValue as Long, originalValue is Int)
                     },
                 Primitive.SHORT to
-                    { underlyingValue, _ ->
+                    { underlyingValue, _, _ ->
                         DefaultShortValue(underlyingValue as Short)
                     },
             )
@@ -353,10 +368,11 @@ interface ValueFactory {
         private fun createPrimitiveValueForKind(
             primitiveKind: Primitive,
             primitiveValue: Any,
-            originalValue: Any
+            originalValue: Any,
+            nonLiteralInSource: Boolean,
         ) =
             primitiveValueFactories[primitiveKind]?.let { factory ->
-                factory(primitiveValue, originalValue)
+                factory(primitiveValue, originalValue, nonLiteralInSource)
             } ?: error("Cannot create PrimitiveValue: unknown primitive kind: $primitiveKind")
 
         /** Normalize the [underlyingValue] to make it consistent with [primitiveKind]. */
@@ -526,4 +542,5 @@ interface ValueFactory {
 }
 
 /** Type of values in [primitiveValueFactories]. */
-internal typealias PrimitiveValueFactory<T> = (Any, Any) -> PrimitiveValue<T>
+internal typealias PrimitiveValueFactory<T> =
+    (underlyingValue: Any, originalValue: Any, nonLiteralInSource: Boolean) -> PrimitiveValue<T>
