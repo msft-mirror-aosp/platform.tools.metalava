@@ -570,14 +570,6 @@ sealed interface DoubleValue : FloatingPointValue<Double> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        configuration.specialValues[this]?.let { builder.append(it) }
-            ?: builder.append(underlyingValue)
-    }
-
     companion object {
         val NaN: DoubleValue = DefaultDoubleValue(Double.NaN)
         val NEGATIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.NEGATIVE_INFINITY)
@@ -628,13 +620,6 @@ sealed interface LongValue : IntegralValue<Long> {
         other is LongValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
-
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        builder.append(underlyingValue).append('L')
-    }
 }
 
 /** A [Value] that encapsulates a [Short]. */
