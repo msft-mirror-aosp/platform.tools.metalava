@@ -1010,7 +1010,21 @@ class CompatibilityCheck(
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (reporter.report(issue, item, message, location, maximumSeverity = maximumSeverity)) {
+
+        // Add detail about the kind of compatibility issue this is.
+        val newMessage =
+            when (issue.category) {
+                Issues.Category.BINARY_AND_SOURCE_COMPATIBILITY,
+                Issues.Category.BINARY_COMPATIBILITY_ONLY -> {
+                    "Binary breaking change: $message"
+                }
+                Issues.Category.SOURCE_COMPATIBILITY_ONLY -> {
+                    "Source breaking change: $message"
+                }
+                else -> message
+            }
+
+        if (reporter.report(issue, item, newMessage, location, maximumSeverity = maximumSeverity)) {
             // If the issue was reported and was an error then remember that this found some
             // problems so that the process can be aborted after finishing the checks.
             val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))
