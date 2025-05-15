@@ -28,6 +28,15 @@ internal sealed class DefaultNumericValue<U : Number>(
      * behavior.
      */
     private val wasOriginallySpecifiedAsInt: Boolean,
+
+    /**
+     * True if the source representation of this was a non-literal, i.e. not a literal expression
+     * but some other expression. This includes negative and explicitly positive numbers as they
+     * both are represented as a unary minus/plus expression respectively. For jars this is
+     * generally false but may be true for some values that cannot be represented as a literal, e.g.
+     * `Float.NaN`, etc.
+     */
+    protected val nonLiteralInSource: Boolean = false,
 ) : DefaultPrimitiveValue<U>() {
 
     /**
@@ -67,6 +76,7 @@ internal sealed class DefaultNumericValue<U : Number>(
         if (wasOriginallySpecifiedAsInt != expectToBeInt) {
             if (expectToBeInt) builder.append(",!asInt") else builder.append(",asInt")
         }
+        if (nonLiteralInSource) builder.append(",nonLiteral")
     }
 }
 
@@ -89,8 +99,8 @@ internal class DefaultDoubleValue(
 internal class DefaultFloatValue(
     override val underlyingValue: Float,
     wasOriginallySpecifiedAsInt: Boolean = false,
-    private val nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Float>(wasOriginallySpecifiedAsInt), FloatValue {
+    nonLiteralInSource: Boolean = false,
+) : DefaultNumericValue<Float>(wasOriginallySpecifiedAsInt, nonLiteralInSource), FloatValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -102,18 +112,13 @@ internal class DefaultFloatValue(
         val suffix = if (nonLiteralInSource) configuration.nonLiteralFloatSuffix else 'f'
         builder.append(underlyingValue).append(suffix)
     }
-
-    override fun appendLegacyStateTo(builder: StringBuilder) {
-        super<DefaultNumericValue>.appendLegacyStateTo(builder)
-        if (nonLiteralInSource) builder.append(",nonLiteral")
-    }
 }
 
 internal class DefaultIntValue(
     override val underlyingValue: Int,
     wasOriginallySpecifiedAsInt: Boolean = true,
-    private val nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Int>(wasOriginallySpecifiedAsInt), IntValue {
+    nonLiteralInSource: Boolean = false,
+) : DefaultNumericValue<Int>(wasOriginallySpecifiedAsInt, nonLiteralInSource), IntValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -130,11 +135,6 @@ internal class DefaultIntValue(
         }
 
         builder.append(underlyingValue)
-    }
-
-    override fun appendLegacyStateTo(builder: StringBuilder) {
-        super<DefaultNumericValue>.appendLegacyStateTo(builder)
-        if (nonLiteralInSource) builder.append(",nonLiteral")
     }
 }
 
