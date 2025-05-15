@@ -214,7 +214,17 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             // If no expr is provided then this comes from a .class file, otherwise it comes from
             // the source.
             if (expr == null) {
-                return createLiteralValue(optionalTypeItem, underlyingValue)
+                // A .class file stores byte and short constants as ints so convert them back from
+                // the Turbine value (which has been converted to the correct type) to the behavior
+                // relied upon by Psi legacy behavior.
+                val transformedValue =
+                    when (underlyingValue) {
+                        is Byte -> underlyingValue.toInt()
+                        is Short -> underlyingValue.toInt()
+                        else -> underlyingValue
+                    }
+
+                return createLiteralValue(optionalTypeItem, transformedValue)
             } else {
                 // Check to see if the underlying value has been already been converted from the
                 // source literal type to a type appropriate for where it is being used. If it has
@@ -228,9 +238,11 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                 //     `longValue = 1L`.
                 val transformedValue =
                     when (underlyingValue) {
+                        is Byte,
                         is Double,
                         is Float,
-                        is Long -> {
+                        is Long,
+                        is Short -> {
                             when {
                                 expr is Tree.Literal &&
                                     expr.tykind() == TurbineConstantTypeKind.INT -> {

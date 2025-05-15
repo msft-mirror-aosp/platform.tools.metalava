@@ -484,7 +484,8 @@ constructor(
                             attributeValue = 116
                         },
                     expectedKotlinLegacyValue = expectations { attributeValue = 116.toByte() },
-                    expectedValue = expectations { common = literalValue(116.toByte()) },
+                    expectedValue =
+                        expectations { common = primitiveValueForKind(Primitive.BYTE, 116) },
                 ),
                 // Check a negative byte.
                 ValueExample(
@@ -505,7 +506,8 @@ constructor(
                             attributeValue = -7
                         },
                     expectedKotlinLegacyValue = expectations { attributeValue = -7 },
-                    expectedValue = expectations { common = literalValue((-7).toByte()) },
+                    expectedValue =
+                        expectations { common = primitiveValueForKind(Primitive.BYTE, -7) },
                 ),
                 // Check a byte cast expression.
                 ValueExample(
@@ -532,7 +534,11 @@ constructor(
                             jar { attributeValue = 116 }
                         },
                     expectedKotlinLegacyValue = expectations { attributeValue = 116.toByte() },
-                    expectedValue = expectations { common = literalValue(116.toByte()) },
+                    expectedValue =
+                        expectations {
+                            common = literalValue(116.toByte())
+                            jar { common = primitiveValueForKind(Primitive.BYTE, 116) }
+                        },
                 ),
                 // Check a simple char.
                 ValueExample(
@@ -1693,7 +1699,8 @@ constructor(
                             attributeValue = 32000
                         },
                     expectedKotlinLegacyValue = expectations { attributeValue = 32000.toShort() },
-                    expectedValue = expectations { common = literalValue(32000.toShort()) },
+                    expectedValue =
+                        expectations { common = primitiveValueForKind(Primitive.SHORT, 32000) },
                 ),
                 // Check a negative short.
                 ValueExample(
@@ -1714,7 +1721,8 @@ constructor(
                             attributeValue = -237
                         },
                     expectedKotlinLegacyValue = expectations { attributeValue = -237 },
-                    expectedValue = expectations { common = literalValue((-237).toShort()) },
+                    expectedValue =
+                        expectations { common = primitiveValueForKind(Primitive.SHORT, -237) }
                 ),
                 // Check a short cast expression.
                 ValueExample(
@@ -1740,7 +1748,14 @@ constructor(
                             jar { attributeValue = 32000 }
                         },
                     expectedKotlinLegacyValue = expectations { attributeValue = 32000.toShort() },
-                    expectedValue = expectations { common = literalValue(32000.toShort()) },
+                    expectedValue =
+                        expectations {
+                            common = literalValue(32000.toShort())
+                            jar {
+                                // There is no short constant in a class file, only ints.
+                                common = primitiveValueForKind(Primitive.SHORT, 32000)
+                            }
+                        },
                 ),
                 // Check a simple string.
                 ValueExample(
@@ -1957,7 +1972,7 @@ constructor(
                     expectedValue =
                         expectations {
                             // Modelled as a signed byte value.
-                            common = literalValue(95.toByte())
+                            common = primitiveValueForKind(Primitive.BYTE, 95)
                         },
                 ),
                 ValueExample(
@@ -2037,7 +2052,7 @@ constructor(
                     expectedValue =
                         expectations {
                             // Modelled as a signed short value.
-                            common = literalValue(103.toShort())
+                            common = primitiveValueForKind(Primitive.SHORT, 103)
                         },
                 ),
             )

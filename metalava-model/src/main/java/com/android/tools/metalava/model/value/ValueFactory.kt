@@ -285,8 +285,8 @@ interface ValueFactory {
                         DefaultBooleanValue(underlyingValue as Boolean)
                     },
                 Primitive.BYTE to
-                    { underlyingValue, _, _ ->
-                        DefaultByteValue(underlyingValue as Byte)
+                    { underlyingValue, originalValue, _ ->
+                        DefaultByteValue(underlyingValue as Byte, originalValue is Int)
                     },
                 Primitive.CHAR to
                     { underlyingValue, _, _ ->
@@ -318,7 +318,7 @@ interface ValueFactory {
                         )
                     },
                 Primitive.INT to
-                    { underlyingValue, _, nonLiteralInSource ->
+                    { underlyingValue, originalValue, nonLiteralInSource ->
                         val intValue = underlyingValue as Int
                         val effectivelyNonLiteralInSource =
                             nonLiteralInSource ||
@@ -326,15 +326,19 @@ interface ValueFactory {
                                 // minus expression. That is true even when they are read from a jar
                                 // where they are stored as a negative number.
                                 intValue < 0
-                        DefaultIntValue(intValue, effectivelyNonLiteralInSource)
+                        DefaultIntValue(
+                            intValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
                 Primitive.LONG to
                     { underlyingValue, originalValue, _ ->
                         DefaultLongValue(underlyingValue as Long, originalValue is Int)
                     },
                 Primitive.SHORT to
-                    { underlyingValue, _, _ ->
-                        DefaultShortValue(underlyingValue as Short)
+                    { underlyingValue, originalValue, _ ->
+                        DefaultShortValue(underlyingValue as Short, originalValue is Int)
                     },
             )
 

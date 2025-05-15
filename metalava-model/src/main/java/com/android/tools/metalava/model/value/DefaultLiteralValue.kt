@@ -27,7 +27,7 @@ internal sealed class DefaultNumericValue<U : Number>(
      * instead of `3.0`, or `3.0f` or `3L`. This is used to tweak formatting to match legacy
      * behavior.
      */
-    private val wasOriginallySpecifiedAsInt: Boolean = false,
+    private val wasOriginallySpecifiedAsInt: Boolean,
 ) : DefaultPrimitiveValue<U>() {
 
     /**
@@ -63,15 +63,20 @@ internal sealed class DefaultNumericValue<U : Number>(
     }
 
     override fun appendLegacyStateTo(builder: StringBuilder) {
-        if (wasOriginallySpecifiedAsInt) builder.append(",asInt")
+        val expectToBeInt = javaClass === DefaultIntValue::class.java
+        if (wasOriginallySpecifiedAsInt != expectToBeInt) {
+            if (expectToBeInt) builder.append(",!asInt") else builder.append(",asInt")
+        }
     }
 }
 
 internal class DefaultBooleanValue(override val underlyingValue: Boolean) :
     DefaultPrimitiveValue<Boolean>(), BooleanValue
 
-internal class DefaultByteValue(override val underlyingValue: Byte) :
-    DefaultNumericValue<Byte>(), ByteValue
+internal class DefaultByteValue(
+    override val underlyingValue: Byte,
+    wasOriginallySpecifiedAsInt: Boolean = false,
+) : DefaultNumericValue<Byte>(wasOriginallySpecifiedAsInt), ByteValue
 
 internal class DefaultCharValue(override val underlyingValue: Char) :
     DefaultPrimitiveValue<Char>(), CharValue
@@ -106,8 +111,9 @@ internal class DefaultFloatValue(
 
 internal class DefaultIntValue(
     override val underlyingValue: Int,
+    wasOriginallySpecifiedAsInt: Boolean = true,
     private val nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Int>(), IntValue {
+) : DefaultNumericValue<Int>(wasOriginallySpecifiedAsInt), IntValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -127,6 +133,7 @@ internal class DefaultIntValue(
     }
 
     override fun appendLegacyStateTo(builder: StringBuilder) {
+        super<DefaultNumericValue>.appendLegacyStateTo(builder)
         if (nonLiteralInSource) builder.append(",nonLiteral")
     }
 }
@@ -144,8 +151,10 @@ internal class DefaultLongValue(
     }
 }
 
-internal class DefaultShortValue(override val underlyingValue: Short) :
-    DefaultNumericValue<Short>(), ShortValue
+internal class DefaultShortValue(
+    override val underlyingValue: Short,
+    wasOriginallySpecifiedAsInt: Boolean = false,
+) : DefaultNumericValue<Short>(wasOriginallySpecifiedAsInt), ShortValue
 
 internal class DefaultStringValue(override val underlyingValue: String) :
     DefaultLiteralValue<String>(), StringValue

@@ -465,6 +465,13 @@ internal class PsiValueFactory(
                 // Get the original source value, undoing any int -> long conversions done by K2.
                 val originalSourceValue =
                     when (underlyingValue) {
+                        // Byte and short always use an integer literal as there are no byte or
+                        // short literals in Kotlin. That is true whether they are signed or
+                        // unsigned.
+                        is Byte -> underlyingValue.toInt()
+                        is Short -> underlyingValue.toInt()
+                        is UByte -> underlyingValue.toInt()
+                        is UShort -> underlyingValue.toInt()
                         is Long ->
                             undoConversionOfSourceIntToLongIfNeeded(underlyingValue, uExpression)
                         else -> underlyingValue

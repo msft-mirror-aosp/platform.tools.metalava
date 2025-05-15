@@ -495,6 +495,14 @@ class ParameterizedValueStringTest {
                     value = literalValue(Byte.MIN_VALUE),
                     expectedDefaultValueString = "-128",
                 ),
+                testCasesForValue(
+                    "byte as int",
+                    value = primitiveValueForKind(Primitive.BYTE, 10),
+                    expectedDefaultValueString = "10",
+                    expectedDefaultDebugString = "10,asInt",
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                },
                 // ********************************* Chars *********************************
                 testCasesForValue(
                     value = literalValue('a'),
@@ -717,6 +725,11 @@ class ParameterizedValueStringTest {
                 ) {
                     verifyConfigChangesOutput(LabelledConfig.NON_LITERAL_INT_HEX, "0x353305b3")
                 },
+                testCasesForValue(
+                    value = primitiveValueForKind(Primitive.INT, 10L),
+                    expectedDefaultValueString = "10",
+                    expectedDefaultDebugString = "10,!asInt",
+                ),
                 // ********************************* Longs *********************************
                 testCasesForValue(
                     value = literalValue(0L),
@@ -753,6 +766,14 @@ class ParameterizedValueStringTest {
                     value = literalValue(Short.MIN_VALUE),
                     expectedDefaultValueString = "-32768",
                 ),
+                testCasesForValue(
+                    "short as int",
+                    value = primitiveValueForKind(Primitive.SHORT, 3),
+                    expectedDefaultValueString = "3",
+                    expectedDefaultDebugString = "3,asInt",
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                },
                 // ********************************* Strings *********************************
                 testCasesForValue(
                     value = literalValue("string"),
