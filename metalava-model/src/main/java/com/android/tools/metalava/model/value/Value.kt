@@ -609,6 +609,16 @@ sealed interface IntValue : IntegralValue<Int> {
         other is IntValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val MIN_VALUE: IntValue =
+            DefaultIntValue(
+                Int.MIN_VALUE,
+                // This is non-literal as it is a negative number and literals have no sign.
+                nonLiteralInSource = true,
+            )
+        val MAX_VALUE: IntValue = DefaultIntValue(Int.MAX_VALUE)
+    }
 }
 
 /** A [Value] that encapsulates a [Long]. */

@@ -40,6 +40,11 @@ internal sealed class DefaultNumericValue<U : Number>(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
+        configuration.specialValues[this]?.let {
+            builder.append(it)
+            return
+        }
+
         if (configuration.treatAsIntIfOriginallySpecifiedAsInt && wasOriginallySpecifiedAsInt) {
             val intValue = underlyingValue.toInt()
             builder.append(intValue)
@@ -74,20 +79,7 @@ internal class DefaultCharValue(override val underlyingValue: Char) :
 internal class DefaultDoubleValue(
     override val underlyingValue: Double,
     wasOriginallySpecifiedAsInt: Boolean = false,
-) : DefaultNumericValue<Double>(wasOriginallySpecifiedAsInt), DoubleValue {
-
-    override fun appendNumericValueTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        configuration.specialValues[this]?.let {
-            builder.append(it)
-            return
-        }
-
-        builder.append(underlyingValue)
-    }
-}
+) : DefaultNumericValue<Double>(wasOriginallySpecifiedAsInt), DoubleValue
 
 internal class DefaultFloatValue(
     override val underlyingValue: Float,
@@ -99,11 +91,6 @@ internal class DefaultFloatValue(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        configuration.specialValues[this]?.let {
-            builder.append(it)
-            return
-        }
-
         // If it was not a literal then use the non-literal suffix. This is mutually
         // exclusive with it being specified as an int so it does not matter which one is
         // performed first.

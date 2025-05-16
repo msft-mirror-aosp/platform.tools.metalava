@@ -156,6 +156,8 @@ class ParameterizedValueStringTest {
                                 FloatValue.NaN to "FloatValue.NaN",
                                 FloatValue.NEGATIVE_INFINITY to "FloatValue.NEGATIVE_INFINITY",
                                 FloatValue.POSITIVE_INFINITY to "FloatValue.POSITIVE_INFINITY",
+                                IntValue.MIN_VALUE to "Integer.MIN_VALUE",
+                                IntValue.MAX_VALUE to "Integer.MAX_VALUE",
                             )
                     ),
                 )
@@ -686,21 +688,27 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "0",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.NON_LITERAL_INT_HEX)
+
+                    verifyConfigMatchesDefault(LabelledConfig.SPECIAL_VALUES)
                 },
                 testCasesForValue(
-                    value = literalValue(Int.MAX_VALUE),
+                    value = IntValue.MAX_VALUE,
                     expectedDefaultValueString = "2147483647",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.NON_LITERAL_INT_HEX)
+
+                    verifyConfigChangesOutput(LabelledConfig.SPECIAL_VALUES, "Integer.MAX_VALUE")
                 },
                 testCasesForValue(
-                    value = literalValue(Int.MIN_VALUE),
+                    value = IntValue.MIN_VALUE,
                     expectedDefaultValueString = "-2147483648",
                     expectedDefaultDebugString = "-2147483648,nonLiteral",
                 ) {
                     // Negative ints are considered as being a unary minus expression of the
                     // absolute value.
                     verifyConfigChangesOutput(LabelledConfig.NON_LITERAL_INT_HEX, "0x80000000")
+
+                    verifyConfigChangesOutput(LabelledConfig.SPECIAL_VALUES, "Integer.MIN_VALUE")
                 },
                 testCasesForValue(
                     value = literalValue(892536243, nonLiteralInSource = true),
