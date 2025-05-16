@@ -47,7 +47,6 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 """
                 load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.allLanguages made type variable T reified: incompatible change [AddedReified]
                 load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.bytecodeOnly made type variable T reified: incompatible change [AddedReified]
-                load-api.txt:6: error: Binary breaking change: Method test.pkg.Foo.kotlinOnly made type variable T reified: incompatible change [AddedReified]
                 """,
         )
     }
@@ -78,7 +77,6 @@ class TargetLanguageCompatibilityTest : DriverTest() {
             expectedIssues =
                 """
                 load-api.txt:4: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.allLanguages [ParameterNameChange]
-                load-api.txt:5: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.bytecodeOnly [ParameterNameChange]
                 load-api.txt:6: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.kotlinOnly [ParameterNameChange]
                 """,
         )
@@ -111,7 +109,7 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 """
                 load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.allLanguages has changed 'static' qualifier [ChangedStatic]
                 load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.bytecodeOnly has changed 'static' qualifier [ChangedStatic]
-                load-api.txt:6: error: Binary breaking change: Method test.pkg.Foo.kotlinOnly has changed 'static' qualifier [ChangedStatic]
+                load-api.txt:6: error: Source breaking change: Method test.pkg.Foo.kotlinOnly has changed 'static' qualifier [ChangedStatic]
                 """,
         )
     }
@@ -140,7 +138,7 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 """
                 released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.allLanguages() [RemovedMethod]
                 released-api.txt:5: error: Binary breaking change: Removed method test.pkg.Foo.bytecodeOnly() [RemovedMethod]
-                released-api.txt:6: error: Binary breaking change: Removed method test.pkg.Foo.kotlinOnly() [RemovedMethod]
+                released-api.txt:6: error: Source breaking change: Removed method test.pkg.Foo.kotlinOnly() [RemovedMethod]
                 """,
         )
     }
@@ -164,8 +162,9 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues =
-                "load-api.txt:4: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.fooMethod [ParameterNameChange]",
+            // No issue for removing the parameter name because the method is now bytecode-only.
+            // The followup will add an issue for changing the target language set.
+            expectedIssues = "",
         )
     }
 }
