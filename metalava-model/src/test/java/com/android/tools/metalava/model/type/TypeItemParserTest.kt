@@ -31,7 +31,14 @@ import org.junit.Test
 class TypeItemParserTest {
     private val typeParser =
         TypeItemParser(
-            AnnotationContext.DEFAULT,
+            // This context is needed because this test compares types with annotations that have
+            // been created from text. Comparing those annotations requires comparing the value of
+            // the annotation attributes. Getting an attribute value requires resolving the
+            // annotation class in order to find the attribute type so that the value can be
+            // converted into the correct type. The default context throws an exception when
+            // resolving the annotation class. This one returns `null` when resolving the annotation
+            // class which just means the value type will be determined from the text.
+            AnnotationContext.DEFAULT_RESOLVE_NULL,
             UnqualifiedClassHandler.PREFIX_WITH_JAVA_LANG_OR_REPORT_ERROR,
         )
 
@@ -141,7 +148,7 @@ class TypeItemParserTest {
         assertThat(type).isEqualTo(expectedType)
         val expectedAnnotationItems =
             expectedAnnotations.map {
-                DefaultAnnotationItem.create(typeParser.annotationContext, it)
+                DefaultAnnotationItem.createFromSource(typeParser.annotationContext, it)
             }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
@@ -291,7 +298,7 @@ class TypeItemParserTest {
         assertThat(params).isEqualTo(expectedParams)
         val expectedAnnotationItems =
             expectedAnnotations.map {
-                DefaultAnnotationItem.create(typeParser.annotationContext, it)
+                DefaultAnnotationItem.createFromSource(typeParser.annotationContext, it)
             }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }

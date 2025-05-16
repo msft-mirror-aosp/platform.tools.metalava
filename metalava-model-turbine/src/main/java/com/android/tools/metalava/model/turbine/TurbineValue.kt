@@ -57,72 +57,8 @@ internal class TurbineValue(
     val expr: Expression?,
 
     /** If available, then can be used to resolve [ConstVarName] to [TypeBoundClass.FieldInfo]. */
-    val fieldResolver: TurbineFieldResolver? = null,
+    val fieldResolver: TurbineFieldResolver?,
 ) {
-    /**
-     * Get the source representation of this value suitable for use when writing a method's default
-     * value.
-     */
-    fun getSourceForMethodDefault(): String {
-        // Check for field references first.
-        if (expr != null) {
-            when (expr.kind()) {
-                Tree.Kind.CONST_VAR_NAME -> {
-                    // If the const is an enum then use that as it will be fully qualified but the
-                    // ConstVarName will not.
-                    if (const.kind() != Kind.ENUM_CONSTANT && fieldResolver != null) {
-                        expr as ConstVarName
-                        val fieldInfo = fieldResolver.resolveField(expr)
-                        val fieldSymbol = fieldInfo?.sym()
-                        if (fieldSymbol != null) {
-                            return "${fieldSymbol.owner().qualifiedName}.${fieldSymbol.name()}"
-                        }
-                    }
-                }
-                // Fall back to using the const.
-                else -> {}
-            }
-        }
-
-        return when (const.kind()) {
-            Kind.PRIMITIVE -> {
-                when ((const as Value).constantTypeKind()) {
-                    TurbineConstantTypeKind.FLOAT -> {
-                        val value = (const as Const.FloatValue).value()
-                        when {
-                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
-                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
-                            else -> value.toString() + "f"
-                        }
-                    }
-                    TurbineConstantTypeKind.DOUBLE -> {
-                        val value = (const as Const.DoubleValue).value()
-                        when {
-                            value == Double.POSITIVE_INFINITY ->
-                                "java.lang.Double.POSITIVE_INFINITY"
-                            value == Double.NEGATIVE_INFINITY ->
-                                "java.lang.Double.NEGATIVE_INFINITY"
-                            else -> const.toString()
-                        }
-                    }
-                    TurbineConstantTypeKind.BYTE -> const.getValue().toString()
-                    else -> const.toString()
-                }
-            }
-            Kind.ARRAY -> {
-                const as ArrayInitValue
-                // This is case where defined type is array type but default value is
-                // single non-array element
-                // For e.g. char[] letter() default 'a';
-                if (const.elements().count() == 1 && expr != null && expr !is ArrayInit) {
-                    TurbineValue(const.elements().single(), expr).getSourceForMethodDefault()
-                } else const.underlyingValue.toString()
-            }
-            Kind.CLASS_LITERAL -> "${const.underlyingValue}.class"
-            else -> const.underlyingValue.toString()
-        }
-    }
-
     /**
      * Get the source representation of this value suitable for use when writing an annotation
      * attribute's value.
@@ -152,15 +88,13 @@ internal class TurbineValue(
                     }
                     TurbineConstantTypeKind.DOUBLE -> {
                         val value = (const as Const.DoubleValue).value()
-                        when {
-                            value == Double.POSITIVE_INFINITY ->
-                                "java.lang.Double.POSITIVE_INFINITY"
-                            value == Double.NEGATIVE_INFINITY ->
-                                "java.lang.Double.NEGATIVE_INFINITY"
+                        when (value) {
+                            Double.POSITIVE_INFINITY -> "java.lang.Double.POSITIVE_INFINITY"
+                            Double.NEGATIVE_INFINITY -> "java.lang.Double.NEGATIVE_INFINITY"
                             else -> const.toString()
                         }
                     }
-                    TurbineConstantTypeKind.BYTE -> const.getValue().toString()
+                    TurbineConstantTypeKind.BYTE -> const.value.toString()
                     else -> const.toString()
                 }
             }
@@ -168,8 +102,14 @@ internal class TurbineValue(
                 const as ArrayInitValue
                 val values =
                     if (expr != null)
-                        const.elements().zip((expr as ArrayInit).exprs(), ::TurbineValue)
-                    else const.elements().map { TurbineValue(it, null) }
+                        const.elements().zip((expr as ArrayInit).exprs()) { const, expr ->
+                            TurbineValue(
+                                const,
+                                expr,
+                                fieldResolver,
+                            )
+                        }
+                    else const.elements().map { TurbineValue(it, null, fieldResolver) }
                 values.joinToString(prefix = "{", postfix = "}") {
                     it.getSourceForAnnotationValue()
                 }

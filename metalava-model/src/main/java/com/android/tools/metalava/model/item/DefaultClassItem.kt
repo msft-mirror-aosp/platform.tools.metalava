@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
@@ -26,21 +25,24 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -57,7 +59,8 @@ open class DefaultClassItem(
     DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
@@ -213,7 +216,7 @@ open class DefaultClassItem(
     override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
             codebase = codebase,
-            itemLanguage = itemLanguage,
+            sourceLanguage = sourceLanguage,
             variantSelectorsFactory = variantSelectors::duplicate,
             containingClass = this,
             visibility = visibility,
@@ -281,19 +284,19 @@ open class DefaultClassItem(
         mutableNestedClasses.add(classItem)
     }
 
-    /** Cache result of [getRetention]. */
-    private var cacheRetention: AnnotationRetention? = null
+    /** Cache value of [annotationClass]. */
+    private lateinit var cachedAnnotationClass: AnnotationClass
 
-    final override fun getRetention(): AnnotationRetention {
-        cacheRetention?.let {
-            return it
+    override val annotationClass: AnnotationClass
+        get() {
+            if (classKind != ClassKind.ANNOTATION_TYPE) {
+                error("annotationClass can only be accessed on annotation classes")
+            }
+
+            if (!::cachedAnnotationClass.isInitialized) {
+                cachedAnnotationClass = DefaultAnnotationClass(this)
+            }
+
+            return cachedAnnotationClass
         }
-
-        if (!isAnnotationType()) {
-            error("getRetention() should only be called on annotation classes")
-        }
-
-        cacheRetention = ClassItem.findRetention(this)
-        return cacheRetention!!
-    }
 }

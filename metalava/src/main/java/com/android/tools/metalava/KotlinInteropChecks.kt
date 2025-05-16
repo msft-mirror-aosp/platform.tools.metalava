@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
+import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.util.PsiUtil
@@ -84,9 +85,8 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 if (annotation != null) {
                     // There can be multiple values
                     for (attribute in annotation.attributes) {
-                        for (v in attribute.leafValues()) {
-                            val source = v.toSource()
-                            if (source.endsWith(exception.simpleName() + "::class")) {
+                        for (v in attribute.value.asFlatList()) {
+                            if (v is ClassObjectValue && v.typeItem == exception.type()) {
                                 return
                             }
                         }
@@ -220,6 +220,12 @@ class KotlinInteropChecks(val reporter: Reporter) {
         val parameters = method.parameters()
         if (parameters.size <= 1) {
             // No need for overloads when there is at most one version...
+            return
+        }
+
+        if (method.containingClass().modifiers.isData() && method.name() == "copy") {
+            // The generated copy method for a data class cannot be annotated. It is possible this
+            // also skips warning for a copy method defined in source for a data class.
             return
         }
 

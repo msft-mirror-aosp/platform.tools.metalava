@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -29,6 +28,7 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
+import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.ArrayInitValue
 import com.google.turbine.model.Const.Kind
@@ -42,21 +42,23 @@ import com.google.turbine.type.AnnoInfo
 /**
  * Factory for creating [AnnotationItem]s from [AnnoInfo]s.
  *
- * @param codebase the [Codebase] to which the [AnnotationItem] will belong.
- * @param sourceFileCache provides mapping from [AnnoInfo.source] to location.
+ * @param globalContext provides access to some global context needed by this.
  */
-internal class TurbineAnnotationFactory(
-    private val codebase: Codebase,
-    private val sourceFileCache: TurbineSourceFileCache,
-    private val valueFactory: TurbineValueFactory,
-) {
+internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
+    TurbineGlobalContext by globalContext {
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
-    internal fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.mapNotNull { createAnnotation(it) }
+    internal fun createAnnotations(
+        annotations: List<AnnoInfo>,
+        fieldResolver: TurbineFieldResolver? = null,
+    ): List<AnnotationItem> {
+        return annotations.mapNotNull { createAnnotation(it, fieldResolver) }
     }
 
     /** Create an [AnnotationItem] from an [AnnoInfo]. */
-    internal fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
+    internal fun createAnnotation(
+        annotation: AnnoInfo,
+        fieldResolver: TurbineFieldResolver? = null,
+    ): AnnotationItem? {
         // Get the source representation of the annotation. This will be null for an annotation
         // loaded from a class file.
         val tree: Tree.Anno? = annotation.tree()
@@ -72,17 +74,28 @@ internal class TurbineAnnotationFactory(
                 ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
                 ?: FileLocation.UNKNOWN
 
-        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) { annotationItem
-            ->
-            getAnnotationAttributes(annotationItem, annotation.values(), tree?.args())
+        val annotationClass = annotation.sym()?.let { typeBoundClassForSymbol(it) }
+
+        return DefaultAnnotationItem.createAttributesLazily(
+            codebase,
+            fileLocation,
+            qualifiedName
+        ) { annotationItem ->
+            getAnnotationAttributes(
+                annotationClass,
+                annotation.values(),
+                tree?.args(),
+                fieldResolver,
+            )
         }
     }
 
     /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
     private fun getAnnotationAttributes(
-        annotationItem: AnnotationItem,
+        annotationClass: TypeBoundClass?,
         attrs: ImmutableMap<String, Const>,
-        exprs: ImmutableList<Expression>?
+        exprs: ImmutableList<Expression>?,
+        fieldResolver: TurbineFieldResolver?,
     ): List<AnnotationAttribute> {
         val attributes = mutableListOf<AnnotationAttribute>()
         if (exprs != null) {
@@ -97,12 +110,13 @@ internal class TurbineAnnotationFactory(
                             DefaultAnnotationAttribute(
                                 name,
                                 createAttributeValueProvider(
-                                    annotationItem,
+                                    annotationClass,
                                     name,
                                     const,
-                                    assignExp
+                                    assignExp,
+                                    fieldResolver,
                                 ),
-                                createAttrValue(const, assignExp),
+                                createAttrValue(const, assignExp, fieldResolver),
                             )
                         )
                     }
@@ -117,8 +131,14 @@ internal class TurbineAnnotationFactory(
                         attributes.add(
                             DefaultAnnotationAttribute(
                                 name,
-                                createAttributeValueProvider(annotationItem, name, const, exp),
-                                createAttrValue(const, exp),
+                                createAttributeValueProvider(
+                                    annotationClass,
+                                    name,
+                                    const,
+                                    exp,
+                                    fieldResolver,
+                                ),
+                                createAttrValue(const, exp, fieldResolver),
                             )
                         )
                     }
@@ -129,8 +149,14 @@ internal class TurbineAnnotationFactory(
                 attributes.add(
                     DefaultAnnotationAttribute(
                         name,
-                        createAttributeValueProvider(annotationItem, name, const, null),
-                        createAttrValue(const, null),
+                        createAttributeValueProvider(
+                            annotationClass,
+                            name,
+                            const,
+                            null,
+                            fieldResolver,
+                        ),
+                        createAttrValue(const, null, fieldResolver),
                     )
                 )
             }
@@ -138,17 +164,33 @@ internal class TurbineAnnotationFactory(
         return attributes
     }
 
+    /**
+     * Create a [CombinedValueProvider] that will create (and cache) a [Value]
+     *
+     * @param annotationClass the optional [TypeBoundClass] for the annotation. If provided it will
+     *   be used to find a [TypeItem] for the annotation attribute called [attributeName].
+     * @param attributeName the name of the annotation.
+     * @param const the [Const] value.
+     * @param expr the optional source [Expression].
+     * @param fieldResolver the optional [TurbineFieldResolver] used to resolve field [expr]s to the
+     *   field definition.
+     */
     private fun createAttributeValueProvider(
-        annotationItem: AnnotationItem,
+        annotationClass: TypeBoundClass?,
         attributeName: String,
         const: Const,
-        expr: Expression?
+        expr: Expression?,
+        fieldResolver: TurbineFieldResolver?,
     ): ValueProvider {
-        val turbineValue = TurbineValue(const, expr)
-        return valueFactory.providerForAnnotationValue(annotationItem, attributeName, turbineValue)
+        val turbineValue = TurbineValue(const, expr, fieldResolver)
+        return valueFactory.providerForAnnotationValue(annotationClass, attributeName, turbineValue)
     }
 
-    private fun createAttrValue(const: Const, expr: Expression?): AnnotationAttributeValue {
+    private fun createAttrValue(
+        const: Const,
+        expr: Expression?,
+        fieldResolver: TurbineFieldResolver?,
+    ): AnnotationAttributeValue {
         if (const.kind() == Kind.ARRAY) {
             const as ArrayInitValue
             if (const.elements().count() == 1 && expr != null && expr !is ArrayInit) {
@@ -157,17 +199,20 @@ internal class TurbineAnnotationFactory(
                 // For e.g. @Anno(5) where Anno is @interface Anno {int [] value()}
                 val constLiteral = const.elements().single()
                 return DefaultAnnotationSingleAttributeValue(
-                    { TurbineValue(constLiteral, expr).getSourceForAnnotationValue() },
+                    {
+                        TurbineValue(constLiteral, expr, fieldResolver)
+                            .getSourceForAnnotationValue()
+                    },
                     { constLiteral.underlyingValue }
                 )
             }
             return DefaultAnnotationArrayAttributeValue(
-                { TurbineValue(const, expr).getSourceForAnnotationValue() },
-                { const.elements().map { createAttrValue(it, null) } }
+                { TurbineValue(const, expr, fieldResolver).getSourceForAnnotationValue() },
+                { const.elements().map { createAttrValue(it, null, fieldResolver) } }
             )
         }
         return DefaultAnnotationSingleAttributeValue(
-            { TurbineValue(const, expr).getSourceForAnnotationValue() },
+            { TurbineValue(const, expr, fieldResolver).getSourceForAnnotationValue() },
             { const.underlyingValue }
         )
     }

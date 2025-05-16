@@ -20,8 +20,6 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.cliError
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -31,13 +29,13 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
@@ -49,18 +47,17 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
-import com.intellij.psi.PsiField
 
 /**
  * Compares the current API with a previous version and makes sure the changes are compatible. For
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
 class CompatibilityCheck(
-    val filterReference: FilterPredicate,
-    private val apiType: ApiType,
+    private val filterReference: FilterPredicate,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
     private val apiCompatAnnotations: Set<String>,
+    private val apiName: String?,
 ) : ComparisonVisitor() {
 
     var foundProblems = false
@@ -725,27 +722,16 @@ class CompatibilityCheck(
                 val message =
                     "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
-            } else if (!old.hasSameValue(new)) {
-                val prevValue = old.legacyInitialValue()
-                val prevString =
-                    if (prevValue == null && !old.modifiers.isFinal()) {
-                        "nothing/not constant"
-                    } else {
-                        prevValue
-                    }
-
-                val newValue = new.legacyInitialValue()
-                val newString =
-                    if (newValue is PsiField) {
-                        newValue.containingClass?.qualifiedName + "." + newValue.name
-                    } else {
-                        newValue
-                    }
+            } else if (!old.hasSameConstantValue(new)) {
+                val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
+                val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
                 val message =
-                    "${describe(
-                    new,
-                    capitalize = true
-                )} has changed value from $prevString to $newString"
+                    "${
+                        describe(
+                            new,
+                            capitalize = true
+                        )
+                    } has changed value from $oldString to $newString"
 
                 report(Issues.CHANGED_VALUE, new, message)
             }
@@ -788,7 +774,7 @@ class CompatibilityCheck(
             oldModifiers.isFinal() &&
                 !newModifiers.isFinal() &&
                 oldModifiers.isStatic() &&
-                old.legacyInitialValue() != null
+                old.constantValue != null
         ) {
             report(
                 Issues.REMOVED_FINAL,
@@ -817,7 +803,6 @@ class CompatibilityCheck(
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: SelectableItem) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -831,16 +816,13 @@ class CompatibilityCheck(
             return
         }
 
-        var message = "Added ${describe(item)}"
-
-        // Clarify error message for removed API to make it less ambiguous
-        if (apiType == ApiType.REMOVED) {
-            message += " to the removed API"
-        } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesAnnotationName(ANDROID_SYSTEM_API)) {
-                message += " to the system API"
-            } else if (options.allShowAnnotations.matchesAnnotationName(ANDROID_TEST_API)) {
-                message += " to the test API"
+        val message = buildString {
+            append("Added ")
+            append(describe(item))
+            if (apiName != null) {
+                append(" to the ")
+                append(apiName)
+                append(" API")
             }
         }
 
@@ -927,7 +909,7 @@ class CompatibilityCheck(
                                 // Hack to always mark added Kotlin interface methods as abstract
                                 // until we properly support JVM default methods for Kotlin.
                                 // TODO(b/200077254): Remove Kotlin special case
-                                if (new.itemLanguage == ItemLanguage.KOTLIN) {
+                                if (new.sourceLanguage == SourceLanguage.KOTLIN) {
                                     Issues.ADDED_ABSTRACT_METHOD
                                 } else {
                                     Issues.ADDED_METHOD
@@ -1047,6 +1029,7 @@ class CompatibilityCheck(
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
+            apiName: String?,
         ) {
             val filter =
                 apiType
@@ -1058,10 +1041,10 @@ class CompatibilityCheck(
             val checker =
                 CompatibilityCheck(
                     filter,
-                    apiType,
                     reporter,
                     issueConfiguration,
                     apiCompatAnnotations,
+                    apiName,
                 )
 
             val oldFullCodebase =

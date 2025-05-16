@@ -27,7 +27,6 @@ import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -44,8 +43,16 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.FloatingPointValue
+import com.android.tools.metalava.model.value.IntegralValue
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.asBoolean
+import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -106,6 +113,31 @@ class DocAnalyzer(
     }
 
     val mentionsNull: Pattern = Pattern.compile("\\bnull\\b")
+
+    /** Format this [Value] for use in handling `IntRange` and `FloatRange` annotations. */
+    private fun Value.forRange(): String =
+        when (this) {
+            is IntegralValue<*> -> {
+                // Format as an int if it will fit, otherwise a long.
+                val asLong = underlyingValue.toLong()
+                if (asLong >= Int.MIN_VALUE && asLong <= Int.MAX_VALUE) asLong.toString()
+                else "${asLong}L"
+            }
+            is FloatingPointValue<*> -> {
+                // Format as a float if it will fit, otherwise a double.
+                val asDouble = underlyingValue.toDouble()
+                if (asDouble >= -Float.MAX_VALUE && asDouble <= Float.MAX_VALUE) "${asDouble}f"
+                else asDouble.toString()
+            }
+            is FieldReferenceValue -> {
+                // Format as a link to the field.
+                "{@link ${qualifiedClassName}#$fieldName}"
+            }
+            else -> {
+                // Use default source formatting.
+                toValueString()
+            }
+        }
 
     private fun documentsFromAnnotations() {
         // Note: Doclava1 inserts its own javadoc parameters into the documentation,
@@ -171,19 +203,14 @@ class DocAnalyzer(
                     return result ?: emptyList()
                 }
 
-                /** Fallback if field can't be resolved or if an inlined string value is used */
+                /**
+                 * Fallback if field can't be resolved or if an inlined string value is used then
+                 * try and find the field in the `android.Manifest.permission` class if available.
+                 */
                 private fun findPermissionField(codebase: Codebase, value: Any): FieldItem? {
                     val perm = value.toString()
                     val permClass = codebase.findClass("android.Manifest.permission")
-                    permClass
-                        ?.fields()
-                        ?.filter {
-                            it.legacyInitialValue(requireConstant = false)?.toString() == perm
-                        }
-                        ?.forEach {
-                            return it
-                        }
-                    return null
+                    return permClass?.fields()?.firstOrNull { it.constantValue?.asString() == perm }
                 }
 
                 private fun handleAnnotation(
@@ -252,9 +279,8 @@ class DocAnalyzer(
                     val text =
                         (annotation.findAttribute("message")
                                 ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
-                            ?.legacyValue
-                            ?.value()
-                            ?.toString() ?: return
+                            ?.value
+                            ?.asString() ?: return
                     if (text.isBlank() || item.documentation.contains(text)) {
                         return
                     }
@@ -312,26 +338,10 @@ class DocAnalyzer(
                     if (item !is MemberItem) {
                         return
                     }
-                    var values: List<AnnotationAttributeValue>? = null
-                    var any = false
-                    var conditional = false
-                    for (attribute in annotation.attributes) {
-                        when (attribute.name) {
-                            "value",
-                            "allOf" -> {
-                                values = attribute.leafValues()
-                            }
-                            "anyOf" -> {
-                                any = true
-                                values = attribute.leafValues()
-                            }
-                            "conditional" -> {
-                                conditional = attribute.legacyValue.value() == true
-                            }
-                        }
-                    }
 
-                    if (!values.isNullOrEmpty() && !conditional) {
+                    val requiresPermissionInfo = annotation.getRequiresPermissionInfo() ?: return
+                    val (values, any, conditional) = requiresPermissionInfo
+                    if (values.isNotEmpty() && !conditional) {
                         // Look at macros_override.cs for the usage of these
                         // tags. In particular, search for def:dump_permission
 
@@ -345,23 +355,25 @@ class DocAnalyzer(
                                 else -> sb.append(" and ")
                             }
 
-                            val resolved = value.resolve()
+                            val resolvedField = (value as? FieldReferenceValue)?.resolve()
                             val field =
-                                if (resolved is FieldItem) resolved
-                                else {
-                                    val v: Any = value.value() ?: value.toSource()
+                                if (resolvedField == null) {
+                                    val v = value.asString() ?: value.toValueString()
                                     if (v == CARRIER_PRIVILEGES_MARKER) {
                                         // TODO: Warn if using allOf with carrier
                                         sb.append(
                                             "{@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges}"
                                         )
                                         continue
+                                    } else {
+                                        findPermissionField(codebase, v)
                                     }
-                                    findPermissionField(codebase, v)
-                                }
+                                } else resolvedField
                             if (field == null) {
-                                val v = value.value()?.toString() ?: value.toSource()
-                                if (editDistance(CARRIER_PRIVILEGES_MARKER, v, 3) < 3) {
+                                val v = value.asString()
+                                if (
+                                    v != null && editDistance(CARRIER_PRIVILEGES_MARKER, v, 3) < 3
+                                ) {
                                     reporter.report(
                                         Issues.MISSING_PERMISSION,
                                         item,
@@ -371,10 +383,10 @@ class DocAnalyzer(
                                     reporter.report(
                                         Issues.MISSING_PERMISSION,
                                         item,
-                                        "Cannot find permission field for $value required by $item (may be hidden or removed)"
+                                        "Cannot find permission field for ${value.toValueString()} required by $item (may be hidden or removed)"
                                     )
                                 }
-                                sb.append(value.toSource())
+                                sb.append(value.toValueString())
                             } else {
                                 if (filterReference.test(field)) {
                                     sb.append(
@@ -398,14 +410,10 @@ class DocAnalyzer(
                 }
 
                 private fun handleRange(annotation: AnnotationItem, item: Item) {
-                    val from: String? = annotation.findAttribute("from")?.legacyValue?.toSource()
-                    val to: String? = annotation.findAttribute("to")?.legacyValue?.toSource()
+                    val from = annotation.findAttribute("from")?.value?.forRange()
+                    val to = annotation.findAttribute("to")?.value?.forRange()
                     // TODO: inclusive/exclusive attributes on FloatRange!
                     if (from != null || to != null) {
-                        val args = HashMap<String, String>()
-                        if (from != null) args["from"] = from
-                        if (from != null) args["from"] = from
-                        if (to != null) args["to"] = to
                         val doc =
                             if (from != null && to != null) {
                                 "Value is between $from and $to inclusive"
@@ -419,8 +427,8 @@ class DocAnalyzer(
                 }
 
                 private fun handleTypeDef(annotation: AnnotationItem, item: Item) {
-                    val values = annotation.findAttribute("value")?.leafValues() ?: return
-                    val flag = annotation.findAttribute("flag")?.legacyValue?.toSource() == "true"
+                    val values = annotation.findAttribute("value")?.value?.asFlatList() ?: return
+                    val flag = annotation.findAttribute("flag")?.value?.asBoolean() == true
 
                     // Look at macros_override.cs for the usage of these
                     // tags. In particular, search for def:dump_int_def
@@ -453,7 +461,7 @@ class DocAnalyzer(
                             }
                         )
 
-                        val field = value.resolve()
+                        val field = (value as? FieldReferenceValue)?.resolve()
                         if (field is FieldItem)
                             if (filterReference.test(field)) {
                                 sb.append(
@@ -474,25 +482,23 @@ class DocAnalyzer(
                                 )
                             }
                         else {
-                            sb.append(value.toSource())
+                            sb.append(value.toValueString())
                         }
                     }
                     appendDocumentation(sb.toString(), item, true)
                 }
 
                 private fun handleRequiresFeature(annotation: AnnotationItem, item: Item) {
-                    val value =
-                        annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                    val resolved = value.resolve()
-                    val field = resolved as? FieldItem
+                    val value = annotation.findAttribute("value")?.value ?: return
+                    val field = (value as? FieldReferenceValue)?.resolve()
                     val featureField =
                         if (field == null) {
                             reporter.report(
                                 Issues.MISSING_PERMISSION,
                                 item,
-                                "Cannot find feature field for $value required by $item (may be hidden or removed)"
+                                "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                             )
-                            "{@link ${value.toSource()}}"
+                            "{@link ${value.toValueString()}}"
                         } else {
                             if (filterReference.test(field)) {
                                 "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}}"
@@ -500,7 +506,7 @@ class DocAnalyzer(
                                 reporter.report(
                                     Issues.MISSING_PERMISSION,
                                     item,
-                                    "Feature field $value required by $item is hidden or removed"
+                                    "Feature field ${value.toValueString()} required by $item is hidden or removed"
                                 )
                                 "${field.containingClass().simpleName()}#${field.name()}"
                             }
@@ -539,30 +545,29 @@ class DocAnalyzer(
                  */
                 private fun handleRequiresApi(annotation: AnnotationItem, item: SelectableItem) {
                     val level = run {
-                        val api =
-                            annotation.findAttribute("api")?.leafValues()?.firstOrNull()?.value()
+                        val api = annotation.findAttribute("api")?.value?.asInt()
                         if (api == null || api == 1) {
-                            annotation.findAttribute("value")?.leafValues()?.firstOrNull()?.value()
-                                ?: return
+                            annotation.findAttribute("value")?.value?.asInt() ?: return
                         } else {
                             api
                         }
                     }
 
-                    if (level is Int) {
-                        addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
-                    }
+                    addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
                 }
 
                 private fun handleRestrictedForEnvironment(
                     annotationItem: AnnotationItem,
                     item: Item
                 ) {
-                    val environmentsValue: String? =
-                        annotationItem.findAttribute("environments")?.legacyValue?.value()
-                            as String?
-                    val fromValue: String? =
-                        annotationItem.findAttribute("from")?.legacyValue?.toSource()
+                    val environmentsValue =
+                        annotationItem
+                            .findAttribute("environments")
+                            ?.value
+                            ?.asFlatList()
+                            ?.firstOrNull()
+                            ?.asString()
+                    val fromValue = annotationItem.findAttribute("from")?.value?.asInt()
 
                     if (environmentsValue == null) {
                         reporter.report(
@@ -590,17 +595,10 @@ class DocAnalyzer(
                 }
 
                 private fun handleColumn(annotation: AnnotationItem, item: Item) {
-                    val value =
-                        annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                    val readOnly =
-                        annotation
-                            .findAttribute("readOnly")
-                            ?.leafValues()
-                            ?.firstOrNull()
-                            ?.value() == true
+                    val value = annotation.findAttribute("value")?.value ?: return
+                    val readOnly = annotation.findAttribute("readOnly")?.value?.asBoolean() == true
                     val sb = StringBuilder(100)
-                    val resolved = value.resolve()
-                    val field = resolved as? FieldItem
+                    val field = (value as? FieldReferenceValue)?.resolve()
                     sb.append("This constant represents a column name that can be used with a ")
                     sb.append("{@link android.content.ContentProvider}")
                     sb.append(" through a ")
@@ -613,9 +611,9 @@ class DocAnalyzer(
                         reporter.report(
                             Issues.MISSING_COLUMN,
                             item,
-                            "Cannot find feature field for $value required by $item (may be hidden or removed)"
+                            "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                         )
-                        sb.append("{@link ${value.toSource()}}")
+                        sb.append("{@link ${value.toValueString()}}")
                     } else {
                         if (filterReference.test(field)) {
                             sb.append(
@@ -625,7 +623,7 @@ class DocAnalyzer(
                             reporter.report(
                                 Issues.MISSING_COLUMN,
                                 item,
-                                "Feature field $value required by $item is hidden or removed"
+                                "Feature field ${value.toValueString()} required by $item is hidden or removed"
                             )
                             sb.append("${field.containingClass().simpleName()}#${field.name()} ")
                         }
@@ -833,12 +831,6 @@ class DocAnalyzer(
      */
     private fun addApiVersionDocumentation(apiVersion: ApiVersion?, item: SelectableItem) {
         if (apiVersion != null) {
-            if (item.originallyHidden) {
-                // @SystemApi, @TestApi etc -- don't apply API versions here since we don't have
-                // accurate historical data
-                return
-            }
-
             // Check to see whether an API version should not be included in the documentation.
             if (!apiVersionFilter(apiVersion)) {
                 return

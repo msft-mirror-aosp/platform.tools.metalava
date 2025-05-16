@@ -23,8 +23,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -33,7 +34,8 @@ import com.android.tools.metalava.reporter.FileLocation
 open class DefaultMethodItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -45,12 +47,12 @@ open class DefaultMethodItem(
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
-    private val annotationDefault: String = "",
 ) :
     DefaultCallableItem(
         codebase,
         fileLocation,
-        itemLanguage,
+        sourceLanguage,
+        targetLanguages,
         modifiers,
         documentationFactory,
         variantSelectorsFactory,
@@ -67,8 +69,6 @@ open class DefaultMethodItem(
     final override var inheritedFrom: ClassItem? = null
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
-
-    override fun legacyDefaultValue() = annotationDefault
 
     final override val defaultValue
         get() = defaultValueProvider?.optionalValue
@@ -107,7 +107,8 @@ open class DefaultMethodItem(
         return DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
-                itemLanguage = itemLanguage,
+                sourceLanguage = sourceLanguage,
+                targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
                 variantSelectorsFactory = variantSelectors::duplicate,
@@ -122,7 +123,6 @@ open class DefaultMethodItem(
                 throwsTypes = throwsTypes,
                 callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
-                annotationDefault = annotationDefault,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()

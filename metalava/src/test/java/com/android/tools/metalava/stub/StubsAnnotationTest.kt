@@ -463,7 +463,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     method public abstract float floating() default 1.0f;
                     method public abstract boolean formatToHexString() default false;
                     method public abstract double from() default java.lang.Double.NEGATIVE_INFINITY;
-                    method public abstract double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
+                    method public abstract double fromWithCast() default java.lang.Double.NEGATIVE_INFINITY;
                     method public abstract boolean hasAdjacentMapping() default false;
                     method public abstract int integer() default 1;
                     method public abstract double large_floating() default 1.0;
@@ -502,8 +502,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public java.lang.String category() default "";
                 public float floating() default 1.0f;
                 public boolean formatToHexString() default false;
-                public double from() default java.lang.Double.NEGATIVE_INFINITY;
-                public double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
+                public double from() default (-1.0/0.0);
+                public double fromWithCast() default (-1.0/0.0);
                 public boolean hasAdjacentMapping() default false;
                 public int integer() default 1;
                 public double large_floating() default 1.0;
@@ -826,7 +826,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class ActionBar {
                 public ActionBar() { throw new RuntimeException("Stub!"); }
-                @test.pkg.ViewDebug.ExportedProperty(category="layout", mapping={@test.pkg.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM")}) public int gravity = 0; // 0x0
+                @test.pkg.ViewDebug.ExportedProperty(category="layout", mapping={@test.pkg.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM")}) public int gravity;
                 }
                 """
         )

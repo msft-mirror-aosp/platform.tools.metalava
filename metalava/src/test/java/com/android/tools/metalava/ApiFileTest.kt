@@ -1015,7 +1015,7 @@ class ApiFileTest : DriverTest() {
                     method @Deprecated public boolean equals(Object?);
                     method @Deprecated public String toString();
                     field public static final String MY_CONSTANT1 = "constant";
-                    field public final String MY_CONSTANT2 = "constant";
+                    field public final String MY_CONSTANT2;
                     field public String! MY_CONSTANT3;
                   }
                 }
@@ -1263,6 +1263,104 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    /**
+     * Test for b/174708311 [RequiresOptIn] annotations on properties should be implicitly
+     * propagated to getters / setters to match Kotlin compiler behavior
+     */
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test RequiresOptIn on properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn
+                        @Retention(AnnotationRetention.BINARY)
+                        annotation class ExperimentalBar
+
+                        class FancyBar
+
+                        @ExperimentalBar
+                        val ExperimentalPropertyWithGetter: FancyBar = FancyBar()
+
+                        @JvmField
+                        @ExperimentalBar
+                        val ExperimentalJvmFieldProperty: FancyBar = FancyBar()
+
+                        @ExperimentalBar
+                        const val ExperimentalConstField: Int = 5
+
+                        @ExperimentalBar
+                        var experimentalPropertyWithGetterAndSetter: FancyBar? = null
+
+                        object Bar {
+                            @ExperimentalBar
+                            val ExperimentalPropertyWithGetterInsideObject: FancyBar = FancyBar()
+                        }
+
+                        @ExperimentalBar
+                        var experimentalPropertyWithCustomGetterAndSetter: FancyBar?
+                            get() = null
+                            set(value) {}
+
+                        /*
+                        The Kotlin compiler does not support explicit RequiresOptIn annotations on
+                        getters (it does for setters), but previously this was used by consumers in
+                        order to enable proper Metalava tracking and make the experimental lint
+                        check consider the getter experimental. This is a regression test to make
+                        sure that we do not add the annotation twice, if it is already present.
+                         */
+                        @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET")
+                        @get:ExperimentalBar
+                        @set:ExperimentalBar
+                        @ExperimentalBar
+                        var experimentalPropertyWithExplicitAnnotationsOnGetterAndSetter: FancyBar?
+                            get() = null
+                            set(value) {}
+                        """
+                    )
+                ),
+            format = FileFormat.V5,
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Bar {
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar getExperimentalPropertyWithGetterInsideObject();
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar ExperimentalPropertyWithGetterInsideObject;
+                    field public static final test.pkg.Bar INSTANCE;
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalBar {
+                  }
+                  public final class ExperimentalBarKt {
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithCustomGetterAndSetter(test.pkg.FancyBar?);
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter(test.pkg.FancyBar?);
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithGetterAndSetter(test.pkg.FancyBar?);
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static int ExperimentalConstField;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalJvmFieldProperty;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalPropertyWithGetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithCustomGetterAndSetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithExplicitAnnotationsOnGetterAndSetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithGetterAndSetter;
+                    field @SuppressCompatibility @test.pkg.ExperimentalBar public static final int ExperimentalConstField = 5; // 0x5
+                    field @SuppressCompatibility @test.pkg.ExperimentalBar public static final test.pkg.FancyBar ExperimentalJvmFieldProperty;
+                  }
+                  public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                }
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
         )
     }
@@ -4216,7 +4314,7 @@ class ApiFileTest : DriverTest() {
                   public final class MyDataClass {
                     ctor public MyDataClass(String constructorProperty, String internalConstructorProperty);
                     method public String component1();
-                    method public test.pkg.MyDataClass copy(String constructorProperty, String internalConstructorProperty);
+                    method public test.pkg.MyDataClass copy(optional String constructorProperty, optional String internalConstructorProperty);
                     method public String getConstructorProperty();
                     property public String constructorProperty;
                   }
@@ -5887,6 +5985,90 @@ class ApiFileTest : DriverTest() {
                       @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
                       }
                     }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test functions from delegate`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        internal interface Base {
+                            fun baseMethod()
+                            val baseVal: Int
+                        }
+                        internal class BaseImpl : Base {
+                            override fun baseMethod() = Unit
+                            override val baseVal = 0
+                        }
+                        class Delegated : Base by BaseImpl()
+                        """
+                    )
+                ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9MBCX" +
+                        "pBaX6Bdkp+s7JRan6iXnJBYXh/r7+h9yEJlzd9q2kIlNXQf4Dao2euyp/KR8" +
+                        "TKqHU+1IS3f0jYTczN7dAv1/xPj/cfC3FXxxl7w/qcLg5pnZc2t/p937fv65" +
+                        "eIPwFkmtKC3ZfUsmf4jReNlkyHI+Se+Qz5PJH/Tqpim/PZT0Iblq/9RfKyWM" +
+                        "I9jbmSepBc2OZ564dmnHwmve3HNVKz3mJulssUh9cHmna9kZh5sMEhFev6KT" +
+                        "8mSTHie3nX666OFnte+VG2J+lFQ8+Hln84qi9xt3xpRUtt+taLz8TPZ71f54" +
+                        "fgvD14lfE9ffk12eW10WYLR5F8/Ve/u3arBU7voYH3a9w33lMtF33Tdfe8Sp" +
+                        "zkzJ+Jq+029Z0YQVKueeRM4Tj3qx5MRU5+LE2S8emDlz8jlcbU0XMbm+o13s" +
+                        "KneRVnC7fYtoovKhtBaubR2LpBQdcjmWBRz/JjDvUN+hdU7JveuMvDp/6IPi" +
+                        "YG/Lnb3OjAwMCxnxxYE4ehx45hbkQOIhN+B03mUHEdtk629HVHpnT5vU9v23" +
+                        "6sMtSexOixZwLQ4IcBQMCnucMsXv8Y3QtKCNZ8I/MK65qaCouNEhcHqNyCM/" +
+                        "LtHcyDvV53eWn7tz/Hz8/XqGio7bPN1uWcLvedk/tl0wknybyijhvEX7m+uc" +
+                        "zhqB/X7lqedZCiRXHZdj1zD80R+67oww2/dzd/1YGSs4+FPZzr/ROLvhit3V" +
+                        "B4LOM4TqVM/6XVQ3mnDsmpXS7PrJBiwv489N4lLSmfZwgd/lbe2tJ0PkJod9" +
+                        "aRX8Mt34VnmmdFrsTasJWR4/+U9tElv4T+rw7JtbBK14n1+wiDyiuUtE1m/r" +
+                        "zZK7mRt7Lx1Un2+kXyliMlesfuOmvTI7W/Z8Z5efH9zbvjnz8uOlJ7b/X2d8" +
+                        "pU/fgznw/4FD7M7O6RVhX5bWLi3aaSq5tOiP3xLJ1FdvF6lv6pPQPv1f5fD2" +
+                        "oyl3Js8+NenqW8+8Kx5lU8JCamc9bxV0E915TGru4cV2dpF377WLlebGF3y6" +
+                        "3nH0G5eI9/d9in+cDhws/fTP5uVjtp+nHjLPUUxpXyfX+f685U3PxA/9E2Q5" +
+                        "xQOsr37VnmY3X+Dz/5LSguJ36x+JHfVdpRv8Nkc8r2kqy3Mhkw1eAmdZnhcu" +
+                        "5F5WKDh9l0Z2iIledkGvx+OuY01uvou9fpiDEkdG4ubYG8CE8YAJX+KQQE4c" +
+                        "Lqk5qemJJakpkNRRGhjrL+woYrv5dtn210q3+bdcyV/LEXrTqUYoWUkqyfMq" +
+                        "i+/il80zt03eVLLb2yr4kfL+JvkHm/VVtDrV2r5clE/ds/mKlIrdmb9W38/Z" +
+                        "Fj97vj7fnsGm4fyEcCet+u33P8/vDPiyQyiWu+fg7YfVd/grr3yO31ru4h5p" +
+                        "IJm27O7rGC7uzLYzixW4riSzFReufHmo6a1Cq47zu5D82g3SURbPD1ydEb2y" +
+                        "RP31vesSXL3Ge7P1ziWbcTPLOXvlsk9aeMPCu6z34EvOpcdn2fhEXIkVMVxu" +
+                        "HquwwfcE98Jtj9d1T1J7njTvhOmvjVzNJ9Q7ync+Kuk3vGHsKbbMN0zaYIPd" +
+                        "VXsWK+V5buWtCwv3xBf1TCosyrGa53tPJX9K3/fwXqlo/377NI27Z6rCbq64" +
+                        "ef44e472+5kiy+/18ZvM0lz+Zsv0i+XrjM7ME2s4EfHWXl9JbJqe3ndRzY8m" +
+                        "77juyrs8eppxQeyw+R7ZINX7HdY2OZ8SF3z2vFgp298mu1HwRUpdtsjKBIVZ" +
+                        "jTwctUKuGx9pdSh3ik6ydK02SoiLe+133vRr3I2U1VNsfYoOrJY7uLKu/fc7" +
+                        "DuP4CdZLZjXuTjHmfPdALvL7EvFKESHRl9Zq33UyfE/evnr+RO3Ro/6c/8qP" +
+                        "zTs3Zdnu/zM15f+lHzvw94he4sw/bInTJxx7KnbGat2Vwq192Tv8FPOuFApv" +
+                        "j0oQEr2Tp6gdOCFiwgbVdx46XiKqz1S8RP6zgZJVptGxH4LAJKXDjC9ZSQMx" +
+                        "vNrJTczM08vOL8nJzIvPzU8pzUlNTkhISANiliQ/No2ApAtJDOA65avSnr3C" +
+                        "0EQZ4M3IJMKAMB25vgFVaqgAVxWHbgpyiSmMYkI99poK3QDkXCWOYgAzE85i" +
+                        "Ft0Q5DCUQDFEgQV3dkQ3BTm0pFFMKWfDG/oB3qxsIGWsQBgN9MtlMA8AIz7W" +
+                        "WUQIAAA="
+                ),
+            // The delegate APIs shouldn't be bytecode only, but it is better that they are tracked
+            // that way than not tracked at all.
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Delegated {
+                    ctor public Delegated();
+                    method @BytecodeOnly public void baseMethod();
+                    method @BytecodeOnly public int getBaseVal();
+                  }
+                }
                 """
         )
     }

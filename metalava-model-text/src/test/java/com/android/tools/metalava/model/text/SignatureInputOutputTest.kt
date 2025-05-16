@@ -23,7 +23,9 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.google.common.truth.Truth.assertThat
@@ -155,7 +157,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.name()).isEqualTo("foo")
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PROTECTED)
-            assertThat(field.legacyInitialValue()).isNull()
+            assertThat(field.constantValue).isNull()
         }
     }
 
@@ -165,7 +167,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public class Foo {
-                    field public static foo: String = "hi";
+                    field public static final foo: String = "hi";
                   }
                 }
             """
@@ -179,7 +181,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(field.modifiers.isStatic()).isTrue()
-            assertThat(field.legacyInitialValue()).isEqualTo("hi")
+            assertThat(field.constantValue?.asString()).isEqualTo("hi")
         }
     }
 
@@ -256,7 +258,8 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
             assertThat(method.parameters()).isEmpty()
 
-            assertThat(method.legacyDefaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
+            assertThat(method.defaultValue)
+                .isEqualTo(fieldReferenceValue("java.lang.Integer", "MIN_VALUE"))
         }
     }
 
@@ -841,6 +844,72 @@ class SignatureInputOutputTest : Assertions {
                     method public void method(int);
                   }
                 }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test method target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                method @BytecodeOnly public void bytecodeOnly();
+                method @BytecodeOnly @OtherAnnotation public void bytecodeOnlyWithOtherAnnotation();
+                method @InaccessibleFromJava public void inaccessibleFromJava();
+                method @InaccessibleFromKotlin public void inaccessibleFromKotlin();
+                method @KotlinOnly public void kotlinOnly();
+                method public void noTargetsListed();
+                method @OtherAnnotation public void noTargetsWithOtherAnnotation();
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test constructor target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                ctor @BytecodeOnly public Foo();
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test field target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                field @InaccessibleFromKotlin public int inaccessibleFromKotlin;
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test class target language`() {
+        val api =
+            """
+            package test.pkg {
+              @KotlinOnly public class KotlinOnlyClass {
+              }
+              @KotlinOnly @OtherAnnotation public class KotlinOnlyClassWithOtherAnnotation {
+              }
+              public class NoTargetsListed {
+              }
+              @OtherAnnotation public class NoTargetsWithOtherAnnotation {
+              }
+            }
             """
         runInputOutputTest(api, FileFormat.V5)
     }

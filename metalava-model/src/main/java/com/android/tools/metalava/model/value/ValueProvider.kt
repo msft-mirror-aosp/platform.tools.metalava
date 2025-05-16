@@ -38,16 +38,13 @@ import kotlin.jvm.optionals.getOrNull
 interface ValueProvider {
     /** Get the value, creating it if necessary. */
     val value: Value
-
-    companion object {
-        /** A temporary [ValueProvider] which throws an error when called. */
-        val UNSUPPORTED =
-            object : ValueProvider {
-                override val value: Value
-                    get() = throw ValueProviderException("value provider is not yet supported")
-            }
-    }
 }
+
+/** Return a provider for this [Value]. */
+fun Value.provider(): ValueProvider = FixedValueProvider(this)
+
+/** A [ValueProvider] that simply returns [value]. */
+private class FixedValueProvider(override val value: Value) : ValueProvider
 
 /** Like [ValueProvider] but allows a `null` [Value] to be returned. */
 interface OptionalValueProvider {
@@ -71,15 +68,29 @@ interface CombinedValueProvider : ValueProvider, OptionalValueProvider
 /**
  * A [CombinedValueProvider] that provides support to subclasses for caching a [Value] that has been
  * provided.
+ *
+ * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
  */
-abstract class BaseCachingValueProvider : CombinedValueProvider {
+abstract class BaseCachingValueProvider(protected val valueUseSite: ValueUseSite) :
+    CombinedValueProvider {
     /** The cached value. */
     private lateinit var _value: Optional<Value>
 
     /** Get the cached value, calling [provideValue] if it has not yet been cached. */
     private fun cachedValue(): Optional<Value> {
         if (!::_value.isInitialized) {
-            _value = Optional.ofNullable(provideValue())
+            val providedValue = provideValue()
+            val valueToCache =
+                when (valueUseSite) {
+                    ValueUseSite.ANNOTATION ->
+                        providedValue
+                            ?: error(
+                                "Provider returned `null` but nulls are not allowed on annotation values"
+                            )
+                    ValueUseSite.FIELD -> providedValue?.asLiteralValue()
+                }
+
+            _value = Optional.ofNullable(valueToCache)
         }
         return _value
     }

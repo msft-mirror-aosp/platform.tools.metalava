@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -93,7 +95,7 @@ interface ValueFactory {
                 }
                 is ClassTypeItem -> {
                     // The only allowable class type is a String.
-                    if (optionalTypeItem.isString() && underlyingValue is String)
+                    if (optionalTypeItem.isPossiblyUnresolvedString() && underlyingValue is String)
                         DefaultStringValue(underlyingValue)
                     else null
                 }
@@ -134,13 +136,21 @@ interface ValueFactory {
      *
      * Every call that supplies an empty [elements] will return the same instance of [ArrayValue].
      * It is the caller's responsibility to ensure that every [ArrayElementValue] in [elements] has
-     * the same [Value.kind]. This will throw an exception if it does not.
+     * the same [Value.kind] (excluding [ValueKind.FIELD]). This will throw an exception if it does
+     * not.
      */
-    fun createArrayValue(elements: List<ArrayElementValue>): Value {
+    fun createArrayValue(
+        elements: List<ArrayElementValue>,
+        wasUnwrappedInSource: Boolean = false
+    ): ArrayValue {
         if (elements.isEmpty()) return EMPTY_ARRAY
+        if (wasUnwrappedInSource && elements.size != 1)
+            error("wasUnwrappedInSource was set to true but array does not contain 1 element")
         val groupedByKind = elements.groupBy { it.kind }
         val kindCount = groupedByKind.size
-        if (kindCount == 1) return DefaultArrayValue(elements)
+        // Only allow 1 kind or 2 if one of them is field.
+        if (kindCount == 1 || (kindCount == 2 && ValueKind.FIELD in groupedByKind))
+            return DefaultArrayValue(elements, wasUnwrappedInSource)
         val message = buildString {
             append("Expected array elements to be all of the same kind but found ")
             append(kindCount)
@@ -163,73 +173,93 @@ interface ValueFactory {
      * * A [ClassTypeItem] with no [ClassTypeItem.arguments].
      * * An [ArrayTypeItem] of one of these (including [ArrayTypeItem]).
      */
-    fun createClassObjectValue(typeItem: TypeItem): ClassObjectValue {
+    fun createClassObjectValue(typeItem: TypeItem, sourceExpression: String?): ClassObjectValue {
         typeItem.accept(classObjectValueTypeChecker)
-        return DefaultClassObjectValue(typeItem)
+        return DefaultClassObjectValue(typeItem, sourceExpression)
     }
 
     /**
-     * Create a [ConstantFieldValue] from [fieldItem] and the optional [constantValue].
+     * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName].
      *
-     * The [FieldItem] must not be an enum constant, i.e. [FieldItem.isEnumConstant] must be
-     * `false`.
+     * If the field has a constant initializer then it will be retrieved when calling
+     * [FieldReferenceValue.asLiteralValue].
+     *
+     * @param classResolver used to resolve [qualifiedClassName] to a [ClassItem] in
+     *   [FieldReferenceValue.resolve]
+     * @param qualifiedClassName the qualified name of the class containing the field. Is an empty
+     *   string if the field is unqualified.
+     * @param fieldName the name of the field.
+     * @param optionalTypeItem the optional [TypeItem] determined by the context within which the
+     *   [FieldReferenceValue] will be used.
      */
-    fun createConstantFieldValue(
-        fieldItem: FieldItem,
-        constantValue: ConstantValue?
+    fun createFieldReferenceValueWithDeferredConstantValue(
+        classResolver: ClassResolver,
+        qualifiedClassName: String,
+        fieldName: String,
+        optionalTypeItem: TypeItem?,
     ): ArrayElementValue {
-        require(!fieldItem.isEnumConstant()) {
-            "Constant field must be created from a FieldItem which is not an enum constant but $fieldItem is"
-        }
-        return createConstantFieldValue(
-            fieldItem.containingClass().qualifiedName(),
-            fieldItem.name(),
-            constantValue,
-        )
+        // Create a field.
+        val fieldReferenceValue =
+            LazyFieldReferenceValue(
+                classResolver,
+                qualifiedClassName,
+                fieldName,
+                optionalTypeItem,
+            )
+
+        // The field may need mapping to a constant value to eliminate differences between Kotlin
+        // and Java.
+        return normalizeFieldReferenceValue(fieldReferenceValue)
     }
 
     /**
-     * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+     * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional
      * [constantValue].
      */
-    fun createConstantFieldValue(
+    fun createFieldReferenceValue(
+        classResolver: ClassResolver,
         qualifiedClassName: String,
         fieldName: String,
-        constantValue: ConstantValue?,
+        constantValue: ConstantValue? = null,
     ): ArrayElementValue {
-        // Some special values need to be used instead of their fields (which can differ between
-        // Java and Kotlin).
-        if (constantValue != null && constantValue in constantValuesToUseInsteadOfField) {
-            return constantValue
-        }
+        // Create a field.
+        val fieldReferenceValue =
+            DefaultFieldReferenceValue(
+                classResolver,
+                qualifiedClassName,
+                fieldName,
+                constantValue,
+            )
 
-        return DefaultConstantFieldValue(
-            qualifiedClassName,
-            fieldName,
-            constantValue,
-        )
+        // The field may need mapping to a constant value to eliminate differences between Kotlin
+        // and Java.
+        return normalizeFieldReferenceValue(fieldReferenceValue)
     }
+
+    /** Normalize [FieldReferenceValue]s to eliminate differences between Java and Kotlin. */
+    private fun normalizeFieldReferenceValue(
+        fieldReferenceValue: FieldReferenceValue
+    ): ArrayElementValue {
+        return specialFieldsToReplacementValue[fieldReferenceValue] ?: fieldReferenceValue
+    }
+
+    /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
+    fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
+        DefaultAnnotationValue(annotationItem)
 
     /**
-     * Create an [EnumConstantValue] from [fieldItem].
+     * Check to see whether this [TypeItem] is `java.lang.String`.
      *
-     * The [FieldItem] must be an enum constant, i.e. [FieldItem.isEnumConstant] must be `true`.
+     * As the definition of `java.lang.String` may not have been provided to Metalava also check for
+     * `String` as that is most likely to be an unresolved reference to `java.lang.String`. If it
+     * was a custom class then presumably that would be defined somewhere in which case it would
+     * have been resolved to the class and so would not be an unqualified name.
      */
-    fun createEnumConstantValue(fieldItem: FieldItem): ArrayElementValue {
-        require(fieldItem.isEnumConstant()) {
-            "Enum constant must be created from a FieldItem which is an enum constant but $fieldItem is not"
-        }
-        return createEnumConstantValue(
-            fieldItem.containingClass().qualifiedName(),
-            fieldItem.name(),
-        )
-    }
+    fun TypeItem.isPossiblyUnresolvedString() =
+        isString() || (this is ClassTypeItem && qualifiedName == "String")
 
-    /** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
-    fun createEnumConstantValue(
-        qualifiedClassName: String,
-        fieldName: String,
-    ): ArrayElementValue = DefaultEnumConstantValue(qualifiedClassName, fieldName)
+    /** Check if this [TypeItem] is a constant type, i.e. a [String] or a primitive type. */
+    fun TypeItem.isConstantType() = isPossiblyUnresolvedString() || this is PrimitiveTypeItem
 
     companion object {
         /**
@@ -270,20 +300,41 @@ interface ValueFactory {
             )
 
         /**
-         * Set of [ConstantValue]s which should be used in place of any referencing field.
+         * Create a simple [FieldReferenceValue] for [fieldName] in class [qualifiedName]
          *
-         * These are normalized so that the values are the same whether they come from a jar file or
-         * a source file, or java or kotlin.
+         * Note: This does not work for fields in nested classes.
          */
-        private val constantValuesToUseInsteadOfField =
-            setOf(
-                DoubleValue.NaN,
-                DoubleValue.POSITIVE_INFINITY,
-                DoubleValue.NEGATIVE_INFINITY,
-                FloatValue.NaN,
-                FloatValue.POSITIVE_INFINITY,
-                FloatValue.NEGATIVE_INFINITY,
-            )
+        private fun fieldReference(qualifiedName: String, fieldName: String) =
+            DefaultFieldReferenceValue(ClassResolver.THROWING, qualifiedName, fieldName)
+
+        /**
+         * Adds mappings for special fields [field] of [type] to [value].
+         *
+         * This adds a mapping for each of the Java and Kotlin special fields called [field] of
+         * [type] to [value].
+         */
+        private fun MutableMap<FieldReferenceValue, ConstantValue>.addFieldMappings(
+            type: String,
+            field: String,
+            value: ConstantValue
+        ) {
+            put(fieldReference("java.lang.$type", field), value)
+            put(fieldReference("kotlin.jvm.internal.${type}CompanionObject", field), value)
+        }
+
+        /**
+         * Map from [FieldReferenceValue] to a [ConstantValue] for some special fields which differ
+         * between Java and Kotlin.
+         */
+        private val specialFieldsToReplacementValue = buildMap {
+            addFieldMappings("Double", "NaN", DoubleValue.NaN)
+            addFieldMappings("Double", "NEGATIVE_INFINITY", DoubleValue.NEGATIVE_INFINITY)
+            addFieldMappings("Double", "POSITIVE_INFINITY", DoubleValue.POSITIVE_INFINITY)
+
+            addFieldMappings("Float", "NaN", FloatValue.NaN)
+            addFieldMappings("Float", "NEGATIVE_INFINITY", FloatValue.NEGATIVE_INFINITY)
+            addFieldMappings("Float", "POSITIVE_INFINITY", FloatValue.POSITIVE_INFINITY)
+        }
 
         /**
          * Create a [PrimitiveValue] for [primitiveKind] and [primitiveValue].
@@ -442,7 +493,7 @@ interface ValueFactory {
         }
 
         /** An empty [ArrayValue]. */
-        private val EMPTY_ARRAY = DefaultArrayValue(emptyList())
+        private val EMPTY_ARRAY = DefaultArrayValue(emptyList(), wasUnwrappedInSource = false)
 
         /** Checks the [TypeItem] supplied to [createClassObjectValue]. */
         val classObjectValueTypeChecker =

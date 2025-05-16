@@ -16,19 +16,27 @@
 
 package com.android.tools.metalava.model.testing.value
 
+import com.android.tools.metalava.model.AnnotationContext
+import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.value.AnnotationValue
+import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
-import com.android.tools.metalava.model.value.ConstantFieldValue
 import com.android.tools.metalava.model.value.ConstantValue
-import com.android.tools.metalava.model.value.EnumConstantValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.model.value.provider
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.EnumSet
 import kotlin.test.assertEquals
 import org.junit.AssumptionViolatedException
@@ -44,24 +52,53 @@ fun primitiveValueForKind(kind: Primitive, underlyingValue: Any) =
 fun arrayValueFromAny(vararg literals: Any) =
     Value.createArrayValue(literals.map { literalValue(it) })
 
+/** Create an [ArrayValue] containing [values]. */
+fun arrayValue(vararg values: ArrayElementValue) = Value.createArrayValue(values.toList())
+
 /** Create a [ClassObjectValue] containing [typeItem]. */
-fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
+fun classObjectValue(typeItem: TypeItem, sourceExpression: String? = null) =
+    Value.createClassObjectValue(typeItem, sourceExpression)
 
 /**
- * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+ * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional
  * [constantValue].
  */
-fun constantFieldValue(
+fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     constantValue: ConstantValue? = null
-) = Value.createConstantFieldValue(qualifiedClassName, fieldName, constantValue)
+) =
+    Value.createFieldReferenceValue(
+        ClassResolver.THROWING,
+        qualifiedClassName,
+        fieldName,
+        constantValue,
+    )
 
-/** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
-fun enumConstantValue(
-    qualifiedClassName: String,
-    fieldName: String,
-) = Value.createEnumConstantValue(qualifiedClassName, fieldName)
+/** Create an [AnnotationValue] from [source]. */
+fun annotationValueFromSource(source: String) =
+    Value.createAnnotationValue(
+        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)!!
+    )
+
+fun annotationValue(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
+    Value.createAnnotationValue(annotationItem(qualifiedClassName, *attributes))
+
+fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
+    DefaultAnnotationItem.createAttributesLazily(
+        AnnotationContext.DEFAULT_RESOLVE_NULL,
+        FileLocation.UNKNOWN,
+        qualifiedClassName,
+        {
+            attributes.map { (name, value) ->
+                DefaultAnnotationAttribute(
+                    name,
+                    value.provider(),
+                    value.asAnnotationAttributeValue(),
+                )
+            }
+        }
+    )!!
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,
@@ -73,18 +110,19 @@ fun enumConstantValue(
 private val fullySupportedValueKinds =
     EnumSet.noneOf(ValueKind::class.java).apply {
         addAll(ValueKind.LITERAL_KINDS)
+        add(ValueKind.ANNOTATION)
+        add(ValueKind.ARRAY)
         add(ValueKind.CLASS)
+        add(ValueKind.FIELD)
     }
 
 /**
  * Run a test on this [Value] ignoring any [ValueProviderException]s if its [Value.kind] is not
  * fully supported across model implementations.
  */
-fun Value?.runValueTest(body: (Value) -> Unit) {
-    this ?: return
-
-    // Check whether this kind is fully supported.
-    val fullySupported = kind in fullySupportedValueKinds
+fun Value?.runValueTest(body: (Value?) -> Unit) {
+    // Check whether this kind is fully supported, assume they are if this is null.
+    val fullySupported = this?.kind?.let { kind -> kind in fullySupportedValueKinds } ?: true
 
     // ValueProviderExceptions are not treated as test failures if the value kind is not fully
     // supported to avoid having to keep updating baseline files while expanding Value support

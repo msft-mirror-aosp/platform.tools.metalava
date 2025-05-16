@@ -29,6 +29,7 @@ import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
+import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
@@ -551,8 +552,12 @@ private fun ActionContext.checkCompatibility(
             signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
         }
 
-    // If configured, compares the new API with the previous API and reports
-    // any incompatibilities.
+    val apiName =
+        if (apiType == ApiType.REMOVED) {
+            "removed"
+        } else options.apiSelectionOptions.apiSurface
+
+    // If configured, compares the new API with the previous API and reports any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
         oldCodebase,
@@ -560,6 +565,7 @@ private fun ActionContext.checkCompatibility(
         reporter,
         options.issueConfiguration,
         options.apiCompatAnnotations,
+        apiName,
     )
 }
 
@@ -649,6 +655,7 @@ private fun ActionContext.loadFromSources(
             classPath = options.classpath,
             apiPackages = options.apiPackages,
             projectDescription = options.projectDescription,
+            compiledSourceJar = options.compiledSourceJar
         )
 
     progressTracker.progress("Analyzing API: ")
@@ -916,6 +923,7 @@ private fun createMetalavaCommand(
     command.subcommands(
         MainCommand(command.commonOptions, executionEnvironment),
         AndroidJarsToSignaturesCommand(),
+        FlagReportCommand(),
         HelpCommand(),
         JarToJDiffCommand(),
         MakeAnnotationsPackagePrivateCommand(),
