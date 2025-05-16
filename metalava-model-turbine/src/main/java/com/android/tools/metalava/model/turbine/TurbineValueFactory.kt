@@ -209,28 +209,43 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
     /** Create a [ConstantValue] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toConstant(optionalTypeItem: TypeItem?): ConstantValue {
         if (const.kind() == Const.Kind.PRIMITIVE) {
-            // Check to see if the underlying value has been already been cast from the source
-            // literal type to a type appropriate for where it is being used. If it has then reverse
-            // the cast to preserve the information about the source literal type. That is needed to
-            // enable consistent processing with legacy value handling which often uses the source
-            // type directly, e.g. when parsing `longValue = 1` it may write it as `longValue = 1`
-            // instead of the more consistent `longValue = 1L`.
-            val transformedValue =
-                when (val underlyingValue = (const as Const.Value).value) {
-                    is Double,
-                    is Float,
-                    is Long -> {
-                        if (expr is Tree.Literal && expr.tykind() == TurbineConstantTypeKind.INT) {
-                            expr.toString().toInt()
-                        } else underlyingValue
-                    }
-                    else -> underlyingValue
-                }
+            val underlyingValue = (const as Const.Value).value
 
-            // A value is considered non-literal if an expression was provided, and it was not a
-            // literal expression.
-            val nonLiteralInSource = expr != null && expr !is Tree.Literal
-            return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
+            // If no expr is provided then this comes from a .class file, otherwise it comes from
+            // the source.
+            if (expr == null) {
+                return createLiteralValue(optionalTypeItem, underlyingValue)
+            } else {
+                // Check to see if the underlying value has been already been converted from the
+                // source literal type to a type appropriate for where it is being used. If it has
+                // then this undoes the conversion to preserve the information about the source
+                // literal type. That is needed to enable consistent processing with legacy value
+                // handling which often uses the source type directly, e.g. when parsing
+                //     `longValue = 1`
+                // it may write it as
+                //     `longValue = 1`
+                // instead of the more consistent
+                //     `longValue = 1L`.
+                val transformedValue =
+                    when (underlyingValue) {
+                        is Double,
+                        is Float,
+                        is Long -> {
+                            when {
+                                expr is Tree.Literal &&
+                                    expr.tykind() == TurbineConstantTypeKind.INT -> {
+                                    (underlyingValue as Number).toInt()
+                                }
+                                else -> underlyingValue
+                            }
+                        }
+                        else -> underlyingValue
+                    }
+
+                // A value is considered non-literal if it was not a literal expression.
+                val nonLiteralInSource = expr !is Tree.Literal
+                return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
+            }
         }
 
         throw ValueProviderException(
