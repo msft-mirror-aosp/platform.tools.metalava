@@ -571,9 +571,13 @@ sealed interface DoubleValue : FloatingPointValue<Double> {
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
     companion object {
-        val NaN: DoubleValue = DefaultDoubleValue(Double.NaN)
-        val NEGATIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.NEGATIVE_INFINITY)
-        val POSITIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.POSITIVE_INFINITY)
+        // These are all non-literals as there is no source literal for these. They all either
+        // require using a division-by-zero expression or a field that itself uses division-by-zero.
+        val NaN: DoubleValue = DefaultDoubleValue(Double.NaN, nonLiteralInSource = true)
+        val NEGATIVE_INFINITY: DoubleValue =
+            DefaultDoubleValue(Double.NEGATIVE_INFINITY, nonLiteralInSource = true)
+        val POSITIVE_INFINITY: DoubleValue =
+            DefaultDoubleValue(Double.POSITIVE_INFINITY, nonLiteralInSource = true)
     }
 }
 

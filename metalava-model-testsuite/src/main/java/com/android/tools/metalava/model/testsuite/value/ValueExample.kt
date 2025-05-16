@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
+import com.android.tools.metalava.model.value.DoubleValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.testing.EntryPoint
@@ -536,7 +537,7 @@ constructor(
                     expectedKotlinLegacyValue = expectations { attributeValue = 116.toByte() },
                     expectedValue =
                         expectations {
-                            common = literalValue(116.toByte())
+                            common = literalValue(116.toByte(), nonLiteralInSource = true)
                             jar { common = primitiveValueForKind(Primitive.BYTE, 116) }
                         },
                 ),
@@ -909,7 +910,7 @@ constructor(
                             common = Double.NaN
                             jar { fieldValue = null }
                         },
-                    expectedValue = expectations { common = literalValue(Double.NaN) },
+                    expectedValue = expectations { common = DoubleValue.NaN },
                 ),
                 // Check a special double - +infinity.
                 ValueExample(
@@ -950,8 +951,7 @@ constructor(
                             common = Double.POSITIVE_INFINITY
                             jar { fieldValue = null }
                         },
-                    expectedValue =
-                        expectations { common = literalValue(Double.POSITIVE_INFINITY) },
+                    expectedValue = expectations { common = DoubleValue.POSITIVE_INFINITY },
                 ),
                 ValueExample(
                     name = "double negative infinity",
@@ -1138,7 +1138,11 @@ constructor(
                                 fieldReferenceValue(
                                     "test.pkg.Constants",
                                     "INT_CONSTANT",
-                                    primitiveValueForKind(Primitive.LONG, 37)
+                                    primitiveValueForKind(
+                                        Primitive.LONG,
+                                        37,
+                                        nonLiteralInSource = true
+                                    )
                                 )
                             jar {
                                 // The compiler will always inline a constant field value using the
@@ -1750,7 +1754,7 @@ constructor(
                     expectedKotlinLegacyValue = expectations { attributeValue = 32000.toShort() },
                     expectedValue =
                         expectations {
-                            common = literalValue(32000.toShort())
+                            common = literalValue(32000.toShort(), nonLiteralInSource = true)
                             jar {
                                 // There is no short constant in a class file, only ints.
                                 common = primitiveValueForKind(Primitive.SHORT, 32000)

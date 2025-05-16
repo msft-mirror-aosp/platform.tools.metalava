@@ -285,16 +285,46 @@ interface ValueFactory {
                         DefaultBooleanValue(underlyingValue as Boolean)
                     },
                 Primitive.BYTE to
-                    { underlyingValue, originalValue, _ ->
-                        DefaultByteValue(underlyingValue as Byte, originalValue is Int)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val byteValue = underlyingValue as Byte
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                byteValue < 0
+
+                        DefaultByteValue(
+                            byteValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
                 Primitive.CHAR to
                     { underlyingValue, _, _ ->
                         DefaultCharValue(underlyingValue as Char)
                     },
                 Primitive.DOUBLE to
-                    { underlyingValue, originalValue, _ ->
-                        DefaultDoubleValue(underlyingValue as Double, originalValue is Int)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val doubleValue = underlyingValue as Double
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                doubleValue < 0 ||
+                                // Similarly, NaN, +Infinity, -Infinity are treated as if they were
+                                // an expression as there is no literal for them. That is true even
+                                // when they are read from a jar where they are stored as a special
+                                // set of bits.
+                                doubleValue.isNaN() ||
+                                doubleValue.isInfinite()
+
+                        DefaultDoubleValue(
+                            doubleValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
                 Primitive.FLOAT to
                     { underlyingValue, originalValue, nonLiteralInSource ->
@@ -311,10 +341,11 @@ interface ValueFactory {
                                 // set of bits.
                                 floatValue.isNaN() ||
                                 floatValue.isInfinite()
+
                         DefaultFloatValue(
                             floatValue,
                             originalValue is Int,
-                            effectivelyNonLiteralInSource
+                            effectivelyNonLiteralInSource,
                         )
                     },
                 Primitive.INT to
@@ -333,12 +364,36 @@ interface ValueFactory {
                         )
                     },
                 Primitive.LONG to
-                    { underlyingValue, originalValue, _ ->
-                        DefaultLongValue(underlyingValue as Long, originalValue is Int)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val longValue = underlyingValue as Long
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                longValue < 0
+
+                        DefaultLongValue(
+                            longValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
                 Primitive.SHORT to
-                    { underlyingValue, originalValue, _ ->
-                        DefaultShortValue(underlyingValue as Short, originalValue is Int)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val shortValue = underlyingValue as Short
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                shortValue < 0
+
+                        DefaultShortValue(
+                            shortValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
             )
 

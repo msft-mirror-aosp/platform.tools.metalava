@@ -36,7 +36,7 @@ internal sealed class DefaultNumericValue<U : Number>(
      * generally false but may be true for some values that cannot be represented as a literal, e.g.
      * `Float.NaN`, etc.
      */
-    protected val nonLiteralInSource: Boolean = false,
+    protected val nonLiteralInSource: Boolean,
 ) : DefaultPrimitiveValue<U>() {
 
     /**
@@ -56,12 +56,29 @@ internal sealed class DefaultNumericValue<U : Number>(
 
         if (configuration.treatAsIntIfOriginallySpecifiedAsInt && wasOriginallySpecifiedAsInt) {
             val intValue = underlyingValue.toInt()
-            builder.append(intValue)
+            appendIntegerValueTo(builder, configuration, intValue)
             return
         }
 
         // Append the default numeric value to builder.
         appendNumericValueTo(builder, configuration)
+    }
+
+    internal fun appendIntegerValueTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration,
+        intValue: Int,
+    ) {
+        val format =
+            if (nonLiteralInSource) configuration.nonLiteralIntFormat else IntFormat.DECIMAL
+        when (format) {
+            IntFormat.HEXADECIMAL -> {
+                builder.append("0x").append(Integer.toHexString(intValue))
+            }
+            else -> {
+                builder.append(intValue)
+            }
+        }
     }
 
     internal open fun appendNumericValueTo(
@@ -86,7 +103,8 @@ internal class DefaultBooleanValue(override val underlyingValue: Boolean) :
 internal class DefaultByteValue(
     override val underlyingValue: Byte,
     wasOriginallySpecifiedAsInt: Boolean = false,
-) : DefaultNumericValue<Byte>(wasOriginallySpecifiedAsInt), ByteValue
+    nonLiteralInSource: Boolean = false,
+) : DefaultNumericValue<Byte>(wasOriginallySpecifiedAsInt, nonLiteralInSource), ByteValue
 
 internal class DefaultCharValue(override val underlyingValue: Char) :
     DefaultPrimitiveValue<Char>(), CharValue
@@ -94,7 +112,8 @@ internal class DefaultCharValue(override val underlyingValue: Char) :
 internal class DefaultDoubleValue(
     override val underlyingValue: Double,
     wasOriginallySpecifiedAsInt: Boolean = false,
-) : DefaultNumericValue<Double>(wasOriginallySpecifiedAsInt), DoubleValue
+    nonLiteralInSource: Boolean = false,
+) : DefaultNumericValue<Double>(wasOriginallySpecifiedAsInt, nonLiteralInSource), DoubleValue
 
 internal class DefaultFloatValue(
     override val underlyingValue: Float,
@@ -124,24 +143,15 @@ internal class DefaultIntValue(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        if (nonLiteralInSource) {
-            when (configuration.nonLiteralIntFormat) {
-                IntFormat.HEXADECIMAL -> {
-                    builder.append("0x").append(Integer.toHexString(underlyingValue))
-                    return
-                }
-                else -> {}
-            }
-        }
-
-        builder.append(underlyingValue)
+        appendIntegerValueTo(builder, configuration, underlyingValue)
     }
 }
 
 internal class DefaultLongValue(
     override val underlyingValue: Long,
     wasOriginallySpecifiedAsInt: Boolean = false,
-) : DefaultNumericValue<Long>(wasOriginallySpecifiedAsInt), LongValue {
+    nonLiteralInSource: Boolean = false,
+) : DefaultNumericValue<Long>(wasOriginallySpecifiedAsInt, nonLiteralInSource), LongValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -154,7 +164,8 @@ internal class DefaultLongValue(
 internal class DefaultShortValue(
     override val underlyingValue: Short,
     wasOriginallySpecifiedAsInt: Boolean = false,
-) : DefaultNumericValue<Short>(wasOriginallySpecifiedAsInt), ShortValue
+    nonLiteralInSource: Boolean = false,
+) : DefaultNumericValue<Short>(wasOriginallySpecifiedAsInt, nonLiteralInSource), ShortValue
 
 internal class DefaultStringValue(override val underlyingValue: String) :
     DefaultLiteralValue<String>(), StringValue

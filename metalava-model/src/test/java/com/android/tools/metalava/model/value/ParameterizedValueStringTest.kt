@@ -170,6 +170,15 @@ class ParameterizedValueStringTest {
                     )
                 )
 
+            val TREAT_AS_INT_AND_NON_LITERAL_INT_HEX =
+                LabelledConfig(
+                    "treat-as-int/non-literal-int-hex",
+                    ValueStringConfiguration(
+                        nonLiteralIntFormat = IntFormat.HEXADECIMAL,
+                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                    )
+                )
+
             val TREAT_AS_INT_UNWRAP_SINGLE_ARRAY_ELEMENT =
                 LabelledConfig(
                     "treat-as-int/unwrap",
@@ -494,6 +503,7 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Byte.MIN_VALUE),
                     expectedDefaultValueString = "-128",
+                    expectedDefaultDebugString = "-128,nonLiteral",
                 ),
                 testCasesForValue(
                     "byte as int",
@@ -502,6 +512,25 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "10,asInt",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+
+                    // Even when treating this as an int it should not be formatted using
+                    // hexadecimal because it was not a non-literal.
+                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX)
+                },
+                testCasesForValue(
+                    "byte as non-literal int",
+                    value = primitiveValueForKind(Primitive.BYTE, -20),
+                    expectedDefaultValueString = "-20",
+                    expectedDefaultDebugString = "-20,asInt,nonLiteral",
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+
+                    // When treating this as an int it should be formatted using hexadecimal because
+                    // it was a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        expectedValueString = "0xffffffec"
+                    )
                 },
                 // ********************************* Chars *********************************
                 testCasesForValue(
@@ -585,12 +614,14 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Double.NaN),
                     expectedDefaultValueString = "(0.0/0.0)",
+                    expectedDefaultDebugString = "(0.0/0.0),nonLiteral",
                 ) {
                     verifyConfigChangesOutput(LabelledConfig.SPECIAL_VALUES, "DoubleValue.NaN")
                 },
                 testCasesForValue(
                     value = literalValue(Double.NEGATIVE_INFINITY),
                     expectedDefaultValueString = "(-1.0/0.0)",
+                    expectedDefaultDebugString = "(-1.0/0.0),nonLiteral",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.SPECIAL_VALUES,
@@ -600,6 +631,7 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Double.POSITIVE_INFINITY),
                     expectedDefaultValueString = "(1.0/0.0)",
+                    expectedDefaultDebugString = "(1.0/0.0),nonLiteral",
                 ) {
                     verifyConfigChangesOutput(
                         LabelledConfig.SPECIAL_VALUES,
@@ -615,6 +647,36 @@ class ParameterizedValueStringTest {
                     verifyConfigChangesOutput(
                         LabelledConfig.TREAT_AS_INT,
                         expectedValueString = "3",
+                    )
+
+                    // Even when treating this as an int it should not be formatted using
+                    // hexadecimal because it was not a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        expectedValueString = "3"
+                    )
+                },
+                testCasesForValue(
+                    "double as non-literal int",
+                    value =
+                        primitiveValueForKind(
+                            Primitive.DOUBLE,
+                            -7,
+                            nonLiteralInSource = true,
+                        ),
+                    expectedDefaultValueString = "-7.0",
+                    expectedDefaultDebugString = "-7.0,asInt,nonLiteral",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT,
+                        expectedValueString = "-7",
+                    )
+
+                    // When treating this as an int it should be formatted using hexadecimal because
+                    // it was a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        expectedValueString = "0xfffffff9"
                     )
                 },
                 // ********************************* Enum *********************************
@@ -689,6 +751,36 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "3.0f,asInt",
                 ) {
                     verifyConfigChangesOutput(LabelledConfig.TREAT_AS_INT, "3")
+
+                    // Even when treating this as an int it should not be formatted using
+                    // hexadecimal because it was not a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        expectedValueString = "3"
+                    )
+                },
+                testCasesForValue(
+                    "float as non-literal int",
+                    value =
+                        primitiveValueForKind(
+                            Primitive.FLOAT,
+                            -7,
+                            nonLiteralInSource = true,
+                        ),
+                    expectedDefaultValueString = "-7.0f",
+                    expectedDefaultDebugString = "-7.0f,asInt,nonLiteral",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT,
+                        expectedValueString = "-7",
+                    )
+
+                    // When treating this as an int it should be formatted using hexadecimal because
+                    // it was a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        expectedValueString = "0xfffffff9"
+                    )
                 },
                 // ********************************* Ints *********************************
                 testCasesForValue(
@@ -744,6 +836,7 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Long.MIN_VALUE),
                     expectedDefaultValueString = "-9223372036854775808L",
+                    expectedDefaultDebugString = "-9223372036854775808L,nonLiteral",
                 ),
                 testCasesForValue(
                     "long as int",
@@ -751,7 +844,35 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "3L",
                     expectedDefaultDebugString = "3L,asInt",
                 ) {
-                    verifyConfigChangesOutput(LabelledConfig.TREAT_AS_INT, "3")
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT,
+                        expectedValueString = "3",
+                    )
+
+                    // Even when treating this as an int it should not be formatted using
+                    // hexadecimal because it was not a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        expectedValueString = "3",
+                    )
+                },
+                testCasesForValue(
+                    "long as non-literal int",
+                    value = primitiveValueForKind(Primitive.LONG, -37),
+                    expectedDefaultValueString = "-37L",
+                    expectedDefaultDebugString = "-37L,asInt,nonLiteral",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT,
+                        expectedValueString = "-37",
+                    )
+
+                    // When treating this as an int it should be formatted using hexadecimal because
+                    // it was a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        expectedValueString = "0xffffffdb"
+                    )
                 },
                 // ********************************* Shorts *********************************
                 testCasesForValue(
@@ -765,6 +886,7 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Short.MIN_VALUE),
                     expectedDefaultValueString = "-32768",
+                    expectedDefaultDebugString = "-32768,nonLiteral",
                 ),
                 testCasesForValue(
                     "short as int",
@@ -773,6 +895,28 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "3,asInt",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+
+                    // Even when treating this as an int it should not be formatted using
+                    // hexadecimal because it was not a non-literal.
+                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX)
+                },
+                testCasesForValue(
+                    "short as non-literal int",
+                    value = primitiveValueForKind(Primitive.SHORT, -111),
+                    expectedDefaultValueString = "-111",
+                    expectedDefaultDebugString = "-111,asInt,nonLiteral",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT,
+                        expectedValueString = "-111",
+                    )
+
+                    // When treating this as an int it should be formatted using hexadecimal because
+                    // it was a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        expectedValueString = "0xffffff91"
+                    )
                 },
                 // ********************************* Strings *********************************
                 testCasesForValue(
