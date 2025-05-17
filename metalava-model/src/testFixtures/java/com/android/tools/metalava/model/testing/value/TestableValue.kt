@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -98,7 +97,6 @@ fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, V
                 DefaultAnnotationAttribute(
                     name,
                     value.provider(),
-                    value.asAnnotationAttributeValue(),
                 )
             }
         }

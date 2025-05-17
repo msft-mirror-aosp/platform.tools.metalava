@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -432,7 +431,6 @@ internal class PsiValueFactory(
                 DefaultAnnotationAttribute(
                     name,
                     value.provider(),
-                    value.asAnnotationAttributeValue(),
                 )
             }
 

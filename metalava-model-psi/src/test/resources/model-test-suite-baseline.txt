@@ -42,13 +42,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[java,k2,null annotated parameterized inner type - annotated]
   Type string[java,k2,null annotated parameterized inner type - kotlin nulls]
 
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
-  testLegacyValue[kotlin,k1,source,annotation - array of annotations]
-  testLegacyValue[kotlin,k1,source,annotation - multiple attributes]
-  testLegacyValue[kotlin,k1,source,annotation - no attributes]
-  testLegacyValue[kotlin,k1,source,annotation - single value]
-  testLegacyValue[kotlin,k2,source,long - with negative int]
-
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[kotlin,k1,source,null - intermediate non-constant expression]
   testFieldValue[kotlin,k2,source,null - intermediate non-constant expression]

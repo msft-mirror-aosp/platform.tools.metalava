@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -63,26 +62,6 @@ class ValueParser(
         text: String,
         valueUseSite: ValueUseSite,
     ): CombinedValueProvider = CachingValueProvider(this, typeItem, text, valueUseSite)
-
-    /**
-     * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
-     * [attributeName] of [annotationItem] from [text].
-     *
-     * @param annotationItem the containing [AnnotationItem].
-     * @param attributeName the name of the attribute whose value it will provide.
-     * @param text the String value to be parsed.
-     */
-    fun providerForAnnotationValue(
-        annotationItem: AnnotationItem,
-        attributeName: String,
-        text: String
-    ): CombinedValueProvider =
-        CachingAnnotationValueProvider(
-            this,
-            annotationItem,
-            attributeName,
-            text,
-        )
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -535,8 +514,6 @@ class ValueParser(
                     DefaultAnnotationAttribute(
                         attributeName,
                         valueProvider,
-                        // Create legacy attribute value.
-                        DefaultAnnotationAttributeValue.create(valueText),
                     )
                 )
             } while (true)
