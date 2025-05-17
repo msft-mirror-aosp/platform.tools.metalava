@@ -91,16 +91,15 @@ fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, V
     DefaultAnnotationItem.createAttributesLazily(
         AnnotationContext.DEFAULT_RESOLVE_NULL,
         FileLocation.UNKNOWN,
-        qualifiedClassName,
-        {
-            attributes.map { (name, value) ->
-                DefaultAnnotationAttribute(
-                    name,
-                    value.provider(),
-                )
-            }
+        qualifiedClassName
+    ) {
+        attributes.map { (name, value) ->
+            DefaultAnnotationAttribute(
+                name,
+                value.provider(),
+            )
         }
-    )!!
+    }!!
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,

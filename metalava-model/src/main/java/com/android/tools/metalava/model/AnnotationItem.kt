@@ -486,14 +486,14 @@ protected constructor(
     final override val qualifiedName: String,
 
     /** Possibly empty list of attributes. */
-    attributesGetter: (AnnotationItem) -> List<AnnotationAttribute>,
+    attributesGetter: () -> List<AnnotationAttribute>,
 ) : AnnotationItem {
 
     override val targets
         get() = info.targets
 
     final override val attributes: List<AnnotationAttribute> by
-        lazy(LazyThreadSafetyMode.NONE) { attributesGetter(this) }
+        lazy(LazyThreadSafetyMode.NONE, attributesGetter)
 
     /** Information that metalava has gathered about this annotation item. */
     internal val info: AnnotationInfo by lazy {
@@ -622,7 +622,7 @@ protected constructor(
             annotationContext: AnnotationContext,
             fileLocation: FileLocation,
             originalName: String,
-            attributesGetter: (AnnotationItem) -> List<AnnotationAttribute>,
+            attributesGetter: () -> List<AnnotationAttribute>,
         ): AnnotationItem? {
             val qualifiedName =
                 annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
@@ -633,6 +633,23 @@ protected constructor(
                 qualifiedName = qualifiedName,
                 attributesGetter = attributesGetter,
             )
+        }
+
+        /**
+         * Create a [DefaultAnnotationItem] with [attributes].
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createWithAttributes(
+            annotationContext: AnnotationContext,
+            fileLocation: FileLocation,
+            originalName: String,
+            attributes: List<AnnotationAttribute>,
+        ): AnnotationItem? {
+            return createAttributesLazily(annotationContext, fileLocation, originalName) {
+                attributes
+            }
         }
     }
 }

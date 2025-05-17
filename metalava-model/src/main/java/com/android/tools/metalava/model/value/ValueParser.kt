@@ -406,11 +406,11 @@ class ValueParser(
                 else -> emptyList()
             }
 
-        return DefaultAnnotationItem.createAttributesLazily(
+        return DefaultAnnotationItem.createWithAttributes(
             annotationContext,
             FileLocation.UNKNOWN,
             annotationClassName,
-            { attributes }
+            attributes
         )
     }
 
@@ -421,7 +421,7 @@ class ValueParser(
      * On entry [tokenizer]'s [Tokenizer.current] must be `(`. On exit, it will be the matching `)`.
      */
     private fun parseAnnotationAttributes(
-        @Suppress("UNUSED_PARAMETER") annotationClassName: String,
+        annotationClassName: String,
         tokenizer: Tokenizer
     ): List<AnnotationAttribute> {
         require(tokenizer.current == "(") { "Expected '(' but found ${tokenizer.current}" }

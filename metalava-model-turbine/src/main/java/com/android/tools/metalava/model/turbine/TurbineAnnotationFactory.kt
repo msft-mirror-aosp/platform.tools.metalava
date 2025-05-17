@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -70,11 +72,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
 
         val annotationClass = annotation.sym()?.let { typeBoundClassForSymbol(it) }
 
-        return DefaultAnnotationItem.createAttributesLazily(
-            codebase,
-            fileLocation,
-            qualifiedName
-        ) { annotationItem ->
+        return DefaultAnnotationItem.createAttributesLazily(codebase, fileLocation, qualifiedName) {
             getAnnotationAttributes(
                 annotationClass,
                 annotation.values(),
@@ -156,7 +154,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
     }
 
     /**
-     * Create a [CombinedValueProvider] that will create (and cache) a [Value]
+     * Create a [ValueProvider] that will create (and cache) a [Value]
      *
      * @param annotationClass the optional [TypeBoundClass] for the annotation. If provided it will
      *   be used to find a [TypeItem] for the annotation attribute called [attributeName].
