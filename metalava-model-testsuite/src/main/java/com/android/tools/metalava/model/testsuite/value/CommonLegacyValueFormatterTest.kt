@@ -160,6 +160,10 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         /** A method that can used for the context in [LegacyValueFormatter.format]. */
         val method
             get() = classItem.assertMethod("method", "")
+
+        fun LegacyValueFormatter.assertFormattedValue(expected: String, value: Value) {
+            assertEquals(expected, format(value, method), message = value.toString())
+        }
     }
 
     /**
@@ -202,8 +206,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual = formatter.format(DOUBLE_NAN, method)
-            assertEquals("NOT_A_NUMBER", actual)
+            formatter.assertFormattedValue("NOT_A_NUMBER", DOUBLE_NAN)
         }
     }
 
@@ -218,8 +221,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual = formatter.format(arrayValue(DOUBLE_NAN), method)
-            assertEquals("{NOT_A_NUMBER}", actual)
+            formatter.assertFormattedValue("{NOT_A_NUMBER}", arrayValue(DOUBLE_NAN))
         }
     }
 
@@ -234,15 +236,13 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual =
-                formatter.format(
-                    annotationValue(
-                        "test.pkg.Anno",
-                        "other" to DOUBLE_NAN,
-                    ),
-                    method
+            formatter.assertFormattedValue(
+                "@test.pkg.Anno(other = NOT_A_NUMBER)",
+                annotationValue(
+                    "test.pkg.Anno",
+                    "other" to DOUBLE_NAN,
                 )
-            assertEquals("@test.pkg.Anno(other = NOT_A_NUMBER)", actual)
+            )
         }
     }
 
@@ -257,8 +257,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual = formatter.format(literalValue(3.0), method)
-            assertEquals("3.0", actual)
+            formatter.assertFormattedValue("3.0", literalValue(3.0))
         }
     }
 
@@ -272,9 +271,8 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                     javaSettings = sourceSettings,
                     jarSettings = jarSettings,
                 )
-            val actual = formatter.format(DOUBLE_NAN, method)
             val expected = if (producerKind == ProducerKind.JAR) "Jar" else "Source"
-            assertEquals(expected, actual)
+            formatter.assertFormattedValue(expected, DOUBLE_NAN)
         }
     }
 
@@ -301,8 +299,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         checkFormatting {
             val javaSettings = Settings(useDoubleQuotesForChar = false)
             val formatter = LegacyValueFormatter(javaSettings = javaSettings)
-            val actual = formatter.format(literalValue('a'), method)
-            assertEquals("'a'", actual)
+            formatter.assertFormattedValue("'a'", literalValue('a'))
         }
     }
 
@@ -328,13 +325,10 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                     dropLongAndFloatTypeSuffix = false,
                 )
             val formatter = LegacyValueFormatter(javaSettings = javaSettings)
-            fun assertFormattedValue(expected: String, value: Value) {
-                assertEquals(expected, formatter.format(value, method), message = value.toString())
-            }
-            assertFormattedValue("10L", literalValue(10L))
-            assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
-            assertFormattedValue("2.3f", literalValue(2.3f))
-            assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
+            formatter.assertFormattedValue("10L", literalValue(10L))
+            formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
+            formatter.assertFormattedValue("2.3f", literalValue(2.3f))
+            formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
         }
     }
 
@@ -350,13 +344,10 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                     dropLongAndFloatTypeSuffix = true,
                 )
             val formatter = LegacyValueFormatter(javaSettings = javaSettings)
-            fun assertFormattedValue(expected: String, value: Value) {
-                assertEquals(expected, formatter.format(value, method), message = value.toString())
-            }
-            assertFormattedValue("10", literalValue(10L))
-            assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
-            assertFormattedValue("2.3", literalValue(2.3f))
-            assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
+            formatter.assertFormattedValue("10", literalValue(10L))
+            formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
+            formatter.assertFormattedValue("2.3", literalValue(2.3f))
+            formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
         }
     }
 }
