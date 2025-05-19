@@ -403,4 +403,30 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test field - always inline with no value`() {
+        checkFormatting {
+            val javaSettings = Settings(alwaysInlineFields = true)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            // Inlined fields with no value just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "test.pkg.AlwaysInline.FIELD",
+                fieldReferenceValue("test.pkg.AlwaysInline", "FIELD")
+            )
+        }
+    }
+
+    @Test
+    fun `Test field - always inline with value`() {
+        checkFormatting {
+            val javaSettings = Settings(alwaysInlineFields = true)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            // Inlined fields with a value should just that that value.
+            formatter.assertFormattedValue(
+                "99",
+                fieldReferenceValue("test.pkg.AlwaysInline", "FIELD", literalValue(99))
+            )
+        }
+    }
 }

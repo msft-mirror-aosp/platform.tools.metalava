@@ -95,6 +95,13 @@ class LegacyValueFormatter(
         },
 
         /**
+         * If `true` then any [FieldReferenceValue]s are replaced with their [ConstantValue] if
+         * available. If `false`, or no [ConstantValue] is available then just format it as a normal
+         * field reference.
+         */
+        val alwaysInlineFields: Boolean = false,
+
+        /**
          * If `true` then just use the [Number.toString] method for [LiteralValue.underlyingValue]s
          * that are [Number]s.
          */
@@ -169,10 +176,14 @@ class LegacyValueFormatter(
             return
         }
 
-        // If the value is a field that is unresolvable or inaccessible then use its value, if
-        // available, otherwise just use it as a value must be formatted.
+        // If the value is a field that should always be inlined, or is unresolvable or inaccessible
+        // then use its value, if available. Otherwise, fall back to using it anyway as a value must
+        // be formatted.
         val valueToAppend =
-            if (value is FieldReferenceValue && !value.resolve().isAccessible())
+            if (
+                value is FieldReferenceValue &&
+                    (settings.alwaysInlineFields || !value.resolve().isAccessible())
+            )
                 value.asLiteralValue() ?: value
             else value
 
