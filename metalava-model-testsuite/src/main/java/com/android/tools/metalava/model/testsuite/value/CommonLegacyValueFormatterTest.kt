@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -86,6 +87,10 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         public interface Foo {
                             void method();
                         }
+
+                        class Hidden {
+                            public static final int FIELD = 2;
+                        }
                     """
                 )
                 .cacheIn(testFileCacheRule)
@@ -113,6 +118,10 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         package test.pkg
                         interface Foo {
                             fun method()
+                        }
+
+                        internal object Hidden {
+                            const val FIELD = 2
                         }
                     """
                 )
@@ -348,6 +357,50 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
             formatter.assertFormattedValue("2.3", literalValue(2.3f))
             formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
+        }
+    }
+
+    @Test
+    fun `Test field - unresolvable`() {
+        checkFormatting {
+            val javaSettings = Settings()
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            // Unresolvable fields should just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "unknown.pkg.Unknown.FIELD",
+                fieldReferenceValue("unknown.pkg.Unknown", "FIELD")
+            )
+        }
+    }
+
+    // Does not work with signature files as they do not contain inaccessible fields.
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test field - resolvable but inaccessible with no value`() {
+        checkFormatting {
+            val javaSettings = Settings()
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            // Inaccessible fields with no value should just use their name as a value MUST be
+            // provided.
+            formatter.assertFormattedValue(
+                "test.pkg.Hidden.FIELD",
+                fieldReferenceValue("test.pkg.Hidden", "FIELD")
+            )
+        }
+    }
+
+    // Does not work with signature files as they do not contain inaccessible fields.
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test field - resolvable but inaccessible with value`() {
+        checkFormatting {
+            val javaSettings = Settings()
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            // Inaccessible fields with a value should just use that value.
+            formatter.assertFormattedValue(
+                "2",
+                fieldReferenceValue("test.pkg.Hidden", "FIELD", literalValue(2))
+            )
         }
     }
 }

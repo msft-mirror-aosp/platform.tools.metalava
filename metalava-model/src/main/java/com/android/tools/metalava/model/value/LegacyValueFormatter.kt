@@ -169,19 +169,29 @@ class LegacyValueFormatter(
             return
         }
 
+        // If the value is a field that is unresolvable or inaccessible then use its value, if
+        // available, otherwise just use it as a value must be formatted.
+        val valueToAppend =
+            if (value is FieldReferenceValue && !value.resolve().isAccessible())
+                value.asLiteralValue() ?: value
+            else value
+
         // Fallback to just using the default value representation according to the settings.
-        value.appendValueStringTo(builder, settings.boundConfiguration)
+        valueToAppend.appendValueStringTo(builder, settings.boundConfiguration)
 
         if (settings.dropLongAndFloatTypeSuffix) {
             val lastCharIndex = builder.length - 1
             if (
-                (value is LongValue && builder[lastCharIndex] == 'L') ||
-                    (value is FloatValue && builder[lastCharIndex] == 'f')
+                (valueToAppend is LongValue && builder[lastCharIndex] == 'L') ||
+                    (valueToAppend is FloatValue && builder[lastCharIndex] == 'f')
             ) {
                 builder.setLength(lastCharIndex)
             }
         }
     }
+
+    /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
+    private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
 
     companion object {
         /** Setting for formatting [MethodItem.defaultValue] from Java sources. */

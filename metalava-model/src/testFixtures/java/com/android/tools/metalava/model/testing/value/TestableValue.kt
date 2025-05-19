@@ -70,10 +70,10 @@ fun classObjectValue(typeItem: TypeItem, sourceExpression: String? = null) =
 fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
-    constantValue: ConstantValue? = null
+    constantValue: ConstantValue? = null,
 ) =
     Value.createFieldReferenceValue(
-        ClassResolver.THROWING,
+        ClassResolver.RETURN_NULL,
         qualifiedClassName,
         fieldName,
         constantValue,
