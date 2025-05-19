@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.TypeItem
+
 /** Base class for all [LiteralValue] implementations. */
 internal sealed class DefaultLiteralValue<U : Any> : DefaultValue(), LiteralValue<U>
 
@@ -23,11 +25,15 @@ internal sealed class DefaultPrimitiveValue<U : Any> : DefaultLiteralValue<U>(),
 
 internal sealed class DefaultNumericValue<U : Number>(
     /**
-     * True if the original value of this from the source, was specified as an integer, e.g. `3`
-     * instead of `3.0`, or `3.0f` or `3L`. This is used to tweak formatting to match legacy
-     * behavior.
+     * The original value of this from the source.
+     *
+     * This will differ from [underlyingValue] if this needed to be converted by
+     * [Value.createLiteralValue] to match the [TypeItem] for where this will be used. This is used
+     * to tweak formatting to match legacy behavior.
+     *
+     * This is [Any] instead of [Number] because the original value could be a [Char].
      */
-    private val wasOriginallySpecifiedAsInt: Boolean,
+    private val originalValue: Any,
 
     /**
      * True if the source representation of this was a non-literal, i.e. not a literal expression
@@ -38,12 +44,11 @@ internal sealed class DefaultNumericValue<U : Number>(
      */
     protected val nonLiteralInSource: Boolean,
 ) : DefaultPrimitiveValue<U>() {
-
     /**
      * If the [configuration] has [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt]
-     * set to `true` and [wasOriginallySpecifiedAsInt] is also `true` then this will append
-     * [underlyingValue] as if it was an `int`, otherwise it will invoke [appendNumericValueTo] to
-     * append the value as normal.
+     * set to `true` and [originalValue] is also `true` then this will append [underlyingValue] as
+     * if it was an `int`, otherwise it will invoke [appendNumericValueTo] to append the value as
+     * normal.
      */
     final override fun appendValueStringTo(
         builder: StringBuilder,
@@ -54,16 +59,23 @@ internal sealed class DefaultNumericValue<U : Number>(
             return
         }
 
-        if (configuration.treatAsIntIfOriginallySpecifiedAsInt && wasOriginallySpecifiedAsInt) {
-            val intValue = underlyingValue.toInt()
-            appendIntegerValueTo(builder, configuration, intValue)
-            return
+        if (configuration.treatAsIntIfOriginallySpecifiedAsInt) {
+            when (originalValue) {
+                is Int -> {
+                    appendIntegerValueTo(builder, configuration, originalValue)
+                    return
+                }
+            }
         }
 
         // Append the default numeric value to builder.
         appendNumericValueTo(builder, configuration)
     }
 
+    /**
+     * Append [intValue] to [builder] taking into account all relevant properties in
+     * [configuration].
+     */
     internal fun appendIntegerValueTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration,
@@ -89,11 +101,25 @@ internal sealed class DefaultNumericValue<U : Number>(
     }
 
     override fun appendLegacyStateTo(builder: StringBuilder) {
-        val expectToBeInt = javaClass === DefaultIntValue::class.java
-        if (wasOriginallySpecifiedAsInt != expectToBeInt) {
-            if (expectToBeInt) builder.append(",!asInt") else builder.append(",asInt")
+        // If the original value class does not match the underlying value class then that could
+        // affect the legacy behavior of this so make sure that information is included in the
+        // legacy state string representation.
+        val expectedOriginalValueClass = underlyingValue.javaClass
+        val actualOriginalValueClass = originalValue.javaClass
+        if (actualOriginalValueClass != expectedOriginalValueClass) {
+            when (actualOriginalValueClass) {
+                intWrapperClass -> builder.append(",asInt")
+                else ->
+                    // If the value expected an int, but it was not an int then include that in the
+                    // state.
+                    if (expectedOriginalValueClass == intWrapperClass) builder.append(",!asInt")
+            }
         }
         if (nonLiteralInSource) builder.append(",nonLiteral")
+    }
+
+    companion object {
+        private val intWrapperClass = Int::class.javaObjectType
     }
 }
 
@@ -102,24 +128,24 @@ internal class DefaultBooleanValue(override val underlyingValue: Boolean) :
 
 internal class DefaultByteValue(
     override val underlyingValue: Byte,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Byte>(wasOriginallySpecifiedAsInt, nonLiteralInSource), ByteValue
+) : DefaultNumericValue<Byte>(originalValue, nonLiteralInSource), ByteValue
 
 internal class DefaultCharValue(override val underlyingValue: Char) :
     DefaultPrimitiveValue<Char>(), CharValue
 
 internal class DefaultDoubleValue(
     override val underlyingValue: Double,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Double>(wasOriginallySpecifiedAsInt, nonLiteralInSource), DoubleValue
+) : DefaultNumericValue<Double>(originalValue, nonLiteralInSource), DoubleValue
 
 internal class DefaultFloatValue(
     override val underlyingValue: Float,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Float>(wasOriginallySpecifiedAsInt, nonLiteralInSource), FloatValue {
+) : DefaultNumericValue<Float>(originalValue, nonLiteralInSource), FloatValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -135,9 +161,9 @@ internal class DefaultFloatValue(
 
 internal class DefaultIntValue(
     override val underlyingValue: Int,
-    wasOriginallySpecifiedAsInt: Boolean = true,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Int>(wasOriginallySpecifiedAsInt, nonLiteralInSource), IntValue {
+) : DefaultNumericValue<Int>(originalValue, nonLiteralInSource), IntValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -149,9 +175,9 @@ internal class DefaultIntValue(
 
 internal class DefaultLongValue(
     override val underlyingValue: Long,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Long>(wasOriginallySpecifiedAsInt, nonLiteralInSource), LongValue {
+) : DefaultNumericValue<Long>(originalValue, nonLiteralInSource), LongValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -163,9 +189,9 @@ internal class DefaultLongValue(
 
 internal class DefaultShortValue(
     override val underlyingValue: Short,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Short>(wasOriginallySpecifiedAsInt, nonLiteralInSource), ShortValue
+) : DefaultNumericValue<Short>(originalValue, nonLiteralInSource), ShortValue
 
 internal class DefaultStringValue(override val underlyingValue: String) :
     DefaultLiteralValue<String>(), StringValue

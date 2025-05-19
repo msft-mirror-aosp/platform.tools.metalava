@@ -296,7 +296,7 @@ interface ValueFactory {
 
                         DefaultByteValue(
                             byteValue,
-                            originalValue is Int,
+                            originalValue,
                             effectivelyNonLiteralInSource,
                         )
                     },
@@ -322,7 +322,7 @@ interface ValueFactory {
 
                         DefaultDoubleValue(
                             doubleValue,
-                            originalValue is Int,
+                            originalValue,
                             effectivelyNonLiteralInSource,
                         )
                     },
@@ -344,7 +344,7 @@ interface ValueFactory {
 
                         DefaultFloatValue(
                             floatValue,
-                            originalValue is Int,
+                            originalValue,
                             effectivelyNonLiteralInSource,
                         )
                     },
@@ -359,7 +359,7 @@ interface ValueFactory {
                                 intValue < 0
                         DefaultIntValue(
                             intValue,
-                            originalValue is Int,
+                            originalValue,
                             effectivelyNonLiteralInSource,
                         )
                     },
@@ -375,7 +375,7 @@ interface ValueFactory {
 
                         DefaultLongValue(
                             longValue,
-                            originalValue is Int,
+                            originalValue,
                             effectivelyNonLiteralInSource,
                         )
                     },
@@ -391,7 +391,7 @@ interface ValueFactory {
 
                         DefaultShortValue(
                             shortValue,
-                            originalValue is Int,
+                            originalValue,
                             effectivelyNonLiteralInSource,
                         )
                     },
