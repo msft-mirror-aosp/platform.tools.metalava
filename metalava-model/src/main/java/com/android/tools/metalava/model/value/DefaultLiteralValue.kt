@@ -22,14 +22,32 @@ import com.android.tools.metalava.model.TypeItem
 /** Base class for all [LiteralValue] implementations. */
 internal sealed class DefaultLiteralValue<U : Any> : DefaultValue(), LiteralValue<U> {
     // Implement this in the class not the interface as it requires implementation details.
-    final override fun convertToType(optionalTypeItem: TypeItem?): LiteralValue<*> {
+
+    override fun convertToType(
+        optionalTypeItem: TypeItem?,
+        forceNonLiteralInSource: Boolean,
+    ): LiteralValue<*> {
         optionalTypeItem ?: return this
         if (optionalTypeItem.isString() && underlyingValue is String) return this
         if (optionalTypeItem !is PrimitiveTypeItem)
             error("Cannot convert $this to a $optionalTypeItem")
-        if (optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue)) return this
-        // Use the original value and non-literal status.
-        return Value.createLiteralValue(optionalTypeItem, originalValue, nonLiteralInSource)
+
+        // If the underlying value is already of the correct type and this is not being force to be
+        // non-literal, or if it is then it is already non-literal, then just return this.
+        // Otherwise, just drop through and perform the conversion.
+        if (
+            optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue) &&
+                (!forceNonLiteralInSource || nonLiteralInSource)
+        )
+            return this
+
+        // Use the original value and original non-literal status.
+        return Value.createLiteralValue(
+            optionalTypeItem,
+            originalValue,
+            // Mark this as non-literal if it is being forced of this is already non-literal.
+            forceNonLiteralInSource || nonLiteralInSource
+        )
     }
 
     /**

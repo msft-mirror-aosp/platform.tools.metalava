@@ -461,11 +461,18 @@ sealed interface ConstantValue : ArrayElementValue {
     /**
      * Convert this [ConstantValue] to be of the [optionalTypeItem].
      *
-     * If [optionalTypeItem] is `null` then no conversion is possible or if this is already of the
-     * correct type then no conversion is necessary. In either case this just returns itself.
-     * Otherwise, it will use [Value.createLiteralValue] to perform the conversion.
+     * @param optionalTypeItem if `null` then no conversion is possible or if this [ConstantValue]
+     *   is already of the correct type then no conversion is necessary. In either case this just
+     *   returns itself. Otherwise, it will use [Value.createLiteralValue] to perform the
+     *   conversion.
+     * @param forceNonLiteralInSource if `true` then the returned value will, if possible, be marked
+     *   as non-literal which can affect the legacy formatting. If `false` then the returned value
+     *   will preserve the non-literal status of this.
      */
-    fun convertToType(optionalTypeItem: TypeItem?): ConstantValue
+    fun convertToType(
+        optionalTypeItem: TypeItem?,
+        forceNonLiteralInSource: Boolean = false,
+    ): ConstantValue
 }
 
 /**
