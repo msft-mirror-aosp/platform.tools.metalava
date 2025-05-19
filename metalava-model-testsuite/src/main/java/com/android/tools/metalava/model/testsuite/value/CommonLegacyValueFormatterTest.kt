@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.Assertions.Companion.assertClass
-import com.android.tools.metalava.model.Assertions.Companion.assertField
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.Assertions.Companion.assertResolvedClass
 import com.android.tools.metalava.model.ClassItem
@@ -86,7 +85,6 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         package test.pkg;
                         public interface Foo {
                             void method();
-                            int FIELD = 1;
                         }
                     """
                 )
@@ -115,11 +113,6 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         package test.pkg
                         interface Foo {
                             fun method()
-
-                            companion object {
-                                @JvmField
-                                val FIELD = 1
-                            }
                         }
                     """
                 )
@@ -136,7 +129,6 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         package test.pkg {
                           public interface Foo {
                             method public void method();
-                            field public static final int FIELD = 1;
                           }
                         }
                     """
@@ -164,10 +156,6 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             // sources do not.
             if (producerKind == ProducerKind.JAR) codebase.assertResolvedClass("test.pkg.Foo")
             else codebase.assertClass("test.pkg.Foo")
-
-        /** A field that can used for the context in [LegacyValueFormatter.format]. */
-        val field
-            get() = classItem.assertField("FIELD")
 
         /** A method that can used for the context in [LegacyValueFormatter.format]. */
         val method
@@ -214,7 +202,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual = formatter.format(DOUBLE_NAN, field)
+            val actual = formatter.format(DOUBLE_NAN, method)
             assertEquals("NOT_A_NUMBER", actual)
         }
     }
@@ -230,7 +218,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual = formatter.format(arrayValue(DOUBLE_NAN), field)
+            val actual = formatter.format(arrayValue(DOUBLE_NAN), method)
             assertEquals("{NOT_A_NUMBER}", actual)
         }
     }
@@ -252,7 +240,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         "test.pkg.Anno",
                         "other" to DOUBLE_NAN,
                     ),
-                    field
+                    method
                 )
             assertEquals("@test.pkg.Anno(other = NOT_A_NUMBER)", actual)
         }
