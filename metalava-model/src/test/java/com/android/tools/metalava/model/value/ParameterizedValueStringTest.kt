@@ -170,6 +170,15 @@ class ParameterizedValueStringTest {
                     )
                 )
 
+            val USE_ORIGINAL_NUMBER_AND_NON_LITERAL_FLOAT_SUFFIX =
+                LabelledConfig(
+                    "use-original-number/non-literal-float-suffix",
+                    ValueStringConfiguration(
+                        nonLiteralFloatSuffix = 'F',
+                        useOriginalValueForNumbers = true,
+                    )
+                )
+
             val USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX =
                 LabelledConfig(
                     "use-original-number/non-literal-int-hex",
@@ -681,6 +690,47 @@ class ParameterizedValueStringTest {
                         expectedValueString = "0xfffffff9"
                     )
                 },
+                testCasesForValue(
+                    "double as float",
+                    value = primitiveValueForKind(Primitive.DOUBLE, 3.0f),
+                    expectedDefaultValueString = "3.0",
+                    expectedDefaultDebugString = "3.0,asFloat",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.USE_ORIGINAL_NUMBER,
+                        expectedValueString = "3.0f",
+                    )
+
+                    // Even when treating this as a float it should not be formatted using the
+                    // non-literal float suffix because it was not a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_FLOAT_SUFFIX,
+                        expectedValueString = "3.0f"
+                    )
+                },
+                testCasesForValue(
+                    "double as non-literal float",
+                    value =
+                        primitiveValueForKind(
+                            Primitive.DOUBLE,
+                            -7.0f,
+                            nonLiteralInSource = true,
+                        ),
+                    expectedDefaultValueString = "-7.0",
+                    expectedDefaultDebugString = "-7.0,asFloat,nonLiteral",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.USE_ORIGINAL_NUMBER,
+                        expectedValueString = "-7.0f",
+                    )
+
+                    // When treating this as a float it should be formatted using the non-literal
+                    // float suffix because it was a non-literal.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_FLOAT_SUFFIX,
+                        expectedValueString = "-7.0F"
+                    )
+                },
                 // ********************************* Enum *********************************
                 testCasesForValue(
                     value = fieldReferenceValue("test.pkg.EnumClass", "VALUE1"),
@@ -794,6 +844,15 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "(0.0f/0.0f)",
                     expectedDefaultDebugString = "(0.0f/0.0f),nonLiteral",
                 ),
+                // This should never happen in practice as it is impossible to assign a double to a
+                // float without casting it, in which case it is no longer a float. However, Psi
+                // does not strictly follow the rules so it is possible that this may happen somehow
+                // and it is best to be prepared.
+                testCasesForValue(
+                    value = primitiveValueForKind(Primitive.FLOAT, 10.0),
+                    expectedDefaultValueString = "10.0f",
+                    expectedDefaultDebugString = "10.0f,!asFloat",
+                ),
                 // ********************************* Ints *********************************
                 testCasesForValue(
                     value = literalValue(0),
@@ -829,6 +888,10 @@ class ParameterizedValueStringTest {
                 ) {
                     verifyConfigChangesOutput(LabelledConfig.NON_LITERAL_INT_HEX, "0x353305b3")
                 },
+                // This should never happen in practice as it is impossible to assign a long to an
+                // int without casting it, in which case it is no longer an int. However, Psi does
+                // not strictly follow the rules so it is possible that this may happen somehow and
+                // it is best to be prepared.
                 testCasesForValue(
                     value = primitiveValueForKind(Primitive.INT, 10L),
                     expectedDefaultValueString = "10",

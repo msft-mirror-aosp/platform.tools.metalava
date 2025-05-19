@@ -248,6 +248,9 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                                 TurbineConstantTypeKind.INT -> {
                                     (underlyingValue as Number).toInt()
                                 }
+                                TurbineConstantTypeKind.FLOAT -> {
+                                    (underlyingValue as Number).toFloat()
+                                }
                                 else -> underlyingValue
                             }
                         }

@@ -64,6 +64,10 @@ internal sealed class DefaultNumericValue<U : Number>(
                     appendIntegerValueTo(builder, configuration, originalValue)
                     return
                 }
+                is Float -> {
+                    appendFloatValueTo(builder, configuration, originalValue)
+                    return
+                }
             }
         }
 
@@ -92,6 +96,22 @@ internal sealed class DefaultNumericValue<U : Number>(
         }
     }
 
+    /**
+     * Append [floatValue] to [builder] taking into account all relevant properties in
+     * [configuration].
+     */
+    internal fun appendFloatValueTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration,
+        floatValue: Float,
+    ) {
+        // If it was not a literal then use the non-literal suffix. This is mutually
+        // exclusive with it being specified as an int so it does not matter which one is
+        // performed first.
+        val suffix = if (nonLiteralInSource) configuration.nonLiteralFloatSuffix else 'f'
+        builder.append(floatValue).append(suffix)
+    }
+
     internal open fun appendNumericValueTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
@@ -108,17 +128,38 @@ internal sealed class DefaultNumericValue<U : Number>(
         if (actualOriginalValueClass != expectedOriginalValueClass) {
             when (actualOriginalValueClass) {
                 intWrapperClass -> builder.append(",asInt")
+                floatWrapperClass -> builder.append(",asFloat")
                 else ->
                     // If the value expected an int, but it was not an int then include that in the
                     // state.
                     if (expectedOriginalValueClass == intWrapperClass) builder.append(",!asInt")
+                    // If the value expected a float, but it was not a float then include that in
+                    // the state.
+                    else if (
+                        expectedOriginalValueClass == floatWrapperClass &&
+                            !originalValue.isSpecialDouble()
+                    )
+                        builder.append(",!asFloat")
             }
         }
         if (nonLiteralInSource) builder.append(",nonLiteral")
     }
 
+    /**
+     * Checks to see whether this is a special [Double].
+     *
+     * This is needed as Psi has some special handling of floating point values which do not have a
+     * literal representation. It represents such values that are retrieved from a class constant
+     * pool similar to how they are represented in the source, i.e. as a division-by-zero
+     * expression. Unfortunately, it does not do that in exactly the same way, i.e. it uses
+     * `(0.0f/0.0)` to represent `Float.NaN`. Unfortunately, that actually evaluates to a `Double`.
+     * The source uses `(0.0f/0.0f)` which evaluates to a `Float`.
+     */
+    private fun Any.isSpecialDouble() = this is Double && (isInfinite() || isNaN())
+
     companion object {
         private val intWrapperClass = Int::class.javaObjectType
+        private val floatWrapperClass = Float::class.javaObjectType
     }
 }
 
@@ -150,11 +191,7 @@ internal class DefaultFloatValue(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        // If it was not a literal then use the non-literal suffix. This is mutually
-        // exclusive with it being specified as an int so it does not matter which one is
-        // performed first.
-        val suffix = if (nonLiteralInSource) configuration.nonLiteralFloatSuffix else 'f'
-        builder.append(underlyingValue).append(suffix)
+        appendFloatValueTo(builder, configuration, underlyingValue)
     }
 }
 
