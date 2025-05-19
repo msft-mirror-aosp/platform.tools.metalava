@@ -148,12 +148,10 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[text,source,short - cast]
   testMethodDefaultValue[text,source,byte - cast]
   testMethodDefaultValue[text,source,short - cast]
-  testMethodDefaultValue[turbine,source,field - long with int constant]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testAttributeValue[text,source,byte - cast]
   testAttributeValue[text,source,short - cast]
-  testAttributeValue[turbine,source,field - long with int constant]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[psi,kotlin,k1,source,null - intermediate non-constant expression]

@@ -192,14 +192,11 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             val fieldSymbol = fieldInfo?.sym()
             // If the field could be resolved then wrap it around the constant value.
             if (fieldSymbol != null) {
-                // Get the constant value first.
-                val constantValue = toConstant(optionalTypeItem)
-
-                return createFieldReferenceValue(
+                return createFieldReferenceValueWithDeferredConstantValue(
                     codebase,
                     fieldSymbol.owner().qualifiedName,
                     fieldSymbol.name(),
-                    constantValue,
+                    optionalTypeItem,
                 )
             }
         }
