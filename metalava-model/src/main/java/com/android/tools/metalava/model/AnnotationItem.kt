@@ -447,21 +447,6 @@ interface AnnotationContext : ClassResolver {
 
     companion object {
         /**
-         * Instance that can be used in contexts where [resolveClass] is not required, e.g. testing
-         * or when parsing annotations provides on the command line.
-         */
-        val DEFAULT: AnnotationContext =
-            object : AnnotationContext, ClassResolver by ClassResolver.THROWING {
-                /**
-                 * Return [noOpAnnotationManager] rather than just throwing an exception as most
-                 * uses of [AnnotationItem]s will make at least one call to [annotationManager] and
-                 * having it return a valid, but basic implementation makes this more useful.
-                 */
-                override val annotationManager
-                    get() = noOpAnnotationManager
-            }
-
-        /**
          * Instance that can be used in contexts where [resolveClass] always returns null, e.g.
          * testing or when parsing annotations provides on the command line.
          */
