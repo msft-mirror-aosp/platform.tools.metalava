@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.value.DoubleValue
 import com.android.tools.metalava.model.value.LegacyValueFormatter
+import com.android.tools.metalava.model.value.LegacyValueFormatter.InlineFieldValue
 import com.android.tools.metalava.model.value.LegacyValueFormatter.Settings
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
@@ -407,7 +408,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     @Test
     fun `Test field - always inline with no value`() {
         checkFormatting {
-            val javaSettings = Settings(alwaysInlineFields = true)
+            val javaSettings = Settings(inlineFields = InlineFieldValue.ALWAYS)
             val formatter = LegacyValueFormatter(javaSettings = javaSettings)
             // Inlined fields with no value just use their name as a value MUST be provided.
             formatter.assertFormattedValue(
@@ -420,7 +421,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     @Test
     fun `Test field - always inline with value`() {
         checkFormatting {
-            val javaSettings = Settings(alwaysInlineFields = true)
+            val javaSettings = Settings(inlineFields = InlineFieldValue.ALWAYS)
             val formatter = LegacyValueFormatter(javaSettings = javaSettings)
             // Inlined fields with a value should just that that value.
             formatter.assertFormattedValue(
