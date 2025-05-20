@@ -19,67 +19,47 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import org.jetbrains.uast.UAnnotation
 
-internal class UAnnotationItem
-private constructor(
-    override val annotationContext: PsiBasedCodebase,
-    val uAnnotation: UAnnotation,
-    originalName: String,
-    qualifiedName: String,
-) :
-    DefaultAnnotationItem(
-        annotationContext = annotationContext,
-        fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
-        originalName = originalName,
-        qualifiedName = qualifiedName,
-        attributesGetter = { getAnnotationAttributes(annotationContext, uAnnotation) },
-    ) {
+internal object UAnnotationItem {
 
-    override fun snapshot(targetCodebase: Codebase) = this
-
-    companion object {
-        private fun getAnnotationAttributes(
-            codebase: PsiBasedCodebase,
-            uAnnotation: UAnnotation
-        ): List<AnnotationAttribute> {
-            val annotationPsiClass = uAnnotation.resolve()
-            return uAnnotation.attributeValues
-                .map { attribute ->
-                    val name = attribute.name ?: ANNOTATION_ATTR_VALUE
-                    DefaultAnnotationAttribute(
+    private fun getAnnotationAttributes(
+        codebase: PsiBasedCodebase,
+        uAnnotation: UAnnotation,
+    ): List<AnnotationAttribute> {
+        val annotationPsiClass = uAnnotation.resolve()
+        return uAnnotation.attributeValues
+            .map { attribute ->
+                val name = attribute.name ?: ANNOTATION_ATTR_VALUE
+                DefaultAnnotationAttribute(
+                    name,
+                    codebase.valueFactory.providerForAnnotationValue(
+                        annotationPsiClass,
                         name,
-                        codebase.valueFactory.providerForAnnotationValue(
-                            annotationPsiClass,
-                            name,
-                            attribute.expression
-                        ),
-                    )
-                }
-                .toList()
-        }
-
-        fun create(
-            codebase: PsiBasedCodebase,
-            uAnnotation: UAnnotation,
-        ): AnnotationItem? {
-            // If the qualified name is a typealias, convert it to the aliased type because that is
-            // the version that will be present as a class in the codebase.
-            val originalName =
-                uAnnotation.qualifiedName?.let {
-                    (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
-                        ?: it
-                } ?: return null
-            return createAttributesLazily(
-                annotationContext = codebase,
-                fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
-                originalName = originalName,
-            ) {
-                getAnnotationAttributes(codebase, uAnnotation)
+                        attribute.expression
+                    ),
+                )
             }
-        }
+            .toList()
+    }
+
+    fun create(
+        codebase: PsiBasedCodebase,
+        uAnnotation: UAnnotation,
+    ): AnnotationItem? {
+        // If the qualified name is a typealias, convert it to the aliased type because that is
+        // the version that will be present as a class in the codebase.
+        val originalName =
+            uAnnotation.qualifiedName?.let {
+                (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName ?: it
+            } ?: return null
+        return DefaultAnnotationItem.createAttributesLazily(
+            annotationContext = codebase,
+            fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
+            originalName = originalName,
+            attributesGetter = { getAnnotationAttributes(codebase, uAnnotation) },
+        )
     }
 }

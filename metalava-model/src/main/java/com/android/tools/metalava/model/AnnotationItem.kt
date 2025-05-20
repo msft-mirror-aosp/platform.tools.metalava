@@ -473,17 +473,16 @@ interface AnnotationContext : ClassResolver {
 }
 
 /** Default implementation of an annotation item */
-open class DefaultAnnotationItem
-/** The primary constructor is private to force subclasses to use the secondary constructor. */
-protected constructor(
+class DefaultAnnotationItem
+private constructor(
     override val annotationContext: AnnotationContext,
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    protected val originalName: String,
+    private val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
-    final override val qualifiedName: String,
+    override val qualifiedName: String,
 
     /** Possibly empty list of attributes. */
     attributesGetter: () -> List<AnnotationAttribute>,
@@ -492,7 +491,7 @@ protected constructor(
     override val targets
         get() = info.targets
 
-    final override val attributes: List<AnnotationAttribute> by
+    override val attributes: List<AnnotationAttribute> by
         lazy(LazyThreadSafetyMode.NONE, attributesGetter)
 
     /** Information that metalava has gathered about this annotation item. */
@@ -589,7 +588,7 @@ protected constructor(
         return ANNOTATION_SOURCE_FORMATTER.annotationItemToSource(this, target, context)
     }
 
-    final override fun toString() = buildString {
+    override fun toString() = buildString {
         appendAnnotationStringTo(
             this,
             ValueStringConfiguration.DEFAULT,
