@@ -66,6 +66,7 @@ import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
 import org.jetbrains.uast.UPrefixExpression
 import org.jetbrains.uast.UQualifiedReferenceExpression
+import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.UResolvable
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastCallKind
@@ -226,8 +227,14 @@ internal class PsiValueFactory(
                     return it
                 }
 
+                val receiver = uExpression.receiver
+
+                // Check to see if the receiver could be resolved to a class. If it could then pass
+                // it in below as it may affect the result.
+                val receiverPsiClass = (receiver as? UReferenceExpression)?.resolve() as? PsiClass
+
                 // Try and resolve it and convert to a value.
-                uResolvableToValue(optionalTypeItem, uExpression)?.let {
+                uResolvableToValue(optionalTypeItem, uExpression, receiverPsiClass)?.let {
                     return it
                 }
 
@@ -245,7 +252,7 @@ internal class PsiValueFactory(
                         }
                         is USimpleNameReferenceExpression -> {
                             // Handle an unknown, unresolvable field.
-                            val receiverText = uExpression.receiver.asRenderString()
+                            val receiverText = receiver.asRenderString()
                             val selectorText = selector.asRenderString()
                             return createFieldReferenceValue(codebase, receiverText, selectorText)
                         }
@@ -342,13 +349,14 @@ internal class PsiValueFactory(
     /** Try and convert a [UResolvable] to an [ArrayElementValue]. */
     private fun uResolvableToValue(
         optionalTypeItem: TypeItem?,
-        uResolvable: UResolvable
+        uResolvable: UResolvable,
+        receiverPsiClass: PsiClass? = null,
     ): ArrayElementValue? {
         // Resolve it and convert it to a Value if possible.
         val resolved = uResolvable.resolve()
 
         // Try and convert the resolved PsiElement to a Value and return it if succeeded.
-        resolvedPsiElementToValue(optionalTypeItem, resolved)?.let {
+        resolvedPsiElementToValue(optionalTypeItem, resolved, receiverPsiClass)?.let {
             return it
         }
 
@@ -711,20 +719,44 @@ internal class PsiValueFactory(
     private fun resolvedPsiElementToValue(
         optionalTypeItem: TypeItem?,
         resolved: PsiElement?,
+        receiverPsiClass: PsiClass? = null,
     ): ArrayElementValue? {
         if (resolved is PsiField) {
             val qualifiedClassName = resolved.containingClass?.qualifiedName ?: ""
             val fieldName = resolved.name
+
+            val kotlinCompanionClass =
+                if (receiverPsiClass !== resolved.containingClass)
+                    receiverPsiClass?.qualifiedNameIfCompanionClass()
+                else null
+
             return createFieldReferenceValueWithDeferredConstantValue(
                 codebase,
                 qualifiedClassName,
                 fieldName,
                 optionalTypeItem,
+                kotlinCompanionClass,
             )
         }
 
         return null
     }
+
+    /**
+     * Returns [PsiClass.getQualifiedName] if this is a companion class.
+     *
+     * This must have been resolved from a [UQualifiedReferenceExpression.receiver].
+     */
+    private fun PsiClass.qualifiedNameIfCompanionClass(): String? =
+        if (isCompanion()) qualifiedName else null
+
+    /**
+     * Returns `true` if this is a companion class.
+     *
+     * This uses [PsiModifierItem.create] to avoid having to duplicate the code that deals with the
+     * Psi object model.
+     */
+    private fun PsiClass.isCompanion() = PsiModifierItem.create(codebase, this).isCompanion()
 }
 
 /**
