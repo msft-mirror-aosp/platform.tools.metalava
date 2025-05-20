@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.javaEscapeString
 import java.lang.StringBuilder
@@ -88,6 +89,12 @@ class LegacyValueFormatter(
     enum class InlineFieldValue {
         /** Always inline the [FieldReferenceValue], if possible. */
         ALWAYS,
+
+        /**
+         * Only inline the [FieldReferenceValue], if it is hidden or removed (as determined by
+         * [SelectableItem.isHiddenOrRemoved]).
+         */
+        WHEN_HIDDEN_OR_REMOVED,
 
         /**
          * Only inline the [FieldReferenceValue], if it is inaccessible, i.e. hidden, removed or not
@@ -208,9 +215,15 @@ class LegacyValueFormatter(
                 when (settings.inlineFields) {
                     // The field should always be inlined, if possible.
                     InlineFieldValue.ALWAYS -> field.asLiteralValue()
+
                     // The field should be inlined only when it is inaccessible.
                     InlineFieldValue.WHEN_INACCESSIBLE ->
                         if (field.resolve().isAccessible()) field else field.asLiteralValue()
+
+                    // The field should be inlined only when it is hidden or removed.
+                    InlineFieldValue.WHEN_HIDDEN_OR_REMOVED ->
+                        if (field.resolve()?.isHiddenOrRemoved() != true) field
+                        else field.asLiteralValue()
                 }
             } ?: value
 
