@@ -18,9 +18,11 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -95,6 +97,13 @@ class LegacyValueFormatter(
         },
 
         /**
+         * If `true` then any [FieldReferenceValue]s are replaced with their [ConstantValue] if
+         * available. If `false`, or no [ConstantValue] is available then just format it as a normal
+         * field reference.
+         */
+        val alwaysInlineFields: Boolean = false,
+
+        /**
          * If `true` then just use the [Number.toString] method for [LiteralValue.underlyingValue]s
          * that are [Number]s.
          */
@@ -130,7 +139,7 @@ class LegacyValueFormatter(
     }
 
     /**
-     * Format [value] within the optional [context].
+     * Format [value] within the [context].
      *
      * The [context] must be provided as follows:
      * * When formatting a [Value] from [FieldItem.constantValue] it must be the [FieldItem].
@@ -139,16 +148,22 @@ class LegacyValueFormatter(
      * This is not suitable for formatting a [Value] from [AnnotationAttribute.value].
      */
     fun format(value: Value, context: MemberItem): String {
-        // Select the settings to use based on whether it is from the classpath (a jar) or sources.
-        val settings =
-            when {
-                context.containingClass().origin == ClassOrigin.CLASS_PATH -> jarSettings
-                context.sourceLanguage == SourceLanguage.KOTLIN -> kotlinSettings
-                else -> javaSettings
-            }
-
+        val settings = selectSettingsForContext(context)
         return format(settings, value)
     }
+
+    /**
+     * Select the settings to use based on whether it is from the classpath (a jar) or sources. That
+     * determination is made using [context]. If that is `null` then this will use the
+     * [javaSettings] by default.
+     */
+    private fun selectSettingsForContext(context: Item?) =
+        when {
+            context == null -> javaSettings
+            context is ClassContentItem && context.origin == ClassOrigin.CLASS_PATH -> jarSettings
+            context.sourceLanguage == SourceLanguage.KOTLIN -> kotlinSettings
+            else -> javaSettings
+        }
 
     /** Format [value] according to [settings]. */
     private fun format(settings: Settings, value: Value) = buildString {
@@ -169,19 +184,33 @@ class LegacyValueFormatter(
             return
         }
 
+        // If the value is a field that should always be inlined, or is unresolvable or inaccessible
+        // then use its value, if available. Otherwise, fall back to using it anyway as a value must
+        // be formatted.
+        val valueToAppend =
+            if (
+                value is FieldReferenceValue &&
+                    (settings.alwaysInlineFields || !value.resolve().isAccessible())
+            )
+                value.asLiteralValue() ?: value
+            else value
+
         // Fallback to just using the default value representation according to the settings.
-        value.appendValueStringTo(builder, settings.boundConfiguration)
+        valueToAppend.appendValueStringTo(builder, settings.boundConfiguration)
 
         if (settings.dropLongAndFloatTypeSuffix) {
             val lastCharIndex = builder.length - 1
             if (
-                (value is LongValue && builder[lastCharIndex] == 'L') ||
-                    (value is FloatValue && builder[lastCharIndex] == 'f')
+                (valueToAppend is LongValue && builder[lastCharIndex] == 'L') ||
+                    (valueToAppend is FloatValue && builder[lastCharIndex] == 'f')
             ) {
                 builder.setLength(lastCharIndex)
             }
         }
     }
+
+    /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
+    private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
 
     companion object {
         /** Setting for formatting [MethodItem.defaultValue] from Java sources. */

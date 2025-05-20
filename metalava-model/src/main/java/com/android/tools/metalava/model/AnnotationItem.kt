@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
@@ -83,13 +84,27 @@ sealed interface AnnotationItem {
 
     /**
      * Append the string representation of this annotation to the [builder] according to
-     * [configuration].
+     * [configuration] and [annotationIsValue].
+     *
+     * If [annotationIsValue] is `true` then this is being written out as a value, i.e. either
+     * nested within another [AnnotationItem] or as [MethodItem.defaultValue]. In that case
+     * [ValueStringConfiguration.valueLanguage] affects the representation of the annotation as
+     * follows:
+     * * Kotlin does not use a leading `@` for annotation values but Java does.
+     * * Parentheses are optional everywhere for an annotation with an empty attributes list except
+     *   when used as a Kotlin annotation value where they are required.
+     *
+     * Otherwise, if [annotationIsValue] is `false` then this uses the [ValueLanguage.JAVA]
+     * representation as that is the same as Kotlin.
      */
     fun appendAnnotationStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration,
+        annotationIsValue: Boolean,
     ) {
-        val language = configuration.valueLanguage
+        // While top level annotations use the Java syntax for Kotlin and Java, nested annotations
+        // use different syntax for each one.
+        val language = if (annotationIsValue) configuration.valueLanguage else ValueLanguage.JAVA
         builder.append(language.annotationClassPrefix)
 
         // Get the annotation class name.
@@ -134,7 +149,10 @@ sealed interface AnnotationItem {
      *
      * @param target the [AnnotationTarget] for which this is being generated.
      */
-    fun toSource(target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE): String
+    fun toSource(
+        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
+        context: Item? = null,
+    ): String
 
     /** The applicable targets for this annotation */
     val targets: Set<AnnotationTarget>
@@ -447,21 +465,6 @@ interface AnnotationContext : ClassResolver {
 
     companion object {
         /**
-         * Instance that can be used in contexts where [resolveClass] is not required, e.g. testing
-         * or when parsing annotations provides on the command line.
-         */
-        val DEFAULT: AnnotationContext =
-            object : AnnotationContext, ClassResolver by ClassResolver.THROWING {
-                /**
-                 * Return [noOpAnnotationManager] rather than just throwing an exception as most
-                 * uses of [AnnotationItem]s will make at least one call to [annotationManager] and
-                 * having it return a valid, but basic implementation makes this more useful.
-                 */
-                override val annotationManager
-                    get() = noOpAnnotationManager
-            }
-
-        /**
          * Instance that can be used in contexts where [resolveClass] always returns null, e.g.
          * testing or when parsing annotations provides on the command line.
          */
@@ -592,21 +595,27 @@ protected constructor(
         return result
     }
 
-    override fun toSource(target: AnnotationTarget): String {
+    override fun toSource(target: AnnotationTarget, context: Item?): String {
         val qualifiedName =
             annotationContext.annotationManager.normalizeOutputName(qualifiedName, target)
 
-        return formatAnnotationItem(qualifiedName, attributes)
+        return formatAnnotationItem(qualifiedName, attributes, context)
     }
 
     final override fun toString() = buildString {
-        appendAnnotationStringTo(this, ValueStringConfiguration.DEFAULT)
+        appendAnnotationStringTo(
+            this,
+            ValueStringConfiguration.DEFAULT,
+            // This method is never used for values.
+            annotationIsValue = false,
+        )
     }
 
     companion object {
         private fun formatAnnotationItem(
             qualifiedName: String,
             attributes: List<AnnotationAttribute>,
+            context: Item?,
         ): String {
             return buildString {
                 append("@")

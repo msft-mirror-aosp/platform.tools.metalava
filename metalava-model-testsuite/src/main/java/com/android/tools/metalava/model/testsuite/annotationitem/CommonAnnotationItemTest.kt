@@ -369,8 +369,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       @test.pkg.Test.Anno(
-                          classValue = test.pkg.Test,
-                          classArrayValue = {test.pkg.Test, Anno}
+                          classValue = test.pkg.Test.class,
+                          classArrayValue = {test.pkg.Test.class, test.pkg.Test.Anno.class}
                       )
                       public class Test {
                         ctor public Test();
@@ -762,7 +762,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                         method public Int value();
+                         method public int value();
                       }
                     }
                 """
@@ -1037,8 +1037,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       @test.pkg.Test.Anno(
-                          classValue = test.pkg.Test,
-                          classArrayValue = {test.pkg.Test, Anno}
+                          classValue = Test.class,
+                          classArrayValue = {Test.class, Anno.class}
                       )
                       public class Test {
                         ctor public Test();
@@ -1093,14 +1093,14 @@ class CommonAnnotationItemTest : BaseModelTest() {
                           doubleValue = 1.5,
                           doubleArrayValue = {1.5, 2.5},
 
-                          floatValue = 0.5F,
-                          floatArrayValue = {0.5F, 1.5F},
+                          floatValue = 0.5f,
+                          floatArrayValue = {0.5f, 1.5f},
 
                           intValue = 1,
                           intArrayValue = {1, 2, 3},
 
-                          longValue = 2,
-                          longArrayValue = {2, 4},
+                          longValue = 2L,
+                          longArrayValue = {2L, 4L},
 
                           shortValue = 3,
                           shortArrayValue = {3, 5},
@@ -1471,7 +1471,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                           doubleValue = -1.5,
                           floatValue = -0.5F,
                           intValue = -1,
-                          longValue = -2,
+                          longValue = -2L,
                           shortValue = -3,
                       )
                       public class Test {
@@ -1528,6 +1528,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    // Does not work with signature files as they do not support casts.
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `annotation with type cast values`() {
         runCodebaseTest(
@@ -1576,13 +1578,13 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      @test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY,java.lang.Double.POSITIVE_INFINITY})
+                      @test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY,java.lang.Double.NEGATIVE_INFINITY})
                       public class Test {
                         ctor public Test();
                       }
 
                       public @interface Test.Anno {
-                          method public double [] value();
+                          method public double[] value();
                       }
                     }
                 """
