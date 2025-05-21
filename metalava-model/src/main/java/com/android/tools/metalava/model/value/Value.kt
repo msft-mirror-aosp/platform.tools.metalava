@@ -730,7 +730,12 @@ sealed interface AnnotationValue : ArrayElementValue {
     override fun appendValueStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
-    ) = annotationItem.appendAnnotationStringTo(builder, configuration)
+    ) =
+        annotationItem.appendAnnotationStringTo(
+            builder,
+            configuration,
+            annotationIsValue = true,
+        )
 }
 
 /** A [Value] reference to a [Class] object. */
