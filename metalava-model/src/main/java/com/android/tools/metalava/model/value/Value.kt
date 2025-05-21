@@ -251,8 +251,9 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
  *   they were added.
- * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
- *   `int` if it was originally specified as an `int`.
+ * @param useOriginalValueForNumbers Whether to use the original value for a number value, i.e.
+ *   [ByteValue], [DoubleValue], [FloatValue], [IntValue], [LongValue], [ShortValue]. At the moment
+ *   this is limited to only using the original value if it was an `Int`.
  * @param valueLanguage The language whose representation of [Value] should be used.
  */
 data class ValueStringConfiguration(
@@ -267,7 +268,7 @@ data class ValueStringConfiguration(
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
     val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
-    val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
+    val useOriginalValueForNumbers: Boolean = false,
     val valueLanguage: ValueLanguage = ValueLanguage.JAVA,
 ) {
     /** Use the [nestedValueAppender] to append a string representation of [Value] to [builder]. */

@@ -162,28 +162,28 @@ class ParameterizedValueStringTest {
                     ),
                 )
 
-            val TREAT_AS_INT =
+            val USE_ORIGINAL_NUMBER =
                 LabelledConfig(
-                    "treat-as-int",
+                    "use-original-number",
                     ValueStringConfiguration(
-                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                        useOriginalValueForNumbers = true,
                     )
                 )
 
-            val TREAT_AS_INT_AND_NON_LITERAL_INT_HEX =
+            val USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX =
                 LabelledConfig(
-                    "treat-as-int/non-literal-int-hex",
+                    "use-original-number/non-literal-int-hex",
                     ValueStringConfiguration(
                         nonLiteralIntFormat = IntFormat.HEXADECIMAL,
-                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                        useOriginalValueForNumbers = true,
                     )
                 )
 
-            val TREAT_AS_INT_UNWRAP_SINGLE_ARRAY_ELEMENT =
+            val USE_ORIGINAL_NUMBER_UNWRAP_SINGLE_ARRAY_ELEMENT =
                 LabelledConfig(
-                    "treat-as-int/unwrap",
+                    "use-original-number/unwrap",
                     ValueStringConfiguration(
-                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                        useOriginalValueForNumbers = true,
                         singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
                     ),
                 )
@@ -478,7 +478,7 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "{LongValue(3L,asInt)}",
                 ) {
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_UNWRAP_SINGLE_ARRAY_ELEMENT,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_UNWRAP_SINGLE_ARRAY_ELEMENT,
                         expectedValueString = "3",
                     )
                 },
@@ -511,11 +511,13 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "10",
                     expectedDefaultDebugString = "10,asInt",
                 ) {
-                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                    verifyConfigMatchesDefault(LabelledConfig.USE_ORIGINAL_NUMBER)
 
                     // Even when treating this as an int it should not be formatted using
                     // hexadecimal because it was not a non-literal.
-                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX)
+                    verifyConfigMatchesDefault(
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX
+                    )
                 },
                 testCasesForValue(
                     "byte as non-literal int",
@@ -523,12 +525,12 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "-20",
                     expectedDefaultDebugString = "-20,asInt,nonLiteral",
                 ) {
-                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                    verifyConfigMatchesDefault(LabelledConfig.USE_ORIGINAL_NUMBER)
 
                     // When treating this as an int it should be formatted using hexadecimal because
                     // it was a non-literal.
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX,
                         expectedValueString = "0xffffffec"
                     )
                 },
@@ -601,7 +603,7 @@ class ParameterizedValueStringTest {
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.SPECIAL_VALUES)
 
-                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                    verifyConfigMatchesDefault(LabelledConfig.USE_ORIGINAL_NUMBER)
                 },
                 testCasesForValue(
                     value = literalValue(Double.MAX_VALUE),
@@ -645,14 +647,14 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "3.0,asInt",
                 ) {
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT,
+                        LabelledConfig.USE_ORIGINAL_NUMBER,
                         expectedValueString = "3",
                     )
 
                     // Even when treating this as an int it should not be formatted using
                     // hexadecimal because it was not a non-literal.
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX,
                         expectedValueString = "3"
                     )
                 },
@@ -668,14 +670,14 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "-7.0,asInt,nonLiteral",
                 ) {
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT,
+                        LabelledConfig.USE_ORIGINAL_NUMBER,
                         expectedValueString = "-7",
                     )
 
                     // When treating this as an int it should be formatted using hexadecimal because
                     // it was a non-literal.
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX,
                         expectedValueString = "0xfffffff9"
                     )
                 },
@@ -691,7 +693,7 @@ class ParameterizedValueStringTest {
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.SPECIAL_VALUES)
 
-                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                    verifyConfigMatchesDefault(LabelledConfig.USE_ORIGINAL_NUMBER)
                 },
                 testCasesForValue(
                     value = literalValue(Float.MAX_VALUE),
@@ -750,12 +752,12 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "3.0f",
                     expectedDefaultDebugString = "3.0f,asInt",
                 ) {
-                    verifyConfigChangesOutput(LabelledConfig.TREAT_AS_INT, "3")
+                    verifyConfigChangesOutput(LabelledConfig.USE_ORIGINAL_NUMBER, "3")
 
                     // Even when treating this as an int it should not be formatted using
                     // hexadecimal because it was not a non-literal.
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX,
                         expectedValueString = "3"
                     )
                 },
@@ -771,14 +773,14 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "-7.0f,asInt,nonLiteral",
                 ) {
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT,
+                        LabelledConfig.USE_ORIGINAL_NUMBER,
                         expectedValueString = "-7",
                     )
 
                     // When treating this as an int it should be formatted using hexadecimal because
                     // it was a non-literal.
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX,
                         expectedValueString = "0xfffffff9"
                     )
                 },
@@ -827,7 +829,7 @@ class ParameterizedValueStringTest {
                     value = literalValue(0L),
                     expectedDefaultValueString = "0L",
                 ) {
-                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                    verifyConfigMatchesDefault(LabelledConfig.USE_ORIGINAL_NUMBER)
                 },
                 testCasesForValue(
                     value = literalValue(Long.MAX_VALUE),
@@ -845,14 +847,14 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "3L,asInt",
                 ) {
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT,
+                        LabelledConfig.USE_ORIGINAL_NUMBER,
                         expectedValueString = "3",
                     )
 
                     // Even when treating this as an int it should not be formatted using
                     // hexadecimal because it was not a non-literal.
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX,
                         expectedValueString = "3",
                     )
                 },
@@ -863,14 +865,14 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "-37L,asInt,nonLiteral",
                 ) {
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT,
+                        LabelledConfig.USE_ORIGINAL_NUMBER,
                         expectedValueString = "-37",
                     )
 
                     // When treating this as an int it should be formatted using hexadecimal because
                     // it was a non-literal.
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX,
                         expectedValueString = "0xffffffdb"
                     )
                 },
@@ -894,11 +896,13 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "3",
                     expectedDefaultDebugString = "3,asInt",
                 ) {
-                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                    verifyConfigMatchesDefault(LabelledConfig.USE_ORIGINAL_NUMBER)
 
                     // Even when treating this as an int it should not be formatted using
                     // hexadecimal because it was not a non-literal.
-                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX)
+                    verifyConfigMatchesDefault(
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX
+                    )
                 },
                 testCasesForValue(
                     "short as non-literal int",
@@ -907,14 +911,14 @@ class ParameterizedValueStringTest {
                     expectedDefaultDebugString = "-111,asInt,nonLiteral",
                 ) {
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT,
+                        LabelledConfig.USE_ORIGINAL_NUMBER,
                         expectedValueString = "-111",
                     )
 
                     // When treating this as an int it should be formatted using hexadecimal because
                     // it was a non-literal.
                     verifyConfigChangesOutput(
-                        LabelledConfig.TREAT_AS_INT_AND_NON_LITERAL_INT_HEX,
+                        LabelledConfig.USE_ORIGINAL_NUMBER_AND_NON_LITERAL_INT_HEX,
                         expectedValueString = "0xffffff91"
                     )
                 },

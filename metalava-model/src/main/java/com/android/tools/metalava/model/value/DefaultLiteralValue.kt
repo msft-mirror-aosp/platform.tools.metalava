@@ -45,10 +45,9 @@ internal sealed class DefaultNumericValue<U : Number>(
     protected val nonLiteralInSource: Boolean,
 ) : DefaultPrimitiveValue<U>() {
     /**
-     * If the [configuration] has [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt]
-     * set to `true` and [originalValue] is also `true` then this will append [underlyingValue] as
-     * if it was an `int`, otherwise it will invoke [appendNumericValueTo] to append the value as
-     * normal.
+     * If the [configuration] has [ValueStringConfiguration.useOriginalValueForNumbers] set to
+     * `true` and [originalValue] is also `true` then this will append [underlyingValue] as if it
+     * was an `int`, otherwise it will invoke [appendNumericValueTo] to append the value as normal.
      */
     final override fun appendValueStringTo(
         builder: StringBuilder,
@@ -59,7 +58,7 @@ internal sealed class DefaultNumericValue<U : Number>(
             return
         }
 
-        if (configuration.treatAsIntIfOriginallySpecifiedAsInt) {
+        if (configuration.useOriginalValueForNumbers) {
             when (originalValue) {
                 is Int -> {
                     appendIntegerValueTo(builder, configuration, originalValue)

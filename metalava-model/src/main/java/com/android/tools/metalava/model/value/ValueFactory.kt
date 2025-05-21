@@ -446,7 +446,7 @@ interface ValueFactory {
          * then the [primitiveValue] will be a `java.lang.Long` instance with a value of `10L` but
          * the [originalValue] will be a `java.lang.Integer` instance with a value of `10`.
          *
-         * It supports the [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt] behavior.
+         * It supports the [ValueStringConfiguration.useOriginalValueForNumbers] behavior.
          */
         private fun createPrimitiveValueForKind(
             primitiveKind: Primitive,
