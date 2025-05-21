@@ -57,8 +57,13 @@ class LiteralValueTest {
         val input = literalValue(1, nonLiteralInSource = true)
         val doubleType = primitiveTypeForKind(Primitive.DOUBLE)
         val converted = input.convertToType(doubleType)
-        // TODO(b/354633349): The conversion lost the non-literal information, fix that.
-        assertValuesAreStrictlyEqual(primitiveValueForKind(Primitive.DOUBLE, 1), converted)
+        val expected =
+            primitiveValueForKind(
+                Primitive.DOUBLE,
+                1,
+                nonLiteralInSource = true,
+            )
+        assertValuesAreStrictlyEqual(expected, converted)
     }
 
     @Test
@@ -66,7 +71,6 @@ class LiteralValueTest {
         val input = primitiveValueForKind(Primitive.FLOAT, 1)
         val doubleType = primitiveTypeForKind(Primitive.DOUBLE)
         val converted = input.convertToType(doubleType)
-        // TODO(b/354633349): The conversion lost that it was from an int literal, fix that.
-        assertValuesAreStrictlyEqual(primitiveValueForKind(Primitive.DOUBLE, 1.0f), converted)
+        assertValuesAreStrictlyEqual(primitiveValueForKind(Primitive.DOUBLE, 1), converted)
     }
 }

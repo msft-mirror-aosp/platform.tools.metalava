@@ -16,14 +16,22 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 
 /** Base class for all [LiteralValue] implementations. */
-internal sealed class DefaultLiteralValue<U : Any> : DefaultValue(), LiteralValue<U>
+internal sealed class DefaultLiteralValue<U : Any> : DefaultValue(), LiteralValue<U> {
+    // Implement this in the class not the interface as it requires implementation details.
+    final override fun convertToType(optionalTypeItem: TypeItem?): LiteralValue<*> {
+        optionalTypeItem ?: return this
+        if (optionalTypeItem.isString() && underlyingValue is String) return this
+        if (optionalTypeItem !is PrimitiveTypeItem)
+            error("Cannot convert $this to a $optionalTypeItem")
+        if (optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue)) return this
+        // Use the original value and non-literal status.
+        return Value.createLiteralValue(optionalTypeItem, originalValue, nonLiteralInSource)
+    }
 
-internal sealed class DefaultPrimitiveValue<U : Any> : DefaultLiteralValue<U>(), PrimitiveValue<U>
-
-internal sealed class DefaultNumericValue<U : Number>(
     /**
      * The original value of this from the source.
      *
@@ -33,7 +41,8 @@ internal sealed class DefaultNumericValue<U : Number>(
      *
      * This is [Any] instead of [Number] because the original value could be a [Char].
      */
-    private val originalValue: Any,
+    open val originalValue: Any
+        get() = underlyingValue
 
     /**
      * True if the source representation of this was a non-literal, i.e. not a literal expression
@@ -42,7 +51,15 @@ internal sealed class DefaultNumericValue<U : Number>(
      * generally false but may be true for some values that cannot be represented as a literal, e.g.
      * `Float.NaN`, etc.
      */
-    protected val nonLiteralInSource: Boolean,
+    open val nonLiteralInSource: Boolean
+        get() = false
+}
+
+internal sealed class DefaultPrimitiveValue<U : Any> : DefaultLiteralValue<U>(), PrimitiveValue<U>
+
+internal sealed class DefaultNumericValue<U : Number>(
+    override val originalValue: Any,
+    override val nonLiteralInSource: Boolean,
 ) : DefaultPrimitiveValue<U>() {
     /**
      * If the [configuration] has [ValueStringConfiguration.useOriginalValueForNumbers] set to
@@ -59,7 +76,7 @@ internal sealed class DefaultNumericValue<U : Number>(
         }
 
         if (configuration.useOriginalValueForNumbers) {
-            when (originalValue) {
+            when (val originalValue = originalValue) {
                 is Int -> {
                     appendIntegerValueTo(builder, configuration, originalValue)
                     return

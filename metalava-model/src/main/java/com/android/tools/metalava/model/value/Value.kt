@@ -485,15 +485,6 @@ sealed interface LiteralValue<T : Any> : ConstantValue {
     /** This is a [LiteralValue]. */
     override fun asLiteralValue() = this
 
-    override fun convertToType(optionalTypeItem: TypeItem?): LiteralValue<*> {
-        optionalTypeItem ?: return this
-        if (optionalTypeItem.isString() && underlyingValue is String) return this
-        if (optionalTypeItem !is PrimitiveTypeItem)
-            error("Cannot convert $this to a $optionalTypeItem")
-        if (optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue)) return this
-        return Value.createLiteralValue(optionalTypeItem, underlyingValue)
-    }
-
     /**
      * Default implementation just appends the underlying value's standard [String.toString] value.
      */
