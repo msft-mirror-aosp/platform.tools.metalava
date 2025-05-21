@@ -784,6 +784,16 @@ class ParameterizedValueStringTest {
                         expectedValueString = "0xfffffff9"
                     )
                 },
+                // This checks the behavior of a Psi edge case where, due to the way that it
+                // emulates special (i.e. NaN, infinity) floating values from class constant pool as
+                // divide-by-zero expressions, the Float special values are represented as Double
+                // special values. This makes sure that they are treated as if they were floats.
+                testCasesForValue(
+                    valueLabel = "Double.NaN for float",
+                    value = primitiveValueForKind(Primitive.FLOAT, Double.NaN),
+                    expectedDefaultValueString = "(0.0f/0.0f)",
+                    expectedDefaultDebugString = "(0.0f/0.0f),nonLiteral",
+                ),
                 // ********************************* Ints *********************************
                 testCasesForValue(
                     value = literalValue(0),
