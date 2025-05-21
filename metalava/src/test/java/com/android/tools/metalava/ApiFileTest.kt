@@ -5307,7 +5307,7 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
                         internal fun bar() {}
 
-                        private val baz
+                        private val baz = 0
 
                         class Toast {
                             val foo: Int = 0
@@ -5332,7 +5332,7 @@ class ApiFileTest : DriverTest() {
                         @PublishedApi
                         internal fun internalYetPublished() {}
 
-                        private val buzz
+                        private val buzz = 0
                     """
                     ),
                     kotlin(

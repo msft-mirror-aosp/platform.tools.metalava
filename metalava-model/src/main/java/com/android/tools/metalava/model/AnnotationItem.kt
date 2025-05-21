@@ -20,8 +20,9 @@ import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
-import com.android.tools.metalava.model.value.ArrayElementValue
+import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayValue
+import com.android.tools.metalava.model.value.LegacyValueFormatter.Companion.ANNOTATION_SOURCE_FORMATTER
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
@@ -361,15 +362,14 @@ inline fun <reified T : Any> AnnotationItem.getAttributeValue(name: String): T? 
  */
 @PublishedApi
 internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
-    val attributeValue = findAttribute(name)?.legacyValue ?: return null
+    val attributeValue = findAttribute(name)?.value ?: return null
     val value =
         when (attributeValue) {
-            is AnnotationArrayAttributeValue ->
-                throw IllegalStateException("Annotation attribute is of type array")
-            else -> attributeValue.value()
-        } ?: return null
+            is ArrayValue -> throw IllegalStateException("Annotation attribute is of type array")
+            else -> attributeValue.asLiteralValue()?.underlyingValue ?: attributeValue
+        }
 
-    return convertValue(annotationContext, kClass, value)
+    return convertValue(kClass, value)
 }
 
 /**
@@ -395,14 +395,10 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
     name: String,
     caster: (Any) -> T
 ): List<T>? {
-    val attributeValue = findAttribute(name)?.legacyValue ?: return null
-    val values =
-        when (attributeValue) {
-            is AnnotationArrayAttributeValue -> attributeValue.values.mapNotNull { it.value() }
-            else -> listOfNotNull(attributeValue.value())
-        }
+    val attributeValue = findAttribute(name)?.value ?: return null
+    val values = attributeValue.asFlatList().map { it.asLiteralValue()?.underlyingValue ?: it }
 
-    return values.mapNotNull { convertValue(annotationContext, kClass, it) }.map { caster(it) }
+    return values.map { convertValue(kClass, it) }.map { caster(it) }
 }
 
 /**
@@ -412,11 +408,7 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
  * simply returns the value it is given. It is the caller's responsibility to actually cast the
  * returned value to the correct type.
  */
-private fun convertValue(
-    annotationContext: AnnotationContext,
-    kClass: KClass<*>,
-    value: Any
-): Any? {
+private fun convertValue(kClass: KClass<*>, value: Any): Any {
     // The value stored for number types is not always the same as the type of the annotation
     // attributes. This is for a number of reasons, e.g.
     // * In a .class file annotation values are stored in the constant pool and some number types do
@@ -440,9 +432,8 @@ private fun convertValue(
         }
     }
 
-    // TODO: Push down into the model as that is likely to be more efficient.
     if (kClass == AnnotationItem::class) {
-        return DefaultAnnotationItem.createFromSource(annotationContext, value as String)
+        return (value as AnnotationValue).annotationItem
     }
 
     return value
@@ -495,14 +486,14 @@ protected constructor(
     final override val qualifiedName: String,
 
     /** Possibly empty list of attributes. */
-    attributesGetter: (AnnotationItem) -> List<AnnotationAttribute>,
+    attributesGetter: () -> List<AnnotationAttribute>,
 ) : AnnotationItem {
 
     override val targets
         get() = info.targets
 
     final override val attributes: List<AnnotationAttribute> by
-        lazy(LazyThreadSafetyMode.NONE) { attributesGetter(this) }
+        lazy(LazyThreadSafetyMode.NONE, attributesGetter)
 
     /** Information that metalava has gathered about this annotation item. */
     internal val info: AnnotationInfo by lazy {
@@ -578,7 +569,6 @@ protected constructor(
                 DefaultAnnotationAttribute(
                     attributeToSnapshot.name,
                     valueProvider,
-                    attributeToSnapshot.legacyValue.snapshot(),
                 )
             }
         }
@@ -596,10 +586,7 @@ protected constructor(
     }
 
     override fun toSource(target: AnnotationTarget, context: Item?): String {
-        val qualifiedName =
-            annotationContext.annotationManager.normalizeOutputName(qualifiedName, target)
-
-        return formatAnnotationItem(qualifiedName, attributes, context)
+        return ANNOTATION_SOURCE_FORMATTER.annotationItemToSource(this, target, context)
     }
 
     final override fun toString() = buildString {
@@ -612,35 +599,6 @@ protected constructor(
     }
 
     companion object {
-        private fun formatAnnotationItem(
-            qualifiedName: String,
-            attributes: List<AnnotationAttribute>,
-            context: Item?,
-        ): String {
-            return buildString {
-                append("@")
-                append(qualifiedName)
-                if (attributes.isNotEmpty()) {
-                    val suppressDefaultAnnotationAttribute = attributes.size == 1
-                    append("(")
-                    attributes.forEachIndexed { i, attribute ->
-                        if (i != 0) {
-                            append(", ")
-                        }
-                        if (
-                            !suppressDefaultAnnotationAttribute ||
-                                attribute.name != ANNOTATION_ATTR_VALUE
-                        ) {
-                            append(attribute.name)
-                            append("=")
-                        }
-                        append(attribute.legacyValue)
-                    }
-                    append(")")
-                }
-            }
-        }
-
         /** Create an annotation from [source]. */
         fun createFromSource(
             annotationContext: AnnotationContext,
@@ -664,7 +622,7 @@ protected constructor(
             annotationContext: AnnotationContext,
             fileLocation: FileLocation,
             originalName: String,
-            attributesGetter: (AnnotationItem) -> List<AnnotationAttribute>,
+            attributesGetter: () -> List<AnnotationAttribute>,
         ): AnnotationItem? {
             val qualifiedName =
                 annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
@@ -675,6 +633,23 @@ protected constructor(
                 qualifiedName = qualifiedName,
                 attributesGetter = attributesGetter,
             )
+        }
+
+        /**
+         * Create a [DefaultAnnotationItem] with [attributes].
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createWithAttributes(
+            annotationContext: AnnotationContext,
+            fileLocation: FileLocation,
+            originalName: String,
+            attributes: List<AnnotationAttribute>,
+        ): AnnotationItem? {
+            return createAttributesLazily(annotationContext, fileLocation, originalName) {
+                attributes
+            }
         }
     }
 }
@@ -688,18 +663,7 @@ sealed interface AnnotationAttribute {
     val name: String
 
     /**
-     * The legacy annotation value.
-     *
-     * This is called `legacy` because this an old, inconsistent representation of an attribute
-     * value that exposes implementation details. It will be replaced by a properly modelled value
-     * representation.
-     */
-    val legacyValue: AnnotationAttributeValue
-
-    /**
      * The value of this attribute.
-     *
-     * Replacement for [legacyValue].
      *
      * The [Value] will be suitable for use as an annotation attribute value as specified by JLS
      * 9.6.1 (what this model calls "attributes", the JSL calls "elements"). That includes constant
@@ -708,42 +672,11 @@ sealed interface AnnotationAttribute {
     val value: Value
 }
 
-const val ANNOTATION_VALUE_FALSE = "false"
 const val ANNOTATION_VALUE_TRUE = "true"
-
-/** An annotation value */
-sealed interface AnnotationAttributeValue {
-    /** Generates source code for this annotation value */
-    fun toSource(): String
-
-    /** The value of the annotation */
-    fun value(): Any?
-
-    /**
-     * Take a snapshot of this [AnnotationAttributeValue] suitable for use in a snapshot [Codebase].
-     */
-    fun snapshot(): AnnotationAttributeValue
-}
-
-/** An annotation value (for a single item, not an array) */
-sealed interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
-    val value: Any?
-
-    override fun value() = value
-}
-
-/** An annotation value for an array of items */
-sealed interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
-    /** The annotation values */
-    val values: List<AnnotationAttributeValue>
-
-    override fun value() = values.mapNotNull { it.value() }.toTypedArray()
-}
 
 class DefaultAnnotationAttribute(
     override val name: String,
     private val valueProvider: ValueProvider,
-    override val legacyValue: AnnotationAttributeValue,
 ) : AnnotationAttribute {
 
     override val value: Value
@@ -762,142 +695,5 @@ class DefaultAnnotationAttribute(
         var result = name.hashCode()
         result = 31 * result + value.hashCode()
         return result
-    }
-}
-
-/** Create an [AnnotationAttributeValue] for this [Value]. */
-fun Value.asAnnotationAttributeValue(): AnnotationAttributeValue =
-    when (this) {
-        is ArrayValue ->
-            DefaultAnnotationArrayAttributeValue(
-                ::toValueString,
-                { elements.map(ArrayElementValue::asAnnotationAttributeValue) }
-            )
-        else ->
-            DefaultAnnotationSingleAttributeValue(
-                ::toValueString,
-                { asLiteralValue()?.underlyingValue }
-            )
-    }
-
-abstract class DefaultAnnotationAttributeValue(sourceGetter: () -> String) :
-    AnnotationAttributeValue {
-    companion object {
-        fun create(valueSource: String): DefaultAnnotationAttributeValue {
-            return if (valueSource.startsWith("{")) { // Array
-                DefaultAnnotationArrayAttributeValue(
-                    { valueSource },
-                    {
-                        assert(valueSource.startsWith("{") && valueSource.endsWith("}")) {
-                            valueSource
-                        }
-                        valueSource
-                            .substring(1, valueSource.length - 1)
-                            .split(",")
-                            .map { create(it.trim()) }
-                            .toList()
-                    },
-                )
-            } else {
-                DefaultAnnotationSingleAttributeValue(
-                    { valueSource },
-                    {
-                        when {
-                            valueSource == ANNOTATION_VALUE_TRUE -> true
-                            valueSource == ANNOTATION_VALUE_FALSE -> false
-                            valueSource.startsWith("\"") ->
-                                javaUnescapeString(valueSource.removeSurrounding("\""))
-                            valueSource.startsWith('\'') ->
-                                javaUnescapeString(valueSource.removeSurrounding("'"))[0]
-                            else ->
-                                try {
-                                    if (valueSource.contains(".")) {
-                                        if (
-                                            valueSource.endsWith("f") || valueSource.endsWith("F")
-                                        ) {
-                                            valueSource.dropLast(1).toFloat()
-                                        } else {
-                                            valueSource.toDouble()
-                                        }
-                                    } else if (
-                                        valueSource.endsWith("L") || valueSource.endsWith("l")
-                                    ) {
-                                        valueSource.dropLast(1).toLong()
-                                    } else {
-                                        valueSource.toLong()
-                                    }
-                                } catch (e: NumberFormatException) {
-                                    valueSource
-                                }
-                        }
-                    },
-                )
-            }
-        }
-    }
-
-    /** The annotation value, expressed as source code */
-    private val valueSource: String by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
-
-    override fun toSource() = valueSource
-
-    override fun toString(): String = toSource()
-}
-
-open class DefaultAnnotationSingleAttributeValue(
-    sourceGetter: () -> String,
-    valueGetter: () -> Any?
-) : DefaultAnnotationAttributeValue(sourceGetter), AnnotationSingleAttributeValue {
-
-    override val value by lazy(LazyThreadSafetyMode.NONE, valueGetter)
-
-    override fun snapshot(): AnnotationSingleAttributeValue {
-        // Take a snapshot of the value and sources by immediately forcing them to be initialized
-        // from their respective getters. That way there will be no connection to the original
-        // attribute value.
-        val newValue = value
-        val newSource = toSource()
-        return DefaultAnnotationSingleAttributeValue(
-            sourceGetter = { newSource },
-            valueGetter = { newValue },
-        )
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationSingleAttributeValue) return false
-        return value == other.value
-    }
-
-    override fun hashCode(): Int {
-        return value.hashCode()
-    }
-}
-
-class DefaultAnnotationArrayAttributeValue(
-    sourceGetter: () -> String,
-    valuesGetter: () -> List<AnnotationAttributeValue>
-) : DefaultAnnotationAttributeValue(sourceGetter), AnnotationArrayAttributeValue {
-
-    override val values by lazy(LazyThreadSafetyMode.NONE, valuesGetter)
-
-    override fun snapshot(): AnnotationArrayAttributeValue {
-        // Take a snapshot of the values and sources by immediately forcing them to be initialized
-        // from their respective getters. That way there will be no connection to the original
-        // attribute value.
-        val newValues = values.map { it.snapshot() }
-        val newSource = toSource()
-        return DefaultAnnotationArrayAttributeValue(
-            sourceGetter = { newSource },
-            valuesGetter = { newValues },
-        )
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationArrayAttributeValue) return false
-        return values == other.values
-    }
-
-    override fun hashCode(): Int {
-        return values.hashCode()
     }
 }

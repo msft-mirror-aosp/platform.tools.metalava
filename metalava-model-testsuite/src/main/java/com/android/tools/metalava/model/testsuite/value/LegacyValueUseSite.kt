@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Assertions.Companion.assertAttribute
 import com.android.tools.metalava.model.Assertions.Companion.assertField
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.FieldItem
@@ -33,13 +32,10 @@ import java.util.EnumSet
  * @param valueUseSite the [ValueUseSite] that will replace the [LegacyValueUseSite].
  * @param legacySourceGetter gets the legacy source representation as expected by
  *   [ValueExample.expectedLegacySourceFor].
- * @param legacyValueGetter get the legacy value as expected by
- *   [ValueExample.expectedLegacyValueFor].
  */
 enum class LegacyValueUseSite(
     val valueUseSite: ValueUseSite,
     val legacySourceGetter: (TestCaseContext.() -> String?)? = null,
-    val legacyValueGetter: (TestCaseContext.() -> Any?)? = null,
 ) {
     /** The default value specified on an annotation class's method. */
     ATTRIBUTE_DEFAULT_VALUE(
@@ -54,18 +50,6 @@ enum class LegacyValueUseSite(
     /** An annotation attribute value specified in an annotation instance. */
     ATTRIBUTE_VALUE(
         ValueUseSite.ANNOTATION,
-        legacySourceGetter = {
-            val annotation = testClassItem.modifiers.annotations().first()
-            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
-
-            annotationAttribute.legacyValue.toSource()
-        },
-        legacyValueGetter = {
-            val annotation = testClassItem.modifiers.annotations().first()
-            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
-
-            annotationAttribute.legacyValue.value()
-        }
     ),
 
     /**

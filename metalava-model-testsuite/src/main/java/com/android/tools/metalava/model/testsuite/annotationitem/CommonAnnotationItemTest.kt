@@ -26,8 +26,10 @@ import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getAttributeValues
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
+import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.FieldReferenceValue
@@ -389,7 +391,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
                     @Test.Anno(
                       classValue = Test.class,
-                      classArrayValue = {Test.class, Anno.class}
+                      classArrayValue = {Test.class, Test.Anno.class}
                     )
                     public class Test {
                         public Test() {}
@@ -406,9 +408,15 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val anno = testClass.modifiers.annotations().single()
 
             // A class value can be retrieved as a string.
-            anno.assertAttributeValue("classValue", "test.pkg.Test")
-            anno.assertAttributeValues("classValue", listOf("test.pkg.Test"))
-            anno.assertAttributeValues("classArrayValue", listOf("test.pkg.Test", "Anno"))
+            val testClassType = classTypeItem("test.pkg.Test")
+            val testClassObject = classObjectValue(testClassType)
+            val annoClassObject =
+                classObjectValue(
+                    classTypeItem("test.pkg.Test.Anno", outerClassType = testClassType)
+                )
+            anno.assertAttributeValue("classValue", testClassObject)
+            anno.assertAttributeValues("classValue", listOf(testClassObject))
+            anno.assertAttributeValues("classArrayValue", listOf(testClassObject, annoClassObject))
         }
     }
 
@@ -628,8 +636,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            // It is expected to be not of array type
-            anno.assertAttributeValue("value", "string")
+            // It is expected to be of array type
+            anno.assertAttributeValues("value", listOf("string"))
         }
     }
 
@@ -728,12 +736,11 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("enumValue", "test.pkg.Enum.ENUM1")
-            anno.assertAttributeValues("enumValue", listOf("test.pkg.Enum.ENUM1"))
-            anno.assertAttributeValues(
-                "enumArrayValue",
-                listOf("test.pkg.Enum.ENUM1", "test.pkg.Enum.ENUM2")
-            )
+            val testEnum1 = fieldReferenceValue("test.pkg.Enum", "ENUM1")
+            val testEnum2 = fieldReferenceValue("test.pkg.Enum", "ENUM2")
+            anno.assertAttributeValue("enumValue", testEnum1)
+            anno.assertAttributeValues("enumValue", listOf(testEnum1))
+            anno.assertAttributeValues("enumArrayValue", listOf(testEnum1, testEnum2))
 
             // Make sure that the enum value resolves to the enum field.
             val enumValue = anno.assertAttribute("enumValue").value as FieldReferenceValue

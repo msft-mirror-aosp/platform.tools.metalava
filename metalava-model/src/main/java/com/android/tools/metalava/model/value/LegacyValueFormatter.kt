@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
@@ -34,7 +36,7 @@ import java.lang.StringBuilder
  *
  * Legacy string representations of values are extremely inconsistent and vary by:
  * * The legacy use site, e.g. [FieldItem.writeValueWithSemicolon], [MethodItem.legacyDefaultValue],
- *   [AnnotationAttribute.legacyValue]. [AnnotationItem.toSource].
+ *   [AnnotationItem.toSource].
  * * The [ClassItem.origin], i.e. sources or jars.
  * * The source language, i.e. Kotlin or Java. Signature files are not a factor because they
  *   preserve what was written into them from sources.
@@ -195,7 +197,10 @@ class LegacyValueFormatter(
                 value.asLiteralValue() ?: value
             else value
 
-        // Fallback to just using the default value representation according to the settings.
+        // Fallback to just using the default value representation according to the settings. This
+        // passes in the [Settings.boundConfiguration] as that has a `nestedValueAppender` that
+        // will call back into this method for nested values, i.e. values in an array and attribute
+        // values of nested annotations.
         valueToAppend.appendValueStringTo(builder, settings.boundConfiguration)
 
         if (settings.dropLongAndFloatTypeSuffix) {
@@ -211,6 +216,55 @@ class LegacyValueFormatter(
 
     /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
     private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
+
+    /** Get the annotation specific settings that incorporate [target] and [alwaysInlineFields]. */
+    private fun annotationSpecificSetting(
+        settings: Settings,
+        target: AnnotationTarget,
+        alwaysInlineFields: Boolean,
+    ) =
+        settings.copy(
+            valueStringConfiguration =
+                // Incorporate the target into the [ValueStringConfiguration]. This uses the
+                // [Settings.boundConfiguration] as the [Settings.valueStringConfiguration] is
+                // intentionally inaccessible as it must not be used directly. That is not an issue
+                // as the `boundConfiguration` is identical to `valueStringConfiguration` apart from
+                // the `nestedValueAppender` and that will be updated by [Settings]'s initializer.
+                settings.boundConfiguration.copy(
+                    annotationQualifiedNameGetter = { annotationItem ->
+                        annotationItem.annotationContext.annotationManager.normalizeOutputName(
+                            annotationItem.qualifiedName,
+                            target
+                        )
+                    },
+                ),
+            alwaysInlineFields = alwaysInlineFields,
+        )
+
+    /** Format [annotationItem] to match the legacy behavior of [AnnotationItem.toSource]. */
+    fun annotationItemToSource(
+        annotationItem: AnnotationItem,
+        target: AnnotationTarget,
+        context: Item?
+    ): String {
+        val settings = selectSettingsForContext(context)
+
+        val alwaysInlineFields = annotationItem.qualifiedName == ANDROID_FLAGGED_API
+
+        val annotationSpecificSetting =
+            annotationSpecificSetting(settings, target, alwaysInlineFields)
+
+        return buildString {
+            // Append the annotation item.  This passes in the [Settings.boundConfiguration] as that
+            // has a `nestedValueAppender` that will call back into [appendFormattedValue] for
+            // nested values, i.e. values in an array and attribute values of nested annotations.
+            annotationItem.appendAnnotationStringTo(
+                this,
+                annotationSpecificSetting.boundConfiguration,
+                annotationIsValue = false
+            )
+        }
+    }
 
     companion object {
         /** Setting for formatting [MethodItem.defaultValue] from Java sources. */
@@ -340,6 +394,79 @@ class LegacyValueFormatter(
                 javaSettings = ATTRIBUTE_DEFAULT_JAVA_SETTINGS,
                 kotlinSettings = ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS,
                 jarSettings = ATTRIBUTE_DEFAULT_JAR_SETTINGS,
+            )
+
+        /** Setting for formatting [AnnotationItem.toSource] from Java sources. */
+        private val ANNOTATION_SOURCE_JAVA_SETTINGS =
+            ATTRIBUTE_DEFAULT_JAVA_SETTINGS.copy(
+                valueStringConfiguration =
+                    ATTRIBUTE_DEFAULT_JAVA_SETTINGS.boundConfiguration.copy(
+                        // Legacy AnnotationItem.toSource() formats Java annotations without spaces
+                        // around the `=` in `attr=value`.
+                        annotationAttributeNameValueSeparator =
+                            AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+
+                        // Legacy AnnotationItem.toSource() formats class references as they were
+                        // specified in the source.
+                        classObjectValueFormat = ClassObjectValueFormat.SOURCE,
+
+                        // Legacy AnnotationItem.toSource() uses `F` as the suffix for floats that
+                        // were not specified as literals in the source.
+                        nonLiteralFloatSuffix = 'F',
+
+                        // Legacy AnnotationItem.toSource() formats ints as hexadecimals if they
+                        // were not specified as literals in the source.
+                        nonLiteralIntFormat = IntFormat.HEXADECIMAL,
+                    ),
+            )
+
+        /** Setting for formatting [AnnotationItem.toSource] from Jar classes. */
+        private val ANNOTATION_SOURCE_JAR_SETTINGS =
+            Settings(
+                valueStringConfiguration =
+                    ValueStringConfiguration(
+                        // Legacy AnnotationItem.toSource() formats jar annotations without spaces
+                        // around the `=` in `attr=value`.
+                        annotationAttributeNameValueSeparator =
+                            AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+
+                        // Legacy AnnotationItem.toSource() uses `F` as the suffix for negative
+                        // floats in the jar.
+                        nonLiteralFloatSuffix = 'F',
+
+                        // Legacy AnnotationItem.toSource() formats negative ints as hexadecimals
+                        // when they came from a jar.
+                        nonLiteralIntFormat = IntFormat.HEXADECIMAL,
+
+                        // Do not unwrap a single array element when formatting a value from a jar
+                        // as they were never unwrapped.
+                        singleArrayElementFormat = SingleArrayElementFormat.WRAP,
+
+                        // Annotation attributes are not sorted in the default values.
+                        sortAnnotationAttributes = false,
+
+                        // In the jar, while values are always stored as their actual type bytes and
+                        // shorts do not have their own constant type and so are stored as ints.
+                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                    ),
+                // In the jar file special values were always stored as their constant value so they
+                // were never formatted as their fields.
+                stringReplacement =
+                    mapOf(
+                        DoubleValue.NaN to "0.0 / 0.0",
+                        DoubleValue.NEGATIVE_INFINITY to "-1.0 / 0.0",
+                        DoubleValue.POSITIVE_INFINITY to "1.0 / 0.0",
+                        FloatValue.NaN to "0.0f / 0.0",
+                        FloatValue.NEGATIVE_INFINITY to "-1.0F / 0.0",
+                        FloatValue.POSITIVE_INFINITY to "1.0f / 0.0",
+                    ),
+            )
+
+        /** Used in [AnnotationItem.toSource]. */
+        val ANNOTATION_SOURCE_FORMATTER =
+            LegacyValueFormatter(
+                javaSettings = ANNOTATION_SOURCE_JAVA_SETTINGS,
+                jarSettings = ANNOTATION_SOURCE_JAR_SETTINGS,
             )
     }
 }
