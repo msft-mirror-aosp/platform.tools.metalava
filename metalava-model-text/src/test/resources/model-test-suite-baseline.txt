@@ -19,10 +19,12 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[source,byte - cast]
   testLegacySource[source,short - cast]
   testMethodDefaultValue[source,byte - cast]
+  testMethodDefaultValue[source,field - long with int constant]
   testMethodDefaultValue[source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testAttributeValue[source,byte - cast]
+  testAttributeValue[source,field - long with int constant]
   testAttributeValue[source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
