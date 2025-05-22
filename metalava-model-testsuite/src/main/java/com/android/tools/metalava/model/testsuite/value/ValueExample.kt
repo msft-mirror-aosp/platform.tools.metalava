@@ -191,7 +191,7 @@ constructor(
     val classSuffix = name.replace(' ', '_').replace('-', '_')
 
     /** True if this is supported to be a field constant. */
-    internal val isConstant
+    private val isConstant
         get() = javaType in constantTypeNames || kotlinType in unsignedConstantTypeNames
 
     companion object {
@@ -225,6 +225,9 @@ constructor(
 
         /** All except Signature. */
         private val notValidForSignature = EnumSet.complementOf(EnumSet.of(InputFormat.SIGNATURE))
+
+        /** All except Java. */
+        private val notValidForJava = EnumSet.complementOf(EnumSet.of(InputFormat.JAVA))
 
         /** Only Java. */
         private val onlyValidForJava = EnumSet.of(InputFormat.JAVA)
@@ -958,7 +961,7 @@ constructor(
                             }
                         },
                 ),
-                // Check the behavior of using an int constant field with a long value.
+                // Check the behavior of using an int constant field converted to a long value.
                 ValueExample(
                     name = "field - long with int constant",
                     javaType = "long",
@@ -983,7 +986,7 @@ constructor(
                                     primitiveValueForKind(
                                         Primitive.LONG,
                                         37,
-                                        nonLiteralInSource = true
+                                        nonLiteralInSource = true,
                                     )
                                 )
                             jar {
@@ -991,6 +994,210 @@ constructor(
                                 // correct type.
                                 common = literalValue(37L)
                             }
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a byte value.
+                ValueExample(
+                    name = "field - converted to byte",
+                    javaType = "byte",
+                    kotlinType = "Byte",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toByte()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toByte()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toByte()"
+                                attributeDefaultValue = "37"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                primitiveValueForKind(
+                                    Primitive.BYTE,
+                                    37L,
+                                    nonLiteralInSource = true,
+                                )
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a double value.
+                ValueExample(
+                    name = "field - converted to double",
+                    javaType = "double",
+                    kotlinType = "Double",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toDouble()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toDouble()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37.0"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toDouble()"
+                                attributeDefaultValue = "37.0"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                primitiveValueForKind(
+                                    Primitive.DOUBLE,
+                                    37L,
+                                    nonLiteralInSource = true,
+                                )
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a float value.
+                ValueExample(
+                    name = "field - converted to float",
+                    javaType = "float",
+                    kotlinType = "Float",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toFloat()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toFloat()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37.0f"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toFloat()"
+                                attributeDefaultValue = "37.0"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                primitiveValueForKind(
+                                    Primitive.FLOAT,
+                                    37.0f,
+                                    nonLiteralInSource = true,
+                                )
+                        },
+                ),
+                // Check the behavior of using a long constant field converted to an int value.
+                ValueExample(
+                    name = "field - converted to int",
+                    javaType = "int",
+                    kotlinType = "Int",
+                    kotlinExpression = "test.pkg.Constants.LONG_CONSTANT.toInt()",
+                    signatureExpression = "test.pkg.Constants.LONG_CONSTANT.toInt()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.LONG_CONSTANT"
+
+                            fieldWriteWithSemicolon = "9"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.LONG_CONSTANT.toInt()"
+                                attributeDefaultValue = "9"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                primitiveValueForKind(
+                                    Primitive.INT,
+                                    9,
+                                    nonLiteralInSource = true,
+                                )
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a long value.
+                ValueExample(
+                    name = "field - converted to long",
+                    javaType = "long",
+                    kotlinType = "Long",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toLong()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toLong()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37L"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toLong()"
+                                attributeDefaultValue = "37"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                primitiveValueForKind(
+                                    Primitive.LONG,
+                                    37L,
+                                    nonLiteralInSource = true,
+                                )
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a short value.
+                ValueExample(
+                    name = "field - converted to short",
+                    javaType = "short",
+                    kotlinType = "Short",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toShort()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toShort()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toShort()"
+                                attributeDefaultValue = "37"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                primitiveValueForKind(
+                                    Primitive.SHORT,
+                                    37L,
+                                    nonLiteralInSource = true,
+                                )
                         },
                 ),
                 // Check a negative float
