@@ -1017,16 +1017,20 @@ constructor(
                         expectations {
                             source {
                                 annotationToSource = "test.pkg.Constants.INT_CONSTANT.toByte()"
-                                attributeDefaultValue = "37"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
                             }
                         },
                     expectedValue =
                         expectations {
                             common =
-                                primitiveValueForKind(
-                                    Primitive.BYTE,
-                                    37L,
-                                    nonLiteralInSource = true,
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.BYTE,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
                                 )
                         },
                 ),
@@ -1051,16 +1055,20 @@ constructor(
                         expectations {
                             source {
                                 annotationToSource = "test.pkg.Constants.INT_CONSTANT.toDouble()"
-                                attributeDefaultValue = "37.0"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
                             }
                         },
                     expectedValue =
                         expectations {
                             common =
-                                primitiveValueForKind(
-                                    Primitive.DOUBLE,
-                                    37L,
-                                    nonLiteralInSource = true,
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.DOUBLE,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
                                 )
                         },
                 ),
@@ -1085,16 +1093,20 @@ constructor(
                         expectations {
                             source {
                                 annotationToSource = "test.pkg.Constants.INT_CONSTANT.toFloat()"
-                                attributeDefaultValue = "37.0"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
                             }
                         },
                     expectedValue =
                         expectations {
                             common =
-                                primitiveValueForKind(
-                                    Primitive.FLOAT,
-                                    37.0f,
-                                    nonLiteralInSource = true,
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.FLOAT,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
                                 )
                         },
                 ),
@@ -1119,16 +1131,20 @@ constructor(
                         expectations {
                             source {
                                 annotationToSource = "test.pkg.Constants.LONG_CONSTANT.toInt()"
-                                attributeDefaultValue = "9"
+                                attributeDefaultValue = "test.pkg.Constants.LONG_CONSTANT"
                             }
                         },
                     expectedValue =
                         expectations {
                             common =
-                                primitiveValueForKind(
-                                    Primitive.INT,
-                                    9,
-                                    nonLiteralInSource = true,
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "LONG_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.INT,
+                                        9L,
+                                        nonLiteralInSource = true,
+                                    ),
                                 )
                         },
                 ),
@@ -1153,16 +1169,20 @@ constructor(
                         expectations {
                             source {
                                 annotationToSource = "test.pkg.Constants.INT_CONSTANT.toLong()"
-                                attributeDefaultValue = "37"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
                             }
                         },
                     expectedValue =
                         expectations {
                             common =
-                                primitiveValueForKind(
-                                    Primitive.LONG,
-                                    37L,
-                                    nonLiteralInSource = true,
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.LONG,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
                                 )
                         },
                 ),
@@ -1187,16 +1207,20 @@ constructor(
                         expectations {
                             source {
                                 annotationToSource = "test.pkg.Constants.INT_CONSTANT.toShort()"
-                                attributeDefaultValue = "37"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
                             }
                         },
                     expectedValue =
                         expectations {
                             common =
-                                primitiveValueForKind(
-                                    Primitive.SHORT,
-                                    37L,
-                                    nonLiteralInSource = true,
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.SHORT,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
                                 )
                         },
                 ),
