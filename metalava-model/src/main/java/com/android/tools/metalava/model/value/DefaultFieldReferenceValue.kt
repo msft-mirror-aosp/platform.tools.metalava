@@ -29,7 +29,19 @@ internal abstract class BaseFieldReferenceValue(
     private val classResolver: ClassResolver,
     override val qualifiedClassName: String,
     override val fieldName: String,
+    private val kotlinCompanionClass: String?,
 ) : DefaultValue(), FieldReferenceValue {
+
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        if (kotlinCompanionClass != null && configuration.showKotlinCompanionClass) {
+            builder.append(kotlinCompanionClass).append('.').append(fieldName)
+        } else {
+            super.appendValueStringTo(builder, configuration)
+        }
+    }
 
     private lateinit var optionalFieldItem: Optional<FieldItem>
 
@@ -54,6 +66,7 @@ internal abstract class BaseFieldReferenceValue(
             qualifiedClassName,
             fieldName,
             constantValue,
+            kotlinCompanionClass,
         )
 
     override fun resolve(): FieldItem? {
@@ -82,7 +95,8 @@ internal class DefaultFieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     override val constantValue: ConstantValue? = null,
-) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName) {
+    kotlinCompanionClass: String? = null,
+) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName, kotlinCompanionClass) {
 
     /** The [constantValue], if present, may be a [LiteralValue]. */
     override fun asLiteralValue() = constantValue?.asLiteralValue()
@@ -93,7 +107,8 @@ internal class LazyFieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     private val optionalTypeItem: TypeItem?,
-) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName) {
+    kotlinCompanionClass: String?,
+) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName, kotlinCompanionClass) {
 
     private lateinit var optionalConstantValue: Optional<ConstantValue>
 

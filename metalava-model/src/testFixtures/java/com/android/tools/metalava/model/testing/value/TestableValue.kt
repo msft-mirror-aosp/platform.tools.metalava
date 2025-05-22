@@ -70,12 +70,14 @@ fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     constantValue: ConstantValue? = null,
+    kotlinCompanionClass: String? = null,
 ) =
     Value.createFieldReferenceValue(
         ClassResolver.RETURN_NULL,
         qualifiedClassName,
         fieldName,
         constantValue,
+        kotlinCompanionClass,
     )
 
 /** Create an [AnnotationValue] from [source]. */
