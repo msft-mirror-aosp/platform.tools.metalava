@@ -426,11 +426,24 @@ internal class PsiValueFactory(
         if (uExpression.kind != UastCallKind.CONSTRUCTOR_CALL) return null
 
         // Resolve the call to the constructor, return null if it cannot be resolved.
-        val resolved = uExpression.resolve()
-        if (resolved !is PsiMethod || !resolved.isConstructor) return null
+        // The resolved element might be the constructor method or the class of the constructor.
+        // It will be the class when the annotation class is originally kotlin source but from the
+        // classpath, because annotation constructors are a kotlin feature only present in the
+        // kotlin metadata annotation for compiled code.
+        val resolved = uExpression.resolve() ?: uExpression.classReference?.resolve()
+        val psiClass =
+            when (resolved) {
+                is PsiMethod ->
+                    if (resolved.isConstructor) {
+                        resolved.containingClass
+                    } else {
+                        null
+                    }
+                is PsiClass -> resolved
+                else -> null
+            }
 
         // Get the qualified name of the constructor class, return null if it is not available.
-        val psiClass = resolved.containingClass
         val qualifiedClassName = psiClass?.qualifiedName ?: return null
 
         fun attributesProvider() =

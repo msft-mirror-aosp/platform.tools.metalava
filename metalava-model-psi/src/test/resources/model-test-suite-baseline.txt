@@ -42,20 +42,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[java,k2,null annotated parameterized inner type - annotated]
   Type string[java,k2,null annotated parameterized inner type - kotlin nulls]
 
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
-  testLegacySource[kotlin,k1,source,kotlin replace with]
-  testLegacySource[kotlin,k2,source,kotlin replace with]
-
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
-  testLegacySource[kotlin,k1,source,kotlin replace with]
-  testLegacySource[kotlin,k2,source,kotlin replace with]
-  testMethodDefaultValue[kotlin,k1,source,kotlin replace with]
-  testMethodDefaultValue[kotlin,k2,source,kotlin replace with]
-
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
-  testAttributeValue[kotlin,k1,source,kotlin replace with]
-  testAttributeValue[kotlin,k2,source,kotlin replace with]
-
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[kotlin,k1,source,null - intermediate non-constant expression]
   testFieldValue[kotlin,k2,source,null - intermediate non-constant expression]

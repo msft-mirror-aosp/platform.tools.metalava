@@ -1976,13 +1976,12 @@ constructor(
                     kotlinExpression = "ReplaceWith(\"something\")",
                     suitableFor = allLegacyValueUseSites,
                     validForInputFormats = onlyValidForKotlin,
-                    expectedLegacySource = expectations { common = "ReplaceWith(\"something\")" },
+                    expectedLegacySource = expectations { common = "kotlin.ReplaceWith()" },
                     expectedValue =
                         expectations {
                             common =
                                 annotationValue(
                                     "kotlin.ReplaceWith",
-                                    "expression" to literalValue("something")
                                 )
                         }
                 ),
