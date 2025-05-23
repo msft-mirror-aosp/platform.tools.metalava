@@ -150,6 +150,12 @@ class ParameterizedValueStringTest {
                     ValueStringConfiguration(showKotlinCompanionClass = true)
                 )
 
+            val SHOW_KOTLIN_CONVERSION_FUNCTION =
+                LabelledConfig(
+                    "show-kotlin-conversion-function",
+                    ValueStringConfiguration(showKotlinConversionFunction = true)
+                )
+
             val SPECIAL_VALUES =
                 LabelledConfig(
                     "special-values",
@@ -608,6 +614,7 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "test.pkg.AClass.FIELD",
                 ) {
                     verifyConfigMatchesDefault(LabelledConfig.SHOW_KOTLIN_COMPANION_OBJECT)
+                    verifyConfigMatchesDefault(LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION)
                 },
                 testCasesForValue(
                     value = fieldReferenceValue("test.pkg.AClass", "FIELD", literalValue(2)),
@@ -625,6 +632,90 @@ class ParameterizedValueStringTest {
                     verifyConfigChangesOutput(
                         LabelledConfig.SHOW_KOTLIN_COMPANION_OBJECT,
                         "test.pkg.AClass.Companion.FIELD"
+                    )
+                },
+                testCasesForValue(
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD",
+                            explicitConversionTo = Primitive.BYTE,
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION,
+                        "test.pkg.AClass.FIELD.toByte()"
+                    )
+                },
+                testCasesForValue(
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD",
+                            explicitConversionTo = Primitive.DOUBLE,
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION,
+                        "test.pkg.AClass.FIELD.toDouble()"
+                    )
+                },
+                testCasesForValue(
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD",
+                            explicitConversionTo = Primitive.FLOAT,
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION,
+                        "test.pkg.AClass.FIELD.toFloat()"
+                    )
+                },
+                testCasesForValue(
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD",
+                            explicitConversionTo = Primitive.INT,
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION,
+                        "test.pkg.AClass.FIELD.toInt()"
+                    )
+                },
+                testCasesForValue(
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD",
+                            explicitConversionTo = Primitive.LONG,
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION,
+                        "test.pkg.AClass.FIELD.toLong()"
+                    )
+                },
+                testCasesForValue(
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD",
+                            explicitConversionTo = Primitive.SHORT,
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SHOW_KOTLIN_CONVERSION_FUNCTION,
+                        "test.pkg.AClass.FIELD.toShort()"
                     )
                 },
                 // ********************************* Doubles *********************************

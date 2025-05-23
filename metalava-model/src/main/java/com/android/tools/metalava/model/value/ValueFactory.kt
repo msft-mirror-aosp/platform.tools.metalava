@@ -213,6 +213,7 @@ interface ValueFactory {
         fieldName: String,
         optionalTypeItem: TypeItem?,
         kotlinCompanionClass: String? = null,
+        explicitConversionTo: Primitive? = null,
     ): ArrayElementValue {
         // Create a field.
         val fieldReferenceValue =
@@ -222,6 +223,7 @@ interface ValueFactory {
                 fieldName,
                 optionalTypeItem,
                 kotlinCompanionClass,
+                explicitConversionTo,
             )
 
         // The field may need mapping to a constant value to eliminate differences between Kotlin
@@ -239,6 +241,7 @@ interface ValueFactory {
         fieldName: String,
         constantValue: ConstantValue? = null,
         kotlinCompanionClass: String? = null,
+        explicitConversionTo: Primitive? = null,
     ): ArrayElementValue {
         // Create a field.
         val fieldReferenceValue =
@@ -248,6 +251,7 @@ interface ValueFactory {
                 fieldName,
                 constantValue,
                 kotlinCompanionClass,
+                explicitConversionTo,
             )
 
         // The field may need mapping to a constant value to eliminate differences between Kotlin

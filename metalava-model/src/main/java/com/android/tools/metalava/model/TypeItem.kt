@@ -930,6 +930,14 @@ interface PrimitiveTypeItem : TypeItem {
         ),
         ;
 
+        /**
+         * The name of the Kotlin function that will convert a [Number] to an instance of this type.
+         *
+         * This is `null` for non-numeric [Primitive]s.
+         */
+        val kotlinNumericConversionFunction =
+            if (Number::class.java.isAssignableFrom(wrapperClass)) "to$kotlinName" else null
+
         companion object {
             /** Map from [Primitive.wrapperClass]'s name to [Primitive]. */
             private val wrapperClassNameToKind =

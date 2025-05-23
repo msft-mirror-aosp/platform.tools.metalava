@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.value.Value.Companion.toString
 import java.util.Optional
@@ -30,7 +31,18 @@ internal abstract class BaseFieldReferenceValue(
     override val qualifiedClassName: String,
     override val fieldName: String,
     private val kotlinCompanionClass: String?,
+    private val explicitConversionTo: Primitive?,
 ) : DefaultValue(), FieldReferenceValue {
+
+    init {
+        // Make sure that `explicitConversionTo`, if specified, has a numeric conversion function.
+        require(
+            explicitConversionTo == null ||
+                explicitConversionTo.kotlinNumericConversionFunction != null
+        ) {
+            "Unexpected explicitConversionTo of $explicitConversionTo"
+        }
+    }
 
     override fun appendValueStringTo(
         builder: StringBuilder,
@@ -40,6 +52,12 @@ internal abstract class BaseFieldReferenceValue(
             builder.append(kotlinCompanionClass).append('.').append(fieldName)
         } else {
             super.appendValueStringTo(builder, configuration)
+        }
+
+        // If required, add an explicit conversion function call to the value representation.
+        if (configuration.showKotlinConversionFunction && explicitConversionTo != null) {
+            val conversionFunction = explicitConversionTo.kotlinNumericConversionFunction
+            builder.append('.').append(conversionFunction).append("()")
         }
     }
 
@@ -67,6 +85,7 @@ internal abstract class BaseFieldReferenceValue(
             fieldName,
             constantValue,
             kotlinCompanionClass,
+            explicitConversionTo,
         )
 
     override fun resolve(): FieldItem? {
@@ -96,7 +115,15 @@ internal class DefaultFieldReferenceValue(
     fieldName: String,
     override val constantValue: ConstantValue? = null,
     kotlinCompanionClass: String? = null,
-) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName, kotlinCompanionClass) {
+    explicitConversionTo: Primitive? = null,
+) :
+    BaseFieldReferenceValue(
+        classResolver,
+        qualifiedClassName,
+        fieldName,
+        kotlinCompanionClass,
+        explicitConversionTo,
+    ) {
 
     /** The [constantValue], if present, may be a [LiteralValue]. */
     override fun asLiteralValue() = constantValue?.asLiteralValue()
@@ -108,7 +135,15 @@ internal class LazyFieldReferenceValue(
     fieldName: String,
     private val optionalTypeItem: TypeItem?,
     kotlinCompanionClass: String?,
-) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName, kotlinCompanionClass) {
+    explicitConversionTo: Primitive?,
+) :
+    BaseFieldReferenceValue(
+        classResolver,
+        qualifiedClassName,
+        fieldName,
+        kotlinCompanionClass,
+        explicitConversionTo,
+    ) {
 
     private lateinit var optionalConstantValue: Optional<ConstantValue>
 
