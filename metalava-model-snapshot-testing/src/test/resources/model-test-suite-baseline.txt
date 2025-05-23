@@ -134,6 +134,8 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,k2,null annotated parameterized inner type - kotlin nulls]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
+  testLegacySource[psi,kotlin,k1,source,kotlin replace with]
+  testLegacySource[psi,kotlin,k2,source,kotlin replace with]
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,class literal - array of basic class]
   testLegacySource[text,source,class literal - array of generic class]
@@ -142,12 +144,18 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[text,source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
+  testLegacySource[psi,kotlin,k1,source,kotlin replace with]
+  testLegacySource[psi,kotlin,k2,source,kotlin replace with]
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,short - cast]
+  testMethodDefaultValue[psi,kotlin,k1,source,kotlin replace with]
+  testMethodDefaultValue[psi,kotlin,k2,source,kotlin replace with]
   testMethodDefaultValue[text,source,byte - cast]
   testMethodDefaultValue[text,source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testAttributeValue[psi,kotlin,k1,source,kotlin replace with]
+  testAttributeValue[psi,kotlin,k2,source,kotlin replace with]
   testAttributeValue[text,source,byte - cast]
   testAttributeValue[text,source,short - cast]
 
