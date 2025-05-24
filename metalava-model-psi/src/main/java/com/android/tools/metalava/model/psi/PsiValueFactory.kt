@@ -469,8 +469,7 @@ internal class PsiValueFactory(
                         is Short -> underlyingValue.toInt()
                         is UByte -> underlyingValue.toInt()
                         is UShort -> underlyingValue.toInt()
-                        is Long ->
-                            undoConversionOfSourceIntToLongIfNeeded(underlyingValue, uExpression)
+                        is Long -> undoConversionOfSourceIntIfNeeded(underlyingValue, uExpression)
                         else -> underlyingValue
                     }
 
@@ -488,7 +487,7 @@ internal class PsiValueFactory(
                         uExpression.operator == UastPrefixOperator.UNARY_MINUS &&
                         value is Long
                 ) {
-                    undoConversionOfSourceIntToLongIfNeeded(value, uExpression)
+                    undoConversionOfSourceIntIfNeeded(value, uExpression)
                 } else {
                     value
                 }
@@ -511,9 +510,9 @@ internal class PsiValueFactory(
      *
      * This generally only affects K2 as K1 does not bother casting to the correct type.
      */
-    private fun undoConversionOfSourceIntToLongIfNeeded(
+    private fun undoConversionOfSourceIntIfNeeded(
         underlyingValue: Long,
-        uExpression: UExpression
+        uExpression: UExpression,
     ) =
         uExpression.sourcePsi?.text?.let { text ->
             // If the text ends with `L` or `l` then it was a long literal so keep it as
@@ -521,7 +520,7 @@ internal class PsiValueFactory(
             if (text.endsWith("L") || text.endsWith("l")) underlyingValue
             else {
                 // Otherwise, try and see if it can be cast to an int without loss. If it
-                // can then use the int, otherwise keep the long.
+                // can then use the int, otherwise keep the original value.
                 val asInt = underlyingValue.toInt()
                 if (asInt.toLong() == underlyingValue) asInt else underlyingValue
             }
