@@ -36,6 +36,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
@@ -216,6 +218,41 @@ class CompatibilityCheck(
         }
 
         compareItemNullability(old, new)
+    }
+
+    override fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {
+        // Adding target languages is allowed, removing is not
+        val removedTargetLanguages = old.targetLanguages.minus(new.targetLanguages)
+        val item = Item.Companion.describe(new)
+        // Report issues on the old version of the item. If they were reported on the new version,
+        // they wouldn't end up reported, since removing from bytecode is only binary breaking and
+        // wouldn't be reported for the new item which only targets source (similarly for removing
+        // a source target language).
+        for (removedTargetLanguage in removedTargetLanguages) {
+            when (removedTargetLanguage) {
+                TargetLanguage.BYTECODE -> {
+                    report(
+                        Issues.REMOVED_FROM_BYTECODE,
+                        old,
+                        "$item has been removed from bytecode",
+                    )
+                }
+                TargetLanguage.KOTLIN -> {
+                    report(
+                        Issues.REMOVED_FROM_KOTLIN,
+                        old,
+                        "$item can no longer be resolved from Kotlin source",
+                    )
+                }
+                TargetLanguage.JAVA -> {
+                    report(
+                        Issues.REMOVED_FROM_JAVA,
+                        old,
+                        "$item can no longer be resolved from Java source",
+                    )
+                }
+            }
+        }
     }
 
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
@@ -1010,7 +1047,39 @@ class CompatibilityCheck(
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (reporter.report(issue, item, message, location, maximumSeverity = maximumSeverity)) {
+
+        val targetLanguages =
+            (item as? SelectableItem)?.targetLanguages ?: (item.parent())?.targetLanguages
+        val existsInBytecode = targetLanguages?.contains(TargetLanguage.BYTECODE) != false
+        // Add detail about the kind of compatibility issue this is, and skip the issue if it does
+        // not apply to the given target languages.
+        val newMessage =
+            when (issue.category) {
+                Issues.Category.BINARY_AND_SOURCE_COMPATIBILITY -> {
+                    // This issue matters for both binary and source compatibility. Binary compat is
+                    // more important, so if the item exists in bytecode, describe the issue as
+                    // binary breaking. If the item only exists in source, describe the issue as
+                    // source breaking.
+                    if (existsInBytecode) {
+                        "Binary breaking change: $message"
+                    } else {
+                        "Source breaking change: $message"
+                    }
+                }
+                Issues.Category.BINARY_COMPATIBILITY_ONLY -> {
+                    // The item doesn't exist in bytecode, don't report binary compatibility issues.
+                    if (!existsInBytecode) return
+                    "Binary breaking change: $message"
+                }
+                Issues.Category.SOURCE_COMPATIBILITY_ONLY -> {
+                    // The item can't be used from source, don't report source compatibility issues.
+                    if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) return
+                    "Source breaking change: $message"
+                }
+                else -> message
+            }
+
+        if (reporter.report(issue, item, newMessage, location, maximumSeverity = maximumSeverity)) {
             // If the issue was reported and was an error then remember that this found some
             // problems so that the process can be aborted after finishing the checks.
             val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))

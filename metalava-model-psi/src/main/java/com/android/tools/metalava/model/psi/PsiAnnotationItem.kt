@@ -16,17 +16,14 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.JavaTokenType
@@ -35,13 +32,11 @@ import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiBinaryExpression
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteral
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
-import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 
 internal class PsiAnnotationItem
 private constructor(
@@ -58,7 +53,7 @@ private constructor(
         attributesGetter = { getAnnotationAttributes(annotationContext, psiAnnotation) },
     ) {
 
-    override fun toSource(target: AnnotationTarget): String {
+    override fun toSource(target: AnnotationTarget, context: Item?): String {
         val sb = StringBuilder(60)
         appendAnnotation(
             annotationContext,
@@ -71,14 +66,6 @@ private constructor(
     }
 
     override fun snapshot(targetCodebase: Codebase) = this
-
-    override fun isNonNull(): Boolean {
-        if (psiAnnotation is KtLightNullabilityAnnotation<*> && originalName == "") {
-            // Hack/workaround: some UAST annotation nodes do not provide qualified name :=(
-            return true
-        }
-        return super.isNonNull()
-    }
 
     companion object {
         private fun getAnnotationAttributes(
@@ -98,7 +85,6 @@ private constructor(
                                 name,
                                 value,
                             ),
-                            createValue(value),
                         )
                     }
                 }
@@ -303,42 +289,6 @@ private constructor(
         private fun getConstantSource(value: PsiExpression): String? {
             val constant = JavaConstantExpressionEvaluator.computeConstantExpression(value, false)
             return constantToExpression(constant)
-        }
-    }
-}
-
-private fun createValue(value: PsiAnnotationMemberValue): AnnotationAttributeValue {
-    return if (value is PsiArrayInitializerMemberValue) {
-        DefaultAnnotationArrayAttributeValue(
-            { value.text },
-            { value.initializers.map { createValue(it) }.toList() }
-        )
-    } else {
-        PsiAnnotationSingleAttributeValue(value)
-    }
-}
-
-internal class PsiAnnotationSingleAttributeValue(private val psiValue: PsiAnnotationMemberValue) :
-    DefaultAnnotationSingleAttributeValue({ psiValue.text }, { getValue(psiValue) }) {
-
-    companion object {
-        private fun getValue(psiValue: PsiAnnotationMemberValue): Any {
-            if (psiValue is PsiLiteral) {
-                return psiValue.value ?: psiValue.text.removeSurrounding("\"")
-            }
-
-            val value = ConstantEvaluator.evaluate(null, psiValue)
-            if (value != null) {
-                return value
-            }
-
-            if (psiValue is PsiClassObjectAccessExpression) {
-                // The value of a class literal expression like String.class or String::class
-                // is the fully qualified name, java.lang.String
-                return psiValue.operand.type.canonicalText
-            }
-
-            return psiValue.text ?: psiValue.text.removeSurrounding("\"")
         }
     }
 }
