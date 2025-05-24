@@ -724,6 +724,51 @@ constructor(
                             jar { common = literalValue(-2.0) }
                         },
                 ),
+                // Check a simple double with float
+                ValueExample(
+                    name = "double - float",
+                    javaType = "double",
+                    javaExpression = "2.0f",
+                    kotlinType = "Double",
+                    expectedLegacySource =
+                        expectations {
+                            common = "2.0"
+
+                            source {
+                                attributeDefaultValue = "2.0f"
+                                annotationToSource = "2.0f"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            // Expect a double value created from an int.
+                            common = primitiveValueForKind(Primitive.DOUBLE, 2.0f)
+                            jar { common = literalValue(2.0) }
+                        },
+                ),
+                // Check a simple double with float
+                ValueExample(
+                    name = "double - negative float",
+                    javaType = "double",
+                    javaExpression = "-2.0f",
+                    kotlinType = "Double",
+                    expectedLegacySource =
+                        expectations {
+                            common = "-2.0"
+
+                            source {
+                                // TODO(b/354633349): Consistency is good.
+                                attributeDefaultValue = "-2.0f"
+                                annotationToSource = "-2.0F"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            // Expect a double value created from a float
+                            common = primitiveValueForKind(Primitive.DOUBLE, -2.0f)
+                            jar { common = literalValue(-2.0) }
+                        },
+                ),
                 // Check a simple double with exponent
                 ValueExample(
                     name = "double with exponent",

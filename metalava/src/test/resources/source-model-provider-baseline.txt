@@ -7,7 +7,6 @@ com.android.tools.metalava.ApiAnalyzerTest
   Test that usage of effectively deprecated class is flagged[turbine]
 
 com.android.tools.metalava.ApiFileTest
-  Annotation value visibility[turbine]
   Check @remove class[turbine]
   Check basic @remove scenarios[turbine]
   Check generic type signature insertion[turbine]
