@@ -27,6 +27,8 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.BaseCachingDeferredTypeValueProvider
@@ -481,7 +483,28 @@ internal class PsiValueFactory(
                         else -> underlyingValue
                     }
 
-                return uLiteralValue(optionalTypeItem, originalSourceValue)
+                // TODO(b/420371817): Work around an issue in Psi which prevents the class of the
+                //   @setparam:Anno from being resolved which means that optionalTypeItem is null
+                //   even though the underlying Psi code knows the type and has cast the integer
+                //   literal to a `long`. The workaround synthesizes an optionalTypeItem of `long`
+                //   based on the fact that the `underlyingValue` is `long`. It does not handle the
+                //   other types as they are not needed at the moment.
+                val actualPrimitiveKind =
+                    if (optionalTypeItem == null && underlyingValue != originalSourceValue)
+                        when (underlyingValue) {
+                            is Byte -> Primitive.BYTE
+                            is Long -> Primitive.LONG
+                            is Short -> Primitive.SHORT
+                            else -> null
+                        }
+                    else null
+
+                val actualTypeItem =
+                    actualPrimitiveKind?.let { kind ->
+                        DefaultPrimitiveTypeItem(DefaultTypeModifiers.emptyNonNullModifiers, kind)
+                    } ?: optionalTypeItem
+
+                return uLiteralValue(actualTypeItem, originalSourceValue)
             }
         }
 

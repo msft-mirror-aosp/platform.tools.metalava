@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
 import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
-import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.FieldReferenceValue
@@ -1492,6 +1491,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val property = testClass.properties().single()
 
+            val expectedValue = primitiveValueForKind(attributePrimitive, 12)
+
             // Test the annotation on the property (the @get:Anno).
             property.modifiers.annotations().single().let { anno ->
                 assertEquals(
@@ -1500,7 +1501,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     message = "@get:Anno"
                 )
 
-                val expectedValue = primitiveValueForKind(attributePrimitive, 12)
                 assertValuesAreStrictlyEqual(
                     expectedValue,
                     anno.assertAttribute("attr").value,
@@ -1519,11 +1519,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     message = "@setparam:Anno"
                 )
 
-                // TODO(b/354633349): This should be the same as the value for the @get:Anno but it
-                //   is not because there is a bug in Psi which prevents the class of the
-                //   @setparam:Anno from being resolved which means that the type of the `attr` is
-                //   not known so the literal int is not converted to the correct type.
-                val expectedValue = literalValue(12)
                 assertValuesAreStrictlyEqual(
                     expectedValue,
                     anno.assertAttribute("attr").value,
