@@ -4211,7 +4211,7 @@ class ApiFileTest : DriverTest() {
                     import androidx.annotation.IntRange;
 
                     public final class ApiClass {
-                        private int hiddenConstant = 1;
+                        private static final int hiddenConstant = 1;
                         public ApiClass(@IntRange(from=1) int x) {}
                         public void method(@IntRange(from = hiddenConstant) int x) {}
                     }

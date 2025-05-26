@@ -329,7 +329,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 Settings(
                     valueStringConfiguration =
                         ValueStringConfiguration(
-                            treatAsIntIfOriginallySpecifiedAsInt = true,
+                            useOriginalValueForNumbers = true,
                         ),
                     dropLongAndFloatTypeSuffix = false,
                 )
@@ -348,7 +348,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 Settings(
                     valueStringConfiguration =
                         ValueStringConfiguration(
-                            treatAsIntIfOriginallySpecifiedAsInt = true,
+                            useOriginalValueForNumbers = true,
                         ),
                     dropLongAndFloatTypeSuffix = true,
                 )

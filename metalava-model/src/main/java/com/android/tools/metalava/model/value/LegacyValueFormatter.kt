@@ -294,7 +294,7 @@ class LegacyValueFormatter(
 
                         // In the source, values that were written as ints were formatted as ints
                         // even if they were `double`, `float`, or `long`.
-                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                        useOriginalValueForNumbers = true,
                     ),
             )
 
@@ -336,7 +336,7 @@ class LegacyValueFormatter(
 
                         // In the source, values that were written as ints were formatted as ints
                         // even if they were `double`, `float`, or `long`.
-                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                        useOriginalValueForNumbers = true,
 
                         // Use Kotlin formatting of values.
                         valueLanguage = ValueLanguage.KOTLIN,
@@ -384,7 +384,7 @@ class LegacyValueFormatter(
 
                         // In the jar, values are always stored as their actual type so were never
                         // represented as an int.
-                        treatAsIntIfOriginallySpecifiedAsInt = false,
+                        useOriginalValueForNumbers = false,
                     ),
             )
 
@@ -447,7 +447,7 @@ class LegacyValueFormatter(
 
                         // In the jar, while values are always stored as their actual type bytes and
                         // shorts do not have their own constant type and so are stored as ints.
-                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                        useOriginalValueForNumbers = true,
                     ),
                 // In the jar file special values were always stored as their constant value so they
                 // were never formatted as their fields.
