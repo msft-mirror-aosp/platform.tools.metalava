@@ -81,20 +81,25 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         /**
          * Java file used in [checkFormatting] to provide context for [LegacyValueFormatter.format].
          */
-        private val javaFile =
-            java(
-                    """
-                        package test.pkg;
-                        public interface Foo {
-                            void method();
-                        }
-
-                        class Hidden {
-                            public static final int FIELD = 2;
-                        }
-                    """
+        private val javaFiles =
+            listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Foo {
+                                void method();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            class Hidden {
+                                public static final int FIELD = 2;
+                            }
+                        """
+                    ),
                 )
-                .cacheIn(testFileCacheRule)
+                .map { it.cacheIn(testFileCacheRule) }
 
         /**
          * Fake Java file used in [checkFormatting] when [producerKind] is [ProducerKind.JAR] just
@@ -113,20 +118,26 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
          * Kotlin file used in [checkFormatting] to provide context for
          * [LegacyValueFormatter.format].
          */
-        val kotlinFile =
-            kotlin(
-                    """
-                        package test.pkg
-                        interface Foo {
-                            fun method()
-                        }
-
-                        internal object Hidden {
-                            const val FIELD = 2
-                        }
-                    """
+        val kotlinFiles =
+            listOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            interface Foo {
+                                fun method()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            internal object Hidden {
+                                const val FIELD = 2
+                            }
+                        """
+                    ),
                 )
-                .cacheIn(testFileCacheRule)
+                .map { it.cacheIn(testFileCacheRule) }
 
         /**
          * Signature file used in [checkFormatting] to provide context for
@@ -149,7 +160,8 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
          * Jar file used in [checkFormatting] when [producerKind] is [ProducerKind.JAR] to provide
          * context for [LegacyValueFormatter.format].
          */
-        private val jarFile = jarFromSources("test.jar", javaFile).cacheIn(testFileCacheRule)
+        private val jarFile =
+            jarFromSources("test.jar", *javaFiles.toTypedArray()).cacheIn(testFileCacheRule)
 
         /** Shared value for use in the tests. */
         val DOUBLE_NAN = DoubleValue.NaN
@@ -190,15 +202,16 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
 
         val testFixture = TestFixture(additionalClassPath = additionalClassPath)
 
-        val testFile =
+        val testFiles =
             when (inputFormat) {
-                InputFormat.SIGNATURE -> signatureFile
-                InputFormat.JAVA -> if (producerKind == ProducerKind.JAR) fakeJavaFile else javaFile
-                InputFormat.KOTLIN -> kotlinFile
+                InputFormat.SIGNATURE -> listOf(signatureFile)
+                InputFormat.JAVA ->
+                    if (producerKind == ProducerKind.JAR) listOf(fakeJavaFile) else javaFiles
+                InputFormat.KOTLIN -> kotlinFiles
             }
 
         runCodebaseTest(
-            testFile,
+            inputSet(testFiles),
             testFixture = testFixture,
         ) {
             FormattingContext(this, producerKind).body()
