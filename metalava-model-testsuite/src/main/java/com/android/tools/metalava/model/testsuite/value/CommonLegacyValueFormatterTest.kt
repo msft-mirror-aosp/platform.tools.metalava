@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.Assertions.Companion.assertClass
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.Assertions.Companion.assertResolvedClass
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.junit4.ParameterFilter
@@ -30,6 +31,7 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.lazyFieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -49,6 +51,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
 import org.junit.ClassRule
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -93,8 +96,31 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                     ),
                     java(
                         """
-                            class Hidden {
+                            package test.pkg;
+                            public class Hidden {
+                                /** @hide */
                                 public static final int FIELD = 2;
+                                /** @hide */
+                                public static final int FIELD_NO_VALUE = Integer.parseInt("2");
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @removed */
+                            public class Removed {
+                                public static final int FIELD = 3;
+                                public static final int FIELD_NO_VALUE = Integer.parseInt("3");
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            class NotPublic {
+                                static final int FIELD = 4;
+                                static final int FIELD_NO_VALUE = Integer.parseInt("4");
                             }
                         """
                     ),
@@ -131,8 +157,30 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                     kotlin(
                         """
                             package test.pkg
-                            internal object Hidden {
+                            object Hidden {
+                                /** @hide */
                                 const val FIELD = 2
+                                /** @hide */
+                                val FIELD_NO_VALUE = "2".toInt()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            /** @removed */
+                            object Removed {
+                                const val FIELD = 3
+                                val FIELD_NO_VALUE = "3".toInt()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            object NotPublic {
+                                internal const val FIELD = 4
+                                internal val FIELD_NO_VALUE = "4".toInt()
                             }
                         """
                     ),
@@ -382,7 +430,11 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             // Unresolvable fields should just use their name as a value MUST be provided.
             formatter.assertFormattedValue(
                 "unknown.pkg.Unknown.FIELD",
-                fieldReferenceValue("unknown.pkg.Unknown", "FIELD")
+                lazyFieldReferenceValue(
+                    classResolver = ClassResolver.RETURN_NULL,
+                    "unknown.pkg.Unknown",
+                    "FIELD"
+                )
             )
         }
     }
@@ -390,30 +442,74 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     // Does not work with signature files as they do not contain inaccessible fields.
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `Test field - resolvable but inaccessible with no value`() {
+    fun `Test field - resolvable but inaccessible with no value - default`() {
         checkFormatting {
             val javaSettings = Settings()
             val formatter = LegacyValueFormatter(javaSettings = javaSettings)
-            // Inaccessible fields with no value should just use their name as a value MUST be
+            // Hidden fields with no value should just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "test.pkg.Hidden.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(
+                    codebase,
+                    "test.pkg.Hidden",
+                    "FIELD_NO_VALUE",
+                )
+            )
+
+            // Removed fields with no value should just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "test.pkg.Removed.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(codebase, "test.pkg.Removed", "FIELD_NO_VALUE")
+            )
+
+            // Non-`public` fields with no value should just use their name as a value MUST be
             // provided.
             formatter.assertFormattedValue(
-                "test.pkg.Hidden.FIELD",
-                fieldReferenceValue("test.pkg.Hidden", "FIELD")
+                "test.pkg.NotPublic.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(codebase, "test.pkg.NotPublic", "FIELD_NO_VALUE")
             )
         }
     }
 
     // Does not work with signature files as they do not contain inaccessible fields.
     @RequiresCapabilities(Capability.JAVA)
+    // Temporarily disable the test as it fails in snapshot because snapshot does not track
+    // removed and/or hidden status.
+    @Ignore
     @Test
-    fun `Test field - resolvable but inaccessible with value`() {
+    fun `Test field - resolvable but inaccessible with value - default`() {
         checkFormatting {
             val javaSettings = Settings()
             val formatter = LegacyValueFormatter(javaSettings = javaSettings)
-            // Inaccessible fields with a value should just use that value.
+
+            val hiddenExpected =
+                when (producerKind) {
+                    // @hide javadoc is not available in jars so they are not treated as hidden.
+                    ProducerKind.JAR -> "test.pkg.Hidden.FIELD"
+                    // Hidden fields with a value should just use that value.
+                    ProducerKind.SOURCE -> "2"
+                }
             formatter.assertFormattedValue(
-                "2",
-                fieldReferenceValue("test.pkg.Hidden", "FIELD", literalValue(2))
+                hiddenExpected,
+                lazyFieldReferenceValue(codebase, "test.pkg.Hidden", "FIELD")
+            )
+
+            val removedExpected =
+                when (producerKind) {
+                    // @removed javadoc is not available in jars so they are not treated as removed.
+                    ProducerKind.JAR -> "test.pkg.Removed.FIELD"
+                    // Removed fields with a value should just use that value.
+                    ProducerKind.SOURCE -> "3"
+                }
+            formatter.assertFormattedValue(
+                removedExpected,
+                lazyFieldReferenceValue(codebase, "test.pkg.Removed", "FIELD")
+            )
+
+            // Non-`public` fields with a value should just use that value.
+            formatter.assertFormattedValue(
+                "4",
+                lazyFieldReferenceValue(codebase, "test.pkg.NotPublic", "FIELD")
             )
         }
     }

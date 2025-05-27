@@ -80,6 +80,23 @@ fun fieldReferenceValue(
         kotlinCompanionClass,
     )
 
+/**
+ * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] whose [ConstantValue]
+ * is determined lazily.
+ */
+fun lazyFieldReferenceValue(
+    classResolver: ClassResolver,
+    qualifiedClassName: String,
+    fieldName: String,
+    optionalTypeItem: TypeItem? = null,
+) =
+    Value.createFieldReferenceValueWithDeferredConstantValue(
+        classResolver,
+        qualifiedClassName,
+        fieldName,
+        optionalTypeItem,
+    )
+
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =
     Value.createAnnotationValue(
