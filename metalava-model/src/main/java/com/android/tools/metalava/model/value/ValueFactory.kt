@@ -203,12 +203,16 @@ interface ValueFactory {
      * @param fieldName the name of the field.
      * @param optionalTypeItem the optional [TypeItem] determined by the context within which the
      *   [FieldReferenceValue] will be used.
+     * @param kotlinCompanionClass the name of the companion class if the field is inside a Kotlin
+     *   `Companion` object, `null` if it is not. In either case [qualifiedClassName] is the name of
+     *   the main class, NOT the companion class.
      */
     fun createFieldReferenceValueWithDeferredConstantValue(
         classResolver: ClassResolver,
         qualifiedClassName: String,
         fieldName: String,
         optionalTypeItem: TypeItem?,
+        kotlinCompanionClass: String? = null,
     ): ArrayElementValue {
         // Create a field.
         val fieldReferenceValue =
@@ -217,6 +221,7 @@ interface ValueFactory {
                 qualifiedClassName,
                 fieldName,
                 optionalTypeItem,
+                kotlinCompanionClass,
             )
 
         // The field may need mapping to a constant value to eliminate differences between Kotlin
@@ -233,6 +238,7 @@ interface ValueFactory {
         qualifiedClassName: String,
         fieldName: String,
         constantValue: ConstantValue? = null,
+        kotlinCompanionClass: String? = null,
     ): ArrayElementValue {
         // Create a field.
         val fieldReferenceValue =
@@ -241,6 +247,7 @@ interface ValueFactory {
                 qualifiedClassName,
                 fieldName,
                 constantValue,
+                kotlinCompanionClass,
             )
 
         // The field may need mapping to a constant value to eliminate differences between Kotlin

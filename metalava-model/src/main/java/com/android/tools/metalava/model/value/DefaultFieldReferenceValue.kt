@@ -29,9 +29,45 @@ internal abstract class BaseFieldReferenceValue(
     private val classResolver: ClassResolver,
     override val qualifiedClassName: String,
     override val fieldName: String,
+    private val kotlinCompanionClass: String?,
 ) : DefaultValue(), FieldReferenceValue {
 
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        if (kotlinCompanionClass != null && configuration.showKotlinCompanionClass) {
+            builder.append(kotlinCompanionClass).append('.').append(fieldName)
+        } else {
+            super.appendValueStringTo(builder, configuration)
+        }
+    }
+
     private lateinit var optionalFieldItem: Optional<FieldItem>
+
+    /**
+     * The optional constant value of this field.
+     *
+     * Is `null` if the field does not reference a constant value.
+     *
+     * Note: This is NOT used in [equals], [hashCode] or [toString]. That is because this may be
+     * provided lazily and accessing it may have side effects but those methods are not expected to
+     * have side effects.
+     */
+    protected abstract val constantValue: ConstantValue?
+
+    /**
+     * Implement this here rather than in [FieldReferenceValue] as it needs to access
+     * [constantValue] which is an implementation detail.
+     */
+    override fun snapshot(targetCodebase: Codebase) =
+        Value.createFieldReferenceValue(
+            targetCodebase,
+            qualifiedClassName,
+            fieldName,
+            constantValue,
+            kotlinCompanionClass,
+        )
 
     override fun resolve(): FieldItem? {
         if (!::optionalFieldItem.isInitialized) {
@@ -58,30 +94,9 @@ internal class DefaultFieldReferenceValue(
     classResolver: ClassResolver,
     qualifiedClassName: String,
     fieldName: String,
-
-    /**
-     * The optional constant value of this field.
-     *
-     * Is `null` if the field does not reference a constant value.
-     *
-     * Note: This is NOT used in [equals], [hashCode] or [toString]. That is because this may be
-     * provided lazily and accessing it may have side effects but those methods are not expected to
-     * have side effects.
-     */
-    private val constantValue: ConstantValue? = null,
-) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName) {
-
-    /**
-     * Implement this here rather than in [FieldReferenceValue] as it needs to access
-     * [constantValue] which is an implementation detail.
-     */
-    override fun snapshot(targetCodebase: Codebase) =
-        Value.createFieldReferenceValue(
-            targetCodebase,
-            qualifiedClassName,
-            fieldName,
-            constantValue,
-        )
+    override val constantValue: ConstantValue? = null,
+    kotlinCompanionClass: String? = null,
+) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName, kotlinCompanionClass) {
 
     /** The [constantValue], if present, may be a [LiteralValue]. */
     override fun asLiteralValue() = constantValue?.asLiteralValue()
@@ -92,17 +107,19 @@ internal class LazyFieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     private val optionalTypeItem: TypeItem?,
-) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName) {
+    kotlinCompanionClass: String?,
+) : BaseFieldReferenceValue(classResolver, qualifiedClassName, fieldName, kotlinCompanionClass) {
 
     private lateinit var optionalConstantValue: Optional<ConstantValue>
 
-    private fun constantValue(): ConstantValue? {
-        if (!::optionalConstantValue.isInitialized) {
-            optionalConstantValue = Optional.ofNullable(retrieveConstantValue())
-        }
+    override val constantValue: ConstantValue?
+        get() {
+            if (!::optionalConstantValue.isInitialized) {
+                optionalConstantValue = Optional.ofNullable(retrieveConstantValue())
+            }
 
-        return optionalConstantValue.getOrNull()
-    }
+            return optionalConstantValue.getOrNull()
+        }
 
     private fun retrieveConstantValue(): ConstantValue? {
         val fieldItem = resolve() ?: return null
@@ -121,21 +138,6 @@ internal class LazyFieldReferenceValue(
         )
     }
 
-    /**
-     * Implement this here rather than in [FieldReferenceValue] as it needs to access
-     * [constantValue] which is an implementation detail.
-     *
-     * This retrieves the [constantValue] before creating the [FieldReferenceValue] to ensure that
-     * the snapshot has the corrent value.
-     */
-    override fun snapshot(targetCodebase: Codebase) =
-        Value.createFieldReferenceValue(
-            targetCodebase,
-            qualifiedClassName,
-            fieldName,
-            constantValue(),
-        )
-
     /** The [optionalConstantValue], if present, may be a [LiteralValue]. */
-    override fun asLiteralValue() = constantValue()?.asLiteralValue()
+    override fun asLiteralValue() = constantValue?.asLiteralValue()
 }
