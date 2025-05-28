@@ -139,38 +139,24 @@ internal class PsiValueFactory(
         implementationValue: Any,
         valueUseSite: ValueUseSite,
     ): Value? {
-        return when (valueUseSite) {
-            ValueUseSite.ANNOTATION -> {
-                // For annotations convert to any Value.
-                val value =
-                    when (implementationValue) {
-                        is UExpression -> {
-                            uExpressionToValue(optionalTypeItem, implementationValue)
-                        }
-                        is PsiAnnotationMemberValue -> {
-                            psiToValue(optionalTypeItem, implementationValue)
-                        }
-                        else -> null
-                    }
+        val value =
+            when (implementationValue) {
+                is UExpression -> {
+                    uExpressionToValue(optionalTypeItem, implementationValue)
+                }
+                is PsiAnnotationMemberValue -> {
+                    psiToValue(optionalTypeItem, implementationValue)
+                }
+                else -> null
+            }
 
-                if (value == null) {
-                    unknownExpression(optionalTypeItem, implementationValue)
-                }
-                value
-            }
-            ValueUseSite.FIELD -> {
-                // For fields convert to ConstantValues.
-                when (implementationValue) {
-                    is UExpression -> {
-                        uExpressionToConstant(optionalTypeItem, implementationValue)
-                    }
-                    is PsiAnnotationMemberValue -> {
-                        psiToConstant(optionalTypeItem, implementationValue)
-                    }
-                    else -> null
-                }
-            }
+        // If no value could be created, and it is for an annotation attribute then fail as an
+        // annotation attribute MUST always have a value.
+        if (value == null && valueUseSite == ValueUseSite.ANNOTATION) {
+            unknownExpression(optionalTypeItem, implementationValue)
         }
+
+        return value
     }
 
     /**
