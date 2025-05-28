@@ -949,6 +949,19 @@ interface PrimitiveTypeItem : TypeItem {
              */
             fun forWrapperClassName(wrapperClassName: String) =
                 wrapperClassNameToKind[wrapperClassName]
+
+            /** Map from [Primitive.kotlinNumericConversionFunction]'s name to [Primitive]. */
+            private val kotlinNumericConversionFunctionNameToKind =
+                Primitive.entries
+                    .filter { it.kotlinNumericConversionFunction != null }
+                    .associateBy { it.kotlinNumericConversionFunction }
+
+            /**
+             * Get the [Primitive] associated with the Kotlin numeric conversion function called
+             * [name], returning `null`, if it could not be found.
+             */
+            fun forKotlinNumericConversionFunctionName(name: String) =
+                kotlinNumericConversionFunctionNameToKind[name]
         }
     }
 
