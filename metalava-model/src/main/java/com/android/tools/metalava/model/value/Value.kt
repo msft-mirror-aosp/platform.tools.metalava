@@ -242,6 +242,8 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * @param annotationQualifiedNameGetter The lambda to call to retrieve the qualified class name for
  *   an [AnnotationItem].
  * @param classObjectValueFormat How to format a [ClassObjectValue].
+ * @param showKotlinCompanionClass Whether to show that a field is in a Kotlin Companion object or
+ *   not.
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
  * @param nonLiteralFloatSuffix The suffix to use for a [FloatValue] that was represented in the
  *   source as an expression (including negative numbers which are represented as a unary minus
@@ -261,6 +263,7 @@ data class ValueStringConfiguration(
         AnnotationAttributeNameValueSeparator.WITH_SPACES,
     val annotationQualifiedNameGetter: (AnnotationItem) -> String = { it.qualifiedName },
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
+    val showKotlinCompanionClass: Boolean = false,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
     val nonLiteralFloatSuffix: Char = 'f',

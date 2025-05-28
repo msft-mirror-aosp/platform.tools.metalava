@@ -144,6 +144,12 @@ class ParameterizedValueStringTest {
                     ValueStringConfiguration(nonLiteralIntFormat = IntFormat.HEXADECIMAL)
                 )
 
+            val SHOW_KOTLIN_COMPANION_OBJECT =
+                LabelledConfig(
+                    "show-kotlin-companion-object",
+                    ValueStringConfiguration(showKotlinCompanionClass = true)
+                )
+
             val SPECIAL_VALUES =
                 LabelledConfig(
                     "special-values",
@@ -600,11 +606,27 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = fieldReferenceValue("test.pkg.AClass", "FIELD"),
                     expectedDefaultValueString = "test.pkg.AClass.FIELD",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.SHOW_KOTLIN_COMPANION_OBJECT)
+                },
                 testCasesForValue(
                     value = fieldReferenceValue("test.pkg.AClass", "FIELD", literalValue(2)),
                     expectedDefaultValueString = "test.pkg.AClass.FIELD",
                 ),
+                testCasesForValue(
+                    value =
+                        fieldReferenceValue(
+                            "test.pkg.AClass",
+                            "FIELD",
+                            kotlinCompanionClass = "test.pkg.AClass.Companion",
+                        ),
+                    expectedDefaultValueString = "test.pkg.AClass.FIELD",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SHOW_KOTLIN_COMPANION_OBJECT,
+                        "test.pkg.AClass.Companion.FIELD"
+                    )
+                },
                 // ********************************* Doubles *********************************
                 testCasesForValue(
                     value = literalValue(0.0),

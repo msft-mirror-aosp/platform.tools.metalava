@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.javaEscapeString
 import java.lang.StringBuilder
@@ -78,6 +79,30 @@ class LegacyValueFormatter(
      */
     private val jarSettings = jarSettings.bindTo(this)
 
+    /**
+     * Determines whether to inline a [FieldReferenceValue] with its [ConstantValue], if available.
+     *
+     * If the field does not have a [ConstantValue], e.g. because it is an enum, unresolvable, or
+     * not a constant field then just format it as a normal field reference. That is probably wrong
+     * but the formatter MUST always write something out.
+     */
+    enum class InlineFieldValue {
+        /** Always inline the [FieldReferenceValue], if possible. */
+        ALWAYS,
+
+        /**
+         * Only inline the [FieldReferenceValue], if it is hidden or removed (as determined by
+         * [SelectableItem.isHiddenOrRemoved]).
+         */
+        WHEN_HIDDEN_OR_REMOVED,
+
+        /**
+         * Only inline the [FieldReferenceValue], if it is inaccessible, i.e. hidden, removed or not
+         * public.
+         */
+        WHEN_INACCESSIBLE,
+    }
+
     /** Settings that affect the formatting of a [Value]. */
     data class Settings(
         /** The configuration that is used as the basis for [boundConfiguration]. */
@@ -98,12 +123,8 @@ class LegacyValueFormatter(
             value.appendValueStringTo(builder)
         },
 
-        /**
-         * If `true` then any [FieldReferenceValue]s are replaced with their [ConstantValue] if
-         * available. If `false`, or no [ConstantValue] is available then just format it as a normal
-         * field reference.
-         */
-        val alwaysInlineFields: Boolean = false,
+        /** Determines whether to inline a [FieldReferenceValue]. */
+        val inlineFields: InlineFieldValue = InlineFieldValue.WHEN_INACCESSIBLE,
 
         /**
          * If `true` then just use the [Number.toString] method for [LiteralValue.underlyingValue]s
@@ -190,12 +211,21 @@ class LegacyValueFormatter(
         // then use its value, if available. Otherwise, fall back to using it anyway as a value must
         // be formatted.
         val valueToAppend =
-            if (
-                value is FieldReferenceValue &&
-                    (settings.alwaysInlineFields || !value.resolve().isAccessible())
-            )
-                value.asLiteralValue() ?: value
-            else value
+            (value as? FieldReferenceValue)?.let { field ->
+                when (settings.inlineFields) {
+                    // The field should always be inlined, if possible.
+                    InlineFieldValue.ALWAYS -> field.asLiteralValue()
+
+                    // The field should be inlined only when it is inaccessible.
+                    InlineFieldValue.WHEN_INACCESSIBLE ->
+                        if (field.resolve().isAccessible()) field else field.asLiteralValue()
+
+                    // The field should be inlined only when it is hidden or removed.
+                    InlineFieldValue.WHEN_HIDDEN_OR_REMOVED ->
+                        if (field.resolve()?.isHiddenOrRemoved() != true) field
+                        else field.asLiteralValue()
+                }
+            } ?: value
 
         // Fallback to just using the default value representation according to the settings. This
         // passes in the [Settings.boundConfiguration] as that has a `nestedValueAppender` that
@@ -238,7 +268,8 @@ class LegacyValueFormatter(
                         )
                     },
                 ),
-            alwaysInlineFields = alwaysInlineFields,
+            inlineFields =
+                if (alwaysInlineFields) InlineFieldValue.ALWAYS else settings.inlineFields,
         )
 
     /** Format [annotationItem] to match the legacy behavior of [AnnotationItem.toSource]. */
