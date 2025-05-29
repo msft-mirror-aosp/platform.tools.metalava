@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueProvider
@@ -72,7 +71,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
 
         val annotationClass = annotation.sym()?.let { typeBoundClassForSymbol(it) }
 
-        return DefaultAnnotationItem.createAttributesLazily(codebase, fileLocation, qualifiedName) {
+        return AnnotationItem.createAttributesLazily(codebase, fileLocation, qualifiedName) {
             getAnnotationAttributes(
                 annotationClass,
                 annotation.values(),

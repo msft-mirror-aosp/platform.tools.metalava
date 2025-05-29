@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.intellij.psi.PsiAnnotation
 
 internal object PsiAnnotationItem {
@@ -58,7 +57,7 @@ internal object PsiAnnotationItem {
             psiAnnotation.qualifiedName?.let {
                 (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName ?: it
             } ?: return null
-        return DefaultAnnotationItem.createAttributesLazily(
+        return AnnotationItem.createAttributesLazily(
             annotationContext = codebase,
             fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
             originalName = originalName,

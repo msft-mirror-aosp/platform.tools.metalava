@@ -323,6 +323,59 @@ sealed interface AnnotationItem {
                 }
             }
         }
+
+        /** Create an annotation from [source]. */
+        fun createFromSource(
+            annotationContext: AnnotationContext,
+            source: String,
+        ): AnnotationItem? {
+            val valueParser =
+                ValueParser(
+                    annotationContext,
+                    TypeItemParser.forValueParser(annotationContext),
+                )
+            return valueParser.parseAnnotationItem(source)
+        }
+
+        /**
+         * Create a [DefaultAnnotationItem] deferring the creation of the attributes until needed.
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createAttributesLazily(
+            annotationContext: AnnotationContext,
+            fileLocation: FileLocation,
+            originalName: String,
+            attributesGetter: () -> List<AnnotationAttribute>,
+        ): AnnotationItem? {
+            val qualifiedName =
+                annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
+            return DefaultAnnotationItem(
+                annotationContext = annotationContext,
+                fileLocation = fileLocation,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+                attributesGetter = attributesGetter,
+            )
+        }
+
+        /**
+         * Create a [DefaultAnnotationItem] with [attributes].
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createWithAttributes(
+            annotationContext: AnnotationContext,
+            fileLocation: FileLocation,
+            originalName: String,
+            attributes: List<AnnotationAttribute>,
+        ): AnnotationItem? {
+            return createAttributesLazily(annotationContext, fileLocation, originalName) {
+                attributes
+            }
+        }
     }
 }
 
@@ -473,8 +526,7 @@ interface AnnotationContext : ClassResolver {
 }
 
 /** Default implementation of an annotation item */
-class DefaultAnnotationItem
-private constructor(
+internal class DefaultAnnotationItem(
     override val annotationContext: AnnotationContext,
     override val fileLocation: FileLocation,
 
@@ -595,61 +647,6 @@ private constructor(
             // This method is never used for values.
             annotationIsValue = false,
         )
-    }
-
-    companion object {
-        /** Create an annotation from [source]. */
-        fun createFromSource(
-            annotationContext: AnnotationContext,
-            source: String,
-        ): AnnotationItem? {
-            val valueParser =
-                ValueParser(
-                    annotationContext,
-                    TypeItemParser.forValueParser(annotationContext),
-                )
-            return valueParser.parseAnnotationItem(source)
-        }
-
-        /**
-         * Create a [DefaultAnnotationItem] deferring the creation of the attributes until needed.
-         *
-         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
-         * [AnnotationManager.normalizeInputName].
-         */
-        fun createAttributesLazily(
-            annotationContext: AnnotationContext,
-            fileLocation: FileLocation,
-            originalName: String,
-            attributesGetter: () -> List<AnnotationAttribute>,
-        ): AnnotationItem? {
-            val qualifiedName =
-                annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
-            return DefaultAnnotationItem(
-                annotationContext = annotationContext,
-                fileLocation = fileLocation,
-                originalName = originalName,
-                qualifiedName = qualifiedName,
-                attributesGetter = attributesGetter,
-            )
-        }
-
-        /**
-         * Create a [DefaultAnnotationItem] with [attributes].
-         *
-         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
-         * [AnnotationManager.normalizeInputName].
-         */
-        fun createWithAttributes(
-            annotationContext: AnnotationContext,
-            fileLocation: FileLocation,
-            originalName: String,
-            attributes: List<AnnotationAttribute>,
-        ): AnnotationItem? {
-            return createAttributesLazily(annotationContext, fileLocation, originalName) {
-                attributes
-            }
-        }
     }
 }
 

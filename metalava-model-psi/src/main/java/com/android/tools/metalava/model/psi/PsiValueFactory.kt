@@ -17,10 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -473,7 +473,7 @@ internal class PsiValueFactory(
             }
 
         val annotationItem =
-            DefaultAnnotationItem.createAttributesLazily(
+            AnnotationItem.createAttributesLazily(
                 codebase,
                 FileLocation.UNKNOWN,
                 qualifiedClassName,
