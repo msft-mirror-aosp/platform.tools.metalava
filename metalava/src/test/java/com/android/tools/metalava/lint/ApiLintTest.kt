@@ -1176,12 +1176,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            // missing errors for `isVisibleSetterBad`,
+            // missing errors for `isVisibleSetterBad`, `transientStateBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]

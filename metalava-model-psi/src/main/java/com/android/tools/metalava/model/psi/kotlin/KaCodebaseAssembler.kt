@@ -19,22 +19,29 @@ package com.android.tools.metalava.model.psi.kotlin
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiItemDocumentation
+import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.psi.PsiParameterItem
 import com.android.tools.metalava.model.psi.isKotlin
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
+import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaAnonymousObjectSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
@@ -168,6 +175,7 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
             propertySymbol.receiverType?.let {
                 typeParameterListAndFactory.factory.getGeneralType(it)
             }
+
         // Private properties currently still need to be processed when they use a value class type
         // to reset incorrect nullability on the accessors from psi. But other private properties
         // can be skipped since they aren't part of the API surface.
@@ -178,6 +186,82 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
         )
             return
 
+        // To find the accessors of the property, use the inlined type if this property has a value
+        // class type. This is needed for now because the property accessors are being created with
+        // psi, which inlines the type.
+        val typeForAccessor =
+            typeParameterListAndFactory.factory.inlineTypeIfNeeded(propertySymbol.returnType, type)
+        val possiblyInlinedReceiverType =
+            receiverType?.let {
+                typeParameterListAndFactory.factory.inlineTypeIfNeeded(
+                    propertySymbol.receiverType!!,
+                    receiverType
+                )
+            }
+        // Similar to above, but due to b/385148821, if a property is an extension on a value class
+        // type or is deprecated level hidden, the psi accessors drop the receiver entirely, so only
+        // use the receiver type to find accessors if it is not a value class type or hidden.
+        val receiverTypeForAccessor =
+            if (receiverType?.isValueClassType() == true || propertySymbol.isDeprecatedHidden()) {
+                null
+            } else {
+                possiblyInlinedReceiverType
+            }
+
+        val getter =
+            propertySymbol.getter?.let {
+                // javaGetterName does not work for annotation property accessors, which should have
+                // the same name as the property
+                val getterName =
+                    if (containingClass.isAnnotationType()) {
+                        propertySymbol.name.identifier
+                    } else {
+                        @OptIn(KaExperimentalApi::class) propertySymbol.javaGetterName.identifier
+                    }
+                findAccessor(
+                    getterName,
+                    containingClass,
+                    typeForAccessor,
+                    receiverTypeForAccessor,
+                    isGetter = true,
+                    it.visibility,
+                )
+            }
+        val setter =
+            propertySymbol.setter?.let {
+                findAccessor(
+                    @OptIn(KaExperimentalApi::class) propertySymbol.javaSetterName!!.identifier,
+                    containingClass,
+                    typeForAccessor,
+                    receiverTypeForAccessor,
+                    isGetter = false,
+                    it.visibility,
+                )
+            }
+
+        val backingField =
+            if (propertySymbol.hasBackingField) {
+                containingClass.findField(propertySymbol.name.identifier) as? PsiFieldItem
+            } else {
+                null
+            }
+
+        val constructorParameter =
+            if (propertySymbol.isFromPrimaryConstructor) {
+                containingClass
+                    .constructors()
+                    .filter { it.isPrimary }
+                    // For a source constructor with @JvmOverloads, there may be multiple
+                    // constructor items labeled as primary. Find the overload with all parameters,
+                    // so that it is guaranteed to include the property parameter.
+                    .maxByOrNull { it.parameters().size }
+                    ?.parameters()
+                    ?.firstOrNull { it.name() == propertySymbol.name.identifier }
+                    as? PsiParameterItem
+            } else {
+                null
+            }
+
         val propertyItem =
             DefaultPropertyItem(
                 codebase = codebase,
@@ -185,25 +269,88 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                 sourceLanguage = SourceLanguage.KOTLIN,
                 documentationFactory = propertySymbol.getDocumentation(),
                 variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-                modifiers = kaModifierFactory.createForProperty(propertySymbol, containingClass),
+                modifiers =
+                    kaModifierFactory.createForProperty(
+                        propertySymbol,
+                        containingClass,
+                        getter,
+                        setter
+                    ),
                 name = propertySymbol.name.identifier,
                 containingClass = containingClass,
-                type = type,
-                // TODO: accessors, constructor parameter, and backing field added in followup
-                getter = null,
-                setter = null,
-                constructorParameter = null,
-                backingField = null,
-                receiver = receiverType,
+                type = typeForAccessor,
+                getter = getter,
+                setter = setter,
+                constructorParameter = constructorParameter,
+                backingField = backingField,
+                receiver = possiblyInlinedReceiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
             )
+        getter?.property = propertyItem
+        setter?.property = propertyItem
+        backingField?.property = propertyItem
+        constructorParameter?.property = propertyItem
         containingClass.addProperty(propertyItem)
+    }
+
+    /** Checks whether an element is deprecated with [DeprecationLevel.HIDDEN]. */
+    private fun KaAnnotated.isDeprecatedHidden(): Boolean {
+        return annotations.any { kaAnnotation ->
+            kaAnnotation.classId?.asFqNameString() == "kotlin.Deprecated" &&
+                (kaAnnotation.arguments
+                        .singleOrNull { it.name.identifierOrNullIfSpecial == "level" }
+                        ?.expression as? KaAnnotationValue.EnumEntryValue)
+                    ?.callableId
+                    ?.callableName
+                    ?.identifierOrNullIfSpecial == "HIDDEN"
+        }
     }
 
     /** Creates documentation for the symbol through psi, if possible. */
     private fun KaSymbol.getDocumentation(): ItemDocumentationFactory {
         return psi?.let { PsiItemDocumentation.factory(it, codebase) }
             ?: ItemDocumentation.NONE_FACTORY
+    }
+
+    /**
+     * Finds a property accessor with the given [name] in the [containingClass], based on the
+     * [propertyType] and [receiverType].
+     */
+    private fun findAccessor(
+        name: String,
+        containingClass: ClassItem,
+        propertyType: TypeItem,
+        receiverType: TypeItem?,
+        isGetter: Boolean,
+        visibility: KaSymbolVisibility,
+    ): PsiMethodItem? {
+        val parameters =
+            listOfNotNull(
+                    // Both the getter and setter have the receiver as the first parameter
+                    receiverType,
+                    // The setter also has the property type as a parameter
+                    if (isGetter) {
+                        null
+                    } else {
+                        propertyType
+                    }
+                )
+                // Compare types by erased string to work around differences like `List<String>` vs
+                // `List<? extends String>` that can exist in the two representations.
+                .map { it.toErasedTypeString() }
+
+        return containingClass.methods().firstOrNull { methodItem ->
+            // Find a method with the right name, but if the property is internal, the accessor name
+            // will be mangled with a `$`
+            (methodItem.name() == name ||
+                (visibility == KaSymbolVisibility.INTERNAL &&
+                    methodItem.name().startsWith("$name\$"))) &&
+                methodItem.isKotlinProperty() &&
+                // Due to value class type inlining, some accessors might end up with identical
+                // signatures. Pick one for each matching property.
+                methodItem.property == null &&
+                methodItem.parameters().map { it.type().toErasedTypeString() } == parameters
+        } as? PsiMethodItem
     }
 
     /**

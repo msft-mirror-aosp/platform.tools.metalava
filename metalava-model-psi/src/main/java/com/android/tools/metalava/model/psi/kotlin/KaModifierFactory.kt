@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi.kotlin
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.JVM_STATIC
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
@@ -37,6 +38,8 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
     fun createForProperty(
         propertySymbol: KaPropertySymbol,
         containingClass: ClassItem,
+        getter: MethodItem?,
+        setter: MethodItem?
     ): MutableModifierList {
         val modifiers = createForDeclaration(propertySymbol, containingClass)
 
@@ -67,11 +70,54 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
             modifiers.addAnnotation(annotationItem)
         }
 
+        // Correct visibility of accessors (work around K2 bugs with value class type properties)
+        // https://youtrack.jetbrains.com/issue/KT-74205
+        // The getter must have the same visibility as the property
+        val propertyVisibility = modifiers.getVisibilityLevel()
+        if (getter != null && getter.modifiers.getVisibilityLevel() != propertyVisibility) {
+            getter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
+        }
+        // The setter cannot be more visible than the property
+        if (setter != null && setter.modifiers.getVisibilityLevel() > propertyVisibility) {
+            setter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
+        }
+
+        // Special case for RequiresOptIn-annotated annotations: when these are applied
+        // to a property, they are implicitly propagated to the getter and setter
+        // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
+        // Note that the AndroidX experimental lint check will not recognize usages of the
+        // accessors by Java clients as experimental. Because of this AndroidX bans defining
+        // public experimental properties in projects that target Java clients.
+        for (annotationItem in modifiers.annotations()) {
+            if (annotationItem.isSuppressCompatibilityAnnotation()) {
+                // Manually setting a RequiresOptIn annotation on a getter causes a
+                // compiler warning, but this can be suppressed with
+                // @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET"). Safely handle
+                // such cases by only adding the annotation if it wasn't explicitly added.
+                if (getter != null && annotationItem !in getter.modifiers.annotations()) {
+                    getter.mutateModifiers { addAnnotation(annotationItem) }
+                }
+                // Explicit RequiresOptIn annotations on setters are supported by the
+                // compiler, so we should only add this annotation implicitly if it is not
+                // already explicitly provided.
+                if (setter != null && annotationItem !in setter.modifiers.annotations()) {
+                    setter.mutateModifiers { addAnnotation(annotationItem) }
+                }
+            }
+        }
+
+        for (annotationItem in getter?.modifiers?.annotations() ?: emptyList()) {
+            if (annotationItem !in modifiers.annotations()) {
+                modifiers.addAnnotation(annotationItem)
+            }
+        }
+
         // Const vals have the static and const modifiers
         if ((propertySymbol as? KaKotlinPropertySymbol)?.isConst == true) {
             modifiers.setStatic(true)
             modifiers.setConst(true)
         }
+
         if (propertySymbol.isStatic || modifiers.hasAnnotation { it.qualifiedName == JVM_STATIC }) {
             modifiers.setStatic(true)
         }

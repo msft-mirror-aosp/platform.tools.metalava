@@ -359,6 +359,57 @@ internal class KaTypeItemFactory(
         )
     }
 
+    /**
+     * If the [kaType] and [type] represent a value class type and is used as non-null, returns the
+     * inlined type. Otherwise returns the original type. In the case where a value class's inlined
+     * type is itself a value class, this recursively inlines the type.
+     */
+    fun inlineTypeIfNeeded(
+        kaType: KaType,
+        type: TypeItem,
+    ): TypeItem {
+        return analyze(assembler.kaModule) {
+            if (type.isValueClassType()) {
+                // Find the inlined type through the constructor of the value class. Value classes
+                // must have a single parameter for the primary constructor
+                val inlineKaType =
+                    (kaType.expandedSymbol as KaNamedClassSymbol)
+                        .memberScope
+                        .constructors
+                        .first { it.isPrimary }
+                        .valueParameters
+                        .first()
+                        .returnType
+                // Create a TypeItem from the inlined ka type
+                val inlineType = getGeneralType(inlineKaType).substitute(type.modifiers.nullability)
+                // Recursively inline the type, if needed
+                if (inlineType is PrimitiveTypeItem && inlineType.modifiers.isNullable) {
+                    type
+                } else {
+                    val recursivelyInlinedType = inlineTypeIfNeeded(inlineKaType, inlineType)
+                    if (
+                        recursivelyInlinedType is PrimitiveTypeItem &&
+                            !recursivelyInlinedType.isValueClassType()
+                    ) {
+                        // Make sure this is still listed as a value class type. This is only needed
+                        // temporarily until the original value class type is used for property
+                        // types instead of the inlined type.
+                        object : PrimitiveTypeItem by recursivelyInlinedType {
+                            override fun isValueClassType(): Boolean = true
+                        }
+                    } else {
+                        recursivelyInlinedType
+                    }
+                }
+            } else if (type.toTypeString() == "kotlin.ULong" && type.modifiers.isNonNull) {
+                // Even though ULong is a value class type, it doesn't appear as one when using K1
+                DefaultPrimitiveTypeItem(type.modifiers, PrimitiveTypeItem.Primitive.LONG)
+            } else {
+                type
+            }
+        }
+    }
+
     companion object {
         /**
          * Converts the qualified name of a
