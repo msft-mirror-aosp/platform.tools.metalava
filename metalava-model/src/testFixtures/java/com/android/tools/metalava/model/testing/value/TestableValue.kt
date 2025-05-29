@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model.testing.value
 
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
@@ -115,7 +115,7 @@ fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, V
         qualifiedClassName
     ) {
         attributes.map { (name, value) ->
-            DefaultAnnotationAttribute(
+            AnnotationAttribute.createLazyAttribute(
                 name,
                 value.provider(),
             )

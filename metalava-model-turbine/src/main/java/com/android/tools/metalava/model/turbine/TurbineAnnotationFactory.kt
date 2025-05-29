@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueProvider
@@ -98,7 +97,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
                         val assignExp = exp.expr()
                         val const = attrs[name]!!
                         attributes.add(
-                            DefaultAnnotationAttribute(
+                            AnnotationAttribute.createLazyAttribute(
                                 name,
                                 createAttributeValueProvider(
                                     annotationClass,
@@ -119,7 +118,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
                                     "Cannot find value for default 'value' attribute from $exp"
                                 )
                         attributes.add(
-                            DefaultAnnotationAttribute(
+                            AnnotationAttribute.createLazyAttribute(
                                 name,
                                 createAttributeValueProvider(
                                     annotationClass,
@@ -136,7 +135,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
         } else {
             for ((name, const) in attrs) {
                 attributes.add(
-                    DefaultAnnotationAttribute(
+                    AnnotationAttribute.createLazyAttribute(
                         name,
                         createAttributeValueProvider(
                             annotationClass,

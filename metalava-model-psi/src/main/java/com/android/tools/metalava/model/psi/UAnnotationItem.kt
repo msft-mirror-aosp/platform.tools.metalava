@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import org.jetbrains.uast.UAnnotation
 
 internal object UAnnotationItem {
@@ -32,7 +31,7 @@ internal object UAnnotationItem {
         return uAnnotation.attributeValues
             .map { attribute ->
                 val name = attribute.name ?: ANNOTATION_ATTR_VALUE
-                DefaultAnnotationAttribute(
+                AnnotationAttribute.createLazyAttribute(
                     name,
                     codebase.valueFactory.providerForAnnotationValue(
                         annotationPsiClass,

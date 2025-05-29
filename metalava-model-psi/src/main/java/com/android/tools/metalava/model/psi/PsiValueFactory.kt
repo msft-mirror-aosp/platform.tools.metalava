@@ -17,10 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -44,7 +44,6 @@ import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
-import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiAnnotation
@@ -466,10 +465,7 @@ internal class PsiValueFactory(
                 val value =
                     uExpressionToArrayElementValue(typeItem, uArgument)
                         ?: unknownExpression(typeItem, uArgument)
-                DefaultAnnotationAttribute(
-                    name,
-                    value.provider(),
-                )
+                AnnotationAttribute.createAttribute(name, value)
             }
 
         val annotationItem =

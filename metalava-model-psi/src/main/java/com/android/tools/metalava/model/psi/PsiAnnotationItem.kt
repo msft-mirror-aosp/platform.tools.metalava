@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.intellij.psi.PsiAnnotation
 
 internal object PsiAnnotationItem {
@@ -34,7 +33,7 @@ internal object PsiAnnotationItem {
                 attribute.value?.let { value ->
                     val name = attribute.name ?: ANNOTATION_ATTR_VALUE
 
-                    DefaultAnnotationAttribute(
+                    AnnotationAttribute.createLazyAttribute(
                         name,
                         codebase.valueFactory.providerForAnnotationValue(
                             annotationPsiClass,

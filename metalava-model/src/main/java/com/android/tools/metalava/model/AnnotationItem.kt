@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
+import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
 import kotlin.reflect.KClass
@@ -617,7 +618,7 @@ internal class DefaultAnnotationItem(
                             get() = attributeToSnapshot.value.snapshot(targetCodebase)
                     }
 
-                DefaultAnnotationAttribute(
+                AnnotationAttribute.createLazyAttribute(
                     attributeToSnapshot.name,
                     valueProvider,
                 )
@@ -666,11 +667,24 @@ sealed interface AnnotationAttribute {
      * fields.
      */
     val value: Value
+
+    companion object {
+        /**
+         * Create an [AnnotationAttribute] called [name] that will retrieve its [Value] from
+         * [valueProvider] when requested.
+         */
+        fun createLazyAttribute(name: String, valueProvider: ValueProvider): AnnotationAttribute =
+            DefaultAnnotationAttribute(name, valueProvider)
+
+        /** Create an [AnnotationAttribute] called [name] with [value]. */
+        fun createAttribute(name: String, value: Value): AnnotationAttribute =
+            DefaultAnnotationAttribute(name, value.provider())
+    }
 }
 
 const val ANNOTATION_VALUE_TRUE = "true"
 
-class DefaultAnnotationAttribute(
+internal class DefaultAnnotationAttribute(
     override val name: String,
     private val valueProvider: ValueProvider,
 ) : AnnotationAttribute {
