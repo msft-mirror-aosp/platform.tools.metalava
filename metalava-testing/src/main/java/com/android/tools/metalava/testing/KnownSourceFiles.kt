@@ -291,6 +291,7 @@ object KnownSourceFiles {
                 """
                     package android.annotation;
                     import java.lang.annotation.*;
+                    /** @hide */
                     @Target({ ElementType.FIELD })
                     @Retention(RetentionPolicy.SOURCE)
                     public @interface SdkConstant {
