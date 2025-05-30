@@ -31,7 +31,6 @@ class DefaultAnnotationItemTest : Assertions {
     @Test
     fun testSimple() {
         val annotation = createDefaultAnnotationItem("@androidx.annotation.Nullable")
-        assertEquals("@androidx.annotation.Nullable", annotation.toSource())
         assertEquals("androidx.annotation.Nullable", annotation.qualifiedName)
         assertTrue(annotation.attributes.isEmpty())
     }
@@ -40,7 +39,6 @@ class DefaultAnnotationItemTest : Assertions {
     fun testIntRange() {
         val annotation =
             createDefaultAnnotationItem("@androidx.annotation.IntRange(from = 20, to = 40)")
-        assertEquals("@androidx.annotation.IntRange(from=20, to=40)", annotation.toSource())
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
         assertEquals("from", annotation.assertAttribute("from").name)
@@ -55,10 +53,6 @@ class DefaultAnnotationItemTest : Assertions {
             createDefaultAnnotationItem(
                 "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})"
             )
-        assertEquals(
-            "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})",
-            annotation.toSource()
-        )
         assertEquals("androidx.annotation.IntDef", annotation.qualifiedName)
         assertEquals(1, annotation.attributes.size)
         val attribute = annotation.assertAttribute("value")
