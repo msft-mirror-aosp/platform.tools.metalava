@@ -139,38 +139,24 @@ internal class PsiValueFactory(
         implementationValue: Any,
         valueUseSite: ValueUseSite,
     ): Value? {
-        return when (valueUseSite) {
-            ValueUseSite.ANNOTATION -> {
-                // For annotations convert to any Value.
-                val value =
-                    when (implementationValue) {
-                        is UExpression -> {
-                            uExpressionToValue(optionalTypeItem, implementationValue)
-                        }
-                        is PsiAnnotationMemberValue -> {
-                            psiToValue(optionalTypeItem, implementationValue)
-                        }
-                        else -> null
-                    }
+        val value =
+            when (implementationValue) {
+                is UExpression -> {
+                    uExpressionToValue(optionalTypeItem, implementationValue)
+                }
+                is PsiAnnotationMemberValue -> {
+                    psiToValue(optionalTypeItem, implementationValue)
+                }
+                else -> null
+            }
 
-                if (value == null) {
-                    unknownExpression(optionalTypeItem, implementationValue)
-                }
-                value
-            }
-            ValueUseSite.FIELD -> {
-                // For fields convert to ConstantValues.
-                when (implementationValue) {
-                    is UExpression -> {
-                        uExpressionToConstant(optionalTypeItem, implementationValue)
-                    }
-                    is PsiAnnotationMemberValue -> {
-                        psiToConstant(optionalTypeItem, implementationValue)
-                    }
-                    else -> null
-                }
-            }
+        // If no value could be created, and it is for an annotation attribute then fail as an
+        // annotation attribute MUST always have a value.
+        if (value == null && valueUseSite == ValueUseSite.ANNOTATION) {
+            unknownExpression(optionalTypeItem, implementationValue)
         }
+
+        return value
     }
 
     /**
@@ -250,6 +236,28 @@ internal class PsiValueFactory(
                             // constructor so check to see if that is the case.
                             uCallExpressionToAnnotationValue(selector)?.let {
                                 return it
+                            }
+
+                            // Check to see whether the call is to a numeric conversion function.
+                            val explicitConversionTo = selector.isNumericConversionFunction()
+                            if (explicitConversionTo != null) {
+                                //  Deconstruct the call to if it is being called on a field
+                                //  reference. If it is then create a field reference for it. This
+                                // handles two cases, e.g.:
+                                //     qualified.FIELD.toLong()
+                                //     UNQUALIFIED.toLong()
+                                if (receiver is UReferenceExpression) {
+                                    // Try and resolve it and convert to a value.
+                                    uResolvableToValue(
+                                            optionalTypeItem,
+                                            receiver,
+                                            receiverPsiClass,
+                                            explicitConversionTo
+                                        )
+                                        ?.let {
+                                            return it
+                                        }
+                                }
                             }
                         }
                         is USimpleNameReferenceExpression -> {
@@ -353,14 +361,21 @@ internal class PsiValueFactory(
         optionalTypeItem: TypeItem?,
         uResolvable: UResolvable,
         receiverPsiClass: PsiClass? = null,
+        explicitConversionTo: Primitive? = null,
     ): ArrayElementValue? {
         // Resolve it and convert it to a Value if possible.
         val resolved = uResolvable.resolve()
 
         // Try and convert the resolved PsiElement to a Value and return it if succeeded.
-        resolvedPsiElementToValue(optionalTypeItem, resolved, receiverPsiClass)?.let {
-            return it
-        }
+        resolvedPsiElementToValue(
+                optionalTypeItem,
+                resolved,
+                receiverPsiClass,
+                explicitConversionTo
+            )
+            ?.let {
+                return it
+            }
 
         return null
     }
@@ -453,6 +468,21 @@ internal class PsiValueFactory(
             )
 
         return createAnnotationValue(annotationItem!!)
+    }
+
+    /**
+     * Check to see whether this [UCallExpression] is for a Kotlin numeric conversion function, e.g.
+     * `toLong()`.
+     */
+    private fun UCallExpression.isNumericConversionFunction(): Primitive? {
+        // Casts are represented as method calls.
+        if (kind != UastCallKind.METHOD_CALL) return null
+
+        // Cast methods have no arguments
+        if (valueArgumentCount != 0) return null
+
+        val methodName = methodName ?: return null
+        return Primitive.forKotlinNumericConversionFunctionName(methodName)
     }
 
     /** Create a [ConstantValue] of [optionalTypeItem] from [uExpression]. */
@@ -743,6 +773,7 @@ internal class PsiValueFactory(
         optionalTypeItem: TypeItem?,
         resolved: PsiElement?,
         receiverPsiClass: PsiClass? = null,
+        explicitConversionTo: Primitive? = null,
     ): ArrayElementValue? {
         if (resolved is PsiField) {
             val qualifiedClassName = resolved.containingClass?.qualifiedName ?: ""
@@ -759,6 +790,7 @@ internal class PsiValueFactory(
                 fieldName,
                 optionalTypeItem,
                 kotlinCompanionClass,
+                explicitConversionTo,
             )
         }
 
