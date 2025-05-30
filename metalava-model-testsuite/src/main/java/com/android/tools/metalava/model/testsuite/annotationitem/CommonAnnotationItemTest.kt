@@ -23,15 +23,17 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
-import com.android.tools.metalava.model.getAttributeValue
-import com.android.tools.metalava.model.getAttributeValues
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.value.annotationItem
+import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
 import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.FieldReferenceValue
@@ -91,7 +93,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
             object : BaseItemVisitor() {
                 override fun visitItem(item: Item) {
                     item.modifiers.annotations().forEach {
-                        addDetails(it.fileLocation, it.toSource())
+                        addDetails(it.fileLocation, it.toString())
                     }
                     addDetails(item.fileLocation, item.describe())
                 }
@@ -251,22 +253,18 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            val other = anno.getAttributeValue<AnnotationItem>("annotationValue")!!
-            assertEquals("test.pkg.Other", other.qualifiedName)
-            other.assertAttributeValue("value", "other")
-
-            val otherAsList = anno.getAttributeValues<AnnotationItem>("annotationValue")
-            assertEquals(listOf(other), otherAsList)
-
-            val others = anno.getAttributeValues<AnnotationItem>("annotationArrayValue")!!
-            assertEquals(
-                "other1, other2",
-                others.mapNotNull { it.getAttributeValue("value") }.joinToString()
-            )
-
-            val toSource =
-                "@test.pkg.Test.Anno(annotationValue=@test.pkg.Other(\"other\"), annotationArrayValue={@test.pkg.Other(\"other1\"), @test.pkg.Other(\"other2\")})"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "annotationValue" to
+                        annotationValue("test.pkg.Other", "value" to literalValue("other")),
+                    "annotationArrayValue" to
+                        arrayValue(
+                            annotationValue("test.pkg.Other", "value" to literalValue("other1")),
+                            annotationValue("test.pkg.Other", "value" to literalValue("other2")),
+                        ),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -314,12 +312,13 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("booleanValue", true)
-            anno.assertAttributeValues("booleanValue", listOf(true))
-            anno.assertAttributeValues("booleanArrayValue", listOf(true, false))
-
-            val toSource = "@test.pkg.Test.Anno(booleanValue=true, booleanArrayValue={true, false})"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "booleanValue" to literalValue(true),
+                    "booleanArrayValue" to arrayValueFromAny(true, false),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -367,21 +366,18 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("charValue", 'a')
-            anno.assertAttributeValues("charValue", listOf('a'))
-            anno.assertAttributeValues("charArrayValue", listOf('a', '\uff00'))
-
-            val toSource = "@test.pkg.Test.Anno(charValue='a', charArrayValue={'a', '\\uff00'})"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "charValue" to literalValue('a'),
+                    "charArrayValue" to arrayValueFromAny('a', '\uff00'),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
     @Test
     fun `annotation with class values`() {
-        // TODO(b/354633349): In order for this to pass the Java source has to fully qualify the
-        //   class reference and so does the signature file. Fully qualifying the Java source is
-        //   not realistic but it will be fixed once the test stops using toSource() whose String
-        //   representation depends upon the exact form of the Java source's class reference.
         runCodebaseTest(
             signature(
                 """
@@ -407,8 +403,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     package test.pkg;
 
                     @Test.Anno(
-                      classValue = test.pkg.Test.class,
-                      classArrayValue = {test.pkg.Test.class, test.pkg.Test.Anno.class}
+                      classValue = Test.class,
+                      classArrayValue = {Test.class, Test.Anno.class}
                     )
                     public class Test {
                         public Test() {}
@@ -424,20 +420,24 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            // A class value can be retrieved as a string.
-            val testClassType = classTypeItem("test.pkg.Test")
-            val testClassObject = classObjectValue(testClassType)
-            val annoClassObject =
-                classObjectValue(
-                    classTypeItem("test.pkg.Test.Anno", outerClassType = testClassType)
+            val testClassTypeItem = classTypeItem("test.pkg.Test")
+            val testClassObjectValue = classObjectValue(testClassTypeItem)
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "classValue" to testClassObjectValue,
+                    "classArrayValue" to
+                        arrayValue(
+                            testClassObjectValue,
+                            classObjectValue(
+                                classTypeItem(
+                                    "test.pkg.Test.Anno",
+                                    outerClassType = testClassTypeItem
+                                )
+                            ),
+                        ),
                 )
-            anno.assertAttributeValue("classValue", testClassObject)
-            anno.assertAttributeValues("classValue", listOf(testClassObject))
-            anno.assertAttributeValues("classArrayValue", listOf(testClassObject, annoClassObject))
-
-            val toSource =
-                "@test.pkg.Test.Anno(classValue=test.pkg.Test.class, classArrayValue={test.pkg.Test.class, test.pkg.Test.Anno.class})"
-            assertEquals(toSource, anno.toSource())
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -545,33 +545,23 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("byteValue", 1.toByte())
-            anno.assertAttributeValues("byteValue", byteArrayOf(1).toList())
-            anno.assertAttributeValues("byteArrayValue", byteArrayOf(1, 2).toList())
-
-            anno.assertAttributeValue("doubleValue", 1.5)
-            anno.assertAttributeValues("doubleValue", listOf(1.5))
-            anno.assertAttributeValues("doubleArrayValue", listOf(1.5, 2.5))
-
-            anno.assertAttributeValue("floatValue", 0.5F)
-            anno.assertAttributeValues("floatValue", listOf(0.5F))
-            anno.assertAttributeValues("floatArrayValue", listOf(0.5F, 1.5F))
-
-            anno.assertAttributeValue("intValue", 1)
-            anno.assertAttributeValues("intValue", listOf(1))
-            anno.assertAttributeValues("intArrayValue", listOf(1, 2, 3))
-
-            anno.assertAttributeValue("longValue", 2L)
-            anno.assertAttributeValues("longValue", listOf(2L))
-            anno.assertAttributeValues("longArrayValue", listOf(2L, 4L))
-
-            anno.assertAttributeValue("shortValue", 3.toShort())
-            anno.assertAttributeValues("shortValue", listOf(3.toShort()))
-            anno.assertAttributeValues("shortArrayValue", shortArrayOf(3, 5).toList())
-
-            val toSource =
-                "@test.pkg.Test.Anno(byteValue=1, byteArrayValue={1, 2}, doubleValue=1.5, doubleArrayValue={1.5, 2.5}, floatValue=0.5f, floatArrayValue={0.5f, 1.5f}, intValue=1, intArrayValue={1, 2, 3}, longValue=2L, longArrayValue={2L, 4L}, shortValue=3, shortArrayValue={3, 5})"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "byteValue" to literalValue(1.toByte()),
+                    "byteArrayValue" to arrayValueFromAny(1.toByte(), 2.toByte()),
+                    "doubleValue" to literalValue(1.5),
+                    "doubleArrayValue" to arrayValueFromAny(1.5, 2.5),
+                    "floatValue" to literalValue(0.5f),
+                    "floatArrayValue" to arrayValueFromAny(0.5f, 1.5f),
+                    "intValue" to literalValue(1),
+                    "intArrayValue" to arrayValueFromAny(1, 2, 3),
+                    "longValue" to literalValue(2L),
+                    "longArrayValue" to arrayValueFromAny(2L, 4L),
+                    "shortValue" to literalValue(3.toShort()),
+                    "shortArrayValue" to arrayValueFromAny(3.toShort(), 5.toShort()),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -619,13 +609,13 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("stringValue", "string")
-            anno.assertAttributeValues("stringValue", listOf("string"))
-            anno.assertAttributeValues("stringArrayValue", listOf("string1", "string2"))
-
-            val toSource =
-                "@test.pkg.Test.Anno(stringValue=\"string\", stringArrayValue={\"string1\", \"string2\"})"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "stringValue" to literalValue("string"),
+                    "stringArrayValue" to arrayValueFromAny("string1", "string2"),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -666,10 +656,12 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val anno = testClass.modifiers.annotations().single()
 
             // It is expected to be of array type
-            anno.assertAttributeValues("value", listOf("string"))
-
-            val toSource = "@test.pkg.Test.Anno(\"string\")"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to arrayValueFromAny("string"),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -710,10 +702,12 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val anno = testClass.modifiers.annotations().single()
 
             // It is expected to be of array type
-            anno.assertAttributeValues("value", listOf("string"))
-
-            val toSource = "@test.pkg.Test.Anno({\"string\"})"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to arrayValueFromAny("string"),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -771,15 +765,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            val testEnum1 = fieldReferenceValue("test.pkg.Enum", "ENUM1")
-            val testEnum2 = fieldReferenceValue("test.pkg.Enum", "ENUM2")
-            anno.assertAttributeValue("enumValue", testEnum1)
-            anno.assertAttributeValues("enumValue", listOf(testEnum1))
-            anno.assertAttributeValues("enumArrayValue", listOf(testEnum1, testEnum2))
-
-            val toSource =
-                "@test.pkg.Test.Anno(enumValue=test.pkg.Enum.ENUM1, enumArrayValue={test.pkg.Enum.ENUM1, test.pkg.Enum.ENUM2})"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "enumValue" to fieldReferenceValue("test.pkg.Enum", "ENUM1"),
+                    "enumArrayValue" to
+                        arrayValue(
+                            fieldReferenceValue("test.pkg.Enum", "ENUM1"),
+                            fieldReferenceValue("test.pkg.Enum", "ENUM2"),
+                        ),
+                )
+            assertEquals(expectedAnno, anno)
 
             // Make sure that the enum value resolves to the enum field.
             val enumValue = anno.assertAttribute("enumValue").value as FieldReferenceValue
@@ -833,10 +829,12 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("value", 5)
-
-            val toSource = "@test.pkg.Test.Anno(test.pkg.Test.FIELD)"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to fieldReferenceValue("test.pkg.Test", "FIELD"),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -928,7 +926,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `annotation toSource() with compound expression values`() {
+    fun `annotation with compound expression values`() {
         runCodebaseTest(
             java(
                 """
@@ -953,11 +951,14 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("value", 12)
-            anno.assertAttributeValue("name", "FirstNameLastName")
-            anno.assertAttributeValue("id", 6)
-            val toSource = """@test.pkg.Test.Anno(value=0xc, name="FirstNameLastName", id=0x6)"""
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to literalValue(12),
+                    "name" to literalValue("FirstNameLastName"),
+                    "id" to literalValue(6),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -986,12 +987,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
             // Test the annotation on the property (the @get:Anno).
             property.modifiers.annotations().single().let { anno ->
-                assertEquals(
-                    "@test.pkg.Anno(attr=$expectedAttributeString)",
-                    anno.toSource(context = property),
-                    message = "@get:Anno"
-                )
-
                 assertValuesAreStrictlyEqual(
                     expectedValue,
                     anno.assertAttribute("attr").value,
@@ -1004,12 +999,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
             assertNotNull(setter, message = "setter method")
             val parameter = setter.parameters().single()
             parameter.modifiers.annotations().single().let { anno ->
-                assertEquals(
-                    "@test.pkg.Anno(attr=$expectedAttributeString)",
-                    anno.toSource(context = parameter),
-                    message = "@setparam:Anno"
-                )
-
                 assertValuesAreStrictlyEqual(
                     expectedValue,
                     anno.assertAttribute("attr").value,
@@ -1021,7 +1010,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `annotation toSource() on @get and @setparam annotations - byte`() {
+    fun `annotation on @get and @setparam annotations - byte`() {
         checkGetVsSetParamAnnotation(
             attributeType = "Byte",
             attributePrimitive = Primitive.BYTE,
@@ -1031,7 +1020,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `annotation toSource() on @get and @setparam annotations - short`() {
+    fun `annotation on @get and @setparam annotations - short`() {
         checkGetVsSetParamAnnotation(
             attributeType = "Short",
             attributePrimitive = Primitive.SHORT,
@@ -1041,7 +1030,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `annotation toSource() on @get and @setparam annotations - long`() {
+    fun `annotation on @get and @setparam annotations - long`() {
         checkGetVsSetParamAnnotation(
             attributeType = "Long",
             attributePrimitive = Primitive.LONG,
@@ -1105,15 +1094,16 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("doubleValue", -1.5)
-            anno.assertAttributeValue("floatValue", -0.5F)
-            anno.assertAttributeValue("intValue", -1)
-            anno.assertAttributeValue("longValue", -2L)
-            anno.assertAttributeValue("shortValue", -3.toShort())
-
-            val toSource =
-                "@test.pkg.Test.Anno(doubleValue=-1.5, floatValue=-0.5F, intValue=0xffffffff, longValue=-2L, shortValue=0xfffffffd)"
-            assertEquals(toSource, anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "doubleValue" to literalValue(-1.5),
+                    "floatValue" to literalValue(-0.5F),
+                    "intValue" to literalValue(-1),
+                    "longValue" to literalValue(-2L),
+                    "shortValue" to literalValue((-3).toShort()),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -1155,8 +1145,12 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("value", 5)
-            assertEquals("@test.pkg.Test.Anno(0x5)", anno.toSource())
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to literalValue(5),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -1196,11 +1190,13 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValues("value", listOf(2147483647, -2147483648))
-            assertEquals(
-                "@test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY, java.lang.Double.NEGATIVE_INFINITY})",
-                anno.toSource()
-            )
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to
+                        arrayValueFromAny(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY),
+                )
+            assertEquals(expectedAnno, anno)
         }
     }
 
@@ -1381,27 +1377,5 @@ class CommonAnnotationItemTest : BaseModelTest() {
             // This should not be defined.
             codebase.assertResolvedClass("test.pkg.Baz")
         }
-    }
-
-    inline fun <reified T : Any> AnnotationItem.assertAttributeValue(
-        attributeName: String,
-        expected: T
-    ) {
-        assertEquals(
-            expected,
-            getAttributeValue(attributeName),
-            message = "getAttributeValue($attributeName)"
-        )
-    }
-
-    inline fun <reified T : Any> AnnotationItem.assertAttributeValues(
-        attributeName: String,
-        expected: List<T>
-    ) {
-        assertEquals(
-            expected,
-            getAttributeValues(attributeName),
-            message = "getAttributeValues($attributeName)"
-        )
     }
 }
