@@ -40,7 +40,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.value.FieldReferenceValue
@@ -513,7 +512,8 @@ class DocAnalyzer(
                         }
 
                     val enforcement =
-                        annotation.getAttributeValue("enforcement") ?: DEFAULT_ENFORCEMENT
+                        annotation.findAttribute("enforcement")?.value?.asString()
+                            ?: DEFAULT_ENFORCEMENT
 
                     // Compute the link uri and text from the enforcement setting.
                     val regexp = """(?:.*\.)?([^.#]+)#(.*)""".toRegex()
