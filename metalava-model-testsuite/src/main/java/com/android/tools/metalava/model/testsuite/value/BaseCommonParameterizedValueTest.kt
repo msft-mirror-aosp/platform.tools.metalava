@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.testsuite.value.CommonParameterizedField
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -44,6 +45,7 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Assert.assertArrayEquals
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
@@ -499,6 +501,21 @@ abstract class BaseCommonParameterizedValueTest(
                 // Strictly compare the Values to ensure that where necessary they have included any
                 // information needed to generate correct legacy string representations.
                 assertValuesAreStrictlyEqual(filteredExpected, actual)
+
+                // Fields are equal if they reference the same qualified class name and field name.
+                // However, for testing purposes this needs to verify that their constant values
+                // also match.
+                if (filteredExpected is FieldReferenceValue) {
+                    assertTrue(
+                        actual is FieldReferenceValue,
+                        message = "value is not a field it is ${actual?.javaClass}"
+                    )
+                    assertValuesAreStrictlyEqual(
+                        filteredExpected.asLiteralValue(),
+                        actual.asLiteralValue(),
+                        message = "field constant: "
+                    )
+                }
             }
         }
     }
@@ -589,6 +606,7 @@ object JavaTestClassCreator : TestClassCreator {
                 public interface Constants {
                     String STRING_CONSTANT = "constant";
                     int INT_CONSTANT = 37;
+                    long LONG_CONSTANT = 9L;
                 }
             """
         )
@@ -766,6 +784,7 @@ object KotlinTestClassCreator : TestClassCreator {
                 object Constants {
                     const val STRING_CONSTANT = "constant"
                     const val INT_CONSTANT = 37
+                    const val LONG_CONSTANT = 9L
                 }
             """
         )
@@ -952,6 +971,7 @@ object SignatureTestClassCreator : TestClassCreator {
                   public interface Constants {
                     field public static final String STRING_CONSTANT = "constant";
                     field public static final int INT_CONSTANT = 37;
+                    field public static final long LONG_CONSTANT = 9L;
                   }
                   public interface GenericClass<T> {
                     field public static final String STRING_CONSTANT = "constant";
