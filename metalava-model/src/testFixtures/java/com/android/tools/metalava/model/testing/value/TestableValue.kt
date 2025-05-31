@@ -71,6 +71,7 @@ fun fieldReferenceValue(
     fieldName: String,
     constantValue: ConstantValue? = null,
     kotlinCompanionClass: String? = null,
+    explicitConversionTo: Primitive? = null,
 ) =
     Value.createFieldReferenceValue(
         ClassResolver.RETURN_NULL,
@@ -78,6 +79,7 @@ fun fieldReferenceValue(
         fieldName,
         constantValue,
         kotlinCompanionClass,
+        explicitConversionTo,
     )
 
 /**
