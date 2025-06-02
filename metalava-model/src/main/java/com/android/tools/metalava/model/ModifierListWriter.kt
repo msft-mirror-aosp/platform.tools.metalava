@@ -55,7 +55,7 @@ private constructor(
             return ModifierListWriter(
                 writer = writer,
                 target = target,
-                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
+                annotationFormatter = AnnotationFormatter.stubFormatter(target),
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
                 skipNullnessAnnotations = false,
             )
