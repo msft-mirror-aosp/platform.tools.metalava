@@ -76,14 +76,13 @@ private constructor(
                     (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
                         ?: it
                 } ?: return null
-            val qualifiedName =
-                codebase.annotationManager.normalizeInputName(originalName) ?: return null
-            return PsiAnnotationItem(
+            return createAttributesLazily(
                 annotationContext = codebase,
-                psiAnnotation = psiAnnotation,
+                fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
                 originalName = originalName,
-                qualifiedName = qualifiedName,
-            )
+            ) {
+                getAnnotationAttributes(codebase, psiAnnotation)
+            }
         }
     }
 }
