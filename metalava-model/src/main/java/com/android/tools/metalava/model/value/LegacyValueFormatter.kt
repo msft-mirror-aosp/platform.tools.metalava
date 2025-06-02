@@ -272,12 +272,12 @@ class LegacyValueFormatter(
                 if (alwaysInlineFields) InlineFieldValue.ALWAYS else settings.inlineFields,
         )
 
-    /** Format [annotationItem] to match the legacy behavior of [AnnotationItem.toSource]. */
-    fun annotationItemToSource(
+    fun appendFormatAnnotation(
+        builder: StringBuilder,
         annotationItem: AnnotationItem,
         target: AnnotationTarget,
         context: Item?
-    ): String {
+    ) {
         val settings = selectSettingsForContext(context)
 
         val alwaysInlineFields = annotationItem.qualifiedName == ANDROID_FLAGGED_API
@@ -285,16 +285,14 @@ class LegacyValueFormatter(
         val annotationSpecificSetting =
             annotationSpecificSetting(settings, target, alwaysInlineFields)
 
-        return buildString {
-            // Append the annotation item.  This passes in the [Settings.boundConfiguration] as that
-            // has a `nestedValueAppender` that will call back into [appendFormattedValue] for
-            // nested values, i.e. values in an array and attribute values of nested annotations.
-            annotationItem.appendAnnotationStringTo(
-                this,
-                annotationSpecificSetting.boundConfiguration,
-                annotationIsValue = false
-            )
-        }
+        // Append the annotation item.  This passes in the [Settings.boundConfiguration] as that
+        // has a `nestedValueAppender` that will call back into [appendFormattedValue] for
+        // nested values, i.e. values in an array and attribute values of nested annotations.
+        annotationItem.appendAnnotationStringTo(
+            builder,
+            annotationSpecificSetting.boundConfiguration,
+            annotationIsValue = false
+        )
     }
 
     companion object {
@@ -538,7 +536,7 @@ class LegacyValueFormatter(
             )
 
         /** Used in [AnnotationItem.toSource]. */
-        val ANNOTATION_SOURCE_FORMATTER =
+        internal val ANNOTATION_SOURCE_FORMATTER =
             LegacyValueFormatter(
                 javaSettings = ANNOTATION_SOURCE_JAVA_SETTINGS,
                 kotlinSettings = ANNOTATION_SOURCE_KOTLIN_SETTINGS,

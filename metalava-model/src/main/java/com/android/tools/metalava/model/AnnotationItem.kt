@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
-import com.android.tools.metalava.model.value.LegacyValueFormatter.Companion.ANNOTATION_SOURCE_FORMATTER
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueContext
 import com.android.tools.metalava.model.value.ValueLanguage
@@ -540,7 +539,8 @@ internal abstract class BaseAnnotationItem(
     }
 
     override fun toSource(target: AnnotationTarget, context: Item?): String {
-        return ANNOTATION_SOURCE_FORMATTER.annotationItemToSource(this, target, context)
+        return AnnotationFormatter.legacyAnnotationFormatter()
+            .formatAnnotation(this, target, context)
     }
 
     override fun toString() = buildString {
