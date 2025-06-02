@@ -143,16 +143,6 @@ sealed interface AnnotationItem {
         }
     }
 
-    /**
-     * Generates source code for this annotation (using fully qualified names).
-     *
-     * @param target the [AnnotationTarget] for which this is being generated.
-     */
-    fun toSource(
-        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
-        context: Item? = null,
-    ): String
-
     /** The applicable targets for this annotation */
     val targets: Set<AnnotationTarget>
 
@@ -536,11 +526,6 @@ internal abstract class BaseAnnotationItem(
         var result = qualifiedName.hashCode()
         result = 31 * result + attributes.hashCode()
         return result
-    }
-
-    override fun toSource(target: AnnotationTarget, context: Item?): String {
-        return AnnotationFormatter.legacyAnnotationFormatter()
-            .formatAnnotation(this, target, context)
     }
 
     override fun toString() = buildString {
