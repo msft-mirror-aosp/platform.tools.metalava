@@ -337,7 +337,7 @@ sealed interface AnnotationItem {
         }
 
         /**
-         * Create a [DefaultAnnotationItem] deferring the creation of the attributes until needed.
+         * Create an [AnnotationItem] deferring the creation of the attributes until needed.
          *
          * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
          * [AnnotationManager.normalizeInputName].
@@ -360,16 +360,16 @@ sealed interface AnnotationItem {
         }
 
         /**
-         * Create a [DefaultAnnotationItem] with [attributes].
+         * Create an [AnnotationItem] with [attributes].
          *
          * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
          * [AnnotationManager.normalizeInputName].
          */
         fun createWithAttributes(
             annotationContext: AnnotationContext,
-            fileLocation: FileLocation,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
             originalName: String,
-            attributes: List<AnnotationAttribute>,
+            attributes: List<AnnotationAttribute> = emptyList(),
         ): AnnotationItem? {
             val qualifiedName =
                 annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
@@ -381,6 +381,18 @@ sealed interface AnnotationItem {
                 attributes,
             )
         }
+
+        /**
+         * Create a marker [AnnotationItem], i.e. one without [attributes].
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createMarkerAnnotation(
+            annotationContext: AnnotationContext,
+            originalName: String,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+        ) = createWithAttributes(annotationContext, fileLocation, originalName)
     }
 }
 

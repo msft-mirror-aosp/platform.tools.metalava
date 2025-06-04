@@ -689,12 +689,12 @@ class AnnotationsMerger(
                     )
                 }
             }
-            isNonNull(name) -> return codebase.createAnnotation("@$ANDROIDX_NONNULL")
-            isNullable(name) -> return codebase.createAnnotation("@$ANDROIDX_NULLABLE")
+            isNonNull(name) -> return createMarkerAnnotation(ANDROIDX_NONNULL)
+            isNullable(name) -> return createMarkerAnnotation(ANDROIDX_NULLABLE)
             else -> {
                 val children = getChildren(annotationElement)
                 if (children.isEmpty()) {
-                    return codebase.createAnnotation("@$name")
+                    return createMarkerAnnotation(name)
                 }
                 val attributes = buildList {
                     for (valueElement in children) {
@@ -707,6 +707,10 @@ class AnnotationsMerger(
             }
         }
     }
+
+    /** Create a marker [AnnotationItem], i.e. one without attributes. */
+    private fun createMarkerAnnotation(name: String) =
+        AnnotationItem.createMarkerAnnotation(codebase, name)
 
     private fun isNonNull(name: String): Boolean {
         return name == IDEA_NOTNULL ||
