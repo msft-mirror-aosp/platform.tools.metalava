@@ -265,8 +265,8 @@ sealed interface AnnotationItem {
             return AnnotationRetention.getDefault()
         }
 
-    /** Take a snapshot of this [AnnotationItem] suitable for use in [Codebase]. */
-    fun snapshot(targetCodebase: Codebase): AnnotationItem
+    /** Take a snapshot of this [AnnotationItem] suitable for use in [targetContext]. */
+    fun snapshot(targetContext: AnnotationContext): AnnotationItem
 
     companion object {
         /**
@@ -481,7 +481,7 @@ internal class DefaultAnnotationItem(
 
     override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
-    override fun snapshot(targetCodebase: Codebase): AnnotationItem {
+    override fun snapshot(targetContext: AnnotationContext): AnnotationItem {
         // Force the info property to be initialized which will cause the AnnotationInfo for
         // annotations of the same class as this to be created based off this AnnotationItem and
         // not the snapshot AnnotationItem. That is important because the AnnotationInfo
@@ -491,7 +491,7 @@ internal class DefaultAnnotationItem(
         info
 
         return DefaultAnnotationItem(
-            targetCodebase,
+            targetContext,
             fileLocation,
             originalName,
             qualifiedName,
@@ -504,7 +504,7 @@ internal class DefaultAnnotationItem(
                 val valueProvider =
                     object : ValueProvider {
                         override val value: Value
-                            get() = attributeToSnapshot.value.snapshot(targetCodebase)
+                            get() = attributeToSnapshot.value.snapshot(targetContext)
                     }
 
                 AnnotationAttribute.createLazyAttribute(
