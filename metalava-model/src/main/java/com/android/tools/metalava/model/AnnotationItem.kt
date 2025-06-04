@@ -496,22 +496,7 @@ internal class DefaultAnnotationItem(
             originalName,
             qualifiedName,
         ) {
-            attributes.map { attributeToSnapshot ->
-                // Defer retrieval of the value until it is needed as it could throw an exception.
-                // This makes it easier to incrementally expand the Value model without breaking
-                // existing snapshot tests.
-                // TODO(b/354633349): Stop deferring retrieval.
-                val valueProvider =
-                    object : ValueProvider {
-                        override val value: Value
-                            get() = attributeToSnapshot.value.snapshot(targetContext)
-                    }
-
-                AnnotationAttribute.createLazyAttribute(
-                    attributeToSnapshot.name,
-                    valueProvider,
-                )
-            }
+            attributes.map { it.snapshot(targetContext) }
         }
     }
 
@@ -557,6 +542,9 @@ sealed interface AnnotationAttribute {
      */
     val value: Value
 
+    /** Take a snapshot of this [AnnotationAttribute] suitable for use in [targetContext]. */
+    fun snapshot(targetContext: AnnotationContext): AnnotationAttribute
+
     companion object {
         /**
          * Create an [AnnotationAttribute] called [name] that will retrieve its [Value] from
@@ -580,6 +568,20 @@ internal class DefaultAnnotationAttribute(
 
     override val value: Value
         get() = valueProvider.value
+
+    override fun snapshot(targetContext: AnnotationContext): DefaultAnnotationAttribute {
+        // Defer retrieval of the value until it is needed as it could throw an exception.
+        // This makes it easier to incrementally expand the Value model without breaking
+        // existing snapshot tests.
+        // TODO(b/354633349): Stop deferring retrieval.
+        val valueProvider =
+            object : ValueProvider {
+                override val value: Value
+                    get() = this@DefaultAnnotationAttribute.value.snapshot(targetContext)
+            }
+
+        return DefaultAnnotationAttribute(name, valueProvider)
+    }
 
     override fun toString(): String {
         return "$name=${value.toValueString()}"
