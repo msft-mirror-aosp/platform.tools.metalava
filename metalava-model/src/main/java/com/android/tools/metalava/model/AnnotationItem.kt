@@ -393,6 +393,26 @@ sealed interface AnnotationItem {
             originalName: String,
             fileLocation: FileLocation = FileLocation.UNKNOWN,
         ) = createWithAttributes(annotationContext, fileLocation, originalName)
+
+        /**
+         * Create a single element [AnnotationItem], i.e. one with a single required attribute
+         * called [ANNOTATION_ATTR_VALUE], i.e. `value`.
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createSingleElementAnnotation(
+            annotationContext: AnnotationContext,
+            originalName: String,
+            value: Value,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+        ) =
+            createWithAttributes(
+                annotationContext,
+                fileLocation,
+                originalName,
+                listOf(AnnotationAttribute.createAttribute(ANNOTATION_ATTR_VALUE, value))
+            )
     }
 }
 
