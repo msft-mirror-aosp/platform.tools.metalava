@@ -350,7 +350,7 @@ sealed interface AnnotationItem {
         ): AnnotationItem? {
             val qualifiedName =
                 annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
-            return DefaultAnnotationItem(
+            return LazyAttributesAnnotationItem(
                 annotationContext = annotationContext,
                 fileLocation = fileLocation,
                 originalName = originalName,
@@ -371,9 +371,15 @@ sealed interface AnnotationItem {
             originalName: String,
             attributes: List<AnnotationAttribute>,
         ): AnnotationItem? {
-            return createAttributesLazily(annotationContext, fileLocation, originalName) {
-                attributes
-            }
+            val qualifiedName =
+                annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
+            return DefaultAnnotationItem(
+                annotationContext,
+                fileLocation,
+                originalName,
+                qualifiedName,
+                attributes,
+            )
         }
     }
 }
@@ -416,25 +422,19 @@ interface AnnotationContext : ClassResolver, ValueContext {
 }
 
 /** Default implementation of an annotation item */
-internal class DefaultAnnotationItem(
+internal abstract class BaseAnnotationItem(
     override val annotationContext: AnnotationContext,
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    private val originalName: String,
+    internal val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
     override val qualifiedName: String,
-
-    /** Possibly empty list of attributes. */
-    attributesGetter: () -> List<AnnotationAttribute>,
 ) : AnnotationItem {
 
     override val targets
         get() = info.targets
-
-    override val attributes: List<AnnotationAttribute> by
-        lazy(LazyThreadSafetyMode.NONE, attributesGetter)
 
     /** Information that metalava has gathered about this annotation item. */
     internal val info: AnnotationInfo by lazy {
@@ -490,15 +490,11 @@ internal class DefaultAnnotationItem(
         // cached version of the AnnotationInfo from the AnnotationManager.
         info
 
-        return DefaultAnnotationItem(
-            targetContext,
-            fileLocation,
-            originalName,
-            qualifiedName,
-        ) {
-            attributes.map { it.snapshot(targetContext) }
-        }
+        return createSnapshotFor(targetContext)
     }
+
+    /** Create snapshot of this for [targetContext]. */
+    abstract fun createSnapshotFor(targetContext: AnnotationContext): AnnotationItem
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false
@@ -523,6 +519,51 @@ internal class DefaultAnnotationItem(
             annotationIsValue = false,
         )
     }
+}
+
+internal class DefaultAnnotationItem(
+    annotationContext: AnnotationContext,
+    fileLocation: FileLocation,
+    originalName: String,
+    qualifiedName: String,
+    override val attributes: List<AnnotationAttribute>,
+) :
+    BaseAnnotationItem(
+        annotationContext,
+        fileLocation,
+        originalName,
+        qualifiedName,
+    ) {
+    override fun createSnapshotFor(targetContext: AnnotationContext) =
+        DefaultAnnotationItem(
+            targetContext,
+            fileLocation,
+            originalName,
+            qualifiedName,
+            attributes.map { it.snapshot(targetContext) }
+        )
+}
+
+internal class LazyAttributesAnnotationItem(
+    annotationContext: AnnotationContext,
+    fileLocation: FileLocation,
+    originalName: String,
+    qualifiedName: String,
+    /** Possibly empty list of attributes. */
+    attributesGetter: () -> List<AnnotationAttribute>,
+) : BaseAnnotationItem(annotationContext, fileLocation, originalName, qualifiedName) {
+    override val attributes: List<AnnotationAttribute> by
+        lazy(LazyThreadSafetyMode.NONE, attributesGetter)
+
+    override fun createSnapshotFor(targetContext: AnnotationContext) =
+        LazyAttributesAnnotationItem(
+            targetContext,
+            fileLocation,
+            originalName,
+            qualifiedName,
+        ) {
+            attributes.map { it.snapshot(targetContext) }
+        }
 }
 
 /** The default annotation attribute name when no name is provided. */
