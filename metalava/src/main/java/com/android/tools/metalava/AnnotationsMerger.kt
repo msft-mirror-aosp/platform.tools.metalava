@@ -518,15 +518,6 @@ class AnnotationsMerger(
         mergeQualifierAnnotationsFromXmlElement(item, fieldItem)
     }
 
-    private fun getAnnotationName(element: Element): String {
-        val tagName = element.tagName
-        assert(tagName == "annotation") { tagName }
-
-        val qualifiedName = element.getAttribute(ATTR_NAME)
-        assert(qualifiedName.isNotEmpty())
-        return qualifiedName
-    }
-
     private fun mergeQualifierAnnotationsFromXmlElement(xmlElement: Element, item: Item) {
         val annotationsToMerge =
             getChildren(xmlElement).mapNotNull { annotationElement ->
@@ -594,7 +585,7 @@ class AnnotationsMerger(
                         }
 
                         // Attempt to sort in reflection order
-                        if (!found && reflectionFields != null) {
+                        if (reflectionFields != null) {
                             val filterEmit =
                                 ApiVisitor.defaultEmitFilter(
                                     @Suppress("DEPRECATION") options.apiPredicateConfig,
@@ -686,7 +677,7 @@ class AnnotationsMerger(
                 val valueElement = children[0]
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
-                return if (pure != null && pure.isNotEmpty()) {
+                return if (pure.isNotEmpty()) {
                     codebase.createAnnotationFromAttributes(
                         name,
                         listOf(TYPE_DEF_VALUE_ATTRIBUTE to value, ATTR_PURE to pure),
