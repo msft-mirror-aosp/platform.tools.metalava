@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.value.LegacyValueFormatter.Companion.ANNOTATION_SOURCE_FORMATTER
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueContext
 import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
@@ -382,7 +383,7 @@ val List<AnnotationItem>.typeNullability
     get() = mapNotNull { it.typeNullability }.firstOrNull()
 
 /** Provides contextual information needed by [AnnotationItem]s. */
-interface AnnotationContext : ClassResolver {
+interface AnnotationContext : ClassResolver, ValueContext {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
 
