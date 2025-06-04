@@ -47,7 +47,6 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
-import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -810,5 +809,9 @@ class AnnotationsMerger(
         workingString = workingString.replace(AMP_ENTITY, "&")
 
         return workingString
+    }
+
+    companion object {
+        private const val ANNOTATION_VALUE_TRUE = "true"
     }
 }

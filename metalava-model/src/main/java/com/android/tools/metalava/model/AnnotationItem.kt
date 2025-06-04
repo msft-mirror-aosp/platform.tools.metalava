@@ -600,8 +600,6 @@ sealed interface AnnotationAttribute {
     }
 }
 
-const val ANNOTATION_VALUE_TRUE = "true"
-
 internal class DefaultAnnotationAttribute(
     override val name: String,
     private val valueProvider: ValueProvider,
