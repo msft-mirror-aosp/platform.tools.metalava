@@ -21,38 +21,35 @@ import java.lang.StringBuilder
 
 /** Formats [AnnotationItem]s. */
 sealed interface AnnotationFormatter {
-    /** Format [annotationItem] for [target] as part of [context]. */
+    /** Format [annotationItem] as part of [context]. */
     fun formatAnnotation(
         annotationItem: AnnotationItem,
-        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
         context: Item? = null,
-    ) = buildString { appendFormatAnnotation(this, annotationItem, target, context) }
+    ) = buildString { appendFormatAnnotation(this, annotationItem, context) }
 
-    /** Format [annotationItem] for [target] as part of [context] and append to [builder]. */
+    /** Format [annotationItem] as part of [context] and append to [builder]. */
     fun appendFormatAnnotation(
         builder: StringBuilder,
         annotationItem: AnnotationItem,
-        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
         context: Item? = null,
     )
 
     companion object {
-        /** [AnnotationFormatter] wrapper for [LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER]. */
-        private val legacyFormatter =
-            LegacyAnnotationFormatter(LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER)
-
         /** An [AnnotationFormatter] that supports the legacy behavior. */
-        fun legacyAnnotationFormatter(): AnnotationFormatter = legacyFormatter
+        fun legacyAnnotationFormatter(
+            target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
+        ): AnnotationFormatter =
+            LegacyAnnotationFormatter(LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER, target)
     }
 
     /** An [AnnotationFormatter] that wraps a [LegacyValueFormatter]. */
     private class LegacyAnnotationFormatter(
-        private val legacyValueFormatter: LegacyValueFormatter
+        private val legacyValueFormatter: LegacyValueFormatter,
+        private val target: AnnotationTarget,
     ) : AnnotationFormatter {
         override fun appendFormatAnnotation(
             builder: StringBuilder,
             annotationItem: AnnotationItem,
-            target: AnnotationTarget,
             context: Item?
         ) {
             legacyValueFormatter.appendFormatAnnotation(builder, annotationItem, target, context)
