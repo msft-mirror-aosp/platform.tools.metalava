@@ -1097,4 +1097,28 @@ class CommonPropertyItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test type of primitive property overriding type parameter type`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    interface Parent<T> {
+                        val foo: T
+                    }
+                    class Child: Parent<Int> {
+                        override val foo: Int = 0
+                    }
+                """
+            )
+        ) {
+            val childClass = codebase.assertClass("test.pkg.Child")
+            val fooProperty = childClass.assertProperty("foo")
+            // Since foo overrides of a property with type T, the primitive type needs to be boxed.
+            fooProperty.type().assertClassTypeItem {
+                assertThat(qualifiedName).isEqualTo("java.lang.Integer")
+            }
+        }
+    }
 }

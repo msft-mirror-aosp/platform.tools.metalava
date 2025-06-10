@@ -410,6 +410,32 @@ internal class KaTypeItemFactory(
         }
     }
 
+    /**
+     * If the [typeItem] is a primitive type but any of the [overrideTypes] it overrides is not,
+     * returns the boxed version of the primitive type. Otherwise, returns the original type.
+     */
+    fun handleOverrideBoxing(typeItem: TypeItem, overrideTypes: Sequence<KaType>): TypeItem {
+        return if (
+            typeItem is PrimitiveTypeItem &&
+                overrideTypes.any { analyze(assembler.kaModule) { !it.isPrimitive } }
+        ) {
+            boxType(typeItem)
+        } else {
+            typeItem
+        }
+    }
+
+    /** Converts the [primitiveTypeItem] to the boxed java class type. */
+    private fun boxType(primitiveTypeItem: PrimitiveTypeItem): ClassTypeItem {
+        return DefaultClassTypeItem(
+            classResolver = codebase,
+            modifiers = primitiveTypeItem.modifiers,
+            qualifiedName = primitiveTypeItem.kind.wrapperClass.canonicalName,
+            arguments = emptyList(),
+            outerClassType = null,
+        )
+    }
+
     companion object {
         /**
          * Converts the qualified name of a

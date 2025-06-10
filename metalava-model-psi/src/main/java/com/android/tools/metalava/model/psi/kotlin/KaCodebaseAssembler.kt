@@ -170,11 +170,16 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                 "for property ${propertySymbol.name}",
                 propertySymbol.typeParameters
             )
-        val type = typeParameterListAndFactory.factory.getGeneralType(propertySymbol.returnType)
-        val receiverType =
-            propertySymbol.receiverType?.let {
-                typeParameterListAndFactory.factory.getGeneralType(it)
-            }
+        val typeFactory = typeParameterListAndFactory.factory
+        // Find the type of the property, and check that it aligns with the type it is overriding,
+        // if applicable (a primitive type overriding a variable type should be boxed).
+        val type =
+            typeFactory.handleOverrideBoxing(
+                typeFactory.getGeneralType(propertySymbol.returnType),
+                propertySymbol.allOverriddenSymbols.map { it.returnType },
+            )
+
+        val receiverType = propertySymbol.receiverType?.let { typeFactory.getGeneralType(it) }
 
         // Private properties currently still need to be processed when they use a value class type
         // to reset incorrect nullability on the accessors from psi. But other private properties
@@ -189,14 +194,10 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
         // To find the accessors of the property, use the inlined type if this property has a value
         // class type. This is needed for now because the property accessors are being created with
         // psi, which inlines the type.
-        val typeForAccessor =
-            typeParameterListAndFactory.factory.inlineTypeIfNeeded(propertySymbol.returnType, type)
+        val typeForAccessor = typeFactory.inlineTypeIfNeeded(propertySymbol.returnType, type)
         val possiblyInlinedReceiverType =
             receiverType?.let {
-                typeParameterListAndFactory.factory.inlineTypeIfNeeded(
-                    propertySymbol.receiverType!!,
-                    receiverType
-                )
+                typeFactory.inlineTypeIfNeeded(propertySymbol.receiverType!!, receiverType)
             }
         // Similar to above, but due to b/385148821, if a property is an extension on a value class
         // type or is deprecated level hidden, the psi accessors drop the receiver entirely, so only
