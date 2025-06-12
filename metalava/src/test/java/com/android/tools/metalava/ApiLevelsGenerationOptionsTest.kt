@@ -539,6 +539,45 @@ class ApiLevelsGenerationOptionsTest :
     }
 
     @Test
+    fun `Test nextSdkVersion in forAndroidConfig`() {
+        val root = buildFileStructure {
+            dir("1") { dir("public") { emptyFile("api.txt") } }
+            dir("extensions") { dir("1") { dir("public") { emptyFile("foo.txt") } } }
+        }
+
+        val apiSurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+        runTest(
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:major.minor?}/{surface}/api.txt",
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/extensions/{version:extension}/{surface}/{module}.txt",
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+        ) {
+            val apiHistoryConfig = options.testForAndroidConfig()
+            assertThat(apiHistoryConfig).isNotNull()
+
+            // Compute the list of versioned files.
+            assertThat(apiHistoryConfig!!.versionedApis.dump())
+                .isEqualTo(
+                    """
+                        VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
+                        VersionedSourceApi(version=30)
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
     fun `Test no extension jar files found in forAndroidConfig`() {
         val root = getOrCreateFolder()
 
