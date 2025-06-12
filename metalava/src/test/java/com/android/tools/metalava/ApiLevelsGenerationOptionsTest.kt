@@ -96,6 +96,21 @@ Api Levels Generation:
                                              If specified then the --android-jar-pattern must include at least one
                                              pattern that uses `{version:extension}` and `{module}` placeholders and
                                              that pattern must match at least one file.
+  --api-version-for-sdk-extension <api-version>
+                                             SDK extension APIs can be added between SDK versions and they do not become
+                                             available in an SDK version until the next SDK version is released.
+                                             However, when generating an API history it is required that every API is in
+                                             an API version, even those added as part of an SDK extension.
+
+                                             If an SDK extension is being prepared for inclusion in an SDK version then
+                                             this should be the SDK version. If an SDK extension is being prepared
+                                             between SDK versions than this should be a magic version number that
+                                             indicates that it the newly added SDK extension APIs are not yet present in
+                                             any SDK version.
+
+                                             In the latter case the --api-version-label should be used when generating
+                                             documentation from that `api-versions.xml` file to give the magic version a
+                                             meaningful name in the documentation.
   --generate-api-version-history <output-file>
                                              Reads API signature files and generates a JSON or XML file depending on the
                                              extension, which must be one of `json` or `xml` respectively. The JSON file
@@ -549,6 +564,8 @@ class ApiLevelsGenerationOptionsTest :
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
         val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
         runTest(
+            ARG_API_VERSION_FOR_SDK_EXTENSION,
+            "123456789",
             ARG_CURRENT_VERSION,
             "30",
             ARG_GENERATE_API_LEVELS,
@@ -570,7 +587,7 @@ class ApiLevelsGenerationOptionsTest :
                     """
                         VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
                         VersionedSourceApi(version=30)
-                        VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=123456789))
                     """
                         .trimIndent()
                 )

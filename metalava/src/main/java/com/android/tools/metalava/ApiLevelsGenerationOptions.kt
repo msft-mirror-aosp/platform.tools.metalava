@@ -64,6 +64,8 @@ const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_API_VERSION_RANGE = "--api-version-range"
 const val ARG_API_VERSION_LABEL = "--api-version-label"
 
+const val ARG_API_VERSION_FOR_SDK_EXTENSION = "--api-version-for-sdk-extension"
+
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
@@ -345,6 +347,31 @@ class ApiLevelsGenerationOptions(
             )
             .existingFile()
 
+    private val apiVersionForSdkExtension: ApiVersion? by
+        option(
+                ARG_API_VERSION_FOR_SDK_EXTENSION,
+                metavar = "<api-version>",
+                help =
+                    """
+                        SDK extension APIs can be added between SDK versions and they do not become
+                        available in an SDK version until the next SDK version is released. However,
+                        when generating an API history it is required that every API is in an API
+                        version, even those added as part of an SDK extension.
+
+                        If an SDK extension is being prepared for inclusion in an SDK version then
+                        this should be the SDK version. If an SDK extension is being prepared
+                        between SDK versions than this should be a magic version number that
+                        indicates that it the newly added SDK extension APIs are not yet present in
+                        any SDK version.
+
+                        In the latter case the $ARG_API_VERSION_LABEL should be used when generating
+                        documentation from that `api-versions.xml` file to give the magic version a
+                        meaningful name in the documentation.
+                    """
+                        .trimIndent(),
+            )
+            .apiVersion()
+
     /**
      * Get label for [version].
      *
@@ -519,10 +546,15 @@ class ApiLevelsGenerationOptions(
             // Get the optional SDK extension arguments.
             val sdkExtensionsArguments =
                 if (sdkInfoFile != null) {
-                    // The not finalized SDK version is the version after the last historical
-                    // version. That is either the version used for the current codebase or the
-                    // next version.
-                    val notFinalizedSdkVersion = codebaseSdkVersion ?: nextSdkVersion
+                    // The not finalized SDK version is either:
+                    // 1. The version specified using --api-version-for-sdk-extension.
+                    // 2. Or the version after the last historical version.
+                    //
+                    // If the latter then that is either:
+                    // 1. The version used for the current codebase.
+                    // 2. Or the next version, i.e. --current-version + 1.
+                    val notFinalizedSdkVersion =
+                        apiVersionForSdkExtension ?: codebaseSdkVersion ?: nextSdkVersion
                     ApiGenerator.SdkExtensionsArguments(
                         sdkInfoFile!!,
                         notFinalizedSdkVersion,
