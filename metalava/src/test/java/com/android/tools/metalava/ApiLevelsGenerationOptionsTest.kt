@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.SignatureFile
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -44,6 +45,16 @@ Api Levels Generation:
                                              reference classes that are part of an updatable apex.
   --first-version <api-version>              Sets the first API version to include in the API history file. See
                                              --current-version for acceptable `<api-version>`s. (default: 1)
+  --api-version-range <api-version>:<api-version>
+                                             The optional range of historical versions that can be included in the API
+                                             version history. The `from` and `to` parts of the range are separated by a
+                                             `:` and are both inclusive. See --current-version for acceptable
+                                             `<api-version>`s.
+
+                                             If unspecified then this currently falls back to a range from
+                                             `--first-api-version` to `--current-version` (or `--current-version + 1` if
+                                             `--current-codename` is set to any value other than `REL`). However, in
+                                             future it will default to allowing every historical version.
   --current-version <api-version>            Sets the current API version of the current source code. This supports a
                                              single integer level, `major.minor`, `major.minor.patch` and
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
@@ -409,6 +420,69 @@ class ApiLevelsGenerationOptionsTest :
                         VersionedSignatureApi(files=TESTROOT/extensions/2/public/baz.txt, updater=ExtensionUpdater(extVersion=2, module=baz, nextSdkVersion=30))
                         VersionedSignatureApi(files=TESTROOT/extensions/1/{public,system}/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
                         VersionedSignatureApi(files=TESTROOT/extensions/2/{public,system}/foo.txt, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=30))
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
+    fun `Test invalid --api-version-range`() {
+        val root = temporaryFolder.root
+
+        val apiSurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        runTest(
+            ARG_API_VERSION_RANGE,
+            "9",
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:major.minor?}/{surface}/api.txt",
+            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+        ) {
+            assertEquals("", stdout)
+            assertEquals(
+                """Invalid value for "--api-version-range": Must be of the form <version>:<version> but found '9'""",
+                stderr
+            )
+        }
+    }
+
+    @Test
+    fun `Test --api-version-range in forAndroidConfig`() {
+        val root = buildFileStructure {
+            dir("1") { dir("public") { emptyFile("api.txt") } }
+            dir("1.1") { dir("public") { emptyFile("api.txt") } }
+            // This should be ignored by the --api-version-range.
+            dir("2") { dir("public") { emptyFile("api.txt") } }
+        }
+
+        val apiSurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        runTest(
+            ARG_API_VERSION_RANGE,
+            "1:1.1",
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:major.minor?}/{surface}/api.txt",
+            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+        ) {
+            val apiHistoryConfig = options.testForAndroidConfig()
+            assertThat(apiHistoryConfig).isNotNull()
+
+            // Compute the list of versioned files.
+            assertThat(apiHistoryConfig!!.versionedApis.dump())
+                .isEqualTo(
+                    """
+                        VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
+                        VersionedSignatureApi(files=TESTROOT/1.1/public/api.txt, updater=ApiVersionUpdater(version=1.1))
+                        VersionedSourceApi(version=30)
                     """
                         .trimIndent()
                 )

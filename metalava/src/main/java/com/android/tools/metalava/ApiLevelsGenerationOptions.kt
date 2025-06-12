@@ -61,6 +61,8 @@ const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 
+const val ARG_API_VERSION_RANGE = "--api-version-range"
+
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
@@ -149,6 +151,37 @@ class ApiLevelsGenerationOptions(
             )
             .apiVersion()
             .default(ApiVersion.fromLevel(1))
+
+    /** Convert an option value to a [ClosedRange] of [ApiVersion]. */
+    private fun OptionWithValues<String?, String, String>.apiVersionRange() = convert { text ->
+        val parts = text.split(':')
+        if (parts.size != 2) {
+            error("Must be of the form <version>:<version> but found '$text'")
+        }
+        val (from, to) = parts
+        ApiVersion.fromString(from).rangeTo(ApiVersion.fromString(to))
+    }
+
+    /** The range of historical API versions that can be included in the API version history. */
+    private val apiVersionRange: ClosedRange<ApiVersion>? by
+        option(
+                ARG_API_VERSION_RANGE,
+                metavar = "<api-version>:<api-version>",
+                help =
+                    """
+                        The optional range of historical versions that can be included in the API
+                        version history. The `from` and `to` parts of the range are separated by a
+                        `:` and are both inclusive. See $ARG_CURRENT_VERSION for acceptable
+                        `<api-version>`s.
+
+                        If unspecified then this currently falls back to a range from
+                        `--first-api-version` to `--current-version` (or `--current-version + 1` if
+                        `--current-codename` is set to any value other than `REL`). However, in
+                        future it will default to allowing every historical version.
+                    """
+                        .trimIndent()
+            )
+            .apiVersionRange()
 
     /**
      * The last api level.
@@ -319,7 +352,7 @@ class ApiLevelsGenerationOptions(
     private fun findHistoricalFiles(dir: File, patterns: List<String>): List<MatchedPatternFile> {
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
-        val versionRange = firstApiVersion.rangeTo(lastApiVersion)
+        val versionRange = apiVersionRange ?: firstApiVersion.rangeTo(lastApiVersion)
         val apiSurfaceByName = apiSurfacesProvider()?.byName
         val scanConfig =
             PatternNode.ScanConfig(
