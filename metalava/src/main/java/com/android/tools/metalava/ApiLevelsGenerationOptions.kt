@@ -62,6 +62,7 @@ const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 
 const val ARG_API_VERSION_RANGE = "--api-version-range"
+const val ARG_API_VERSION_LABEL = "--api-version-label"
 
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
@@ -234,6 +235,40 @@ class ApiLevelsGenerationOptions(
             )
             .map { if (it == "REL") null else it }
 
+    /** Convert an option value to a [Pair] of [ApiVersion] and [String]. */
+    private fun OptionWithValues<String?, String, String>.apiVersionToLabel() = convert { text ->
+        // Split the value at the first `:` only.
+        val parts = text.split(':', limit = 2)
+        if (parts.size != 2) {
+            error("Must be of the form <version>:<label> but found '$text'")
+        }
+        val (version, label) = parts
+        ApiVersion.fromString(version) to label
+    }
+
+    /** A map from [ApiVersion] to a [String] label. */
+    private val apiVersionToLabel by
+        option(
+                ARG_API_VERSION_LABEL,
+                metavar = "<api-version>:<label>",
+                help =
+                    """
+                        Specifies a label to use in place of the `<api-version>` when augmenting the
+                        Javadoc to include information about the history of an API item, e.g. in
+                        `@apiSince` and `@deprecatedSince` doc tags. This can be specified multiple
+                        times to provide labels for multiple different versions.
+
+                        See $ARG_CURRENT_VERSION for acceptable `<api-version>`s.
+
+                        This only has an effect when generating doc stubs, or enhancing the javadoc
+                        of normal stubs. It has no effect on the generation of the API history.
+                    """
+                        .trimIndent(),
+            )
+            .apiVersionToLabel()
+            .multiple(default = emptyList())
+            .map { it.toMap() }
+
     /**
      * True if [currentCodeName] is specified, false otherwise.
      *
@@ -313,11 +348,16 @@ class ApiLevelsGenerationOptions(
     /**
      * Get label for [version].
      *
-     * If a codename has been specified and [version] is greater than the current API version (which
-     * defaults to `null` when not set) then use the codename as the label, otherwise use the
-     * version itself.
+     * Checks the [apiVersionToLabel] map first and if a label was found for [version] then returns
+     * it. Otherwise, if a codename has been specified and [version] is greater than the current API
+     * version (which defaults to `null` when not set) then use the codename as the label, otherwise
+     * use [version]'s [ApiVersion.toString] value.
      */
     fun getApiVersionLabel(version: ApiVersion): String {
+        // Check the apiVersionToLabel map first.
+        apiVersionToLabel[version]?.let {
+            return it
+        }
         val codename = currentCodeName
         val current = optionalCurrentApiVersion
         return if (current == null || codename == null || version <= current) version.toString()

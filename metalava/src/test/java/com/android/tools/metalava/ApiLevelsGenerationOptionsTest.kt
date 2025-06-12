@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
@@ -60,6 +61,15 @@ Api Levels Generation:
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
                                              all non-negative integers and `quality` is an alphanumeric string.
   --current-codename <version-codename>      Sets the code name for the current source code.
+  --api-version-label <api-version>:<label>  Specifies a label to use in place of the `<api-version>` when augmenting
+                                             the Javadoc to include information about the history of an API item, e.g.
+                                             in `@apiSince` and `@deprecatedSince` doc tags. This can be specified
+                                             multiple times to provide labels for multiple different versions.
+
+                                             See --current-version for acceptable `<api-version>`s.
+
+                                             This only has an effect when generating doc stubs, or enhancing the javadoc
+                                             of normal stubs. It has no effect on the generation of the API history.
   --android-jar-pattern <historical-api-pattern>
                                              Pattern to use to locate Android JAR files. Must end with `.jar`.
 
@@ -486,6 +496,45 @@ class ApiLevelsGenerationOptionsTest :
                     """
                         .trimIndent()
                 )
+        }
+    }
+
+    @Test
+    fun `Test invalid --api-version-label`() {
+        val root = temporaryFolder.root
+
+        val apiSurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        runTest(
+            ARG_API_VERSION_LABEL,
+            "9",
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:major.minor?}/{surface}/api.txt",
+            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+        ) {
+            assertEquals("", stdout)
+            assertEquals(
+                """Invalid value for "--api-version-label": Must be of the form <version>:<label> but found '9'""",
+                stderr
+            )
+        }
+    }
+
+    @Test
+    fun `Test --api-version-label`() {
+        runTest(
+            ARG_API_VERSION_LABEL,
+            "1:First",
+            ARG_API_VERSION_LABEL,
+            "2.2:Other",
+        ) {
+            assertEquals("First", options.getApiVersionLabel(ApiVersion.fromLevel(1)))
+            assertEquals("Other", options.getApiVersionLabel(ApiVersion.fromMajorMinor(2, 2)))
+            assertEquals("3.1", options.getApiVersionLabel(ApiVersion.fromMajorMinor(3, 1)))
         }
     }
 
