@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles.sdkConstantSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -75,7 +77,8 @@ class AndroidApiChecksTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/pkg/PermissionTest.java:14: error: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
-                src/android/pkg/PermissionTest.java:21: error: Method 'test1' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
+                src/android/pkg/PermissionTest.java:21: warning: Method 'test1' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation (ErrorWhenNew) [RequiresPermission]
+                src/android/pkg/PermissionTest.java:41: warning: Method 'conditionalBad' documentation does not explain when the conditional permission 'ACCESS_COARSE_LOCATION' is required. [ConditionalRequiresPermissionNotExplained]
                 """,
             sourceFiles =
                 arrayOf(
@@ -109,6 +112,20 @@ class AndroidApiChecksTest : DriverTest() {
                         @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION)
                         public void test2() {
                         }
+
+                        /**
+                         * Sometimes requires {@link Manifest.permission#ACCESS_COARSE_LOCATION}.
+                         */
+                        @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION, conditional = true)
+                        public void conditionalOk() {
+                        }
+
+                        /**
+                         * Not documenting the conditional permission.
+                         */
+                        @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION, conditional = true)
+                        public void conditionalBad() {
+                        }
                     }
                     """
                     ),
@@ -126,7 +143,58 @@ class AndroidApiChecksTest : DriverTest() {
                     """
                     ),
                     requiresPermissionSource
-                )
+                ),
+            extraArguments =
+                arrayOf(ARG_WARNING, Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED.name),
+        )
+    }
+
+    @Test
+    fun `Document Permissions ignore when permission is subset of a word`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android;
+
+                            public abstract class Manifest {
+                                public static final class permission {
+                                    public static final String PERMISSION = "android.permission.PERMISSION";
+                                }
+                            }
+                        """
+                    ),
+                    requiresPermissionSource,
+                    java(
+                        """
+                            package android.pkg;
+
+                            import android.Manifest;
+                            import android.annotation.RequiresPermission;
+
+                            public class PermissionTest {
+                                /**
+                                 * While this contains the name of the permission it is not actually
+                                 * referring to the permission ARG_PERMISSION.
+                                 */
+                                @RequiresPermission(Manifest.permission.PERMISSION)
+                                public void test0() {
+                                }
+
+                                /**
+                                 * While this contains the name of the permission it is not actually
+                                 * referring to the permission PERMISSION_ARG.
+                                 */
+                                @RequiresPermission(Manifest.permission.PERMISSION)
+                                public void test0() {
+                                }
+                            }
+                        """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(ARG_WARNING, Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED.name),
         )
     }
 

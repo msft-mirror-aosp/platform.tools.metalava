@@ -16,19 +16,30 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultMethodItem
+import com.android.tools.metalava.model.item.ParameterItemsFactory
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
-import com.android.tools.metalava.model.updateCopiedMethodState
+import com.android.tools.metalava.model.value.CombinedValueProvider
+import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -39,59 +50,50 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
 
-open class PsiMethodItem(
-    codebase: PsiBasedCodebase,
-    psiMethod: PsiMethod,
+internal class PsiMethodItem(
+    override val codebase: PsiBasedCodebase,
+    override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
     // TextClassItem.
     containingClass: ClassItem,
     name: String,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
+    val defaultValueProvider: OptionalValueProvider?,
+    targetLanguages: Set<TargetLanguage>
 ) :
-    PsiCallableItem(
+    DefaultMethodItem(
         codebase = codebase,
-        psiMethod = psiMethod,
         fileLocation = fileLocation,
-        containingClass = containingClass,
-        name = name,
+        sourceLanguage = psiMethod.sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
-        typeParameterList = typeParameterList,
         throwsTypes = throwsTypes,
+        callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+        defaultValueProvider = defaultValueProvider,
     ),
-    MethodItem {
+    PsiCallableItem {
 
-    override var inheritedFrom: ClassItem? = null
-
-    override var property: PsiPropertyItem? = null
-
-    @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
-
-    private var superMethods: List<MethodItem>? = null
-
-    override fun superMethods(): List<MethodItem> {
-        if (superMethods == null) {
-            superMethods = computeSuperMethods()
-        }
-
-        return superMethods!!
-    }
+    override var property: PropertyItem? = null
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
             val ktParameters =
                 ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
                     ?: return false
-            return ktParameters.size < parameters.size
+            return ktParameters.size < parameters().size
         }
 
         return false
@@ -103,19 +105,6 @@ open class PsiMethodItem(
                 psiMethod.sourcePsi is KtPropertyAccessor ||
                 psiMethod.sourcePsi is KtParameter &&
                     (psiMethod.sourcePsi as KtParameter).hasValOrVar())
-    }
-
-    override fun defaultValue(): String {
-        return when (psiMethod) {
-            is UAnnotationMethod -> {
-                psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
-            }
-            is PsiAnnotationMethod -> {
-                psiMethod.defaultValue?.let { codebase.printer.toSourceExpression(it, this) }
-                    ?: super.defaultValue()
-            }
-            else -> super.defaultValue()
-        }
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
@@ -131,37 +120,30 @@ open class PsiMethodItem(
                 targetContainingClass.mapTypeVariables(containingClass())
             else emptyMap()
 
-        val duplicated =
-            PsiMethodItem(
+        return PsiMethodItem(
                 codebase,
                 psiMethod,
                 fileLocation,
                 targetContainingClass,
-                name,
-                modifiers.duplicate(),
+                name(),
+                modifiers,
                 documentation::duplicate,
                 returnType.convertType(typeVariableMap),
-                { methodItem -> parameters.map { it.duplicate(methodItem, typeVariableMap) } },
+                { methodItem ->
+                    parameters().map {
+                        (it as PsiParameterItem).duplicate(methodItem, typeVariableMap)
+                    }
+                },
                 typeParameterList,
-                throwsTypes,
+                throwsTypes(),
+                defaultValueProvider,
+                targetLanguages,
             )
+            .also { duplicated ->
+                duplicated.inheritedFrom = containingClass()
 
-        duplicated.inheritedFrom = containingClass
-
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-
-        duplicated.updateCopiedMethodState()
-
-        return duplicated
+                duplicated.updateCopiedMethodState()
+            }
     }
 
     /* Call corresponding PSI utility method -- if I can find it!
@@ -188,6 +170,8 @@ open class PsiMethodItem(
             containingClass: ClassItem,
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
+            psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+            targetLanguages: Set<TargetLanguage> = containingClass.targetLanguages,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
             // UAST workaround: @JvmName for UMethod with fake LC PSI
@@ -208,12 +192,29 @@ open class PsiMethodItem(
                             it.qualifiedName == JvmName::class.qualifiedName
                         }
                         ?.findAttributeValue("name")
-                        ?.evaluate() as? String
-                        ?: psiMethod.name
+                        ?.evaluate() as? String ?: psiMethod.name
                 } else {
                     psiMethod.name
                 }
-            val modifiers = modifiers(codebase, psiMethod)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
+
+            if (containingClass.classKind == ClassKind.INTERFACE) {
+                // All interface methods are implicitly public (except in Java 1.9, where they can
+                // be private.
+                if (!modifiers.isPrivate()) {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+                }
+            }
+
+            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
+                // The containing class is final, so it is implied that every method is final as
+                // well.
+                // No need to apply 'final' to each method. (We do it here rather than just in the
+                // signature emit code since we want to make sure that the signature comparison
+                // methods with super methods also consider this method non-final.)
+                modifiers.setFinal(false)
+            }
+
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, methodTypeItemFactory) =
@@ -233,31 +234,62 @@ open class PsiMethodItem(
                     isAnnotationElement = isAnnotationElement,
                 )
 
+            val defaultValueProvider = psiMethod.defaultValueProvider(codebase, returnType)
+
             val method =
                 PsiMethodItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     returnType = returnType,
                     parameterItemsFactory = { containingCallable ->
-                        parameterList(containingCallable, methodTypeItemFactory)
+                        parameterList(
+                            codebase,
+                            psiMethod,
+                            containingCallable as PsiCallableItem,
+                            methodTypeItemFactory,
+                            psiParameters,
+                        )
                     },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
+                    defaultValueProvider = defaultValueProvider,
+                    targetLanguages = targetLanguages,
                 )
-            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
-                // The containing class is final, so it is implied that every method is final as
-                // well.
-                // No need to apply 'final' to each method. (We do it here rather than just in the
-                // signature emit code since we want to make sure that the signature comparison
-                // methods with super methods also consider this method non-final.)
-                modifiers.setFinal(false)
-            }
 
             return method
         }
     }
+}
+
+internal fun PsiMethod.defaultValueProvider(
+    codebase: PsiBasedCodebase,
+    returnType: TypeItem
+): CombinedValueProvider? {
+    val defaultValueProvider =
+        when (this) {
+            is UAnnotationMethod -> {
+                uastDefaultValue?.let { uDefaultValue ->
+                    codebase.valueFactory.providerFor(
+                        returnType,
+                        uDefaultValue,
+                        ValueUseSite.ANNOTATION,
+                    )
+                }
+            }
+            is PsiAnnotationMethod -> {
+                defaultValue?.let { psiDefaultValue ->
+                    codebase.valueFactory.providerFor(
+                        returnType,
+                        psiDefaultValue,
+                        ValueUseSite.ANNOTATION,
+                    )
+                }
+            }
+            else -> null
+        }
+    return defaultValueProvider
 }

@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model
 
 interface ItemVisitor {
+    fun visit(codebase: Codebase) {}
+
     fun visit(cls: ClassItem) {}
 
     fun visit(field: FieldItem) {}
@@ -27,9 +29,9 @@ interface ItemVisitor {
 
     fun visit(pkg: PackageItem) {}
 
-    fun visit(packageList: PackageList) {}
-
     fun visit(parameter: ParameterItem) {}
 
     fun visit(property: PropertyItem) {}
+
+    fun visit(typeAlias: TypeAliasItem) {}
 }
