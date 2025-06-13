@@ -23,6 +23,8 @@ import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
@@ -5287,8 +5289,6 @@ class ApiFileTest : DriverTest() {
                   }
                   @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
-                    property @IntRange(from=1L) public abstract int extension;
-                    property @IntRange(from=1L) public abstract int version;
                   }
                 }
             """
@@ -5990,6 +5990,9 @@ class ApiFileTest : DriverTest() {
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
+    // TODO(b/323223405): K1 is including delegate properties because they are included in the scope
+    // used in KaCodebaseAssembler. They should be included for K2 as well using the delegate scope.
+    @FilterByProvider("psi", "k2", action = EXCLUDE)
     @Test
     fun `Test functions from delegate`() {
         check(
@@ -6067,6 +6070,7 @@ class ApiFileTest : DriverTest() {
                     ctor public Delegated();
                     method @BytecodeOnly public void baseMethod();
                     method @BytecodeOnly public int getBaseVal();
+                    property public int baseVal;
                   }
                 }
                 """
