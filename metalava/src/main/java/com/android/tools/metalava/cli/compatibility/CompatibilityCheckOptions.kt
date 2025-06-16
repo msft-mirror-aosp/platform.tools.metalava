@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -24,7 +23,6 @@ import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -195,14 +193,11 @@ class CompatibilityCheckOptions(
     val compatibilityChecks by
         lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
 
-    /**
-     * The optional Codebase corresponding to [compatibilityChecks].
-     *
-     * This is used to provide the previously released API needed for `--revert-annotation`.
-     */
-    fun previouslyReleasedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
-        compatibilityChecks
-            .map { it.previouslyReleasedApi }
-            .reduceOrNull { p1, p2 -> p1.combine(p2) }
-            ?.load({ signatureFileCache.load(it) })
+    /** The optional [PreviouslyReleasedApi]. */
+    val previouslyReleasedApi by
+        lazy(LazyThreadSafetyMode.NONE) {
+            compatibilityChecks
+                .map { it.previouslyReleasedApi }
+                .reduceOrNull { p1, p2 -> p1.combine(p2) }
+        }
 }
