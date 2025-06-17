@@ -65,7 +65,8 @@ internal class PsiMethodItem(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     val defaultValueProvider: OptionalValueProvider?,
-    targetLanguages: Set<TargetLanguage>
+    targetLanguages: Set<TargetLanguage>,
+    isExtensionMethod: Boolean,
 ) :
     DefaultMethodItem(
         codebase = codebase,
@@ -83,14 +84,11 @@ internal class PsiMethodItem(
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
         defaultValueProvider = defaultValueProvider,
+        isExtensionMethod = isExtensionMethod,
     ),
     PsiCallableItem {
 
     override var property: PropertyItem? = null
-
-    override fun isExtensionMethod(): Boolean {
-        return (psiMethod as? UMethod)?.sourcePsi?.isExtensionDeclaration() ?: false
-    }
 
     override fun isKotlinProperty(): Boolean {
         return psiMethod is UMethod &&
@@ -131,6 +129,7 @@ internal class PsiMethodItem(
                 throwsTypes(),
                 defaultValueProvider,
                 targetLanguages,
+                isExtensionMethod = isExtensionMethod(),
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -229,6 +228,10 @@ internal class PsiMethodItem(
 
             val defaultValueProvider = psiMethod.defaultValueProvider(codebase, returnType)
 
+            // Use psi util which works for source kt elements to determine if this is an extension
+            val isExtensionMethod =
+                (psiMethod as? UMethod)?.sourcePsi?.isExtensionDeclaration() ?: false
+
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -251,6 +254,7 @@ internal class PsiMethodItem(
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                     defaultValueProvider = defaultValueProvider,
                     targetLanguages = targetLanguages,
+                    isExtensionMethod = isExtensionMethod
                 )
 
             return method

@@ -62,10 +62,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
-com.android.tools.metalava.model.testsuite.methoditem.CommonSuspendMethodTest
-  Test extension suspend method[psi,kotlin,k1]
-  Test extension suspend method[psi,kotlin,k2]
-
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[psi,java,k1]
   Test @hide in package html[psi,java,k2]
