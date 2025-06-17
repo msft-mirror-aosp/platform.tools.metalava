@@ -54,6 +54,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.name
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtFile
@@ -119,10 +120,21 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                 // The combined declared member scope contains both static and non-static members.
                 val memberScope = classifierSymbol.combinedDeclaredMemberScope
                 for (callableSymbol in memberScope.callables) {
-                    processCallable(callableSymbol, classItem, classTypeItemFactory)
+                    // K1 includes delegate symbols in the combinedDeclaredMemberScope, K2 does not.
+                    // Don't add delegate symbols here because they're processed from the
+                    // delegatedMemberScope below, and they shouldn't be duplicated for K1.
+                    if (callableSymbol.origin != KaSymbolOrigin.DELEGATED) {
+                        processCallable(callableSymbol, classItem, classTypeItemFactory)
+                    }
                 }
                 for (nestedClassifierSymbol in memberScope.classifiers) {
                     processClassifier(nestedClassifierSymbol)
+                }
+
+                // Process callables defined through a delegate
+                val delegateScope = classifierSymbol.delegatedMemberScope
+                for (callableSymbol in delegateScope.callables) {
+                    processCallable(callableSymbol, classItem, classTypeItemFactory)
                 }
             }
             is KaTypeAliasSymbol,
