@@ -244,6 +244,8 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 // Extension methods and inline functions aren't really useful from Java anyway
                 !method.isExtensionMethod() &&
                 !method.modifiers.isInline() &&
+                // Suspend methods are also difficult to use from Java
+                !method.modifiers.isSuspend() &&
                 // Methods marked @JvmSynthetic are hidden from java, overloads not useful
                 !method.modifiers.hasJvmSyntheticAnnotation()
         ) {

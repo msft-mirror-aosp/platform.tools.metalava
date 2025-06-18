@@ -40,10 +40,10 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UMethod
@@ -89,14 +89,7 @@ internal class PsiMethodItem(
     override var property: PropertyItem? = null
 
     override fun isExtensionMethod(): Boolean {
-        if (isKotlin()) {
-            val ktParameters =
-                ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
-                    ?: return false
-            return ktParameters.size < parameters().size
-        }
-
-        return false
+        return (psiMethod as? UMethod)?.sourcePsi?.isExtensionDeclaration() ?: false
     }
 
     override fun isKotlinProperty(): Boolean {

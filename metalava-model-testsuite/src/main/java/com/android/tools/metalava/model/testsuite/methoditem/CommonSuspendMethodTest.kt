@@ -183,8 +183,7 @@ class CommonSuspendMethodTest : BaseModelTest() {
 
             val regularFun = fooClass.assertMethod("regularFun", "kotlin.coroutines.Continuation")
             assertThat(regularFun.modifiers.isSuspend()).isTrue()
-            // TODO: this is incorrectly considered an extension method
-            assertThat(regularFun.isExtensionMethod()).isTrue()
+            assertThat(regularFun.isExtensionMethod()).isFalse()
 
             val extensionFun =
                 fooClass.assertMethod(

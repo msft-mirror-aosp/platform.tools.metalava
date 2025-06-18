@@ -1506,10 +1506,8 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             expectedIssues =
-                // TODO: error is only on badCallExtension, and is missing for badCall because the
-                // suspend fun is accidentally considered an extension, so the first parameter is
-                // assumed to be the receiver
                 """
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
                 src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
                 """,
             expectedFail = DefaultLintErrorMessage,
