@@ -1500,6 +1500,37 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check context first for suspend fun`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                // TODO: error is only on badCallExtension, and is missing for badCall because the
+                // suspend fun is accidentally considered an extension, so the first parameter is
+                // assumed to be the receiver
+                """
+                src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package android.pkg
+                    import android.content.Context
+
+                    suspend fun okCall(context: Context, value: Int) {}
+                    suspend fun badCall(value: Int, context: Context) {}
+
+                    suspend fun String.okCallExtension(context: Context, value: Int) {}
+                    suspend fun String.badCallExtension(value: Int, context: Context) {}
+                    """
+                    ),
+                )
+        )
+    }
+
     @Test
     fun `Check listener last`() {
         check(
