@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -66,7 +67,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
     }
 
     private fun ensureExceptionsDocumented(method: MethodItem) {
-        if (!method.isKotlin()) {
+        if (!method.isKotlin() || method.body == CallableBody.UNAVAILABLE) {
             return
         }
 
