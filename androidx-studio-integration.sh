@@ -14,14 +14,24 @@ mkdir -p "$DIST_DIR"
 export OUT_DIR=out
 export DIST_DIR="$DIST_DIR"
 
-JAVA_HOME="$(pwd)/prebuilts/studio/jdk/jdk11/linux" tools/gradlew -p tools/ publishLocal --stacktrace
+plat="linux"
+case "`uname`" in
+  Darwin* )
+    plat="darwin"
+    ;;
+esac
+export ANDROID_HOME="$(pwd)/prebuilts/fullsdk-$plat"
 
-export LINT_VERSION=`grep -oP "(?<=baseVersion = ).*" tools/buildSrc/base/version.properties`
+JAVA_HOME="$(pwd)/prebuilts/studio/jdk/jbr-next/linux" tools/gradlew -p tools/ publishLocal --stacktrace
+
+# Depend on the generated version.properties file, as the version depends on
+# the release flag
+versionProperties="$OUT_DIR/build/base/builder-model/build/resources/main/com/android/builder/model/version.properties"
+# Mac grep doesn't support -P, so use perl version of `grep -oP "(?<=buildVersion = ).*"`
+export LINT_VERSION=`perl -nle'print $& while m{(?<=baseVersion=).*}g' $versionProperties`
 export LINT_REPO="$(pwd)/out/repo"
 
-tools/gradlew -p tools/metalava \
+JAVA_HOME="$(pwd)/prebuilts/jdk/jdk21/linux-x86/" tools/gradlew -p tools/metalava \
   --no-daemon \
   --stacktrace \
-   --dependency-verification=off \
-  -PlintRepo=$LINT_REPO \
-  -PlintVersion=$LINT_VERSION
+   --dependency-verification=off
