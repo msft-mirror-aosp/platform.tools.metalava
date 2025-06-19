@@ -85,9 +85,6 @@ sealed interface AnnotationFormatter {
                 },
                 inlineFieldReferenceChecker = ::inlineInaccessibleFieldReference,
                 singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
-                // TODO(b/354633349): Currently replicates legacy behavior, will be switched to
-                //   sort as that will make the stub files more stable.
-                sortAnnotationAttributes = false,
             )
 
         /**
