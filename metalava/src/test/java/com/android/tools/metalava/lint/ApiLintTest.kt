@@ -1263,18 +1263,18 @@ class ApiLintTest : DriverTest() {
 
                     public class OverlappingFlags {
                         private OverlappingFlags() { }
-                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128; // 0x80
-                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1; // 0x1
-                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2; // 0x2
-                        public static final int DRAG_FLAG_OPAQUE = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4; // 0x4
-                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2; // 0x2
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048; // 0x800
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096; // 0x1000
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024; // 0x400
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256; // 0x100
-                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16; // 0x10
+                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128;
+                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1;
+                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2;
+                        public static final int DRAG_FLAG_OPAQUE = 512;
+                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4;
+                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256;
+                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16;
 
                         public static final int TEST1_FLAG_FIRST = 1;
                         public static final int TEST1_FLAG_SECOND = 3;

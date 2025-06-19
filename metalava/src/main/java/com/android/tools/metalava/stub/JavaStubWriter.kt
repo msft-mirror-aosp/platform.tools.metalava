@@ -33,8 +33,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.javaEscapeString
-import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 internal class JavaStubWriter(
@@ -376,104 +374,32 @@ internal class JavaStubWriter(
         writer: PrintWriter,
     ): Boolean {
         // Use [constantValue] which is only non-null on static final fields.
-        when (val value = constantValue?.asAny()) {
-            is Int -> {
-                writer.print(" = ")
-                writer.print(value)
-                writer.print("; // 0x")
-                writer.print(Integer.toHexString(value))
-            }
-            is String -> {
-                writer.print(" = ")
-                writer.print('"')
-                writer.print(javaEscapeString(value))
-                writer.print('"')
-                writer.print(";")
-            }
-            is Long -> {
-                writer.print(" = ")
-                writer.print(value)
-                writer.print(String.format("L; // 0x%xL", value))
-            }
-            is Boolean -> {
-                writer.print(" = ")
-                writer.print(value)
-                writer.print(";")
-            }
-            is Byte -> {
-                writer.print(" = ")
-                writer.print(value)
-                writer.print("; // 0x")
-                writer.print(Integer.toHexString(value.toInt()))
-            }
-            is Short -> {
-                writer.print(" = ")
-                writer.print(value)
-                writer.print("; // 0x")
-                writer.print(Integer.toHexString(value.toInt()))
-            }
-            is Float -> {
-                writer.print(" = ")
-                when {
-                    value == Float.POSITIVE_INFINITY -> writer.print("(1.0f/0.0f);")
-                    value == Float.NEGATIVE_INFINITY -> writer.print("(-1.0f/0.0f);")
-                    java.lang.Float.isNaN(value) -> writer.print("(0.0f/0.0f);")
-                    // Force MIN_NORMAL to use the String representation created by
-                    // java.lang.Float.toString() before the bug fix in JDK 19  - see
-                    // https://inside.java/2022/09/23/quality-heads-up/ for details.
-                    value == java.lang.Float.MIN_NORMAL -> writer.format("1.17549435E-38f;", value)
-                    else -> {
-                        writer.print(value.toString())
-                        writer.print("f;")
-                    }
-                }
-            }
-            is Double -> {
-                writer.print(" = ")
-                when {
-                    value == Double.POSITIVE_INFINITY -> writer.print("(1.0/0.0);")
-                    value == Double.NEGATIVE_INFINITY -> writer.print("(-1.0/0.0);")
-                    java.lang.Double.isNaN(value) -> writer.print("(0.0/0.0);")
-                    else -> {
-                        writer.print(value.toString())
-                        writer.print(";")
-                    }
-                }
-            }
-            is Char -> {
-                writer.print(" = ")
-                val intValue = value.code
-                writer.print(intValue)
-                writer.print("; // ")
-                writer.print(
-                    String.format("0x%04x '%s'", intValue, javaEscapeString(value.toString()))
-                )
-            }
-            else -> {
-                // A non-constant expression initializer is only needed if the field is static and
-                // final. If it was just final and not static then it must be part of a normal class
-                // or an enum in which case they will use a separate initializer block to initialize
-                // the field.
-                if (modifiers.isFinal() && modifiers.isStatic()) {
-                    // Get the non-constant expression, if possible. If one is provided then write
-                    // it out.
-                    nonConstantExpressionProvider(this)?.let { nonConstantExpression ->
-                        writer.print(" = ")
-                        writer.print(nonConstantExpression)
-                        writer.print("; // Not compile-time constant")
-                        // A value was written.
-                        return true
-                    }
-                }
+        val constantValue = constantValue
+        if (constantValue != null) {
+            writer.print(" = ")
+            writer.print(constantValue.toValueString())
+            writer.print(";")
+            // A value was written.
+            return true
+        }
 
-                writer.print(';')
-                // A value was not written.
-                return false
+        // A non-constant expression initializer is only needed if the field is static and final. If
+        // it was just final and not static then it must be part of a normal class or an enum in
+        // which case they will use a separate initializer block to initialize the field.
+        if (modifiers.isFinal() && modifiers.isStatic()) {
+            // Get the non-constant expression, if possible. If one is provided then write it out.
+            nonConstantExpressionProvider(this)?.let { nonConstantExpression ->
+                writer.print(" = ")
+                writer.print(nonConstantExpression)
+                writer.print(";")
+                // A value was written.
+                return true
             }
         }
 
-        // A value was written.
-        return true
+        writer.print(';')
+        // A value was not written.
+        return false
     }
 
     private fun writeThrowStub() {
