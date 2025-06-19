@@ -16,7 +16,11 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.AnnotationAttributeNameValueSeparator
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.LegacyValueFormatter
+import com.android.tools.metalava.model.value.SingleArrayElementFormat
+import com.android.tools.metalava.model.value.ValueStringConfiguration
 import java.lang.StringBuilder
 
 /** Formats [AnnotationItem]s. */
@@ -40,6 +44,16 @@ sealed interface AnnotationFormatter {
             target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
         ): AnnotationFormatter =
             LegacyAnnotationFormatter(LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER, target)
+
+        /** An [AnnotationFormatter] for use when writing stubs for [target]. */
+        fun stubFormatter(target: AnnotationTarget): AnnotationFormatter = StubFormatter(target)
+
+        /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
+        private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
+
+        /** Inline [value] if it references an inaccessible field. */
+        private fun inlineInaccessibleFieldReference(value: FieldReferenceValue) =
+            !value.resolve().isAccessible()
     }
 
     /** An [AnnotationFormatter] that wraps a [LegacyValueFormatter]. */
@@ -53,6 +67,51 @@ sealed interface AnnotationFormatter {
             context: Item?
         ) {
             legacyValueFormatter.appendFormatAnnotation(builder, annotationItem, target, context)
+        }
+    }
+
+    /** [AnnotationFormatter] for use in stub files. */
+    private class StubFormatter(val target: AnnotationTarget) : AnnotationFormatter {
+        /** The default [ValueStringConfiguration] for stub files for [target]. */
+        private val defaultConfiguration =
+            ValueStringConfiguration(
+                annotationAttributeNameValueSeparator =
+                    AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+                annotationQualifiedNameGetter = { annotationItem ->
+                    annotationItem.annotationContext.annotationManager.normalizeOutputName(
+                        annotationItem.qualifiedName,
+                        target
+                    )
+                },
+                inlineFieldReferenceChecker = ::inlineInaccessibleFieldReference,
+                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                // TODO(b/354633349): Currently replicates legacy behavior, will be switched to
+                //   sort as that will make the stub files more stable.
+                sortAnnotationAttributes = false,
+            )
+
+        /**
+         * The [ValueStringConfiguration] for stub files for [target] when the annotation's values
+         * should always be inlined, e.g. [ANDROID_FLAGGED_API].
+         */
+        private val alwaysInlineConfiguration =
+            defaultConfiguration.copy(
+                inlineFieldReferenceChecker = { true },
+            )
+
+        override fun appendFormatAnnotation(
+            builder: StringBuilder,
+            annotationItem: AnnotationItem,
+            context: Item?
+        ) {
+            val alwaysInline = annotationItem.qualifiedName == ANDROID_FLAGGED_API
+            val configuration =
+                if (alwaysInline) alwaysInlineConfiguration else defaultConfiguration
+            annotationItem.appendAnnotationStringTo(
+                builder,
+                configuration,
+                annotationIsValue = false,
+            )
         }
     }
 }
