@@ -130,5 +130,8 @@ interface ParameterItem : ClassContentItem, Item {
 
     override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
 
+    override val targetLanguages: Set<TargetLanguage>
+        get() = containingCallable().targetLanguages
+
     // TODO: modifier list
 }
