@@ -16,12 +16,19 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.value.annotationItem
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -243,9 +250,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         }
                     """
                 ),
-                java("""
+                java(
+                    """
                         package test;
-                     """),
+                    """
+                ),
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
@@ -469,31 +478,42 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(3, customAnno1.attributes.count())
             assertEquals(false, customAnno1.isRetention())
-            assertEquals(
-                true,
-                listOf("child1", "child2").toTypedArray() contentEquals
-                    custAnno1Attr1.value.value() as Array<*>
-            )
-            assertEquals(5, custAnno1Attr2.value.value())
-            assertEquals("test.SimpleClass", custAnno1Attr3.value.value())
+            assertEquals(arrayValueFromAny("child1", "child2"), custAnno1Attr1.value)
+            assertEquals(5, custAnno1Attr2.value.asInt())
+            assertEquals(classObjectValue(classTypeItem("test.SimpleClass")), custAnno1Attr3.value)
             assertEquals(annoClassItem1, customAnno1.resolve())
             assertEquals(true, retAnno.isRetention())
-            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.getRetention())
+            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.annotationClass.retention)
 
             assertEquals(annoClassItem2, customAnno2.resolve())
-            assertEquals(12, custAnno2Attr1.value.value())
+            assertEquals(12, custAnno2Attr1.value.asInt())
 
-            assertEquals("@test.Nullable", nullAnno.toSource())
+            assertEquals(annotationItem("test.Nullable"), nullAnno)
 
             assertEquals(
-                "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)",
-                retAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Retention",
+                    ANNOTATION_ATTR_VALUE to
+                        fieldReferenceValue("java.lang.annotation.RetentionPolicy", "RUNTIME"),
+                ),
+                retAnno
             )
             assertEquals(
-                "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
-                tarAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Target",
+                    ANNOTATION_ATTR_VALUE to
+                        arrayValue(
+                            fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                        ),
+                ),
+                tarAnno
             )
-            assertEquals(true, tarAnnoAttr1.value is DefaultAnnotationSingleAttributeValue)
+            assertEquals(
+                arrayValue(
+                    fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                ),
+                tarAnnoAttr1.value
+            )
         }
     }
 

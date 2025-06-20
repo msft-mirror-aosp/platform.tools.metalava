@@ -29,6 +29,7 @@ import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
+import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
@@ -156,8 +157,8 @@ internal fun processFlags(
         options.useK2Uast?.let { useK2Uast ->
             ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
         }
-        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
+            // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+            ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
                 // Make sure that the [options.useK2Uast] matches the test environment.
                 options.useK2Uast = this[PsiModelOptions.useK2Uast]
             }
@@ -540,8 +541,7 @@ private fun ActionContext.checkCompatibility(
         val compatibilityCheckCanBeSkipped =
             check.lastSignatureFile?.let { signatureFile ->
                 compareFileContents(apiFile, signatureFile)
-            }
-                ?: false
+            } ?: false
         // TODO(b/301282006): Remove global variable use when this can be tested properly
         fastPathCheckResult = compatibilityCheckCanBeSkipped
         if (compatibilityCheckCanBeSkipped) return
@@ -552,8 +552,12 @@ private fun ActionContext.checkCompatibility(
             signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
         }
 
-    // If configured, compares the new API with the previous API and reports
-    // any incompatibilities.
+    val apiName =
+        if (apiType == ApiType.REMOVED) {
+            "removed"
+        } else options.apiSelectionOptions.apiSurface
+
+    // If configured, compares the new API with the previous API and reports any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
         oldCodebase,
@@ -561,6 +565,7 @@ private fun ActionContext.checkCompatibility(
         reporter,
         options.issueConfiguration,
         options.apiCompatAnnotations,
+        apiName,
     )
 }
 
@@ -650,6 +655,7 @@ private fun ActionContext.loadFromSources(
             classPath = options.classpath,
             apiPackages = options.apiPackages,
             projectDescription = options.projectDescription,
+            compiledSourceJar = options.compiledSourceJar
         )
 
     progressTracker.progress("Analyzing API: ")
@@ -917,6 +923,7 @@ private fun createMetalavaCommand(
     command.subcommands(
         MainCommand(command.commonOptions, executionEnvironment),
         AndroidJarsToSignaturesCommand(),
+        FlagReportCommand(),
         HelpCommand(),
         JarToJDiffCommand(),
         MakeAnnotationsPackagePrivateCommand(),

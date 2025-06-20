@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,22 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.FieldValue
+/** The source language an [Item] was written in. This is distinct from the [TargetLanguage]s. */
+enum class SourceLanguage {
+    KOTLIN,
+    JAVA,
+    UNKNOWN {
+        override fun isJava(): Boolean {
+            error("unknown language type")
+        }
 
-/** Provides access to the initial values of a field. */
-class FixedFieldValue(
-    private var initialValueWithRequiredConstant: Any?,
-    private var initialValueWithoutRequiredConstant: Any? = initialValueWithRequiredConstant,
-) : FieldValue {
+        override fun isKotlin(): Boolean {
+            error("unknown language type")
+        }
+    },
+    ;
 
-    override fun initialValue(requireConstant: Boolean) =
-        if (requireConstant) initialValueWithRequiredConstant
-        else initialValueWithoutRequiredConstant
+    open fun isJava() = this == JAVA
 
-    override fun snapshot() = this
+    open fun isKotlin() = this == KOTLIN
 }

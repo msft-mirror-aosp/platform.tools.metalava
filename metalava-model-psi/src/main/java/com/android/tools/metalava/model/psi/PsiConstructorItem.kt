@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -55,12 +57,14 @@ private constructor(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     implicitConstructor: Boolean = false,
-    isPrimary: Boolean = false
+    isPrimary: Boolean = false,
+    targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultConstructorItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = psiMethod.itemLanguage,
+        sourceLanguage = psiMethod.sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -83,6 +87,7 @@ private constructor(
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+            targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
@@ -132,6 +137,7 @@ private constructor(
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
+                    targetLanguages = targetLanguages,
                 )
 
             // Undo setting of constructors with value class types to private (b/395472914).
@@ -189,6 +195,7 @@ private constructor(
                     typeParameterList = TypeParameterList.NONE,
                     throwsTypes = emptyList(),
                     implicitConstructor = true,
+                    targetLanguages = TargetLanguageSet.ALL,
                 )
             return item
         }

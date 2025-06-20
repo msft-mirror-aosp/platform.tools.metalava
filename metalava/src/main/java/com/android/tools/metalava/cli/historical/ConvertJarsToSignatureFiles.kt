@@ -28,10 +28,10 @@ import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -153,7 +153,7 @@ class ConvertJarsToSignatureFiles(
                             if (annotation.isNullable()) ANDROIDX_NULLABLE else ANDROIDX_NONNULL
 
                         val replacementAnnotation =
-                            new.codebase.createAnnotation("@$annotationClass", new)
+                            AnnotationItem.createMarkerAnnotation(new.codebase, annotationClass)
                         new.mutateModifiers {
                             mutateAnnotations {
                                 remove(annotation)
@@ -317,14 +317,7 @@ class ConvertJarsToSignatureFiles(
             mutateModifiers {
                 setDeprecated(true)
                 // Add a Deprecated annotation to be consistent with model providers.
-                addAnnotation(
-                    DefaultAnnotationItem.create(
-                        codebase,
-                        JAVA_LANG_DEPRECATED,
-                        emptyList(),
-                        context = this@deprecateIfRequired
-                    )
-                )
+                addAnnotation(AnnotationItem.createMarkerAnnotation(codebase, JAVA_LANG_DEPRECATED))
             }
             progressTracker.progress("Turned deprecation on for $this from $source")
         }

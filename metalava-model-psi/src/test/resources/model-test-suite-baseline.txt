@@ -6,9 +6,14 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[java,k1]
   modifiers public explicitly final method in final class[java,k2]
 
-com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with enum values[java,k1]
-  annotation with enum values[java,k2]
+com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test type aliases can only be used from Kotlin[kotlin,k1]
+
+com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
+  Test data class copy method visibility with ConsistentCopyVisibility[kotlin,k1]
+
+com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
+  Value class extension properties[kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.typealiasitem.CommonTypeAliasItemTest
   accessing type alias from codebase[kotlin,k1]
@@ -39,3 +44,13 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[java,k1,null annotated parameterized inner type - kotlin nulls]
   Type string[java,k2,null annotated parameterized inner type - annotated]
   Type string[java,k2,null annotated parameterized inner type - kotlin nulls]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[kotlin,k1,source,null - intermediate non-constant expression]
+  testFieldValue[kotlin,k2,source,null - intermediate non-constant expression]
+  testFieldValue[kotlin,k2,source,unsigned int - expression]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[kotlin,k1,source,null - intermediate non-constant expression]
+  testLegacySource[kotlin,k2,source,null - intermediate non-constant expression]
+  testLegacySource[kotlin,k2,source,unsigned int - expression]

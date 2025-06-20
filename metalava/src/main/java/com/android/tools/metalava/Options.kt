@@ -203,6 +203,7 @@ class Options(
     /** Writer to direct output to. */
     val stdout: PrintWriter
         get() = executionEnvironment.stdout
+
     /** Writer to direct error messages to. */
     val stderr: PrintWriter
         get() = executionEnvironment.stderr
@@ -301,6 +302,9 @@ class Options(
     /** Lint project description that describes project's module structure in details */
     var projectDescription: File? = null
 
+    /** Jar file with the compiled version of the sources from [sources]/[sourcePath]. */
+    val compiledSourceJar: File? by sourceOptions::compiledSourceJar
+
     val apiClassResolution by
         enumOption(
             help =
@@ -343,8 +347,7 @@ class Options(
                     (reportable as? Item)?.let { item ->
                         val pkg = (item as? PackageItem) ?: item.containingPackage()
                         pkg == null || packageFilter.matches(pkg)
-                    }
-                        ?: true
+                    } ?: true
                 }
             }
         }
@@ -366,15 +369,17 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                previouslyReleasedCodebaseProvider = {
+                    previouslyReleasedApi?.load { signatureFileCache.load(it) }
+                },
                 apiFlags = ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags),
             )
         )
     }
 
     /** Make this available for testing purposes. */
-    internal val previouslyReleasedCodebase
-        get() = compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
+    internal val previouslyReleasedApi
+        get() = compatibilityCheckOptions.previouslyReleasedApi
 
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {
