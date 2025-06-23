@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.MutableModifierList
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
@@ -60,8 +59,6 @@ internal constructor(
         defaultValueFactory = defaultValueFactory,
     ),
     PsiItem {
-
-    override var property: PropertyItem? = null
 
     override fun psi() = psiParameter
 
