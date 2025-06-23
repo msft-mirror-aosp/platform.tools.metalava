@@ -234,8 +234,9 @@ class CommonTargetLanguageTest : BaseModelTest() {
                     "equals"
                 )
 
-            // TODO(b/407735992): constructor itself should be Kotlin only
-            intValue.assertConstructor("int")
+            // Value class constructor can only be used from kotlin
+            val ctor = intValue.assertConstructor("int")
+            assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
         }
     }
 
@@ -832,8 +833,9 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(ctorImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(ctorImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
 
-            // TODO(b/407735992): constructor itself should be Kotlin only
-            intValue.assertConstructor("int")
+            // Value class constructor can only be used from kotlin
+            val ctor = intValue.assertConstructor("int")
+            assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
         }
     }
 
@@ -1274,6 +1276,67 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val setter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
             assertThat(setter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(setter.annotationNames()).contains("kotlin.PublishedApi")
+        }
+    }
+
+    @Test
+    fun `Test annotation constructor is kotlin only`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                annotation class Anno(val value: Int)
+                """
+            )
+        ) {
+            val anno = codebase.assertClass("test.pkg.Anno")
+            assertThat(anno.isAnnotationType()).isTrue()
+            val ctor = anno.assertConstructor("int")
+            assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+        }
+    }
+
+    @Test
+    fun `Test deprecation level hidden constructor is bytecode only`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo
+                        @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
+                        constructor(i: Int)
+                    """
+                )
+            ),
+            compiledSourceJar =
+                // Compiled from the source above with [generateBase64gzipFromKotlin]
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfHBnjnX3YQ+Jcme3slZ+9jJ89Tv+8WHcg82jmd" +
+                        "pYXLe6FHQ9HJTOH1h8z6YlPNBY//EfvHqK7Cp/HoRL9Tz1ln0Uvv3tTcP2Nu" +
+                        "bWxfV/eX7QHjOyGpMEnp+T7qHxMDfyg4VehMNzqXYtd5v6fv6o1fBRz3kudm" +
+                        "/54ScNv3G1vL2n9bNsw893ie1czVG7do1bp8SD8lYRnYovD3uPAdH91Qtxd/" +
+                        "9C+53tN31vkap7r33mnlps27zTMOHL3JYJrzqf1bs1nL2X8v/SIdZuU7ZfzV" +
+                        "/RUVOdNL21ItzbtdfcmlnClsc6xT/y3WC5y+t2S+wPrwRIVbSgIPq0Q/CCbO" +
+                        "nf+tqlRh15c9kd+V9UWsF72u+f+kc0PYKb4VOs8K+b8vn7a7OnCJTd7m9cWl" +
+                        "W2b0XvmzVyb1jMvfJJ3NjXNeC/1XbL63cm3JPb2i1elZC3qfvdhso5+zVWie" +
+                        "WUW4zrPk0hXGrbUc91xMXU7sbmFnvy5p+9COZf+7vfoZdWnuD9huL1Dy9uQ1" +
+                        "v3n739wWgbWrOro5onX2hi68XaPsZpd+lddMQGOOY/PFuatObdV6rJg+J/np" +
+                        "T8U5LLc59VQyFh/WKxOKObJU8cQDo3U8D6W28KyTcpn6tY4RFPl/d+5duZeR" +
+                        "gSGXCV/kSwMxPO3lJmbm6WXnl+Rk5sXn5qeU5qQmJyQkpAExS5Ifm0ZA0oUk" +
+                        "BnDC+qq0Z68wUKcEOGExMokwIExHTnSglI0KcKVzdFOQXS+EYkI91uSKrh/Z" +
+                        "hdIo+muY8Po4wJuVDaSMGQjPA+kbTCAeADcz4wS9AwAA"
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val ctor = fooClass.assertConstructor("int")
+            assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
         }
     }
 }
