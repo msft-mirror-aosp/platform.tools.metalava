@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiCallableItem
 import com.android.tools.metalava.model.psi.PsiConstructorItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.psi.PsiTypeItemFactory
 import com.android.tools.metalava.model.psi.psiParameters
 import com.android.tools.metalava.model.value.IntValue
 import com.android.tools.metalava.model.value.StringValue
@@ -205,94 +206,111 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     ) {
         val classTypeItemFactory = codebase.globalTypeItemFactory.from(classItem)
         for (psiMethod in psiClass.methods) {
-            // Skip processing certain methods based on name.
-            if (skipTracking(psiMethod.name)) continue
-            // Only process visible APIs. Internal APIs will have the public modifier, which can
-            // be corrected later using the Kotlin metadata.
-            if (
-                !psiMethod.modifierList.hasModifierProperty(PsiModifier.PUBLIC) &&
-                    !psiMethod.modifierList.hasModifierProperty(PsiModifier.PROTECTED)
+            addMethodToClass(
+                psiMethod,
+                psiClass,
+                classItem,
+                metadataContainer,
+                classTypeItemFactory,
             )
-                continue
+        }
+    }
 
-            // Skip tracking constructors with the kotlin DefaultConstructorMarker. Every Kotlin
-            // source class gets a constructor like this generated from the default constructor.
-            // TODO(b/417740481): decide if it is ever worth tracking these
-            if (
-                psiMethod.isConstructor &&
-                    psiMethod.psiParameters.any {
-                        it.type.canonicalText == "kotlin.jvm.internal.DefaultConstructorMarker"
-                    }
-            )
-                continue
+    /**
+     * If a method matching the [psiMethod] is not already present, adds a new [MethodItem]
+     * generated from it to the [classItem].
+     */
+    private fun addMethodToClass(
+        psiMethod: PsiMethod,
+        psiClass: PsiClass,
+        classItem: DefaultClassItem,
+        metadataContainer: KmDeclarationContainer,
+        classTypeItemFactory: PsiTypeItemFactory,
+    ) {
+        // Skip processing certain methods based on name.
+        if (skipTracking(psiMethod.name)) return
+        // Only process visible APIs. Internal APIs will have the public modifier, which can
+        // be corrected later using the Kotlin metadata.
+        if (
+            !psiMethod.modifierList.hasModifierProperty(PsiModifier.PUBLIC) &&
+                !psiMethod.modifierList.hasModifierProperty(PsiModifier.PROTECTED)
+        )
+            return
 
-            // Don't re-add methods which are already present: find the items which might have
-            // the same signature of this one, to compare by erased signature.
-            val potentialMatches =
-                erasedSignaturesOfPotentialMatchingCallables(psiMethod, classItem)
-            // Right now, it would be complicated to get the real erased signature of the item
-            // because that involves replacing variable types with their bounds. Get an
-            // approximation by just dropping type arguments, to enable exiting early before
-            // creating a codebase item if there's a definite match.
-            // It would be nice to use the ClassUtil.getAsmMethodSignature helper here, but it
-            // drops type variables completely.
-            val semiErasedSignature =
-                psiMethod.psiParameters.joinToString { it.type.canonicalText.dropTypeArguments() }
-            // Check if there's a signature match (technically, it would be possible to find a
-            // false match here if a type variable that is in semiErasedSignature had the same
-            // name as a primitive type used in one of the potential matches, but that shouldn't
-            // be allowed).
-            if (potentialMatches.any { it == semiErasedSignature }) {
-                continue
-            }
+        // Skip tracking constructors with the kotlin DefaultConstructorMarker. Every Kotlin
+        // source class gets a constructor like this generated from the default constructor.
+        // TODO(b/417740481): decide if it is ever worth tracking these
+        if (
+            psiMethod.isConstructor &&
+                psiMethod.psiParameters.any {
+                    it.type.canonicalText == "kotlin.jvm.internal.DefaultConstructorMarker"
+                }
+        )
+            return
 
-            // Create the item.
-            val callableItem =
-                if (psiMethod.isConstructor) {
-                    PsiConstructorItem.create(
+        // Don't re-add methods which are already present: find the items which might have
+        // the same signature of this one, to compare by erased signature.
+        val potentialMatches = erasedSignaturesOfPotentialMatchingCallables(psiMethod, classItem)
+        // Right now, it would be complicated to get the real erased signature of the item
+        // because that involves replacing variable types with their bounds. Get an
+        // approximation by just dropping type arguments, to enable exiting early before
+        // creating a codebase item if there's a definite match.
+        // It would be nice to use the ClassUtil.getAsmMethodSignature helper here, but it
+        // drops type variables completely.
+        val semiErasedSignature =
+            psiMethod.psiParameters.joinToString { it.type.canonicalText.dropTypeArguments() }
+        // Check if there's a signature match (technically, it would be possible to find a
+        // false match here if a type variable that is in semiErasedSignature had the same
+        // name as a primitive type used in one of the potential matches, but that shouldn't
+        // be allowed).
+        if (potentialMatches.any { it == semiErasedSignature }) return
+
+        // Create the item.
+        val callableItem =
+            if (psiMethod.isConstructor) {
+                PsiConstructorItem.create(
+                    codebase,
+                    classItem,
+                    psiMethod,
+                    classTypeItemFactory,
+                    targetLanguages = TargetLanguageSet.BYTECODE_ONLY,
+                )
+            } else {
+                PsiMethodItem.create(
                         codebase,
                         classItem,
                         psiMethod,
                         classTypeItemFactory,
                         targetLanguages = TargetLanguageSet.BYTECODE_ONLY,
                     )
-                } else {
-                    PsiMethodItem.create(
-                            codebase,
-                            classItem,
-                            psiMethod,
-                            classTypeItemFactory,
-                            targetLanguages = TargetLanguageSet.BYTECODE_ONLY,
-                        )
-                        .takeUnless {
-                            // Skip enum synthetic methods since we don't track those.
-                            it.isEnumSyntheticMethod()
-                        }
-                } ?: continue
+                    .takeUnless {
+                        // Skip enum synthetic methods since we don't track those.
+                        it.isEnumSyntheticMethod()
+                    }
+            } ?: return
 
-            // Double check that there isn't already a callable with the same signature. The
-            // previous check didn't replace variable types with their bounds, so now that it is
-            // easy to do that, make sure there isn't a matching signature.
-            if (potentialMatches.isNotEmpty()) {
-                val erasedSignature =
-                    callableItem.parameters().joinToString { it.type().toErasedTypeString() }
-                if (
-                    erasedSignature != semiErasedSignature &&
-                        potentialMatches.any { it == erasedSignature }
-                )
-                    continue
-            }
+        // Double check that there isn't already a callable with the same signature. The
+        // previous check didn't replace variable types with their bounds, so now that it is
+        // easy to do that, make sure there isn't a matching signature.
+        if (potentialMatches.isNotEmpty()) {
+            val erasedSignature =
+                callableItem.parameters().joinToString { it.type().toErasedTypeString() }
+            if (
+                erasedSignature != semiErasedSignature &&
+                    potentialMatches.any { it == erasedSignature }
+            )
+                return
+        }
 
-            // Update the visibility of the item based on metadata, if needed.
-            if (callableItem.isInternal(metadataContainer, psiClass)) {
-                callableItem.mutateModifiers { setVisibilityLevel(VisibilityLevel.INTERNAL) }
-            }
+        // Update the visibility of the item based on metadata, if needed.
+        if (callableItem.isInternal(metadataContainer, psiClass)) {
+            callableItem.mutateModifiers { setVisibilityLevel(VisibilityLevel.INTERNAL) }
+        }
 
-            // Add the constructed callable.
-            when (callableItem) {
-                is ConstructorItem -> classItem.addConstructor(callableItem)
-                is MethodItem -> classItem.addMethod(callableItem)
-            }
+        // Add the constructed callable.
+        when (callableItem) {
+            is ConstructorItem -> classItem.addConstructor(callableItem)
+            is MethodItem -> classItem.addMethod(callableItem)
         }
     }
 
