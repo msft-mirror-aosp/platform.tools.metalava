@@ -495,21 +495,13 @@ internal class PsiCodebaseAssembler(
         }
     }
 
+    /**
+     * Whether a no-args constructor should be generated for this class. For Kotlin source classes,
+     * the psi will include the implicit no-args constructor if it exists, so this is only needed
+     * for Java source classes.
+     */
     private fun hasImplicitDefaultConstructor(classItem: PsiClassItem): Boolean {
-        if (classItem.simpleName().startsWith("-")) {
-            // Deliberately hidden; see examples like
-            //     @file:JvmName("-ViewModelExtensions") // Hide from Java sources in the IDE.
-            return false
-        }
-
-        val psiClass = classItem.psiClass
-        if (psiClass is UClass && psiClass.sourcePsi == null) {
-            // Top level kt classes (FooKt for Foo.kt) do not have implicit default constructor
-            return false
-        }
-
-        val constructors = classItem.constructors()
-        return constructors.isEmpty() && classItem.isClass()
+        return classItem.isJava() && classItem.constructors().isEmpty() && classItem.isClass()
     }
 
     /**

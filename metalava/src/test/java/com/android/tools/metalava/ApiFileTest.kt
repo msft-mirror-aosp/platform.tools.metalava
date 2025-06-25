@@ -4532,7 +4532,6 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp();
                     method public void doSomething();
                     method public float getValue();
                     method public inline operator float minus(float other);
