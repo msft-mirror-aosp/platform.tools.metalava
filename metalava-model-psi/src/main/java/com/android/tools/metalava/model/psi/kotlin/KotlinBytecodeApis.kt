@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -46,6 +47,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import kotlin.metadata.KmClass
+import kotlin.metadata.KmConstructor
 import kotlin.metadata.KmDeclarationContainer
 import kotlin.metadata.KmProperty
 import kotlin.metadata.Visibility
@@ -205,13 +207,41 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         metadataContainer: KmDeclarationContainer,
     ) {
         val classTypeItemFactory = codebase.globalTypeItemFactory.from(classItem)
-        for (psiMethod in psiClass.methods) {
+        // Kotlin source constructors get a constructor generated in the bytecode with
+        // `kotlin.jvm.internal.DefaultConstructorMarker` as the final parameter. It only needs to
+        // be tracked when there isn't already a matching constructor not including the
+        // DefaultConstructorMarker parameter (e.g. if a constructor uses a value class type, the
+        // constructor with DefaultConstructorMarker is the only version that will be tracked for
+        // binary compatibility), so the other methods should be added first.
+        val (withDefaultConstructorMarker, remainingMethods) =
+            psiClass.methods.partition {
+                it.isConstructor &&
+                    it.psiParameters.lastOrNull()?.type?.canonicalText ==
+                        "kotlin.jvm.internal.DefaultConstructorMarker"
+            }
+
+        for (psiMethod in remainingMethods) {
             addMethodToClass(
                 psiMethod,
                 psiClass,
                 classItem,
                 metadataContainer,
                 classTypeItemFactory,
+                hasDefaultConstructorMarker = false,
+            )
+        }
+        for (psiMethod in withDefaultConstructorMarker) {
+            // Skip DefaultConstructorMarker items without other parameters, as these are only not
+            // already tracked through the source version for classes like companion objects where
+            // we don't need to track a constructor.
+            if (psiMethod.psiParameters.size == 1) continue
+            addMethodToClass(
+                psiMethod,
+                psiClass,
+                classItem,
+                metadataContainer,
+                classTypeItemFactory,
+                hasDefaultConstructorMarker = true,
             )
         }
     }
@@ -226,6 +256,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         classItem: DefaultClassItem,
         metadataContainer: KmDeclarationContainer,
         classTypeItemFactory: PsiTypeItemFactory,
+        hasDefaultConstructorMarker: Boolean,
     ) {
         // Skip processing certain methods based on name.
         if (skipTracking(psiMethod.name)) return
@@ -237,28 +268,31 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         )
             return
 
-        // Skip tracking constructors with the kotlin DefaultConstructorMarker. Every Kotlin
-        // source class gets a constructor like this generated from the default constructor.
-        // TODO(b/417740481): decide if it is ever worth tracking these
-        if (
-            psiMethod.isConstructor &&
-                psiMethod.psiParameters.any {
-                    it.type.canonicalText == "kotlin.jvm.internal.DefaultConstructorMarker"
-                }
-        )
-            return
-
         // Don't re-add methods which are already present: find the items which might have
         // the same signature of this one, to compare by erased signature.
-        val potentialMatches = erasedSignaturesOfPotentialMatchingCallables(psiMethod, classItem)
+        val potentialMatches =
+            erasedSignaturesOfPotentialMatchingCallables(
+                psiMethod,
+                classItem,
+                hasDefaultConstructorMarker,
+            )
         // Right now, it would be complicated to get the real erased signature of the item
         // because that involves replacing variable types with their bounds. Get an
         // approximation by just dropping type arguments, to enable exiting early before
         // creating a codebase item if there's a definite match.
         // It would be nice to use the ClassUtil.getAsmMethodSignature helper here, but it
         // drops type variables completely.
+        // For DefaultConstructorMarker, check for matches that don't include the extra parameter.
+        val psiParametersForErasedSignature =
+            if (hasDefaultConstructorMarker) {
+                psiMethod.psiParameters.dropLast(1)
+            } else {
+                psiMethod.psiParameters
+            }
         val semiErasedSignature =
-            psiMethod.psiParameters.joinToString { it.type.canonicalText.dropTypeArguments() }
+            psiParametersForErasedSignature.joinToString {
+                it.type.canonicalText.dropTypeArguments()
+            }
         // Check if there's a signature match (technically, it would be possible to find a
         // false match here if a type variable that is in semiErasedSignature had the same
         // name as a primitive type used in one of the potential matches, but that shouldn't
@@ -269,12 +303,28 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         val callableItem =
             if (psiMethod.isConstructor) {
                 PsiConstructorItem.create(
-                    codebase,
-                    classItem,
-                    psiMethod,
-                    classTypeItemFactory,
-                    targetLanguages = TargetLanguageSet.BYTECODE_ONLY,
-                )
+                        codebase,
+                        classItem,
+                        psiMethod,
+                        classTypeItemFactory,
+                        targetLanguages = TargetLanguageSet.BYTECODE_ONLY,
+                    )
+                    .takeUnless {
+                        // if a source constructor has an optional parameter, there are two
+                        // DefaultConstructorMarker constructors generated in the bytecode: one with
+                        // a DefaultConstructorMarker parameter added, and one with both an int and
+                        // DefaultConstructorMarker parameter added. We don't need to track the
+                        // version with the extra int parameter. However, it is also possible that
+                        // the penultimate parameter of a DefaultConstructorMarker constructor is
+                        // int just because the last parameter of a source constructor was int, so
+                        // check if there is a constructor in the metadata matching the signature,
+                        // if there isn't, this is an extra copy because the source version had an
+                        // optional parameter.
+                        hasDefaultConstructorMarker &&
+                            (it.parameters()[it.parameters().size - 2].type() as? PrimitiveTypeItem)
+                                ?.kind == PrimitiveTypeItem.Primitive.INT &&
+                            it.findMatchingConstructor(metadataContainer) == null
+                    }
             } else {
                 PsiMethodItem.create(
                         codebase,
@@ -292,9 +342,16 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // Double check that there isn't already a callable with the same signature. The
         // previous check didn't replace variable types with their bounds, so now that it is
         // easy to do that, make sure there isn't a matching signature.
+        // For DefaultConstructorMarker, check for matches that don't include the extra parameter.
         if (potentialMatches.isNotEmpty()) {
+            val parameterItemsForErasedSignature =
+                if (hasDefaultConstructorMarker) {
+                    callableItem.parameters().dropLast(1)
+                } else {
+                    callableItem.parameters()
+                }
             val erasedSignature =
-                callableItem.parameters().joinToString { it.type().toErasedTypeString() }
+                parameterItemsForErasedSignature.joinToString { it.type().toErasedTypeString() }
             if (
                 erasedSignature != semiErasedSignature &&
                     potentialMatches.any { it == erasedSignature }
@@ -338,10 +395,14 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     /**
      * Finds callables of the [classItem] that might have the same signature as the [psiMethod]
      * (those that have the same name and parameter count), and return their erased signatures.
+     *
+     * If [hasDefaultConstructorMarker] is true, the parameter count of the potential matches will
+     * be one less than the parameter count of the [psiMethod].
      */
     private fun erasedSignaturesOfPotentialMatchingCallables(
         psiMethod: PsiMethod,
-        classItem: ClassItem
+        classItem: ClassItem,
+        hasDefaultConstructorMarker: Boolean,
     ): List<String> {
         val callables =
             if (psiMethod.isConstructor) {
@@ -349,10 +410,16 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             } else {
                 classItem.methods()
             }
+        val parameterCount =
+            if (hasDefaultConstructorMarker) {
+                // Account for the extra DefaultConstructorMarker parameter.
+                psiMethod.psiParameters.size - 1
+            } else {
+                psiMethod.psiParameters.size
+            }
         return callables
             .filter { callable ->
-                callable.name() == psiMethod.name &&
-                    callable.parameters().size == psiMethod.parameters.size
+                callable.name() == psiMethod.name && callable.parameters().size == parameterCount
             }
             .map { callable ->
                 callable.parameters().joinToString { it.type().toErasedTypeString() }
@@ -426,22 +493,34 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         return Metadata(kind, metadataVersion, data1, data2, extraString, packageName, extraInt)
     }
 
+    /**
+     * Searches for a constructor in the metadata with the same signature as the [PsiCallableItem].
+     *
+     * If [hasDefaultConstructorMarker] is true, the DefaultConstructorMarker parameter is dropped
+     * from the signature to find a match.
+     */
+    private fun PsiCallableItem.findMatchingConstructor(
+        container: KmDeclarationContainer?,
+    ): KmConstructor? {
+        val internalDescriptor = internalDesc(voidConstructorTypes = true)
+        return (container as? KmClass)?.constructors?.firstOrNull {
+            it.signature?.descriptor == internalDescriptor
+        }
+    }
+
     /** Checks if the item's true visibility is internal based on the metadata from [container]. */
     private fun PsiCallableItem.isInternal(
         container: KmDeclarationContainer?,
-        psiClass: PsiClass
+        psiClass: PsiClass,
     ): Boolean {
         if (container == null) return false
-        val expectedDescriptor = internalDesc(voidConstructorTypes = true)
         val visibility =
             // For constructors and functions generated from constructor definitions, check if there
             // is a constructor with the right signature.
             if (isConstructor() || name() == "constructor-impl") {
-                (container as? KmClass)
-                    ?.constructors
-                    ?.firstOrNull { it.signature?.descriptor == expectedDescriptor }
-                    ?.visibility
+                findMatchingConstructor(container)?.visibility
             } else {
+                val expectedDescriptor = internalDesc(voidConstructorTypes = true)
                 // Cut off the mangled part of the name, if there is one.
                 // val simpleName = name().substringBefore('-')
                 // Check for a function with the right signature.
