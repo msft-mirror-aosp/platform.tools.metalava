@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.apilevels.VersionedSignatureApi.Companion.stringsToBashBraceExpansion
 import java.io.File
 
 /**
@@ -24,15 +25,24 @@ import java.io.File
  * The [updater] is responsible for updating the [Api].
  */
 class VersionedJarApi(
-    val jar: File,
-    private val updater: ApiHistoryUpdater,
-) : VersionedApi {
-    override val apiVersion
-        get() = updater.apiVersion
-
+    val files: List<File>,
+    updater: ApiHistoryUpdater,
+    private val filter: ((String) -> Boolean)? = null,
+) : VersionedApi(updater) {
     override fun updateApi(api: Api) {
-        api.readJar(jar, updater)
+        for (file in files) {
+            api.readJar(file, updater, filter)
+        }
     }
 
-    override fun forExtension() = updater.forExtension()
+    override fun toString(): String {
+        // Compute the string representation of the files. Listing a number of potentially long
+        // files all on one line can make it difficult to debug. As the files are likely to contain
+        // common prefixes and suffixes, e.g. `prebuilts/sdk/28/public/api/android.txt` and
+        // `prebuilts/sdk/28/system/api/android.txt` this replaces it with a string that uses bash
+        // brace expansion syntax so it would generate all the original if used in bash, e.g.
+        // `prebuilts/sdk/28/{public,system}/api/android.txt`.
+        val filesAsString = stringsToBashBraceExpansion(files.map { it.path })
+        return "VersionedJarApi(jar=$filesAsString, updater=$updater)"
+    }
 }

@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TypeAliasItem
 
 /**
  * A [BaseItemVisitor] that will delegate to [delegate].
@@ -63,7 +64,7 @@ open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor)
         delegate.afterVisitClass(cls)
     }
 
-    override fun visit(constructor: ConstructorItem) {
+    override fun visitConstructor(constructor: ConstructorItem) {
         delegate.visitConstructor(constructor)
     }
 
@@ -77,5 +78,9 @@ open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor)
 
     override fun visitProperty(property: PropertyItem) {
         delegate.visitProperty(property)
+    }
+
+    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
+        delegate.visitTypeAlias(typeAlias)
     }
 }

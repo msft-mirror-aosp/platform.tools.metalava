@@ -16,12 +16,19 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.value.annotationItem
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -243,9 +250,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         }
                     """
                 ),
-                java("""
+                java(
+                    """
                         package test;
-                     """),
+                    """
+                ),
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
@@ -451,17 +460,17 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val nullAnno = fieldItem.assertAnnotation("test.Nullable")
 
             val customAnno1 = fieldItem.assertAnnotation("test.anno.FieldInfo")
-            val custAnno1Attr1 = customAnno1.findAttribute("children")
-            val custAnno1Attr2 = customAnno1.findAttribute("val")
-            val custAnno1Attr3 = customAnno1.findAttribute("cls")
+            val custAnno1Attr1 = customAnno1.assertAttribute("children")
+            val custAnno1Attr2 = customAnno1.assertAttribute("val")
+            val custAnno1Attr3 = customAnno1.assertAttribute("cls")
             val annoClassItem1 = codebase.assertClass("test.anno.FieldInfo")
             val retAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Retention")
             val tarAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Target")
-            val tarAnnoAtrr1 = tarAnno.findAttribute("value")
+            val tarAnnoAttr1 = tarAnno.assertAttribute("value")
 
             val customAnno2 = fieldItem.assertAnnotation("anno.FieldValue")
             val annoClassItem2 = codebase.assertClass("anno.FieldValue")
-            val custAnno2Attr1 = customAnno2.findAttribute("value")
+            val custAnno2Attr1 = customAnno2.assertAttribute("value")
 
             assertEquals(3, fieldItem.modifiers.annotations().count())
 
@@ -469,35 +478,42 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(3, customAnno1.attributes.count())
             assertEquals(false, customAnno1.isRetention())
-            assertNotNull(custAnno1Attr1)
-            assertNotNull(custAnno1Attr2)
-            assertNotNull(custAnno1Attr3)
-            assertEquals(
-                true,
-                listOf("child1", "child2").toTypedArray() contentEquals
-                    custAnno1Attr1.value.value() as Array<*>
-            )
-            assertEquals(5, custAnno1Attr2.value.value())
-            assertEquals("test.SimpleClass", custAnno1Attr3.value.value())
+            assertEquals(arrayValueFromAny("child1", "child2"), custAnno1Attr1.value)
+            assertEquals(5, custAnno1Attr2.value.asInt())
+            assertEquals(classObjectValue(classTypeItem("test.SimpleClass")), custAnno1Attr3.value)
             assertEquals(annoClassItem1, customAnno1.resolve())
             assertEquals(true, retAnno.isRetention())
-            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.getRetention())
+            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.annotationClass.retention)
 
             assertEquals(annoClassItem2, customAnno2.resolve())
-            assertNotNull(custAnno2Attr1)
-            assertEquals(12, custAnno2Attr1.value.value())
+            assertEquals(12, custAnno2Attr1.value.asInt())
 
-            assertEquals("@test.Nullable", nullAnno.toSource())
+            assertEquals(annotationItem("test.Nullable"), nullAnno)
 
             assertEquals(
-                "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)",
-                retAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Retention",
+                    ANNOTATION_ATTR_VALUE to
+                        fieldReferenceValue("java.lang.annotation.RetentionPolicy", "RUNTIME"),
+                ),
+                retAnno
             )
             assertEquals(
-                "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
-                tarAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Target",
+                    ANNOTATION_ATTR_VALUE to
+                        arrayValue(
+                            fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                        ),
+                ),
+                tarAnno
             )
-            assertEquals(true, tarAnnoAtrr1!!.value is DefaultAnnotationSingleAttributeValue)
+            assertEquals(
+                arrayValue(
+                    fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                ),
+                tarAnnoAttr1.value
+            )
         }
     }
 
@@ -868,45 +884,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             )
             assertEquals(emptyList(), ctorItem.throwsTypes())
             assertEquals(emptyList(), ctorItem.parameters())
-        }
-    }
-
-    @Test
-    fun `230 test public name and default value of parameters`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    import java.lang.annotation.ElementType;
-                    import java.lang.annotation.Target;
-
-                    public class Test {
-                        public void foo(@ParameterName("TestParam") @DefaultValue(5) int parameter) {
-                        }
-                    }
-
-                    @Target(ElementType.PARAMETER)
-                    @interface DefaultValue {
-                        int value();
-                    }
-
-                    @Target(ElementType.PARAMETER)
-                    @interface ParameterName {
-                        String value();
-                    }
-                """
-            ),
-        ) {
-            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
-            val paramItem = methodItem.parameters().single()
-
-            assertEquals("parameter", paramItem.name())
-            assertEquals(methodItem, paramItem.containingCallable())
-            assertEquals("TestParam", paramItem.publicName())
-            assertEquals(true, paramItem.hasDefaultValue())
-            assertEquals(true, paramItem.isDefaultValueKnown())
-            assertEquals("5", paramItem.defaultValueAsString())
         }
     }
 

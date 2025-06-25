@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
@@ -29,7 +28,6 @@ import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
-import com.android.tools.metalava.model.ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_SDK_STUBS_ONLY
 import com.android.tools.metalava.model.ANNOTATION_SIGNATURE_ONLY
 import com.android.tools.metalava.model.ANNOTATION_STUBS_ONLY
@@ -39,21 +37,26 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.JVM_STATIC
+import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
-import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION
+import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.Showability.Companion.REVERT_UNSTABLE_API
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.api.flags.optionalFlagName
 import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -71,7 +74,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
-        val revertAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
@@ -80,6 +82,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * Provider of an optional [Codebase] object that will be used when reverting flagged APIs.
          */
         val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
+
+        /**
+         * The set of available [ApiFlag]s.
+         *
+         * If this is `null` then no [ApiFlag]s have been provided, otherwise it contains an
+         * [ApiFlag] for every provided flag. Flags that are not provided will default to
+         * [ApiFlag.REVERT_FLAGGED_API].
+         */
+        val apiFlags: ApiFlags? = null,
     )
 
     /**
@@ -110,30 +121,43 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             }
         }
 
-        // Iterate over all the annotation names matched by all the filters currently used by
-        // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the complete
-        // source representation of the annotation as the key. This is needed because filters can
-        // match on attribute values as well as the name.
+        // The list of all filters.
         val filters =
-            arrayOf(
+            listOf(
                 config.allShowAnnotations,
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
                 config.hideAnnotations,
-                config.revertAnnotations,
             )
-        annotationNameToKeyFactory =
-            filters
-                .asSequence()
-                .flatMap { it.getIncludedAnnotationNames().asSequence() }
-                .associate { Pair(it, ::useSourceAsKey) }
+
+        // Build a list of the names of annotations whose AnnotationInfo could be dependent on an
+        // annotation attributes and not just its name.
+        val annotationNames = buildList {
+            // Iterate over all the annotation names matched by all the filters currently used by
+            // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the
+            // complete source representation of the annotation as the key. This is needed because
+            // filters can match on attribute values as well as the name.
+            for (filter in filters) {
+                addAll(filter.getIncludedAnnotationNames())
+            }
+
+            // ApiFlags have been provided so the flag name specified on an
+            // `android.annotation.FlaggedApi` will affect the state of the associated
+            // AnnotationInfo so make sure to use the flag name in the cache key for `FlaggedApi`
+            // annotations.
+            if (config.apiFlags != null) add(ANDROID_FLAGGED_API)
+        }
+
+        // Use KeyFactory that uses the complete source representation as the key and not just the
+        // annotation name which is the default.
+        annotationNameToKeyFactory = annotationNames.associateWith { ::useSourceAsKey }
     }
 
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         val qualifiedName = annotationItem.qualifiedName
 
         // Check to see if this requires a special [KeyFactory] and use it if it does.
-        val keyFactory = annotationNameToKeyFactory.get(qualifiedName)
+        val keyFactory = annotationNameToKeyFactory[qualifiedName]
         if (keyFactory != null) {
             return keyFactory(annotationItem)
         }
@@ -146,8 +170,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return LazyAnnotationInfo(this, config, annotationItem)
     }
 
-    override fun normalizeInputName(qualifiedName: String?): String? {
-        qualifiedName ?: return null
+    override fun normalizeInputName(qualifiedName: String): String? {
         if (passThroughAnnotation(qualifiedName)) {
             return qualifiedName
         }
@@ -201,6 +224,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.Px" -> return "androidx.annotation.Px"
             "android.annotation.Dimension" -> return "androidx.annotation.Dimension"
 
+            // Environments
+            "android.annotation.RestrictedForEnvironment" ->
+                return "androidx.annotation.RestrictedForEnvironment"
+
             // Null
             // Preserve recently/newly nullable annotation as they need to be passed through to
             // stubs. They will be treated as nullable/non-null just as if they were mapped to
@@ -231,7 +258,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.NonUiContext" -> return "androidx.annotation.NonUiContext"
 
             // Misc
-            ANDROID_DEPRECATED_FOR_SDK -> return ANDROID_DEPRECATED_FOR_SDK
             "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
             "android.annotation.CheckResult" -> return "androidx.annotation.CheckResult"
             "android.annotation.Discouraged" -> return "androidx.annotation.Discouraged"
@@ -273,16 +299,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
             // This implementation only annotation shouldn't be used by metalava at all.
             "dalvik.annotation.codegen.CovariantReturnType" -> return null
+
+            // TODO(b/399105459): remove this workaround once there is full support for typealias
+            //  annotations from the classpath
+            "kotlin.jvm.JvmRepeatable" -> return "java.lang.annotation.Repeatable"
             else -> {
                 // Some new annotations added to the platform: assume they are support
                 // annotations?
                 return when {
-                    // Special Kotlin annotations recognized by the compiler: map to supported
-                    // package name
-                    qualifiedName.endsWith(".ParameterName") ||
-                        qualifiedName.endsWith(".DefaultValue") ->
-                        "kotlin.annotations.jvm.internal${qualifiedName.substring(qualifiedName.lastIndexOf('.'))}"
-
                     // Other third party nullness annotations?
                     isNullableAnnotation(qualifiedName) -> ANDROIDX_NULLABLE
                     isNonNullAnnotation(qualifiedName) -> ANDROIDX_NONNULL
@@ -296,14 +320,18 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                     qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
                         return qualifiedName
                     }
+
+                    // Ravenwood annotations are meaningless to Metalava.
+                    qualifiedName.startsWith("android.ravenwood.") -> return null
+
+                    // Keep any other unknown annotations.
                     else -> qualifiedName
                 }
             }
         }
     }
 
-    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
-        qualifiedName ?: return null
+    override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
         if (passThroughAnnotation(qualifiedName)) {
             return qualifiedName
         }
@@ -328,10 +356,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
     private fun passThroughAnnotation(qualifiedName: String) =
         config.passThroughAnnotations.contains(qualifiedName) ||
-            config.allShowAnnotations.matches(qualifiedName) ||
-            config.hideAnnotations.matches(qualifiedName)
+            config.allShowAnnotations.matchesAnnotationName(qualifiedName) ||
+            config.hideAnnotations.matchesAnnotationName(qualifiedName)
 
-    private val TYPEDEF_ANNOTATION_TARGETS =
+    /**
+     * Targets for type def annotations, i.e. `@IntDef` and `@StringDef` annotated annotations.
+     *
+     * Depends on the [DefaultAnnotationManager.Config.typedefMode].
+     */
+    private val typedefAnnotationTargets =
         if (
             config.typedefMode == TypedefMode.INLINE || config.typedefMode == TypedefMode.NONE
         ) // just here for compatibility purposes
@@ -360,7 +393,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.StringDef",
             "androidx.annotation.StringDef",
             "android.annotation.LongDef",
-            "androidx.annotation.LongDef" -> return TYPEDEF_ANNOTATION_TARGETS
+            "androidx.annotation.LongDef" -> return typedefAnnotationTargets
+            "android.annotation.RestrictedForEnvironment" -> return ANNOTATION_EXTERNAL
 
             // Not directly API relevant
             "android.view.ViewDebug.ExportedProperty",
@@ -371,18 +405,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // from those. This is useful for modularizing the main SDK stubs without having to
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
-            ANDROID_FLAGGED_API ->
-                // If FlaggedApi annotations are being reverted in general then do not output them
-                // at all. This means that if some FlaggedApi annotations with specific flags are
-                // not reverted then the annotations will not be written out to the signature or
-                // stub files. That is the correct behavior as those APIs are intended to be
-                // released and should look like any other released API and released APIs do not
-                // include FlaggedApi annotations.
-                if (config.revertAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
-                    return NO_ANNOTATION_TARGETS
-                } else {
-                    return ANNOTATION_IN_ALL_STUBS
-                }
+            ANDROID_FLAGGED_API -> {
+                return annotation.apiFlag?.annotationTargets ?: ANNOTATION_IN_ALL_STUBS
+            }
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are
@@ -405,7 +430,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "dalvik.annotation.optimization.ReachabilitySensitive" -> return NO_ANNOTATION_TARGETS
 
             // TODO(aurimas): consider using annotation directly instead of modifiers
-            ANDROID_DEPRECATED_FOR_SDK,
             "kotlin.Deprecated" ->
                 return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
             "java.lang.Deprecated", // tracked separately as a pseudo-modifier
@@ -435,7 +459,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // annotations.
             "kotlin.jvm.JvmOverloads",
             "kotlin.jvm.JvmField",
-            "kotlin.jvm.JvmStatic",
+            JVM_STATIC,
+            KOTLIN_METADATA,
             "kotlin.jvm.JvmName" -> return NO_ANNOTATION_TARGETS
         }
 
@@ -471,16 +496,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // habit of loading all annotation classes it encounters.)
 
         if (qualifiedName.startsWith("androidx.annotation.")) {
-            if (qualifiedName == ANDROIDX_NULLABLE || qualifiedName == ANDROIDX_NONNULL) {
-                // Right now, nullness annotations (other than @RecentlyNullable and
-                // @RecentlyNonNull)
-                // have to go in external annotations since they aren't in the class path for
-                // annotation processors. However, we do want them showing up in the
-                // documentation using
-                // their real annotation names.
-                return ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
-            }
-
             return ANNOTATION_EXTERNAL
         }
 
@@ -498,7 +513,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         if (cls.isAnnotationType()) {
-            val retention = cls.getRetention()
+            val retention = cls.annotationClass.retention
             if (
                 retention == AnnotationRetention.RUNTIME ||
                     retention == AnnotationRetention.CLASS ||
@@ -514,22 +529,23 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     override fun isShowAnnotationName(annotationName: String): Boolean =
         config.allShowAnnotations.matchesAnnotationName(annotationName)
 
+    /** Check whether this has been configured in a way that could cause items to be reverted. */
+    private fun couldRevertItems(): Boolean = config.apiFlags != null
+
     override fun hasAnyStubPurposesAnnotations(): Boolean {
-        // Revert annotations are checked because they can behave like
-        // `--show-for-stub-purposes-annotation` if they end up reverting an API that was added in
-        // an extended API. e.g. if a change to item `X` from the public API was reverted then the
+        // This checks if items can be reverted because they can behave like
+        // `--show-for-stub-purposes-annotation` if a reverted Item was added in an extended API.
+        // e.g. if a change to item `X` from the public API was reverted then the
         // previously released version `X'` will need to be written out to the stubs for the system
         // API, just as if it was annotated with an annotation from
         // `--show-for-stub-purposes-annotation`.
-        return config.showForStubPurposesAnnotations.isNotEmpty() ||
-            config.revertAnnotations.isNotEmpty()
+        return config.showForStubPurposesAnnotations.isNotEmpty() || couldRevertItems()
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        // If there are no hide annotations or revert annotations registered then this can never
-        // return true. Revert annotations are checked because they can behave like hide if they end
-        // up reverting a newly added API.
-        if (config.hideAnnotations.isEmpty() && config.revertAnnotations.isEmpty()) {
+        // If there are no hide annotations and items cannot be reverted then this can never return
+        // true. Reverted items can behave as if they are hidden it they are newly added.
+        if (config.hideAnnotations.isEmpty() && !couldRevertItems()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)
@@ -565,31 +581,22 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // If any of a method's super methods are part of a unstable API that needs to be
             // reverted then treat the method as if it is too.
             val revertUnstableApi =
-                item.superMethods().any { methodItem ->
-                    methodItem.showability.revertUnstableApi() &&
-                        // Ignore overridden methods that are not part of the API being generated if
-                        // there is no previously released API as that will always result in the
-                        // overriding method being removed which can cause problems.
-                        !(methodItem.origin != ClassOrigin.COMMAND_LINE &&
-                            previouslyReleasedCodebase == null)
-                }
+                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
             if (revertUnstableApi) {
-                itemShowability =
-                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
+                itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
             }
         }
 
         val containingClass = item.containingClass()
         if (containingClass != null) {
             if (containingClass.showability.revertUnstableApi()) {
-                itemShowability =
-                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
+                itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
             }
         }
 
         // If the item is to be reverted then find the [Item] to which it will be reverted, if any,
         // and incorporate that into the [Showability].
-        if (itemShowability == LazyAnnotationInfo.REVERT_UNSTABLE_API) {
+        if (itemShowability == REVERT_UNSTABLE_API) {
             val revertItem = findRevertItem(item)
 
             // If the [revertItem] cannot be found then there is no need to modify the item
@@ -618,6 +625,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                         // Incorporate the item to be reverted into the [Showability].
                         revertItem = revertItem,
                     )
+
+                // The codebase contains items which are to be reverted.
+                item.codebase.markContainsRevertedItem()
             }
         }
 
@@ -681,10 +691,20 @@ private class LazyAnnotationInfo(
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
                 config.hideAnnotations.matches(annotationItem) -> HIDE
-                config.revertAnnotations.matches(annotationItem) -> REVERT_UNSTABLE_API
-                else -> Showability.NO_EFFECT
+                else -> {
+                    // Check flags before using default
+                    apiFlag?.showability ?: Showability.NO_EFFECT
+                }
             }
         }
+
+    override val apiFlag by lazy(LazyThreadSafetyMode.NONE) { getFlagForAnnotation(annotationItem) }
+
+    private fun getFlagForAnnotation(annotationItem: AnnotationItem): ApiFlag? {
+        val apiFlags = config.apiFlags ?: return null
+        val flagName = annotationItem.optionalFlagName ?: return null
+        return apiFlags[flagName]
+    }
 
     companion object {
         /**
@@ -727,26 +747,6 @@ private class LazyAnnotationInfo(
                 recursive = ShowOrHide.HIDE,
                 forStubsOnly = ShowOrHide.NO_EFFECT,
             )
-
-        /**
-         * The annotation will cause the annotated item (and any enclosed items unless overridden by
-         * a closer annotation) to not be shown.
-         */
-        val REVERT_UNSTABLE_API =
-            Showability(
-                show = ShowOrHide.REVERT_UNSTABLE_API,
-                recursive = ShowOrHide.REVERT_UNSTABLE_API,
-                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
-            )
-
-        /**
-         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
-         *
-         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
-         * doesn't need to maintain compatibility.
-         */
-        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */

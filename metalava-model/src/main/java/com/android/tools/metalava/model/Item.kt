@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -134,24 +135,24 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * The language in which this was written, or [SourceLanguage.UNKNOWN] if not known, e.g. when
      * created from a signature file.
      */
-    val itemLanguage: ItemLanguage
+    val sourceLanguage: SourceLanguage
 
     /**
      * Is this element declared in Java (rather than Kotlin) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isJava() = itemLanguage.isJava()
+    fun isJava() = sourceLanguage.isJava()
 
     /**
      * Is this element declared in Kotlin (rather than Java) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isKotlin() = itemLanguage.isKotlin()
+    fun isKotlin() = sourceLanguage.isKotlin()
 
     /**
      * Returns true if this [Item]'s modifier list contains any suppress compatibility
@@ -193,6 +194,7 @@ interface Item : Reportable {
      *   as the type arguments.
      * * For type parameters it's a [VariableTypeItem] reference the type parameter.
      * * For packages and files, it's null.
+     * * For type aliases it's the underlying type for which the alias is an alternative name.
      */
     fun type(): TypeItem?
 
@@ -259,6 +261,9 @@ interface Item : Reportable {
      * See [BaselineKey.forElementId] for more details.
      */
     fun baselineElementId(): String
+
+    /** The languages from which this [Item] can be used. */
+    val targetLanguages: Set<TargetLanguage>
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -382,7 +387,7 @@ interface Item : Reportable {
 abstract class DefaultItem(
     override val codebase: Codebase,
     final override val fileLocation: FileLocation,
-    final override val itemLanguage: ItemLanguage,
+    final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
 ) : Item {
@@ -452,16 +457,11 @@ abstract class DefaultItem(
                 if (annotationName in SUPPRESS_ANNOTATIONS) {
                     for (attribute in annotation.attributes) {
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is varargs of String
-                        val value = attribute.value
-                        if (value is AnnotationArrayAttributeValue) {
-                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                            for (innerValue in value.values) {
-                                innerValue.value()?.toString()?.let { add(it) }
-                            }
-                        } else {
-                            // Example: @SuppressLint("RequiresFeature")
-                            value.value()?.toString()?.let { add(it) }
+                        // one attribute such as value/names that is an array of String, e.g.
+                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                        // Example: @SuppressLint("RequiresFeature")
+                        for (value in attribute.value.asFlatList()) {
+                            if (value is StringValue) add(value.underlyingValue)
                         }
                     }
                 }

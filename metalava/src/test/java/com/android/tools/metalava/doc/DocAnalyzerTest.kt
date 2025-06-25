@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
@@ -236,6 +237,8 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 ),
+            // Override default to emit android.annotation classes.
+            skipEmitPackages = emptyList(),
             checkCompilation = true,
             docStubs = true,
             stubFiles =
@@ -917,7 +920,7 @@ class DocAnalyzerTest : DriverTest() {
                     ARG_CURRENT_VERSION,
                     "35" // not real api level of Z
                 ),
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -961,6 +964,7 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
                     /**
                      * @hide
+                     * @apiSince Z
                      */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
@@ -978,7 +982,6 @@ class DocAnalyzerTest : DriverTest() {
                     ARG_CURRENT_CODENAME,
                     "Z",
                 ),
-            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1792,7 +1795,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link Cursor.NONEXISTENT}, and are read-only and cannot be mutated.
                      */
-                    @android.provider.Column(value=Cursor.NONEXISTENT, readOnly=true) public static final java.lang.String BOGUS = "bogus";
+                    @android.provider.Column(readOnly=true, value=Cursor.NONEXISTENT) public static final java.lang.String BOGUS = "bogus";
                     /**
                      * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} .
                      */
@@ -1800,11 +1803,11 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_BLOB Cursor#FIELD_TYPE_BLOB} , and are read-only and cannot be mutated.
                      */
-                    @android.provider.Column(value=android.database.Cursor.FIELD_TYPE_BLOB, readOnly=true) public static final java.lang.String HASH = "_hash";
+                    @android.provider.Column(readOnly=true, value=android.database.Cursor.FIELD_TYPE_BLOB) public static final java.lang.String HASH = "_hash";
                     /**
                      * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} , and are read-only and cannot be mutated.
                      */
-                    @android.provider.Column(value=android.database.Cursor.FIELD_TYPE_STRING, readOnly=true) public static final java.lang.String TITLE = "title";
+                    @android.provider.Column(readOnly=true, value=android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String TITLE = "title";
                     }
                     """
                     )

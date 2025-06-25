@@ -42,7 +42,7 @@ sealed interface ApiHistoryUpdater {
         deprecated: Boolean = apiElement.deprecatedIn != null,
     )
 
-    fun forExtension(): Boolean
+    override fun toString(): String
 
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
     private open class ApiVersionUpdater(override val apiVersion: ApiVersion) : ApiHistoryUpdater {
@@ -54,17 +54,21 @@ sealed interface ApiHistoryUpdater {
             apiElement.update(apiVersion, deprecated)
         }
 
-        override fun forExtension() = false
+        override fun toString() = "ApiVersionUpdater(version=$apiVersion)"
     }
 
     /**
      * Extends [ApiVersionUpdater] to also update the [ApiElement.sinceExtension] and
      * [ApiElement.mainlineModule] properties.
+     *
+     * This will only call the super class' [ApiVersionUpdater.update] method if
+     * [isLatestExtVersion] is `true`.
      */
     private class ExtensionUpdater(
         nextSdkVersion: ApiVersion,
         private val extVersion: ExtVersion,
-        private val module: String
+        private val module: String,
+        private val isLatestExtVersion: Boolean,
     ) : ApiVersionUpdater(nextSdkVersion) {
         override fun update(api: Api) {
             // Do not update the Api with the next sdk version as that could cause all classes
@@ -73,14 +77,18 @@ sealed interface ApiHistoryUpdater {
         }
 
         override fun update(apiElement: ApiElement, deprecated: Boolean) {
-            super.update(apiElement, deprecated)
+            // Only update the ApiVersion if this is the latest extension version.
+            if (isLatestExtVersion) {
+                super.update(apiElement, deprecated)
+            }
             apiElement.updateExtension(extVersion)
             if (apiElement is ApiClass) {
                 apiElement.updateMainlineModule(module)
             }
         }
 
-        override fun forExtension() = true
+        override fun toString() =
+            "ExtensionUpdater(extVersion=$extVersion, module=$module, nextSdkVersion=$apiVersion)"
     }
 
     companion object {
@@ -98,9 +106,10 @@ sealed interface ApiHistoryUpdater {
         fun forExtVersion(
             nextSdkVersion: ApiVersion,
             extVersion: ExtVersion,
-            module: String
+            module: String,
+            isLatestExtVersion: Boolean,
         ): ApiHistoryUpdater {
-            return ExtensionUpdater(nextSdkVersion, extVersion, module)
+            return ExtensionUpdater(nextSdkVersion, extVersion, module, isLatestExtVersion)
         }
     }
 }
