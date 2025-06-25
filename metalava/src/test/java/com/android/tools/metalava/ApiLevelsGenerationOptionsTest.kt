@@ -587,6 +587,7 @@ class ApiLevelsGenerationOptionsTest :
                     """
                         VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
                         VersionedSourceApi(version=30)
+                        VersionedSourceApi(version=123456789)
                         VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=123456789))
                     """
                         .trimIndent()

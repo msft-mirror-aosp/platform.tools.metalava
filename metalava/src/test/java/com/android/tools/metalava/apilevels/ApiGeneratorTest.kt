@@ -1225,10 +1225,6 @@ class ApiGeneratorTest : DriverTest() {
                 apiVersionForSdkExtension = "999999",
             )
 
-        // TODO(b/424440294): The `addedInLatest()` method should not be treated as removed. The
-        //   reason that is happening is because the `test/pkg/Foo` is marked as being in version
-        //   999999 but the `addedInLatest()` is not. So, `addedInLatest()` appears to not be in
-        //   version 999999 like its containing class and so it is assumed to have been removed.
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
@@ -1236,7 +1232,7 @@ class ApiGeneratorTest : DriverTest() {
                     <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
                     <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39">
                         <method name="addedInExtension102()V" since="40" sdks="39:102,0:40"/>
-                        <method name="addedInLatest()V" since="40" removed="999999"/>
+                        <method name="addedInLatest()V" since="40"/>
                     </class>
                 </api>
             """

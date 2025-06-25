@@ -584,9 +584,36 @@ class ApiLevelsGenerationOptions(
                     require(extensionApiFiles.isNotEmpty()) {
                         "no extension api files found by ${patterns.joinToString()}"
                     }
+
+                    // Get the potentially future API version that new SDK extension APIs will
+                    // be assumed to have been added.
+                    val apiVersionForNewSdkExtensionApis =
+                        sdkExtensionsArguments.notFinalizedSdkVersion
+
+                    // Any APIs added from the latest sources may not be present in the SDK
+                    // extension APIs so care needs to be taken to ensure that they are not treated
+                    // as being removed.
+                    if (codebaseSdkVersion != null) {
+                        // If the latest version of the API is not the same as the version that will
+                        // be used for new SDK extension APIs then assume that all APIs from the
+                        // latest version are present in the API version in which new SDK extension
+                        // APIs will be added. This is necessary because otherwise an API from the
+                        // latest version which is in an SDK extension class but not yet present in
+                        // an SDK extension version would not be present in that version and so
+                        // would be assumed to have been removed.
+                        if (codebaseSdkVersion != apiVersionForNewSdkExtensionApis) {
+                            add(
+                                VersionedSourceApi(
+                                    codebaseFragmentProvider,
+                                    apiVersionForNewSdkExtensionApis,
+                                )
+                            )
+                        }
+                    }
+
                     addVersionedExtensionApis(
                         this,
-                        sdkExtensionsArguments.notFinalizedSdkVersion,
+                        apiVersionForNewSdkExtensionApis,
                         extensionApiFiles,
                         sdkExtensionsArguments.sdkExtensionInfo,
                         versionedApiFactory,
