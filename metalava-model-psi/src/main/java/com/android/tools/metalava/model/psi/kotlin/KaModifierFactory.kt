@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi.kotlin
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.JVM_STATIC
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -194,7 +195,7 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
             modifiers.setExpect(true)
         }
 
-        if (annotations.any { it.qualifiedName == "kotlin.Deprecated" }) {
+        if (annotations.any { it.qualifiedName == KOTLIN_DEPRECATED }) {
             modifiers.setDeprecated(true)
         }
 
@@ -205,7 +206,7 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
     fun createForParameter(symbol: KaParameterSymbol): MutableModifierList {
         val annotations = symbol.annotations.mapNotNull { assembler.createAnnotation(it) }
         val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
-        if (annotations.any { it.qualifiedName == "kotlin.Deprecated" }) {
+        if (annotations.any { it.qualifiedName == KOTLIN_DEPRECATED }) {
             modifiers.setDeprecated(true)
         }
         return modifiers
