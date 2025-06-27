@@ -21,6 +21,7 @@ import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -560,7 +561,8 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * If the [kmProperty] was annotated in source, propagates some special annotations to the
      * callable item.
      *
-     * This includes [PublishedApi] and annotations meta-annotated with [RequiresOptIn].
+     * This includes [PublishedApi], annotations meta-annotated with [RequiresOptIn], and
+     * deprecation status.
      */
     private fun PsiCallableItem.propagateAnnotationsAsNeeded(
         kmProperty: KmProperty,
@@ -591,6 +593,14 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                     val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
                     mutateModifiers { addAnnotation(annotationItem) }
                 }
+        }
+
+        // Propagate deprecation from properties to accessors.
+        if (
+            !modifiers.isDeprecated() &&
+                annotationMethod.annotations.any { it.hasQualifiedName(KOTLIN_DEPRECATED) }
+        ) {
+            mutateModifiers { setDeprecated(true) }
         }
 
         for (annotationEntry in annotationMethod.annotations) {

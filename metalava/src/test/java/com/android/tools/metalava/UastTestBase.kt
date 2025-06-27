@@ -292,15 +292,11 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class Alignment {
                     ctor @KotlinOnly public Alignment(test.pkg.Alignment.Horizontal horizontal, test.pkg.Alignment.Vertical vertical);
-                    method public int getHorizontal();
-                    method public int getVertical();
                     property public int horizontal;
                     property public int vertical;
                     field public static final test.pkg.Alignment.Companion Companion;
                   }
                   public static final class Alignment.Companion {
-                    method public int getStart();
-                    method public int getTop();
                     method public test.pkg.Alignment getTopStart();
                     property public int Start;
                     property public int Top;
@@ -310,9 +306,6 @@ abstract class UastTestBase : DriverTest() {
                     field public static final test.pkg.Alignment.Horizontal.Companion Companion;
                   }
                   public static final class Alignment.Horizontal.Companion {
-                    method public int getCenterHorizontally();
-                    method public int getEnd();
-                    method public int getStart();
                     property public int CenterHorizontally;
                     property public int End;
                     property public int Start;
@@ -321,9 +314,6 @@ abstract class UastTestBase : DriverTest() {
                     field public static final test.pkg.Alignment.Vertical.Companion Companion;
                   }
                   public static final class Alignment.Vertical.Companion {
-                    method public int getBottom();
-                    method public int getCenterVertically();
-                    method public int getTop();
                     property public int Bottom;
                     property public int CenterVertically;
                     property public int Top;
@@ -332,9 +322,6 @@ abstract class UastTestBase : DriverTest() {
                     field public static final test.pkg.AnchorType.Companion Companion;
                   }
                   public static final class AnchorType.Companion {
-                    method public float getCenter();
-                    method public float getEnd();
-                    method public float getStart();
                     property public float Center;
                     property public float End;
                     property public float Start;
@@ -343,9 +330,6 @@ abstract class UastTestBase : DriverTest() {
                     ctor @KotlinOnly public User(test.pkg.AnchorType p, test.pkg.AnchorType q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
                     method public float foo();
-                    method public float getP();
-                    method public float getQ();
-                    method public void setQ(float);
                     property public float p;
                     property public float q;
                   }
@@ -1063,38 +1047,38 @@ abstract class UastTestBase : DriverTest() {
                       @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
                       }
                       public interface TestInterface {
-                        method @Deprecated public int getPOld_deprecatedOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
-                        method @Deprecated public int getPOld_deprecatedOnProperty();
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
                         method public int getPOld_deprecatedOnSetter();
                         method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
                         method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
                         method public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
-                        method public void setPOld_deprecatedOnGetter(int);
-                        method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
-                        method public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
-                        method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
-                        method @Deprecated public void setPOld_deprecatedOnProperty(int);
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
-                        method @Deprecated public void setPOld_deprecatedOnSetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
+                        method @Deprecated public void setPOld_deprecatedOnGetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                        method @Deprecated public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                         property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                         property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1103,13 +1087,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_accessors {
                         ctor public Test_accessors();
                         method public String? getPNew_accessors();
-                        method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_accessors_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
                         method public String? getPOld_accessors_deprecatedOnSetter();
                         method public void setPNew_accessors(String?);
-                        method public void setPOld_accessors_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_accessors_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
                         property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
@@ -1118,13 +1102,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_getter {
                         ctor public Test_getter();
                         method public String? getPNew_getter();
-                        method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_getter_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
                         method public String? getPOld_getter_deprecatedOnSetter();
                         method public void setPNew_getter(String?);
-                        method public void setPOld_getter_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_getter_deprecatedOnProperty;
@@ -1133,13 +1117,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_noAccessor {
                         ctor public Test_noAccessor();
                         method public String getPNew_noAccessor();
-                        method @Deprecated public String getPOld_noAccessor_deprecatedOnGetter();
-                        method @Deprecated public String getPOld_noAccessor_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
                         method public String getPOld_noAccessor_deprecatedOnSetter();
                         method public void setPNew_noAccessor(String);
-                        method public void setPOld_noAccessor_deprecatedOnGetter(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String);
+                        method @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
+                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
@@ -1148,13 +1132,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_setter {
                         ctor public Test_setter();
                         method public String? getPNew_setter();
-                        method @Deprecated public String? getPOld_setter_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
                         method public String? getPOld_setter_deprecatedOnSetter();
                         method public void setPNew_setter(String?);
-                        method public void setPOld_setter_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_setter_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_setter_deprecatedOnProperty;
@@ -1168,14 +1152,14 @@ abstract class UastTestBase : DriverTest() {
                       @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
                       }
                       public interface TestInterface {
-                        method @Deprecated public int getPOld_deprecatedOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
-                        method @Deprecated public int getPOld_deprecatedOnProperty();
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
                         method @BytecodeOnly public int getPOld_deprecatedOnSetter();
                         method @BytecodeOnly @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
                         method @BytecodeOnly @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
@@ -1184,22 +1168,22 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
                         method @BytecodeOnly public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
                         method @BytecodeOnly @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
-                        method @Deprecated public void setPOld_deprecatedOnProperty(int);
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
-                        method @Deprecated public void setPOld_deprecatedOnSetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                         property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                         property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1208,13 +1192,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_accessors {
                         ctor public Test_accessors();
                         method public String? getPNew_accessors();
-                        method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_accessors_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
                         method @BytecodeOnly public String? getPOld_accessors_deprecatedOnSetter();
                         method public void setPNew_accessors(String?);
                         method @BytecodeOnly public void setPOld_accessors_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
                         property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
@@ -1223,13 +1207,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_getter {
                         ctor public Test_getter();
                         method public String? getPNew_getter();
-                        method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_getter_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
                         method @BytecodeOnly public String? getPOld_getter_deprecatedOnSetter();
                         method public void setPNew_getter(String?);
                         method @BytecodeOnly public void setPOld_getter_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_getter_deprecatedOnProperty;
@@ -1238,13 +1222,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_noAccessor {
                         ctor public Test_noAccessor();
                         method public String getPNew_noAccessor();
-                        method @Deprecated public String getPOld_noAccessor_deprecatedOnGetter();
-                        method @Deprecated public String getPOld_noAccessor_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
                         method @BytecodeOnly public String getPOld_noAccessor_deprecatedOnSetter();
                         method public void setPNew_noAccessor(String);
                         method @BytecodeOnly public void setPOld_noAccessor_deprecatedOnGetter(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String);
+                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
@@ -1253,13 +1237,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_setter {
                         ctor public Test_setter();
                         method public String? getPNew_setter();
-                        method @Deprecated public String? getPOld_setter_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
                         method @BytecodeOnly public String? getPOld_setter_deprecatedOnSetter();
                         method public void setPNew_setter(String?);
                         method @BytecodeOnly public void setPOld_setter_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_setter_deprecatedOnProperty;
@@ -1687,7 +1671,6 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class PointerEvent {
                     ctor public PointerEvent();
-                    method public int getKeyboardModifiers();
                     property public int keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
@@ -1747,7 +1730,6 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class PointerEvent {
                     ctor public PointerEvent();
-                    method public int getKeyboardModifiers();
                     property public int keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
@@ -2264,7 +2246,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `Annotations on property of value class type`() {
         // b/417181888 -- the accessor representation depends on if the type is specified in source
-        val extraAnno = if (isK2) "@test.pkg.Anno " else ""
         check(
             sourceFiles =
                 arrayOf(
@@ -2301,8 +2282,6 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public static final class IntValue.Companion {
                     method public int getWithNonValueClassTypeSpecified();
-                    method ${extraAnno}public int getWithValueClassTypeSpecified();
-                    method public int getWithValueClassTypeUnspecified();
                     property @test.pkg.Anno public int withNonValueClassTypeSpecified;
                     property @test.pkg.Anno public int withValueClassTypeSpecified;
                     property @test.pkg.Anno public int withValueClassTypeUnspecified;

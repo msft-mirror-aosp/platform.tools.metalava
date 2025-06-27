@@ -131,6 +131,19 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
             modifiers.setInline(true)
         }
 
+        // Propagate deprecation from the getter if it hasn't already been propagated. This could
+        // happen in the getter has deprecation level hidden, because in that case there will be no
+        // method item for the getter.
+        if (
+            !modifiers.isDeprecated() &&
+                getter == null &&
+                propertySymbol.getter?.annotations?.any {
+                    it.classId?.asFqNameString() == KOTLIN_DEPRECATED
+                } == true
+        ) {
+            modifiers.setDeprecated(true)
+        }
+
         return modifiers
     }
 
