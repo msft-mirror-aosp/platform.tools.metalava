@@ -1634,4 +1634,97 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(fooClass.constructors()).hasSize(1)
         }
     }
+
+    @Test
+    fun `Test experimental value class property`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    @RequiresOptIn annotation class ExperimentalFoo
+                    class Foo {
+                        @ExperimentalFoo
+                        var foo = IntValue(0)
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                // Compiled from the source above with [generateBase64gzipFromKotlin]
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4VWeTQUahsf+5AtZJAw11IkM8hSrgpZhqwNjUGWsWTXYIzi" +
+                        "MjEaa2jKLttUZBt142abkn2sWeabi0a2YiwTl6TLp/udcz91vtv3vuf54z3n" +
+                        "fX7PeZ/f8/7Oz8aCg1MMAAQCAQAAGHBwiQE4AZbGcINTMCsTiKWBFczE+DJc" +
+                        "zdJktwcAWLek9l6yOKU2JGBxSqWfOvDUDjqiyZhDq5lbqsIsh8IrntmtmZ+6" +
+                        "rmJOpZ50WOuHdHdTZ+bezbEDbCx4gDWiyjVn9gvo7IfNP5YH7UeYV2gYJMTf" +
+                        "BwILCnNwDwj3UkMFuIeGRsP7Qn+HC+81L0AcHaT/5fsGwTsodG05aiToBCld" +
+                        "qQymbB8iZZYEFgC1D+maB/wLUfeoc4IBYVC4uAWd0bGSZhphCbwfUlsT3WnH" +
+                        "uzEdLGhp5Opyy+TblV3Mg93drTvn2Sbas/iVx8MmolCtmeOB9Z5wJ2/+FINJ" +
+                        "TbpJix/t3hf6ZqEjBgVUNzvypt4d6BV61qhs2eLSFeE4MR7TfDBzBSnYZsZi" +
+                        "35RuS3d6G5J33yWH7Jeq0jZXWXhys2Q7wjOC5Fo/Uleh562Z4J7wnqP3+QQX" +
+                        "JDXzltiwBjwFyh/xk1czdV7RWcm/dAi6fCwhh9luBorjwc2LOb/MpvRBL/H3" +
+                        "fGyaboDmCyf07gV/egGNimtgrlFClPVi2bjGQ1xoU3KGqd6kIjcgLEeiBaaw" +
+                        "ItW/go7u5Dfjv3xjJA0uhMdCT96qgvGNkh2gqfkpytQTXUmipoVg919GNSqs" +
+                        "AFq5o8l/9j3o1fdJd9rE/In3ITECL+K3XKRwLxr9tSWHQc2ESFlkWKTw41t6" +
+                        "2Ud0V3cUiZ7xxqBR9CRmwvsJcyzPAGl3/HmWexDlWqI6Vo4iM/zzc0liqNeR" +
+                        "EwOV1cka2Jk0hDfvowbXiCf3C976j388uZwbdFfO5PTobwgtF1RniMAwC6l3" +
+                        "MTghUVFN3IYYPdxaG3+R7ZMg217YjRCXeZTz/OIH3CXZK4o5Fofpos9Mfa2H" +
+                        "+0lPa0CdVkLekbhTAo9KVcax4LBN1GlV/GhX0kNzhU4fRfuxV6hKSmHT57FW" +
+                        "y8c9SRWCvP7D6tZZCkL2x5QK6KOkkY0bFckqtkpIRFIF+WmwBKjcbht+ocRo" +
+                        "ajk666ycSXyhTQYCS68IzOvz6cCMilVVZaX6dV9DGgoSjY5W2065aknhVINH" +
+                        "nPrqtmkiht7NXo0OfaqOacb1QoGNK1LVxi6ktFC/OkKheCv/2cQOY2FFy8Sy" +
+                        "Jrn7m12zwelCHyisM1W21t0s/AJDUs7g+GICFoRbb/QEr2hAioNkZuxubABz" +
+                        "MfHjIxOHq2Wm+1ybuvTT+ac+ot3e/colpxPHr5Dxkjfojx2zScpGAvuDowWV" +
+                        "v4pOnGOGEsLiLkX0Mg/Zvd/6wFV8XORTpW24B+1ZeSul1UghTDec75f4iPlf" +
+                        "E1fxEpvb9DItbpk9HpgsmkicFS8DW20RVDIo0U2g2OQW4JMGs2uLnKHNKVFb" +
+                        "2PQM3cgVFRBELcQVODHXjaJap+0Jbo/jmtfJs2r3mQJs8lS8Ws4VjqCGsQG+" +
+                        "LVOTPgaHKvdYPUH0OiiGt6X8GKq81fW66k0rZdb44uoVnx5abHcP4/A55hNI" +
+                        "cepeLOKTT7yRfp38xc13kdUiWGmbAorp1WjpAf31gVrjHbWCwsHqu0s94oZn" +
+                        "z43ZjpCTHoW9zk2zXvsgnh0XHhDg/hr3jpETl12vptt1hqBLONuw6rsy1IiG" +
+                        "LrnRDcZealmfmZXblv2qPhfSfLLOcAIASzw/Uh+Zg+pjjA3xQvsGegWFuQeY" +
+                        "BAf/R4TwNvrW7AbC0aFAngXQJ9zta89KNgZpvqW8CllFEnCpCi4dz2maURCY" +
+                        "PrT9QJWfvGEquSByzzC1j/l75Pp8H/X3nfVDsSimiLO8/IzAjkvNRyhRXiud" +
+                        "TiiSStAmpC8nJq6xFzdebZ68ewwlb0DL88GPFR82wdP1dhK0M+OjqmRzL/jW" +
+                        "gFc7/RRKPw9++hxf67pjP5WeUCV5HYb+6RZZgbir3MzHMRrpiZtsaG5iQVTi" +
+                        "J7KW8affWUm8rNTKVsC6JhkpCcrZPFgXUtm9Jzl5TITvqS+d7NxLrmvfWLo7" +
+                        "1//Q1CGn3+dNA4NQ67KzhAh4pQ+KDsxlzfJEG4VUt7Eeyz9RYVjypapb/5xu" +
+                        "eaQcI7dQnwRst+4fvysbkFhFpjRfZtHM3PJK8exJXwo1zDWzMkJqCYoK5AnD" +
+                        "V51Jd+xlHWclPPo6z2oji4B5XfVuxrQkhsdtvTJEIMdfHLnf88Ig2ACAw+w/" +
+                        "4kjkIEd/8+JlNxAsYiC2641xvI8fxj8n2lU9dwgki9GxUDoiRhtcnAs3unQD" +
+                        "eqgyvLfOIrsYrXD1i94Gk5TY0REHxq7f0WhxqR1uuK2zGq35dqslWrP1l5g9" +
+                        "Noa2OT+v7yHHAJ07STdbZLlQ0DtVok/eI6dsWZHLtOreE2LcgZ0s6cgHBo5O" +
+                        "NUrCOO8LxkRwuJrNpucouhEjpm5XvlOYXhDk8rng1hu/Rv5FZGRz/gVpXg7u" +
+                        "h2aLqaua0FcP3TsoGSVGH6vkJTLvwVy3gLp1il74OL/ApXDU+Q1bJUQKw6/m" +
+                        "j+oR/7RcuGSJ3jNbmmLrb8mv7XvXo3xht5lD863a1jcDG2eeBVgjVx57VQxv" +
+                        "kJaw7dFOSAELZDxrLNGwFGVA4GLb4Bi5v5VfVIL72CHexio677+mqtNw5v1R" +
+                        "54VSw/G6uF1tCNk0Y/p4at4XtzY4uqlsakjmWk2CbOb5AVqRNW4Ik9BlghyV" +
+                        "Vxoof+FtcgXuooNq2/o56OLGdCdJRL59rmhG+1AUFb7byIeW3ssL1lZMXSC/" +
+                        "rZV8eDLN5/zScz/MAsk+lBd25cuLOYeqNNER1CDWo14PM5mJiXOfLlqCSdmM" +
+                        "HhZcPpefX8p6tYpZ3CycodNKkuFtL9cYV5UvKz/iMVK3HlWbngVd3g4eXO+R" +
+                        "zHTNOKcYOyPerkBMLxEBG1yPq3hNiJWkDue+ktZAkT2gMUj5bYhZzDnQkKFN" +
+                        "npxpf/d6V1p3xIfTQv1zIAgi29PH5HgHU86pKMZjwzmUeLK4X8xEVk8gy1BC" +
+                        "p9MwuThAPWUJjARviEi+iAKSUkga1cTrR3qJHqQUf4Q+p2hD2tHbhENUvgmx" +
+                        "Qc6HXGOcaPZQdklcJK4ydpvn6wgrol7ejNsfXyrHj0b46H787bEC3X2D1PyD" +
+                        "wwJ8g1wDgz3DA7xQbm5u3vvB6WHFfcLGY9AD8JeB+uOnpmbR/UyJvwwUG7sY" +
+                        "4L/oB83VVwf37fonP/c9ykGRBH2DEPPPtux7kIO/WOYbkD85/5+6fo91sJ0i" +
+                        "32AVc/8vFfg+/2DLjn6T78n7QwpsLLi4v17j2t9u+4+h8H49/Ruo62aoNgsA" +
+                        "AA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fooProperty = fooClass.assertProperty("foo")
+            assertThat(fooProperty.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            assertThat(fooGetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            assertThat(fooGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            assertThat(fooSetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            assertThat(fooSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+        }
+    }
 }
