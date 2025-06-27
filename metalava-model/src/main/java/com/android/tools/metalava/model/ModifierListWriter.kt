@@ -26,40 +26,32 @@ private constructor(
      * [AnnotationTarget.DOC_STUBS_FILE].
      */
     private val target: AnnotationTarget,
-    private val annotationFormatter: AnnotationFormatter,
-    private val runtimeAnnotationsOnly: Boolean,
-    private val skipNullnessAnnotations: Boolean,
+    private val runtimeAnnotationsOnly: Boolean = false,
+    private val skipNullnessAnnotations: Boolean = false,
 ) {
     companion object {
         fun forSignature(
             writer: Writer,
             skipNullnessAnnotations: Boolean,
-        ): ModifierListWriter {
-            val target = AnnotationTarget.SIGNATURE_FILE
-            return ModifierListWriter(
+        ) =
+            ModifierListWriter(
                 writer = writer,
-                target = target,
-                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
-                runtimeAnnotationsOnly = false,
+                target = AnnotationTarget.SIGNATURE_FILE,
                 skipNullnessAnnotations = skipNullnessAnnotations,
             )
-        }
 
         fun forStubs(
             writer: Writer,
             docStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
-        ): ModifierListWriter {
-            val target =
-                if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
-            return ModifierListWriter(
+        ) =
+            ModifierListWriter(
                 writer = writer,
-                target = target,
-                annotationFormatter = AnnotationFormatter.stubFormatter(target),
+                target =
+                    if (docStubs) AnnotationTarget.DOC_STUBS_FILE
+                    else AnnotationTarget.SDK_STUBS_FILE,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                skipNullnessAnnotations = false,
             )
-        }
 
         /**
          * Checks whether the `abstract` modifier should be ignored on the method item when
@@ -305,7 +297,7 @@ private constructor(
                     }
                 }
 
-                val source = annotationFormatter.formatAnnotation(printAnnotation, item)
+                val source = printAnnotation.toSource(target, showDefaultAttrs = false)
 
                 if (omitCommonPackages) {
                     writer.write(AnnotationItem.shortenAnnotation(source))

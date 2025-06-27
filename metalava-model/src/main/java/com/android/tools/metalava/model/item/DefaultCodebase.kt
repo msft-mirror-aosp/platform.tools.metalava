@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -196,6 +197,6 @@ open class DefaultCodebase(
         source: String,
         context: Item?,
     ): AnnotationItem? {
-        return AnnotationItem.createFromSource(this, source)
+        return DefaultAnnotationItem.createFromSource(this, source)
     }
 }

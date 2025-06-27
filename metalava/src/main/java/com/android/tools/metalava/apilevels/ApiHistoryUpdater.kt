@@ -60,15 +60,11 @@ sealed interface ApiHistoryUpdater {
     /**
      * Extends [ApiVersionUpdater] to also update the [ApiElement.sinceExtension] and
      * [ApiElement.mainlineModule] properties.
-     *
-     * This will only call the super class' [ApiVersionUpdater.update] method if
-     * [isLatestExtVersion] is `true`.
      */
     private class ExtensionUpdater(
         nextSdkVersion: ApiVersion,
         private val extVersion: ExtVersion,
-        private val module: String,
-        private val isLatestExtVersion: Boolean,
+        private val module: String
     ) : ApiVersionUpdater(nextSdkVersion) {
         override fun update(api: Api) {
             // Do not update the Api with the next sdk version as that could cause all classes
@@ -77,10 +73,7 @@ sealed interface ApiHistoryUpdater {
         }
 
         override fun update(apiElement: ApiElement, deprecated: Boolean) {
-            // Only update the ApiVersion if this is the latest extension version.
-            if (isLatestExtVersion) {
-                super.update(apiElement, deprecated)
-            }
+            super.update(apiElement, deprecated)
             apiElement.updateExtension(extVersion)
             if (apiElement is ApiClass) {
                 apiElement.updateMainlineModule(module)
@@ -106,10 +99,9 @@ sealed interface ApiHistoryUpdater {
         fun forExtVersion(
             nextSdkVersion: ApiVersion,
             extVersion: ExtVersion,
-            module: String,
-            isLatestExtVersion: Boolean,
+            module: String
         ): ApiHistoryUpdater {
-            return ExtensionUpdater(nextSdkVersion, extVersion, module, isLatestExtVersion)
+            return ExtensionUpdater(nextSdkVersion, extVersion, module)
         }
     }
 }

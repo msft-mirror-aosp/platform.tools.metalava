@@ -93,24 +93,9 @@ interface ParameterItem : ClassContentItem, Item {
      * - Kotlin lambda = true
      * - Any other type = false
      */
-    fun isSamCompatibleOrKotlinLambda(): Boolean {
-        if (type() is LambdaTypeItem) return true
-
-        // Check the parameter type to see if it is defined in Kotlin or not.
-        // Interfaces defined in Kotlin do not support SAM conversion, but `fun` interfaces do.
-        // This is a best-effort check, since external dependencies (bytecode) won't appear to
-        // be Kotlin for psi, and won't have a `fun` modifier visible. To resolve this, we could
-        // parse the kotlin.metadata annotation on the bytecode declaration , but in reality the
-        // amount of Java methods with a Kotlin interface with a single abstract method from an
-        // external dependency should be minimal.
-        val cls = type().asClass() ?: return false
-        if (!cls.isInterface()) return false
-        return if (cls.isKotlin()) {
-            cls.modifiers.isFunctional()
-        } else {
-            cls.methods().singleOrNull { it.modifiers.isAbstract() } != null
-        }
-    }
+    fun isSamCompatibleOrKotlinLambda(): Boolean =
+        // TODO(b/354889186): Implement correctly
+        false
 
     /**
      * Create a duplicate of this for [containingCallable].
@@ -144,9 +129,6 @@ interface ParameterItem : ClassContentItem, Item {
     override fun containingClass(): ClassItem = containingCallable().containingClass()
 
     override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
-
-    override val targetLanguages: Set<TargetLanguage>
-        get() = containingCallable().targetLanguages
 
     // TODO: modifier list
 }

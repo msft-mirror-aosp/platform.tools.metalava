@@ -73,7 +73,6 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -213,9 +212,6 @@ private constructor(
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
         apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
-        // API lint checks are only relevant to the API surface as used from source, not APIs that
-        // only exist in bytecode.
-        targetLanguages = TargetLanguageSet.SOURCE,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
@@ -521,9 +517,9 @@ private constructor(
 
         // Get the flag value, should be a reference to a constant field.
         val flagValue = attr.value
-        if (flagValue.kind != ValueKind.FIELD) {
-            // It is not a reference to a field so get the string value and try and see if the field
-            // could be found.
+        if (flagValue.kind != ValueKind.CONSTANT_FIELD) {
+            // It is not a reference to a constant field so get the string value and try and see if
+            // the field could be found.
             val value = flagValue.asString()
 
             // Reverse engineer the string value to a field reference and resolve it to a FieldItem,
@@ -2887,10 +2883,6 @@ private constructor(
         if (type !is ArrayTypeItem || (item is ParameterItem && item.isVarArgs())) {
             return
         }
-
-        // Arrays can be used for APIs that only target Kotlin
-        // (go/android-api-guidelines#exception-for-kotlin)
-        if (item.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) return
 
         when (typeString) {
             "java.lang.String[]",

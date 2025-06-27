@@ -17,30 +17,22 @@
 package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import org.jetbrains.kotlin.config.serializeComponentPlatforms
-import org.jetbrains.kotlin.platform.CommonPlatforms
-import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 
 private val standardClasspath = getKotlinStdlibPaths() + getAndroidJar()
 val standardProjectXmlClasspath =
     standardClasspath.joinToString("\n") { "<classpath file=\"$it\"/>" }
 
-val defaultCommonKotlinPlatforms =
-    CommonPlatforms.defaultCommonPlatform.serializeComponentPlatforms()
-val defaultJvmPlatforms = JvmPlatforms.defaultJvmPlatform.serializeComponentPlatforms()
-
 /** The XML string for one module of a project (using the [standardProjectXmlClasspath]). */
 fun createModuleDescription(
     moduleName: String,
     android: Boolean,
-    kotlinPlatforms: String,
     sourceFiles: Array<TestFile>,
     dependsOn: List<String> = listOf("commonMain"),
 ): String {
     val sourceLines = sourceFiles.joinToString("\n") { "<src file=\"${it.targetRelativePath}\" />" }
     val dependsOnLines = dependsOn.joinToString("\n") { "<dep module=\"$it\" kind=\"dependsOn\"/>" }
     return """
-        <module name="$moduleName" android="$android" kotlinPlatforms="$kotlinPlatforms">
+        <module name="$moduleName" android="$android">
           $dependsOnLines
           $sourceLines
           $standardProjectXmlClasspath
@@ -50,13 +42,7 @@ fun createModuleDescription(
 
 /** The XML string for the common module of a project. */
 fun createCommonModuleDescription(sourceFiles: Array<TestFile>): String {
-    return createModuleDescription(
-        moduleName = "commonMain",
-        android = false,
-        kotlinPlatforms = defaultCommonKotlinPlatforms,
-        sourceFiles = sourceFiles,
-        dependsOn = emptyList(),
-    )
+    return createModuleDescription("commonMain", false, sourceFiles, emptyList())
 }
 
 /** The XML string for the android module of a project. */
@@ -64,13 +50,7 @@ fun createAndroidModuleDescription(
     sourceFiles: Array<TestFile>,
     dependsOn: List<String> = listOf("commonMain"),
 ): String {
-    return createModuleDescription(
-        moduleName = "androidMain",
-        android = true,
-        kotlinPlatforms = defaultJvmPlatforms,
-        sourceFiles = sourceFiles,
-        dependsOn = dependsOn,
-    )
+    return createModuleDescription("androidMain", true, sourceFiles, dependsOn)
 }
 
 /** The XML string for a project, with no root dir set (so the file location is the root dir). */

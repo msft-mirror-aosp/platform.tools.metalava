@@ -25,17 +25,12 @@ import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.ThrowingReporter
-import com.android.tools.metalava.testing.TestFileCache
-import com.android.tools.metalava.testing.TestFileCacheRule
-import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.getAndroidJar
-import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.signature
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
-import org.junit.ClassRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestRule
@@ -70,25 +65,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
                 }
             }
         }
-    }
-
-    companion object {
-        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
-        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
-
-        private val deprecatedEnumClass =
-            java(
-                """
-                    package test.pkg;
-                    /** @deprecated */
-                    @Deprecated public enum DeprecatedEnum {
-                        CONSTANT
-                    }
-                """
-            )
-
-        private val deprecatedEnumJarCached =
-            jarFromSources("deprecated-enum.jar", deprecatedEnumClass).cacheIn(testFileCacheRule)
     }
 
     /**
@@ -134,7 +110,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
                     classPath,
                     apiPackages = null,
                     projectDescription = null,
-                    compiledSourceJar = null,
                 )
 
             val codebaseFragment = CodebaseFragment.create(codebase, ::EmittableDelegatingVisitor)
@@ -149,18 +124,9 @@ class ApiUpdateConsistencyTest : DriverTest() {
     private fun versionedJarApi(classFiles: Set<String>): VersionedApiFactory = { version ->
         VersionedJarApi(
             // `prebuilts/sdk/30/public/android.jar`
-            listOf(getAndroidJar(30)),
+            getAndroidJar(30),
             ApiHistoryUpdater.forApiVersion(version),
             filter = { it in classFiles },
-        )
-    }
-
-    private fun versionedJarApiFromTestFile(jar: TestFile): VersionedApiFactory = { version ->
-        // Create a new target dir every time just in case the same jar file is used multiple times.
-        val targetDir = temporaryFolder.newFolder()
-        VersionedJarApi(
-            listOf(jar.createFile(targetDir)),
-            ApiHistoryUpdater.forApiVersion(version),
         )
     }
 
@@ -174,8 +140,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
         message: String,
     ) {
         val api = createApiFromVersionedApis(useInternalNames = true, versionedApis)
-        // Clean the API as is done when generating it properly.
-        api.clean()
         val writer = StringWriter()
         val printer = ApiXmlPrinter(null, versionedApis)
         PrintWriter(writer).use { printWriter -> printer.print(api, printWriter) }
@@ -199,12 +163,12 @@ class ApiUpdateConsistencyTest : DriverTest() {
      * [versionedApiFactories] on [Api] in three different ways:
      * 1. It will create [VersionedApi]s in order with the version equal to 1 more than the index of
      *    the [VersionedApiFactory] in [versionedApiFactories]. They will then be applied in version
-     *    order, e.g. from 1 to `N`. The resulting XML will be compared with [expected].
+     *    order, e.g. from 1 to `N`. The resulting XML will be compared with [expectedForward].
      * 2. The list of [VersionedApi]s created in step #1 will be reversed. So, version `N` will be
      *    applied before version `N-1`. The resulting XML will be compared with
-     *    [expectedReversedVersions].
+     *    [expectedBackwardSameVersions].
      * 3. The list of [versionedApiFactories] will be reversed and then used as in step #1. The
-     *    resulting XML will be compared with [expectedReversedFactories].
+     *    resulting XML will be compared with [expectedBackwardIncludeVersions].
      *
      * Irrespective of which way the [Api] is constructed it should produce XML output that matches
      * [expected].
@@ -212,8 +176,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
     private fun checkVersionedApiFactories(
         vararg versionedApiFactories: VersionedApiFactory,
         expected: String,
-        expectedReversedVersions: String = expected,
-        expectedReversedFactories: String = expected,
     ) {
         val versionedApis =
             versionedApiFactories.mapIndexed { index, factory ->
@@ -221,13 +183,13 @@ class ApiUpdateConsistencyTest : DriverTest() {
             }
 
         checkVersionedApis(versionedApis, expected, "forward")
-        checkVersionedApis(versionedApis.reversed(), expectedReversedVersions, "reversed versions")
+        checkVersionedApis(versionedApis.reversed(), expected, "reversed versions")
 
         checkVersionedApis(
             versionedApiFactories.reversed().mapIndexed { index, factory ->
                 factory(ApiVersion.fromLevel(index + 1))
             },
-            expectedReversedFactories,
+            expected,
             "reversed factories"
         )
     }
@@ -387,38 +349,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
                             <field name="CLASS"/>
                             <field name="RUNTIME"/>
                             <field name="SOURCE"/>
-                        </class>
-                    </api>
-                """,
-        )
-    }
-
-    @Test
-    fun `Test deprecated enum`() {
-        checkVersionedApiFactories(
-            versionedJarApiFromTestFile(deprecatedEnumJarCached),
-            versionedSignatureApi(
-                """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          @Deprecated public enum DeprecatedEnum {
-                            enum_constant @Deprecated public test.pkg.DeprecatedEnum CONSTANT;
-                          }
-                        }
-                    """
-            ),
-            versionedSourceApi(deprecatedEnumClass),
-            // Emulates an extension jar being applied after the main API.
-            versionedJarApiFromTestFile(deprecatedEnumJarCached),
-            expected =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="3">
-                        <class name="test/pkg/DeprecatedEnum" since="1" deprecated="1">
-                            <extends name="java/lang/Enum"/>
-                            <method name="valueOf(Ljava/lang/String;)Ltest/pkg/DeprecatedEnum;"/>
-                            <method name="values()[Ltest/pkg/DeprecatedEnum;"/>
-                            <field name="CONSTANT"/>
                         </class>
                     </api>
                 """,

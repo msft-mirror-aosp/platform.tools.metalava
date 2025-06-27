@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -25,7 +24,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
-import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.util.PsiUtil
@@ -67,7 +65,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
     }
 
     private fun ensureExceptionsDocumented(method: MethodItem) {
-        if (!method.isKotlin() || method.body == CallableBody.UNAVAILABLE) {
+        if (!method.isKotlin()) {
             return
         }
 
@@ -86,8 +84,9 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 if (annotation != null) {
                     // There can be multiple values
                     for (attribute in annotation.attributes) {
-                        for (v in attribute.value.asFlatList()) {
-                            if (v is ClassObjectValue && v.typeItem == exception.type()) {
+                        for (v in attribute.leafValues()) {
+                            val source = v.toSource()
+                            if (source.endsWith(exception.simpleName() + "::class")) {
                                 return
                             }
                         }
@@ -224,12 +223,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
             return
         }
 
-        if (method.containingClass().modifiers.isData() && method.name() == "copy") {
-            // The generated copy method for a data class cannot be annotated. It is possible this
-            // also skips warning for a copy method defined in source for a data class.
-            return
-        }
-
         var haveDefault = false
         for (parameter in parameters) {
             if (parameter.hasDefaultValue()) {
@@ -244,8 +237,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 // Extension methods and inline functions aren't really useful from Java anyway
                 !method.isExtensionMethod() &&
                 !method.modifiers.isInline() &&
-                // Suspend methods are also difficult to use from Java
-                !method.modifiers.isSuspend() &&
                 // Methods marked @JvmSynthetic are hidden from java, overloads not useful
                 !method.modifiers.hasJvmSyntheticAnnotation()
         ) {

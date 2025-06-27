@@ -16,18 +16,15 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
-import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -105,9 +102,8 @@ abstract class UastTestBase : DriverTest() {
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
-                    ctor @KotlinOnly public UseExperimental(kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>... markerClass);
                     method public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
-                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
+                    property public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass;
                   }
                 }
                 package test.pkg {
@@ -207,7 +203,7 @@ abstract class UastTestBase : DriverTest() {
                         """
                         package test.pkg
                         annotation class MyAnnotation
-                        // No use-site target specified, so the annotation applies to the parameter.
+
                         data class Foo(@MyAnnotation val p1: Int, val p2: String)
                     """
                     )
@@ -219,7 +215,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Foo(@test.pkg.MyAnnotation int p1, String p2);
                     method public int component1();
                     method public String component2();
-                    method public test.pkg.Foo copy(optional @test.pkg.MyAnnotation int p1, optional String p2);
+                    method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
                     method public int getP1();
                     method public String getP2();
                     property @test.pkg.MyAnnotation public int p1;
@@ -291,7 +287,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor @KotlinOnly public Alignment(test.pkg.Alignment.Horizontal horizontal, test.pkg.Alignment.Vertical vertical);
+                    ctor public Alignment(int horizontal, int vertical);
                     method public int getHorizontal();
                     method public int getVertical();
                     property public int horizontal;
@@ -340,7 +336,7 @@ abstract class UastTestBase : DriverTest() {
                     property public float Start;
                   }
                   public final class User {
-                    ctor @KotlinOnly public User(test.pkg.AnchorType p, test.pkg.AnchorType q);
+                    ctor public User(float p, float q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
                     method public float foo();
                     method public float getP();
@@ -1029,7 +1025,6 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.ANNOTATION_CLASS) public @interface MyIntDef {
-                    ctor @KotlinOnly public MyIntDef(optional int... value, optional boolean flag);
                     method public abstract boolean flag() default false;
                     method public abstract int[] value();
                     property public abstract boolean flag;
@@ -1088,11 +1083,11 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                         property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                         property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
@@ -1185,11 +1180,11 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                         property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                         property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
@@ -1520,7 +1515,7 @@ abstract class UastTestBase : DriverTest() {
                     property public int keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor @KotlinOnly public PointerKeyboardModifiers(int packedValue);
+                    ctor public PointerKeyboardModifiers(int packedValue);
                   }
                 }
                 """
@@ -1534,7 +1529,6 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-55085
         // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
         val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
-        val targetLanguages = if (isK2) "" else "@KotlinOnly "
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/PointerEvent.kt",
@@ -1580,7 +1574,7 @@ abstract class UastTestBase : DriverTest() {
                     property public int keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor ${targetLanguages}public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
                   }
                 }
                 """
@@ -1811,7 +1805,7 @@ abstract class UastTestBase : DriverTest() {
                 """
             package test.pkg {
               @kotlin.jvm.JvmInline public final value class IntValue {
-                ctor @KotlinOnly public IntValue(int value);
+                ctor public IntValue(int value);
                 method public int getValue();
                 property public int value;
               }
@@ -1821,7 +1815,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
-    fun `default parameter value from common, without jvm platform set for common`() {
+    fun `default parameter value from common, with android=false for common`() {
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -1862,8 +1856,14 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
-    fun `default parameter value from common, with jvm platform set for common`() {
-        // Verifies that expect/actual linking works when only the JVM platform is used.
+    fun `default parameter value from common, with android=true for common`() {
+        // b/322156458
+        val modifier =
+            if (isK2) {
+                ""
+            } else {
+                "optional "
+            }
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -1891,10 +1891,9 @@ abstract class UastTestBase : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createModuleDescription(
                         moduleName = "commonMain",
-                        android = false,
-                        kotlinPlatforms = defaultJvmPlatforms,
+                        android = true,
                         sourceFiles = arrayOf(commonSource),
-                        dependsOn = emptyList(),
+                        dependsOn = emptyList()
                     ),
                 ),
             api =
@@ -1902,7 +1901,7 @@ abstract class UastTestBase : DriverTest() {
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
-                        method public int foo(optional int i);
+                        method public int foo(${modifier}int i);
                       }
                     }
                 """
@@ -1927,7 +1926,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class IntValue {
-                    ctor @KotlinOnly public IntValue(int value);
+                    ctor public IntValue(int value);
                     method public int getValue();
                     property public int value;
                   }
@@ -1941,13 +1940,12 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Data class with value class type`() {
-        // For K2, no UElement created for a method using a value class type (b/388244267).
-        // This will be resolved through b/406833486.
-        val copyEntry =
+        // b/388244267
+        val copySuffix =
             if (isK2) {
                 ""
             } else {
-                "method public test.pkg.IntValueData copy-Vxmw0xk(int intValue);"
+                "-Vxmw0xk"
             }
         check(
             sourceFiles =
@@ -1958,25 +1956,23 @@ abstract class UastTestBase : DriverTest() {
                         @JvmInline
                         value class IntValue(val value: Int)
                         data class IntValueData(private val intValue: IntValue)
-                        """
+                    """
                     )
                 ),
             api =
                 """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class IntValue {
-                    ctor @KotlinOnly public IntValue(int value);
+                    ctor public IntValue(int value);
                     method public int getValue();
                     property public int value;
                   }
                   public final class IntValueData {
-                    ctor @KotlinOnly public IntValueData(test.pkg.IntValue intValue);
-                    $copyEntry
+                    ctor public IntValueData(int intValue);
+                    method public test.pkg.IntValueData copy$copySuffix(int intValue);
                   }
                 }
-                """
-                    // The copyEntry might be blank, remove it if so.
-                    .stripBlankLines()
+            """
         )
     }
 
@@ -2045,377 +2041,12 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) public @interface AnnotationCanRepeat {
-                    ctor @KotlinOnly public AnnotationCanRepeat(int value);
                     method public abstract int value();
                     property public abstract int value;
                   }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public static @interface AnnotationCanRepeat.Entries {
-                    ctor @KotlinOnly public AnnotationCanRepeat.Entries(test.pkg.AnnotationCanRepeat... value);
                     method public abstract test.pkg.AnnotationCanRepeat[] value();
                     property public abstract test.pkg.AnnotationCanRepeat[] value;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Data class value with type argument`() {
-        // Added to test that the nullability of the type argument in the copy method is correct.
-        // A K2 update to the source psi for the copy method changed how the kotlin context for the
-        // method parameters is computed.
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        data class Foo<T: Any>(val items: List<T>)
-                        """
-                    )
-                ),
-            api =
-                """
-                // Signature format: 5.0
-                package test.pkg {
-                  public final class Foo<T> {
-                    ctor public Foo(java.util.List<? extends T> items);
-                    method public java.util.List<T> component1();
-                    method public test.pkg.Foo<T> copy(optional java.util.List<? extends T> items);
-                    method public java.util.List<T> getItems();
-                    property public java.util.List<T> items;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Annotations on property of value class type`() {
-        // b/417181888 -- the accessor representation depends on if the type is specified in source
-        val extraAnno = if (isK2) "@test.pkg.Anno " else ""
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        annotation class Anno
-                        """
-                    ),
-                    kotlin(
-                        """
-                        package test.pkg
-                        @JvmInline value class IntValue(val value: Int) {
-                            companion object {
-                                @Anno val withValueClassTypeSpecified: IntValue = IntValue(0)
-                                @Anno val withValueClassTypeUnspecified = IntValue(0)
-                                @Anno val withNonValueClassTypeSpecified: Int = 0
-                            }
-                        }
-                        """
-                    ),
-                ),
-            api =
-                """
-                // Signature format: 5.0
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Anno {
-                  }
-                  @kotlin.jvm.JvmInline public final value class IntValue {
-                    ctor @KotlinOnly public IntValue(int value);
-                    method public int getValue();
-                    property public int value;
-                    field public static final test.pkg.IntValue.Companion Companion;
-                  }
-                  public static final class IntValue.Companion {
-                    method public int getWithNonValueClassTypeSpecified();
-                    method ${extraAnno}public int getWithValueClassTypeSpecified();
-                    method public int getWithValueClassTypeUnspecified();
-                    property @test.pkg.Anno public int withNonValueClassTypeSpecified;
-                    property @test.pkg.Anno public int withValueClassTypeSpecified;
-                    property @test.pkg.Anno public int withValueClassTypeUnspecified;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Inherited internal constructor property-parameter`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        open class ParentClass(internal open val internalCtorVal: Int) {
-                            internal open fun internalFun() = Unit
-                            internal open val internalVal: Int = 0
-                        }
-                        class ChildClass(override val internalCtorVal: Int): ParentClass(internalCtorVal) {
-                            override fun internalFun() = Unit
-                            override val internalVal: Int = 0
-                        }
-                        """
-                    )
-                ),
-            api =
-                """
-                // Signature format: 5.0
-                package test.pkg {
-                  public final class ChildClass extends test.pkg.ParentClass {
-                    ctor public ChildClass(int internalCtorVal);
-                  }
-                  public class ParentClass {
-                    ctor public ParentClass(int internalCtorVal);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Annotation on generated no-args constructor`() {
-        // b/417687416 the annotation is dropped from the no-args constructor with K2
-        val noArgsAnnotation = if (isK2) "" else "@test.pkg.Anno "
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        annotation class Anno
-                        class Foo @Anno constructor(i: Int = 0, s: String = "")
-                        """
-                    )
-                ),
-            api =
-                """
-                // Signature format: 5.0
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Anno {
-                  }
-                  public final class Foo {
-                    ctor ${noArgsAnnotation}public Foo();
-                    ctor @test.pkg.Anno public Foo(optional int i, optional String s);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `JvmMultifileClass with files in common and android`() {
-        // b/417699607 the android method is dropped from K2 tracking
-        val androidMethod = if (isK2) "" else "method public static void fooAndroid();"
-        val commonSource =
-            kotlin(
-                "commonMain/src/test/pkg/Foo.kt",
-                """
-                @file:JvmMultifileClass
-                @file:JvmName("Foo")
-                package test.pkg
-                fun fooCommon() = Unit
-                """
-            )
-        val androidSource =
-            kotlin(
-                "androidMain/src/test/pkg/Foo.android.kt",
-                """
-                @file:JvmMultifileClass
-                @file:JvmName("Foo")
-                package test.pkg
-                fun fooAndroid() = Unit
-                """
-            )
-        check(
-            sourceFiles = arrayOf(commonSource, androidSource),
-            projectDescription =
-                createProjectDescription(
-                    // Set the common module to only list the jvm platform, since it requires jvm
-                    // annotations.
-                    createModuleDescription(
-                        moduleName = "commonMain",
-                        android = false,
-                        kotlinPlatforms = defaultJvmPlatforms,
-                        sourceFiles = arrayOf(commonSource),
-                        dependsOn = emptyList(),
-                    ),
-                    createAndroidModuleDescription(arrayOf(androidSource)),
-                ),
-            api =
-                """
-                // Signature format: 5.0
-                package test.pkg {
-                  public final class Foo {
-                    $androidMethod
-                    method public static void fooCommon();
-                  }
-                }
-                """
-                    .stripBlankLines()
-        )
-    }
-
-    @Test
-    fun `Test mapped collections methods`() {
-        val maybeExtends = if (isK2) "" else "? extends "
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        class EmptyStringList: List<String> {
-                            override val size = 0
-                            override fun get(index: Int) = error("empty")
-                            override fun indexOf(element: String) = -1
-                            override fun contains(element: String) = false
-                            override fun containsAll(elements: Collection<String>) = false
-                            override fun isEmpty() = true
-                            override fun iterator() = error("empty")
-                            override fun listIterator() = error("empty")
-                            override fun listIterator(index: Int) = error("empty")
-                            override fun subList(fromIndex: Int, toIndex: Int) = this
-                            override fun lastIndexOf(element: String): Int = -1
-                        }
-                        """,
-                    )
-                ),
-            // Compiled from the source above with [generateBase64gzipFromKotlin]
-            compiledSourceJar =
-                base64gzip(
-                    "test.jar",
-                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
-                    "" +
-                        "H4sIAAAAAAAA/4WWezgT+h/Hl8I4UrkU6cJGmsx9lZAc1xGWudTMnbmNjW1I" +
-                        "Uwfhl3KPcq3VInfFkvtxXdrILXJJLsWWmDCHuXR0/vj96jzPOb/P93k/3+f7" +
-                        "PN/v6/P5/vdCWOzeIwEAAoEAAEAO8GNJAPYALI1tDaBwKxNVSwMruIkx0lbF" +
-                        "0mT7NQCwbMlkXLSAqvTutYAqdTPfVNqoDWhOfApWMbdUhlv2koqqbBbNoUFK" +
-                        "5kzmKfvFbtXOTub0p6lPfACEhSCwXBxSrr3T4MxOEP/Y/thOiF4Eoire31vV" +
-                        "OABPvIokBvsGel/0JRBVPLBuBEKp/YaDDF1yG8M/kr4fk5IQRSENtInyud98" +
-                        "9l5e1mPa1O8AFmvog+2jg6BhBiN2oQ4DVseD+kPTTrMZAf2hvDWIPnV25d35" +
-                        "Lu293KStx+HB3iE01rOiyDVgyEL3GCd7I0tn48O3rbkPAKsJjshW2cLL4dcd" +
-                        "qNVfa6bGnfEBrehszSMOAh49M4M0S6hjH5P2ZfN1rTO+oD6zyP/uczTUoWAy" +
-                        "siC/YOa0crXn/WFuV/CgmtP70zSbFyXDMrXzni61VDul8K+pYbnuiOzq5N7m" +
-                        "ivIgGelLsZNH+18jpB5pt2qN+caaYcIgkWdrp1hGUZTWBt+zIrsJ82TF4o+w" +
-                        "905qzv3856ylTOsryHzwL0kGLbtQIIXYrcxNvJNEhvJjsz3Wb66sokKcQh2w" +
-                        "XWq5JZisjOKaWOMlL0YDGppuNtcZgG607Ruq6uODsA8FSq4ID6UHJVOQszMQ" +
-                        "KU8EmqGZNnkB8xK2KkQ+HPcy21pjxQs11HCBfCJxl65xW+yVAVxKpXuOS0C0" +
-                        "3B9eDdR7pH47tTb8SeV9V9P8dUyaU9QvGsVkh7u1hq7EY/y9ciWkYzXmzYuG" +
-                        "mZd0ZejARA15R8mTYvwM4lXPUamIaEpxvgZSSf0IcyB9Qfv2I6eJAwezPCb9" +
-                        "a3rtPQr4L3ydnjx5tjNZ2HsmkmTke0tpSi066mHNQX5QphAky+hWkepx1isr" +
-                        "UswQOEY3rQC0oc897EgrDR63LvBft3GAgxtRwWDUMzPpd+Ncr/5Ce6WM+c/t" +
-                        "68If7paUnWogiNCj16smqYVR/btADX7Dvo5D8abQSqKOE3DTHi+XuFzfaJNJ" +
-                        "vhzI9klVAEF2wxIqSjxHlU9TFXzO6XR57H5YieiDxRMHBhmD+eO2Ftdf17g/" +
-                        "J2VFLVBuKkYkOMk+7c9fB8hUc83hp8ImwNyQcntLN9gT00rcNaEK7IHqQ8dK" +
-                        "D40ka9sX3dHU5bIibjpuvgMyQKK4IEPKLRFCdStlykcb+yn+xXzb5TXUgo8O" +
-                        "AzmJFnrKSkAqbgfzQXSbn6SfFmKeQWseqxHRiwSHxU4PiknR1VWk6/3i5k6X" +
-                        "5JqMBIoh0TGPUrFO99yWgsviut8exUTN6q45+MThj0oPMAWiw4Vm918PXFp9" +
-                        "gLskH4O8PyNcLX7/K3oDtaxe0u5ZqF1Ki6nwe5Kh4TF6GPb8IkZ7j7gGPbkb" +
-                        "ahWr1cNcmgLJsQxmradLhMdl41qsyu5wetjAOtwL0kG9fk9yklutZdoHSpdQ" +
-                        "feLxtq8Rm8llXMQDnsZkY+KLOqeRL0sejQxrqXD/D+b3WExJmANYpbBemsLR" +
-                        "7Diuvg2ICMP2bEKjm3rVM+LpUnPvazUP3uM9eUnNZ99wQdu8LOmRojxjHN/X" +
-                        "Xr3Q8zsLNthE8v4VHiL/JMg3J3eevOZsawOubCjSkE2gn3jkl2PCnmqt68Oa" +
-                        "z4sRhGDqCEOiy8WUhfNZHDmn9A4rSnFRA1p0sfCKsWWwFlydpD/0B1e0isW9" +
-                        "9VailAtbzMdsvJWAe+JtI1riuNcshkSfHkWHf5p8v/wx6ldRUeLJS3YzkZmu" +
-                        "uujOfJlgbHSWDV272Aza6N2txmW8XYoPVPU7pZB7JrT4YXqG1ugEZ/vjBK2I" +
-                        "fdhLDxd4ONEAqTnqgheJy3aIxuUI0N5FPcP4Bb490RLIqzqF7fEuajIgNxeN" +
-                        "8G8ZRzcdWVnPQK22qJ9rz11RBXfoTX94YMtvKN+vCNW7YY274gzSCkkcM/1D" +
-                        "3yx5UTDcpJ16U79PcxLiejzcyPjSMnbXN/EIzplIMMX1czW1vVmTKtf7bktO" +
-                        "oExRn7SPvRHGeyyQKsoLSr1bwErDs9VqWhYVXcpdEEiL1UKCVvBNjSym7u/3" +
-                        "B3xQd5nDGDs+e56R5LGtTM9M/qppUKJcVQpmhBXoo4jP4esx2hhWQ9XsnYfr" +
-                        "ms5xhObFu1beTPPrw9/w4KnnsjSpA15mwhpG99I5HIKn7DXbWHeSPE0ENqNQ" +
-                        "rdOyJgoMtTN0qnsqV8sf8VlzpSM7X2vJAPlOLEp1vlSALGb1y3mVXDm4n3ve" +
-                        "cBAphJN/p9uGFH41b9HjwLf9s+WKLvVJbyLktV50Tu26MqY4vXb7/HnTNTOZ" +
-                        "+lms3nYFp4Qun5JDx05MjN8PM7C4btAkL5W0caduuXTblZlChLBCpJsArWFi" +
-                        "jZI0Al56+dqdL5IHhouTmnniLYn+154bttnlym22jH9dcWxjXFuaXg5TWPS4" +
-                        "RZ1Lghw7U7F5X2nVjuyWlBcBqWDdvjvr+SombB+KULe3xhKiVyirl3bd5T+J" +
-                        "IuOGlJo5M1KH0W6PR42ODuzVUzzd5fPWwSv6lyMO5fZtgB87Xm6Iyx57BNwG" +
-                        "5SkPxupKJytuoRrNQyfIMktmCeQI3EeJSDh2D//nGGvKYnq1awxddtLFmQac" +
-                        "QQg1jzriQ+PLeWvIRoJ6XmT5C4VF9C3+sraoyhDhanLRbdrIEWmqP5sGfTWJ" +
-                        "LiWFn3uK5ByuMXegg5EbXD3Tb18UfQl83xKsyUfKL4DyZdZmpl1B66Qxocaz" +
-                        "9b9x75xosgydf3WwUYcH0Oc97HyW91uZIG6ia4J4wyK54VM29yLC2WgZgMNV" +
-                        "at2VkGZRwGvFUjfimnpfws9xepq/sTVAVzeVkx7Mfv1lM9VorGvaYQ1Ggwk2" +
-                        "NdcxzrIe0ptx7S73oqn7bQUbRDtidD+6tjTD5QraliuiwaJ5oWps1w6D7maI" +
-                        "YMHRnHWp77owmmRdMy0IAFQd+jddkNnJf20lwM03UMUfR8T6BroE4DxJWC8P" +
-                        "V1dXzE72uFsJnES497gD/lIRLqi+QXznpdRfKrKLTwLwP/qPmvLdhX6ufzKj" +
-                        "v1N+nP7YT4Qb/1dw/s76cVqZn1hlwH/9PcKCX+D7td07a3RnFxb6fvoTwPLm" +
-                        "GvsJAAA="
-                ),
-            // The mapped collection APIs shouldn't be bytecode only, but it is better that they are
-            // tracked that way than not tracked at all.
-            api =
-                """
-                // Signature format: 5.0
-                package test.pkg {
-                  public final class EmptyStringList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
-                    ctor public EmptyStringList();
-                    method @BytecodeOnly public void add(int, String!);
-                    method @BytecodeOnly public boolean add(String!);
-                    method @BytecodeOnly public boolean addAll(int, java.util.Collection<? extends java.lang.String!>!);
-                    method @BytecodeOnly public boolean addAll(java.util.Collection<? extends java.lang.String!>!);
-                    method @BytecodeOnly public void clear();
-                    method @BytecodeOnly public boolean contains(Object!);
-                    method public boolean contains(String element);
-                    method public boolean containsAll(java.util.Collection<${maybeExtends}java.lang.String> elements);
-                    method public Void get(int index);
-                    method public int getSize();
-                    method @BytecodeOnly public int indexOf(Object!);
-                    method public int indexOf(String element);
-                    method public boolean isEmpty();
-                    method public Void iterator();
-                    method @BytecodeOnly public int lastIndexOf(Object!);
-                    method public int lastIndexOf(String element);
-                    method public Void listIterator();
-                    method public Void listIterator(int index);
-                    method @BytecodeOnly public String! remove(int);
-                    method @BytecodeOnly public boolean remove(Object!);
-                    method @BytecodeOnly public boolean removeAll(java.util.Collection<? extends java.lang.Object!>!);
-                    method @BytecodeOnly public void replaceAll(java.util.function.UnaryOperator<java.lang.String!>!);
-                    method @BytecodeOnly public boolean retainAll(java.util.Collection<? extends java.lang.Object!>!);
-                    method @BytecodeOnly public String! set(int, String!);
-                    method @BytecodeOnly public int size();
-                    method @BytecodeOnly public void sort(java.util.Comparator<? super java.lang.String!>!);
-                    method public test.pkg.EmptyStringList subList(int fromIndex, int toIndex);
-                    method @BytecodeOnly public Object![]! toArray();
-                    method @BytecodeOnly public <T> T![]! toArray(T![]!);
-                    property public int size;
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Inner class with different number of type parameters than outer class`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        class Outer<T> {
-                            inner class Middle<K, V> {
-                                inner class Inner<A, B, C>
-                            }
-                        }
-                        """
-                    )
-                ),
-            api =
-                """
-                // Signature format: 5.0
-                package test.pkg {
-                  public final class Outer<T> {
-                    ctor public Outer();
-                  }
-                  public final class Outer.Middle<K, V> {
-                    ctor public Outer.Middle();
-                  }
-                  public final class Outer.Middle.Inner<A, B, C> {
-                    ctor public Outer.Middle.Inner();
                   }
                 }
                 """

@@ -26,8 +26,8 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed type from java.lang.String to int [ChangedType]
-                """,
+                load-api.txt:4: error: Field test.pkg.Foo.bar has changed type from java.lang.String to int [ChangedType]
+            """,
             signatureSource =
                 """
                 package test.pkg {
@@ -52,8 +52,8 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
-                """,
+                load-api.txt:4: error: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
+            """,
             signatureSource =
                 """
                 package test.pkg {
@@ -78,9 +78,9 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar changed visibility from protected to private [ChangedScope]
-                load-api.txt:5: error: Binary breaking change: Field test.pkg.Foo.baz changed visibility from public to protected [ChangedScope]
-                """,
+                load-api.txt:4: error: Field test.pkg.Foo.bar changed visibility from protected to private [ChangedScope]
+                load-api.txt:5: error: Field test.pkg.Foo.baz changed visibility from public to protected [ChangedScope]
+            """,
             signatureSource =
                 """
                 package test.pkg {
@@ -157,14 +157,14 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             // inlined by the compiler.
             expectedIssues =
                 """
-                    load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed value from 0 to nothing/not constant [ChangedValue]
-                    load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
+                    load-api.txt:4: error: Field test.pkg.Foo.bar has changed value from 0 to nothing/not constant [ChangedValue]
+                    load-api.txt:4: error: Field test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
                 """,
             signatureSource =
                 """
                 package test.pkg {
                   public class Foo {
-                    field public static int bar;
+                    field public static int bar = 0;
                   }
                 }
             """,
@@ -184,8 +184,8 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
-                """,
+                load-api.txt:4: error: Field test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
+            """,
             signatureSource =
                 """
                 package test.pkg {
@@ -210,13 +210,13 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-                """,
+                load-api.txt:4: error: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+            """,
             signatureSource =
                 """
                 package test.pkg {
                   public class Foo {
-                    field public int bar;
+                    field public int bar = 0;
                   }
                 }
             """,
@@ -224,7 +224,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public static int bar;
+                    field public static int bar = 0;
                   }
                 }
             """
@@ -236,13 +236,13 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Binary breaking change: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-                """,
+                load-api.txt:4: error: Field test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+            """,
             signatureSource =
                 """
                 package test.pkg {
                   public class Foo {
-                    field public static int bar;
+                    field public static int bar = 0;
                   }
                 }
             """,
@@ -250,7 +250,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public int bar;
+                    field public int bar = 0;
                   }
                 }
             """
@@ -264,7 +264,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public int bar;
+                    field public int bar = 0;
                   }
                 }
             """,
@@ -272,7 +272,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public transient int bar;
+                    field public transient int bar = 0;
                   }
                 }
             """
@@ -286,7 +286,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public transient int bar;
+                    field public transient int bar = 0;
                   }
                 }
             """,
@@ -294,7 +294,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Foo {
-                    field public int bar;
+                    field public int bar = 0;
                   }
                 }
             """

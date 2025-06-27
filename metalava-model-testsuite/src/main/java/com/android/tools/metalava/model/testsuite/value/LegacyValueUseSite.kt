@@ -16,15 +16,14 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.Assertions.Companion.assertAttribute
 import com.android.tools.metalava.model.Assertions.Companion.assertField
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestCaseContext
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
-import com.android.tools.metalava.model.value.LegacyValueFormatter
 import com.android.tools.metalava.model.value.ValueUseSite
 import java.util.EnumSet
 
@@ -34,10 +33,13 @@ import java.util.EnumSet
  * @param valueUseSite the [ValueUseSite] that will replace the [LegacyValueUseSite].
  * @param legacySourceGetter gets the legacy source representation as expected by
  *   [ValueExample.expectedLegacySourceFor].
+ * @param legacyValueGetter get the legacy value as expected by
+ *   [ValueExample.expectedLegacyValueFor].
  */
 enum class LegacyValueUseSite(
     val valueUseSite: ValueUseSite,
     val legacySourceGetter: (TestCaseContext.() -> String?)? = null,
+    val legacyValueGetter: (TestCaseContext.() -> Any?)? = null,
 ) {
     /** The default value specified on an annotation class's method. */
     ATTRIBUTE_DEFAULT_VALUE(
@@ -52,11 +54,23 @@ enum class LegacyValueUseSite(
     /** An annotation attribute value specified in an annotation instance. */
     ATTRIBUTE_VALUE(
         ValueUseSite.ANNOTATION,
+        legacySourceGetter = {
+            val annotation = testClassItem.modifiers.annotations().first()
+            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
+
+            annotationAttribute.legacyValue.toSource()
+        },
+        legacyValueGetter = {
+            val annotation = testClassItem.modifiers.annotations().first()
+            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
+
+            annotationAttribute.legacyValue.value()
+        }
     ),
 
     /**
-     * An annotation attribute value produced by [LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER]
-     * called on an [AnnotationItem].
+     * An annotation attribute value produced by [AnnotationItem.toSource] called on an annotation
+     * instance.
      */
     ANNOTATION_TO_SOURCE(
         ValueUseSite.ANNOTATION,
@@ -64,26 +78,20 @@ enum class LegacyValueUseSite(
             // Get the annotation to test.
             val annotation = testClassItem.modifiers.annotations().first()
 
-            // Generate the whole annotation representation, not including default values.
-            val annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter()
-            val wholeAnnotation =
-                annotationFormatter.formatAnnotation(
-                    annotation,
-                    context = testClassItem,
-                )
+            // Generate the whole annotation representation.
+            val wholeAnnotation = annotation.toSource()
 
             // Extract the value from the whole annotation.
-            wholeAnnotation
-                .substringAfter("=")
-                .substringBeforeLast(")")
-                // Remove optional space after the =
-                .trimStart()
+            wholeAnnotation.substringAfter("=").substringBeforeLast(")")
         },
     ),
 
     /** The value of a field. */
     FIELD_VALUE(
         ValueUseSite.FIELD,
+        legacyValueGetter = {
+            testClassItem.assertField(FIELD_NAME).legacyFieldValue?.initialValue(true)
+        },
     ),
 
     /** The value of a field written out by [FieldItem.writeValueWithSemicolon]. */

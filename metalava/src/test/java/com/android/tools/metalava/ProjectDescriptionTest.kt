@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
-import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -88,7 +87,7 @@ class ProjectDescriptionTest : DriverTest() {
                     "project.xml",
                     """
                         <project>
-                          <module name="app" android="true" library="false" kotlinPlatforms="$defaultJvmPlatforms">
+                          <module name="app" android="true" library="false">
                             <src file="androidMain/src/some/pkg/Foo.kt" />
                             <src file="androidMain/src/test/Bar.java" />
                             <classpath file="${getAndroidJar()}"/>
@@ -148,7 +147,7 @@ class ProjectDescriptionTest : DriverTest() {
                     """
                         <project>
                           <root dir="src/androidMain"/>
-                          <module name="androidMain" android="true" kotlinPlatforms="$defaultJvmPlatforms">
+                          <module name="androidMain" android="true">
                             <src file="src/androidMain/some/pkg/Foo.kt" />
                             $standardProjectXmlClasspath
                           </module>
@@ -195,7 +194,7 @@ class ProjectDescriptionTest : DriverTest() {
                     """
                         <project>
                           <root dir="src/androidMain"/>
-                          <module name="androidMain" kotlinPlatforms="$defaultJvmPlatforms">
+                          <module name="androidMain">
                             <src file="src/androidMain/some/pkg/Foo.kt"/>
                             $standardProjectXmlClasspath
                           </module>

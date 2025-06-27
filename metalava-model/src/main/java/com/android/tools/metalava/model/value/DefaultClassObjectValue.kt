@@ -20,18 +20,4 @@ import com.android.tools.metalava.model.TypeItem
 
 internal class DefaultClassObjectValue(
     override val typeItem: TypeItem,
-    private val sourceExpression: String?,
-) : DefaultValue(), ClassObjectValue {
-    /** Override to use [sourceExpression] if required. */
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        if (
-            configuration.classObjectValueFormat == ClassObjectValueFormat.SOURCE &&
-                sourceExpression != null
-        )
-            builder.append(sourceExpression)
-        else super.appendValueStringTo(builder, configuration)
-    }
-}
+) : DefaultValue(), ClassObjectValue

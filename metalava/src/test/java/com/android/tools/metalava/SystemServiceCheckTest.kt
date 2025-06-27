@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -26,16 +25,14 @@ class SystemServiceCheckTest : DriverTest() {
     fun `SystemService OK, loaded from signature file`() {
         check(
             expectedIssues = "", // OK
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
-                    @android.annotation.SystemService("Myservice")
+                    @android.annotation.SystemService
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int myMethod1() { }
@@ -43,7 +40,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource,
+                    requiresPermissionSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -66,16 +63,14 @@ class SystemServiceCheckTest : DriverTest() {
     fun `SystemService OK, loaded from source`() {
         check(
             expectedIssues = "", // OK
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
 
-                    @android.annotation.SystemService("Myservice")
+                    @android.annotation.SystemService
                     public class MyTest2 {
                         @android.annotation.RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public void myMethod1() {
@@ -83,8 +78,7 @@ class SystemServiceCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemServiceSource,
-                    requiresPermissionSource,
+                    systemServiceSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -109,23 +103,20 @@ class SystemServiceCheckTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/MyTest1.java:4: error: Method 'myMethod2' must be protected with a system permission. [RequiresPermission]",
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
-                    @android.annotation.SystemService("Myservice")
+                    @android.annotation.SystemService
                     public class MyTest1 {
                         public int myMethod2() { }
                     }
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
+                    requiresPermissionSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -138,16 +129,14 @@ class SystemServiceCheckTest : DriverTest() {
     fun `Check SystemService -- can miss a permission with anyOf`() {
         check(
             expectedIssues = "",
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
-                    @android.annotation.SystemService("myservice")
+                    @android.annotation.SystemService
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int myMethod1() { }
@@ -155,7 +144,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource,
+                    requiresPermissionSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -179,16 +168,14 @@ class SystemServiceCheckTest : DriverTest() {
                 src/test/pkg/MyTest2.java:6: error: Method 'myMethod1' must be protected with a system permission. [RequiresPermission]
                 src/test/pkg/MyTest2.java:6: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
-                    @android.annotation.SystemService("Myservice")
+                    @android.annotation.SystemService
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int myMethod1() { }
@@ -196,8 +183,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
+                    requiresPermissionSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -212,16 +198,14 @@ class SystemServiceCheckTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/MyTest2.java:6: error: Permission 'foo.bar.PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]",
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                         package test.pkg;
                         import android.annotation.RequiresPermission;
-                        @android.annotation.SystemService("Myservice")
+                        @android.annotation.SystemService
                         public class MyTest2 {
                             @RequiresPermission(allOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                             public int test() { }
@@ -229,8 +213,7 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
+                    requiresPermissionSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -253,9 +236,7 @@ class SystemServiceCheckTest : DriverTest() {
                 "src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system " +
                     "permission; it currently allows non-system callers holding [foo.bar.PERMISSION1, " +
                     "foo.bar.PERMISSION2] [RequiresPermission]",
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
@@ -263,7 +244,7 @@ class SystemServiceCheckTest : DriverTest() {
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
-                    @android.annotation.SystemService("Myservice")
+                    @android.annotation.SystemService
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int test() { }
@@ -271,8 +252,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
+                    requiresPermissionSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -297,31 +277,26 @@ class SystemServiceCheckTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/test/pkg/MyTest2.java:8: error: Method 'test' must be protected with a system permission. [RequiresPermission]
-                src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
-                src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
+                src/test/pkg/MyTest2.java:6: error: Method 'test' must be protected with a system permission. [RequiresPermission]
+                src/test/pkg/MyTest2.java:6: error: Permission 'Manifest.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
+                src/test/pkg/MyTest2.java:6: error: Permission 'Manifest.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
-                    @android.annotation.SystemService("Myservice")
+                    @android.annotation.SystemService
                     public class MyTest2 {
-                        public static final String MY_PERMISSION = "android.permission.MY_PERMISSION";
-                        public static final String MY_PERMISSION2 = "android.permission.MY_PERMISSION2";
-                        @RequiresPermission(allOf={MY_PERMISSION, MY_PERMISSION2})
+                        @RequiresPermission(allOf={Manifest.permission.MY_PERMISSION,Manifest.permission.MY_PERMISSION2})
                         public int test() { }
                     }
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
+                    requiresPermissionSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -340,9 +315,7 @@ class SystemServiceCheckTest : DriverTest() {
                 src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system permission. [RequiresPermission]
                 src/test/pkg/MyTest2.java:7: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
@@ -350,7 +323,7 @@ class SystemServiceCheckTest : DriverTest() {
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
-                    @android.annotation.SystemService("Myservice")
+                    @android.annotation.SystemService
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int test() { }
@@ -358,8 +331,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource,
-                    KnownSourceFiles.systemApiSource,
+                    requiresPermissionSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -372,16 +344,14 @@ class SystemServiceCheckTest : DriverTest() {
     fun `Warning suppressed via annotation`() {
         check(
             expectedIssues = "", // OK (suppressed)
-            // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
-            //   instead of the following.
-            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_SERVICE_CHECK),
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
                         """
                     package test.pkg;
 
-                    @android.annotation.SystemService("Myservice")
+                    @android.annotation.SystemService
                     public class MyTest1 {
                         @android.annotation.SuppressLint({"RemovedField","RequiresPermission"})
                         @android.annotation.RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
@@ -390,8 +360,7 @@ class SystemServiceCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemServiceSource,
-                    requiresPermissionSource,
+                    systemServiceSource
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>

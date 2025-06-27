@@ -18,9 +18,8 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -81,14 +80,8 @@ interface ValueFactory {
      * @param optionalTypeItem the optional [TypeItem] for the context in which the value is used,
      *   e.g. [MethodItem.returnType] for [MethodItem.defaultValue]. It should be available unless
      *   the source is incomplete, e.g. missing annotation class definitions.
-     * @param nonLiteralInSource indicates whether the value was represented as a literal in the
-     *   source, or a more complex expression. This can affect legacy formatting.
      */
-    fun createLiteralValue(
-        optionalTypeItem: TypeItem?,
-        underlyingValue: Any,
-        nonLiteralInSource: Boolean = false,
-    ): LiteralValue<*> {
+    fun createLiteralValue(optionalTypeItem: TypeItem?, underlyingValue: Any): LiteralValue<*> {
         val literalValue =
             when (optionalTypeItem) {
                 is PrimitiveTypeItem -> {
@@ -97,16 +90,11 @@ interface ValueFactory {
                     val primitiveKind = optionalTypeItem.kind
                     val primitiveValue = normalizePrimitive(underlyingValue, primitiveKind)
 
-                    createPrimitiveValueForKind(
-                        primitiveKind,
-                        primitiveValue,
-                        underlyingValue,
-                        nonLiteralInSource,
-                    )
+                    createPrimitiveValueForKind(primitiveKind, primitiveValue, underlyingValue)
                 }
                 is ClassTypeItem -> {
                     // The only allowable class type is a String.
-                    if (optionalTypeItem.isPossiblyUnresolvedString() && underlyingValue is String)
+                    if (optionalTypeItem.isString() && underlyingValue is String)
                         DefaultStringValue(underlyingValue)
                     else null
                 }
@@ -124,8 +112,7 @@ interface ValueFactory {
                                 createPrimitiveValueForKind(
                                     primitiveKind,
                                     underlyingValue,
-                                    underlyingValue,
-                                    nonLiteralInSource,
+                                    underlyingValue
                                 )
                             }
                             ?: error(
@@ -148,21 +135,13 @@ interface ValueFactory {
      *
      * Every call that supplies an empty [elements] will return the same instance of [ArrayValue].
      * It is the caller's responsibility to ensure that every [ArrayElementValue] in [elements] has
-     * the same [Value.kind] (excluding [ValueKind.FIELD]). This will throw an exception if it does
-     * not.
+     * the same [Value.kind]. This will throw an exception if it does not.
      */
-    fun createArrayValue(
-        elements: List<ArrayElementValue>,
-        wasUnwrappedInSource: Boolean = false
-    ): ArrayValue {
+    fun createArrayValue(elements: List<ArrayElementValue>): Value {
         if (elements.isEmpty()) return EMPTY_ARRAY
-        if (wasUnwrappedInSource && elements.size != 1)
-            error("wasUnwrappedInSource was set to true but array does not contain 1 element")
         val groupedByKind = elements.groupBy { it.kind }
         val kindCount = groupedByKind.size
-        // Only allow 1 kind or 2 if one of them is field.
-        if (kindCount == 1 || (kindCount == 2 && ValueKind.FIELD in groupedByKind))
-            return DefaultArrayValue(elements, wasUnwrappedInSource)
+        if (kindCount == 1) return DefaultArrayValue(elements)
         val message = buildString {
             append("Expected array elements to be all of the same kind but found ")
             append(kindCount)
@@ -185,93 +164,79 @@ interface ValueFactory {
      * * A [ClassTypeItem] with no [ClassTypeItem.arguments].
      * * An [ArrayTypeItem] of one of these (including [ArrayTypeItem]).
      */
-    fun createClassObjectValue(typeItem: TypeItem, sourceExpression: String?): ClassObjectValue {
+    fun createClassObjectValue(typeItem: TypeItem): ClassObjectValue {
         typeItem.accept(classObjectValueTypeChecker)
-        return DefaultClassObjectValue(typeItem, sourceExpression)
+        return DefaultClassObjectValue(typeItem)
     }
 
-    /**
-     * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName].
-     *
-     * If the field has a constant initializer then it will be retrieved when calling
-     * [FieldReferenceValue.asLiteralValue].
-     *
-     * @param classResolver used to resolve [qualifiedClassName] to a [ClassItem] in
-     *   [FieldReferenceValue.resolve]
-     * @param qualifiedClassName the qualified name of the class containing the field. Is an empty
-     *   string if the field is unqualified.
-     * @param fieldName the name of the field.
-     * @param optionalTypeItem the optional [TypeItem] determined by the context within which the
-     *   [FieldReferenceValue] will be used.
-     * @param kotlinCompanionClass the name of the companion class if the field is inside a Kotlin
-     *   `Companion` object, `null` if it is not. In either case [qualifiedClassName] is the name of
-     *   the main class, NOT the companion class.
-     */
-    fun createFieldReferenceValueWithDeferredConstantValue(
-        classResolver: ClassResolver,
-        qualifiedClassName: String,
-        fieldName: String,
+    /** Create a [FieldReferenceValue] from [fieldItem]. */
+    fun createFieldReferenceValue(
         optionalTypeItem: TypeItem?,
-        kotlinCompanionClass: String? = null,
-        explicitConversionTo: Primitive? = null,
+        fieldItem: FieldItem
     ): ArrayElementValue {
-        // Create a field.
-        val fieldReferenceValue =
-            LazyFieldReferenceValue(
-                classResolver,
-                qualifiedClassName,
-                fieldName,
-                optionalTypeItem,
-                kotlinCompanionClass,
-                explicitConversionTo,
-            )
-
-        // The field may need mapping to a constant value to eliminate differences between Kotlin
-        // and Java.
-        return normalizeFieldReferenceValue(fieldReferenceValue)
+        // Make sure that the class type item does not have any arguments.
+        val classTypeItem = fieldItem.containingClass().type().substitute(arguments = emptyList())
+        val fieldName = fieldItem.name()
+        return if (fieldItem.isEnumConstant()) {
+            createEnumConstantValue(classTypeItem, fieldName)
+        } else {
+            // The actual constant value of a field reference is affected by the type of where it is
+            // used, just as it would if the field reference was replaced by its constant value. So,
+            // an `int` constant field that is used where a `long` is expected will be represented
+            // as a `LongValue` that was originally specified as an int.
+            val constantValue =
+                fieldItem.constantValue?.let { fieldConstantValue ->
+                    fieldConstantValue
+                        // If an optional type item is provided then it needs to be applied to the
+                        // field's constant value.
+                        .takeIf { optionalTypeItem != null }
+                        // So, get the field's underlying value.
+                        ?.asAny()
+                        // Then, create a LiteralValue of the correct type.
+                        ?.let { underlyingValue ->
+                            createLiteralValue(optionalTypeItem, underlyingValue)
+                        }
+                        // Otherwise, just use the field's constant value as is.
+                        ?: fieldConstantValue
+                }
+            createConstantFieldValue(classTypeItem, fieldName, constantValue)
+        }
     }
 
     /**
-     * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional
+     * Create a [ConstantFieldValue] called [fieldName] in [classTypeItem] with an optional
      * [constantValue].
      */
-    fun createFieldReferenceValue(
-        classResolver: ClassResolver,
-        qualifiedClassName: String,
+    fun createConstantFieldValue(
+        classTypeItem: ClassTypeItem,
         fieldName: String,
-        constantValue: ConstantValue? = null,
-        kotlinCompanionClass: String? = null,
-        explicitConversionTo: Primitive? = null,
+        constantValue: ConstantValue?,
     ): ArrayElementValue {
-        // Create a field.
-        val fieldReferenceValue =
-            DefaultFieldReferenceValue(
-                classResolver,
-                qualifiedClassName,
-                fieldName,
-                constantValue,
-                kotlinCompanionClass,
-                explicitConversionTo,
-            )
+        // Some special values need to be used instead of their fields (which can differ between
+        // Java and Kotlin).
+        if (constantValue != null && constantValue in constantValuesToUseInsteadOfField) {
+            return constantValue
+        }
 
-        // The field may need mapping to a constant value to eliminate differences between Kotlin
-        // and Java.
-        return normalizeFieldReferenceValue(fieldReferenceValue)
+        return DefaultConstantFieldValue(
+            classTypeItem,
+            fieldName,
+            constantValue,
+        )
     }
 
-    /** Normalize [FieldReferenceValue]s to eliminate differences between Java and Kotlin. */
-    private fun normalizeFieldReferenceValue(
-        fieldReferenceValue: FieldReferenceValue
-    ): ArrayElementValue {
-        return specialFieldsToReplacementValue[fieldReferenceValue] ?: fieldReferenceValue
-    }
+    /** Create an [EnumConstantValue] called [fieldName] in [classTypeItem]. */
+    fun createEnumConstantValue(
+        classTypeItem: ClassTypeItem,
+        fieldName: String,
+    ): ArrayElementValue = DefaultEnumConstantValue(classTypeItem, fieldName)
 
     /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
         DefaultAnnotationValue(annotationItem)
 
     /** Check if this [TypeItem] is a constant type, i.e. a [String] or a primitive type. */
-    fun TypeItem.isConstantType() = isPossiblyUnresolvedString() || this is PrimitiveTypeItem
+    fun TypeItem.isConstantType() = isString() || this is PrimitiveTypeItem
 
     companion object {
         /**
@@ -281,169 +246,51 @@ interface ValueFactory {
         val primitiveValueFactories =
             mapOf<Primitive, PrimitiveValueFactory<*>>(
                 Primitive.BOOLEAN to
-                    { underlyingValue, _, _ ->
+                    { underlyingValue, _ ->
                         DefaultBooleanValue(underlyingValue as Boolean)
                     },
                 Primitive.BYTE to
-                    { underlyingValue, originalValue, nonLiteralInSource ->
-                        val byteValue = underlyingValue as Byte
-                        val effectivelyNonLiteralInSource =
-                            nonLiteralInSource ||
-                                // Negative numbers are treated as if they were created from a unary
-                                // minus expression. That is true even when they are read from a jar
-                                // where they are stored as a negative number.
-                                byteValue < 0
-
-                        DefaultByteValue(
-                            byteValue,
-                            originalValue,
-                            effectivelyNonLiteralInSource,
-                        )
+                    { underlyingValue, _ ->
+                        DefaultByteValue(underlyingValue as Byte)
                     },
                 Primitive.CHAR to
-                    { underlyingValue, _, _ ->
+                    { underlyingValue, _ ->
                         DefaultCharValue(underlyingValue as Char)
                     },
                 Primitive.DOUBLE to
-                    { underlyingValue, originalValue, nonLiteralInSource ->
-                        val doubleValue = underlyingValue as Double
-                        val effectivelyNonLiteralInSource =
-                            nonLiteralInSource ||
-                                // Negative numbers are treated as if they were created from a unary
-                                // minus expression. That is true even when they are read from a jar
-                                // where they are stored as a negative number.
-                                doubleValue < 0 ||
-                                // Similarly, NaN, +Infinity, -Infinity are treated as if they were
-                                // an expression as there is no literal for them. That is true even
-                                // when they are read from a jar where they are stored as a special
-                                // set of bits.
-                                doubleValue.isNaN() ||
-                                doubleValue.isInfinite()
-
-                        DefaultDoubleValue(
-                            doubleValue,
-                            originalValue,
-                            effectivelyNonLiteralInSource,
-                        )
+                    { underlyingValue, originalValue ->
+                        DefaultDoubleValue(underlyingValue as Double, originalValue is Int)
                     },
                 Primitive.FLOAT to
-                    { underlyingValue, originalValue, nonLiteralInSource ->
-                        val floatValue = underlyingValue as Float
-                        val effectivelyNonLiteralInSource =
-                            nonLiteralInSource ||
-                                // Negative numbers are treated as if they were created from a unary
-                                // minus expression. That is true even when they are read from a jar
-                                // where they are stored as a negative number.
-                                floatValue < 0 ||
-                                // Similarly, NaN, +Infinity, -Infinity are treated as if they were
-                                // an expression as there is no literal for them. That is true even
-                                // when they are read from a jar where they are stored as a special
-                                // set of bits.
-                                floatValue.isNaN() ||
-                                floatValue.isInfinite()
-
-                        DefaultFloatValue(
-                            floatValue,
-                            originalValue,
-                            effectivelyNonLiteralInSource,
-                        )
+                    { underlyingValue, originalValue ->
+                        DefaultFloatValue(underlyingValue as Float, originalValue is Int)
                     },
-                Primitive.INT to
-                    { underlyingValue, originalValue, nonLiteralInSource ->
-                        val intValue = underlyingValue as Int
-                        val effectivelyNonLiteralInSource =
-                            nonLiteralInSource ||
-                                // Negative numbers are treated as if they were created from a unary
-                                // minus expression. That is true even when they are read from a jar
-                                // where they are stored as a negative number.
-                                intValue < 0
-                        DefaultIntValue(
-                            intValue,
-                            originalValue,
-                            effectivelyNonLiteralInSource,
-                        )
-                    },
+                Primitive.INT to { underlyingValue, _ -> DefaultIntValue(underlyingValue as Int) },
                 Primitive.LONG to
-                    { underlyingValue, originalValue, nonLiteralInSource ->
-                        val longValue = underlyingValue as Long
-                        val effectivelyNonLiteralInSource =
-                            nonLiteralInSource ||
-                                // Negative numbers are treated as if they were created from a unary
-                                // minus expression. That is true even when they are read from a jar
-                                // where they are stored as a negative number.
-                                longValue < 0
-
-                        DefaultLongValue(
-                            longValue,
-                            originalValue,
-                            effectivelyNonLiteralInSource,
-                        )
+                    { underlyingValue, originalValue ->
+                        DefaultLongValue(underlyingValue as Long, originalValue is Int)
                     },
                 Primitive.SHORT to
-                    { underlyingValue, originalValue, nonLiteralInSource ->
-                        val shortValue = underlyingValue as Short
-                        val effectivelyNonLiteralInSource =
-                            nonLiteralInSource ||
-                                // Negative numbers are treated as if they were created from a unary
-                                // minus expression. That is true even when they are read from a jar
-                                // where they are stored as a negative number.
-                                shortValue < 0
-
-                        DefaultShortValue(
-                            shortValue,
-                            originalValue,
-                            effectivelyNonLiteralInSource,
-                        )
+                    { underlyingValue, _ ->
+                        DefaultShortValue(underlyingValue as Short)
                     },
             )
 
         /**
-         * Create a simple [FieldReferenceValue] for [fieldName] in class [qualifiedName]
+         * Set of [ConstantValue]s which should be used in place of any referencing field.
          *
-         * Note: This does not work for fields in nested classes.
+         * These are normalized so that the values are the same whether they come from a jar file or
+         * a source file, or java or kotlin.
          */
-        private fun fieldReference(qualifiedName: String, fieldName: String) =
-            DefaultFieldReferenceValue(ClassResolver.THROWING, qualifiedName, fieldName)
-
-        /**
-         * Adds mappings for special fields [field] of [type] to [value].
-         *
-         * This adds a mapping for each of the Java and Kotlin special fields called [field] of
-         * [type] to [value].
-         */
-        private fun MutableMap<FieldReferenceValue, ConstantValue>.addFieldMappings(
-            type: String,
-            field: String,
-            value: ConstantValue
-        ) {
-            put(fieldReference("java.lang.$type", field), value)
-            put(fieldReference("kotlin.jvm.internal.${type}CompanionObject", field), value)
-        }
-
-        /**
-         * Map from [FieldReferenceValue] to a [ConstantValue] for some special fields which differ
-         * between Java and Kotlin.
-         *
-         * This is initialized lazily to avoid an initialization cycle that roughly looks like this:
-         * 1. [ValueFactory.Companion.specialFieldsToReplacementValue]
-         * 2. [DoubleValue.NaN]
-         * 3. Via inheritance to [Value]
-         * 4. [Value.Companion]
-         * 5. Via inheritance to [ValueFactory]
-         * 6. [ValueFactory] initializes [ValueFactory.Companion]
-         */
-        private val specialFieldsToReplacementValue by
-            lazy(LazyThreadSafetyMode.NONE) {
-                buildMap {
-                    addFieldMappings("Double", "NaN", DoubleValue.NaN)
-                    addFieldMappings("Double", "NEGATIVE_INFINITY", DoubleValue.NEGATIVE_INFINITY)
-                    addFieldMappings("Double", "POSITIVE_INFINITY", DoubleValue.POSITIVE_INFINITY)
-
-                    addFieldMappings("Float", "NaN", FloatValue.NaN)
-                    addFieldMappings("Float", "NEGATIVE_INFINITY", FloatValue.NEGATIVE_INFINITY)
-                    addFieldMappings("Float", "POSITIVE_INFINITY", FloatValue.POSITIVE_INFINITY)
-                }
-            }
+        private val constantValuesToUseInsteadOfField =
+            setOf(
+                DoubleValue.NaN,
+                DoubleValue.POSITIVE_INFINITY,
+                DoubleValue.NEGATIVE_INFINITY,
+                FloatValue.NaN,
+                FloatValue.POSITIVE_INFINITY,
+                FloatValue.NEGATIVE_INFINITY,
+            )
 
         /**
          * Create a [PrimitiveValue] for [primitiveKind] and [primitiveValue].
@@ -457,16 +304,15 @@ interface ValueFactory {
          * then the [primitiveValue] will be a `java.lang.Long` instance with a value of `10L` but
          * the [originalValue] will be a `java.lang.Integer` instance with a value of `10`.
          *
-         * It supports the [ValueStringConfiguration.useOriginalValueForNumbers] behavior.
+         * It supports the [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt] behavior.
          */
         private fun createPrimitiveValueForKind(
             primitiveKind: Primitive,
             primitiveValue: Any,
-            originalValue: Any,
-            nonLiteralInSource: Boolean,
+            originalValue: Any
         ) =
             primitiveValueFactories[primitiveKind]?.let { factory ->
-                factory(primitiveValue, originalValue, nonLiteralInSource)
+                factory(primitiveValue, originalValue)
             } ?: error("Cannot create PrimitiveValue: unknown primitive kind: $primitiveKind")
 
         /** Normalize the [underlyingValue] to make it consistent with [primitiveKind]. */
@@ -603,7 +449,7 @@ interface ValueFactory {
         }
 
         /** An empty [ArrayValue]. */
-        private val EMPTY_ARRAY = DefaultArrayValue(emptyList(), wasUnwrappedInSource = false)
+        private val EMPTY_ARRAY = DefaultArrayValue(emptyList())
 
         /** Checks the [TypeItem] supplied to [createClassObjectValue]. */
         val classObjectValueTypeChecker =
@@ -636,16 +482,4 @@ interface ValueFactory {
 }
 
 /** Type of values in [primitiveValueFactories]. */
-internal typealias PrimitiveValueFactory<T> =
-    (underlyingValue: Any, originalValue: Any, nonLiteralInSource: Boolean) -> PrimitiveValue<T>
-
-/**
- * Check to see whether this [TypeItem] is `java.lang.String`.
- *
- * As the definition of `java.lang.String` may not have been provided to Metalava also check for
- * `String` as that is most likely to be an unresolved reference to `java.lang.String`. If it was a
- * custom class then presumably that would be defined somewhere in which case it would have been
- * resolved to the class and so would not be an unqualified name.
- */
-internal fun TypeItem.isPossiblyUnresolvedString() =
-    isString() || (this is ClassTypeItem && qualifiedName == "String")
+internal typealias PrimitiveValueFactory<T> = (Any, Any) -> PrimitiveValue<T>

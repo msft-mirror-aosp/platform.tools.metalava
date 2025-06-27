@@ -45,8 +45,6 @@ interface MutableModifierList : BaseModifierList {
 
     fun setInfix(infix: Boolean)
 
-    fun setConst(const: Boolean)
-
     fun setOperator(operator: Boolean)
 
     fun setInline(inline: Boolean)

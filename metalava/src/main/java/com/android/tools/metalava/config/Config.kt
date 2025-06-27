@@ -29,8 +29,6 @@ data class Config(
     val apiFlags: ApiFlagsConfig? = null,
     @field:JacksonXmlProperty(localName = "api-surfaces", namespace = CONFIG_NAMESPACE)
     val apiSurfaces: ApiSurfacesConfig? = null,
-    @field:JacksonXmlProperty(localName = "build-properties", namespace = CONFIG_NAMESPACE)
-    val buildProperties: BuildPropertiesConfig? = null,
 ) : CombinableConfig<Config> {
 
     /** Combine this [Config] with another returning a [Config] object that combines them both. */
@@ -38,7 +36,6 @@ data class Config(
         Config(
             apiFlags = combine(apiFlags, other.apiFlags),
             apiSurfaces = combine(apiSurfaces, other.apiSurfaces),
-            buildProperties = combine(buildProperties, other.buildProperties)
         )
 
     /**
@@ -53,7 +50,6 @@ data class Config(
     internal fun validate() {
         apiFlags?.validate()
         apiSurfaces?.validate()
-        buildProperties?.validate()
     }
 }
 

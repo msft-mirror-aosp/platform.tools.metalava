@@ -47,9 +47,12 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
@@ -132,7 +135,6 @@ class AnnotationsMerger(
                         classPath = options.classpath,
                         apiPackages = options.apiPackages,
                         projectDescription = null,
-                        compiledSourceJar = null,
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
             }
@@ -518,6 +520,15 @@ class AnnotationsMerger(
         mergeQualifierAnnotationsFromXmlElement(item, fieldItem)
     }
 
+    private fun getAnnotationName(element: Element): String {
+        val tagName = element.tagName
+        assert(tagName == "annotation") { tagName }
+
+        val qualifiedName = element.getAttribute(ATTR_NAME)
+        assert(qualifiedName.isNotEmpty())
+        return qualifiedName
+    }
+
     private fun mergeQualifierAnnotationsFromXmlElement(xmlElement: Element, item: Item) {
         val annotationsToMerge =
             getChildren(xmlElement).mapNotNull { annotationElement ->
@@ -554,8 +565,14 @@ class AnnotationsMerger(
                         // Add "L" suffix to ensure that we don't for example interpret "-1" as
                         // an integer -1 and then end up recording it as "ffffffff" instead of
                         // -1L
-                        valName1 to value1 + (if (value1.last().isDigit()) "L" else ""),
-                        valName2 to value2 + (if (value2.last().isDigit()) "L" else ""),
+                        DefaultAnnotationAttribute.create(
+                            valName1,
+                            value1 + (if (value1.last().isDigit()) "L" else "")
+                        ),
+                        DefaultAnnotationAttribute.create(
+                            valName2,
+                            value2 + (if (value2.last().isDigit()) "L" else "")
+                        )
                     ),
                 )
             }
@@ -585,7 +602,7 @@ class AnnotationsMerger(
                         }
 
                         // Attempt to sort in reflection order
-                        if (reflectionFields != null) {
+                        if (!found && reflectionFields != null) {
                             val filterEmit =
                                 ApiVisitor.defaultEmitFilter(
                                     @Suppress("DEPRECATION") options.apiPredicateConfig,
@@ -626,13 +643,16 @@ class AnnotationsMerger(
                     }
                 }
 
-                val attributes = buildList {
-                    add(TYPE_DEF_VALUE_ATTRIBUTE to value)
-                    if (flag) {
-                        add(TYPE_DEF_FLAG_ATTRIBUTE to ANNOTATION_VALUE_TRUE)
-                    }
+                val attributes = mutableListOf<AnnotationAttribute>()
+                attributes.add(DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value))
+                if (flag) {
+                    attributes.add(
+                        DefaultAnnotationAttribute.create(
+                            TYPE_DEF_FLAG_ATTRIBUTE,
+                            ANNOTATION_VALUE_TRUE
+                        )
+                    )
                 }
-
                 return codebase.createAnnotationFromAttributes(
                     if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
                     attributes,
@@ -642,29 +662,35 @@ class AnnotationsMerger(
                 name == ANDROID_STRING_DEF ||
                 name == ANDROIDX_INT_DEF ||
                 name == ANDROID_INT_DEF -> {
-                val attributes = buildList {
-                    val parseChild: (Element) -> Unit = { child: Element ->
-                        val elementName = child.getAttribute(ATTR_NAME)
-                        val value = child.getAttribute(ATTR_VAL)
-                        when (elementName) {
-                            TYPE_DEF_VALUE_ATTRIBUTE -> {
-                                add(TYPE_DEF_VALUE_ATTRIBUTE to value)
-                            }
-                            TYPE_DEF_FLAG_ATTRIBUTE -> {
-                                if (ANNOTATION_VALUE_TRUE == value) {
-                                    add(TYPE_DEF_FLAG_ATTRIBUTE to ANNOTATION_VALUE_TRUE)
-                                }
-                            }
-                            else -> {
-                                error("Unrecognized element: " + elementName)
+                val attributes = mutableListOf<AnnotationAttribute>()
+                val parseChild: (Element) -> Unit = { child: Element ->
+                    val elementName = child.getAttribute(ATTR_NAME)
+                    val value = child.getAttribute(ATTR_VAL)
+                    when (elementName) {
+                        TYPE_DEF_VALUE_ATTRIBUTE -> {
+                            attributes.add(
+                                DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)
+                            )
+                        }
+                        TYPE_DEF_FLAG_ATTRIBUTE -> {
+                            if (ANNOTATION_VALUE_TRUE == value) {
+                                attributes.add(
+                                    DefaultAnnotationAttribute.create(
+                                        TYPE_DEF_FLAG_ATTRIBUTE,
+                                        ANNOTATION_VALUE_TRUE
+                                    )
+                                )
                             }
                         }
+                        else -> {
+                            error("Unrecognized element: " + elementName)
+                        }
                     }
-                    val children = getChildren(annotationElement)
-                    parseChild(children[0])
-                    if (children.size == 2) {
-                        parseChild(children[1])
-                    }
+                }
+                val children = getChildren(annotationElement)
+                parseChild(children[0])
+                if (children.size == 2) {
+                    parseChild(children[1])
                 }
                 val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
                 return codebase.createAnnotationFromAttributes(
@@ -677,40 +703,41 @@ class AnnotationsMerger(
                 val valueElement = children[0]
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
-                return if (pure.isNotEmpty()) {
+                return if (pure != null && pure.isNotEmpty()) {
                     codebase.createAnnotationFromAttributes(
                         name,
-                        listOf(TYPE_DEF_VALUE_ATTRIBUTE to value, ATTR_PURE to pure),
+                        listOf(
+                            DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value),
+                            DefaultAnnotationAttribute.create(ATTR_PURE, pure)
+                        ),
                     )
                 } else {
                     codebase.createAnnotationFromAttributes(
                         name,
-                        listOf(TYPE_DEF_VALUE_ATTRIBUTE to value),
+                        listOf(DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)),
                     )
                 }
             }
-            isNonNull(name) -> return createMarkerAnnotation(ANDROIDX_NONNULL)
-            isNullable(name) -> return createMarkerAnnotation(ANDROIDX_NULLABLE)
+            isNonNull(name) -> return codebase.createAnnotation("@$ANDROIDX_NONNULL")
+            isNullable(name) -> return codebase.createAnnotation("@$ANDROIDX_NULLABLE")
             else -> {
                 val children = getChildren(annotationElement)
                 if (children.isEmpty()) {
-                    return createMarkerAnnotation(name)
+                    return codebase.createAnnotation("@$name")
                 }
-                val attributes = buildList {
-                    for (valueElement in children) {
-                        val attributeName = valueElement.getAttribute(ATTR_NAME) ?: continue
-                        val attributeValue = valueElement.getAttribute(ATTR_VAL) ?: continue
-                        add(attributeName to attributeValue)
-                    }
+                val attributes = mutableListOf<AnnotationAttribute>()
+                for (valueElement in children) {
+                    attributes.add(
+                        DefaultAnnotationAttribute.create(
+                            valueElement.getAttribute(ATTR_NAME) ?: continue,
+                            valueElement.getAttribute(ATTR_VAL) ?: continue
+                        )
+                    )
                 }
                 return codebase.createAnnotationFromAttributes(name, attributes)
             }
         }
     }
-
-    /** Create a marker [AnnotationItem], i.e. one without attributes. */
-    private fun createMarkerAnnotation(name: String) =
-        AnnotationItem.createMarkerAnnotation(codebase, name)
 
     private fun isNonNull(name: String): Boolean {
         return name == IDEA_NOTNULL ||
@@ -765,8 +792,12 @@ class AnnotationsMerger(
                     val qualifiedName = annotation.qualifiedName
                     if (any { it.qualifiedName == qualifiedName }) continue
 
-                    // Take a snapshot of the annotation for use in this codebase.
-                    val annotationToMerge = annotation.snapshot(item.codebase)
+                    val annotationToMerge =
+                        item.codebase.createAnnotation(
+                            annotation.toSource(showDefaultAttrs = false),
+                            item,
+                        ) ?: continue
+
                     add(annotationToMerge)
                 }
             }
@@ -804,9 +835,5 @@ class AnnotationsMerger(
         workingString = workingString.replace(AMP_ENTITY, "&")
 
         return workingString
-    }
-
-    companion object {
-        private const val ANNOTATION_VALUE_TRUE = "true"
     }
 }

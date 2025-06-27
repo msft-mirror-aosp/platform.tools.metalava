@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
@@ -28,6 +29,7 @@ import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
+import com.android.tools.metalava.model.ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_SDK_STUBS_ONLY
 import com.android.tools.metalava.model.ANNOTATION_SIGNATURE_ONLY
 import com.android.tools.metalava.model.ANNOTATION_STUBS_ONLY
@@ -37,11 +39,11 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.JVM_STATIC
-import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
@@ -157,7 +159,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val qualifiedName = annotationItem.qualifiedName
 
         // Check to see if this requires a special [KeyFactory] and use it if it does.
-        val keyFactory = annotationNameToKeyFactory[qualifiedName]
+        val keyFactory = annotationNameToKeyFactory.get(qualifiedName)
         if (keyFactory != null) {
             return keyFactory(annotationItem)
         }
@@ -170,7 +172,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return LazyAnnotationInfo(this, config, annotationItem)
     }
 
-    override fun normalizeInputName(qualifiedName: String): String? {
+    override fun normalizeInputName(qualifiedName: String?): String? {
+        qualifiedName ?: return null
         if (passThroughAnnotation(qualifiedName)) {
             return qualifiedName
         }
@@ -258,6 +261,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.NonUiContext" -> return "androidx.annotation.NonUiContext"
 
             // Misc
+            ANDROID_DEPRECATED_FOR_SDK -> return ANDROID_DEPRECATED_FOR_SDK
             "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
             "android.annotation.CheckResult" -> return "androidx.annotation.CheckResult"
             "android.annotation.Discouraged" -> return "androidx.annotation.Discouraged"
@@ -320,18 +324,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                     qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
                         return qualifiedName
                     }
-
-                    // Ravenwood annotations are meaningless to Metalava.
-                    qualifiedName.startsWith("android.ravenwood.") -> return null
-
-                    // Keep any other unknown annotations.
                     else -> qualifiedName
                 }
             }
         }
     }
 
-    override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
+    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
+        qualifiedName ?: return null
         if (passThroughAnnotation(qualifiedName)) {
             return qualifiedName
         }
@@ -356,15 +356,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
     private fun passThroughAnnotation(qualifiedName: String) =
         config.passThroughAnnotations.contains(qualifiedName) ||
-            config.allShowAnnotations.matchesAnnotationName(qualifiedName) ||
-            config.hideAnnotations.matchesAnnotationName(qualifiedName)
+            config.allShowAnnotations.matches(qualifiedName) ||
+            config.hideAnnotations.matches(qualifiedName)
 
-    /**
-     * Targets for type def annotations, i.e. `@IntDef` and `@StringDef` annotated annotations.
-     *
-     * Depends on the [DefaultAnnotationManager.Config.typedefMode].
-     */
-    private val typedefAnnotationTargets =
+    private val TYPEDEF_ANNOTATION_TARGETS =
         if (
             config.typedefMode == TypedefMode.INLINE || config.typedefMode == TypedefMode.NONE
         ) // just here for compatibility purposes
@@ -393,7 +388,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.StringDef",
             "androidx.annotation.StringDef",
             "android.annotation.LongDef",
-            "androidx.annotation.LongDef" -> return typedefAnnotationTargets
+            "androidx.annotation.LongDef" -> return TYPEDEF_ANNOTATION_TARGETS
             "android.annotation.RestrictedForEnvironment" -> return ANNOTATION_EXTERNAL
 
             // Not directly API relevant
@@ -430,6 +425,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "dalvik.annotation.optimization.ReachabilitySensitive" -> return NO_ANNOTATION_TARGETS
 
             // TODO(aurimas): consider using annotation directly instead of modifiers
+            ANDROID_DEPRECATED_FOR_SDK,
             "kotlin.Deprecated" ->
                 return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
             "java.lang.Deprecated", // tracked separately as a pseudo-modifier
@@ -460,7 +456,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "kotlin.jvm.JvmOverloads",
             "kotlin.jvm.JvmField",
             JVM_STATIC,
-            KOTLIN_METADATA,
             "kotlin.jvm.JvmName" -> return NO_ANNOTATION_TARGETS
         }
 
@@ -496,6 +491,16 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // habit of loading all annotation classes it encounters.)
 
         if (qualifiedName.startsWith("androidx.annotation.")) {
+            if (qualifiedName == ANDROIDX_NULLABLE || qualifiedName == ANDROIDX_NONNULL) {
+                // Right now, nullness annotations (other than @RecentlyNullable and
+                // @RecentlyNonNull)
+                // have to go in external annotations since they aren't in the class path for
+                // annotation processors. However, we do want them showing up in the
+                // documentation using
+                // their real annotation names.
+                return ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
+            }
+
             return ANNOTATION_EXTERNAL
         }
 
@@ -513,7 +518,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         if (cls.isAnnotationType()) {
-            val retention = cls.annotationClass.retention
+            val retention = cls.getRetention()
             if (
                 retention == AnnotationRetention.RUNTIME ||
                     retention == AnnotationRetention.CLASS ||
@@ -581,7 +586,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // If any of a method's super methods are part of a unstable API that needs to be
             // reverted then treat the method as if it is too.
             val revertUnstableApi =
-                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
+                item.superMethods().any { methodItem ->
+                    methodItem.showability.revertUnstableApi() &&
+                        // Ignore overridden methods that are not part of the API being generated if
+                        // there is no previously released API as that will always result in the
+                        // overriding method being removed which can cause problems.
+                        !(methodItem.origin != ClassOrigin.COMMAND_LINE &&
+                            previouslyReleasedCodebase == null)
+                }
             if (revertUnstableApi) {
                 itemShowability = itemShowability.combineWith(REVERT_UNSTABLE_API)
             }

@@ -92,7 +92,6 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
                 classPath = emptyList(),
                 apiPackages = null,
                 projectDescription = null,
-                compiledSourceJar = null,
             )
     }
 

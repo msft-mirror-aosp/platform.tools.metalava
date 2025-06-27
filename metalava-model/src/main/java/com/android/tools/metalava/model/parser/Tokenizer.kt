@@ -53,9 +53,6 @@ class Tokenizer(
         throw exceptionCreator(message, fileLocation())
     }
 
-    /** Get the remainder. */
-    fun remainder(): String = String(buffer, position, buffer.size - position)
-
     /**
      * Eat whitespace, including newline characters.
      *

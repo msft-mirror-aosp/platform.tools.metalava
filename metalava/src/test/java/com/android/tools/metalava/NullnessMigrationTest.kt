@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -638,7 +637,7 @@ class NullnessMigrationTest : DriverTest() {
     fun `Merge nullness annotations in stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(
@@ -685,7 +684,6 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    KnownSourceFiles.systemApiSource,
                 ),
             migrateNullsApiList =
                 listOf(

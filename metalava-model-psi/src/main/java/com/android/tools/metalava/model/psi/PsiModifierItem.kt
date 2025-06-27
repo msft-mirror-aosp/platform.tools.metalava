@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
@@ -83,10 +84,8 @@ import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.isTopLevelKtOrJavaMember
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
@@ -189,36 +188,9 @@ internal object PsiModifierItem {
                 if (annotationItem !in modifiers.annotations()) {
                     modifiers.addAnnotation(annotationItem)
                 }
-
                 // Make sure static definitions are marked
                 if (annotationItem.qualifiedName == JVM_STATIC) {
                     modifiers.setStatic(true)
-                }
-
-                // Special case for RequiresOptIn-annotated annotations: when these are applied
-                // to a property, they are implicitly propagated to the getter and setter
-                // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
-                // Note that the AndroidX experimental lint check will not recognize usages of the
-                // accessors by Java clients as experimental. Because of this AndroidX bans defining
-                // public experimental properties in projects that target Java clients.
-                if (uAnnotation.resolve()?.hasAnnotation("kotlin.RequiresOptIn") == true) {
-                    if (getter != null) {
-                        // Manually setting a RequiresOptIn annotation on a getter causes a
-                        // compiler warning, but this can be suppressed with
-                        // @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET"). Safely handle
-                        // such cases by only adding the annotation if it wasn't explicitly added.
-                        if (annotationItem !in getter.modifiers.annotations()) {
-                            getter.mutateModifiers { addAnnotation(annotationItem) }
-                        }
-                    }
-                    if (setter != null) {
-                        // Explicit RequiresOptIn annotations on setters are supported by the
-                        // compiler, so we should only add this annotation implicitly if it is not
-                        // already explicitly provided.
-                        if (annotationItem !in setter.modifiers.annotations()) {
-                            setter.mutateModifiers { addAnnotation(annotationItem) }
-                        }
-                    }
                 }
             }
         }
@@ -291,7 +263,11 @@ internal object PsiModifierItem {
 
     private fun isDeprecatedAnnotation(annotationItem: AnnotationItem): Boolean =
         annotationItem.qualifiedName.let { qualifiedName ->
-            qualifiedName == "Deprecated" || qualifiedName.endsWith(".Deprecated")
+            qualifiedName == "Deprecated" ||
+                qualifiedName.endsWith(".Deprecated") ||
+                // DeprecatedForSdk that do not apply to this API surface have been filtered
+                // out so if any are left then treat it as a standard Deprecated annotation.
+                qualifiedName == ANDROID_DEPRECATED_FOR_SDK
         }
 
     private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
@@ -406,22 +382,6 @@ internal object PsiModifierItem {
                         visibilityFlags = INTERNAL
                     }
                 }
-            }
-
-            // With K2, the source psi of a data class copy method is the primary constructor, so
-            // that gets used to determine internal visibility above. That works if the data class
-            // is annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated
-            // with @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should
-            // be public. If the copy method is supposed to be internal, it will get a mangled name
-            // (`copy$<module name>`), so if the name is just plain "copy", that means it should not
-            // be internal. Reset the visibility to public in that case.
-            if (
-                sourcePsi is KtPrimaryConstructor &&
-                    (element as? PsiMethod)?.name == "copy" &&
-                    sourcePsi.containingClass()?.hasModifier(KtTokens.DATA_KEYWORD) == true &&
-                    visibilityFlags == INTERNAL
-            ) {
-                visibilityFlags = PUBLIC
             }
         }
 
@@ -681,6 +641,7 @@ internal object PsiModifierItem {
                     // Remove any type-use annotations that psi incorrectly applied to the item.
                     .filterIncorrectTypeUseAnnotations(element)
                     .mapNotNull { PsiAnnotationItem.create(codebase, it) }
+                    .filter { !it.isDeprecatedForSdk() }
             createMutableModifiers(flags, annotations)
         }
     }
@@ -720,6 +681,7 @@ internal object PsiModifierItem {
                             !it.isKotlinNullabilityAnnotation
                     }
                     .mapNotNull { UAnnotationItem.create(codebase, it) }
+                    .filter { !it.isDeprecatedForSdk() }
 
             if (!isPrimitiveVariable) {
                 if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
@@ -743,9 +705,29 @@ internal object PsiModifierItem {
         }
     }
 
+    /** Returns whether this is a `@DeprecatedForSdk` annotation **that should be skipped**. */
+    private fun AnnotationItem.isDeprecatedForSdk(): Boolean {
+        if (qualifiedName != ANDROID_DEPRECATED_FOR_SDK) {
+            return false
+        }
+
+        val allowIn = findAttribute(ATTR_ALLOW_IN) ?: return false
+
+        for (api in allowIn.leafValues()) {
+            val annotationName = api.value() as? String ?: continue
+            if (annotationContext.annotationManager.isShowAnnotationName(annotationName)) {
+                return true
+            }
+        }
+
+        return false
+    }
+
     private val NOT_NULL = NotNull::class.qualifiedName
     private val NULLABLE = Nullable::class.qualifiedName
 
     private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
         get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE
 }
+
+private const val ATTR_ALLOW_IN = "allowIn"

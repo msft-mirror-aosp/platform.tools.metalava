@@ -29,7 +29,4 @@ enum class Capability() {
 
     /** Has access to documentation. */
     DOCUMENTATION,
-
-    /** Can load additional APIs from a jar file when creating an API from source files. */
-    JAR_WITH_SOURCES,
 }

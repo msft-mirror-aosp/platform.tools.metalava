@@ -40,6 +40,16 @@ class CommonParameterizedAttributeValueTest :
     }
 
     @Test
+    fun testLegacySource() {
+        checkLegacySource()
+    }
+
+    @Test
+    fun testLegacyValue() {
+        checkLegacyValue()
+    }
+
+    @Test
     fun testAttributeValue() {
         // This is identical for all annotation attribute use sites so only needs testing once.
         checkExpectedValue {

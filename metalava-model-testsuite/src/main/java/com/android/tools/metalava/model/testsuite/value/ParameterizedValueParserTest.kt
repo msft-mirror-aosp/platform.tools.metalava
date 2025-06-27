@@ -54,21 +54,6 @@ class ParameterizedValueParserTest : BaseModelTest() {
         testCase.valueExample.entryPointCallerTracker
     }
 
-    /** Specifies how a [TestCase] will determine whether it passed or not. */
-    enum class Comparison {
-        /** The [Value] parsed from [TestCase.input] must match the [TestCase.expectedValue]. */
-        STRICT,
-
-        /**
-         * A [Value] must have been parsed from [TestCase.input].
-         *
-         * The writing of some [Value]s to signature files loses information that is necessary to
-         * recreate the original, e.g. the field references may not be fully qualified. In that case
-         * the current goal is simply to ensure that they can be parsed back in.
-         */
-        PARSE,
-    }
-
     class TestCase(
         val label: String,
         /** The [ValueExample] on which this test case is based. */
@@ -76,7 +61,6 @@ class ParameterizedValueParserTest : BaseModelTest() {
         val signatureType: String,
         val input: String,
         val expectedValue: Value,
-        val comparison: Comparison,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -148,28 +132,19 @@ class ParameterizedValueParserTest : BaseModelTest() {
                             // Get the expected value. Uses LegacyValueUseSite.ATTRIBUTE_VALUE but
                             // any would be ok as all use sites have the same expected value.
                             val expectedValue =
-                                valueExample.expectedValue.expectationFor(
+                                valueExample.expectedValue?.expectationFor(
                                     producerKind,
                                     LegacyValueUseSite.ATTRIBUTE_VALUE
                                 ) ?: continue
 
-                            // The expression is only guaranteed to produce the expected source
-                            // value. The jar value could have lost some information, e.g. a
-                            // constant field reference will have been replaced with its constant
-                            // value. Select how the result should be compared appropriately.
-                            val comparison =
-                                if (producerKind == ProducerKind.SOURCE) Comparison.STRICT
-                                else Comparison.PARSE
-
-                            // Add a test case for the input signature expression.
+                            // Add a test case for the input java expression.
                             add(
                                 TestCase(
-                                    "${valueExample.name},signatureExpression,${producerKind.name.lowercase()}",
+                                    "${valueExample.name},javaExpression,${producerKind.name.lowercase()}",
                                     valueExample,
                                     signatureType,
                                     valueExample.signatureExpression,
-                                    expectedValue,
-                                    comparison,
+                                    expectedValue
                                 )
                             )
 
@@ -197,9 +172,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                                             valueExample,
                                             signatureType,
                                             input,
-                                            expectedValue,
-                                            // Just make sure that the value can be parsed.
-                                            Comparison.PARSE,
+                                            expectedValue
                                         )
                                     )
                                 }
@@ -210,12 +183,18 @@ class ParameterizedValueParserTest : BaseModelTest() {
                 // The above produces a lot of duplicates so remove them.
                 .distinct()
                 // Put them in order.
-                .sortedWith(compareBy { it.label })
+                .sortedWith(compareBy({ it.label }))
                 // Apply some filtering to remove known problematic cases.
                 .filter {
-                    // Ignore any tests that use Kotlin syntax for representing array types as they
-                    // cannot yet be converted from `Array<X>` into `X[]`.
-                    !it.input.startsWith("Array<")
+                    // TODO(b/354633349): Support Kotlin syntax for class literals in signature
+                    //  files.
+                    !it.input.contains("::class") &&
+                        // Ignore test cases that require imports as they are not fully qualified
+                        // and signature files require class types to be fully qualified.
+                        it.valueExample.javaImports.isEmpty() &&
+                        // Ignore test cases that have an empty string as an input as they are in
+                        // error.
+                        it.input.isNotEmpty()
                 }
 
         /** Supply the list of test cases as the parameters for this test class. */
@@ -236,9 +215,6 @@ class ParameterizedValueParserTest : BaseModelTest() {
                         field public static final String STRING_CONSTANT = "constant";
                         field public static final int INT_CONSTANT = 37;
                       }
-                      public interface GenericClass<T> {
-                        field public static final String STRING_CONSTANT = "constant";
-                      }
                       public enum TestEnum {
                         enum_constant public static final test.pkg.TestEnum DEFAULT;
                         enum_constant public static final test.pkg.TestEnum VALUE1;
@@ -251,16 +227,9 @@ class ParameterizedValueParserTest : BaseModelTest() {
             // kind is not fully supported across implementation models.
             testCase.expectedValue.runValueTest { expected ->
                 val typeItem = codebase.assertClass("test.pkg.Foo").assertField("FIELD").type()
-                val valueParser = ValueParser(codebase, TypeItemParser.forValueParser(codebase))
+                val valueParser = ValueParser(TypeItemParser.forValueParser(codebase))
                 val actualValue = valueParser.parse(typeItem, testCase.input)
-                when (testCase.comparison) {
-                    Comparison.STRICT -> {
-                        assertEquals(expected, actualValue)
-                    }
-                    Comparison.PARSE -> {
-                        // If it got here then it did not fail above so there is nothing else to do.
-                    }
-                }
+                assertEquals(expected, actualValue)
             }
         }
     }

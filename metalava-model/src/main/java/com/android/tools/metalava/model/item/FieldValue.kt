@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,18 @@
  * limitations under the License.
  */
 
-package android.test;
+package com.android.tools.metalava.model.item
 
-public interface MarkerInterface {
+import com.android.tools.metalava.model.FixedFieldValue
+
+interface FieldValue {
+    fun initialValue(requireConstant: Boolean): Any?
+
+    /**
+     * Creates a snapshot of this.
+     *
+     * The default implementation assumes that this is either dependent on a model or the codebase
+     * and so creates a new [FixedFieldValue] based on the functions above.
+     */
+    fun snapshot(): FieldValue = FixedFieldValue(initialValue(true), initialValue(false))
 }

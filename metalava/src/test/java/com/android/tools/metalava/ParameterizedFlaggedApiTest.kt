@@ -909,8 +909,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
-                    public final int field;
-                    { field = 0; }
+                    public final int field = 2; // 0x2
                     }
                 """
                 ),
@@ -991,7 +990,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
-                                    field public final int field;
+                                    field public final int field = 2; // 0x2
                                   }
                                 }
                             """,
@@ -1103,8 +1102,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
-                    public final int field;
-                    { field = 0; }
+                    public final int field = 2; // 0x2
                     }
                 """
                 ),
@@ -1189,7 +1187,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
-                                    field public final int field;
+                                    field public final int field = 2; // 0x2
                                   }
                                 }
                             """,
@@ -1266,7 +1264,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public interface Foo {
-                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1;
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1; // 0x1
                         }
                     """
                 ),

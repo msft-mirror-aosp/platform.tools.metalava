@@ -14,23 +14,19 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.apilevels
+package com.android.tools.metalava.model
 
-import java.io.File
+import com.android.tools.metalava.model.item.FieldValue
 
-/**
- * Supports updating [Api] with information from the version of the API that is defined in [jar].
- *
- * The [updater] is responsible for updating the [Api].
- */
-class VersionedJarApi(
-    val jar: File,
-    updater: ApiHistoryUpdater,
-    private val filter: ((String) -> Boolean)? = null,
-) : VersionedApi(updater) {
-    override fun updateApi(api: Api) {
-        api.readJar(jar, updater, filter)
-    }
+/** Provides access to the initial values of a field. */
+class FixedFieldValue(
+    private var initialValueWithRequiredConstant: Any?,
+    private var initialValueWithoutRequiredConstant: Any? = initialValueWithRequiredConstant,
+) : FieldValue {
 
-    override fun toString() = "VersionedJarApi(jar=$jar, updater=$updater)"
+    override fun initialValue(requireConstant: Boolean) =
+        if (requireConstant) initialValueWithRequiredConstant
+        else initialValueWithoutRequiredConstant
+
+    override fun snapshot() = this
 }

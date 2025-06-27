@@ -16,17 +16,14 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.testing.value.annotationItem
-import com.android.tools.metalava.model.value.ValueLanguage
-import com.android.tools.metalava.model.value.ValueStringConfiguration
-import kotlin.test.assertEquals
+import org.junit.Assert
 import org.junit.Test
 
 class AnnotationItemTest {
 
     fun checkShortenAnnotation(expected: String, source: String) {
-        assertEquals(expected, AnnotationItem.shortenAnnotation(source))
-        assertEquals(source, AnnotationItem.unshortenAnnotation(expected))
+        Assert.assertEquals(expected, AnnotationItem.shortenAnnotation(source))
+        Assert.assertEquals(source, AnnotationItem.unshortenAnnotation(expected))
     }
 
     @Test
@@ -41,57 +38,5 @@ class AnnotationItemTest {
         checkShortenAnnotation("@Unknown.Nested", "@androidx.annotation.Unknown.Nested")
         checkShortenAnnotation("@my.Annotation", "@my.Annotation")
         checkShortenAnnotation("@m.Annotation", "@m.Annotation")
-    }
-
-    fun checkAppendAnnotationStringTo(
-        expected: String,
-        annotationItem: AnnotationItem,
-        configuration: ValueStringConfiguration,
-        annotationIsValue: Boolean,
-    ) {
-        val actual = buildString {
-            annotationItem.appendAnnotationStringTo(this, configuration, annotationIsValue)
-        }
-        assertEquals(expected, actual)
-    }
-
-    @Test
-    fun `Test non-value annotation for java`() {
-        checkAppendAnnotationStringTo(
-            "@test.pkg.Anno",
-            annotationItem("test.pkg.Anno"),
-            configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.JAVA),
-            annotationIsValue = false,
-        )
-    }
-
-    @Test
-    fun `Test non-value annotation for kotlin`() {
-        checkAppendAnnotationStringTo(
-            "@test.pkg.Anno",
-            annotationItem("test.pkg.Anno"),
-            configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN),
-            annotationIsValue = false,
-        )
-    }
-
-    @Test
-    fun `Test value annotation for java`() {
-        checkAppendAnnotationStringTo(
-            "@test.pkg.Anno",
-            annotationItem("test.pkg.Anno"),
-            configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.JAVA),
-            annotationIsValue = true,
-        )
-    }
-
-    @Test
-    fun `Test value annotation for kotlin`() {
-        checkAppendAnnotationStringTo(
-            "test.pkg.Anno()",
-            annotationItem("test.pkg.Anno"),
-            configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN),
-            annotationIsValue = true,
-        )
     }
 }

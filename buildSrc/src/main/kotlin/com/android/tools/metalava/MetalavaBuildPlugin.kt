@@ -89,7 +89,6 @@ class MetalavaBuildPlugin : Plugin<Project> {
             disable.add("GradleDependency") // not useful for this project
             abortOnError = true
             baseline = File("lint-baseline.xml")
-            warningsAsErrors = true
         }
     }
 

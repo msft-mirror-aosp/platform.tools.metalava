@@ -20,15 +20,10 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TargetLanguageSet
-import java.util.function.Predicate
 
 open class ApiVisitor(
     /** @see BaseItemVisitor.preserveClassNesting */
@@ -53,12 +48,6 @@ open class ApiVisitor(
      * annotated API relative to the base API.
      */
     protected val showUnannotated: Boolean = true,
-
-    /**
-     * The target languages to consider. If an item's target languages do not include any of these
-     * languages, it will be skipped.
-     */
-    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
 
     constructor(
@@ -67,20 +56,16 @@ open class ApiVisitor(
 
         /** Configuration that may come from the command line. */
         apiPredicateConfig: ApiPredicate.Config,
-
-        /** The target languages to consider. */
-        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
     ) : this(
         visitParameterItems = visitParameterItems,
         apiFilters = defaultFilters(apiPredicateConfig),
-        targetLanguages = targetLanguages,
     )
 
     /** The filter to use to determine if we should emit an item */
-    protected val filterEmit = addTargetLanguageCheck(apiFilters.emit, targetLanguages)
+    protected val filterEmit = apiFilters.emit
 
     /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference = addTargetLanguageCheck(apiFilters.reference, targetLanguages)
+    protected val filterReference = apiFilters.reference
 
     companion object {
         /** Get the default [ApiFilters] to use with [ApiVisitor]. */
@@ -104,19 +89,6 @@ open class ApiVisitor(
                 includeApisForStubPurposes = true,
                 config = apiPredicateConfig.copy(ignoreShown = true),
             )
-
-        /**
-         * Updates the [filter] to also check that the [SelectableItem] has at least one of the
-         * [targetLanguages].
-         */
-        private fun addTargetLanguageCheck(
-            filter: FilterPredicate,
-            targetLanguages: Set<TargetLanguage>
-        ): FilterPredicate {
-            return Predicate { item: SelectableItem ->
-                filter.test(item) && item.targetLanguages.intersect(targetLanguages).isNotEmpty()
-            }
-        }
     }
 
     /**

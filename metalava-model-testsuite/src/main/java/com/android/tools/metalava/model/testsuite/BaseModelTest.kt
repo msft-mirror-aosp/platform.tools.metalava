@@ -211,7 +211,6 @@ abstract class BaseModelTest() :
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
         projectDescription: TestFile?,
-        compiledSourceJar: TestFile?,
         testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
@@ -230,7 +229,6 @@ abstract class BaseModelTest() :
                     additionalMainSourceDir = additionalSourceDir,
                     testFixture = testFixture,
                     projectDescription = projectDescriptionFile,
-                    compiledSourceJar = compiledSourceJar,
                 )
             runner.createCodebaseAndRun(inputs) { codebase ->
                 val context =
@@ -288,14 +286,12 @@ abstract class BaseModelTest() :
     fun runCodebaseTest(
         vararg sources: InputSet,
         projectDescription: TestFile? = null,
-        compiledSourceJar: TestFile? = null,
         testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             projectDescription = projectDescription,
-            compiledSourceJar = compiledSourceJar,
             testFixture = testFixture,
             test = test,
         )
@@ -331,14 +327,12 @@ abstract class BaseModelTest() :
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
         projectDescription: TestFile? = null,
-        compiledSourceJar: TestFile? = null,
         testFixture: TestFixture = TestFixture(),
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             projectDescription = projectDescription,
-            compiledSourceJar = compiledSourceJar,
             testFixture = testFixture,
             test = test,
         )

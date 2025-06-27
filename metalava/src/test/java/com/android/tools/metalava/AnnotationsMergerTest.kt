@@ -133,6 +133,7 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Signature files contain annotations`() {
         check(
             format = FileFormat.V2,
+            includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -334,7 +335,7 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge qualifier annotations from Java stub files onto stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(

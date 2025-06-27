@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaRecursiveElementVisitor
@@ -33,16 +32,19 @@ import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiReturnStatement
 import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UQualifiedReferenceExpression
+import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UThisExpression
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.UastErrorType
 import org.jetbrains.uast.getParentOfType
+import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
 internal class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
@@ -182,6 +184,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
         typeDefAnnotation: AnnotationItem,
         typeDefClass: ClassItem,
     ) {
+        val uAnnotation = typeDefAnnotation.uAnnotation ?: return
         val body = psiMethod.body ?: return
 
         body.accept(
@@ -206,7 +209,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                             val names =
                                 constants
                                     ?: run {
-                                        constants = computeValidConstantNames(typeDefAnnotation)
+                                        constants = computeValidConstantNames(uAnnotation)
                                         constants!!
                                     }
                             if (names.isNotEmpty() && !names.contains(name)) {
@@ -224,8 +227,25 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
         )
     }
 
-    private fun computeValidConstantNames(annotation: AnnotationItem): List<String> {
-        val constants = annotation.findAttribute(ANNOTATION_ATTR_VALUE)?.value ?: return emptyList()
-        return constants.asFlatList().mapNotNull { (it as? FieldReferenceValue)?.fieldName }
+    private fun computeValidConstantNames(annotation: UAnnotation): List<String> {
+        val constants = annotation.findAttributeValue(ANNOTATION_ATTR_VALUE) ?: return emptyList()
+        if (constants is UCallExpression) {
+            return constants.valueArguments
+                .mapNotNull { (it as? USimpleNameReferenceExpression)?.identifier }
+                .toList()
+        }
+
+        return emptyList()
     }
 }
+
+/** Public for use only in ExtractAnnotations */
+val AnnotationItem.uAnnotation: UAnnotation?
+    get() =
+        when (this) {
+            is UAnnotationItem -> uAnnotation
+            is PsiAnnotationItem ->
+                // Imported annotation
+                psiAnnotation.toUElement(UAnnotation::class.java)
+            else -> null
+        }
