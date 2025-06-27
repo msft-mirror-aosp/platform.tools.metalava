@@ -1727,4 +1727,100 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(fooSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
         }
     }
+
+    @Test
+    fun `Test experimental value class property in interface`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                package test.pkg
+                @JvmInline value class IntValue(val value: Int)
+                @RequiresOptIn annotation class ExperimentalFoo
+                interface Foo {
+                    @ExperimentalFoo
+                    var foo: IntValue
+                }
+                """
+                )
+            ),
+            compiledSourceJar =
+                // Compiled from the source above with [generateBase64gzipFromKotlin]
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4WWeTiUax/Hxz4cOxlLGMcQkz3KcihkGYydJA7DMJaxxGAo" +
+                        "J4OZxmQtuxLZyhYSirFVlhhbtsYuy1v2yJITrzrXdV51vadz39fvj+e67t/3" +
+                        "vq/ncz/f52tuTEfPCwACgQAAQAxwfPAC6AFwPWttWZipvjxc2xSmr2dlLQfX" +
+                        "P3gNAGzCu7tMjGXl+tmMZaE93b1PLBUGz0zPB8gZwWVg8P6g4mrLdSPZq1Cj" +
+                        "7u7Ttus98p2d3e/mZ+dpAebGTMDHPNKP1Y42OHdU5v+4PeioMG6BGHl/b5Q8" +
+                        "zBdji0AHucm5ohGBgeHWlMAxa85D8qL8ZduTbz3f2DH3cXisXB/0lSpIlMyH" +
+                        "Sdv4CxqSxNhAr/pVjdBv7aqK2sen5aebGRjZHQIiBAyVMATm93FNMYjRU53B" +
+                        "bRsKeaFrK40TU6sHwfcPDnYSztOMv0pjlR7BjF93bbo94lOLtL7izhqrPXGG" +
+                        "qt/oNZryJ3U7+3KwK1DR8MSbWgTQLVBdN3/F2OQSZxQvk8FdseVVe/YXhhu0" +
+                        "2ydfJF6Z8s9Kdcyo9IqDvpgvzT69/WAvBBlS4FQ7WFWs4X6GgCD8h66rZpxB" +
+                        "Pu52JO+AknWsAmvIr27k7gUJB0nvvH6FFWFCxvIrQ1AUE26B16ElvZmiYML6" +
+                        "+mPDTJ3CXU5C16Hf7nOF61F1y+vN/tIaETQMI/6Oo5NgnTj3ghxnICyDvxEG" +
+                        "WRXsWQ0Ib2c1ZLUKG4y35sBjFU5HlsFYhiptFeLuxkp3S3WQeAyyxRB/DCkV" +
+                        "mwJUModufaHc79JEJV7ZDv6CRxVM+1zE7zgK4p7Xe58VGACRiaGi9phQzoeR" +
+                        "GuknVNf2JZKR0XqgoYCJ4HH3kuXhLG17y1M1aQjfZo8YRSy4WWTgtxqB5EC3" +
+                        "E1K9peW3lLDv4u3cmYvqnEJKUu9NeY98PL2S6XsHrK889MxOxdG13Z9tYMNe" +
+                        "46IfIUZCjs88OXygqSL6Is0uO80hJszfccHVYeHDe5yJ6CWJDGMuKk+1gafZ" +
+                        "QE/Bk8egdlMO91CcLFtRHnQEK4bZdlWWwQ91kAqNIO0oCZvhVtfS5uyGz8NN" +
+                        "8IevScXszN4DimZpEA4bYcl71KGCwa2w4ltQC0l7O1Jx5RM/ftAjyz3rCw90" +
+                        "J1fC09TB+tHZ5kl2WGqxTxYF1RY8xFtWlhbn1elhr8OerCtUbjHppCKIk/Eb" +
+                        "vEKp2hvl1nEnu9XbUmQux+vVcvjUrwqW6zkWxAd6VRGz+ZpY1WPa9Dgl4DH5" +
+                        "DeDU7Y45v0SO980bamUWZp0b+MVpAbD2qQ8ELAi3WY8UW1WSz/UVeWcZtgXM" +
+                        "DI4eGRznKheZoTg1dGgmsk5+DHCefcoAPhfFCklqYfb9tG840bxFoL0vdK/0" +
+                        "Kc+41nIgERNlEtK1/Ivlf3beM+Se4t4ttQhyGa1+1NTcpAvBqAax/BEdsvA0" +
+                        "Zg3Pv71HzVdhFDlkgokGJCfP8eWLme4QoUnN4Q2giFuNwJI6Q48P9IHk2Os7" +
+                        "2MQk1dBVKEhezt8JOD7f6dptFn/IvjeCI29WzsmlLrPRiHfj5TIu0fnWDfey" +
+                        "7BjoU6bpZBiHa4k8V0E3mBsfCbs+anK6KnPNVHpj5MPaJdTr0YjO19NcWssl" +
+                        "8rlxhxF2u6hoXc0q8Yvbs6Hl3NiT5veaDX4PP9mrudlbobcvdy+7r/zO0ms+" +
+                        "HXWtYYvBSlIR5mVmvNn6e770qCA0GvESNzudEZVeK6faoUZUJarXrXmu9tcH" +
+                        "KCw5U7WHW1TM1ObAe6Jf3edCPCpNjR4AWGL6mfuIHHcfPay/W4Cnj5svBoHW" +
+                        "9/P7y4Tw5ppmtNqc4YFApkXQLu6mR/WDrb5RzzxmSFoOv7VgMcM55Myorq8Y" +
+                        "tX/vvgxr5ZaBwCJ3ik4cZXksdHOB0j22v/lLhOsyt4O4+Du2fcfHHxWSxVUS" +
+                        "qcQcQcJZYuJKTMw6bW797+SJO8Ku4tqjWSj8cC6XPp6qsU84ezv6eplo5gXP" +
+                        "x2Jr7V6QvM99u5+jK5z2bSYTCWUCV2EBv0ZWQpIPpMksdEOhSNxEHblhQx4a" +
+                        "PZ62gleeNeVvKVVJh2CdSLqS7GDz+5sc0IMUgQlhbpYnntRKh67KqldbS3fm" +
+                        "ewoNbDN6UG/qpokVjvtLduhWTVC4T+bGHFO4rn/5i42H4iXQaThLnKLZb4nw" +
+                        "E4+CwYu1JOArs56RO6LomLLKZrLVxqihc1Yenpb0Z7aS0Zm0JP8KogSkclyn" +
+                        "tZ2UYCN6eY7fhdKuftY+B5jVUeusN0qadrmpkW/nQ/eNESLFLdiOBgDgov0Z" +
+                        "I+7jjP7mYmMO9+ax4NXcoSDdlYZU4SWSFiUplgN6Gm9mdfzzpPA4PrFWMNLi" +
+                        "98w0BQqycIs8KBN1mD+xJU/8hfnqYgL3mnU+l8jOZMjqyLPFkbW184CGVsmZ" +
+                        "bAtq9GIeAmvHK0fkvNtpLOCuJEoQvYb6MFhXAXyaq+RQOQYL2z/1xTVyaDJG" +
+                        "YPjGDFL9gBtuQF8vvAaJHsqzQFQpcySkJIV7zglF8jvZN6QaWcmyAV/KumSm" +
+                        "NhHzDrRmkFol+w/ErnN1o7SaxkYDG7RdtTQ4uYKoOI+YjjDyl+D9zdnC7U0h" +
+                        "CgrtcXVlcKkGxZSSuqKG2x/Ybsh5vgu1/ZNUW0clEhfRqd7s6Xv9H+dNEt7a" +
+                        "RT0Al064zY5DlLKkTGsPQM7GC6GIfNgthylSi8G5tFO+4eZ0ap0mv2n1Vt/i" +
+                        "MybHctoesE0JCZi2hZbLTaIsvV/BDq0Un6na3PQsxPqibmdhSm9bF5FNyPVj" +
+                        "y+uKFcbSYmgdBvbmSXw7Ec9WozX1Kbok+0HMoptw9gzDfvoGNGTX0U7xDoKx" +
+                        "LkHwJpZTvNkLlG/Rbg9qbHvephtnIJigIigIjyMR8ma8sDe+5QIwP//pmiPq" +
+                        "Zj+lLvoDdchFN3dEEBoD8/FHB/51BeAJvaatFzjbmnz6jRgYDl+08DBpekhs" +
+                        "LHRGQOBgyfSt2RYZDKSgq8azNnrk44cWpvXc2DeZ/MFPpnpMGt9+oez0LoIi" +
+                        "rmEY1AkB7wo2WoUkYH6Ga1XmbU4F0BAwvb3xs9Ts22Ezmr2pyufY0bjVSNYx" +
+                        "v8KW0kM+0zDLpZeGPBLqoIrH5XQ1sYeif1Dzk/VOD+hDV8M4PRLevXxoeI1H" +
+                        "SSlZP4BiX+ZD4C4YNMZFELsizleftRCYYFauCRWuflbFJlux5s1jaNPng6b3" +
+                        "ioJAaEIMPfUDPaXmkorwZ7t5LoYqW23VsU2tPy1E5yCzeYpWjS2RgYJ6pL6b" +
+                        "eEFoha2wxig+zqonc/fKbN7zHqjm4pMuHlWJ83J2jj0yJ2f4hSend/MDHAPC" +
+                        "EzQ/XRrVcrjPdIEOLsqkutX/meErBKucPKTqEYRSmp9BEDqqv7OhD8LTV87b" +
+                        "D4P29HXy8UMGod1cnZ2d3Y+K3sWUUcrcpc8F8A3wp18byDxHnfzfgh8NLS/g" +
+                        "f+rHQ+HX5Pn9+Kcc+qPKcXMHfadw45/j5I8ix91H5DuRL/T/9lf4Uev4neb+" +
+                        "TiuX8f+514/9x3GIftefBvzX7+BHsePvX+g7sZMsP+VpbszA+HUZ49EsOzoJ" +
+                        "luXr038BJPahNzsMAAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fooProperty = fooClass.assertProperty("foo")
+            assertThat(fooProperty.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            assertThat(fooGetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            assertThat(fooGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            assertThat(fooSetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            assertThat(fooSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+        }
+    }
 }

@@ -571,8 +571,17 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // The annotations on a property in source end up in bytecode on a synthetic method
         // generated to track the annotations. Find that method in the psi class.
         val annotationMethodSignature = kmProperty.syntheticMethodForAnnotations ?: return
+        // For an interface, the annotation method will be in a nested DefaultImpls class.
+        val classForAnnotationMethod =
+            if (psiClass.isInterface) {
+                psiClass.innerClasses.singleOrNull { it.name == "DefaultImpls" }
+            } else {
+                psiClass
+            } ?: return
         val annotationMethod =
-            psiClass.methods.singleOrNull { it.name == annotationMethodSignature.name } ?: return
+            classForAnnotationMethod.methods.singleOrNull {
+                it.name == annotationMethodSignature.name
+            } ?: return
 
         if (kmProperty.visibility == Visibility.INTERNAL) {
             // Check if the method is @PublishedApi, propagate it to the accessor method if so.
