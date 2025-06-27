@@ -73,12 +73,12 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
             stubFiles =
                 arrayOf(
                     java(
+                        // TODO(b/379940628): method() should not be removed.
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public final class Test extends other.pkg.Other {
                             Test() { throw new RuntimeException("Stub!"); }
-                            public void method() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     )
@@ -190,6 +190,53 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                              * Javadoc for Test
                              * @apiSince 31
                              */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unresolvable flag field`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @$ANDROID_FLAGGED_API(UnresolvableFlag.FLAG_NAME)
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
                             Test() { throw new RuntimeException("Stub!"); }

@@ -1015,7 +1015,7 @@ class ApiFileTest : DriverTest() {
                     method @Deprecated public boolean equals(Object?);
                     method @Deprecated public String toString();
                     field public static final String MY_CONSTANT1 = "constant";
-                    field public final String MY_CONSTANT2 = "constant";
+                    field public final String MY_CONSTANT2;
                     field public String! MY_CONSTANT3;
                   }
                 }
@@ -1263,6 +1263,104 @@ class ApiFileTest : DriverTest() {
                   }
                 }
             """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    /**
+     * Test for b/174708311 [RequiresOptIn] annotations on properties should be implicitly
+     * propagated to getters / setters to match Kotlin compiler behavior
+     */
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test RequiresOptIn on properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn
+                        @Retention(AnnotationRetention.BINARY)
+                        annotation class ExperimentalBar
+
+                        class FancyBar
+
+                        @ExperimentalBar
+                        val ExperimentalPropertyWithGetter: FancyBar = FancyBar()
+
+                        @JvmField
+                        @ExperimentalBar
+                        val ExperimentalJvmFieldProperty: FancyBar = FancyBar()
+
+                        @ExperimentalBar
+                        const val ExperimentalConstField: Int = 5
+
+                        @ExperimentalBar
+                        var experimentalPropertyWithGetterAndSetter: FancyBar? = null
+
+                        object Bar {
+                            @ExperimentalBar
+                            val ExperimentalPropertyWithGetterInsideObject: FancyBar = FancyBar()
+                        }
+
+                        @ExperimentalBar
+                        var experimentalPropertyWithCustomGetterAndSetter: FancyBar?
+                            get() = null
+                            set(value) {}
+
+                        /*
+                        The Kotlin compiler does not support explicit RequiresOptIn annotations on
+                        getters (it does for setters), but previously this was used by consumers in
+                        order to enable proper Metalava tracking and make the experimental lint
+                        check consider the getter experimental. This is a regression test to make
+                        sure that we do not add the annotation twice, if it is already present.
+                         */
+                        @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET")
+                        @get:ExperimentalBar
+                        @set:ExperimentalBar
+                        @ExperimentalBar
+                        var experimentalPropertyWithExplicitAnnotationsOnGetterAndSetter: FancyBar?
+                            get() = null
+                            set(value) {}
+                        """
+                    )
+                ),
+            format = FileFormat.V5,
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Bar {
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar getExperimentalPropertyWithGetterInsideObject();
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar ExperimentalPropertyWithGetterInsideObject;
+                    field public static final test.pkg.Bar INSTANCE;
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalBar {
+                  }
+                  public final class ExperimentalBarKt {
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithCustomGetterAndSetter(test.pkg.FancyBar?);
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter(test.pkg.FancyBar?);
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithGetterAndSetter(test.pkg.FancyBar?);
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static int ExperimentalConstField;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalJvmFieldProperty;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalPropertyWithGetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithCustomGetterAndSetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithExplicitAnnotationsOnGetterAndSetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithGetterAndSetter;
+                    field @SuppressCompatibility @test.pkg.ExperimentalBar public static final int ExperimentalConstField = 5; // 0x5
+                    field @SuppressCompatibility @test.pkg.ExperimentalBar public static final test.pkg.FancyBar ExperimentalJvmFieldProperty;
+                  }
+                  public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                }
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
         )
     }
@@ -4113,7 +4211,7 @@ class ApiFileTest : DriverTest() {
                     import androidx.annotation.IntRange;
 
                     public final class ApiClass {
-                        private int hiddenConstant = 1;
+                        private static final int hiddenConstant = 1;
                         public ApiClass(@IntRange(from=1) int x) {}
                         public void method(@IntRange(from = hiddenConstant) int x) {}
                     }
@@ -4216,7 +4314,7 @@ class ApiFileTest : DriverTest() {
                   public final class MyDataClass {
                     ctor public MyDataClass(String constructorProperty, String internalConstructorProperty);
                     method public String component1();
-                    method public test.pkg.MyDataClass copy(String constructorProperty, String internalConstructorProperty);
+                    method public test.pkg.MyDataClass copy(optional String constructorProperty, optional String internalConstructorProperty);
                     method public String getConstructorProperty();
                     property public String constructorProperty;
                   }
@@ -4434,7 +4532,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp();
+                    ctor @KotlinOnly public Dp(float value);
                     method public void doSomething();
                     method public float getValue();
                     method public inline operator float minus(float other);
@@ -4478,7 +4576,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp(float value);
+                    ctor @KotlinOnly public Dp(float value);
                     method public int compareTo(float other);
                     method public void doSomething();
                     method public float getValue();
@@ -4514,6 +4612,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
+                    ctor @KotlinOnly public Foo(optional long bar);
                     method public abstract long bar() default java.lang.Long.MIN_VALUE;
                     property public abstract long bar;
                   }
@@ -4905,6 +5004,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
+                    ctor @KotlinOnly public Foo(String[] bar, java.lang.String... baz);
                     method public abstract String[] bar();
                     method public abstract String[] baz();
                     property public abstract String[] bar;
@@ -4992,6 +5092,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
+                    ctor @KotlinOnly public Dimension(optional int unit);
                     method public abstract int unit() default test.pkg.Dimension.PX;
                     property public abstract int unit;
                     field public static final test.pkg.Dimension.Companion Companion;
@@ -5107,11 +5208,63 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            // Compiled from the Kotlin source file above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/42Vd1AT2BbGE3pdWmgSepEWgqKwiBCJEEhCCRBYKQoJkBA6" +
+                        "JLAqlqcIruCCCquAFBGINAkIuKLEFZBAJEuTuPQSQCGiAkFQNOThvpn30Jl1" +
+                        "3r1z/rgz935nzv1mvh8GLSwCAkhISAAAAF3AzgUCiADcnbGOEKQHAuru6IFE" +
+                        "OPtgLdwRW88AAJ47q8cNDbEYkEVDTHtZfY3elkNW0/OJFih3c6T7QFJ1k/cy" +
+                        "CpJgimKxzPyWe6FMJmt2njMvBMCgxSVoSiY02+0GNtuF+U57AIASTqZA46OI" +
+                        "UB8KjhJuERqNI5NjMO6e7YfkT4/BTXwbdExviWdPt+mthIDcW/OuhLjd0jUq" +
+                        "VAlCloI6Yi91banIbUnIUWcWsvd6DGRq3zihPTJywuqdNi0O4FHfd8UHbvoq" +
+                        "YW/iwwyzq8DQSuuJxvU86INZXsjc+A8MfGUvVBAgsx4HTQWl2ipWd/ExlqCa" +
+                        "ZsHmILvgteLLsZz8VfqTFoWMKXIn8zlVuojTUB6WIyRmrStgorFFw/w9h62y" +
+                        "Eq/7Ddb+eG+fnQk11iGXs9BvOdtNEK8tZTd7tL0wGyWBJyDB3j3EjspyVm6R" +
+                        "x1YE5vN633vSAbL/Xkv6h2dxdZ/LLuG7k+leT3x/3D3G7W3/iAlKcbiUuFsm" +
+                        "10bZ3vOkcHCQaNvlglZ/HdmC1H1+dv1HZfpPexlVtF3Y+pOC9TvSrjUjSu/2" +
+                        "zmZfnGwPkH4NidZxAd2EDHdvtBlIDXM7rhijotFLrkvPnAgOwC+2CDBzJF8g" +
+                        "ADAG/J4tBjttcSSfiA3F4IikWKITjoJzIhEI4Yn/sanIN9BTwwW0RZBdx8vk" +
+                        "zf/Q0n9IqV43fV/M4CEkcHdnlTAoCIUO3Dec6t862Zz8wu94FeYsSuCohTHV" +
+                        "Ms3tqhaUC0q5+c3AUAuvKKYVsff9TXJvIZ9XMgsDHGRYd2h6ukK9TOeUeKtP" +
+                        "eutWW0mvcsZnkeSff3qga5neMMJqXHOgLV/ofHMKH04MDqPnt/SYp0foQy8Y" +
+                        "pU/Xkm5OgjtyGtb8W5OyU/AvBz+OtwWM3P+YZUhg2KipaECIs/ksVlAZ32Rj" +
+                        "F1R48fysP7VomAZSopl2/pYRD7n4ysBRG2kX69AAbdW8cfO+W/xYcnfFojx9" +
+                        "6XhPeI/eXZUkJVhulh8quAj2fP1CFNns6j37Gwfz/NXhGoc9kz3DpPer1ozP" +
+                        "OztmyMgxLIj1WY11hXOSySKav6QPZHlIxWXa3Jl5pDbaUwEeyBy/l3z8/q2y" +
+                        "i7qWVLfzC9Jl6nzsNQbIpT+jTSVCLeNWDWqCsPDYlKiwNl3nrUaIWF13Y1oW" +
+                        "Pm4JNXY5eqO6NnEqqeBTuXGLHnoJvJieAUcVqxr8XoTraeC1a16f92YmIM+V" +
+                        "jigq49i+b4cKuNf89FYVglCGOdDrSH8/K6Xs29mloYHsyJQhTmcRWLsoY7oU" +
+                        "lZHu5CLvI7PRC40eVb6jo0gK5jUvf7DoO5mVIt+un/6CY5s6Q9usZi914/uY" +
+                        "kAQ7oqRtQXIhvIXibEKzYoFznwqU/A5PRtud8a/eDJ9YC5zZ4yA7q3QKYXIC" +
+                        "Tp+9HpM+2bBSc3OGfNAqIp5VuS5V5XbGse9lqmeAMmylpJh2L6JykiLCY3Mh" +
+                        "8kPOwjLYj8WIlKnCUl5TIBaymBbPIXWi/vXEqrmpMi2oXmhlKo/rJFs6T1Xf" +
+                        "crAFy0TxAz7MWdY6k7zsNPfTWxhvYbaXFzeZuNzOJpM3CnzVk2sO+oqyMlxE" +
+                        "Tqm9vW1h5ElBICbTGnp5gW4g8UJyQS1y6Lkq5+QCwV5fLUZ9iNr++MzrgA3R" +
+                        "iT83/tjMkgAj4X+5jtZocY9wnw1Nm3dg91JgaXLSWr/mJ1nFkWlLg4/At8WW" +
+                        "WbddR5R9CoYkeK9Sr1Lbb+foV2Q1kTLnExNcHqizzWUQo8zEqNRH1AN/5ZX9" +
+                        "+riXMSN6Z4an4Aj9g9CY4Ly2/NAnuZFTUVXoogruyinuQbPf3sijJpOoo2Ih" +
+                        "lfkud+IWy2cMrSPkBos6mjQipY6ZlQFdKfa0/GTu2X0zdgf4cGv3pqlsjatT" +
+                        "ODe1iSaPXfQmxiRORwXWfnf4qcLbp0bZywOBMIbRXfpclw6MHtEm/1HT6IL2" +
+                        "4a4Ng0xfe44WAluiWNFvVVKN982Fq1SWvuiTv9+/Jcx/JLT/QVIUFqhtqC96" +
+                        "KvW8sQtiPA8TMrsSyhJ6Z/mzQpi818Po3WmWCxogw+ox8ZHAZgdhks7b1PFV" +
+                        "T9gmGPHTYHwwB8gQYSzipdp4u84fhd8qPnb2NBe/cim09YGQi4hwRJnEm9y6" +
+                        "2Nuf4se69gS9T0gvE5j781WlPlWUXLd+Aw8QY9ucixAlAtjaKa8zbaIk096F" +
+                        "b3VE/r5wgI0Bfp57pw6TNTPgZ1jUN6UdkqoCHatY3j/oxEmS6jkyIpRzpNMm" +
+                        "8BfXy661yFr0U0MxQ4RhgOFDg2L0muv4b9jMkqiRs6hzRlXM3VFYxRyB0Jd8" +
+                        "jDwxrdsrsp2Pkt/LR43t+i81Y3CkWIuoOEo0KTY4Ji4sKTo8NCQkhLBdIngP" +
+                        "MWMMvh8P+BuJ7/Va6UrbL9X+RiJQCAT4n/pOXH5h8tfrnwj9rcrOdAd9pXD2" +
+                        "H0D7rcLO+Q2+UlAR+v+Y8K3izqk1vlK0Fv/uL2LQomJfrolsb/3tga6Jfzn9" +
+                        "Gy2z08bLCAAA"
+                ),
             api =
                 """
                 package test.pkg {
                   public final class AsyncPagingDataDiffer<T> {
-                    ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
+                    ctor @BytecodeOnly @Deprecated public AsyncPagingDataDiffer(test.pkg.State!);
                     ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
                     ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
                   }
@@ -5182,6 +5335,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                    ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
                     method public abstract int extension();
                     method public abstract int version();
                     property @IntRange(from=1L) public abstract int extension;
@@ -5189,8 +5343,6 @@ class ApiFileTest : DriverTest() {
                   }
                   @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
-                    property @IntRange(from=1L) public abstract int extension;
-                    property @IntRange(from=1L) public abstract int version;
                   }
                 }
             """
@@ -5209,7 +5361,7 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
                         internal fun bar() {}
 
-                        private val baz
+                        private val baz = 0
 
                         class Toast {
                             val foo: Int = 0
@@ -5234,7 +5386,7 @@ class ApiFileTest : DriverTest() {
                         @PublishedApi
                         internal fun internalYetPublished() {}
 
-                        private val buzz
+                        private val buzz = 0
                     """
                     ),
                     kotlin(
@@ -5887,6 +6039,91 @@ class ApiFileTest : DriverTest() {
                       @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
                       }
                     }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test functions from delegate`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        internal interface Base {
+                            fun baseMethod()
+                            val baseVal: Int
+                        }
+                        internal class BaseImpl : Base {
+                            override fun baseMethod() = Unit
+                            override val baseVal = 0
+                        }
+                        class Delegated : Base by BaseImpl()
+                        """
+                    )
+                ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9MBCX" +
+                        "pBaX6Bdkp+s7JRan6iXnJBYXh/r7+h9yEJlzd9q2kIlNXQf4Dao2euyp/KR8" +
+                        "TKqHU+1IS3f0jYTczN7dAv1/xPj/cfC3FXxxl7w/qcLg5pnZc2t/p937fv65" +
+                        "eIPwFkmtKC3ZfUsmf4jReNlkyHI+Se+Qz5PJH/Tqpim/PZT0Iblq/9RfKyWM" +
+                        "I9jbmSepBc2OZ564dmnHwmve3HNVKz3mJulssUh9cHmna9kZh5sMEhFev6KT" +
+                        "8mSTHie3nX666OFnte+VG2J+lFQ8+Hln84qi9xt3xpRUtt+taLz8TPZ71f54" +
+                        "fgvD14lfE9ffk12eW10WYLR5F8/Ve/u3arBU7voYH3a9w33lMtF33Tdfe8Sp" +
+                        "zkzJ+Jq+029Z0YQVKueeRM4Tj3qx5MRU5+LE2S8emDlz8jlcbU0XMbm+o13s" +
+                        "KneRVnC7fYtoovKhtBaubR2LpBQdcjmWBRz/JjDvUN+hdU7JveuMvDp/6IPi" +
+                        "YG/Lnb3OjAwMCxnxxYE4ehx45hbkQOIhN+B03mUHEdtk629HVHpnT5vU9v23" +
+                        "6sMtSexOixZwLQ4IcBQMCnucMsXv8Y3QtKCNZ8I/MK65qaCouNEhcHqNyCM/" +
+                        "LtHcyDvV53eWn7tz/Hz8/XqGio7bPN1uWcLvedk/tl0wknybyijhvEX7m+uc" +
+                        "zhqB/X7lqedZCiRXHZdj1zD80R+67oww2/dzd/1YGSs4+FPZzr/ROLvhit3V" +
+                        "B4LOM4TqVM/6XVQ3mnDsmpXS7PrJBiwv489N4lLSmfZwgd/lbe2tJ0PkJod9" +
+                        "aRX8Mt34VnmmdFrsTasJWR4/+U9tElv4T+rw7JtbBK14n1+wiDyiuUtE1m/r" +
+                        "zZK7mRt7Lx1Un2+kXyliMlesfuOmvTI7W/Z8Z5efH9zbvjnz8uOlJ7b/X2d8" +
+                        "pU/fgznw/4FD7M7O6RVhX5bWLi3aaSq5tOiP3xLJ1FdvF6lv6pPQPv1f5fD2" +
+                        "oyl3Js8+NenqW8+8Kx5lU8JCamc9bxV0E915TGru4cV2dpF377WLlebGF3y6" +
+                        "3nH0G5eI9/d9in+cDhws/fTP5uVjtp+nHjLPUUxpXyfX+f685U3PxA/9E2Q5" +
+                        "xQOsr37VnmY3X+Dz/5LSguJ36x+JHfVdpRv8Nkc8r2kqy3Mhkw1eAmdZnhcu" +
+                        "5F5WKDh9l0Z2iIledkGvx+OuY01uvou9fpiDEkdG4ubYG8CE8YAJX+KQQE4c" +
+                        "Lqk5qemJJakpkNRRGhjrL+woYrv5dtn210q3+bdcyV/LEXrTqUYoWUkqyfMq" +
+                        "i+/il80zt03eVLLb2yr4kfL+JvkHm/VVtDrV2r5clE/ds/mKlIrdmb9W38/Z" +
+                        "Fj97vj7fnsGm4fyEcCet+u33P8/vDPiyQyiWu+fg7YfVd/grr3yO31ru4h5p" +
+                        "IJm27O7rGC7uzLYzixW4riSzFReufHmo6a1Cq47zu5D82g3SURbPD1ydEb2y" +
+                        "RP31vesSXL3Ge7P1ziWbcTPLOXvlsk9aeMPCu6z34EvOpcdn2fhEXIkVMVxu" +
+                        "HquwwfcE98Jtj9d1T1J7njTvhOmvjVzNJ9Q7ync+Kuk3vGHsKbbMN0zaYIPd" +
+                        "VXsWK+V5buWtCwv3xBf1TCosyrGa53tPJX9K3/fwXqlo/377NI27Z6rCbq64" +
+                        "ef44e472+5kiy+/18ZvM0lz+Zsv0i+XrjM7ME2s4EfHWXl9JbJqe3ndRzY8m" +
+                        "77juyrs8eppxQeyw+R7ZINX7HdY2OZ8SF3z2vFgp298mu1HwRUpdtsjKBIVZ" +
+                        "jTwctUKuGx9pdSh3ik6ydK02SoiLe+133vRr3I2U1VNsfYoOrJY7uLKu/fc7" +
+                        "DuP4CdZLZjXuTjHmfPdALvL7EvFKESHRl9Zq33UyfE/evnr+RO3Ro/6c/8qP" +
+                        "zTs3Zdnu/zM15f+lHzvw94he4sw/bInTJxx7KnbGat2Vwq192Tv8FPOuFApv" +
+                        "j0oQEr2Tp6gdOCFiwgbVdx46XiKqz1S8RP6zgZJVptGxH4LAJKXDjC9ZSQMx" +
+                        "vNrJTczM08vOL8nJzIvPzU8pzUlNTkhISANiliQ/No2ApAtJDOA65avSnr3C" +
+                        "0EQZ4M3IJMKAMB25vgFVaqgAVxWHbgpyiSmMYkI99poK3QDkXCWOYgAzE85i" +
+                        "Ft0Q5DCUQDFEgQV3dkQ3BTm0pFFMKWfDG/oB3qxsIGWsQBgN9MtlMA8AIz7W" +
+                        "WUQIAAA="
+                ),
+            // The delegate APIs shouldn't be bytecode only, but it is better that they are tracked
+            // that way than not tracked at all.
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Delegated {
+                    ctor public Delegated();
+                    method @BytecodeOnly public void baseMethod();
+                    method @BytecodeOnly public int getBaseVal();
+                    property public int baseVal;
+                  }
+                }
                 """
         )
     }

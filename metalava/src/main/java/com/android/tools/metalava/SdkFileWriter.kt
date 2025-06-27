@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.value.EnumConstantValue
 import com.android.tools.metalava.model.value.asString
 import java.io.BufferedWriter
 import java.io.File
@@ -82,11 +82,10 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
                 // field. If it has no such value ignore the field.
                 val underlyingString = field.constantValue?.asString() ?: continue
 
-                // Get the SdkConstantType from the SdkConstant annotation's `value` attribute.
-                // Ignore, it if it is not an enum constant.
+                // Get the SdkConstantType from the SdkConstant annotation's `value` attribute,
+                // if available.
                 val sdkConstantType =
-                    sdkConstantAnnotation.findAttribute(null)?.value as? EnumConstantValue
-                        ?: continue
+                    sdkConstantAnnotation.findAttribute(ANNOTATION_ATTR_VALUE)?.value ?: continue
 
                 // Add the field value to the appropriate collection for the SdkConstantType.
                 when (sdkConstantType.toValueString()) {

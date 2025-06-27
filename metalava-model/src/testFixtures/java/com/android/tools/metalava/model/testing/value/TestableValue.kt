@@ -16,21 +16,19 @@
 
 package com.android.tools.metalava.model.testing.value
 
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationContext
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
-import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
-import com.android.tools.metalava.model.value.ConstantFieldValue
 import com.android.tools.metalava.model.value.ConstantValue
-import com.android.tools.metalava.model.value.EnumConstantValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
@@ -43,11 +41,15 @@ import kotlin.test.assertEquals
 import org.junit.AssumptionViolatedException
 
 /** Create a [LiteralValue] from the [underlyingValue]. */
-fun literalValue(underlyingValue: Any) = Value.createLiteralValue(null, underlyingValue)
+fun literalValue(underlyingValue: Any, nonLiteralInSource: Boolean = false) =
+    Value.createLiteralValue(null, underlyingValue, nonLiteralInSource)
 
 /** Create a [PrimitiveValue] of [kind] from the [underlyingValue]. */
-fun primitiveValueForKind(kind: Primitive, underlyingValue: Any) =
-    Value.createLiteralValue(primitiveTypeForKind(kind), underlyingValue)
+fun primitiveValueForKind(
+    kind: Primitive,
+    underlyingValue: Any,
+    nonLiteralInSource: Boolean = false,
+) = Value.createLiteralValue(primitiveTypeForKind(kind), underlyingValue, nonLiteralInSource)
 
 /** Create an [ArrayValue] containing [literals]. */
 fun arrayValueFromAny(vararg literals: Any) =
@@ -57,47 +59,68 @@ fun arrayValueFromAny(vararg literals: Any) =
 fun arrayValue(vararg values: ArrayElementValue) = Value.createArrayValue(values.toList())
 
 /** Create a [ClassObjectValue] containing [typeItem]. */
-fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
+fun classObjectValue(typeItem: TypeItem, sourceExpression: String? = null) =
+    Value.createClassObjectValue(typeItem, sourceExpression)
 
 /**
- * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+ * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional
  * [constantValue].
  */
-fun constantFieldValue(
+fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
-    constantValue: ConstantValue? = null
-) = Value.createConstantFieldValue(classTypeItem(qualifiedClassName), fieldName, constantValue)
+    constantValue: ConstantValue? = null,
+    kotlinCompanionClass: String? = null,
+    explicitConversionTo: Primitive? = null,
+) =
+    Value.createFieldReferenceValue(
+        ClassResolver.RETURN_NULL,
+        qualifiedClassName,
+        fieldName,
+        constantValue,
+        kotlinCompanionClass,
+        explicitConversionTo,
+    )
 
-/** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
-fun enumConstantValue(
+/**
+ * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] whose [ConstantValue]
+ * is determined lazily.
+ */
+fun lazyFieldReferenceValue(
+    classResolver: ClassResolver,
     qualifiedClassName: String,
     fieldName: String,
-) = Value.createEnumConstantValue(classTypeItem(qualifiedClassName), fieldName)
+    optionalTypeItem: TypeItem? = null,
+) =
+    Value.createFieldReferenceValueWithDeferredConstantValue(
+        classResolver,
+        qualifiedClassName,
+        fieldName,
+        optionalTypeItem,
+    )
 
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =
     Value.createAnnotationValue(
-        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)!!
+        AnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)!!
     )
 
 fun annotationValue(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
-    Value.createAnnotationValue(
-        DefaultAnnotationItem.createAttributesLazily(
-            AnnotationContext.DEFAULT_RESOLVE_NULL,
-            FileLocation.UNKNOWN,
-            qualifiedClassName,
-            {
-                attributes.map { (name, value) ->
-                    DefaultAnnotationAttribute(
-                        name,
-                        value.provider(),
-                        value.asAnnotationAttributeValue(),
-                    )
-                }
-            }
-        )!!
-    )
+    Value.createAnnotationValue(annotationItem(qualifiedClassName, *attributes))
+
+fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
+    AnnotationItem.createAttributesLazily(
+        AnnotationContext.DEFAULT_RESOLVE_NULL,
+        FileLocation.UNKNOWN,
+        qualifiedClassName
+    ) {
+        attributes.map { (name, value) ->
+            AnnotationAttribute.createLazyAttribute(
+                name,
+                value.provider(),
+            )
+        }
+    }!!
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,
@@ -109,7 +132,10 @@ fun annotationValue(qualifiedClassName: String, vararg attributes: Pair<String, 
 private val fullySupportedValueKinds =
     EnumSet.noneOf(ValueKind::class.java).apply {
         addAll(ValueKind.LITERAL_KINDS)
+        add(ValueKind.ANNOTATION)
+        add(ValueKind.ARRAY)
         add(ValueKind.CLASS)
+        add(ValueKind.FIELD)
     }
 
 /**

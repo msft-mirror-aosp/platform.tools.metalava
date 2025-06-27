@@ -17,21 +17,31 @@
 package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.Assertions.Companion.assertClass
-import com.android.tools.metalava.model.Assertions.Companion.assertField
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.Assertions.Companion.assertResolvedClass
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.lazyFieldReferenceValue
+import com.android.tools.metalava.model.testing.value.literalValue
+import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.value.DoubleValue
 import com.android.tools.metalava.model.value.LegacyValueFormatter
+import com.android.tools.metalava.model.value.LegacyValueFormatter.InlineFieldValue
 import com.android.tools.metalava.model.value.LegacyValueFormatter.Settings
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
@@ -41,6 +51,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
 import org.junit.ClassRule
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -73,17 +84,48 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         /**
          * Java file used in [checkFormatting] to provide context for [LegacyValueFormatter.format].
          */
-        private val javaFile =
-            java(
-                    """
-                        package test.pkg;
-                        public interface Foo {
-                            void method();
-                            int FIELD = 1;
-                        }
-                    """
+        private val javaFiles =
+            listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Foo {
+                                void method();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Hidden {
+                                /** @hide */
+                                public static final int FIELD = 2;
+                                /** @hide */
+                                public static final int FIELD_NO_VALUE = Integer.parseInt("2");
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @removed */
+                            public class Removed {
+                                public static final int FIELD = 3;
+                                public static final int FIELD_NO_VALUE = Integer.parseInt("3");
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            class NotPublic {
+                                static final int FIELD = 4;
+                                static final int FIELD_NO_VALUE = Integer.parseInt("4");
+                            }
+                        """
+                    ),
                 )
-                .cacheIn(testFileCacheRule)
+                .map { it.cacheIn(testFileCacheRule) }
 
         /**
          * Fake Java file used in [checkFormatting] when [producerKind] is [ProducerKind.JAR] just
@@ -102,21 +144,48 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
          * Kotlin file used in [checkFormatting] to provide context for
          * [LegacyValueFormatter.format].
          */
-        val kotlinFile =
-            kotlin(
-                    """
-                        package test.pkg
-                        interface Foo {
-                            fun method()
-
-                            companion object {
-                                @JvmField
-                                val FIELD = 1
+        val kotlinFiles =
+            listOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            interface Foo {
+                                fun method()
                             }
-                        }
-                    """
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            object Hidden {
+                                /** @hide */
+                                const val FIELD = 2
+                                /** @hide */
+                                val FIELD_NO_VALUE = "2".toInt()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            /** @removed */
+                            object Removed {
+                                const val FIELD = 3
+                                val FIELD_NO_VALUE = "3".toInt()
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            object NotPublic {
+                                internal const val FIELD = 4
+                                internal val FIELD_NO_VALUE = "4".toInt()
+                            }
+                        """
+                    ),
                 )
-                .cacheIn(testFileCacheRule)
+                .map { it.cacheIn(testFileCacheRule) }
 
         /**
          * Signature file used in [checkFormatting] to provide context for
@@ -129,7 +198,6 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         package test.pkg {
                           public interface Foo {
                             method public void method();
-                            field public static final int FIELD = 1;
                           }
                         }
                     """
@@ -140,10 +208,11 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
          * Jar file used in [checkFormatting] when [producerKind] is [ProducerKind.JAR] to provide
          * context for [LegacyValueFormatter.format].
          */
-        private val jarFile = jarFromSources("test.jar", javaFile).cacheIn(testFileCacheRule)
+        private val jarFile =
+            jarFromSources("test.jar", *javaFiles.toTypedArray()).cacheIn(testFileCacheRule)
 
         /** Shared value for use in the tests. */
-        val DOUBLE_NAN = Value.createLiteralValue(null, Double.NaN)
+        val DOUBLE_NAN = DoubleValue.NaN
     }
 
     /** Provides access to the information needed when formatting. */
@@ -158,13 +227,13 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             if (producerKind == ProducerKind.JAR) codebase.assertResolvedClass("test.pkg.Foo")
             else codebase.assertClass("test.pkg.Foo")
 
-        /** A field that can used for the context in [LegacyValueFormatter.format]. */
-        val field
-            get() = classItem.assertField("FIELD")
-
         /** A method that can used for the context in [LegacyValueFormatter.format]. */
         val method
             get() = classItem.assertMethod("method", "")
+
+        fun LegacyValueFormatter.assertFormattedValue(expected: String, value: Value) {
+            assertEquals(expected, format(value, method), message = value.toString())
+        }
     }
 
     /**
@@ -181,15 +250,16 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
 
         val testFixture = TestFixture(additionalClassPath = additionalClassPath)
 
-        val testFile =
+        val testFiles =
             when (inputFormat) {
-                InputFormat.SIGNATURE -> signatureFile
-                InputFormat.JAVA -> if (producerKind == ProducerKind.JAR) fakeJavaFile else javaFile
-                InputFormat.KOTLIN -> kotlinFile
+                InputFormat.SIGNATURE -> listOf(signatureFile)
+                InputFormat.JAVA ->
+                    if (producerKind == ProducerKind.JAR) listOf(fakeJavaFile) else javaFiles
+                InputFormat.KOTLIN -> kotlinFiles
             }
 
         runCodebaseTest(
-            testFile,
+            inputSet(testFiles),
             testFixture = testFixture,
         ) {
             FormattingContext(this, producerKind).body()
@@ -203,12 +273,47 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 Settings(
                     stringReplacement =
                         mapOf(
-                            DOUBLE_NAN to "Double Not A Number",
+                            DOUBLE_NAN to "NOT_A_NUMBER",
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual = formatter.format(DOUBLE_NAN, field)
-            assertEquals("Double Not A Number", actual)
+            formatter.assertFormattedValue("NOT_A_NUMBER", DOUBLE_NAN)
+        }
+    }
+
+    @Test
+    fun `Test replacement values in array - replaces`() {
+        checkFormatting {
+            val settings =
+                Settings(
+                    stringReplacement =
+                        mapOf(
+                            DOUBLE_NAN to "NOT_A_NUMBER",
+                        )
+                )
+            val formatter = LegacyValueFormatter(settings)
+            formatter.assertFormattedValue("{NOT_A_NUMBER}", arrayValue(DOUBLE_NAN))
+        }
+    }
+
+    @Test
+    fun `Test replacement values in annotation - replaces`() {
+        checkFormatting {
+            val settings =
+                Settings(
+                    stringReplacement =
+                        mapOf(
+                            DOUBLE_NAN to "NOT_A_NUMBER",
+                        )
+                )
+            val formatter = LegacyValueFormatter(settings)
+            formatter.assertFormattedValue(
+                "@test.pkg.Anno(other = NOT_A_NUMBER)",
+                annotationValue(
+                    "test.pkg.Anno",
+                    "other" to DOUBLE_NAN,
+                )
+            )
         }
     }
 
@@ -219,12 +324,11 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 Settings(
                     stringReplacement =
                         mapOf(
-                            DOUBLE_NAN to "Double Not A Number",
+                            DOUBLE_NAN to "NOT_A_NUMBER",
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual = formatter.format(Value.createLiteralValue(null, 3.0), method)
-            assertEquals("3.0", actual)
+            formatter.assertFormattedValue("3.0", literalValue(3.0))
         }
     }
 
@@ -238,9 +342,8 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                     javaSettings = sourceSettings,
                     jarSettings = jarSettings,
                 )
-            val actual = formatter.format(DOUBLE_NAN, method)
             val expected = if (producerKind == ProducerKind.JAR) "Jar" else "Source"
-            assertEquals(expected, actual)
+            formatter.assertFormattedValue(expected, DOUBLE_NAN)
         }
     }
 
@@ -259,6 +362,257 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
             val actual = formatter.format(DOUBLE_NAN, method)
             val expected = if (inputFormat == InputFormat.JAVA) "Java" else "Kotlin"
             assertEquals(expected, actual)
+        }
+    }
+
+    @Test
+    fun `Test char - useDoubleQuotesForChar = false`() {
+        checkFormatting {
+            val javaSettings = Settings(useDoubleQuotesForChar = false)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            formatter.assertFormattedValue("'a'", literalValue('a'))
+        }
+    }
+
+    @Test
+    fun `Test char - useDoubleQuotesForChar = true`() {
+        checkFormatting {
+            val javaSettings = Settings(useDoubleQuotesForChar = true)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            val actual = formatter.format(literalValue('a'), method)
+            assertEquals("\"a\"", actual)
+        }
+    }
+
+    @Test
+    fun `Test char - dropLongAndFloatTypeSuffix = false`() {
+        checkFormatting {
+            val javaSettings =
+                Settings(
+                    valueStringConfiguration =
+                        ValueStringConfiguration(
+                            useOriginalValueForNumbers = true,
+                        ),
+                    dropLongAndFloatTypeSuffix = false,
+                )
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            formatter.assertFormattedValue("10L", literalValue(10L))
+            formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
+            formatter.assertFormattedValue("2.3f", literalValue(2.3f))
+            formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
+        }
+    }
+
+    @Test
+    fun `Test char - dropLongAndFloatTypeSuffix = true`() {
+        checkFormatting {
+            val javaSettings =
+                Settings(
+                    valueStringConfiguration =
+                        ValueStringConfiguration(
+                            useOriginalValueForNumbers = true,
+                        ),
+                    dropLongAndFloatTypeSuffix = true,
+                )
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            formatter.assertFormattedValue("10", literalValue(10L))
+            formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.LONG, 10))
+            formatter.assertFormattedValue("2.3", literalValue(2.3f))
+            formatter.assertFormattedValue("10", primitiveValueForKind(Primitive.FLOAT, 10))
+        }
+    }
+
+    @Test
+    fun `Test field - unresolvable`() {
+        checkFormatting {
+            val javaSettings = Settings()
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            // Unresolvable fields should just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "unknown.pkg.Unknown.FIELD",
+                lazyFieldReferenceValue(
+                    classResolver = ClassResolver.RETURN_NULL,
+                    "unknown.pkg.Unknown",
+                    "FIELD"
+                )
+            )
+        }
+    }
+
+    // Does not work with signature files as they do not contain inaccessible fields.
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test field - resolvable but inaccessible with no value - default`() {
+        checkFormatting {
+            val javaSettings = Settings()
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+
+            // Hidden fields with no value should just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "test.pkg.Hidden.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(
+                    codebase,
+                    "test.pkg.Hidden",
+                    "FIELD_NO_VALUE",
+                )
+            )
+
+            // Removed fields with no value should just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "test.pkg.Removed.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(codebase, "test.pkg.Removed", "FIELD_NO_VALUE")
+            )
+
+            // Non-`public` fields with no value should just use their name as a value MUST be
+            // provided.
+            formatter.assertFormattedValue(
+                "test.pkg.NotPublic.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(codebase, "test.pkg.NotPublic", "FIELD_NO_VALUE")
+            )
+        }
+    }
+
+    // Does not work with signature files as they do not contain inaccessible fields.
+    @RequiresCapabilities(Capability.JAVA)
+    // Temporarily disable the test as it fails in snapshot because snapshot does not track
+    // removed and/or hidden status.
+    @Ignore
+    @Test
+    fun `Test field - resolvable but inaccessible with value - default`() {
+        checkFormatting {
+            val javaSettings = Settings()
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+
+            val hiddenExpected =
+                when (producerKind) {
+                    // @hide javadoc is not available in jars so they are not treated as hidden.
+                    ProducerKind.JAR -> "test.pkg.Hidden.FIELD"
+                    // Hidden fields with a value should just use that value.
+                    ProducerKind.SOURCE -> "2"
+                }
+            formatter.assertFormattedValue(
+                hiddenExpected,
+                lazyFieldReferenceValue(codebase, "test.pkg.Hidden", "FIELD")
+            )
+
+            val removedExpected =
+                when (producerKind) {
+                    // @removed javadoc is not available in jars so they are not treated as removed.
+                    ProducerKind.JAR -> "test.pkg.Removed.FIELD"
+                    // Removed fields with a value should just use that value.
+                    ProducerKind.SOURCE -> "3"
+                }
+            formatter.assertFormattedValue(
+                removedExpected,
+                lazyFieldReferenceValue(codebase, "test.pkg.Removed", "FIELD")
+            )
+
+            // Non-`public` fields with a value should just use that value.
+            formatter.assertFormattedValue(
+                "4",
+                lazyFieldReferenceValue(codebase, "test.pkg.NotPublic", "FIELD")
+            )
+        }
+    }
+
+    // Does not work with signature files as they do not contain inaccessible fields.
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test field - resolvable and inaccessible with no value - WHEN_HIDDEN_OR_REMOVED`() {
+        checkFormatting {
+            val javaSettings = Settings(inlineFields = InlineFieldValue.WHEN_INACCESSIBLE)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+
+            // Hidden fields with no value should just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "test.pkg.Hidden.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(
+                    codebase,
+                    "test.pkg.Hidden",
+                    "FIELD_NO_VALUE",
+                )
+            )
+
+            // Removed fields with no value should just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "test.pkg.Removed.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(codebase, "test.pkg.Removed", "FIELD_NO_VALUE")
+            )
+
+            // Non-`public` fields that are not hidden or removed should be kept.
+            formatter.assertFormattedValue(
+                "test.pkg.NotPublic.FIELD_NO_VALUE",
+                lazyFieldReferenceValue(codebase, "test.pkg.NotPublic", "FIELD_NO_VALUE")
+            )
+        }
+    }
+
+    // Does not work with signature files as they do not contain inaccessible fields.
+    @RequiresCapabilities(Capability.JAVA)
+    // Temporarily disable the test as it fails in snapshot because snapshot does not track
+    // removed and/or hidden status.
+    @Ignore
+    @Test
+    fun `Test field - resolvable and inaccessible with value - WHEN_HIDDEN_OR_REMOVED`() {
+        checkFormatting {
+            val javaSettings = Settings(inlineFields = InlineFieldValue.WHEN_HIDDEN_OR_REMOVED)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+
+            val hiddenExpected =
+                when (producerKind) {
+                    // @hide javadoc is not available in jars so they are not treated as hidden.
+                    ProducerKind.JAR -> "test.pkg.Hidden.FIELD"
+                    // Hidden fields with a value should just use that value.
+                    ProducerKind.SOURCE -> "2"
+                }
+            formatter.assertFormattedValue(
+                hiddenExpected,
+                lazyFieldReferenceValue(codebase, "test.pkg.Hidden", "FIELD")
+            )
+
+            val removedExpected =
+                when (producerKind) {
+                    // @removed javadoc is not available in jars so they are not treated as removed.
+                    ProducerKind.JAR -> "test.pkg.Removed.FIELD"
+                    // Removed fields with a value should just use that value.
+                    ProducerKind.SOURCE -> "3"
+                }
+            formatter.assertFormattedValue(
+                removedExpected,
+                lazyFieldReferenceValue(codebase, "test.pkg.Removed", "FIELD")
+            )
+
+            // Non-`public` fields that are not hidden or removed should be kept.
+            formatter.assertFormattedValue(
+                "test.pkg.NotPublic.FIELD",
+                lazyFieldReferenceValue(codebase, "test.pkg.NotPublic", "FIELD")
+            )
+        }
+    }
+
+    @Test
+    fun `Test field - always inline with no value`() {
+        checkFormatting {
+            val javaSettings = Settings(inlineFields = InlineFieldValue.ALWAYS)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            // Inlined fields with no value just use their name as a value MUST be provided.
+            formatter.assertFormattedValue(
+                "test.pkg.AlwaysInline.FIELD",
+                fieldReferenceValue("test.pkg.AlwaysInline", "FIELD")
+            )
+        }
+    }
+
+    @Test
+    fun `Test field - always inline with value`() {
+        checkFormatting {
+            val javaSettings = Settings(inlineFields = InlineFieldValue.ALWAYS)
+            val formatter = LegacyValueFormatter(javaSettings = javaSettings)
+            // Inlined fields with a value should just that that value.
+            formatter.assertFormattedValue(
+                "99",
+                fieldReferenceValue("test.pkg.AlwaysInline", "FIELD", literalValue(99))
+            )
         }
     }
 }

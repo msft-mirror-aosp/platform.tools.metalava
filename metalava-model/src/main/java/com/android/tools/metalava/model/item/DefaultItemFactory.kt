@@ -168,8 +168,7 @@ class DefaultItemFactory(
         containingClass: ClassItem,
         type: TypeItem,
         isEnumConstant: Boolean,
-        initialValueProvider: OptionalValueProvider?,
-        fieldValue: FieldValue?,
+        constantValueProvider: OptionalValueProvider?,
     ): FieldItem =
         DefaultFieldItem(
             codebase,
@@ -183,8 +182,7 @@ class DefaultItemFactory(
             containingClass,
             type,
             isEnumConstant,
-            initialValueProvider,
-            fieldValue,
+            constantValueProvider,
         )
 
     /** Create a [MethodItem]. */
@@ -202,7 +200,7 @@ class DefaultItemFactory(
         throwsTypes: List<ExceptionTypeItem>,
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         defaultValueProvider: OptionalValueProvider?,
-        annotationDefault: String,
+        isExtensionMethod: Boolean,
     ): MethodItem =
         DefaultMethodItem(
             codebase,
@@ -220,7 +218,7 @@ class DefaultItemFactory(
             throwsTypes,
             callableBodyFactory,
             defaultValueProvider,
-            annotationDefault,
+            isExtensionMethod,
         )
 
     /** Create a [ParameterItem]. */

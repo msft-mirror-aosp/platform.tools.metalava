@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -40,8 +41,7 @@ open class DefaultFieldItem(
     containingClass: ClassItem,
     private var type: TypeItem,
     private val isEnumConstant: Boolean,
-    private val initialValueProvider: OptionalValueProvider?,
-    override val legacyFieldValue: FieldValue?,
+    private val constantValueProvider: OptionalValueProvider?,
 ) :
     DefaultMemberItem(
         codebase = codebase,
@@ -77,16 +77,12 @@ open class DefaultFieldItem(
                 containingClass = targetContainingClass,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                initialValueProvider = initialValueProvider,
-                legacyFieldValue = legacyFieldValue,
+                constantValueProvider = constantValueProvider,
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-    final override fun legacyInitialValue(requireConstant: Boolean) =
-        legacyFieldValue?.initialValue(requireConstant)
-
-    final override val initialValue
-        get() = initialValueProvider?.optionalValue
+    final override val constantValue
+        get() = constantValueProvider?.optionalValue?.let { it as ConstantValue }
 
     final override fun isEnumConstant(): Boolean = isEnumConstant
 }

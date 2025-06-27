@@ -227,6 +227,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             itemFactory.createClassItem(
                 fileLocation = classToSnapshot.fileLocation,
                 sourceLanguage = classToSnapshot.sourceLanguage,
+                targetLanguages = classToSnapshot.targetLanguages,
                 modifiers = classToSnapshot.modifiers.snapshot(),
                 documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = cls.sourceFile(),
@@ -265,6 +266,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 itemFactory.createConstructorItem(
                     fileLocation = constructorToSnapshot.fileLocation,
                     sourceLanguage = constructorToSnapshot.sourceLanguage,
+                    targetLanguages = constructorToSnapshot.targetLanguages,
                     modifiers = constructorToSnapshot.modifiers.snapshot(),
                     documentationFactory =
                         snapshotDocumentation(constructorToSnapshot, constructor),
@@ -317,6 +319,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 itemFactory.createMethodItem(
                     fileLocation = methodToSnapshot.fileLocation,
                     sourceLanguage = methodToSnapshot.sourceLanguage,
+                    targetLanguages = methodToSnapshot.targetLanguages,
                     modifiers = methodToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(methodToSnapshot, method),
                     name = methodToSnapshot.name(),
@@ -330,7 +333,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
                     callableBodyFactory = methodToSnapshot.body::snapshot,
                     defaultValueProvider = defaultValueProvider,
-                    annotationDefault = methodToSnapshot.legacyDefaultValue(),
+                    isExtensionMethod = methodToSnapshot.isExtensionMethod(),
                 )
             }
         newMethod.copySelectedApiVariants(methodToSnapshot)
@@ -345,10 +348,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         // This makes it easier to incrementally expand the Value model without breaking existing
         // snapshot tests.
         // TODO(b/354633349): Stop deferring retrieval.
-        val initialValueProvider =
+        val constantValueProvider =
             object : OptionalValueProvider {
                 override val optionalValue: Value?
-                    get() = fieldToSnapshot.initialValue?.snapshot(snapshotCodebase)
+                    get() = fieldToSnapshot.constantValue?.snapshot(snapshotCodebase)
             }
 
         val containingClass = field.containingClass().getSnapshotClass()
@@ -359,14 +362,14 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 itemFactory.createFieldItem(
                     fileLocation = fieldToSnapshot.fileLocation,
                     sourceLanguage = fieldToSnapshot.sourceLanguage,
+                    targetLanguages = fieldToSnapshot.targetLanguages,
                     modifiers = fieldToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
                     name = fieldToSnapshot.name(),
                     containingClass = containingClass,
                     type = fieldToSnapshot.type().snapshot(),
                     isEnumConstant = fieldToSnapshot.isEnumConstant(),
-                    fieldValue = fieldToSnapshot.legacyFieldValue?.snapshot(),
-                    initialValueProvider = initialValueProvider,
+                    constantValueProvider = constantValueProvider,
                 )
             }
         newField.copySelectedApiVariants(fieldToSnapshot)
@@ -441,10 +444,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         // Take a snapshot of a class that is referenced from, but not defined within, the snapshot.
         originalClass.accept(referenceVisitor)
 
-        // Find the newly added class.
-        val classItem =
-            snapshotCodebase.findClass(originalClass.qualifiedName())
-                ?: error("Could not snapshot class $qualifiedName")
+        // Find the newly added class, if no class was added then it is not part of this snapshot
+        // so return `null`.
+        val classItem = snapshotCodebase.findClass(originalClass.qualifiedName()) ?: return null
 
         // Any class that is created only when resolving references is by definition not part of the
         // codebase and so will not be emitted.

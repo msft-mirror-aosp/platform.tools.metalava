@@ -44,48 +44,83 @@ interface ImplementationValueToModelFactory<I> {
 /** A [BaseCachingValueProvider] for a model implementation of a non-attribute value. */
 class CachingValueProvider<I>(
     private val factory: ImplementationValueToModelFactory<I>,
-    private val typeItem: TypeItem,
+    private val optionalTypeItem: TypeItem?,
     private val implementationValue: I,
     valueUseSite: ValueUseSite,
 ) : BaseCachingValueProvider(valueUseSite) {
     override fun provideValue() =
         factory.implementationValueToModelValue(
-            typeItem,
+            optionalTypeItem,
             implementationValue,
             valueUseSite,
         )
 }
 
 /**
- * A [BaseCachingValueProvider] for a model implementation of an attribute value.
+ * A [BaseCachingValueProvider] for a model implementation of a value whose [TypeItem] is not known
+ * at construction time.
+ *
+ * When this is called the [TypeItem] of the [Value] to be created is not known. So, subclasses of
+ * this must encapsulate the information necessary to allow the [Value]'s type to be resolved and
+ * use that in [optionalTypeItem] to return the [TypeItem], or `null` if it could not be found.
+ */
+abstract class BaseCachingDeferredTypeValueProvider<I>(
+    private val factory: ImplementationValueToModelFactory<I>,
+    private val implementationValue: I,
+    valueUseSite: ValueUseSite,
+) : BaseCachingValueProvider(valueUseSite) {
+
+    /** Get the optional [TypeItem] for the [Value] to be created. */
+    protected abstract fun optionalTypeItem(): TypeItem?
+
+    final override fun provideValue() =
+        factory.implementationValueToModelValue(
+            optionalTypeItem(),
+            implementationValue,
+            valueUseSite,
+        )
+}
+
+/**
+ * A [BaseCachingDeferredTypeValueProvider] for a model implementation of an attribute value.
  *
  * When this is called the [TypeItem] of the annotation attribute is not known. So, this
- * encapsulates [annotationItem] and [attributeName] to allow the annotation's [ClassItem] to be
- * resolved and the [MethodItem] called [attributeName] found.
+ * encapsulates [annotationClassItemProvider] and [attributeName] to allow the annotation's
+ * [ClassItem] to be resolved and the [MethodItem] called [attributeName] found.
  *
  * If the definition of [AnnotationItem] is not resolvable then it will fail to find the [TypeItem]
  * and use `null` instead.
  */
 class CachingAnnotationValueProvider<I>(
-    private val factory: ImplementationValueToModelFactory<I>,
-    private val annotationItem: AnnotationItem,
+    factory: ImplementationValueToModelFactory<I>,
     private val attributeName: String,
-    private val implementationValue: I,
-) : BaseCachingValueProvider(valueUseSite = ValueUseSite.ANNOTATION) {
+    implementationValue: I,
+    private val annotationClassItemProvider: () -> ClassItem?,
+) :
+    BaseCachingDeferredTypeValueProvider<I>(
+        factory,
+        implementationValue,
+        valueUseSite = ValueUseSite.ANNOTATION
+    ) {
+
     /**
-     * Get the [MethodItem.returnType] of the [annotationItem]'s attribute method called
-     * [attributeName].
+     * Secondary constructor that provides an [annotationClassItemProvider] using [annotationItem]'s
+     * [AnnotationItem.resolve] method.
      */
-    private fun annotationAttributeType(): TypeItem? {
-        val annotationClassItem = annotationItem.resolve() ?: return null
+    constructor(
+        factory: ImplementationValueToModelFactory<I>,
+        annotationItem: AnnotationItem,
+        attributeName: String,
+        implementationValue: I,
+    ) : this(factory, attributeName, implementationValue, annotationItem::resolve)
+
+    /**
+     * Get the [MethodItem.returnType] of the [annotationClassItemProvider]'s attribute method
+     * called [attributeName].
+     */
+    override fun optionalTypeItem(): TypeItem? {
+        val annotationClassItem = annotationClassItemProvider() ?: return null
         val attributeMethodItem = annotationClassItem.findMethod(attributeName, "")
         return attributeMethodItem?.returnType()
     }
-
-    override fun provideValue() =
-        factory.implementationValueToModelValue(
-            annotationAttributeType(),
-            implementationValue,
-            valueUseSite,
-        )
 }
