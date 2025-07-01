@@ -739,10 +739,9 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(valueClassExtension.backingField).isNull()
             assertThat(valueClassExtension.constructorParameter).isNull()
 
-            // the extension property receiver is a value class type, which gets mapped to its
-            // value type
-            valueClassExtension.receiver.assertPrimitiveTypeItem {
-                assertEquals(kind, PrimitiveTypeItem.Primitive.INT)
+            // the extension property receiver is a value class type
+            valueClassExtension.receiver.assertClassTypeItem {
+                assertEquals(qualifiedName, "test.pkg.IntValue")
             }
         }
     }

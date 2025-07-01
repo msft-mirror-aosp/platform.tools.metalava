@@ -292,46 +292,46 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class Alignment {
                     ctor @KotlinOnly public Alignment(test.pkg.Alignment.Horizontal horizontal, test.pkg.Alignment.Vertical vertical);
-                    property public int horizontal;
-                    property public int vertical;
+                    property public test.pkg.Alignment.Horizontal horizontal;
+                    property public test.pkg.Alignment.Vertical vertical;
                     field public static final test.pkg.Alignment.Companion Companion;
                   }
                   public static final class Alignment.Companion {
                     method public test.pkg.Alignment getTopStart();
-                    property public int Start;
-                    property public int Top;
+                    property public test.pkg.Alignment.Horizontal Start;
+                    property public test.pkg.Alignment.Vertical Top;
                     property public test.pkg.Alignment TopStart;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Horizontal {
                     field public static final test.pkg.Alignment.Horizontal.Companion Companion;
                   }
                   public static final class Alignment.Horizontal.Companion {
-                    property public int CenterHorizontally;
-                    property public int End;
-                    property public int Start;
+                    property public test.pkg.Alignment.Horizontal CenterHorizontally;
+                    property public test.pkg.Alignment.Horizontal End;
+                    property public test.pkg.Alignment.Horizontal Start;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Vertical {
                     field public static final test.pkg.Alignment.Vertical.Companion Companion;
                   }
                   public static final class Alignment.Vertical.Companion {
-                    property public int Bottom;
-                    property public int CenterVertically;
-                    property public int Top;
+                    property public test.pkg.Alignment.Vertical Bottom;
+                    property public test.pkg.Alignment.Vertical CenterVertically;
+                    property public test.pkg.Alignment.Vertical Top;
                   }
                   @kotlin.jvm.JvmInline public final value class AnchorType {
                     field public static final test.pkg.AnchorType.Companion Companion;
                   }
                   public static final class AnchorType.Companion {
-                    property public float Center;
-                    property public float End;
-                    property public float Start;
+                    property public test.pkg.AnchorType Center;
+                    property public test.pkg.AnchorType End;
+                    property public test.pkg.AnchorType Start;
                   }
                   public final class User {
                     ctor @KotlinOnly public User(test.pkg.AnchorType p, test.pkg.AnchorType q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
                     method public float foo();
-                    property public float p;
-                    property public float q;
+                    property public test.pkg.AnchorType p;
+                    property public test.pkg.AnchorType q;
                   }
                 }
         """
@@ -1671,7 +1671,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class PointerEvent {
                     ctor public PointerEvent();
-                    property public int keyboardModifiers;
+                    property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
                     ctor @KotlinOnly public PointerKeyboardModifiers(int packedValue);
@@ -1730,7 +1730,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class PointerEvent {
                     ctor public PointerEvent();
-                    property public int keyboardModifiers;
+                    property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
                     ctor ${targetLanguages}public PointerKeyboardModifiers($typeAliasExpanded packedValue);
@@ -2283,8 +2283,8 @@ abstract class UastTestBase : DriverTest() {
                   public static final class IntValue.Companion {
                     method public int getWithNonValueClassTypeSpecified();
                     property @test.pkg.Anno public int withNonValueClassTypeSpecified;
-                    property @test.pkg.Anno public int withValueClassTypeSpecified;
-                    property @test.pkg.Anno public int withValueClassTypeUnspecified;
+                    property @test.pkg.Anno public test.pkg.IntValue withValueClassTypeSpecified;
+                    property @test.pkg.Anno public test.pkg.IntValue withValueClassTypeUnspecified;
                   }
                 }
                 """

@@ -384,12 +384,12 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                     ),
                 name = propertySymbol.name.identifier,
                 containingClass = containingClass,
-                type = typeForAccessor,
+                type = type,
                 getter = getter,
                 setter = setter,
                 constructorParameter = constructorParameter,
                 backingField = backingField,
-                receiver = possiblyInlinedReceiverType,
+                receiver = receiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
             )
         getter?.property = propertyItem
