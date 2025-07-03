@@ -16,9 +16,7 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.TypeItem.Companion.equals
 import java.util.Objects
-import java.util.function.Predicate
 
 /**
  * Whether metalava supports type use annotations. Note that you can't just turn this flag back on;
@@ -36,6 +34,8 @@ interface TypeItem {
     val modifiers: TypeModifiers
 
     fun accept(visitor: TypeVisitor)
+
+    fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>)
 
     /**
      * Whether this type is equal to [other], not considering modifiers.
@@ -56,31 +56,21 @@ interface TypeItem {
     fun hashCodeForType(): Int
 
     /**
+     * Provide a helpful description of the type, for use in error messages.
+     *
+     * This is not suitable for use in signature or stubs as while it defaults to [toTypeString] for
+     * most types it is overridden by others to provide additional information.
+     */
+    fun description(): String = toTypeString()
+
+    /**
      * Generates a string for this type.
      *
-     * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
-     *   [annotations] controls whether the annotations like @Nullable and @NonNull are included.
-     * @param kotlinStyleNulls Controls whether it should return "@Nullable List<String>" as
-     *   "List<String!>?".
-     * @param filter Specifies a filter to apply to the type annotations, if any.
-     * @param spaceBetweenParameters Controls whether there should be a space between class type
-     *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
-     *   "java.util.Map<java.lang.Integer,java.lang.Number>".
+     * @see [TypeStringConfiguration] for information on the parameters.
      */
     fun toTypeString(
-        annotations: Boolean = false,
-        kotlinStyleNulls: Boolean = false,
-        filter: Predicate<Item>? = null,
-        spaceBetweenParameters: Boolean = false
+        configuration: TypeStringConfiguration = TypeStringConfiguration.DEFAULT
     ): String
-
-    /** Legacy alias for [toErasedTypeString]`()`. */
-    @Deprecated(
-        "the context item is no longer used",
-        replaceWith = ReplaceWith("toErasedTypeString()")
-    )
-    @MetalavaApi
-    fun toErasedTypeString(context: Item?): String = toErasedTypeString()
 
     /**
      * Get a string representation of the erased type.
@@ -94,34 +84,19 @@ interface TypeItem {
      */
     @MetalavaApi fun toErasedTypeString(): String
 
-    /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
-    @MetalavaApi fun arrayDimensions(): Int = 0
-
     /** Returns the internal name of the type, as seen in bytecode. */
     fun internalName(): String
 
     fun asClass(): ClassItem?
 
-    fun toSimpleType(): String {
-        return stripJavaLangPrefix(toTypeString())
-    }
+    fun toSimpleType() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
 
     /**
      * Helper methods to compare types, especially types from signature files with types from
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType(): String {
-        var s = toTypeString()
-        while (s.contains(JAVA_LANG_PREFIX)) {
-            s = s.replace(JAVA_LANG_PREFIX, "")
-        }
-        if (s.contains("...")) {
-            s = s.replace("...", "[]")
-        }
-
-        return s
-    }
+    fun toCanonicalType() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
 
     /**
      * Makes substitutions to the type based on the [typeParameterBindings]. For instance, if the
@@ -144,6 +119,16 @@ interface TypeItem {
         return this
     }
 
+    /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
+    fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {
+        // Limited text based check
+        if (this == other) return true
+        val bounds =
+            (other as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map { it.toTypeString() }
+                ?: emptyList()
+        return bounds.contains(toTypeString())
+    }
+
     fun isJavaLangObject(): Boolean = false
 
     fun isString(): Boolean = false
@@ -152,48 +137,51 @@ interface TypeItem {
 
     fun defaultValueString(): String = "null"
 
-    /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
-    fun duplicate(): TypeItem
+    /**
+     * Duplicates this type substituting in the provided [modifiers] in place of this instance's
+     * [modifiers].
+     */
+    fun substitute(modifiers: TypeModifiers): TypeItem
+
+    /**
+     * Return a [TypeItem] instance identical to this on except its [modifiers]'s
+     * [TypeModifiers.nullability] property is the same as the [nullability] parameter.
+     *
+     * If the parameter is the same as this instance's [modifiers]'s property then it will just
+     * return this instance, otherwise it will return a new instance with a new [TypeModifiers].
+     */
+    fun substitute(nullability: TypeNullability) =
+        if (modifiers.nullability == nullability) this
+        else substitute(modifiers.substitute(nullability))
+
+    /**
+     * Return a [TypeItem] instance of the same type as this one that was produced by the [TypeItem]
+     * appropriate [TypeTransformer.transform] method.
+     */
+    fun transform(transformer: TypeTransformer): TypeItem
+
+    /** Whether this type was originally a value class type. Defaults to false if not overridden. */
+    fun isValueClassType(): Boolean = false
 
     companion object {
+        /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
+        private val SIMPLE_TYPE_CONFIGURATION =
+            TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
+
+        /** [TypeStringConfiguration] for [toCanonicalType] to pass to [toTypeString]. */
+        private val CANONICAL_TYPE_CONFIGURATION =
+            TypeStringConfiguration(
+                stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                treatVarargsAsArray = true,
+            )
+
         /** Shortens types, if configured */
         fun shortenTypes(type: String): String {
             var cleaned = type
             if (cleaned.contains("@androidx.annotation.")) {
                 cleaned = cleaned.replace("@androidx.annotation.", "@")
             }
-            return stripJavaLangPrefix(cleaned)
-        }
-
-        /**
-         * Removes java.lang. prefixes from types, unless it's in a subpackage such as
-         * java.lang.reflect. For simplicity we may also leave inner classes in the java.lang
-         * package untouched.
-         *
-         * NOTE: We only remove this from the front of the type; e.g. we'll replace
-         * java.lang.Class<java.lang.String> with Class<java.lang.String>. This is because the
-         * signature parsing of types is not 100% accurate and we don't want to run into trouble
-         * with more complicated generic type signatures where we end up not mapping the simplified
-         * types back to the real fully qualified type names.
-         */
-        fun stripJavaLangPrefix(type: String): String {
-            if (type.startsWith(JAVA_LANG_PREFIX)) {
-                // Replacing java.lang is harder, since we don't want to operate in sub packages,
-                // e.g. java.lang.String -> String, but java.lang.reflect.Method -> unchanged
-                val start = JAVA_LANG_PREFIX.length
-                val end = type.length
-                for (index in start until end) {
-                    if (type[index] == '<') {
-                        return type.substring(start)
-                    } else if (type[index] == '.') {
-                        return type
-                    }
-                }
-
-                return type.substring(start)
-            }
-
-            return type
+            return cleaned
         }
 
         /**
@@ -334,6 +322,33 @@ interface TypeItem {
     }
 }
 
+/** Different ways of handling `java.lang.` prefix stripping in [TypeItem.toTypeString]. */
+enum class StripJavaLangPrefix {
+    /** Never strip java.lang. prefixes when */
+    NEVER,
+
+    /**
+     * Only strip java.lang. prefixes from the start of the type as long as they are not a generic
+     * varargs parameter.
+     *
+     * This is legacy behavior from when types were treated as strings.
+     */
+    LEGACY,
+
+    /**
+     * A special value that is only used internally within [TypeItem.toTypeString].
+     *
+     * If [LEGACY] was provided for a varargs type then [LEGACY] will be replaced by this when
+     * processing the [ArrayTypeItem] to indicate to the nested [ClassTypeItem] that it is a varargs
+     * parameter and to only strip the `java.lang.` prefix if it is at the start and is a generic
+     * type.
+     */
+    VARARGS,
+
+    /** Always strip java.lang. prefixes from the type. */
+    ALWAYS,
+}
+
 /**
  * A mapping from one class's type parameters to the types provided for those type parameters in a
  * possibly indirect subclass.
@@ -348,41 +363,39 @@ interface TypeItem {
  */
 typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
 
-abstract class DefaultTypeItem() : TypeItem {
+abstract class DefaultTypeItem(
+    final override val modifiers: TypeModifiers,
+) : TypeItem {
 
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
 
     override fun toString(): String = toTypeString()
 
-    override fun toTypeString(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        filter: Predicate<Item>?,
-        spaceBetweenParameters: Boolean
-    ): String {
-        return toTypeString(
-            TypeStringConfiguration(annotations, kotlinStyleNulls, filter, spaceBetweenParameters)
-        )
-    }
-
-    private fun toTypeString(configuration: TypeStringConfiguration): String {
+    override fun toTypeString(configuration: TypeStringConfiguration): String {
         // Cache the default type string. Other configurations are less likely to be reused.
         return if (configuration.isDefault) {
             if (!::cachedDefaultType.isInitialized) {
-                cachedDefaultType = buildString {
-                    appendTypeString(this@DefaultTypeItem, configuration)
-                }
+                cachedDefaultType = generateTypeString(configuration)
             }
             cachedDefaultType
         } else {
-            buildString { appendTypeString(this@DefaultTypeItem, configuration) }
+            generateTypeString(configuration)
         }
+    }
+
+    /**
+     * Generate a string representation of this type based on [configuration].
+     *
+     * The returned value will be cached if the [configuration] is the default.
+     */
+    private fun generateTypeString(configuration: TypeStringConfiguration) = buildString {
+        appendTypeString(this@DefaultTypeItem, configuration)
     }
 
     override fun toErasedTypeString(): String {
         if (!::cachedErasedType.isInitialized) {
-            cachedErasedType = buildString { appendErasedTypeString(this@DefaultTypeItem) }
+            cachedErasedType = toTypeString(ERASED_TYPE_STRING_CONFIGURATION)
         }
         return cachedErasedType
     }
@@ -400,25 +413,11 @@ abstract class DefaultTypeItem() : TypeItem {
     override fun hashCode(): Int = hashCodeForType()
 
     companion object {
-        /**
-         * Configuration options for how to represent a type as a string.
-         *
-         * @param annotations Whether to include annotations on the type.
-         * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
-         *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
-         *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
-         * @param filter A filter to apply to the type annotations, if any.
-         * @param spaceBetweenParameters Whether to include a space between class type params.
-         */
-        private data class TypeStringConfiguration(
-            val annotations: Boolean = false,
-            val kotlinStyleNulls: Boolean = false,
-            val filter: Predicate<Item>? = null,
-            val spaceBetweenParameters: Boolean = false,
-        ) {
-            val isDefault =
-                !annotations && !kotlinStyleNulls && filter == null && !spaceBetweenParameters
-        }
+        private val ERASED_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(
+                eraseGenerics = true,
+                treatVarargsAsArray = true,
+            )
 
         private fun StringBuilder.appendTypeString(
             type: TypeItem,
@@ -433,6 +432,24 @@ abstract class DefaultTypeItem() : TypeItem {
                     // Primitives must be non-null.
                 }
                 is ArrayTypeItem -> {
+                    // Get the nested configuration. This replaces StripJavaLangPrefix.LEGACY
+                    // with StripJavaLangPrefix.VARARGS for a varargs type to maintain the legacy
+                    // behavior of NOT stripping java.lang. prefix from varargs parameters unless it
+                    // has type arguments.
+                    val nestedConfiguration =
+                        if (
+                            type.isVarargs &&
+                                configuration.stripJavaLangPrefix == StripJavaLangPrefix.LEGACY
+                        ) {
+                            configuration.copy(stripJavaLangPrefix = StripJavaLangPrefix.VARARGS)
+                        } else configuration
+
+                    // Compute the outermost array suffix as that can differ if it is varargs. If
+                    // this is a varargs then it must be the outermost, otherwise the outermost is
+                    // not a varargs so they will all use the same suffix.
+                    val outermostArraySuffix =
+                        if (type.isVarargs && !configuration.treatVarargsAsArray) "..." else "[]"
+
                     // The ordering of array annotations means this can't just use a recursive
                     // approach for annotated multi-dimensional arrays, but it can if annotations
                     // aren't included.
@@ -443,19 +460,21 @@ abstract class DefaultTypeItem() : TypeItem {
                             arrayModifiers.add(deepComponentType.modifiers)
                             deepComponentType = deepComponentType.componentType
                         }
-                        val suffixes = arrayModifiers.map { it.nullability().suffix }.reversed()
+                        val suffixes = arrayModifiers.map { it.nullability.suffix }.reversed()
 
                         // Print the innermost component type.
-                        appendTypeString(deepComponentType, configuration)
+                        appendTypeString(deepComponentType, nestedConfiguration)
 
                         // Print modifiers from the outermost array type in, and the array suffixes.
                         arrayModifiers.zip(suffixes).forEachIndexed { index, (modifiers, suffix) ->
                             appendAnnotations(modifiers, configuration, leadingSpace = true)
-                            // Only the outermost array can be varargs.
-                            if (index < arrayModifiers.size - 1 || !type.isVarargs) {
-                                append("[]")
+                            // The array suffix can be different on the outermost array type. The
+                            // outermost is the last in the list.
+                            if (index == arrayModifiers.lastIndex) {
+                                append(outermostArraySuffix)
                             } else {
-                                append("...")
+                                // Only the outermost array can be varargs.
+                                append("[]")
                             }
                             if (configuration.kotlinStyleNulls) {
                                 append(suffix)
@@ -463,42 +482,68 @@ abstract class DefaultTypeItem() : TypeItem {
                         }
                     } else {
                         // Non-annotated case: just recur to the component
-                        appendTypeString(type.componentType, configuration)
-                        if (type.isVarargs) {
-                            append("...")
-                        } else {
-                            append("[]")
-                        }
+                        appendTypeString(type.componentType, nestedConfiguration)
+                        append(outermostArraySuffix)
                         if (configuration.kotlinStyleNulls) {
-                            append(type.modifiers.nullability().suffix)
+                            append(type.modifiers.nullability.suffix)
                         }
                     }
                 }
                 is ClassTypeItem -> {
                     if (type.outerClassType != null) {
-                        appendTypeString(type.outerClassType!!, configuration)
-                        append('.')
+                        // Legacy behavior for stripping java.lang. prefixes is to not strip them
+                        // from nested classes. This replicates that by replacing LEGACY with
+                        // NEVER in the configuration used to append the type string of the
+                        // outermost class which is responsible for stripping the prefix.
+                        val nestedConfiguration =
+                            if (configuration.stripJavaLangPrefix == StripJavaLangPrefix.LEGACY)
+                                configuration.copy(stripJavaLangPrefix = StripJavaLangPrefix.NEVER)
+                            else configuration
+                        appendTypeString(type.outerClassType!!, nestedConfiguration)
+                        append(configuration.nestedClassSeparator)
                         if (configuration.annotations) {
                             appendAnnotations(type.modifiers, configuration)
                         }
                         append(type.className)
                     } else {
-                        if (configuration.annotations) {
-                            append(type.qualifiedName.substringBeforeLast(type.className))
-                            appendAnnotations(type.modifiers, configuration)
-                            append(type.className)
-                        } else {
-                            append(type.qualifiedName)
+                        // Check to see whether a java.lang. prefix should be stripped from the type
+                        // name.
+                        val stripJavaLangPrefix =
+                            when (configuration.stripJavaLangPrefix) {
+                                StripJavaLangPrefix.ALWAYS -> true
+                                StripJavaLangPrefix.LEGACY ->
+                                    // This should only strip if this is at the start.
+                                    isEmpty()
+                                StripJavaLangPrefix.VARARGS ->
+                                    // This should only strip if this is at the start and is a
+                                    // generic type.
+                                    isEmpty() && type.hasTypeArguments()
+                                else -> false
+                            }
+
+                        // Get the class name prefix, i.e. the part before the class's simple name
+                        // where annotations can be placed. e.g. for java.lang.String the simple
+                        // name is `String` and the prefix is `java.lang.`.
+                        val classNamePrefix = type.classNamePrefix
+
+                        // Append the class name prefix unless it is `java.lang.` and `java.lang.`
+                        // prefixes should be stripped.
+                        if (!(stripJavaLangPrefix && classNamePrefix == JAVA_LANG_PREFIX)) {
+                            append(classNamePrefix)
                         }
+                        if (configuration.annotations) {
+                            appendAnnotations(type.modifiers, configuration)
+                        }
+                        append(type.className)
                     }
 
-                    if (type.arguments.isNotEmpty()) {
+                    if (!configuration.eraseGenerics && type.arguments.isNotEmpty()) {
                         append("<")
                         type.arguments.forEachIndexed { index, parameter ->
                             appendTypeString(parameter, configuration)
                             if (index != type.arguments.size - 1) {
                                 append(",")
-                                if (configuration.spaceBetweenParameters) {
+                                if (configuration.spaceBetweenTypeArguments) {
                                     append(" ")
                                 }
                             }
@@ -506,16 +551,33 @@ abstract class DefaultTypeItem() : TypeItem {
                         append(">")
                     }
                     if (configuration.kotlinStyleNulls) {
-                        append(type.modifiers.nullability().suffix)
+                        append(type.modifiers.nullability.suffix)
                     }
                 }
                 is VariableTypeItem -> {
                     if (configuration.annotations) {
                         appendAnnotations(type.modifiers, configuration)
                     }
-                    append(type.name)
+                    if (configuration.eraseGenerics) {
+                        // Replace the type variable with the bounds of the type parameter.
+                        val typeParameter = type.asTypeParameter
+                        typeParameter.asErasedType()?.let { boundsType ->
+                            appendTypeString(boundsType, configuration)
+                        }
+                            // No explicit bounds were provided so use the default of
+                            // java.lang.Object.
+                            ?: if (
+                                configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS
+                            ) {
+                                append("Object")
+                            } else {
+                                append(JAVA_LANG_OBJECT)
+                            }
+                    } else {
+                        append(type.name)
+                    }
                     if (configuration.kotlinStyleNulls) {
-                        append(type.modifiers.nullability().suffix)
+                        append(type.modifiers.nullability.suffix)
                     }
                 }
                 is WildcardTypeItem -> {
@@ -523,21 +585,51 @@ abstract class DefaultTypeItem() : TypeItem {
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append("?")
+
+                    type.superBound?.let {
+                        append(" super ")
+                        appendTypeString(it, configuration)
+                        // If there's a super bound, don't also print an object extends bound.
+                        return
+                    }
+
                     type.extendsBound?.let {
-                        // Leave out object bounds, because they're implied
-                        if (!it.isJavaLangObject()) {
+                        if (shouldIncludeExtendsBound(it, configuration)) {
                             append(" extends ")
                             appendTypeString(it, configuration)
                         }
                     }
-                    type.superBound?.let {
-                        append(" super ")
-                        appendTypeString(it, configuration)
-                    }
+
                     // It doesn't make sense to have a nullness suffix on a wildcard, this should be
                     // handled by the bound.
                 }
             }
+        }
+
+        /**
+         * Returns whether the [extendsBound] should be included in the type string based on the
+         * [configuration].
+         */
+        private fun shouldIncludeExtendsBound(
+            extendsBound: ReferenceTypeItem,
+            configuration: TypeStringConfiguration
+        ): Boolean {
+            // Non-object bounds should always be included.
+            if (!extendsBound.isJavaLangObject()) return true
+
+            // If the bound is Object, it should only be included when the nullability isn't implied
+            // by the configuration. If both kotlinStyleNulls and annotations are false, no
+            // nullability information is included anyway.
+            if (!configuration.kotlinStyleNulls && !configuration.annotations) return false
+
+            // When nullability information is included, excluded bounds imply non-null when
+            // kotlinStyleNulls is true and platform when it is false.
+            val nullability = extendsBound.modifiers.nullability
+            if (configuration.kotlinStyleNulls && nullability == TypeNullability.NONNULL)
+                return false
+            if (!configuration.kotlinStyleNulls && nullability == TypeNullability.PLATFORM)
+                return false
+            return true
         }
 
         private fun StringBuilder.appendAnnotations(
@@ -547,49 +639,24 @@ abstract class DefaultTypeItem() : TypeItem {
             trailingSpace: Boolean = true
         ) {
             val annotations =
-                modifiers.annotations().filter { annotation ->
+                modifiers.annotations.filter { annotation ->
                     // If Kotlin-style nulls are printed, nullness annotations shouldn't be.
-                    if (configuration.kotlinStyleNulls && annotation.isNullnessAnnotation()) {
-                        return@filter false
-                    }
-
-                    val filter = configuration.filter ?: return@filter true
-                    val qualifiedName = annotation.qualifiedName ?: return@filter true
-                    val annotationClass =
-                        annotation.codebase.findClass(qualifiedName) ?: return@filter true
-                    filter.test(annotationClass)
+                    !(configuration.kotlinStyleNulls && annotation.isNullnessAnnotation())
                 }
             if (annotations.isEmpty()) return
 
             if (leadingSpace) {
                 append(' ')
             }
+            val annotationFormatter = configuration.annotationFormatter
             annotations.forEachIndexed { index, annotation ->
-                append(annotation.toSource())
+                annotationFormatter.appendFormatAnnotation(this, annotation)
                 if (index != annotations.size - 1) {
                     append(' ')
                 }
             }
             if (trailingSpace) {
                 append(' ')
-            }
-        }
-
-        private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
-            when (type) {
-                is PrimitiveTypeItem -> append(type.kind.primitiveName)
-                is ArrayTypeItem -> {
-                    appendErasedTypeString(type.componentType)
-                    append("[]")
-                }
-                is ClassTypeItem -> append(type.qualifiedName)
-                is VariableTypeItem ->
-                    type.asTypeParameter.asErasedType()?.let { appendErasedTypeString(it) }
-                        ?: append(JAVA_LANG_OBJECT)
-                else ->
-                    throw IllegalStateException(
-                        "should never visit $type of type ${type.javaClass} while generating erased type string"
-                    )
             }
         }
 
@@ -632,7 +699,7 @@ abstract class DefaultTypeItem() : TypeItem {
                 return qualifiedName
             }
 
-            // If class name contains $, it's not an ambiguous inner class name.
+            // If class name contains $, it's not an ambiguous nested class name.
             if (qualifiedName.indexOf('$') != -1) {
                 return qualifiedName.replace('.', '/')
             }
@@ -656,6 +723,55 @@ abstract class DefaultTypeItem() : TypeItem {
 }
 
 /**
+ * Configuration options for how to represent a type as a string.
+ *
+ * @param annotations Whether to include annotations on the type.
+ * @param annotationFormatter Responsible for formatting type annotations.
+ * @param eraseGenerics If `true` then type parameters are ignored and type variables are replaced
+ *   with the upper bound of the type parameter.
+ * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
+ *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
+ *   `@Nullable List<String>` would be represented as `List<String!>?`.
+ * @param nestedClassSeparator The character that is used to separate a nested class from its
+ *   containing class.
+ * @param spaceBetweenTypeArguments Whether to include a space between type arguments of a generic
+ *   type.
+ * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
+ * @param treatVarargsAsArray If `false` then a varargs type will use `...` to indicate that it is a
+ *   varargs type, otherwise it will use `[]` like a normal array.
+ */
+data class TypeStringConfiguration(
+    val annotations: Boolean = false,
+    val annotationFormatter: AnnotationFormatter = DEFAULT_ANNOTATION_FORMATTER,
+    val eraseGenerics: Boolean = false,
+    val kotlinStyleNulls: Boolean = false,
+    val nestedClassSeparator: Char = '.',
+    val spaceBetweenTypeArguments: Boolean = false,
+    val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
+    val treatVarargsAsArray: Boolean = false,
+) {
+    /**
+     * Check to see if this matches [DEFAULT].
+     *
+     * This is computed lazily to avoid the comparison against [DEFAULT] being done while creating
+     * the instance to assign to [DEFAULT] at which point [DEFAULT] would be `null`.
+     */
+    val isDefault by lazy(LazyThreadSafetyMode.NONE) { this == DEFAULT }
+
+    companion object {
+        /**
+         * The default [AnnotationFormatter] used by [TypeStringConfiguration].
+         *
+         * Must be initialized before [DEFAULT] to avoid a [NullPointerException].
+         */
+        private val DEFAULT_ANNOTATION_FORMATTER = AnnotationFormatter.legacyAnnotationFormatter()
+
+        /** The default[TypeStringConfiguration]. */
+        val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
+    }
+}
+
+/**
  * The type for [ClassTypeItem.arguments].
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeArgument.
@@ -665,7 +781,10 @@ interface TypeArgumentTypeItem : TypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem
 
     /** Override to specialize the return type. */
-    override fun duplicate(): TypeArgumentTypeItem
+    override fun substitute(modifiers: TypeModifiers): TypeArgumentTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): TypeArgumentTypeItem
 }
 
 /**
@@ -678,7 +797,10 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem
 
     /** Override to specialize the return type. */
-    override fun duplicate(): ReferenceTypeItem
+    override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): ReferenceTypeItem
 }
 
 /**
@@ -693,7 +815,51 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
  */
-sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem
+sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
+    /** Override to specialize the return type. */
+    override fun transform(transformer: TypeTransformer): ExceptionTypeItem
+
+    /**
+     * Get the erased [ClassItem], if any.
+     *
+     * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
+     * types have been erased. This will cause an error if it is called on a [VariableTypeItem]
+     * whose [TypeParameterItem]'s upper bound is not a [ExceptionTypeItem]. However, that should
+     * never happen as it would be a compile time error.
+     */
+    val erasedClass: ClassItem?
+
+    /**
+     * The best guess of the full name, i.e. the qualified class name without the package but
+     * including the outer class names.
+     *
+     * This is not something that can be accurately determined solely by examining the reference or
+     * even the import as there is no distinction made between a package name and a class name. Java
+     * naming conventions do say that package names should start with a lower case letter and class
+     * names should start with an upper case letter, but they are not enforced so cannot be fully
+     * relied upon.
+     *
+     * It is possible that in some contexts a model could provide a better full name than guessing
+     * from the fully qualified name, e.g. a reference within the same package, however that is not
+     * something that will be supported by all models and so attempting to use that could lead to
+     * subtle model differences that could break users of the models.
+     *
+     * The only way to fully determine the full name is to resolve the class and extract it from
+     * there but this avoids resolving a class as it can be expensive. Instead, this just makes the
+     * best guess assuming normal Java conventions.
+     */
+    @Deprecated(
+        "Do not use as full name is only ever a best guess based on naming conventions; use the full type string instead",
+        ReplaceWith("toTypeString()")
+    )
+    fun fullName(): String = bestGuessAtFullName(toTypeString())
+
+    companion object {
+        /** A partial ordering over [ExceptionTypeItem] comparing [ExceptionTypeItem] full names. */
+        val fullNameComparator: Comparator<ExceptionTypeItem> =
+            Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
+    }
+}
 
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
@@ -703,18 +869,110 @@ interface PrimitiveTypeItem : TypeItem {
     /** The possible kinds of primitives. */
     enum class Primitive(
         val primitiveName: String,
+        val kotlinName: String,
         val defaultValue: Any?,
-        val defaultValueString: String
+        val defaultValueString: String,
+        val wrapperClass: Class<*>,
     ) {
-        BOOLEAN("boolean", false, "false"),
-        BYTE("byte", 0.toByte(), "0"),
-        CHAR("char", 0.toChar(), "0"),
-        DOUBLE("double", 0.0, "0"),
-        FLOAT("float", 0F, "0"),
-        INT("int", 0, "0"),
-        LONG("long", 0L, "0"),
-        SHORT("short", 0.toShort(), "0"),
-        VOID("void", null, "null")
+        BOOLEAN(
+            primitiveName = "boolean",
+            kotlinName = "Boolean",
+            defaultValue = false,
+            defaultValueString = "false",
+            wrapperClass = java.lang.Boolean::class.java,
+        ),
+        BYTE(
+            primitiveName = "byte",
+            kotlinName = "Byte",
+            defaultValue = 0.toByte(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Byte::class.java,
+        ),
+        CHAR(
+            primitiveName = "char",
+            kotlinName = "Char",
+            defaultValue = 0.toChar(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Character::class.java,
+        ),
+        DOUBLE(
+            primitiveName = "double",
+            kotlinName = "Double",
+            defaultValue = 0.0,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Double::class.java,
+        ),
+        FLOAT(
+            primitiveName = "float",
+            kotlinName = "Float",
+            defaultValue = 0F,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Float::class.java,
+        ),
+        INT(
+            primitiveName = "int",
+            kotlinName = "Int",
+            defaultValue = 0,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Integer::class.java,
+        ),
+        LONG(
+            primitiveName = "long",
+            kotlinName = "Long",
+            defaultValue = 0L,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Long::class.java,
+        ),
+        SHORT(
+            primitiveName = "short",
+            kotlinName = "Short",
+            defaultValue = 0.toShort(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Short::class.java,
+        ),
+        VOID(
+            primitiveName = "void",
+            // Kotlin does not really have a name for this but Nothing is closest.
+            kotlinName = "Nothing",
+            defaultValue = null,
+            defaultValueString = "null",
+            wrapperClass = java.lang.Void::class.java,
+        ),
+        ;
+
+        /**
+         * The name of the Kotlin function that will convert a [Number] to an instance of this type.
+         *
+         * This is `null` for non-numeric [Primitive]s.
+         */
+        val kotlinNumericConversionFunction =
+            if (Number::class.java.isAssignableFrom(wrapperClass)) "to$kotlinName" else null
+
+        companion object {
+            /** Map from [Primitive.wrapperClass]'s name to [Primitive]. */
+            private val wrapperClassNameToKind =
+                Primitive.entries.associateBy { it.wrapperClass.name }
+
+            /**
+             * Get the [Primitive] associated with [wrapperClassName], returning `null`, if it could
+             * not be found.
+             */
+            fun forWrapperClassName(wrapperClassName: String) =
+                wrapperClassNameToKind[wrapperClassName]
+
+            /** Map from [Primitive.kotlinNumericConversionFunction]'s name to [Primitive]. */
+            private val kotlinNumericConversionFunctionNameToKind =
+                Primitive.entries
+                    .filter { it.kotlinNumericConversionFunction != null }
+                    .associateBy { it.kotlinNumericConversionFunction }
+
+            /**
+             * Get the [Primitive] associated with the Kotlin numeric conversion function called
+             * [name], returning `null`, if it could not be found.
+             */
+            fun forKotlinNumericConversionFunctionName(name: String) =
+                kotlinNumericConversionFunctionNameToKind[name]
+        }
     }
 
     override fun defaultValue(): Any? = kind.defaultValue
@@ -725,10 +983,26 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this)
     }
 
-    override fun duplicate(): PrimitiveTypeItem
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers)"),
+    )
+    fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): PrimitiveTypeItem =
+        if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
-        return duplicate()
+        // Primitive type is never affected by a type mapping so always return this.
+        return this
+    }
+
+    override fun transform(transformer: TypeTransformer): PrimitiveTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -748,22 +1022,51 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     /** Whether this array type represents a varargs parameter. */
     val isVarargs: Boolean
 
-    override fun arrayDimensions(): Int = 1 + componentType.arrayDimensions()
-
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
 
-    override fun duplicate(): ArrayTypeItem = duplicate(componentType.duplicate())
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
 
     /**
-     * Duplicates this type (including duplicating the modifiers so they can be independently
-     * mutated), but substituting in the provided [componentType] in place of this type's component.
+     * Duplicates this type substituting in the provided [modifiers] and [componentType] in place of
+     * this instance's [modifiers] and [componentType].
      */
-    fun duplicate(componentType: TypeItem): ArrayTypeItem
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
+    )
+    fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): ArrayTypeItem =
+        substitute(modifiers, componentType)
+
+    /**
+     * Return an [ArrayTypeItem] instance identical to this one except its [TypeItem.modifiers] and
+     * [ArrayTypeItem.componentType] properties are the same as the [modifiers] and [componentType]
+     * parameters respectively.
+     *
+     * If the parameters are the same as this instance's properties then it will just return this
+     * instance, otherwise it will return a new instance.
+     */
+    fun substitute(
+        modifiers: TypeModifiers = this.modifiers,
+        componentType: TypeItem = this.componentType,
+    ) =
+        if (modifiers !== this.modifiers || componentType !== this.componentType)
+            @Suppress("DEPRECATION") duplicate(modifiers, componentType)
+        else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ArrayTypeItem {
-        return duplicate(componentType.convertType(typeParameterBindings))
+        return substitute(
+            componentType = componentType.convertType(typeParameterBindings),
+        )
+    }
+
+    override fun transform(transformer: TypeTransformer): ArrayTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -789,7 +1092,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      */
     val arguments: List<TypeArgumentTypeItem>
 
-    /** The outer class type of this class, if it is an inner type. */
+    /** The outer class type of this class, if it is a nested type. */
     val outerClassType: ClassTypeItem?
 
     /**
@@ -798,8 +1101,30 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      */
     val className: String
 
+    /**
+     * Get the class name prefix, i.e. the part before [className] and after which type use
+     * annotations, if any will appear.
+     *
+     * e.g. for `java.lang.String`, [className] is `String` and the prefix is `java.lang.`. For
+     * `java.util.Map.Entry` [className] is `Entry` and the prefix is `java.util.Map.`.
+     *
+     * This is the value such that [classNamePrefix] + [className] == [qualifiedName].
+     */
+    val classNamePrefix: String
+        get() {
+            val classNamePrefixEnd = qualifiedName.length - className.length
+            return qualifiedName.substring(0, classNamePrefixEnd)
+        }
+
+    override val erasedClass: ClassItem?
+        get() = asClass()
+
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
     }
 
     /**
@@ -813,21 +1138,59 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
-    override fun duplicate(): ClassTypeItem =
-        duplicate(outerClassType?.duplicate(), arguments.map { it.duplicate() })
+    /**
+     * Check to see whether this type is a functional type, i.e. references a function interface,
+     * which is an interface with at most one abstract method.
+     */
+    fun isFunctionalType(): Boolean = error("unsupported")
 
     /**
-     * Duplicates this type (including duplicating the modifiers, so they can be independently
-     * mutated), but substituting in the provided [outerClass] and [arguments] in place of this
-     * instance's [outerClass] and [arguments].
+     * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
+     * [arguments] in place of this instance's [modifiers], [outerClassType] and [arguments].
      */
-    fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeArgumentTypeItem>): ClassTypeItem
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
+    )
+    fun duplicate(
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>,
+    ): ClassTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): ClassTypeItem =
+        substitute(modifiers, outerClassType, arguments)
+
+    /**
+     * Return a [ClassTypeItem] instance identical to this one except its [TypeItem.modifiers],
+     * [ClassTypeItem.outerClassType] and [ClassTypeItem.arguments] properties are the same as the
+     * [modifiers], [outerClassType] and [arguments] parameters respectively.
+     *
+     * If the parameters are the same as this instance's properties then it will just return this
+     * instance, otherwise it will return a new instance.
+     */
+    fun substitute(
+        modifiers: TypeModifiers = this.modifiers,
+        outerClassType: ClassTypeItem? = this.outerClassType,
+        arguments: List<TypeArgumentTypeItem> = this.arguments,
+    ) =
+        if (
+            modifiers !== this.modifiers ||
+                outerClassType !== this.outerClassType ||
+                arguments !== this.arguments
+        )
+            @Suppress("DEPRECATION") duplicate(modifiers, outerClassType, arguments)
+        else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
-        return duplicate(
-            outerClassType?.convertType(typeParameterBindings),
-            arguments.map { it.convertType(typeParameterBindings) }
+        return substitute(
+            outerClassType = outerClassType?.convertType(typeParameterBindings),
+            arguments = arguments.mapIfNotSame { it.convertType(typeParameterBindings) },
         )
+    }
+
+    override fun transform(transformer: TypeTransformer): ClassTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -854,6 +1217,51 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     }
 }
 
+/**
+ * Represents a kotlin lambda type.
+ *
+ * This extends [ClassTypeItem] out of necessity because that is how lambdas have been represented
+ * in Metalava up until this was created and so until such time as all the code that consumes this
+ * has been updated to handle lambdas specifically it will need to remain a [ClassTypeItem].
+ */
+interface LambdaTypeItem : ClassTypeItem {
+    /** True if the lambda is a suspend function, false otherwise. */
+    val isSuspend: Boolean
+
+    /** The type of the optional receiver. */
+    val receiverType: TypeItem?
+
+    /** The parameter types. */
+    val parameterTypes: List<TypeItem>
+
+    /** The return type. */
+    val returnType: TypeItem
+
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)")
+    )
+    override fun duplicate(
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>,
+    ): LambdaTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
+        substitute(modifiers, outerClassType, arguments)
+
+    /** Override to specialize the return type. */
+    override fun substitute(
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ) = super.substitute(modifiers, outerClassType, arguments) as LambdaTypeItem
+
+    override fun transform(transformer: TypeTransformer): LambdaTypeItem {
+        return transformer.transform(this)
+    }
+}
+
 /** Represents a type variable type. */
 interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, ExceptionTypeItem {
     /** The name of the type variable */
@@ -862,17 +1270,63 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /** The corresponding type parameter for this type variable. */
     val asTypeParameter: TypeParameterItem
 
+    override val erasedClass: ClassItem?
+        get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass
+
+    override fun description() =
+        "$name (extends ${this.asTypeParameter.asErasedType()?.description() ?: "unknown type"})}"
+
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
 
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers)")
+    )
+    fun duplicate(modifiers: TypeModifiers): VariableTypeItem
+
+    override fun substitute(modifiers: TypeModifiers): VariableTypeItem =
+        if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
+
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
-        return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
+        val nullability = modifiers.nullability
+        return typeParameterBindings[asTypeParameter]?.let { replacement ->
+            val replacementNullability =
+                when {
+                    // If this use of the type parameter is marked as nullable, then it overrides
+                    // the nullability of the substituted type.
+                    nullability == TypeNullability.NULLABLE -> nullability
+                    // If the type that is replacing the type parameter has platform nullability,
+                    // i.e. carries no information one way or another about whether it is nullable,
+                    // then use the nullability of the use of the type parameter as while at worst
+                    // it may also have no nullability information, it could have some, e.g. from a
+                    // declaration nullability annotation.
+                    replacement.modifiers.nullability == TypeNullability.PLATFORM -> nullability
+                    else -> null
+                }
+
+            if (replacementNullability == null) {
+                replacement
+            } else {
+                replacement.substitute(replacementNullability) as ReferenceTypeItem
+            }
+        }
+            ?:
+            // The type parameter binding does not contain a replacement for this variable so use
+            // this as is.
+            this
+    }
+
+    override fun transform(transformer: TypeTransformer): VariableTypeItem {
+        return transformer.transform(this)
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
-
-    override fun duplicate(): VariableTypeItem
 
     override fun equalToType(other: TypeItem?): Boolean {
         return (other as? VariableTypeItem)?.name == name
@@ -896,24 +1350,58 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         visitor.visit(this)
     }
 
-    override fun duplicate(): WildcardTypeItem =
-        duplicate(extendsBound?.duplicate(), superBound?.duplicate())
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
 
     /**
-     * Duplicates this type (including duplicating the modifiers so they can be independently
-     * mutated), but substituting in the provided [extendsBound] and [superBound] in place of this
-     * type's bounds.
+     * Duplicates this type substituting in the provided [modifiers], [extendsBound] and
+     * [superBound] in place of this instance's [modifiers], [extendsBound] and [superBound].
      */
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, extendsBound, superBound)"),
+    )
     fun duplicate(
+        modifiers: TypeModifiers,
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?,
     ): WildcardTypeItem
 
+    override fun substitute(modifiers: TypeModifiers): WildcardTypeItem =
+        substitute(modifiers, extendsBound, superBound)
+
+    /**
+     * Return a [WildcardTypeItem] instance identical to this one except its [TypeItem.modifiers],
+     * [WildcardTypeItem.extendsBound] and [WildcardTypeItem.superBound] properties are the same as
+     * the [modifiers], [extendsBound] and [superBound] parameters respectively.
+     *
+     * If the parameters are the same as this instance's properties then it will just return this
+     * instance, otherwise it will return a new instance.
+     */
+    fun substitute(
+        modifiers: TypeModifiers = this.modifiers,
+        extendsBound: ReferenceTypeItem? = this.extendsBound,
+        superBound: ReferenceTypeItem? = this.superBound,
+    ) =
+        if (
+            modifiers !== this.modifiers ||
+                extendsBound !== this.extendsBound ||
+                superBound !== this.superBound
+        )
+            @Suppress("DEPRECATION") duplicate(modifiers, extendsBound, superBound)
+        else this
+
     override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
-        return duplicate(
+        return substitute(
+            modifiers,
             extendsBound?.convertType(typeParameterBindings),
             superBound?.convertType(typeParameterBindings)
         )
+    }
+
+    override fun transform(transformer: TypeTransformer): WildcardTypeItem {
+        return transformer.transform(this)
     }
 
     override fun equalToType(other: TypeItem?): Boolean {
@@ -924,20 +1412,44 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
 
-    override fun asClass(): ClassItem? {
-        TODO("Not yet implemented")
-    }
+    override fun asClass(): ClassItem? = null
 }
 
-/** Different uses to which a [TypeItem] might be used that might affect its construction. */
-enum class TypeUse {
-    /** General type use; no special behavior. */
-    GENERAL,
+/**
+ * Create a [TypeTransformer] that will remove any type annotations for which [filter] returns false
+ * when called against the [AnnotationItem]'s [ClassItem] return by [AnnotationItem.resolve]. If
+ * that returns `null` then the [AnnotationItem] will be kept.
+ */
+fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
+    object : BaseTypeTransformer() {
+        override fun transform(modifiers: TypeModifiers): TypeModifiers {
+            if (modifiers.annotations.isEmpty()) return modifiers
+            return modifiers.substitute(
+                annotations =
+                    modifiers.annotations.filter { annotationItem ->
+                        // If the annotation cannot be resolved then keep it.
+                        val annotationClass = annotationItem.resolve() ?: return@filter true
+                        filter.test(annotationClass)
+                    }
+            )
+        }
+    }
 
-    /**
-     * Super type, e.g. in an `extends` or `implements` list; is always [TypeNullability.NONNULL].
-     */
-    SUPER_TYPE,
+/**
+ * Map the items in this list to a new list if [transform] returns at least one item which is not
+ * the same instance as its input, otherwise return this.
+ */
+fun <T> List<T>.mapIfNotSame(transform: (T) -> T): List<T> {
+    if (isEmpty()) return this
+    val newList = map(transform)
+    val i1 = iterator()
+    val i2 = newList.iterator()
+    while (i1.hasNext() && i2.hasNext()) {
+        val t1 = i1.next()
+        val t2 = i2.next()
+        if (t1 !== t2) return newList
+    }
+    return this
 }
 
 /**

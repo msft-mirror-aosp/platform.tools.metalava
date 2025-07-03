@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,10 +29,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-class PsiParameterItemTest : BasePsiTest() {
+class PsiParameterItemTest : BaseModelTest() {
     @Test
     fun `primary constructor parameters have properties`() {
-        testCodebase(kotlin("class Foo(val property: Int, parameter: Int)")) { codebase ->
+        runCodebaseTest(kotlin("class Foo(val property: Int, parameter: Int)")) {
             val constructorItem = codebase.assertClass("Foo").constructors().single()
             val propertyParameter = constructorItem.parameters().single { it.name() == "property" }
             val regularParameter = constructorItem.parameters().single { it.name() == "parameter" }
@@ -39,7 +43,8 @@ class PsiParameterItemTest : BasePsiTest() {
         }
     }
 
-    private fun `actuals get params from expects`(isK2: Boolean) {
+    @Test
+    fun `actuals get params from expects`() {
         val commonSource =
             kotlin(
                 "commonMain/src/Expect.kt",
@@ -54,13 +59,10 @@ class PsiParameterItemTest : BasePsiTest() {
                     }
                 """
             )
-        testCodebase(
-            commonSources = listOf(commonSource),
-            sources =
-                listOf(
-                    kotlin(
-                        "jvmMain/src/Actual.kt",
-                        """
+        val androidSource =
+            kotlin(
+                "androidMain/src/Actual.kt",
+                """
                     actual suspend fun String.testFun(param: String) {}
                     actual class Test actual constructor(param: String) {
                         actual fun something(
@@ -69,14 +71,22 @@ class PsiParameterItemTest : BasePsiTest() {
                             required: Int
                         ) {}
                     }
-                """
-                    ),
-                    commonSource,
-                ),
-            isK2 = isK2
-        ) { codebase ->
-            // Expect classes are ignored by UAST/Kotlin light classes, verify we test actuals
-            val actualFile = codebase.assertClass("ActualKt").getSourceFile()
+                    """
+            )
+        runCodebaseTest(
+            inputSet(
+                androidSource,
+                commonSource,
+            ),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
+        ) {
+            // Expect classes are ignored by UAST/Kotlin light classes, verify we test actual
+            // classes.
+            val actualFile = codebase.assertClass("ActualKt").sourceFile()
 
             val functionItem = codebase.assertClass("ActualKt").methods().single()
             with(functionItem) {
@@ -88,20 +98,18 @@ class PsiParameterItemTest : BasePsiTest() {
 
                 val parameter = parameters[1]
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValue())
 
                 // continuation
                 assertFalse(parameters[2].hasDefaultValue())
             }
 
             val classItem = codebase.assertClass("Test")
-            assertEquals(actualFile, classItem.getSourceFile())
+            assertEquals(actualFile, classItem.sourceFile())
 
             val constructorItem = classItem.constructors().single()
             with(constructorItem) {
                 val parameter = parameters().single()
                 assertTrue(parameter.hasDefaultValue())
-                assertEquals("\"\"", parameter.defaultValue())
             }
 
             val methodItem = classItem.methods().single()
@@ -110,23 +118,11 @@ class PsiParameterItemTest : BasePsiTest() {
                 assertEquals(3, parameters.size)
 
                 assertTrue(parameters[0].hasDefaultValue())
-                assertEquals("\"\"", parameters[0].defaultValue())
 
                 assertTrue(parameters[1].hasDefaultValue())
-                assertEquals("param + \"\"", parameters[1].defaultValue())
 
                 assertFalse(parameters[2].hasDefaultValue())
             }
         }
-    }
-
-    @Test
-    fun `actuals get params from expects -- K1`() {
-        `actuals get params from expects`(isK2 = false)
-    }
-
-    @Test
-    fun `actuals get params from expects -- K2`() {
-        `actuals get params from expects`(isK2 = true)
     }
 }

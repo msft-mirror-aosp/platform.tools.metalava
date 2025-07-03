@@ -21,10 +21,8 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class DeprecatedLintTest(private val deprecatedState: DeprecatedState) : DriverTest() {
 
     enum class DeprecatedState(val context: Context, val expectedFail: String) {
@@ -50,7 +48,7 @@ class DeprecatedLintTest(private val deprecatedState: DeprecatedState) : DriverT
     companion object {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun testParameters() = DeprecatedState.values()
+        fun testParameters() = DeprecatedState.entries
     }
 
     data class Context(val deprecatedClass: String, val deprecatedMember: String)

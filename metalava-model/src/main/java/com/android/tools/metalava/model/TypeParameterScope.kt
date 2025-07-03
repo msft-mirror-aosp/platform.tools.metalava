@@ -92,20 +92,34 @@ sealed class TypeParameterScope private constructor() {
         val empty: TypeParameterScope = Empty
 
         /**
-         * Collect all the type parameters in scope for the given [owner] then wrap them in an
+         * Collect all the type parameters in scope for the given [classItem] then wrap them in an
          * [TypeParameterScope].
          */
-        fun from(owner: ClassItem?): TypeParameterScope {
-            return if (owner == null) empty
+        fun from(classItem: ClassItem?): TypeParameterScope {
+            return if (classItem == null) empty
             else {
                 // Construct a scope from the owner.
-                from(owner.containingClass())
+                from(classItem.containingClass())
                     // Nest this inside it.
                     .nestedScope(
-                        description = "class ${owner.qualifiedName()}",
-                        owner.typeParameterList().typeParameters(),
+                        description = "class ${classItem.qualifiedName()}",
+                        classItem.typeParameterList,
                     )
             }
+        }
+
+        /**
+         * Collect all the type parameters in scope for the given [callableItem] then wrap them in a
+         * [TypeParameterScope].
+         */
+        fun from(callableItem: CallableItem): TypeParameterScope {
+            // Construct a scope from the owner.
+            return from(callableItem.containingClass())
+                // Nest this inside it.
+                .nestedScope(
+                    description = "method/constructor ${callableItem.name()}",
+                    callableItem.typeParameterList,
+                )
         }
     }
 

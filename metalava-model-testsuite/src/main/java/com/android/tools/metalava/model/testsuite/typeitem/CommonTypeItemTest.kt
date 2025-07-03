@@ -17,23 +17,28 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class CommonTypeItemTest : BaseModelTest() {
     @Test
     fun `Test primitive types`() {
@@ -74,7 +79,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -130,7 +135,7 @@ class CommonTypeItemTest : BaseModelTest() {
             // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -186,7 +191,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -229,7 +234,7 @@ class CommonTypeItemTest : BaseModelTest() {
             // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -302,7 +307,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -372,7 +377,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         ctor public Foo();
@@ -453,7 +458,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<C> {
                         ctor public Foo();
@@ -465,9 +470,9 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val clz = codebase.assertClass("test.pkg.Foo")
-            val classTypeParam = clz.typeParameterList().typeParameters().single()
+            val classTypeParam = clz.typeParameterList.single()
             val method = clz.methods().single()
-            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val methodTypeParam = method.typeParameterList.single()
             val paramTypes = method.parameters().map { it.type() }
             assertThat(paramTypes).hasSize(2)
 
@@ -508,7 +513,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         method public T bar1();
@@ -522,14 +527,14 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooTypeParam = foo.typeParameterList().typeParameters().single()
+            val fooTypeParam = foo.typeParameterList.single()
 
             val bar1 = foo.methods().single { it.name() == "bar1" }
             val bar1Return = bar1.returnType()
             bar1Return.assertReferencesTypeParameter(fooTypeParam)
 
             val bar2 = foo.methods().single { it.name() == "bar2" }
-            val bar2TypeParam = bar2.typeParameterList().typeParameters().single()
+            val bar2TypeParam = bar2.typeParameterList.single()
             val bar2Return = bar2.returnType()
             bar2Return.assertReferencesTypeParameter(bar2TypeParam)
 
@@ -538,7 +543,7 @@ class CommonTypeItemTest : BaseModelTest() {
             bar3Return.assertReferencesTypeParameter(fooTypeParam)
 
             val bar4 = foo.methods().single { it.name() == "bar4" }
-            val bar4TypeParam = bar4.typeParameterList().typeParameters().single()
+            val bar4TypeParam = bar4.typeParameterList.single()
             val bar4Return = bar4.returnType()
             bar4Return.assertReferencesTypeParameter(bar4TypeParam)
         }
@@ -571,7 +576,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         method public void bar1(T p);
@@ -585,14 +590,14 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val bar1 = foo.methods().single { it.name() == "bar1" }
             val bar1Param = bar1.parameters().single().type()
             bar1Param.assertReferencesTypeParameter(fooParam)
 
             val bar2 = foo.methods().single { it.name() == "bar2" }
-            val bar2TypeParam = bar2.typeParameterList().typeParameters().single()
+            val bar2TypeParam = bar2.typeParameterList.single()
             val bar2Param = bar2.parameters().single().type()
             bar2Param.assertReferencesTypeParameter(bar2TypeParam)
 
@@ -601,7 +606,7 @@ class CommonTypeItemTest : BaseModelTest() {
             bar3Param.assertReferencesTypeParameter(fooParam)
 
             val bar4 = foo.methods().single { it.name() == "bar4" }
-            val bar4TypeParam = bar4.typeParameterList().typeParameters().single()
+            val bar4TypeParam = bar4.typeParameterList.single()
             val bar4Param = bar4.parameters().single().type()
             bar4Param.assertReferencesTypeParameter(bar4TypeParam)
         }
@@ -629,7 +634,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         field public T foo;
@@ -640,7 +645,7 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val fieldType = foo.fields().single { it.name() == "foo" }.type()
             fieldType.assertReferencesTypeParameter(fooParam)
@@ -662,7 +667,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         property public T foo;
@@ -673,7 +678,7 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val propertyType = foo.properties().single { it.name() == "foo" }.type()
             propertyType.assertReferencesTypeParameter(fooParam)
@@ -711,7 +716,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -795,7 +800,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer {
                         ctor public Outer();
@@ -868,7 +873,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Test {
                         ctor public Outer();
@@ -891,6 +896,7 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("java.util.Map")
             assertThat(outerType.className).isEqualTo("Map")
+            assertThat(outerType.arguments).hasSize(0)
             assertThat(outerType.outerClassType).isNull()
         }
     }
@@ -925,7 +931,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer<O> {
                         ctor public Outer();
@@ -940,7 +946,7 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
-            val methodTypeParameters = method.typeParameterList().typeParameters()
+            val methodTypeParameters = method.typeParameterList
             assertThat(methodTypeParameters).hasSize(2)
             val p1 = methodTypeParameters[0]
             val p2 = methodTypeParameters[1]
@@ -964,6 +970,91 @@ class CommonTypeItemTest : BaseModelTest() {
             val outerClassTypeArgument = outerType.arguments.single()
             outerClassTypeArgument.assertReferencesTypeParameter(p1)
             assertThat((outerClassTypeArgument as VariableTypeItem).name).isEqualTo("P1")
+        }
+    }
+
+    @Test
+    fun `Test inner parameterized types without explicit outer type`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import test.pkg1.Outer.Middle.Inner;
+
+                        public class Test {
+                            public Inner<String> foo() {
+                                return new Inner<String>();
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg1;
+
+                        public class Outer<O> {
+                            public class Middle {
+                                public class Inner<I> {}
+                            }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    "api1.txt",
+                    """
+                        // Signature format: 4.0
+                        package test.pkg1 {
+                          public class Outer<O> {
+                            ctor public Outer();
+                          }
+                          public class Outer.Middle {
+                            ctor public Outer.Middle();
+                          }
+                          public class Outer.Middle.Inner<I> {
+                            ctor public Outer.Middle.Inner();
+                          }
+                        }
+                    """
+                ),
+                signature(
+                    "api2.txt",
+                    """
+                        // Signature format: 4.0
+                        package test.pkg {
+                          public class Test {
+                            ctor public Test();
+                            method public test.pkg1.Outer.Middle.Inner<String> foo();
+                          }
+                        }
+                    """
+                )
+            )
+        ) {
+            val method = codebase.assertClass("test.pkg.Test").methods().single()
+
+            val innerType = method.returnType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((innerType as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg1.Outer.Middle.Inner")
+            assertThat(innerType.className).isEqualTo("Inner")
+            assertThat(innerType.arguments).hasSize(1)
+
+            val middleType = innerType.outerClassType
+            assertThat(middleType).isNotNull()
+            assertThat(middleType!!.qualifiedName).isEqualTo("test.pkg1.Outer.Middle")
+            assertThat(middleType.className).isEqualTo("Middle")
+            assertThat(middleType.arguments).hasSize(0)
+
+            val outerType = middleType.outerClassType
+            assertThat(outerType).isNotNull()
+            assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg1.Outer")
+            assertThat(outerType.className).isEqualTo("Outer")
+            assertThat(outerType.outerClassType).isNull()
+            assertThat(outerType.arguments).hasSize(0)
         }
     }
 
@@ -1005,7 +1096,7 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             // Verify that the Cache superclass type uses the Cache type variables
             val cache = codebase.assertClass("test.pkg.Cache")
-            val cacheTypeParams = cache.typeParameterList().typeParameters()
+            val cacheTypeParams = cache.typeParameterList
             assertThat(cacheTypeParams).hasSize(2)
             val queryParam = cacheTypeParams[0]
             val resultParam = cacheTypeParams[1]
@@ -1024,7 +1115,7 @@ class CommonTypeItemTest : BaseModelTest() {
 
             // Verify that the MyList interface type uses the MyList type variable
             val myList = codebase.assertClass("test.pkg.MyList")
-            val myListTypeParams = myList.typeParameterList().typeParameters()
+            val myListTypeParams = myList.typeParameterList
             assertThat(myListTypeParams).hasSize(1)
             val eParam = myListTypeParams.single()
 
@@ -1118,7 +1209,7 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val typeParam = fooClass.typeParameterList().typeParameters().single()
+            val typeParam = fooClass.typeParameterList.single()
 
             /**
              * Make sure that the [ClassItem] has a method whose single parameter is of the type
@@ -1144,19 +1235,7 @@ class CommonTypeItemTest : BaseModelTest() {
              */
             fun ClassItem.assertMethodTakesCollectionWildcardExtendsZ(name: String) {
                 assertMethodTakesCollection(name) {
-                    assertWildcardItem { extendsBound?.assertReferencesTypeParameter(typeParam) }
-                }
-            }
-
-            /**
-             * Make sure that the [ClassItem] has a method whose single parameter is of the type
-             * `java.lang.Collection<Z>`.
-             */
-            fun ClassItem.assertMethodTakesCollectionZ(name: String) {
-                assertMethodTakesCollection(name) {
-                    // Check that the string representation is correct for now.
-                    // TODO: Check that this is a VariableTypeItem that references [typeParam].
-                    assertThat(toString()).isEqualTo(typeParam.name())
+                    assertWildcardItem { extendsBound!!.assertReferencesTypeParameter(typeParam) }
                 }
             }
 
@@ -1169,14 +1248,9 @@ class CommonTypeItemTest : BaseModelTest() {
             // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
             // `Foo<Z>`.
             //
-            // However, this does not work, for two reasons:
-            // 1. Historical behavior is `Collection<E>` and fixing that is a separate issue.
-            // 2. The `PsiType` for `Z` does not resolve to a `PsiTypeParameter`, it resolves to
-            //    `null` and so ends up being a `ClassTypeItem` instead of `VariableTypeItem`.
-            //
-            fooClass.assertMethodTakesCollectionZ("containsAll")
-            fooClass.assertMethodTakesCollectionZ("removeAll")
-            fooClass.assertMethodTakesCollectionZ("retainAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("containsAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("removeAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("retainAll")
         }
     }
 
@@ -1245,7 +1319,7 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val parent = codebase.assertClass("test.pkg.Parent")
             val child = codebase.assertClass("test.pkg.Child")
-            val childTypeParams = child.typeParameterList().typeParameters()
+            val childTypeParams = child.typeParameterList
             val x = childTypeParams[0]
             val y = childTypeParams[1]
 
@@ -1377,8 +1451,8 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val t = fooClass.typeParameterList().typeParameters().single { it.name() == "T" }
-            val x = fooClass.typeParameterList().typeParameters().single { it.name() == "X" }
+            val t = fooClass.typeParameterList.single { it.name() == "T" }
+            val x = fooClass.typeParameterList.single { it.name() == "X" }
             val numberType = fooClass.assertField("numberType").type() as ReferenceTypeItem
 
             val matchingBindings = mapOf(t to numberType)
@@ -1406,6 +1480,349 @@ class CommonTypeItemTest : BaseModelTest() {
                     .that(fieldType.convertType(nonMatchingBindings))
                     .isEqualTo(fieldType)
             }
+        }
+    }
+
+    @Test
+    fun `Test convertType's creation of duplicate objects`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public interface Input<T,Unused> {
+                            // Field from which the type to be substituted for a type variable will
+                            // be retrieved.
+                            field public @NonNull Long javaLongType;
+
+                            // One for each TypeItem subinterface supported in signature files.
+                            method public @NonNull T @Nullable [] arrayTypeItem();
+                            method public @Nullable java.util.List<@NonNull T> classTypeItem();
+                            method public int primitiveTypeItem();
+                            method public @Nullable T variableTypeItem();
+                            method public @Nullable java.util.List<? extends @NonNull T> wildcardTypeItem_extendsBound();
+                            method public @Nullable java.util.List<? super @NonNull T> wildcardTypeItem_superBound();
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                KnownSourceFiles.nonNullSource,
+                KnownSourceFiles.nullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.NonNull;
+                        import android.annotation.Nullable;
+                        import java.util.List;
+                        public interface Input<T,Unused> {
+                            // Field from which the type to be substituted for a type variable will
+                            // be retrieved.
+                            @NonNull Long javaLongType;
+
+                            // One for each TypeItem subinterface supported in signature files.
+                            @NonNull T @Nullable [] arrayTypeItem();
+                            @Nullable List<@NonNull T> classTypeItem();
+                            int primitiveTypeItem();
+                            @Nullable T variableTypeItem();
+                            @Nullable List<? extends @NonNull T> wildcardTypeItem_extendsBound();
+                            @Nullable List<? super @NonNull T> wildcardTypeItem_superBound();
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        import java.util.List
+                        interface Input<T,Unused> {
+                            // Field from which the type to be substituted for a type variable will
+                            // be retrieved.
+                            companion object {
+                                @JvmField val javaLongType: java.lang.Long
+                            }
+
+                            // One for each TypeItem subinterface supported in signature files.
+                            fun arrayTypeItem(): Array<T>?
+                            fun classTypeItem(): List<T>?
+                            fun lambdaTypeItem(): ((T) -> Int)?
+                            fun primitiveTypeItem(): Int
+                            fun variableTypeItem(): T?
+                            fun wildcardTypeItem_extendsBound(): List<out T>?
+                            fun wildcardTypeItem_superBound(): List<in T>?
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val inputClass = codebase.assertClass("test.pkg.Input")
+
+            // Get the type variables from the class.
+            val (usedTypeVariable, unusedTypeVariable) = inputClass.typeParameterList
+
+            // Get the type to substitute
+            val javaLongType = inputClass.assertField("javaLongType").type() as ReferenceTypeItem
+
+            // Iterate over the methods
+            val types = buildString {
+                for (method in inputClass.methods()) {
+                    val name = method.name()
+                    val typeToTest = method.returnType()
+
+                    fun TypeItem.typeInfo() =
+                        testTypeString(
+                            annotations = true,
+                            kotlinStyleNulls = true,
+                        )
+
+                    append(name).append("\n")
+                    append("    original: ${typeToTest.typeInfo()}\n")
+
+                    // Map the Unused type variable to java.lang.Long. This should have no effect of
+                    // on the test type.
+                    typeToTest.convertType(mapOf(unusedTypeVariable to javaLongType)).also { result
+                        ->
+                        append("${"    no change"}: ${result.typeInfo()}\n")
+                        val unusedMessage =
+                            "conversion of ${unusedTypeVariable.name()} to $javaLongType in $name"
+                        assertWithMessage(unusedMessage).that(result).isSameInstanceAs(typeToTest)
+                    }
+
+                    // Map the T type variable to java.lang.Long. This should change every type
+                    // except the primitive type.
+                    typeToTest.convertType(mapOf(usedTypeVariable to javaLongType)).also { result ->
+                        append("${"    T -> java.lang.Long"}: ${result.typeInfo()}\n")
+                        val usedMessage =
+                            "conversion of ${usedTypeVariable.name()} to $javaLongType in $name"
+                        if (name == "primitiveTypeItem") {
+                            assertWithMessage(usedMessage).that(result).isSameInstanceAs(typeToTest)
+                        } else {
+                            assertWithMessage(usedMessage)
+                                .that(result)
+                                .isNotSameInstanceAs(typeToTest)
+                        }
+                    }
+
+                    append("\n")
+                }
+            }
+
+            val optionalLambda =
+                """
+                    lambdaTypeItem
+                        original: kotlin.jvm.functions.Function1<T,java.lang.Integer>?
+                        no change: kotlin.jvm.functions.Function1<T,java.lang.Integer>?
+                        T -> java.lang.Long: kotlin.jvm.functions.Function1<java.lang.Long,java.lang.Integer>?
+                """
+
+            assertEquals(
+                """
+                    arrayTypeItem
+                        original: T[]?
+                        no change: T[]?
+                        T -> java.lang.Long: java.lang.Long[]?
+
+                    classTypeItem
+                        original: java.util.List<T>?
+                        no change: java.util.List<T>?
+                        T -> java.lang.Long: java.util.List<java.lang.Long>?
+                    ${if (inputFormat == InputFormat.KOTLIN) optionalLambda else ""}
+                    primitiveTypeItem
+                        original: int
+                        no change: int
+                        T -> java.lang.Long: int
+
+                    variableTypeItem
+                        original: T?
+                        no change: T?
+                        T -> java.lang.Long: java.lang.Long?
+
+                    wildcardTypeItem_extendsBound
+                        original: java.util.List<? extends T>?
+                        no change: java.util.List<? extends T>?
+                        T -> java.lang.Long: java.util.List<? extends java.lang.Long>?
+
+                    wildcardTypeItem_superBound
+                        original: java.util.List<? super T>?
+                        no change: java.util.List<? super T>?
+                        T -> java.lang.Long: java.util.List<? super java.lang.Long>?
+                """
+                    .trimIndent(),
+                types.trim()
+            )
+        }
+    }
+
+    @Test
+    fun `Test transform's creation of duplicate objects`() {
+        val typeUseAnnotation =
+            java(
+                """
+            package test.annotation;
+            import java.lang.annotation.ElementType;
+            import java.lang.annotation.Target;
+
+            @Target(ElementType.TYPE_USE)
+            public @interface TypeUse {}
+        """
+            )
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        // - kotlin-style-nulls=yes
+                        // - kotlin-name-type-order=yes
+                        // - include-type-use-annotations=yes
+                        package test.pkg {
+                          public interface Input<T> {
+                            // One for each TypeItem subinterface supported in signature files.
+                            method public arrayTypeItem(): T @test.annotation.TypeUse []?;
+                            method public classTypeItem(): @test.annotation.TypeUse java.util.List<@test.annotation.TypeUse T>?;
+                            method public primitiveTypeItem(): @test.annotation.TypeUse int;
+                            method public variableTypeItem(): @test.annotation.TypeUse T?;
+                            method public wildcardTypeItem_extendsBound(): java.util.List<? extends @test.annotation.TypeUse T>?;
+                            method public wildcardTypeItem_superBound(): java.util.List<? super @test.annotation.TypeUse T>?;
+                          }
+                        }
+                        package test.annotation {
+                          public @interface TypeUse {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                KnownSourceFiles.nonNullSource,
+                KnownSourceFiles.nullableSource,
+                typeUseAnnotation,
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.NonNull;
+                        import android.annotation.Nullable;
+                        import java.util.List;
+                        import test.annotation.TypeUse;
+                        public interface Input<T,Unused> {
+                            @NonNull T @TypeUse @Nullable [] arrayTypeItem();
+                            @TypeUse @Nullable List<@TypeUse @NonNull T> classTypeItem();
+                            @TypeUse int primitiveTypeItem();
+                            @TypeUse @Nullable T variableTypeItem();
+                            @Nullable List<? extends @TypeUse @NonNull T> wildcardTypeItem_extendsBound();
+                            @Nullable List<? super @TypeUse @NonNull T> wildcardTypeItem_superBound();
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseAnnotation,
+                kotlin(
+                    """
+                        package test.pkg
+                        import java.util.List
+                        import test.annotation.TypeUse
+                        interface Input<T,Unused> {
+                            fun arrayTypeItem(): @TypeUse Array<T>?
+                            fun classTypeItem(): @TypeUse List<@TypeUse T>?
+                            fun lambdaTypeItem(): ((@TypeUse T) -> @TypeUse Int)?
+                            fun primitiveTypeItem(): @TypeUse Int
+                            fun variableTypeItem(): @TypeUse T?
+                            fun wildcardTypeItem_extendsBound(): List<out @TypeUse T>?
+                            fun wildcardTypeItem_superBound(): List<in @TypeUse T>?
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val inputClass = codebase.assertClass("test.pkg.Input")
+
+            // Iterate over the methods
+            val types = buildString {
+                for (method in inputClass.methods()) {
+                    val name = method.name()
+                    val typeToTest = method.returnType()
+
+                    fun TypeItem.typeInfo() =
+                        testTypeString(
+                            annotations = true,
+                            kotlinStyleNulls = true,
+                        )
+
+                    append(name).append("\n")
+                    append("    original: ${typeToTest.typeInfo()}\n")
+
+                    // Check that a no-op transformation returns the TypeItem on which it is called.
+                    typeToTest.transform(BaseTypeTransformer()).also { result ->
+                        append("${"    no change"}: ${result.typeInfo()}\n")
+                        val unusedMessage = "no-op transformation in $name"
+                        assertWithMessage(unusedMessage).that(result).isSameInstanceAs(typeToTest)
+                    }
+
+                    // A TypeTransformer that will discard all type annotations.
+                    val annotationsRemover =
+                        object : BaseTypeTransformer() {
+                            override fun transform(modifiers: TypeModifiers): TypeModifiers {
+                                return modifiers.substitute(annotations = emptyList())
+                            }
+                        }
+
+                    // Check that an actual transformation returns different objects.
+                    typeToTest.transform(annotationsRemover).also { result ->
+                        append("    discarded annotations: ${result.typeInfo()}\n")
+                        val usedMessage = "discarded annotations in $name"
+                        assertWithMessage(usedMessage).that(result).isNotSameInstanceAs(typeToTest)
+                    }
+
+                    append("\n")
+                }
+            }
+
+            val optionalLambda =
+                """
+                    lambdaTypeItem
+                        original: kotlin.jvm.functions.Function1<@test.annotation.TypeUse T,java.lang.@test.annotation.TypeUse Integer>?
+                        no change: kotlin.jvm.functions.Function1<@test.annotation.TypeUse T,java.lang.@test.annotation.TypeUse Integer>?
+                        discarded annotations: kotlin.jvm.functions.Function1<T,java.lang.Integer>?
+                """
+
+            assertEquals(
+                """
+                    arrayTypeItem
+                        original: T @test.annotation.TypeUse []?
+                        no change: T @test.annotation.TypeUse []?
+                        discarded annotations: T[]?
+
+                    classTypeItem
+                        original: java.util.@test.annotation.TypeUse List<@test.annotation.TypeUse T>?
+                        no change: java.util.@test.annotation.TypeUse List<@test.annotation.TypeUse T>?
+                        discarded annotations: java.util.List<T>?
+                    ${if (inputFormat == InputFormat.KOTLIN) optionalLambda else ""}
+                    primitiveTypeItem
+                        original: @test.annotation.TypeUse int
+                        no change: @test.annotation.TypeUse int
+                        discarded annotations: int
+
+                    variableTypeItem
+                        original: @test.annotation.TypeUse T?
+                        no change: @test.annotation.TypeUse T?
+                        discarded annotations: T?
+
+                    wildcardTypeItem_extendsBound
+                        original: java.util.List<? extends @test.annotation.TypeUse T>?
+                        no change: java.util.List<? extends @test.annotation.TypeUse T>?
+                        discarded annotations: java.util.List<? extends T>?
+
+                    wildcardTypeItem_superBound
+                        original: java.util.List<? super @test.annotation.TypeUse T>?
+                        no change: java.util.List<? super @test.annotation.TypeUse T>?
+                        discarded annotations: java.util.List<? super T>?
+                """
+                    .trimIndent(),
+                types.trim()
+            )
         }
     }
 
@@ -1438,6 +1855,151 @@ class CommonTypeItemTest : BaseModelTest() {
 
             val interfaceType = codebase.assertClass("test.pkg.Foo").interfaceTypes().single()
             assertThat(interfaceType.hasTypeArguments()).isTrue()
+        }
+    }
+
+    @Test
+    fun `Test toSimpleType on varargs parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(String...p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(vararg p: String)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(String...);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType()).isEqualTo("java.lang.String...")
+        }
+    }
+
+    @Test
+    fun `Test toSimpleType on varargs generic parameter`() {
+        runCodebaseTest(
+            java(
+                @Suppress("unchecked")
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(Comparable<? super String>...p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(vararg p: Comparable<String>)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(Comparable<? super String>...);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType())
+                .isEqualTo("Comparable<? super java.lang.String>...")
+        }
+    }
+
+    @Test
+    fun `Test toSimpleType on nested class`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(Thread.UncaughtExceptionHandler p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(p: Thread.UncaughtExceptionHandler)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(Thread.UncaughtExceptionHandler);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType())
+                .isEqualTo("java.lang.Thread.UncaughtExceptionHandler")
+        }
+    }
+
+    @Test
+    fun `Non-last varargs param in deprecated method`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun notDeprecated(vararg str: String, i: Int) = Unit
+                        @Deprecated(message = "message", level = DeprecationLevel.WARNING)
+                        fun deprecatedWarning(vararg str: String, i: Int) = Unit
+                        @Deprecated(message = "message", level = DeprecationLevel.ERROR)
+                        fun deprecatedError(vararg str: String, i: Int) = Unit
+                        @Deprecated(message = "message", level = DeprecationLevel.HIDDEN)
+                        fun deprecatedHidden(vararg str: String, i: Int) = Unit
+                    }
+                """
+            )
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val notDeprecated = foo.methods().single { it.name() == "notDeprecated" }
+            val deprecatedWarning = foo.methods().single { it.name() == "deprecatedWarning" }
+            val deprecatedError = foo.methods().single { it.name() == "deprecatedError" }
+            val deprecatedHidden = foo.methods().single { it.name() == "deprecatedHidden" }
+
+            fun MethodItem.firstParameterIsVarargs() =
+                (parameters().first().type() as ArrayTypeItem).isVarargs
+
+            assertThat(notDeprecated.firstParameterIsVarargs()).isFalse()
+            assertThat(deprecatedWarning.firstParameterIsVarargs()).isFalse()
+            assertThat(deprecatedError.firstParameterIsVarargs()).isFalse()
+            assertThat(deprecatedHidden.firstParameterIsVarargs()).isFalse()
         }
     }
 }
