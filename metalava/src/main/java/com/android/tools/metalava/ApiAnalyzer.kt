@@ -16,15 +16,10 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.apilevels.internalDesc
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
@@ -36,19 +31,21 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -429,75 +426,62 @@ class ApiAnalyzer(
         val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
-        if (annotation != null) {
+        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
+        if (requiresPermissionInfo != null) {
             hasAnnotation = true
-            for (attribute in annotation.attributes) {
-                var values: List<AnnotationAttributeValue>? = null
-                var any = false
-                when (attribute.name) {
-                    "value",
-                    "allOf" -> {
-                        values = attribute.leafValues()
-                    }
-                    "anyOf" -> {
-                        any = true
-                        values = attribute.leafValues()
-                    }
-                }
+            val values = requiresPermissionInfo.permissionValues
+            val any = requiresPermissionInfo.any
 
-                values ?: continue
-
-                val system = ArrayList<String>()
-                val nonSystem = ArrayList<String>()
-                val missing = ArrayList<String>()
-                for (value in values) {
-                    val perm = (value.value() ?: value.toSource()).toString()
-                    val level = config.manifest.getPermissionLevel(perm)
-                    if (level == null) {
-                        if (any) {
-                            missing.add(perm)
-                            continue
-                        }
-
-                        reporter.report(
-                            Issues.REQUIRES_PERMISSION,
-                            method,
-                            "Permission '$perm' is not defined by manifest ${config.manifest}."
-                        )
+            val system = ArrayList<String>()
+            val nonSystem = ArrayList<String>()
+            val missing = ArrayList<String>()
+            for (value in values) {
+                val permission = value.asString() ?: continue
+                val level = config.manifest.getPermissionLevel(permission)
+                if (level == null) {
+                    if (any) {
+                        missing.add(permission)
                         continue
                     }
-                    if (
-                        level.contains("normal") ||
-                            level.contains("dangerous") ||
-                            level.contains("ephemeral")
-                    ) {
-                        nonSystem.add(perm)
-                    } else {
-                        system.add(perm)
-                    }
-                }
-                if (any && missing.size == values.size) {
-                    reporter.report(
-                        Issues.REQUIRES_PERMISSION,
-                        method,
-                        "None of the permissions ${missing.joinToString()} are defined by manifest " +
-                            "${config.manifest}."
-                    )
-                }
 
-                if (system.isEmpty() && nonSystem.isEmpty()) {
-                    hasAnnotation = false
-                } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,
                         method,
-                        "Method '" +
-                            method.name() +
-                            "' must be protected with a system permission; it currently" +
-                            " allows non-system callers holding " +
-                            nonSystem.toString()
+                        "Permission '$permission' is not defined by manifest ${config.manifest}."
                     )
+                    continue
                 }
+                if (
+                    level.contains("normal") ||
+                        level.contains("dangerous") ||
+                        level.contains("ephemeral")
+                ) {
+                    nonSystem.add(permission)
+                } else {
+                    system.add(permission)
+                }
+            }
+            if (any && missing.size == values.size) {
+                reporter.report(
+                    Issues.REQUIRES_PERMISSION,
+                    method,
+                    "None of the permissions ${missing.joinToString()} are defined by manifest " +
+                        "${config.manifest}."
+                )
+            }
+
+            if (system.isEmpty() && nonSystem.isEmpty()) {
+                hasAnnotation = false
+            } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
+                reporter.report(
+                    Issues.REQUIRES_PERMISSION,
+                    method,
+                    "Method '" +
+                        method.name() +
+                        "' must be protected with a system permission; it currently" +
+                        " allows non-system callers holding " +
+                        nonSystem.toString()
+                )
             }
         }
 
@@ -516,9 +500,16 @@ class ApiAnalyzer(
             return
         }
 
+        // Create a special annotation with no attributes. This will not work in Android but it will
+        // work in SystemServerCheckTest.
+        // TODO(b/412743564): Fix this so it works in Android.
+        val systemServiceCheckAnnotation =
+            AnnotationItem.createFromSource(codebase, "@$ANDROID_SYSTEM_SERVICE_CHECK")
+
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
-                config.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
+                systemServiceCheckAnnotation != null &&
+                config.allShowAnnotations.matches(systemServiceCheckAnnotation) &&
                 !config.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
@@ -528,6 +519,8 @@ class ApiAnalyzer(
             object :
                 ApiVisitor(
                     apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                    // Don't run checks on elements that only exist in bytecode.
+                    targetLanguages = TargetLanguageSet.SOURCE,
                 ) {
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())
@@ -550,13 +543,7 @@ class ApiAnalyzer(
                             // messages (unlike java.lang.Deprecated which has no attributes).
                             // Instead, these
                             // are added to the documentation by the [DocAnalyzer].
-                            !item.isKotlin() &&
-                            // @DeprecatedForSdk will show up as an alias for @Deprecated, but it's
-                            // correct
-                            // and expected to *not* combine this with @deprecated in the text;
-                            // here,
-                            // the text comes from an annotation attribute.
-                            item.modifiers.isAnnotatedWith(JAVA_LANG_DEPRECATED)
+                            !item.isKotlin()
                     ) {
                         reporter.report(
                             Issues.DEPRECATION_MISMATCH,
@@ -564,22 +551,6 @@ class ApiAnalyzer(
                             "${item.toString().capitalize()}: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match"
                         )
                         // TODO: Check opposite (doc tag but no annotation)
-                    } else {
-                        val deprecatedForSdk =
-                            item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
-                        if (deprecatedForSdk != null) {
-                            if (item.documentation.hasTagSection("@deprecated")) {
-                                reporter.report(
-                                    Issues.DEPRECATION_MISMATCH,
-                                    item,
-                                    "${item.toString().capitalize()}: Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk"
-                                )
-                            } else {
-                                val value = deprecatedForSdk.findAttribute(ANNOTATION_ATTR_VALUE)
-                                val message = value?.value?.value()?.toString() ?: ""
-                                item.appendDocumentation(message, "@deprecated")
-                            }
-                        }
                     }
 
                     if (
@@ -673,7 +644,12 @@ class ApiAnalyzer(
     fun handleStripping() {
         val notStrippable = HashSet<ClassItem>(5000)
 
-        val filter = ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
+        val filter = FilterPredicate { selectableItem ->
+            ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
+                .test(selectableItem) &&
+                // Don't consider references from elements that only exist in bytecode.
+                selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
+        }
 
         // If a class is public or protected, not hidden, not imported and marked as included,
         // then we can't strip it
@@ -688,7 +664,9 @@ class ApiAnalyzer(
             if (!cl.isHiddenOrRemoved()) {
                 val publiclyConstructable =
                     !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
-                for (m in cl.methods()) {
+                for (m in
+                // Don't run checks on elements that only exist in bytecode.
+                cl.methods().filter { it.targetLanguages != TargetLanguageSet.BYTECODE_ONLY }) {
                     if (!m.isApiCandidate()) {
                         if (publiclyConstructable && m.modifiers.isAbstract()) {
                             reporter.report(
@@ -1055,3 +1033,9 @@ private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
         }
     }
 }
+
+/**
+ * A special constant used to ensure that [ApiAnalyzer.checkSystemPermissions] is only called from
+ * the SystemServiceCheckTest.
+ */
+const val ANDROID_SYSTEM_SERVICE_CHECK = "android.annotation.SystemServiceCheck"

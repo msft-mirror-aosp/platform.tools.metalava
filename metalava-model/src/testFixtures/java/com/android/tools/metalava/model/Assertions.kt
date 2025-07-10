@@ -204,7 +204,11 @@ interface Assertions {
     /** Get the [AnnotationAttribute] from the [AnnotationItem], failing if it does not exist. */
     fun AnnotationItem.assertAttribute(name: String): AnnotationAttribute {
         val attribute = findAttribute(name)
-        assertNotNull(attribute, message = "Expected $this to contain attribute $name")
+        assertNotNull(
+            attribute,
+            message =
+                "Expected ${this.qualifiedName} to contain attribute $name but found ${attributes.joinToString { it.name }}"
+        )
         return attribute
     }
 
@@ -289,6 +293,8 @@ interface Assertions {
     fun TypeItem?.assertWildcardItem(body: (WildcardTypeItem.() -> Unit)? = null) {
         assertIsInstanceOf(body ?: {})
     }
+
+    companion object : Assertions {}
 }
 
 private inline fun <reified T> Any?.assertIsInstanceOf(body: (T).() -> Unit) {

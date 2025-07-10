@@ -35,19 +35,14 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[psi,java,k1]
   modifiers public explicitly final method in final class[psi,java,k2]
 
+com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test type aliases can only be used from Kotlin[psi,kotlin,k1]
+
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation toSource() with char values[text]
-  annotation toSource() with class values[text]
-  annotation toSource() with compound expression values[text]
-  annotation toSource() with compound expression values[turbine]
-  annotation toSource() with constant literal values[turbine]
-  annotation toSource() with number values[text]
-  annotation with constant literal values[text]
-  annotation with enum values[psi,java,k1]
-  annotation with enum values[psi,java,k2]
-  annotation with infinity values[text]
-  annotation with negative number values[text]
-  annotation with type cast values[text]
+  annotation with unknown field[turbine]
+
+com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
+  Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes[turbine]
@@ -62,10 +57,6 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocu
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
-
-com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
-  test default value of an enum constant field[turbine]
-  test non final field with default value as constant expression[turbine]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
@@ -142,46 +133,40 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,k2,null annotated parameterized inner type - annotated]
   Type string[psi,java,k2,null annotated parameterized inner type - kotlin nulls]
 
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedValueTest
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_annotation]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_char_unicode]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_double_NaN]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_double_negative_infinity]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_double_positive_infinity]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_float_NaN]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_float_negative_infinity]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_float_positive_infinity]
-  test[turbine,jar,AnnotationAttributeValue.toSource(),AnnotationTestClass_int_negative]
-  test[turbine,jar,FieldItem.fieldValue,FieldTestClass_double_NaN]
-  test[turbine,jar,FieldItem.fieldValue,FieldTestClass_double_negative_infinity]
-  test[turbine,jar,FieldItem.fieldValue,FieldTestClass_double_positive_infinity]
-  test[turbine,jar,FieldItem.fieldValue,FieldTestClass_float_NaN]
-  test[turbine,jar,FieldItem.fieldValue,FieldTestClass_float_negative_infinity]
-  test[turbine,jar,FieldItem.fieldValue,FieldTestClass_float_positive_infinity]
-  test[turbine,jar,MethodItem.defaultValue(),AnnotationWithDefaults_annotation]
-  test[turbine,jar,MethodItem.defaultValue(),AnnotationWithDefaults_double_NaN]
-  test[turbine,jar,MethodItem.defaultValue(),AnnotationWithDefaults_double_negative_infinity]
-  test[turbine,jar,MethodItem.defaultValue(),AnnotationWithDefaults_double_positive_infinity]
-  test[turbine,jar,MethodItem.defaultValue(),AnnotationWithDefaults_float_NaN]
-  test[turbine,jar,MethodItem.defaultValue(),AnnotationWithDefaults_float_negative_infinity]
-  test[turbine,jar,MethodItem.defaultValue(),AnnotationWithDefaults_float_positive_infinity]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_String_using_constant]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_annotation]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_double_NaN]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_double_negative_infinity]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_double_positive_infinity]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_double_with_int]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_enum]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_float_NaN]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_float_negative_infinity]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_float_positive_infinity]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_float_with_int]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_float_with_upper_F]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_int_negative]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_int_positive]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_long_with_int]
-  test[turbine,source,AnnotationAttributeValue.toSource(),AnnotationTestClass_long_with_lower_l]
-  test[turbine,source,MethodItem.defaultValue(),AnnotationWithDefaults_annotation]
-  test[turbine,source,MethodItem.defaultValue(),AnnotationWithDefaults_double_with_int]
-  test[turbine,source,MethodItem.defaultValue(),AnnotationWithDefaults_float_with_int]
-  test[turbine,source,MethodItem.defaultValue(),AnnotationWithDefaults_long_with_int]
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
+  testLegacySource[text,source,byte - cast]
+  testLegacySource[text,source,class literal - array of basic class]
+  testLegacySource[text,source,class literal - array of generic class]
+  testLegacySource[text,source,class literal - basic class]
+  testLegacySource[text,source,class literal - generic class]
+  testLegacySource[text,source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
+  testLegacySource[text,source,byte - cast]
+  testLegacySource[text,source,short - cast]
+  testMethodDefaultValue[text,source,byte - cast]
+  testMethodDefaultValue[text,source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testAttributeValue[text,source,byte - cast]
+  testAttributeValue[text,source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[psi,kotlin,k1,source,null - intermediate non-constant expression]
+  testFieldValue[psi,kotlin,k2,source,null - intermediate non-constant expression]
+  testFieldValue[psi,kotlin,k2,source,unsigned int - expression]
+  testFieldValue[text,source,byte - cast]
+  testFieldValue[text,source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[psi,kotlin,k1,source,null - intermediate non-constant expression]
+  testLegacySource[psi,kotlin,k2,source,null - intermediate non-constant expression]
+  testLegacySource[psi,kotlin,k2,source,unsigned int - expression]
+  testLegacySource[text,source,byte - cast]
+  testLegacySource[text,source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
+  Test parse[text,byte - cast,annotation_to_source,kotlin,source]
+  Test parse[text,byte - cast,signatureExpression,jar]
+  Test parse[text,short - cast,annotation_to_source,kotlin,jar]
+  Test parse[text,short - cast,signatureExpression,jar]

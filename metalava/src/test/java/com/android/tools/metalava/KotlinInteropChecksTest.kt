@@ -162,14 +162,14 @@ class KotlinInteropChecksTest : DriverTest() {
                     kotlin(
                         """
                     package test.pkg
-
+                    import java.math.BigInteger
                     @SuppressWarnings("all")
                     class Foo {
                         fun ok1() { }
                         companion object {
                             const val INTEGER_ONE = 1
-                            val BIG_INTEGER_ONE = BigInteger.ONE
-                            private val PRIVATE_BIG_INTEGER = BigInteger.ONE
+                            val BIG_INTEGER_ONE: BigInteger = BigInteger.ONE // type specified to define nullability
+                            private val PRIVATE_BIG_INTEGER: BigInteger = BigInteger.ONE
                             var wrongNeedsJvmStatic = 1
                             @JvmStatic var ok = 1.5
                             @JvmStatic val WRONG = 2
@@ -441,7 +441,7 @@ class KotlinInteropChecksTest : DriverTest() {
         check(
             apiLint = "",
             expectedIssues =
-                "src/test/pkg/IntValue.kt:8: warning: Companion object methods like getValueClassTypePropertyNoAnnotation should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
+                "src/test/pkg/IntValue.kt:13: warning: Companion object methods like getValueClassTypePropertyJvmNameNoStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
             extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
             sourceFiles =
                 arrayOf(
@@ -454,7 +454,12 @@ class KotlinInteropChecksTest : DriverTest() {
                                     @JvmStatic
                                     val valueClassTypePropertyJvmStatic = IntValue(0)
 
+                                    // No error for this property, because there is not an accessor
+                                    // that can be used from Java.
                                     val valueClassTypePropertyNoAnnotation = IntValue(0)
+
+                                    @get:JvmName("getValueClassTypePropertyJvmNameNoStatic")
+                                    val valueClassTypePropertyJvmNameNoStatic = IntValue(0)
                                 }
                             }
                         """
@@ -555,6 +560,52 @@ class KotlinInteropChecksTest : DriverTest() {
                         """
                     ),
                 ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check no JvmOverloads warning for data class copy method`() {
+        check(
+            apiLint = "", // Enabled
+            expectedIssues =
+                // Line 3 is where notCopy is defined. The copy method would get line 2 (where the
+                // class/constructor is defined).
+                "src/test/pkg/Foo.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        data class Foo(val p0: Int = 0, val p1: String = "") {
+                            fun notCopy(p0: Int = 0, p1: String = "") = Unit
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check no JvmOverloads warning for suspend function`() {
+        check(
+            apiLint = "", // Enabled
+            expectedIssues =
+                // Line 3 is where regularFun is defined
+                "src/test/pkg/Foo.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            fun regularFun(p0: Int = 0, p1: Int = 0) = Unit
+                            suspend fun suspendFun(p0: Int = 0, p1: Int = 0) = Unit
+                        }
+                        """
+                    )
+                )
         )
     }
 }

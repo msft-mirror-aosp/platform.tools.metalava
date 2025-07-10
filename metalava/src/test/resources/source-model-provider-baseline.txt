@@ -1,11 +1,5 @@
-com.android.tools.metalava.AndroidApiChecksTest
-  Document Permissions[turbine]
-
 com.android.tools.metalava.AnnotationsMergerTest
-  Merge Contract and Language annotations from XML files[turbine]
-  Merge Contract and Language annotations from signature files[turbine]
   Merge type use qualifier annotations from Java stub files[turbine]
-  Signature files contain annotations[turbine]
 
 com.android.tools.metalava.ApiAnalyzerTest
   Test PrivateSuperclass for inner class[turbine]
@@ -13,7 +7,6 @@ com.android.tools.metalava.ApiAnalyzerTest
   Test that usage of effectively deprecated class is flagged[turbine]
 
 com.android.tools.metalava.ApiFileTest
-  Annotation value visibility[turbine]
   Check @remove class[turbine]
   Check basic @remove scenarios[turbine]
   Check generic type signature insertion[turbine]
@@ -29,16 +22,11 @@ com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
 com.android.tools.metalava.ExtractAnnotationsTest
-  Check java typedef extraction and warning about non-source retention of typedefs[turbine]
   Check warning about unexpected returns from typedef method[turbine]
-  Extract annotations from class[turbine]
-  Extract permission annotations[turbine]
-  Include merged annotations in exported source annotations[turbine]
-  Inlining typedef signatures in api files[turbine]
-  Only including class retention annotations in stubs[turbine]
-  Test annotations on inherited methods[turbine]
-  Test generics in XML attributes are encoded[turbine]
-  Test string literal encoding[turbine]
+
+com.android.tools.metalava.FlaggedApiEdgeCasesTest
+  Test javadoc for flagged class includes @apiSince[turbine]
+  Test unresolvable flag field[turbine]
 
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Basic class signature extraction[turbine]
@@ -61,35 +49,8 @@ com.android.tools.metalava.KeepFileTest
   Arrays with Inner class[turbine]
   Multi dimensional arrays[turbine]
 
-com.android.tools.metalava.NormalizeOutputAnnotationTest
-  Normalize nested permission annotations (java)[turbine]
-
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
-
-com.android.tools.metalava.ParameterizedFlaggedApiTest
-  Basic test that FlaggedApi annotated items can be hidden[turbine,public finalize foo_bar]
-  Basic test that FlaggedApi annotated items can be hidden[turbine,public keep all]
-  Basic test that FlaggedApi annotated items can be hidden[turbine,system finalize foo_bar]
-  Basic test that FlaggedApi annotated items can be hidden[turbine,system keep all]
-  Test interface fields behave correctly when flagged[turbine,public finalize foo_bar]
-  Test interface fields behave correctly when flagged[turbine,public keep all]
-  Test that annotated class members are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
-  Test that annotated class members are handled correctly when flagged APIs are hidden[turbine,system keep all]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,public finalize foo_bar]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,public keep all]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,system keep all]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,public finalize foo_bar]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,public keep all]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system keep all]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib finalize foo_bar]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib keep all]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,system finalize foo_bar]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,system keep all]
-  Test that pulling method up into super class can be reverted[turbine,public finalize foo_bar]
-  Test that pulling method up into super class can be reverted[turbine,public keep all]
 
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
@@ -102,38 +63,17 @@ com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling - missing feature[turbine]
   Check RequiresFeature handling[turbine]
 
-com.android.tools.metalava.SdkFileWriterTest
-  Test generating activity actions[turbine]
-  Test generating broadcast actions[turbine]
-
 com.android.tools.metalava.ShowAnnotationTest
-  Can't expose item from a hidden parent[turbine]
   Testing parsing an annotation whose attribute references the annotated class[turbine]
-  showAnnotation with default parameters[turbine]
 
 com.android.tools.metalava.SyntaxErrorTest
   Invalid syntax[turbine]
-
-com.android.tools.metalava.SystemServiceCheckTest
-  Check SystemService -- can miss a permission with anyOf[turbine]
-  Check SystemService -- missing manifest permissions[turbine]
-  Check SystemService -- missing one permission with allOf[turbine]
-  Check SystemService -- must be system permission, not normal[turbine]
-  Check SystemService -- no permission annotation[turbine]
-  Check SystemService such that at least one permission must be defined with anyOf[turbine]
-  Invalid manifest[turbine]
-  SystemService OK, loaded from signature file[turbine]
-  SystemService OK, loaded from source[turbine]
-  Warning suppressed via annotation[turbine]
 
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
 
 com.android.tools.metalava.UnhideApisTest
   Including private interfaces from types[turbine]
-
-com.android.tools.metalava.VisibleForTestingTest
-  Test VisibleForTesting constants - java[turbine]
 
 com.android.tools.metalava.apilevels.ApiGeneratorTest
   APIs annotated with suppress-compatibility-meta-annotations appear in output[turbine]
@@ -156,6 +96,7 @@ com.android.tools.metalava.doc.DocAnalyzerRangeTest
   Add to existing parameter[turbine]
   Add to existing return value (ensuring it appears last)[turbine]
   Document ranges[turbine]
+  Test different values[turbine]
   Typedefs combined with ranges[turbine]
   Typedefs[turbine]
 
@@ -198,13 +139,7 @@ com.android.tools.metalava.lint.ApiLintTest
 com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
 
-com.android.tools.metalava.lint.FlaggedApiLintTest
-  Require @FlaggedApi on new APIs[turbine]
-  Require @FlaggedApi to reference generated fields[turbine]
-
 com.android.tools.metalava.stub.StubsAnnotationTest
-  Annotation default values[turbine]
-  Annotation nested rewriting[turbine]
   Pass through libcore annotations[turbine]
   Rewrite unknown nullability annotations as doc stubs[turbine]
 
@@ -238,4 +173,3 @@ com.android.tools.metalava.stub.StubsTest
   Missing overridden method[turbine]
   Picking super class throwables[turbine]
   Skip type variables in casts[turbine]
-  Translate DeprecatedForSdk to Deprecated[turbine]

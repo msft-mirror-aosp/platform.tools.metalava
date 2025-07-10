@@ -16,11 +16,15 @@
 
 package com.android.tools.metalava.model.api.flags
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.value.asString
 
 /**
  * The available set of configured [ApiFlag]s.
@@ -94,3 +98,25 @@ private constructor(
             )
     }
 }
+
+/**
+ * Get the optional flag name from this [AnnotationItem].
+ *
+ * Returns `null` if this is not [ANDROID_FLAGGED_API] and does not have a `value` attribute.
+ * Otherwise, it returns the value attribute as a [String].
+ *
+ * If the value exists but is not resolvable this returns the name of the field to preserve previous
+ * behavior.
+ */
+val AnnotationItem.optionalFlagName: String?
+    get() {
+        if (qualifiedName != ANDROID_FLAGGED_API) return null
+        val valueAttribute = findAttribute(ANNOTATION_ATTR_VALUE) ?: return null
+        return valueAttribute.value.let { value ->
+            // Use the literal string value, if possible. It will not be possible if the value is
+            // an unresolvable field reference.
+            value.asString()
+                // Fallback to using the string representation of the field reference.
+                ?: value.toValueString()
+        }
+    }
