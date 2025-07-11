@@ -147,4 +147,5 @@ braceText
     | STAR
     | SLASH
     | NEWLINE
+    | AT
     ;

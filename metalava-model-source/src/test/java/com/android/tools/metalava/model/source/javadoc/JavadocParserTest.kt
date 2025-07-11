@@ -76,4 +76,16 @@ class JavadocParserTest {
                 .trimIndent()
         )
     }
+
+    @Test
+    fun `Test @ inside inline tag`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@code @Annotation}
+                 */
+            """
+                .trimIndent()
+        )
+    }
 }
