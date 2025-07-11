@@ -77,7 +77,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         configureTestTasks(project)
         project.configureKtfmt()
         project.version = project.getMetalavaVersion()
-        project.group = "com.android.tools.metalava"
+        project.group = metalavaMavenGroup
     }
 
     private fun configureLint(project: Project) {
@@ -346,5 +346,6 @@ private fun getBuildId(): String {
     return if (System.getenv("DIST_DIR") != null) File(System.getenv("DIST_DIR")).name else "0"
 }
 
+internal const val metalavaMavenGroup = "com.android.tools.metalava"
 private const val publicationName = "Metalava"
 private const val repositoryName = "Dist"
