@@ -100,4 +100,16 @@ class JavadocParserTest {
                 .trimIndent()
         )
     }
+
+    @Test
+    fun `Test unclosed inline tags`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@code not closed
+                 */
+            """
+                .trimIndent()
+        )
+    }
 }
