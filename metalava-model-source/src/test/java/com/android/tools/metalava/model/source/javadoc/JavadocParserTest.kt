@@ -112,4 +112,16 @@ class JavadocParserTest {
                 .trimIndent()
         )
     }
+
+    @Test
+    fun `Test space between @ and inline tag name`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@ code extra space}
+                 */
+            """
+                .trimIndent()
+        )
+    }
 }
