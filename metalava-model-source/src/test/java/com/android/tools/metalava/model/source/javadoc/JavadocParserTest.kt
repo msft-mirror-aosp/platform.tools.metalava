@@ -88,4 +88,16 @@ class JavadocParserTest {
                 .trimIndent()
         )
     }
+
+    @Test
+    fun `Test nested inline tags`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@code some {@code nested} inline tags}
+                 */
+            """
+                .trimIndent()
+        )
+    }
 }

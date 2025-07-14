@@ -148,4 +148,5 @@ braceText
     | SLASH
     | NEWLINE
     | AT
+    | inlineTag
     ;
