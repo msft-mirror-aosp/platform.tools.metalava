@@ -30,7 +30,11 @@
 // $antlr-format allowShortRulesOnASingleLine true, allowShortBlocksOnASingleLine true, minEmptyLines 0, alignSemicolons ownLine
 // $antlr-format alignColons trailing, singleLineOverrulesHangingColon true, alignLexerCommands true, alignLabels true, alignTrailers true
 
-lexer grammar JavadocLexer;
+lexer grammar AntlrJavadocLexer;
+
+@header {
+package com.android.tools.metalava.model.source.javadoc;
+}
 
 NAME: [a-zA-Z]+;
 

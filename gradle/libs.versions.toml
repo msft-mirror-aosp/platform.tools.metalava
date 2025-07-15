@@ -15,6 +15,7 @@ androidToolsSdklib = { module = "com.android.tools:sdklib", version.ref = "andro
 androidToolsExternalUast = { module = "com.android.tools.external.org-jetbrains:uast", version.ref = "androidLint" }
 androidToolsExternalKotlinCompiler = { module = "com.android.tools.external.com-intellij:kotlin-compiler", version.ref = "androidLint" }
 androidToolsExternalIntellijCore = { module = "com.android.tools.external.com-intellij:intellij-core", version.ref = "androidLint" }
+antlr4 = { module = "org.antlr:antlr4", version = "4.13.1" }
 asm = { module = "org.ow2.asm:asm", version = "8.0" }
 asmTree = { module = "org.ow2.asm:asm-tree", version = "8.0" }
 clikt = { module = "com.github.ajalt.clikt:clikt-jvm", version = "3.5.3" }
