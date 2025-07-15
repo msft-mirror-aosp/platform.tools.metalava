@@ -23,4 +23,14 @@ class JavadocParserTest {
     fun `Test simple comment`() {
         JavadocParser.parse("/** Simple text */")
     }
+
+    @Test
+    fun `Test simple comment - leading newline`() {
+        JavadocParser.parse("\n/** Simple text */")
+    }
+
+    @Test
+    fun `Test simple comment - trailing newline`() {
+        JavadocParser.parse("/** Simple text */\n")
+    }
 }

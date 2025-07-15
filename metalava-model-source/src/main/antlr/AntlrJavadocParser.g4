@@ -40,14 +40,14 @@ options {
 }
 
 documentation
-    : EOF
-    | JAVADOC_START skipWhitespace* documentationContent JAVADOC_END EOF
-    | skipWhitespace* documentationContent EOF
+    : skipWhitespace* EOF
+    | skipWhitespace* JAVADOC_START skipWhitespace* documentationContent skipWhitespace* JAVADOC_END skipWhitespace* EOF
+    | skipWhitespace* documentationContent skipWhitespace* EOF
     ;
 
 documentationContent
-    : description skipWhitespace*
-    | skipWhitespace* tagSection
+    : description
+    | tagSection
     | description NEWLINE+ skipWhitespace* tagSection
     ;
 
