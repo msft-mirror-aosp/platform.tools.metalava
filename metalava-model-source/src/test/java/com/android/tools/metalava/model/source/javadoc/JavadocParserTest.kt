@@ -33,4 +33,9 @@ class JavadocParserTest {
     fun `Test simple comment - trailing newline`() {
         JavadocParser.parse("/** Simple text */\n")
     }
+
+    @Test
+    fun `Test comment with nested javadoc start`() {
+        JavadocParser.parse("/** /** */\n")
+    }
 }

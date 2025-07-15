@@ -76,6 +76,7 @@ descriptionLineNoSpaceNoAt
     | SLASH
     | BRACE_OPEN
     | BRACE_CLOSE
+    | JAVADOC_START
     ;
 
 descriptionLineElement
