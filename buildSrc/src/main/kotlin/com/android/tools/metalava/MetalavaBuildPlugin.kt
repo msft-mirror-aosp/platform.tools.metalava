@@ -17,17 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.build.api.dsl.Lint
-import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask
-import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
-import com.android.tools.metalava.buildinfo.addTaskToAggregateBuildInfoFileTask
 import com.android.tools.metalava.buildinfo.configureBuildInfoTask
-import java.io.File
-import java.io.StringReader
-import java.util.Properties
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
 import org.gradle.api.plugins.JavaPlugin
@@ -37,6 +30,7 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
 import org.gradle.api.publish.tasks.GenerateModuleMetadata
+import org.gradle.api.tasks.ClasspathNormalizer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.api.tasks.testing.Test
@@ -44,10 +38,14 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.setEnvironment
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinBasePluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.File
+import java.io.StringReader
+import java.util.Properties
 
 class MetalavaBuildPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -63,8 +61,8 @@ class MetalavaBuildPlugin : Plugin<Project> {
                     project.tasks.withType(KotlinCompile::class.java).configureEach { task ->
                         task.compilerOptions.apply {
                             jvmTarget.set(JvmTarget.JVM_17)
-                            apiVersion.set(KotlinVersion.KOTLIN_1_7)
-                            languageVersion.set(KotlinVersion.KOTLIN_1_7)
+                            apiVersion.set(KotlinVersion.KOTLIN_2_0)
+                            languageVersion.set(KotlinVersion.KOTLIN_2_0)
                             allWarningsAsErrors.set(true)
                         }
                     }
@@ -79,10 +77,10 @@ class MetalavaBuildPlugin : Plugin<Project> {
         configureTestTasks(project)
         project.configureKtfmt()
         project.version = project.getMetalavaVersion()
-        project.group = "com.android.tools.metalava"
+        project.group = metalavaMavenGroup
     }
 
-    fun configureLint(project: Project) {
+    private fun configureLint(project: Project) {
         project.apply(mapOf("plugin" to "com.android.lint"))
         project.extensions.getByType<Lint>().apply {
             fatal.add("UastImplementation") // go/hide-uast-impl
@@ -91,10 +89,17 @@ class MetalavaBuildPlugin : Plugin<Project> {
             disable.add("GradleDependency") // not useful for this project
             abortOnError = true
             baseline = File("lint-baseline.xml")
+            warningsAsErrors = true
         }
     }
 
-    fun configureTestTasks(project: Project) {
+    private fun configureTestTasks(project: Project) {
+        // Create a configuration that depends on :stub-annotations project so tests can
+        // depend on the JAR produced by this project.
+        val stubAnnotations = project.configurations.detachedConfiguration(
+            project.dependencies.create(project.project(":stub-annotations"))
+        ).incoming.artifactView { }.files
+
         val testTask = project.tasks.named("test", Test::class.java)
 
         val zipTask: TaskProvider<Zip> =
@@ -114,7 +119,23 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
             )
 
+            // Clear the environment before adding any custom variables. Avoids problems with
+            // inconsistent behavior when testing code that accesses environment variables, e.g.
+            // command line tools that use environment variables to determine whether to use colors
+            // in command line help.
+            task.setEnvironment()
+
+            // Make test task depend on the stubAnnotations and normalize it as a classpath input.
+            task.inputs.files(stubAnnotations)
+                .withPropertyName("stubAnnotations")
+                .withNormalizer(ClasspathNormalizer::class.java)
+
             task.doFirst {
+                // Get the path to the stub-annotations jar and pass it to this in an environment
+                // variable.
+                task.environment["METALAVA_STUB_ANNOTATIONS_JAR"] =
+                    stubAnnotations.singleFile.absolutePath
+
                 // Before running the tests update the filter.
                 task.filter { testFilter ->
                     testFilter as DefaultTestFilter
@@ -181,7 +202,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
         }
     }
 
-    fun configurePublishing(project: Project) {
+    private fun configurePublishing(project: Project) {
         val projectRepo = project.layout.buildDirectory.dir("repo")
         val archiveTaskProvider =
             configurePublishingArchive(
@@ -227,15 +248,13 @@ class MetalavaBuildPlugin : Plugin<Project> {
                         }
                     }
 
-                    val buildInfoTask =
-                        configureBuildInfoTask(
-                            project,
-                            this,
-                            isBuildingOnServer(),
-                            getDistributionDirectory(project),
-                            archiveTaskProvider
-                        )
-                    project.addTaskToAggregateBuildInfoFileTask(buildInfoTask)
+                    configureBuildInfoTask(
+                        project,
+                        this,
+                        isBuildingOnServer(),
+                        getDistributionDirectory(project),
+                        archiveTaskProvider
+                    )
                 }
             }
             repositories { handler ->
@@ -277,7 +296,6 @@ class MetalavaBuildPlugin : Plugin<Project> {
 }
 
 internal fun Project.version(): Provider<String> {
-    @Suppress("UNCHECKED_CAST") // version is a VersionProviderWrapper set in MetalavaBuildPlugin
     return (version as VersionProviderWrapper).versionProvider
 }
 
@@ -291,7 +309,7 @@ private class VersionProviderWrapper(val versionProvider: Provider<String>) {
 private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
-            rootProject.layout.projectDirectory.file("version.properties")
+            isolated.rootProject.projectDirectory.file("version.properties")
         )
     return VersionProviderWrapper(
         contents.asText.map {
@@ -328,5 +346,6 @@ private fun getBuildId(): String {
     return if (System.getenv("DIST_DIR") != null) File(System.getenv("DIST_DIR")).name else "0"
 }
 
+internal const val metalavaMavenGroup = "com.android.tools.metalava"
 private const val publicationName = "Metalava"
 private const val repositoryName = "Dist"

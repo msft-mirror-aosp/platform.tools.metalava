@@ -275,8 +275,6 @@ class PsiPropertyItemTest : BaseModelTest() {
             checkSingleAnnotation(withoutFieldOnGetterAndNoUseSite)
             checkSingleAnnotation(withoutFieldOnGetterAndNoUseSiteSameArg, barApi)
             checkSingleAnnotation(withoutFieldOnProperty)
-            checkSingleAnnotation(withoutFieldOnPropertyAndNoUseSite)
-            checkSingleAnnotation(withoutFieldOnPropertyAndNoUseSiteSameArg, barApi)
 
             fun checkAnnotations(
                 propertyItem: PropertyItem,
@@ -288,6 +286,8 @@ class PsiPropertyItemTest : BaseModelTest() {
                 annotations.forEach { assertEquals(expectedAnnotationName, it.qualifiedName) }
             }
 
+            checkAnnotations(withoutFieldOnPropertyAndNoUseSite, 2, fooApi)
+            checkAnnotations(withoutFieldOnPropertyAndNoUseSiteSameArg, 2)
             checkAnnotations(withoutFieldOnGetterAndNoUseSiteDiffArg, 2)
             checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArg, 2)
             checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArgLists1, 2)
@@ -322,8 +322,8 @@ class PsiPropertyItemTest : BaseModelTest() {
             assertContains(parameter.documentation, "parameter doc")
             assertContains(body.documentation, "body doc")
             assertContains(accessors.documentation, "accessors property doc")
-            assertContains(accessors.getter?.documentation.orEmpty(), "getter doc")
-            assertContains(accessors.setter?.documentation.orEmpty(), "setter doc")
+            assertContains(accessors.getter?.documentation?.text.orEmpty(), "getter doc")
+            assertContains(accessors.setter?.documentation?.text.orEmpty(), "setter doc")
         }
     }
 }

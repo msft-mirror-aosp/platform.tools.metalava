@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.lint
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
@@ -33,25 +34,17 @@ import org.junit.Test
 
 class ApiLintTest : DriverTest() {
 
-    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test names`() {
         // Make sure we only flag issues in new API
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "MissingNullability"),
             expectedIssues =
                 """
-                src/Dp.kt:3: warning: Acronyms should not be capitalized in method names: was `badCALL`, should this be `badCall`? [AcronymName]
-                src/android/pkg/ALL_CAPS.java:3: warning: Acronyms should not be capitalized in class names: was `ALL_CAPS`, should this be `AllCaps`? [AcronymName]
-                src/android/pkg/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName]
                 src/android/pkg/MyStringImpl.java:3: error: Don't expose your implementation details: `MyStringImpl` ends with `Impl` [EndsWithImpl]
-                src/android/pkg/badlyNamedClass.java:5: error: Class must start with uppercase char: badlyNamedClass [StartWithUpper]
-                src/android/pkg/badlyNamedClass.java:7: error: Method name must start with lowercase char: BadlyNamedMethod1 [StartWithLower]
-                src/android/pkg/badlyNamedClass.java:9: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName]
-                src/android/pkg/badlyNamedClass.java:10: warning: Acronyms should not be capitalized in method names: was `toXML`, should this be `toXml`? [AcronymName]
-                src/android/pkg/badlyNamedClass.java:12: warning: Acronyms should not be capitalized in method names: was `getID`, should this be `getId`? [AcronymName]
-                src/android/pkg/badlyNamedClass.java:6: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper]
+                src/android/pkg/badlyNamedClass.java:3: error: Class must start with uppercase char: badlyNamedClass [StartWithUpper]
+                src/android/pkg/badlyNamedClass.java:4: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper]
+                src/android/pkg/badlyNamedClass.java:5: error: Method name must start with lowercase char: BadlyNamedMethod1 [StartWithLower]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -60,33 +53,9 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    import androidx.annotation.Nullable;
-
                     public class badlyNamedClass {
                         public static final int BadlyNamedField = 1;
                         public void BadlyNamedMethod1() { }
-
-                        public void fromHTMLToHTML() { }
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { } // OK
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class ALL_CAPS { // like android.os.Build.VERSION_CODES
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class HTMLWriter {
                     }
                     """
                     ),
@@ -98,66 +67,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    kotlin(
-                        """
-                    inline class Dp(val value: Float)
-                    fun greatCall(width: Dp)
-                    fun badCALL(width: Dp)
-                """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Test names against previous API`() {
-        check(
-            apiLint =
-                """
-                package android.pkg {
-                  public class badlyNamedClass {
-                    ctor public badlyNamedClass();
-                    method public void BadlyNamedMethod1();
-                    method public void fromHTMLToHTML();
-                    method public String getID();
-                    method public void toXML();
-                    field public static final int BadlyNamedField = 1; // 0x1
-                  }
-                }
-            """
-                    .trimIndent(),
-            expectedIssues =
-                """
-                src/android/pkg/badlyNamedClass.java:8: warning: Acronyms should not be capitalized in method names: was `toXML2`, should this be `toXmL2`? [AcronymName]
-                src/android/pkg2/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName]
-                src/android/pkg2/HTMLWriter.java:4: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-
-                        public void fromHTMLToHTML() { }
-                        public void toXML() { }
-                        public void toXML2() { }
-                        public String getID() { return null; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg2;
-
-                    public class HTMLWriter {
-                        public void fromHTMLToHTML() { }
-                    }
-                    """
-                    )
                 )
         )
     }
@@ -168,11 +77,11 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/Constants.java:14: error: All constants must be defined at compile time: android.pkg.Constants#FOO [CompileTimeConstant]
-                src/android/pkg/Constants.java:12: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MAX_FOO [MinMaxConstant]
-                src/android/pkg/Constants.java:11: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MIN_FOO [MinMaxConstant]
-                src/android/pkg/Constants.java:10: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#myStrings`, should be `MY_STRINGS`? [AllUpper]
                 src/android/pkg/Constants.java:8: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#strings`, should be `STRINGS`? [AllUpper]
+                src/android/pkg/Constants.java:10: error: Constant field names must be named with only upper case characters: `android.pkg.Constants#myStrings`, should be `MY_STRINGS`? [AllUpper]
+                src/android/pkg/Constants.java:11: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MIN_FOO [MinMaxConstant]
+                src/android/pkg/Constants.java:12: warning: If min/max could change in future, make them dynamic methods: android.pkg.Constants#MAX_FOO [MinMaxConstant]
+                src/android/pkg/Constants.java:14: error: All constants must be defined at compile time: android.pkg.Constants#FOO [CompileTimeConstant]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -369,8 +278,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/accounts/Actions.java:7: error: Intent action constant name must be ACTION_FOO: ACCOUNT_ADDED [IntentName]
                 src/android/accounts/Actions.java:6: error: Inconsistent action value; expected `android.accounts.action.ACCOUNT_OPENED`, was `android.accounts.ACCOUNT_OPENED` [ActionValue]
+                src/android/accounts/Actions.java:7: error: Intent action constant name must be ACTION_FOO: ACCOUNT_ADDED [IntentName]
                 src/android/accounts/Actions.java:8: error: Intent action constant name must be ACTION_FOO: SOMETHING [IntentName]
                 """,
             expectedFail = DefaultLintErrorMessage,
@@ -400,8 +309,8 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/accounts/Extras.java:5: error: Inconsistent extra value; expected `android.accounts.extra.AUTOMATIC_RULE_ID`, was `android.app.extra.AUTOMATIC_RULE_ID` [ActionValue]
-                src/android/accounts/Extras.java:7: error: Intent extra constant name must be EXTRA_FOO: RULE_ID [IntentName]
                 src/android/accounts/Extras.java:6: error: Intent extra constant name must be EXTRA_FOO: SOMETHING_EXTRA [IntentName]
+                src/android/accounts/Extras.java:7: error: Intent extra constant name must be EXTRA_FOO: RULE_ID [IntentName]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -550,16 +459,16 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower]
-                src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper]
-                src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower]
-                src/android/pkg/MyClass.java:10: error: Bare field BAD_CONSTANT must be marked final, or moved behind accessors if mutable [MutableBareField]
-                src/android/pkg/MyClass.java:10: error: Constant BAD_CONSTANT must be marked static final [AllUpper]
                 src/android/pkg/MyClass.java:5: error: Bare field badMutable must be marked final, or moved behind accessors if mutable [MutableBareField]
-                src/android/pkg/MyClass.java:9: error: Bare field badStaticMutable must be marked final, or moved behind accessors if mutable [MutableBareField]
                 src/android/pkg/MyClass.java:6: error: Internal field mBadName must not be exposed [InternalField]
+                src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower]
                 src/android/pkg/MyClass.java:8: error: Constant field names must be named with only upper case characters: `android.pkg.MyClass#sBadStaticName`, should be `S_BAD_STATIC_NAME`? [AllUpper]
                 src/android/pkg/MyClass.java:8: error: Internal field sBadStaticName must not be exposed [InternalField]
+                src/android/pkg/MyClass.java:9: error: Bare field badStaticMutable must be marked final, or moved behind accessors if mutable [MutableBareField]
+                src/android/pkg/MyClass.java:10: error: Constant BAD_CONSTANT must be marked static final [AllUpper]
+                src/android/pkg/MyClass.java:10: error: Bare field BAD_CONSTANT must be marked final, or moved behind accessors if mutable [MutableBareField]
+                src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper]
+                src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower]
                 src/android/pkg/MyClass.java:15: error: Internal field mBad must not be exposed [InternalField]
                 """,
             expectedFail = DefaultLintErrorMessage,
@@ -666,9 +575,9 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:10: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.CompletableFuture (parameter param in android.pkg.MyClass.bad2(java.util.concurrent.CompletableFuture<java.lang.String> param)) [BadFuture]
                 src/android/pkg/MyClass.java:11: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (method android.pkg.MyClass.bad3()) [BadFuture]
                 src/android/pkg/MyClass.java:12: error: Use ListenableFuture (library), or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of java.util.concurrent.Future (parameter param in android.pkg.MyClass.bad4(java.util.concurrent.Future<java.lang.String> param)) [BadFuture]
-                src/android/pkg/MyClass.java:21: error: BadCompletableFuture should not extend `java.util.concurrent.CompletableFuture`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture]
                 src/android/pkg/MyClass.java:17: error: BadFuture should not extend `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture]
                 src/android/pkg/MyClass.java:19: error: BadFutureClass should not implement `java.util.concurrent.Future`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture]
+                src/android/pkg/MyClass.java:21: error: BadCompletableFuture should not extend `java.util.concurrent.CompletableFuture`. In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`. [BadFuture]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -720,9 +629,9 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
+                src/android/pkg/MyClass.java:14: error: Don't expose @StringDef: SomeString must be hidden. [PublicTypedef]
                 src/android/pkg/MyClass.java:19: error: Don't expose @IntDef: SomeInt must be hidden. [PublicTypedef]
                 src/android/pkg/MyClass.java:24: error: Don't expose @LongDef: SomeLong must be hidden. [PublicTypedef]
-                src/android/pkg/MyClass.java:14: error: Don't expose @StringDef: SomeString must be hidden. [PublicTypedef]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -857,9 +766,9 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should be `<Foo>Activity`, was `MyClass1` [ContextNameSuffix]
+                src/android/pkg/MyClass1.java:3: error: MyClass1 should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyClass1.java:6: warning: Methods implemented by developers should follow the on<Something> style, was `badlyNamedAbstractMethod` [OnNameExpected]
                 src/android/pkg/MyClass1.java:7: warning: If implemented by developer, should follow the on<Something> style; otherwise consider marking final [OnNameExpected]
-                src/android/pkg/MyClass1.java:3: error: MyClass1 should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should be `<Foo>Provider`, was `MyClass2` [ContextNameSuffix]
                 src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should be `<Foo>Service`, was `MyClass3` [ContextNameSuffix]
                 src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should be `<Foo>Receiver`, was `MyClass4` [ContextNameSuffix]
@@ -1026,9 +935,9 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/content/MyClass1.java:8: warning: Field type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
+                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
+                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
                 src/android/content/MyClass1.java:8: warning: Method return type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1267,12 +1176,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            // missing errors for `isVisibleSetterBad`,
+            // missing errors for `isVisibleSetterBad`, `transientStateBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
@@ -1311,8 +1219,8 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/pkg/MyClass.java:6: error: Parameter type is concrete collection (`java.util.HashMap`); must be higher-level interface [ConcreteCollection]
-                src/android/pkg/MyClass.java:10: error: Return type is concrete collection (`java.util.Vector`); must be higher-level interface [ConcreteCollection]
                 src/android/pkg/MyClass.java:10: error: Parameter type is concrete collection (`java.util.LinkedList`); must be higher-level interface [ConcreteCollection]
+                src/android/pkg/MyClass.java:10: error: Return type is concrete collection (`java.util.Vector`); must be higher-level interface [ConcreteCollection]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -1355,18 +1263,18 @@ class ApiLintTest : DriverTest() {
 
                     public class OverlappingFlags {
                         private OverlappingFlags() { }
-                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128; // 0x80
-                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1; // 0x1
-                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2; // 0x2
-                        public static final int DRAG_FLAG_OPAQUE = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4; // 0x4
-                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2; // 0x2
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048; // 0x800
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096; // 0x1000
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024; // 0x400
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256; // 0x100
-                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16; // 0x10
+                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128;
+                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1;
+                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2;
+                        public static final int DRAG_FLAG_OPAQUE = 512;
+                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4;
+                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256;
+                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16;
 
                         public static final int TEST1_FLAG_FIRST = 1;
                         public static final int TEST1_FLAG_SECOND = 3;
@@ -1411,9 +1319,9 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
+                src/android/pkg/MyClass.java:7: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
                 src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
                 src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
-                src/android/pkg/MyClass.java:7: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -1592,6 +1500,35 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check context first for suspend fun`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
+                src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package android.pkg
+                    import android.content.Context
+
+                    suspend fun okCall(context: Context, value: Int) {}
+                    suspend fun badCall(value: Int, context: Context) {}
+
+                    suspend fun String.okCallExtension(context: Context, value: Int) {}
+                    suspend fun String.badCallExtension(value: Int, context: Context) {}
+                    """
+                    ),
+                )
+        )
+    }
+
     @Test
     fun `Check listener last`() {
         check(
@@ -1672,7 +1609,8 @@ class ApiLintTest : DriverTest() {
         // TODO: This check is not yet hooked up
         check(
             apiLint = "", // enabled
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             sourceFiles =
                 arrayOf(
@@ -1716,8 +1654,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration]
                 src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration]
+                src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1831,8 +1769,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles]
                 src/android/pkg/CheckFiles.java:9: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: constructor android.pkg.CheckFiles(android.content.Context,java.io.File) [StreamFiles]
+                src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1865,8 +1803,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles]
                 src/android/pkg/CheckFiles.java:9: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: constructor android.pkg.CheckFiles(android.content.Context,java.io.File) [StreamFiles]
+                src/android/pkg/CheckFiles.java:13: warning: Methods accepting `File` should also accept `FileDescriptor` or streams: method android.pkg.CheckFiles.error(int,java.io.File) [StreamFiles]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2391,9 +2329,9 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
+                src/android/content/Context.java:10: error: Inconsistent service value; expected `other`, was `something` (Note: Do not change the name of already released services, which will break tools using `adb shell dumpsys`. Instead add `@SuppressLint("ServiceName"))` [ServiceName]
                 src/android/content/Context.java:11: error: Inconsistent service constant name; expected `SOMETHING_SERVICE`, was `OTHER_MANAGER` [ServiceName]
                 src/android/content/Context.java:12: error: Inconsistent service constant name; expected `OTHER_SERVICE`, was `OTHER_MANAGER_SERVICE` [ServiceName]
-                src/android/content/Context.java:10: error: Inconsistent service value; expected `other`, was `something` (Note: Do not change the name of already released services, which will break tools using `adb shell dumpsys`. Instead add `@SuppressLint("ServiceName"))` [ServiceName]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -2909,8 +2847,8 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/pkg/Cases.java:7: error: Cases.BadCallback can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                src/android/pkg/Cases.java:15: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
                 src/android/pkg/Cases.java:11: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
+                src/android/pkg/Cases.java:15: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
             """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -3019,13 +2957,6 @@ class ApiLintTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-src/android/pkg/Interface.kt:104: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:114: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:125: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:136: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:142: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:152: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
-src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:18: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:28: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:39: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
@@ -3035,6 +2966,13 @@ src/android/pkg/Interface.kt:66: error: Parameter `default` has a default value 
 src/android/pkg/Interface.kt:72: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:82: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
 src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:104: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:114: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:125: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:136: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:142: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:152: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
             """
                     .trimIndent(),
             expectedFail = DefaultLintErrorMessage,
@@ -3270,6 +3208,134 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
                         }
                     """
                     )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `throw unresolved error`() {
+        // Regression test from b/364736827
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        import kotlin.random.Random
+
+                        public class SubspaceSemanticsNodeInteraction() {
+                            /**
+                             * @throws [UnresolvedAssertionError] if failed
+                             */
+                            public fun assertDoesNotExist() {
+                                if (Random.nextBoolean()) {
+                                    throw UnresolvedAssertionError("Failed")
+                                }
+                            }
+                        }
+                    """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `data class definition`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            data class Foo(val v: Int)
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_ERROR, "DataClassDefinition"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                "src/test/pkg/Foo.kt:2: error: Exposing data classes as public API is discouraged because they are difficult to update while maintaining binary compatibility. [DataClassDefinition]"
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN, Capability.JAR_WITH_SOURCES)
+    @Test
+    fun `Checks do not run on bytecode-only items`() {
+        check(
+            apiLint = "", // enabled
+            expectedFail = DefaultLintErrorMessage,
+            // Error is only on the source element, not the mangled version in bytecode.
+            expectedIssues =
+                "src/test/pkg/IntValue.kt:4: error: Method name must start with lowercase char: FunWithBadName [StartWithLower]",
+            extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val v: Int)
+                        class Foo {
+                            fun FunWithBadName(iv: IntValue) = Unit
+                        }
+                        """
+                    )
+                ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31VeTQUahufmBmyDsYu0vhKlhkNksmSO0bXDBljiwzGFsJg" +
+                        "ZoRLcxVuZrpXZUvKxRWR7HRlzT5mPpIlW7JkGcl6KVy56jvn+9T56nnP74/3" +
+                        "nPf5Pe/7nN/7/PA4XiAUwM/PDwAAlAH7AwoAAiwxtiaa5ufMEJYm58zNMDa2" +
+                        "cEuzj50AwJolh22B04T3COM01bo43eUErT7t8ekQONZSw9yyh1ZQQVjGagar" +
+                        "YTkcdfvlLgSLxZmanpzmAeBxfPzFEseL9fcK6O0B/83y0nugelGoiKBLFxHm" +
+                        "gVR7kj/NC+7hT6JQomxf2cjbQXdfpRf/2zs6/TmhLHMDPRKTcLTV6RE0J7OS" +
+                        "mWX30LqzVzy06Yey+CHL3IRaruv4NQRqa1xQFGUTXaotMplOT5wKW/RO1FKe" +
+                        "sggx7jKcvdy1eZ+ysUSn7/I2Ev1PqBiy10PWd0K6gmqzHX2dTmiBSy9WcZxb" +
+                        "qZ3VeSM/2bOYyi0Q+AWXW8pJLDmhQgwdjRbCKigER2yEBqSSKoIOUDJIHY8C" +
+                        "woRHjncP90fEToS0dUhFuAyTcy4/cK0arVA/bQ+LE4ub4x0prcMYx2THqRDU" +
+                        "gGay4oes0gauXmXn+A68TSlv1kqvnpvOnmpk1capy6Te8Y1jmYhlONy7yUgk" +
+                        "BE/vSrqmMshaqodEZOBeYM/iCbki3Ct509wh1VldIdL5f4WSxaNrcmtqCCOl" +
+                        "PDzNUMVk5SG0skhhmacfw5lWocs5/MhdrlwOudpyC1ZfWHzXu1U4sw1pltUw" +
+                        "vjY0K+TXO1RUt1ypU/vrw4p6NiQ/vMb+mjKth3GHjGYLiPL0B/FRxGd3QgUw" +
+                        "kiRHE+sC/aKXPim1TjB+HPfDBowj4qM+xCOqMogGv3PGhjNOeMggQS4NsFT9" +
+                        "JtWFl7WMd282nPpH/R75naLeepy2YFDomFHtEXGUFVYpmS1LColng/rebavQ" +
+                        "SWx5/fHTwL97uc9oyQmUZGYvb/IVZ1U1hyMVx3wSXhhZnHboqneRMza8MxVe" +
+                        "ZXCbIVC0Fjm30O5z/iCzowAOfdo+C82anwhOuZiwu1W1cxcyXABBE9I9OanC" +
+                        "ibEQmIoE0ZGQM5BItI090tOMtW3pqic5x2G5U6NJo2Pvr0cNKQrBQO4T5uVP" +
+                        "A3Qz0kYkcSmV9kh1TDmJ/dNhheFlzouPdx1FF+fNHg+pOib4h5sX6x3qLnLC" +
+                        "jFRy17Om+gx6y/OzbQPOgVLGbFZtTI45VvBnq2zeC9Q313h3Kz8VL8pttM7R" +
+                        "nRfUr18WjgSpzJn239QWk2nAya1q7gi4r8mkEjzOPl+H1R4tO/tnRIwefcXw" +
+                        "/ZkXYeyEaJa54JlAsJgq8qrE6PwT66e/+V7hSZe//3BdYtRoQfs69T6H2rtA" +
+                        "ub30hKuftcLvn0EILRv6i2v8rAGtQj0VJXAl5rLUX6ylad3Rmbc4J4/xFbrW" +
+                        "aJwCTDkNROroNczGgoOUlkDjZXCCOpz3rtGzSER2VbjB9R8zIinPpitAM8zo" +
+                        "ahTtRmx+/OvMj6iS0ACNSuaDLctGfkopbqb/Z/mi9+VNI5qwFx8AuOgNzUnT" +
+                        "+lbXaPJ8+/nFYgcDLWwnwp5ehyK2gan2cuofShANMUYrvO4Tv4uJrHf8BhnC" +
+                        "zVZjx//4eR6ouLkZ7L813718b4OIirLY9kDqVkGQJX7jErygwh4xK6GC9bwL" +
+                        "bnCj5i0pM6IP/KRzy9+0HswApgXT1xrlGpIw09l6jykrLSv9MnLiJnNi9/PM" +
+                        "seWKySCAAMAI3/dmjvj+mWNGJv9n3BCtLcm9ZyBRNecU2s1t8mJvg1WV6iqS" +
+                        "G32BxyDiGIYnlAHsMHxTYV4YKk/PXEC9kVmxGlcK4gk+Y/3nyh+Q8kAxJaPa" +
+                        "8DXvsYWurfbu4tcAg0Y4mngWu00+lncFwVZzExqrvnPQWIqbvxsSpvgrFSR1" +
+                        "bed8LsGYVLKx0YzqLCEm4UmqXO18GbmdBj5D98H5aW5838Wz7pEat+dcTlmN" +
+                        "0WYkkAugbWXeVG2wlJbOdqJFO3Ld1dTpRqyU5wyLky2P5LXjzXRZXa3Wcfxl" +
+                        "8MPNCc9qn5raVuKipjT8stBEUZYZJexS9dyqyGm1YqNh2/Cx1cKTS0lPqxxy" +
+                        "fei7TSmCasn3GLOFY2uMC6H2SqEozo0lJMVn6rWmzMndBdkcFDRYsSfqUsPm" +
+                        "Tnyu8O9eHn7EJbYOqiuRpBMFiztxXH7HX2USb/GAhcC8p6VYnbW2uuu5bZfh" +
+                        "l2aaZXu7wKpXp/cHtobdKWCetJ5SHrNH9PBoFkePjC6NXJbtysuOZD6Hmwo+" +
+                        "OfhWWvhh04NB08f4G5ukHqv0j2QNybbHzMkHPSW6Ovz6i9AdveBU94QkmtyS" +
+                        "sBvIBzzIXxKvbhqsmyn7EuwmoOkvircLkhwWqGpav1p4fBT/8Hgf/cAnVbQd" +
+                        "IUYOHAAAUnm+pwr5PfzXCANIvoHwS2Sqv2+gawDZk+bv5eHm5ua9B6D7ObAq" +
+                        "3v25O+Cz4taP1NZJ7GXKfHa5AzxQwP/Y9zvgJ5v9Mr5lul+z7Ne09BcM9G97" +
+                        "59ck+1sg/gXJGvD/fYav8/c/U/6L/IN8320bHgcCfzoG3FvQvQt48X3a/QMK" +
+                        "X7YyjwgAAA=="
                 )
         )
     }

@@ -30,8 +30,10 @@ Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
   Convert an API signature file into a file in the JDiff XML format.
 
 Options:
-  --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
-                                             output or not. (default: false)
+  --strip / --no-strip                       Determines whether types that are not defined within the input signature
+                                             file should be stripped from the output or not. This does not include super
+                                             class types, i.e. the `extends` attribute in the generated JDiff file.
+                                             Historically, they have not been filtered. (default: false)
   --format-for-legacy-files <format-specifier>
                                              Optional format to use when reading legacy, i.e. no longer supported,
                                              format versions. Forces the signature file to be parsed as if it was in
@@ -73,8 +75,8 @@ open class SignatureToJDiffCommandTest :
         commandTest {
             args += listOf("signature-to-jdiff", "--trip")
 
-            args += inputFile("input.txt", "").path
-            args += outputFile("output.xml").path
+            args += inputFile("input.txt", "")
+            args += outputFile("output.xml")
 
             expectedStderr =
                 """
@@ -606,6 +608,271 @@ $signatureToJdiffHelp
                     .trimIndent()
         }
     }
+
+    @Test
+    fun `Test producing full JDiff for class with super class and interfaces`() {
+        jdiffConversionTest {
+            formatForLegacyFiles = FileFormat.V2
+
+            api =
+                """
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
+                        field public static final int FIELD = 1;
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Test"
+                     extends="java.lang.Number"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <implements name="java.lang.Comparable&lt;test.pkg.Test>">
+                    </implements>
+                    <field name="FIELD"
+                     type="int"
+                     transient="false"
+                     volatile="false"
+                     value="1"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
+                    </class>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test producing delta JDiff for class with super class and interfaces`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
+                        field public static final int FIELD = 1;
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Test"
+                     extends="java.lang.Number"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <implements name="java.lang.Comparable&lt;test.pkg.Test>">
+                    </implements>
+                    <field name="FIELD"
+                     type="int"
+                     transient="false"
+                     volatile="false"
+                     value="1"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
+                    </class>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test for adding new interface`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+
+                      public interface New {
+                        method public void bar();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <interface name="New"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="bar"
+                     return="void"
+                     abstract="true"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </interface>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test for adding new nested interface`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+
+                      public interface Existing.New {
+                        method public void bar();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <interface name="Existing.New"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="bar"
+                     return="void"
+                     abstract="true"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </interface>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test conversion unknown type parameter`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Test {
+                        method public T method();
+                      }
+                    }
+                """
+
+            expectedStderr =
+                """
+                    TESTROOT/jdiff-conversion/api.txt:4: hidden: Unqualified type 'T' is not in 'java.lang' and is not a type parameter in scope [UnqualifiedTypeError]
+                """
+                    .trimIndent()
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <interface name="Test"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="method"
+                     return="T"
+                     abstract="true"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </interface>
+                    </package>
+                    </api>
+                """
+        }
+    }
 }
 
 fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
@@ -646,17 +913,15 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
             // Create a unique folder to allow multiple configs to be run in the same test.
             val folder = commandTestConfig.folder("jdiff-conversion")
 
-            val apiFile = inputFile("api.txt", api.trimIndent(), parentDir = folder)
-            args += apiFile.path
+            args += unindentedInputFile("api.txt", api, parentDir = folder)
 
             baseApi?.let {
-                val baseApiFile = inputFile("base-api.txt", it.trimIndent(), parentDir = folder)
                 args += "--base-api"
-                args += baseApiFile.path
+                args += unindentedInputFile("base-api.txt", it, parentDir = folder)
             }
 
             val xmlFile = outputFile("api.xml", parentDir = folder)
-            args += xmlFile.path
+            args += xmlFile
 
             verify {
                 val expectedXml = this@JDiffTestConfig.expectedXml

@@ -62,12 +62,7 @@ class NormalizeOutputAnnotationTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    requiresPermissionSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
+                    requiresPermissionSource,
                 ),
             format = FileFormat.V4,
             api =

@@ -29,42 +29,61 @@ object Issues {
 
     val PARSE_ERROR by Issue(Severity.ERROR)
     val DUPLICATE_SOURCE_CLASS by Issue(Severity.WARNING)
+
+    // Signature file parsing
+    val SIGNATURE_FILE_ERROR by Issue(Severity.ERROR)
+
+    // Type item parsing
+    val TYPE_PARSE_ERROR by Issue(Severity.ERROR)
+    // TODO(b/394789173): Hide until AndroidX has disabled it.
+    val UNQUALIFIED_TYPE_ERROR by Issue(Severity.HIDDEN)
+
     // Compatibility issues
-    val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val ADDED_CLASS by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val ADDED_METHOD by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val ADDED_FIELD by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val ADDED_INTERFACE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val REMOVED_PACKAGE by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val REMOVED_CLASS by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val REMOVED_METHOD by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val REMOVED_FIELD by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val REMOVED_INTERFACE by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_STATIC by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val ADDED_FINAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_TRANSIENT by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_VOLATILE by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_TYPE by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_VALUE by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_SUPERCLASS by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_SCOPE by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_ABSTRACT by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_DEFAULT by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_THROWS by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_NATIVE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val CHANGED_CLASS by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_DEPRECATED by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val CHANGED_SYNCHRONIZED by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val CONFLICTING_SHOW_ANNOTATIONS by Issue(Severity.ERROR, Category.UNKNOWN)
-    val ADDED_FINAL_UNINSTANTIABLE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val REMOVED_FINAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val REMOVED_FINAL_STRICT by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val REMOVED_DEPRECATED_CLASS by Issue(REMOVED_CLASS, Category.COMPATIBILITY)
-    val REMOVED_DEPRECATED_METHOD by Issue(REMOVED_METHOD, Category.COMPATIBILITY)
-    val REMOVED_DEPRECATED_FIELD by Issue(REMOVED_FIELD, Category.COMPATIBILITY)
-    val ADDED_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val ADDED_REIFIED by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY by Issue(Severity.ERROR, Category.COMPATIBILITY)
+    // This refers to adding usage of an `--api-compat-annotation` (not adding a definition)
+    val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
+    val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    val ADDED_CLASS by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    // Adding an abstract method is breaking, but that is a separate issue.
+    val ADDED_METHOD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    // Note that this may be breaking if the class/interface can be implemented, but the reporter
+    // doesn't distinguish those cases.
+    val ADDED_FIELD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    val ADDED_INTERFACE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    // This refers to removing usage of an `--api-compat-annotation` (not removing a definition)
+    val REMOVED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
+    val REMOVED_PACKAGE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val REMOVED_CLASS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val REMOVED_METHOD by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val REMOVED_FIELD by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val REMOVED_INTERFACE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_STATIC by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val ADDED_FINAL by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_VOLATILE by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
+    // There are some type changes that would be source compatible but not binary compatible, but
+    // treat all changes as both to be safe.
+    val CHANGED_TYPE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_VALUE by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
+    val CHANGED_SUPERCLASS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_SCOPE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_ABSTRACT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_DEFAULT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_THROWS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_NATIVE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    val CHANGED_CLASS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_DEPRECATED by Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
+    val ADDED_FINAL_UNINSTANTIABLE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    val REMOVED_FINAL by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
+    val REMOVED_FINAL_STRICT by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
+    val REMOVED_DEPRECATED_CLASS by Issue(REMOVED_CLASS, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val REMOVED_DEPRECATED_METHOD by Issue(REMOVED_METHOD, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val REMOVED_DEPRECATED_FIELD by Issue(REMOVED_FIELD, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val ADDED_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val ADDED_REIFIED by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
+    val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY by
+        Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
+    val REMOVED_FROM_BYTECODE by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
+    val REMOVED_FROM_JAVA by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val REMOVED_FROM_KOTLIN by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
 
     // Issues in javadoc generation
     val UNRESOLVED_LINK by Issue(Severity.ERROR, Category.DOCUMENTATION)
@@ -81,8 +100,6 @@ object Issues {
     val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)
-    val NO_ARTIFACT_DATA by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
-    val BROKEN_ARTIFACT_FILE by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
     // Metalava warnings (not from doclava)
 
@@ -90,41 +107,42 @@ object Issues {
 
     val MISSING_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.ERROR, Category.DOCUMENTATION)
-    val UNRESOLVED_CLASS by Issue(Severity.ERROR, Category.DOCUMENTATION)
-    val INVALID_NULL_CONVERSION by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val PARAMETER_NAME_CHANGE by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val INFIX_REMOVAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val VARARG_REMOVAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val ADD_SEALED by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val FUN_REMOVAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val BECAME_UNCHECKED by Issue(Severity.ERROR, Category.COMPATIBILITY)
+    val INVALID_NULL_CONVERSION by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val PARAMETER_NAME_CHANGE by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val INFIX_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val VARARG_REMOVAL by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val ADD_SEALED by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val FUN_REMOVAL by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    // Removing an API from the checked surface isn't itself breaking, but it could allow both
+    // binary and source breaking changes to be made to the API in the future.
+    val BECAME_UNCHECKED by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val ANNOTATION_EXTRACTION by Issue(Severity.ERROR)
     val SUPERFLUOUS_PREFIX by Issue(Severity.WARNING)
     val HIDDEN_TYPEDEF_CONSTANT by Issue(Severity.ERROR)
-    val EXPECTED_PLATFORM_TYPE by Issue(Severity.HIDDEN)
     val INTERNAL_ERROR by Issue(Severity.ERROR)
     val RETURNING_UNEXPECTED_CONSTANT by Issue(Severity.WARNING)
-    val DEPRECATED_OPTION by Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML by Issue(Severity.WARNING, Category.DOCUMENTATION)
-    val UNMATCHED_MERGE_ANNOTATION by Issue(Severity.ERROR)
+    val UNMATCHED_MERGE_ANNOTATION by Issue(Severity.ERROR, Category.API_LINT)
+    val INCONSISTENT_MERGE_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
-    val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN)
-    val UNHIDDEN_SYSTEM_API by Issue(Severity.ERROR)
-    val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR)
+    val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN, Category.API_LINT)
+    val UNHIDDEN_SYSTEM_API by Issue(Severity.ERROR, Category.API_LINT)
+    val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
-    val REFERENCES_HIDDEN by Issue(Severity.ERROR)
+    val REFERENCES_HIDDEN by Issue(Severity.ERROR, Category.API_LINT)
     val IGNORING_SYMLINK by Issue(Severity.INFO)
     val INVALID_NULLABILITY_ANNOTATION_WARNING by Issue(Severity.WARNING)
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
-    val EXTENDS_DEPRECATED by Issue(Severity.HIDDEN)
-    val FORBIDDEN_TAG by Issue(Severity.ERROR)
+    val EXTENDS_DEPRECATED by Issue(Severity.HIDDEN, Category.API_LINT)
+    val FORBIDDEN_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MISSING_COLUMN by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val INVALID_SYNTAX by Issue(Severity.ERROR)
+    val INVALID_PACKAGE by Issue(Severity.ERROR)
     val UNRESOLVED_IMPORT by Issue(Severity.INFO)
-    val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR)
+    val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.API_LINT)
 
     // API lint
     val START_WITH_LOWER by Issue(Severity.ERROR, Category.API_LINT)
@@ -150,7 +168,6 @@ object Issues {
     val PARCEL_CONSTRUCTOR by Issue(Severity.ERROR, Category.API_LINT)
     val PROTECTED_MEMBER by Issue(Severity.ERROR, Category.API_LINT)
     val PAIRED_REGISTRATION by Issue(Severity.ERROR, Category.API_LINT)
-    val REGISTRATION_NAME by Issue(Severity.ERROR, Category.API_LINT)
     val VISIBLY_SYNCHRONIZED by Issue(Severity.ERROR, Category.API_LINT)
     val INTENT_BUILDER_NAME by Issue(Severity.WARNING, Category.API_LINT)
     val CONTEXT_NAME_SUFFIX by Issue(Severity.ERROR, Category.API_LINT)
@@ -167,7 +184,6 @@ object Issues {
     val CONCRETE_COLLECTION by Issue(Severity.ERROR, Category.API_LINT)
     val OVERLAPPING_CONSTANTS by Issue(Severity.WARNING, Category.API_LINT)
     val GENERIC_EXCEPTION by Issue(Severity.ERROR, Category.API_LINT)
-    val ILLEGAL_STATE_EXCEPTION by Issue(Severity.WARNING, Category.API_LINT)
     val RETHROW_REMOTE_EXCEPTION by Issue(Severity.ERROR, Category.API_LINT)
     val MENTIONS_GOOGLE by Issue(Severity.ERROR, Category.API_LINT)
     val HEAVY_BIT_SET by Issue(Severity.ERROR, Category.API_LINT)
@@ -207,7 +223,7 @@ object Issues {
     val UNIQUE_KOTLIN_OPERATOR by Issue(Severity.ERROR, Category.API_LINT)
     val SAM_SHOULD_BE_LAST by Issue(Severity.WARNING, Category.API_LINT)
     val MISSING_JVMSTATIC by Issue(Severity.WARNING, Category.API_LINT)
-    val DEFAULT_VALUE_CHANGE by Issue(Severity.ERROR, Category.API_LINT)
+    val DEFAULT_VALUE_CHANGE by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val DOCUMENT_EXCEPTIONS by Issue(Severity.ERROR, Category.API_LINT)
     val FORBIDDEN_SUPER_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY by Issue(Severity.ERROR, Category.API_LINT)
@@ -232,24 +248,29 @@ object Issues {
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
     val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val GETTER_SETTER_NULLABILITY by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED by Issue(Severity.HIDDEN, Category.API_LINT)
+    val VALUE_CLASS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)
+    val MISSING_ENVIRONMENTS_VALUE by Issue(Severity.ERROR, Category.API_LINT)
+    val MISSING_FROM_VALUE by Issue(Severity.ERROR, Category.API_LINT)
+    val INHERIT_CHANGES_SIGNATURE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
+    val DATA_CLASS_DEFINITION by Issue(Severity.HIDDEN, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
     }
 
-    fun findIssueByIdIgnoringCase(id: String): Issue? {
-        for (e in allIssues) {
-            if (id.equals(e.name, ignoreCase = true)) {
-                return e
-            }
-        }
-        return null
-    }
-
-    fun findCategoryById(id: String?): Category? = Category.values().find { it.id == id }
+    fun findCategoryById(id: String?): Category =
+        Category.entries.find { it.id == id }
+            ?: error(
+                "Unknown category: '$id', expected one of ${Category.entries.joinToString { it.id }}"
+            )
 
     fun findIssuesByCategory(category: Category?): List<Issue> =
-        allIssues.filter { it.category == category }
+        if (category == null) {
+            emptyList()
+        } else {
+            allIssues.filter { it.category.isSameOrSubCategory(category) }
+        }
 
     class Issue
     private constructor(
@@ -262,6 +283,12 @@ object Issues {
         /** Applicable category */
         val category: Category,
     ) : ReadOnlyProperty<Issues, Issue> {
+        init {
+            if (category == Category.COMPATIBILITY) {
+                error("Issues should use a sub-category of compatibility")
+            }
+        }
+
         /** The name of this issue */
         lateinit var name: String
             internal set
@@ -305,14 +332,32 @@ object Issues {
         }
     }
 
-    enum class Category(val description: String) {
-        COMPATIBILITY("Compatibility"),
+    enum class Category(val description: String, val parent: Category? = null) {
         DOCUMENTATION("Documentation"),
         API_LINT("API Lint"),
-        UNKNOWN("Default");
+        UNKNOWN("Default"),
+
+        /**
+         * The compatibility issue is a parent for more specific types of compatibility. Each
+         * compatibility issue should use a specific subcategory (enforced by the [Issue]
+         * constructor).
+         */
+        COMPATIBILITY("Compatibility"),
+        BINARY_COMPATIBILITY_ONLY("Binary Compatibility Breaking", COMPATIBILITY),
+        SOURCE_COMPATIBILITY_ONLY("Source Compatibility Breaking", COMPATIBILITY),
+        BINARY_AND_SOURCE_COMPATIBILITY("Binary and Source Compatibility Breaking", COMPATIBILITY),
+        OTHER_COMPATIBILITY("Other Compatibility", COMPATIBILITY);
 
         /** Identifier for use in command-line arguments and reporting. */
         val id: String = enumConstantToCamelCase(name)
+
+        /**
+         * Returns whether this category matches [otherCategory], or if a sub category of
+         * [otherCategory].
+         */
+        internal fun isSameOrSubCategory(otherCategory: Category): Boolean {
+            return this == otherCategory || parent?.isSameOrSubCategory(otherCategory) == true
+        }
     }
 
     init {
