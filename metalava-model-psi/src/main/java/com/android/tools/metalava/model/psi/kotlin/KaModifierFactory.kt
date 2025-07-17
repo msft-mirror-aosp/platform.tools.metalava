@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolModality
@@ -144,6 +145,31 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
             modifiers.setDeprecated(true)
         }
 
+        return modifiers
+    }
+
+    /** Creates modifiers for the [functionSymbol]. */
+    fun createForFunction(
+        functionSymbol: KaNamedFunctionSymbol,
+        containingClass: ClassItem,
+    ): MutableModifierList {
+        val modifiers = createForDeclaration(functionSymbol)
+        modifiers.updateForCallable(functionSymbol, containingClass)
+        if (functionSymbol.isInline) {
+            modifiers.setInline(true)
+        }
+        if (functionSymbol.isInfix) {
+            modifiers.setInfix(true)
+        }
+        if (functionSymbol.isOperator) {
+            modifiers.setOperator(true)
+        }
+        if (functionSymbol.isStatic) {
+            modifiers.setStatic(true)
+        }
+        if (functionSymbol.isSuspend) {
+            modifiers.setSuspend(true)
+        }
         return modifiers
     }
 

@@ -2426,8 +2426,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/test.kt:5: error: Binary breaking change: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
-                src/test/pkg/test.kt:8: error: Binary breaking change: Method test.pkg.TestKt.two made type variable S reified: incompatible change [AddedReified]
+                released-api.txt:4: error: Binary breaking change: method test.pkg.TestKt.add(T) has been removed from bytecode [RemovedFromBytecode]
+                released-api.txt:4: error: Source breaking change: method test.pkg.TestKt.add(T) can no longer be resolved from Java source [RemovedFromJava]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2435,9 +2435,9 @@ class CompatibilityCheckTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void add(T t);
-                    method public static inline <reified T> void remove(T t);
-                    method public static inline <reified T> void unchanged(T t);
-                    method public static inline <S, reified T> void two(S s, T t);
+                    method @KotlinOnly public static inline <reified T> void remove(T t);
+                    method @KotlinOnly public static inline <reified T> void unchanged(T t);
+                    method @KotlinOnly public static inline <S, reified T> void two(S s, T t);
                   }
                 }
                 """,
