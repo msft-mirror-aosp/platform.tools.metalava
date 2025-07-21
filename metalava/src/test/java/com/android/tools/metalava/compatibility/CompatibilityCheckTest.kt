@@ -154,6 +154,44 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Switching method from public to private is seen as removal`() {
+        check(
+            expectedIssues =
+                "released-api.txt:5: error: Binary breaking change: Removed method com.example.Foo.foo() [RemovedMethod]",
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package com.example {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void foo();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package com.example;
+                        public class Foo {
+                          private void foo() {}
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package com.example {
+                  public class Foo {
+                    ctor public Foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Kotlin Coroutines`() {
         check(
             expectedIssues = "",
@@ -2529,9 +2567,9 @@ class CompatibilityCheckTest : DriverTest() {
                      */
                     @android.annotation.SystemApi
                     public class MmTelFeature {
-                        public static class Capabilities extends ParentCapabilities {
+                        public static class Capabilities extends Parent.ParentCapabilities {
                             @Override
-                            boolean isCapable(int argument) { return true; }
+                            public boolean isCapable(int argument) { return true; }
                         }
                     }
                     """
@@ -2786,7 +2824,7 @@ class CompatibilityCheckTest : DriverTest() {
 
                     public class LightsRequest {
                         public static final class Builder {
-                            void clearLight() { }
+                            public void clearLight() { }
                         }
                     }
                     """
