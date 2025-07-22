@@ -4191,7 +4191,7 @@ class ApiFileTest : DriverTest() {
                     ctor public KotlinClass(@IntRange(from=2L) int differentParam);
                     method public int getParam();
                     method public void myMethod(@IntRange(from=3L) int methodParam);
-                    property @IntRange(from=1L) public int param;
+                    property public int param;
                   }
                 }
             """
@@ -5338,8 +5338,8 @@ class ApiFileTest : DriverTest() {
                     ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
                     method public abstract int extension();
                     method public abstract int version();
-                    property @IntRange(from=1L) public abstract int extension;
-                    property @IntRange(from=1L) public abstract int version;
+                    property public abstract int extension;
+                    property public abstract int version;
                   }
                   @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
