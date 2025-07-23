@@ -258,7 +258,7 @@ class ApiFileTest : DriverTest() {
                     method public final <T> T! getSystemService(Class<T!>!);
                   }
                   public final class TestKt {
-                    method public static inline <reified T> T! systemService1(test.pkg.Context);
+                    method @KotlinOnly public static inline <reified T> T! systemService1(test.pkg.Context);
                     method public static inline String! systemService2(test.pkg.Context);
                   }
                 }
@@ -296,11 +296,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> T inlineNoReified(T t);
-                    method public static inline <reified T> void inlineReified(T t);
-                    method public static inline <reified T> void inlineReifiedExtension(T, T t);
-                    method public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(T[] t);
-                    method public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(java.util.List<? extends T> t);
-                    method public static inline <reified T> T publicInlineReified(T t);
+                    method @KotlinOnly public static inline <reified T> void inlineReified(T t);
+                    method @KotlinOnly public static inline <reified T> void inlineReifiedExtension(T, T t);
+                    method @KotlinOnly public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(T[] t);
+                    method @KotlinOnly public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(java.util.List<T> t);
+                    method @KotlinOnly public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
                 """
@@ -460,7 +460,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
+                    method @KotlinOnly @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
