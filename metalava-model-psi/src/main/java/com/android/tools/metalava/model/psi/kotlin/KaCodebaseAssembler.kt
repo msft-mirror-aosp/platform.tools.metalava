@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.JVM_SYNTHETIC
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
@@ -265,15 +266,22 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
         }
     }
 
-    /** Whether to create a method item based on the [functionSymbol]. */
+    /**
+     * Whether to create a method item based on the [functionSymbol].
+     *
+     * If this condition is updated, the one in PsiCodebaseAssembler determining which methods not
+     * to create needs to be updated too.
+     */
     private fun shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
         // Don't generate hidden functions since they cannot be resolved from source.
         if (functionSymbol.isDeprecatedHidden()) return false
         // For an expect/actual function, there are separate KaNamedFunctionSymbols for the expect
         // and actual. Only create a MethodItem based on the actual.
         if (functionSymbol.isExpect) return false
-        // For now, just generate reified inline functions.
-        return functionSymbol.typeParameters.any { it.isReified }
+        // Generate reified inline functions.
+        if (functionSymbol.typeParameters.any { it.isReified }) return true
+        // Generate JvmSynthetic functions.
+        return functionSymbol.annotations.any { it.classId?.asFqNameString() == JVM_SYNTHETIC }
     }
 
     /** Constructs a method from the [functionSymbol] and adds it to the [containingClass]. */
