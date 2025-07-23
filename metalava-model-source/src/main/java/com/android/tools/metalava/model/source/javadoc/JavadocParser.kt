@@ -87,11 +87,8 @@ internal class JavadocParser private constructor(private val antlrParser: AntlrJ
     }
 
     private fun parse(): JavadocContent {
-        // Verify that the antlrParser recognizes the content, failing if there is an error.
-        antlrParser.description()
-
-        // Temporarily return an empty comment.
-        return JavadocContent.EMPTY
+        val descriptionContext = antlrParser.description()
+        return JavadocContentBuilder.buildFrom(descriptionContext) ?: JavadocContent.EMPTY
     }
 }
 
@@ -145,5 +142,194 @@ internal class JavadocErrorListener(
             } ?: msg
         val actualLine = line + lineOffset
         error("$fileName:$actualLine:$charPositionInLine $fullMsg")
+    }
+}
+
+/** Builds [JavadocContent] from [AntlrJavadocParser.DescriptionContext]. */
+private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
+    /**
+     * A [MutableList] of consecutive [JavadocContent] instances that have been created from the
+     * Javadoc.
+     *
+     * Is `null` if no [JavadocContent] has yet been added. This backs [contentList] and should not
+     * be accessed directly except by [contentList], [nestedContent] and [getContent].
+     */
+    @Deprecated(message = "Do not access directly", replaceWith = ReplaceWith("contentList"))
+    private var _contentList: MutableList<JavadocContent>? = null
+
+    /**
+     * A [MutableList] of consecutive [JavadocContent] instances that have been created from the
+     * Javadoc.
+     */
+    @Suppress("DEPRECATION")
+    private val contentList: MutableList<JavadocContent>
+        get() =
+            _contentList
+                ?: let {
+                    val list = mutableListOf<JavadocContent>()
+                    _contentList = list
+                    list
+                }
+
+    /**
+     * Append [javadocContent] to [contentList].
+     *
+     * This will flush any text that has been buffered in [textBuffer].
+     */
+    private fun appendContent(javadocContent: JavadocContent) {
+        // Make sure that any text which has been appended to [textBuffer] has been added to the
+        // content list so that it appears before [javadocContent].
+        flushText()
+
+        contentList.add(javadocContent)
+    }
+
+    /** [StringBuilder] into which consecutive blocks of text from the Javadoc are accumulated. */
+    private val textBuffer = StringBuilder()
+
+    /** Append [text] to [textBuffer]. */
+    private fun appendText(text: String) {
+        textBuffer.append(text)
+    }
+
+    /** Append newline character to [textBuffer]. */
+    private fun appendNewline() {
+        appendText("\n")
+    }
+
+    /**
+     * If [textBuffer] is not empty then this will wrap it in a [JavadocText] object, add that to
+     * the [contentList] and clear [textBuffer].
+     */
+    private fun flushText() {
+        if (textBuffer.isNotEmpty()) {
+            var text = textBuffer.toString()
+            textBuffer.clear()
+            contentList.add(JavadocText(text))
+        }
+    }
+
+    /**
+     * Create a [JavadocContent] for nested content.
+     *
+     * This flushes the [textBuffer], saves away [_contentList], setting it to `null` and then
+     * invokes [body] to apply this visitor to the nested content to populate [textBuffer] and
+     * [contentList]. It then calls [getContent]
+     */
+    @Suppress("DEPRECATION")
+    private fun nestedContent(body: () -> Unit): JavadocContent? {
+        // Make sure that any text which has been appended to [textBuffer] has been added to the
+        // content list so that it appears before any nested content.
+        flushText()
+
+        // Save away the current _contentList and set it to null so a new list will be created if
+        // any nested content is added.
+        val oldContentList = _contentList
+        _contentList = null
+        try {
+            // Call the body lambda which will add any nested content.
+            body()
+
+            // Get the nested content that was added by [body].
+            return getContent()
+        } finally {
+            // Restore _contentList back to what it was before.
+            _contentList = oldContentList
+        }
+    }
+
+    /**
+     * Get a [JavadocContent] object for any content that has been added to the [textBuffer] and
+     * [_contentList].
+     *
+     * If [textBuffer] contains any textual content then it is added to [_contentList] first.
+     *
+     * If [_contentList] has not yet been created, or was created but is empty then there is no
+     * content so this returns `null`. If [_contentList] contains a single item then it is returned.
+     * Otherwise, the [_contentList] is wrapped in a [JavadocContentList].
+     *
+     * Irrespective of what this returns, [_contentList] will be `null` after this returns.
+     */
+    @Suppress("DEPRECATION")
+    private fun getContent(): JavadocContent? {
+        // Make sure that any text which has been appended to [textBuffer] has been added to the
+        // content list so that it will be included in the returned content.
+        flushText()
+
+        val contentList = _contentList
+        return if (contentList == null) {
+            null
+        } else {
+            // Discard the content list to force a new one to be created next time content is added.
+            // This will ensure correct behavior even if _contentList is wrapped in a
+            // [JavadocContentList].
+            _contentList = null
+
+            val size = contentList.size
+            when (size) {
+                0 -> null
+                1 -> contentList[0]
+                else -> {
+                    JavadocContentList(contentList.toList())
+                }
+            }
+        }
+    }
+
+    override fun visitDescriptionLineText(ctx: AntlrJavadocParser.DescriptionLineTextContext) {
+        // Add the text to the text buffer.
+        appendText(ctx.text)
+    }
+
+    override fun visitDescriptionNewline(ctx: AntlrJavadocParser.DescriptionNewlineContext?) {
+        // This matches a newline possible following by white space and then a `*` (but not '*/').
+        // However, the white space and `*` are not considered part of the comment so are ignored.
+        appendNewline()
+    }
+
+    override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
+        val tagType = ctx.inlineTagName().NAME().text
+
+        // Get the nested content, if any.
+        val inlineTagContentContext = ctx.inlineTagContent()
+        val tagContent =
+            inlineTagContentContext?.let { inlineCtx ->
+                // Construct a nested JavadocContent object from the content of the inline tag.
+                nestedContent {
+                    // Visit the inline tag content.
+                    inlineCtx.accept(this)
+                }
+            }
+
+        // Add an inline tag to the content.
+        appendContent(JavadocInlineTag(tagType, tagContent))
+    }
+
+    override fun visitBraceExpression(ctx: AntlrJavadocParser.BraceExpressionContext) {
+        // A brace expression implicitly starts and stops with braces so add them into the model.
+        appendText("{")
+        super.visitBraceExpression(ctx)
+        appendText("}")
+    }
+
+    override fun visitBraceText(ctx: AntlrJavadocParser.BraceTextContext) {
+        // Brace text is just a set of possible different blocks of text so just add them into the
+        // buffer.
+        appendText(ctx.text)
+    }
+
+    companion object {
+        /** Build a optional [JavadocContent] from [descriptionContext]. */
+        fun buildFrom(descriptionContext: AntlrJavadocParser.DescriptionContext): JavadocContent? {
+            // Create a builder that will create [JavadocContent] by traversing the
+            // [descriptionContext] structure.
+            val builder = JavadocContentBuilder()
+
+            // Traverse the [descriptionContent] structure.
+            descriptionContext.accept(builder)
+
+            // Get the [JavadocContent], if any, that was created.
+            return builder.getContent()
+        }
     }
 }

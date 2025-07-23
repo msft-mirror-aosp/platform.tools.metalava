@@ -24,10 +24,40 @@ import com.android.tools.metalava.model.source.doc.DocDescription
  * Currently, just a placeholder but will be expanded in the future.
  */
 internal sealed interface JavadocContent {
+    /**
+     * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
+     */
+    fun accept(visitor: JavadocContentVisitor)
+
     companion object {
         val EMPTY: JavadocContent = EmptyJavadocContent()
     }
 }
 
 /** An empty [JavadocContent]. */
-private class EmptyJavadocContent : JavadocContent
+private class EmptyJavadocContent : JavadocContent {
+    override fun accept(visitor: JavadocContentVisitor) {
+        // Do nothing.
+    }
+}
+
+/** Visitor of [JavadocContent] subclasses. */
+internal interface JavadocContentVisitor {
+    fun visit(list: JavadocContentList) {}
+
+    fun visit(inlineTag: JavadocInlineTag) {}
+
+    fun visit(text: JavadocText) {}
+}
+
+/** A [JavadocContent] that encapsulates a number of other [JavadocContent] instances. */
+internal class JavadocContentList(private val list: List<JavadocContent>) : JavadocContent {
+    /** Visit the contents of this in turn. */
+    fun visitContents(visitor: JavadocContentVisitor) {
+        list.forEach { content -> content.accept(visitor) }
+    }
+
+    override fun accept(visitor: JavadocContentVisitor) {
+        visitor.visit(this)
+    }
+}

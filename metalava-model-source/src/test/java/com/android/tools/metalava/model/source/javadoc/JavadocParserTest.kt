@@ -24,7 +24,7 @@ import org.junit.Test
 
 class JavadocParserTest {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
-    private fun checkParse(text: String) {
+    private fun checkParse(text: String, expectedStructure: String) {
         val reporter = CollatingDocumentationIssueReporter()
         val docComment = DocComment.createDocComment(text.trimIndent(), reporter)
         // Make sure that no unexpected DocComment errors were found.
@@ -32,13 +32,56 @@ class JavadocParserTest {
 
         // Parse the main description
         val description = docComment.description as DefaultDocDescription
-        description.content
+
+        // Generate a string representation of the model structure.
+        var content = description.content
+        val actualStructure = buildString {
+            content.accept(
+                object : JavadocContentVisitor {
+                    private var indent = ""
+
+                    private fun appendPrefix() {
+                        append(indent)
+                    }
+
+                    private inline fun indent(body: () -> Unit) {
+                        val oldIndent = indent
+                        indent += "  "
+                        body()
+                        indent = oldIndent
+                    }
+
+                    override fun visit(list: JavadocContentList) {
+                        list.visitContents(this)
+                    }
+
+                    override fun visit(inlineTag: JavadocInlineTag) {
+                        appendPrefix()
+                        append("inlineTag: ")
+                        append(inlineTag.tagType)
+                        append("\n")
+                        inlineTag.content?.let { nestedContent ->
+                            indent { nestedContent.accept(this) }
+                        }
+                    }
+
+                    override fun visit(text: JavadocText) {
+                        appendPrefix()
+                        append("text: '")
+                        append(text.text.replace("\n", "\\n"))
+                        append("'\n")
+                    }
+                }
+            )
+        }
+        assertEquals(expectedStructure.trimIndent(), actualStructure.trimEnd())
     }
 
     @Test
     fun `Test simple comment`() {
         checkParse(
             "/** Simple text */",
+            expectedStructure = "text: ' Simple text '",
         )
     }
 
@@ -46,6 +89,7 @@ class JavadocParserTest {
     fun `Test simple comment - leading newline`() {
         checkParse(
             "\n/** Simple text */",
+            expectedStructure = """text: ' Simple text '""",
         )
     }
 
@@ -53,6 +97,7 @@ class JavadocParserTest {
     fun `Test simple comment - trailing newline`() {
         checkParse(
             "/** Simple text */\n",
+            expectedStructure = """text: ' Simple text '""",
         )
     }
 
@@ -60,6 +105,10 @@ class JavadocParserTest {
     fun `Test comment with nested javadoc start`() {
         checkParse(
             "/** /** */\n",
+            expectedStructure =
+                """
+                    text: ' /** '
+                """,
         )
     }
 
@@ -71,6 +120,13 @@ class JavadocParserTest {
                  * {@link Class}
                  */
             """,
+            expectedStructure =
+                """
+                    text: '\n '
+                    inlineTag: link
+                      text: 'Class'
+                    text: '\n '
+                """,
         )
     }
 
@@ -82,6 +138,13 @@ class JavadocParserTest {
                  * Text before link {@link Class} and some text after.
                  */
             """,
+            expectedStructure =
+                """
+                    text: '\n Text before link '
+                    inlineTag: link
+                      text: 'Class'
+                    text: ' and some text after.\n '
+                """,
         )
     }
 
@@ -95,6 +158,13 @@ class JavadocParserTest {
                  * and some text after.
                  */
             """,
+            expectedStructure =
+                """
+                    text: '\n Text before link\n '
+                    inlineTag: link
+                      text: 'Class'
+                    text: '\n and some text after.\n '
+                """,
         )
     }
 
@@ -106,6 +176,13 @@ class JavadocParserTest {
                  * {@code @Annotation}
                  */
             """,
+            expectedStructure =
+                """
+                    text: '\n '
+                    inlineTag: code
+                      text: '@Annotation'
+                    text: '\n '
+                """,
         )
     }
 
@@ -117,6 +194,16 @@ class JavadocParserTest {
                  * {@code some {@code nested} inline tags}
                  */
             """,
+            expectedStructure =
+                """
+                    text: '\n '
+                    inlineTag: code
+                      text: 'some '
+                      inlineTag: code
+                        text: 'nested'
+                      text: ' inline tags'
+                    text: '\n '
+                """,
         )
     }
 
@@ -128,6 +215,12 @@ class JavadocParserTest {
                  * {@code not closed
                  */
             """,
+            expectedStructure =
+                """
+                    text: '\n '
+                    inlineTag: code
+                      text: 'not closed\n '
+                """,
         )
     }
 
@@ -139,6 +232,13 @@ class JavadocParserTest {
                  * {@ code extra space}
                  */
             """,
+            expectedStructure =
+                """
+                    text: '\n '
+                    inlineTag: code
+                      text: 'extra space'
+                    text: '\n '
+                """,
         )
     }
 
@@ -148,6 +248,12 @@ class JavadocParserTest {
             """
                 /** {@inheritDoc} */
             """,
+            expectedStructure =
+                """
+                    text: ' '
+                    inlineTag: inheritDoc
+                    text: ' '
+                """,
         )
     }
 }
