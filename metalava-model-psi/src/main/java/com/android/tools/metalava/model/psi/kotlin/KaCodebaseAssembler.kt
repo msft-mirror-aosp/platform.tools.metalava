@@ -442,9 +442,17 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                 )
             }
 
+        // If a property is defined in a companion object, the backing field will be found in the
+        // containing class of the companion, not the companion itself.
         val backingField =
             if (propertySymbol.hasBackingField) {
-                containingClass.findField(propertySymbol.name.identifier) as? PsiFieldItem
+                val classWithField =
+                    if (containingClass.modifiers.isCompanion()) {
+                        containingClass.containingClass()!!
+                    } else {
+                        containingClass
+                    }
+                classWithField.findField(propertySymbol.name.identifier) as? PsiFieldItem
             } else {
                 null
             }
