@@ -297,11 +297,14 @@ internal class PsiCodebaseAssembler(
         val psiMethods = psiClass.methods
         // create methods
         for (psiMethod in psiMethods) {
-            // Skip fake UAST constructors and accessors, which can't be used from java source.
+            // Skip fake UAST constructors, accessors, and reified inline methods, which can't be
+            // used from java source.
             if (
                 (psiMethod is UastFakeSourceLightMethod ||
                     psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) &&
-                    (psiMethod.isConstructor || PsiMethodItem.isKotlinProperty(psiMethod))
+                    (psiMethod.isConstructor ||
+                        PsiMethodItem.isKotlinProperty(psiMethod) ||
+                        psiMethod.typeParameters.any { PsiTypeParameterItem.isReified(it) })
             ) {
                 continue
             }
