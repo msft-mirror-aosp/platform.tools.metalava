@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi.kotlin
 import com.android.SdkConstants
 import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
@@ -275,7 +276,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // Don't re-add methods which are already present: find the items which might have
         // the same signature of this one, to compare by erased signature.
         val potentialMatches =
-            erasedSignaturesOfPotentialMatchingCallables(
+            potentialMatchingCallables(
                 psiMethod,
                 classItem,
                 hasDefaultConstructorMarker,
@@ -301,7 +302,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // false match here if a type variable that is in semiErasedSignature had the same
         // name as a primitive type used in one of the potential matches, but that shouldn't
         // be allowed).
-        if (potentialMatches.any { it == semiErasedSignature }) return
+        if (checkForSignatureMatch(semiErasedSignature, potentialMatches)) return
 
         // Create the item.
         val callableItem =
@@ -358,7 +359,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 parameterItemsForErasedSignature.joinToString { it.type().toErasedTypeString() }
             if (
                 erasedSignature != semiErasedSignature &&
-                    potentialMatches.any { it == erasedSignature }
+                    checkForSignatureMatch(erasedSignature, potentialMatches)
             )
                 return
         }
@@ -408,16 +409,17 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
 
     /**
      * Finds callables of the [classItem] that might have the same signature as the [psiMethod]
-     * (those that have the same name and parameter count), and return their erased signatures.
+     * (those that have the same name and parameter count), and returns them along with their erased
+     * signatures.
      *
      * If [hasDefaultConstructorMarker] is true, the parameter count of the potential matches will
      * be one less than the parameter count of the [psiMethod].
      */
-    private fun erasedSignaturesOfPotentialMatchingCallables(
+    private fun potentialMatchingCallables(
         psiMethod: PsiMethod,
         classItem: ClassItem,
         hasDefaultConstructorMarker: Boolean,
-    ): List<String> {
+    ): List<Pair<CallableItem, String>> {
         val callables =
             if (psiMethod.isConstructor) {
                 classItem.constructors()
@@ -436,8 +438,36 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 callable.name() == psiMethod.name && callable.parameters().size == parameterCount
             }
             .map { callable ->
-                callable.parameters().joinToString { it.type().toErasedTypeString() }
+                callable to callable.parameters().joinToString { it.type().toErasedTypeString() }
             }
+    }
+
+    /**
+     * Checks the [potentialMatches] (pairs of [CallableItem]s and their erased signatures) to see
+     * if one of the signatures is the same as [erasedSignature].
+     *
+     * If it is, and the matching item was created as Kotlin-only and not reified, updates it to
+     * include bytecode as a target language as well.
+     *
+     * Returns whether a match was found.
+     */
+    private fun checkForSignatureMatch(
+        erasedSignature: String,
+        potentialMatches: List<Pair<CallableItem, String>>,
+    ): Boolean {
+        val (callableItem, _) =
+            potentialMatches.firstOrNull { (_, signature) -> signature == erasedSignature }
+                ?: return false
+        // If the item was created as Kotlin only but does exist in bytecode, update the target
+        // language set. Exclude reified inline functions because even though these are present in
+        // bytecode, there's an error if they're actually used.
+        if (
+            callableItem.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
+                callableItem.typeParameterList.none { it.isReified() }
+        ) {
+            callableItem.targetLanguages = TargetLanguageSet.NOT_JAVA
+        }
+        return true
     }
 
     /**

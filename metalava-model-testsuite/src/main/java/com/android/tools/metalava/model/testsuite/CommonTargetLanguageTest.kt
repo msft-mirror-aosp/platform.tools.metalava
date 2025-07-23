@@ -1764,6 +1764,77 @@ class CommonTargetLanguageTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test constructor using nullable value class type`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    class Foo(intValue: IntValue?)
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31VZ1AT2BYOPSCdQCgisEsvSQgLUhaVXgOBjXQWQuglhBCa" +
+                        "gnSGLihLL6uAKE0BERRCAorU0KTJgrAI2UV6MYAssuibeQ+dp+fO9+PO3POd" +
+                        "e8+c+31IMwZGEAAIBAIAAAnA2QABGAEIA5SOkomFIRShY2FiaPALCoIw/NgP" +
+                        "AOwiBgfMzZQgoxxmSvJDg8NN1rBxlYVlPMQUoWiCGA2pfmy9ZaoUJG86OKhg" +
+                        "szUE7esbfLu8uEwPQJqxAB/yyT3UOC1w8RTIb5YHn4LgEUyA4vy8oCZYgg3a" +
+                        "P8QDgvFHBwdHoSjBf6C4T4h/Qe1tzr/2eWXHOsLlvR45jpWtzJKuMJG7ihM2" +
+                        "TpXgAHePqpv6v7ZrrOqZXYAukJmYOZ3wMULGcEIS60oGKQU9LdMX+nIbVh6x" +
+                        "ud4xN7/xMbTs48f9m5fpZrvz2OWmCLORGNKtqYAWd5SjJ3u6zpzKjGGH7/Rv" +
+                        "/8zQSu1DMUBlY/5XLWigR7CmXsW6mbktdzyIxahYYm3DgfO58TY97fzzLMd5" +
+                        "XFGuc0GDb4b88+XaUgXa3cMw97BKl5bxxmotT5UkdNLfDANPZpmgGbfiQGNw" +
+                        "VDqMPewHD+IgVcpJ2q98FLYumlSw1m0MjmeJpYKcOvPJFJg5e/9O+5+tsGLu" +
+                        "pIGTwINnsMj41rUtMk5OK4aOaQrnPP1GXDfDs/J3V6BJgWCHieSG8NAGPqqH" +
+                        "3Zj9l2vjmSiuxHCYQlydCdtEgw0sozhdblC2N5XPqFQCfWMCXm0BUC2cSDum" +
+                        "lA1oe2U50kKPE70qFwL0E/edhWOftfmpCY2BickRYg6ECO77cVr5/OqbR1I5" +
+                        "7gkG4An8XOisZ83aZJGOg7XMkzw0luydohwuTr4w9vMToZxgD37Z4dr6NHj4" +
+                        "20w7T9aqVpewmtySeb+pHYX1QuxtccOfJp7aqTpjenAcY9sOWvqBSSlSEAFk" +
+                        "TtQY6VGCPt0BJ90J4RrOmYpxor5biTUXs5UqMOOZ4Xts5GM5NlTZ9BDcY8Hl" +
+                        "GRGrxFFVLj8VLkGgYX5STJzoTb1nKtnjJXV1sgtTSy5t/zBJQtzvT63mZPUb" +
+                        "U7bMk+S6KipdMjNROb53rTpN3krawS61uqEpUBD8wPoQdeWu3pv1qDxNccOE" +
+                        "UmS2XfhMdUARxetl6ASori4vw7fP20GXM0dPpN7qjYuqcKxi4LgjpfFwmlfX" +
+                        "k+jRZkNRtM80aOEKaNsQrjdwrswM9m1MLhUgsWumvDTglkKkVLSL59J6lwKz" +
+                        "uFbI2xp1VpZ924l/LQiJ68i8SwoHx+62uUtswKF3sBfeWl/bAxaGJkyNz/LU" +
+                        "X/iT4tLeq53F/mYH77rYzCR+MZ5dMruTFfv+yHiOvJdEXyZSUtvMN3tpLTiZ" +
+                        "EG8eNrB2zvrv/RWmOzK8B7VWIW7Tjx+QyCQ9SYJ6CNuNhDBqc8pmoiDtcKZC" +
+                        "lfnCCYuJGD4nZ0mgQsJiP1k+mxzVDo5J6wDWtBp7v2MMJqZH7odnZatHbMiD" +
+                        "oRCcC3B2uQ8zaJl5wnk4FUvcbViC5K5x0P04mAgpsGXAtk4Os+0bGVIWGBSZ" +
+                        "J1uS+YLA0awdD0QxD0guQYrXLeS2p95t2nr1T8f09S/wXFqrgd7JOImxO/BK" +
+                        "0NNu/FGfthhRzxt+HllCNvo16vyw9u7wI4MjSEnpSP3t1X4BXc1Lk1bjDalV" +
+                        "hBeFmZZbKwL58SH+/ugXsYsLBfH5LRD1Xo1k9WTN1k2fjdE2PGzVdUZnslPV" +
+                        "UmNJ/FDsk/pcyfTK02AEAFZZvqc+vGfVxzAw8D/C8xsSYclnBdIOu+dibqYF" +
+                        "qmMiccPozPN1ne6rSrNJ+FhLWr1CgKnNUYt+VSqeVMTbRlJ3NDn1RaKP04fy" +
+                        "9H3EuWeumB08afjpfokLiXQC2ALdZJVSwqxHCZVcl0Hns/DM3skHDoM7n4ZN" +
+                        "ivR3DD2XXvq1+sqKbcKMxZHwGBvB6CDFfyMUSBvCViUo7nDCZbnhH5pSWZdp" +
+                        "JJHChDiH34E1F5E8mYEzIxcSZ2xjLxana0tnWYlHbtrd4E15eLNLfNJqbApN" +
+                        "kL+bnV64a4bnVESFU0JPNl/0BGnqTp9cNu3q519A+SpzO+Aowpb+ubfS7eHM" +
+                        "jMJBxzVw+/jyTrrOIoRzT7Vj5vLQPc7LfMP33r/eG/EdKTJtXnBYLdBUXSub" +
+                        "x+cWKT/Sg7t3KzDRjApVtdlYah0r6+gP1YT23fd09iLrUX+gXQ5EeeRuQ1OH" +
+                        "jmApH3b0C9zXnXm9VXNF+RU2OjjjkOfqDsrUXQvg1FBa7mjGPhZHKyZ2X2oL" +
+                        "S6lMe3ycXOfDoKb2epLKgEOaszbKooWWeI2WmSgqpcpuS7RSpy6isSp8OiPi" +
+                        "vXBREeaVN9PEXn4dYVXPvym6k3iVSpxInOtaF/BVmtUp0attfpTZ5oxMv946" +
+                        "b6BmqPwyXrBScEC5P/qzPwmsy/ct0gEAO/TfmxCRU/zXHgPQPliIXyDB3wfr" +
+                        "EhDoHuLvgXF1dfU8BaObBbMs0m3EDfCZ+/0P7US+00zBz95HRw8C/I/9rC9+" +
+                        "Mt8v41tW/DXL2fkGf8EQ/W1H/ZrkbAt4vyA5Zvx/H+Pr/LPPFPkiX4zlu21D" +
+                        "mjExfzrGeLpApxe4zvJp9y95aX3JpQgAAA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fooCtor = fooClass.assertConstructor("test.pkg.IntValue")
+            assertThat(fooCtor.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_JAVA)
+            assertThat(fooClass.constructors()).hasSize(1)
+        }
+    }
+
+    @Test
     fun `Test deprecated hidden constructor using value class type`() {
         // Constructors using value class types can only be used from Kotlin. In bytecode they get
         // an extra parameter of type `kotlin.jvm.internal.DefaultConstructorMarker`, and the value
