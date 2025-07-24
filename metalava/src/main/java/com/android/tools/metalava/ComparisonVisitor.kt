@@ -341,17 +341,13 @@ class CodebaseComparator {
         // declared on the subclass
         val inheritedMethod =
             if (old is MethodItem && newParent is ClassItem) {
-                // Use an updated filter when searching for a matching method: if an [Item] is an
-                // unstable API that will be reverted then it will not be treated as if it was
-                // removed. That is because reverting it will replace it with the old item against
-                // which it is being compared in this compatibility check. So, while this specific
-                // item will not appear in the API the old item will and so it has not been removed.
-                val methodFilter =
-                    filter?.or { method: SelectableItem -> method.showability.revertUnstableApi() }
+                val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
 
-                // Find an element which matches the methodFilter
-                val superMethod = newParent.findPredicateMethodWithSuper(old, methodFilter)
-                superMethod?.duplicate(newParent)
+                if (superMethod != null && (filter == null || filter.test(superMethod))) {
+                    superMethod.duplicate(newParent)
+                } else {
+                    null
+                }
             } else {
                 null
             }
