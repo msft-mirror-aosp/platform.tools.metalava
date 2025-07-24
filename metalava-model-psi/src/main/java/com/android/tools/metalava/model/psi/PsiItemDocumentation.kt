@@ -23,8 +23,6 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SourceLanguage
-import com.android.tools.metalava.model.source.javadoc.JavadocParser
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -70,17 +68,6 @@ internal class PsiItemDocumentation(
     /** Lazy initializer for [_text]. */
     private fun initializeText(): String {
         _text = javadoc(psi).let { if (extraDocs != null) it + "\n$extraDocs" else it }
-
-        // If this is Java then parse the content to make sure that it is valid Javadoc.
-        if (psi.sourceLanguage == SourceLanguage.JAVA) {
-            val fileLocation = item.fileLocation
-            JavadocParser.parse(
-                _text,
-                fileName = fileLocation.path.toString(),
-                startLineNumber = fileLocation.line,
-            )
-        }
-
         return _text
     }
 
