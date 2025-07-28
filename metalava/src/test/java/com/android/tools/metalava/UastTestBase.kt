@@ -1109,7 +1109,7 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class NavGraphBuilderKt {
                     method public static Void after(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
-                    method @Deprecated public static Void before(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
+                    method @BytecodeOnly @Deprecated public static Void! before(test.pkg.NavGraphBuilder!, kotlin.jvm.functions.Function1!);
                   }
                 }
                 """

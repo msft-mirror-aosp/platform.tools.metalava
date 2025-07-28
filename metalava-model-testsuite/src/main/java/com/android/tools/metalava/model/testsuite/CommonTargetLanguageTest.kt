@@ -1401,11 +1401,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
             assertThat(mangledMethod.modifiers.isDeprecated()).isTrue()
 
-            // TODO(b/407735992): non-mangled method should be kotlin only and have IntValue param
-            // type instead of int
-            fooClass.assertMethod("foo", "int")
-
-            assertThat(fooClass.methods()).hasSize(2)
+            // No non-mangled method since the function is hidden
+            assertThat(fooClass.methods()).hasSize(1)
         }
     }
 

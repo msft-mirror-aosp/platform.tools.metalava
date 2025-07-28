@@ -5177,7 +5177,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated public static void myMethod();
+                    method @BytecodeOnly @Deprecated public static void myMethod();
                     method @Deprecated public static void myNormalDeprecatedMethod();
                   }
                 }
@@ -5252,9 +5252,9 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated @IntRange(from=0L) public static void myMethod();
-                    method @Deprecated public static String returnsNonNull();
-                    method @Deprecated public static String returnsNonNullImplicitly();
+                    method @BytecodeOnly @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @BytecodeOnly @Deprecated public static String! returnsNonNull();
+                    method @BytecodeOnly @Deprecated public static String! returnsNonNullImplicitly();
                   }
                 }
             """
@@ -5458,8 +5458,6 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs before and after @Deprecated(HIDDEN)`() {
-        val sameModifiersAndReturnType = "public static test.pkg.State<java.lang.String>"
-        val sameParameters = "(Integer? i, String? s, java.lang.Object... vs);"
         check(
             sourceFiles =
                 arrayOf(
@@ -5578,8 +5576,8 @@ class ApiFileTest : DriverTest() {
                     property public abstract T value;
                   }
                   public final class StateKt {
-                    method $sameModifiersAndReturnType after$sameParameters
-                    method @Deprecated $sameModifiersAndReturnType before$sameParameters
+                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
+                    method @BytecodeOnly @Deprecated public static test.pkg.State! before(Integer!, String!, java.lang.Object!...!);
                   }
                 }
             """
@@ -6039,10 +6037,10 @@ class ApiFileTest : DriverTest() {
                package test.pkg {
                  public final class Foo {
                    ctor public Foo();
-                   method @Deprecated public void deprecatedHidden();
+                   method @BytecodeOnly @Deprecated public void deprecatedHidden();
                    method public void newNameForRenamed();
                    method @Deprecated public void newNameForRenamedAndDeprecatedError();
-                   method @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                   method @BytecodeOnly @Deprecated public void newNameForRenamedAndDeprecatedHidden();
                  }
                }
             """
