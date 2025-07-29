@@ -1446,10 +1446,6 @@ abstract class UastTestBase : DriverTest() {
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1467,7 +1463,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
                         property public String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
@@ -1482,7 +1477,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_getter_deprecatedOnProperty;
                         property public String? pOld_getter_deprecatedOnSetter;
                       }
                       public final class Test_noAccessor {
@@ -1497,7 +1491,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
-                        property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
                         property public String pOld_noAccessor_deprecatedOnSetter;
                       }
                       public final class Test_setter {
@@ -1512,7 +1505,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_setter_deprecatedOnProperty;
                         property public String? pOld_setter_deprecatedOnSetter;
                       }
                     }
@@ -1551,10 +1543,6 @@ abstract class UastTestBase : DriverTest() {
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1572,7 +1560,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
                         property public String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
@@ -1587,7 +1574,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_getter_deprecatedOnProperty;
                         property public String? pOld_getter_deprecatedOnSetter;
                       }
                       public final class Test_noAccessor {
@@ -1602,7 +1588,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
-                        property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
                         property public String pOld_noAccessor_deprecatedOnSetter;
                       }
                       public final class Test_setter {
@@ -1617,7 +1602,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_setter_deprecatedOnProperty;
                         property public String? pOld_setter_deprecatedOnSetter;
                       }
                     }
