@@ -50,9 +50,12 @@ import java.util.zip.ZipOutputStream
 import kotlin.metadata.KmClass
 import kotlin.metadata.KmConstructor
 import kotlin.metadata.KmDeclarationContainer
+import kotlin.metadata.KmFunction
 import kotlin.metadata.KmProperty
+import kotlin.metadata.KmPropertyAccessorAttributes
 import kotlin.metadata.Visibility
 import kotlin.metadata.hasAnnotations
+import kotlin.metadata.isReified
 import kotlin.metadata.jvm.JvmMethodSignature
 import kotlin.metadata.jvm.KotlinClassMetadata
 import kotlin.metadata.jvm.Metadata
@@ -360,8 +363,18 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 return
         }
 
+        val metadataEntry = callableItem.findMetadataEntry(metadataContainer)
+        // Reified inline functions can't be called from java, and for kotlin clients their usages
+        // are all inlined in the binary (directly calling the binary version of the function will
+        // be an error). So, it does not make sense to track the bytecode version for compatibility
+        // since it will never be used.
+        if (metadataEntry?.isReified == true) return
+        // Propagate special property annotations to accessors.
+        if (metadataEntry is MetadataEntry.AccessorMetadataEntry) {
+            callableItem.propagateAnnotationsAsNeeded(metadataEntry.kmProperty, psiClass)
+        }
         // Update the visibility of the item based on metadata, if needed.
-        if (callableItem.isInternal(metadataContainer, psiClass)) {
+        if (metadataEntry?.visibility == Visibility.INTERNAL) {
             callableItem.mutateModifiers { setVisibilityLevel(VisibilityLevel.INTERNAL) }
         }
 
@@ -502,51 +515,46 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      */
     private fun PsiCallableItem.findMatchingConstructor(
         container: KmDeclarationContainer?,
-    ): KmConstructor? {
+    ): MetadataEntry.ConstructorMetadataEntry? {
         val internalDescriptor = internalDesc(voidConstructorTypes = true)
-        return (container as? KmClass)?.constructors?.firstOrNull {
-            it.signature?.descriptor == internalDescriptor
-        }
+        return (container as? KmClass)
+            ?.constructors
+            ?.firstOrNull { it.signature?.descriptor == internalDescriptor }
+            ?.let { MetadataEntry.ConstructorMetadataEntry(it) }
     }
 
-    /** Checks if the item's true visibility is internal based on the metadata from [container]. */
-    private fun PsiCallableItem.isInternal(
+    /**
+     * Finds the metadata for the callable in the [container]. The metadata might be from a
+     * constructor, function, or property accessor.
+     */
+    private fun PsiCallableItem.findMetadataEntry(
         container: KmDeclarationContainer?,
-        psiClass: PsiClass,
-    ): Boolean {
-        if (container == null) return false
-        val visibility =
-            // For constructors and functions generated from constructor definitions, check if there
-            // is a constructor with the right signature.
-            if (isConstructor() || name() == "constructor-impl") {
-                findMatchingConstructor(container)?.visibility
-            } else {
-                val expectedDescriptor = internalDesc(voidConstructorTypes = true)
-                // Cut off the mangled part of the name, if there is one.
-                // val simpleName = name().substringBefore('-')
-                // Check for a function with the right signature.
-                container.functions
-                    .firstOrNull { it.signature.matches(name(), expectedDescriptor) }
-                    ?.visibility
-                    // No matching function, check if this is a property accessor.
-                    ?: container.properties.firstNotNullOfOrNull {
-                        if (it.getterSignature.matches(name(), expectedDescriptor)) {
-                            // Propagate special annotations.
-                            propagateAnnotationsAsNeeded(it, psiClass)
-                            // A getter always has the same visibility as the property.
-                            it.visibility
-                        } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
-                            // Propagate special annotations.
-                            propagateAnnotationsAsNeeded(it, psiClass)
-                            // A setter's visibility can be different from the property.
-                            it.setter?.visibility
-                        } else {
-                            null
-                        }
-                    }
-            }
+    ): MetadataEntry? {
+        if (container == null) return null
 
-        return visibility == Visibility.INTERNAL
+        // For constructors and functions generated from constructor definitions, check if there
+        // is a constructor with the right signature.
+        return if (isConstructor() || name() == "constructor-impl") {
+            findMatchingConstructor(container)
+        } else {
+            val expectedDescriptor = internalDesc(voidConstructorTypes = true)
+            // Cut off the mangled part of the name, if there is one.
+            // val simpleName = name().substringBefore('-')
+            // Check for a function with the right signature.
+            container.functions
+                .firstOrNull { it.signature.matches(name(), expectedDescriptor) }
+                ?.let { MetadataEntry.FunctionMetadataEntry(it) }
+                // No matching function, check if this is a property accessor.
+                ?: container.properties.firstNotNullOfOrNull {
+                    if (it.getterSignature.matches(name(), expectedDescriptor)) {
+                        MetadataEntry.AccessorMetadataEntry(it.getter, it)
+                    } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
+                        MetadataEntry.AccessorMetadataEntry(it.setter!!, it)
+                    } else {
+                        null
+                    }
+                }
+        }
     }
 
     /** Whether the signature exists and has the [expectedName] and [expectedDescriptor]. */
@@ -612,6 +620,47 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 val annotationItem = PsiAnnotationItem.create(codebase, annotationEntry)
                 mutateModifiers { addAnnotation(annotationItem) }
             }
+        }
+    }
+
+    /**
+     * Wrapper for function, constructor, or property kotlin metadata, because the Km type do not
+     * have a shared parent class.
+     */
+    private sealed interface MetadataEntry {
+        /** Source visibility of the declaration. */
+        val visibility: Visibility
+
+        /** Whether the definition has a reified type parameter. */
+        val isReified: Boolean
+
+        /** Wrapper for aa [KmFunction]. */
+        class FunctionMetadataEntry(private val kmFunction: KmFunction) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmFunction.visibility
+
+            override val isReified: Boolean
+                get() = kmFunction.typeParameters.any { it.isReified }
+        }
+
+        /** Wrapper for aa [KmConstructor]. */
+        class ConstructorMetadataEntry(private val kmConstructor: KmConstructor) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmConstructor.visibility
+
+            override val isReified = false
+        }
+
+        /** Wrapper for a [KmPropertyAccessorAttributes] from a [KmProperty]. */
+        class AccessorMetadataEntry(
+            private val kmAccessor: KmPropertyAccessorAttributes,
+            val kmProperty: KmProperty
+        ) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmAccessor.visibility
+
+            override val isReified: Boolean
+                get() = kmProperty.typeParameters.any { it.isReified }
         }
     }
 }
