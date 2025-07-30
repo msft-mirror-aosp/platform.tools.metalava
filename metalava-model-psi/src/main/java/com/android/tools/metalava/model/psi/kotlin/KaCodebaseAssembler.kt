@@ -374,6 +374,9 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
         )
             return
 
+        // Don't generate deprecation level hidden properties, which can't be used from source.
+        if (propertySymbol.isDeprecatedHidden()) return
+
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
                 enclosingTypeItemFactory,

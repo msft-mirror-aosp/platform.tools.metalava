@@ -1401,11 +1401,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
             assertThat(mangledMethod.modifiers.isDeprecated()).isTrue()
 
-            // TODO(b/407735992): non-mangled method should be kotlin only and have IntValue param
-            // type instead of int
-            fooClass.assertMethod("foo", "int")
-
-            assertThat(fooClass.methods()).hasSize(2)
+            // No non-mangled method since the function is hidden
+            assertThat(fooClass.methods()).hasSize(1)
         }
     }
 
@@ -1552,6 +1549,57 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val ctor = fooClass.assertConstructor("int")
             assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+        }
+    }
+
+    @Test
+    fun `Test deprecation level hidden property`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo {
+                        @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
+                        var deprecatedProperty = 0
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhfnBsX6CzuK2Brfzdvu3ZireaI9XkFrQYCCnYRq" +
+                        "ndgjNVHOWcdalmdar/TevnuJscmva+b/28/vm5DhU2PA2/9P4/FcXbagm2/u" +
+                        "VT+/U33+jvHm/f///GF9wHhNoihKK9Yqy9TbunAOY/IHPtfwKU6Cpt75We2b" +
+                        "1hl7GN6IdhR5oc6zcunTLL7MG3o6KRI6fxUDeJKndrv0S6rNDpr+NND9Wuu0" +
+                        "3r1+NSrWv4IvvTcWkZq+ZMb8wxrHNj2QUGcqtWzc+kQ/XNIoekp8rZfw2fhd" +
+                        "lxd1LIrglj0i2GsemHnUimfRpUrFszMyvZe6BBvteP7ZYInzzamKh88UCBeG" +
+                        "+nRFvQ2v27ln7+kJ/8O/RGVdFIgKmLR9t6ZVQprPNYkJO8QeyjNvjlq+YuPB" +
+                        "Ddffi8banY1997Var9znwQR//+/Vs2vm7vWYX7dx5/Hv4nuv6MRvl7t1/s33" +
+                        "5fOPc+ju+ht3sOiS3PytMrdP60T0PU7lfa9mvPtmCWe2ru+hU+ItkfqP2Tpl" +
+                        "17NMvGObdz3l+dwVrS0iWoWxLaEXOc/84plz076v5MK0qw6sLDb7K+a9u/1j" +
+                        "R/B0a0eNjY7fU1Wldu60++TtZpR45o96yvTMUKN0B7u9n5jPcbLKaKe8ZXmy" +
+                        "w93MXMNBTO/BU0MnDvmsf2zvXwds/lr/OYFp0YnFBW4fO2zMbbWL7z/k5Td4" +
+                        "MEMqZE7hjIxHMf3TXSdOCDlk1nXwsJ+QuUDN/H1MU/2Fzk45JOrjfSZhWtjq" +
+                        "k2Xlk7nmaz3LuLCa3ePnjmePd/VL7/BUfFar8+Aa44xDSnnyB0Kf7V2coN2j" +
+                        "5hiY6KK4fEK4xh9WUIp8aVrkF8TEwHCCGV+KlAZieIbITczM08vOL8nJzIvP" +
+                        "zU8pzUlNTkhISANiliQ/No2ApAtJDODU/lVpz15hoE4JcGpnZBJhQJiOnBNA" +
+                        "2Q0V4Mp86KYgu14IxYR6rHkIXT+yC6VR9Asy4/VxgDcrG0gZMxCeB9K5zCAe" +
+                        "AGbdnHRSBAAA"
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertThat(fooClass.properties()).isEmpty()
+            val getter = fooClass.assertMethod("getDeprecatedProperty", "")
+            assertThat(getter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val setter = fooClass.assertMethod("setDeprecatedProperty", "int")
+            assertThat(setter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
         }
     }
 
