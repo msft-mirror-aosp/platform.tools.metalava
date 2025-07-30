@@ -24,11 +24,9 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
-import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
@@ -47,33 +45,6 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
     ): MutableModifierList {
         val modifiers = createForDeclaration(propertySymbol)
         modifiers.updateForCallable(propertySymbol, containingClass)
-
-        // Maintaining legacy behavior: if an annotation was supposed to apply to a backing field or
-        // constructor parameter but didn't specify a use-site target, metalava would apply it to
-        // the property when creating properties through psi.
-        val parameterAnnotations =
-            if (propertySymbol.isFromPrimaryConstructor) {
-                analyze(assembler.kaModule) {
-                    val scope =
-                        (propertySymbol.containingSymbol as? KaNamedClassSymbol)
-                            ?.combinedDeclaredMemberScope
-                    scope
-                        ?.constructors
-                        ?.firstOrNull { it.isPrimary }
-                        ?.valueParameters
-                        ?.firstOrNull { it.name == propertySymbol.name }
-                        ?.annotations ?: emptyList()
-                }
-            } else {
-                emptyList()
-            }
-        val fieldAnnotations = propertySymbol.backingFieldSymbol?.annotations ?: emptyList()
-        for (annotationItem in
-            (parameterAnnotations + fieldAnnotations)
-                .filter { it.useSiteTarget == null }
-                .mapNotNull { assembler.createAnnotation(it) }) {
-            modifiers.addAnnotation(annotationItem)
-        }
 
         // Correct visibility of accessors (work around K2 bugs with value class type properties)
         // https://youtrack.jetbrains.com/issue/KT-74205

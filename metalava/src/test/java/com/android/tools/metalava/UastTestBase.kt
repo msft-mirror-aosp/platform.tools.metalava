@@ -222,7 +222,7 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Foo copy(optional @test.pkg.MyAnnotation int p1, optional String p2);
                     method public int getP1();
                     method public String getP2();
-                    property @test.pkg.MyAnnotation public int p1;
+                    property public int p1;
                     property public String p2;
                   }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MyAnnotation {

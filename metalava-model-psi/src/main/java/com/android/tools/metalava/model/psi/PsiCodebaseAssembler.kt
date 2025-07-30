@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.JVM_NAME
+import com.android.tools.metalava.model.JVM_SYNTHETIC
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
@@ -297,14 +298,19 @@ internal class PsiCodebaseAssembler(
         val psiMethods = psiClass.methods
         // create methods
         for (psiMethod in psiMethods) {
-            // Skip fake UAST constructors, accessors, and reified inline methods, which can't be
-            // used from java source.
+            // Skip fake UAST constructors, accessors, reified inline methods, and JvmSynthetic
+            // methods, which can't be used from java source.
+            // If this condition is updated, the one in KaCodebaseAssembler determining which
+            // methods to create needs to be updated too.
             if (
                 (psiMethod is UastFakeSourceLightMethod ||
                     psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) &&
                     (psiMethod.isConstructor ||
                         PsiMethodItem.isKotlinProperty(psiMethod) ||
-                        psiMethod.typeParameters.any { PsiTypeParameterItem.isReified(it) })
+                        psiMethod.typeParameters.any { PsiTypeParameterItem.isReified(it) } ||
+                        (psiMethod as? UMethod)?.uAnnotations?.any {
+                            it.qualifiedName == JVM_SYNTHETIC
+                        } == true)
             ) {
                 continue
             }
