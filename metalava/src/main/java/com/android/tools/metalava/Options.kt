@@ -23,12 +23,12 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
@@ -41,7 +41,6 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.doc.ApiVersionFilter
 import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.manifest.Manifest
@@ -52,12 +51,11 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
-import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
-import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
@@ -159,7 +157,6 @@ const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_DOC_STUBS = "--doc-stubs"
-const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
@@ -168,10 +165,7 @@ const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_HIDE_ANNOTATION = "--hide-annotation"
-const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
@@ -188,7 +182,6 @@ const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
-const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -197,6 +190,7 @@ class Options(
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
+    internal val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
     val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
@@ -209,6 +203,7 @@ class Options(
     /** Writer to direct output to. */
     val stdout: PrintWriter
         get() = executionEnvironment.stdout
+
     /** Writer to direct error messages to. */
     val stderr: PrintWriter
         get() = executionEnvironment.stderr
@@ -217,10 +212,6 @@ class Options(
     private val mutableSources: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
-    /** Internal builder backing [hideAnnotations] */
-    private val hideAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal builder backing [revertAnnotations] */
-    private val revertAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
@@ -311,19 +302,8 @@ class Options(
     /** Lint project description that describes project's module structure in details */
     var projectDescription: File? = null
 
-    private val configFiles by
-        option(
-                ARG_CONFIG_FILE,
-                help =
-                    """
-                        A configuration file that can be consumed by Metalava. This can be specified
-                        multiple times in which case later config files will override/merge with
-                        earlier ones.
-                    """,
-                metavar = "<file>",
-            )
-            .existingFile()
-            .multiple(required = false)
+    /** Jar file with the compiled version of the sources from [sources]/[sourcePath]. */
+    val compiledSourceJar: File? by sourceOptions::compiledSourceJar
 
     val apiClassResolution by
         enumOption(
@@ -344,41 +324,11 @@ class Options(
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
      * applies to signature files, not stub files.
      */
-    var showUnannotated = false
+    val showUnannotated
+        get() = apiSelectionOptions.showUnannotated
 
-    val apiSurfaces by
-        lazy(LazyThreadSafetyMode.NONE) {
-            ApiSurfaces.create(
-                // A base API surface is needed if and only if the main API surface being generated
-                // extends another API surface. That is not currently explicitly specified on the
-                // command line so has to be inferred from the existing arguments. There are four
-                // main supported cases:
-                //
-                // * Public which does not extend another API surface so does not need a base. This
-                //   happens by default unless one or more `--show*annotation` options were
-                //   specified. In that case it behaves as if `--show-unannotated` was specified.
-                //
-                // * Restricted API in AndroidX which is basically public + other and does not need
-                //   a base. This happens when `--show-unannotated` was provided (the public part)
-                //   as well as `--show-annotation RestrictTo(...)` (the other part).
-                //
-                // * System delta on public in Android build. This happens when --show-unannotated
-                //   was not specified (so the public part is not included in signature files at
-                //   least) but `--show-annotation SystemApi` was.
-                //
-                // * Test API delta on system (or similar) in Android build. This happens when
-                //   `--show-unannotated` was not specified (so the public part is not included),
-                //   `--show-for-stub-purposes-only SystemApi` was (so system API is included in the
-                //   stubs but not the signature files) and `--show-annotation TestApi` was.
-                //
-                // There are other combinations of the `--show*` options which are not used, and it
-                // is not clear whether they make any sense so this does not cover them.
-                //
-                // This does not need a base if --show-unannotated was specified, or it defaulted to
-                // behaving as if it was.
-                needsBase = !showUnannotated,
-            )
-        }
+    val apiSurfaces
+        get() = apiSelectionOptions.apiSurfaces
 
     /** Packages to include in the API (if null, include all) */
     val apiPackages: PackageFilter? by sourceOptions::apiPackages
@@ -397,8 +347,7 @@ class Options(
                     (reportable as? Item)?.let { item ->
                         val pkg = (item as? PackageItem) ?: item.containingPackage()
                         pkg == null || packageFilter.matches(pkg)
-                    }
-                        ?: true
+                    } ?: true
                 }
             }
         }
@@ -406,12 +355,6 @@ class Options(
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
     val skipEmitPackages
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
-
-    /** Annotations to hide */
-    private val hideAnnotations by lazy(hideAnnotationsBuilder::build)
-
-    /** Annotations to revert */
-    val revertAnnotations by lazy(revertAnnotationsBuilder::build)
 
     private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
@@ -421,20 +364,22 @@ class Options(
                 showAnnotations = apiSelectionOptions.showAnnotations,
                 showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
                 showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
-                hideAnnotations = hideAnnotations,
-                revertAnnotations = revertAnnotations,
+                hideAnnotations = apiSelectionOptions.hideAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                previouslyReleasedCodebaseProvider = {
+                    previouslyReleasedApi?.load { signatureFileCache.load(it) }
+                },
+                apiFlags = ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags),
             )
         )
     }
 
     /** Make this available for testing purposes. */
-    internal val previouslyReleasedCodebase
-        get() = compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
+    internal val previouslyReleasedApi
+        get() = compatibilityCheckOptions.previouslyReleasedApi
 
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {
@@ -513,7 +458,6 @@ class Options(
 
     internal val stubWriterConfig by lazy {
         StubWriterConfig(
-            kotlinStubs = kotlinStubs,
             includeDocumentationInStubs = includeDocumentationInStubs,
         )
     }
@@ -528,9 +472,6 @@ class Options(
      * flag.
      */
     var docStubsDir: File? = null
-
-    /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
-    private var kotlinStubs = false
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -710,9 +651,7 @@ class Options(
                 }
                 ARG_SUBTRACT_API -> {
                     if (subtractApi != null) {
-                        throw MetalavaCliException(
-                            stderr = "Only one $ARG_SUBTRACT_API can be supplied"
-                        )
+                        cliError("Only one $ARG_SUBTRACT_API can be supplied")
                     }
                     subtractApi = stringToExistingFile(getValue(args, ++index))
                 }
@@ -739,11 +678,7 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_SHOW_UNANNOTATED -> showUnannotated = true
-                ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
-                ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
-                ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
                 ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
@@ -822,13 +757,6 @@ class Options(
             ++index
         }
 
-        // If the caller has not explicitly requested that unannotated classes and
-        // members should be shown in the output then only show them if no annotations were
-        // provided.
-        if (!showUnannotated && allShowAnnotations.isEmpty()) {
-            showUnannotated = true
-        }
-
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
         val reporterUnknown =
@@ -874,7 +802,6 @@ class Options(
         // Reporters are non-null.
         allReporters =
             listOf(
-                issueReportingOptions.bootstrapReporter,
                 reporterUnknown,
                 reporterApiLint,
                 reporterCompatibilityReleased,
@@ -883,7 +810,7 @@ class Options(
         updateClassPath()
 
         // Make sure that any config files are processed.
-        ConfigParser.parse(reporter, configFiles)
+        configFileOptions.config
     }
 
     /**
@@ -918,16 +845,12 @@ class Options(
             if (jar.isFile) {
                 mutableClassPath.add(jar)
             } else {
-                throw MetalavaCliException(
-                    stderr =
-                        "Could not find android.jar for API level " +
-                            "$compileSdkVersion in SDK $sdkHome: $jar does not exist"
+                cliError(
+                    "Could not find android.jar for API level $compileSdkVersion in SDK $sdkHome: $jar does not exist"
                 )
             }
             if (jdkHome != null) {
-                throw MetalavaCliException(
-                    stderr = "Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME"
-                )
+                cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
             }
         } else if (jdkHome != null) {
             val isJre = !isJdkFolder(jdkHome)
@@ -938,7 +861,7 @@ class Options(
 
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
-            throw MetalavaCliException("Missing argument for ${args[index - 1]}")
+            cliError("Missing argument for ${args[index - 1]}")
         }
         return args[index]
     }
@@ -948,7 +871,7 @@ class Options(
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
-                throw MetalavaCliException("$file is not a jar or directory")
+                cliError("$file is not a jar or directory")
             }
             files.add(file)
         }
@@ -960,7 +883,7 @@ class Options(
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.exists()) {
-                throw MetalavaCliException("$file does not exist")
+                cliError("$file does not exist")
             }
             files.add(file)
         }
@@ -971,7 +894,7 @@ class Options(
     private fun stringToExistingFileOrDir(value: String): File {
         val file = fileForPathInner(value)
         if (!file.exists()) {
-            throw MetalavaCliException("$file is not a file or directory")
+            cliError("$file is not a file or directory")
         }
         return file
     }
@@ -982,7 +905,7 @@ class Options(
             .map { fileForPathInner(it) }
             .map { file ->
                 if (!file.isFile) {
-                    throw MetalavaCliException("$file is not a file")
+                    cliError("$file is not a file")
                 }
                 file
             }
@@ -993,7 +916,7 @@ class Options(
         if (!dir.isDirectory) {
             val ok = dir.mkdirs()
             if (!ok) {
-                throw MetalavaCliException("Could not create $dir")
+                cliError("Could not create $dir")
             }
         }
         return dir
@@ -1046,10 +969,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "$ARG_HIDE_ANNOTATION <annotation class>",
-                "Treat any elements annotated with the given annotation " + "as hidden",
-                ARG_SHOW_UNANNOTATED,
-                "Include un-annotated public APIs in the signature file as well",
                 "$ARG_JAVA_SOURCE <level>",
                 "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
@@ -1085,9 +1004,6 @@ object OptionsHelp {
                     "indicate that an element is recently marked as non null, whereas in the documentation stubs we'll " +
                     "just list this as @NonNull. Another difference is that @doconly elements are included in " +
                     "documentation stubs, but not regular stubs, etc.",
-                ARG_KOTLIN_STUBS,
-                "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
-                    "be written in Kotlin rather than the Java programming language.",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be passed through unchanged.",

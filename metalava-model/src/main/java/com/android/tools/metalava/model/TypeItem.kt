@@ -160,6 +160,9 @@ interface TypeItem {
      */
     fun transform(transformer: TypeTransformer): TypeItem
 
+    /** Whether this type was originally a value class type. Defaults to false if not overridden. */
+    fun isValueClassType(): Boolean = false
+
     companion object {
         /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =
@@ -540,7 +543,7 @@ abstract class DefaultTypeItem(
                             appendTypeString(parameter, configuration)
                             if (index != type.arguments.size - 1) {
                                 append(",")
-                                if (configuration.spaceBetweenParameters) {
+                                if (configuration.spaceBetweenTypeArguments) {
                                     append(" ")
                                 }
                             }
@@ -561,8 +564,11 @@ abstract class DefaultTypeItem(
                         typeParameter.asErasedType()?.let { boundsType ->
                             appendTypeString(boundsType, configuration)
                         }
-                        // No explicit bounds were provided so use the default of java.lang.Object.
-                        ?: if (configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS) {
+                            // No explicit bounds were provided so use the default of
+                            // java.lang.Object.
+                            ?: if (
+                                configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS
+                            ) {
                                 append("Object")
                             } else {
                                 append(JAVA_LANG_OBJECT)
@@ -642,8 +648,9 @@ abstract class DefaultTypeItem(
             if (leadingSpace) {
                 append(' ')
             }
+            val annotationFormatter = configuration.annotationFormatter
             annotations.forEachIndexed { index, annotation ->
-                append(annotation.toSource())
+                annotationFormatter.appendFormatAnnotation(this, annotation)
                 if (index != annotations.size - 1) {
                     append(' ')
                 }
@@ -719,6 +726,7 @@ abstract class DefaultTypeItem(
  * Configuration options for how to represent a type as a string.
  *
  * @param annotations Whether to include annotations on the type.
+ * @param annotationFormatter Responsible for formatting type annotations.
  * @param eraseGenerics If `true` then type parameters are ignored and type variables are replaced
  *   with the upper bound of the type parameter.
  * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
@@ -726,17 +734,19 @@ abstract class DefaultTypeItem(
  *   `@Nullable List<String>` would be represented as `List<String!>?`.
  * @param nestedClassSeparator The character that is used to separate a nested class from its
  *   containing class.
- * @param spaceBetweenParameters Whether to include a space between class type params.
+ * @param spaceBetweenTypeArguments Whether to include a space between type arguments of a generic
+ *   type.
  * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
  * @param treatVarargsAsArray If `false` then a varargs type will use `...` to indicate that it is a
  *   varargs type, otherwise it will use `[]` like a normal array.
  */
 data class TypeStringConfiguration(
     val annotations: Boolean = false,
+    val annotationFormatter: AnnotationFormatter = DEFAULT_ANNOTATION_FORMATTER,
     val eraseGenerics: Boolean = false,
     val kotlinStyleNulls: Boolean = false,
     val nestedClassSeparator: Char = '.',
-    val spaceBetweenParameters: Boolean = false,
+    val spaceBetweenTypeArguments: Boolean = false,
     val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
     val treatVarargsAsArray: Boolean = false,
 ) {
@@ -749,6 +759,13 @@ data class TypeStringConfiguration(
     val isDefault by lazy(LazyThreadSafetyMode.NONE) { this == DEFAULT }
 
     companion object {
+        /**
+         * The default [AnnotationFormatter] used by [TypeStringConfiguration].
+         *
+         * Must be initialized before [DEFAULT] to avoid a [NullPointerException].
+         */
+        private val DEFAULT_ANNOTATION_FORMATTER = AnnotationFormatter.legacyAnnotationFormatter()
+
         /** The default[TypeStringConfiguration]. */
         val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
     }
@@ -852,18 +869,110 @@ interface PrimitiveTypeItem : TypeItem {
     /** The possible kinds of primitives. */
     enum class Primitive(
         val primitiveName: String,
+        val kotlinName: String,
         val defaultValue: Any?,
-        val defaultValueString: String
+        val defaultValueString: String,
+        val wrapperClass: Class<*>,
     ) {
-        BOOLEAN("boolean", false, "false"),
-        BYTE("byte", 0.toByte(), "0"),
-        CHAR("char", 0.toChar(), "0"),
-        DOUBLE("double", 0.0, "0"),
-        FLOAT("float", 0F, "0"),
-        INT("int", 0, "0"),
-        LONG("long", 0L, "0"),
-        SHORT("short", 0.toShort(), "0"),
-        VOID("void", null, "null")
+        BOOLEAN(
+            primitiveName = "boolean",
+            kotlinName = "Boolean",
+            defaultValue = false,
+            defaultValueString = "false",
+            wrapperClass = java.lang.Boolean::class.java,
+        ),
+        BYTE(
+            primitiveName = "byte",
+            kotlinName = "Byte",
+            defaultValue = 0.toByte(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Byte::class.java,
+        ),
+        CHAR(
+            primitiveName = "char",
+            kotlinName = "Char",
+            defaultValue = 0.toChar(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Character::class.java,
+        ),
+        DOUBLE(
+            primitiveName = "double",
+            kotlinName = "Double",
+            defaultValue = 0.0,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Double::class.java,
+        ),
+        FLOAT(
+            primitiveName = "float",
+            kotlinName = "Float",
+            defaultValue = 0F,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Float::class.java,
+        ),
+        INT(
+            primitiveName = "int",
+            kotlinName = "Int",
+            defaultValue = 0,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Integer::class.java,
+        ),
+        LONG(
+            primitiveName = "long",
+            kotlinName = "Long",
+            defaultValue = 0L,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Long::class.java,
+        ),
+        SHORT(
+            primitiveName = "short",
+            kotlinName = "Short",
+            defaultValue = 0.toShort(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Short::class.java,
+        ),
+        VOID(
+            primitiveName = "void",
+            // Kotlin does not really have a name for this but Nothing is closest.
+            kotlinName = "Nothing",
+            defaultValue = null,
+            defaultValueString = "null",
+            wrapperClass = java.lang.Void::class.java,
+        ),
+        ;
+
+        /**
+         * The name of the Kotlin function that will convert a [Number] to an instance of this type.
+         *
+         * This is `null` for non-numeric [Primitive]s.
+         */
+        val kotlinNumericConversionFunction =
+            if (Number::class.java.isAssignableFrom(wrapperClass)) "to$kotlinName" else null
+
+        companion object {
+            /** Map from [Primitive.wrapperClass]'s name to [Primitive]. */
+            private val wrapperClassNameToKind =
+                Primitive.entries.associateBy { it.wrapperClass.name }
+
+            /**
+             * Get the [Primitive] associated with [wrapperClassName], returning `null`, if it could
+             * not be found.
+             */
+            fun forWrapperClassName(wrapperClassName: String) =
+                wrapperClassNameToKind[wrapperClassName]
+
+            /** Map from [Primitive.kotlinNumericConversionFunction]'s name to [Primitive]. */
+            private val kotlinNumericConversionFunctionNameToKind =
+                Primitive.entries
+                    .filter { it.kotlinNumericConversionFunction != null }
+                    .associateBy { it.kotlinNumericConversionFunction }
+
+            /**
+             * Get the [Primitive] associated with the Kotlin numeric conversion function called
+             * [name], returning `null`, if it could not be found.
+             */
+            fun forKotlinNumericConversionFunctionName(name: String) =
+                kotlinNumericConversionFunctionNameToKind[name]
+        }
     }
 
     override fun defaultValue(): Any? = kind.defaultValue

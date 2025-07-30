@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -35,7 +37,9 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
 
@@ -53,12 +57,14 @@ private constructor(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     implicitConstructor: Boolean = false,
-    isPrimary: Boolean = false
+    isPrimary: Boolean = false,
+    targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultConstructorItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = psiMethod.itemLanguage,
+        sourceLanguage = psiMethod.sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -80,7 +86,8 @@ private constructor(
             containingClass: ClassItem,
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
-            psiParametersGetter: (PsiMethod) -> List<PsiParameter> = { it.psiParameters },
+            psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+            targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
@@ -122,7 +129,7 @@ private constructor(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             constructorTypeItemFactory,
-                            psiParametersGetter(psiMethod),
+                            psiParameters,
                         )
                     },
                     returnType = containingClass.type(),
@@ -130,7 +137,33 @@ private constructor(
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
+                    targetLanguages = targetLanguages,
                 )
+
+            // Undo setting of constructors with value class types to private (b/395472914).
+            // Constructors that use value class types are effectively private to java callers, but
+            // they can be public in source to kotlin callers, so we want to track them.
+            if (
+                constructor.modifiers.isPrivate() &&
+                    constructor.parameters().any { (it.type() as PsiTypeItem).isValueClassType() }
+            ) {
+                (psiMethod.sourceElement as? KtConstructor<*>)?.let { sourcePsi ->
+                    if (!sourcePsi.hasModifier(KtTokens.PRIVATE_KEYWORD)) {
+                        constructor.mutateModifiers {
+                            val correctedVisibility =
+                                when {
+                                    sourcePsi.hasModifier(KtTokens.PROTECTED_KEYWORD) ->
+                                        VisibilityLevel.PROTECTED
+                                    sourcePsi.hasModifier(KtTokens.INTERNAL_KEYWORD) ->
+                                        VisibilityLevel.INTERNAL
+                                    else -> VisibilityLevel.PUBLIC
+                                }
+                            setVisibilityLevel(correctedVisibility)
+                        }
+                    }
+                }
+            }
+
             return constructor
         }
 
@@ -162,6 +195,7 @@ private constructor(
                     typeParameterList = TypeParameterList.NONE,
                     throwsTypes = emptyList(),
                     implicitConstructor = true,
+                    targetLanguages = TargetLanguageSet.ALL,
                 )
             return item
         }

@@ -48,12 +48,20 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         inputs: ModelSuiteRunner.TestInputs,
         test: (Codebase) -> Unit
     ) {
+        // Skip tests that require using compiled sources if the provider does not support it
+        if (
+            inputs.compiledSourceJar != null &&
+                !sourceModelProvider.capabilities.contains(Capability.JAR_WITH_SOURCES)
+        )
+            return
+
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
             val classPath = buildList {
                 add(getAndroidJar())
                 if (inputs.inputFormat == InputFormat.KOTLIN) {
                     addAll(getKotlinStdlibPaths())
                 }
+                addAll(inputs.testFixture.additionalClassPath)
             }
             val codebase =
                 createTestCodebase(
@@ -86,6 +94,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             classPath = classPath,
             apiPackages = testFixture.apiPackages,
             projectDescription = inputs.projectDescription,
+            compiledSourceJar = inputs.compiledSourceJar?.createFile(inputs.mainSourceDir.dir)
         )
     }
 
