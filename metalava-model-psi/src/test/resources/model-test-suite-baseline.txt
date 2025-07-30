@@ -7,6 +7,7 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[java,k2]
 
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test function in value class[kotlin,k1]
   Test type aliases can only be used from Kotlin[kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest

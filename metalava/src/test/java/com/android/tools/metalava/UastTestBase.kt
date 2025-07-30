@@ -593,7 +593,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor @BytecodeOnly public User(float, float, kotlin.jvm.internal.DefaultConstructorMarker!);
                     ctor @KotlinOnly public User(test.pkg.AnchorType p, test.pkg.AnchorType q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
-                    method public float foo();
+                    method @KotlinOnly public test.pkg.AnchorType foo();
                     method @BytecodeOnly public float foo-UD3vvl8();
                     method @BytecodeOnly public float getP-UD3vvl8();
                     method @BytecodeOnly public float getQ-UD3vvl8();
@@ -1305,9 +1305,9 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public interface GattClientScope {
                     method public suspend Object? await(kotlin.jvm.functions.Function0<kotlin.Unit> block, kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method public suspend Object? readCharacteristic(test.pkg.MyInterface p, kotlin.coroutines.Continuation<? super kotlin.Result<? extends byte[]>>);
+                    method @KotlinOnly public suspend Object? readCharacteristic(test.pkg.MyInterface p, kotlin.coroutines.Continuation<? super kotlin.Result<byte[]>>);
                     method @BytecodeOnly public Object? readCharacteristic-gIAlu-s(test.pkg.MyInterface, kotlin.coroutines.Continuation<? super kotlin.Result<byte[]!>!>);
-                    method public suspend Object? writeCharacteristic(test.pkg.MyInterface p, byte[] value, kotlin.coroutines.Continuation<? super kotlin.Result<? extends kotlin.Unit>>);
+                    method @KotlinOnly public suspend Object? writeCharacteristic(test.pkg.MyInterface p, byte[] value, kotlin.coroutines.Continuation<? super kotlin.Result<kotlin.Unit>>);
                     method @BytecodeOnly public Object? writeCharacteristic-0E7RQCE(test.pkg.MyInterface, byte[], kotlin.coroutines.Continuation<? super kotlin.Result<kotlin.Unit!>!>);
                   }
                   public interface MyInterface {
@@ -2495,7 +2495,7 @@ abstract class UastTestBase : DriverTest() {
                     property public int value;
                   }
                   public final class IntValueKt {
-                    method public static void foo(String[] varargParam, int valueParam);
+                    method @KotlinOnly public static void foo(java.lang.String... varargParam, test.pkg.IntValue valueParam);
                     method @BytecodeOnly public static void foo-BObfkT0(String![], int);
                   }
                 }
@@ -2605,6 +2605,7 @@ abstract class UastTestBase : DriverTest() {
                   public final class IntValueData {
                     ctor @BytecodeOnly public IntValueData(int, kotlin.jvm.internal.DefaultConstructorMarker!);
                     ctor @KotlinOnly public IntValueData(test.pkg.IntValue intValue);
+                    method @KotlinOnly public test.pkg.IntValueData copy(optional test.pkg.IntValue intValue);
                     $copyEntry
                   }
                 }
