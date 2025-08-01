@@ -52,7 +52,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
     }
 
     companion object {
-        @JvmStatic @Parameterized.Parameters fun comparisons() = CopyMethod.values()
+        @JvmStatic @Parameterized.Parameters fun comparisons() = CopyMethod.entries
     }
 
     /**
@@ -85,7 +85,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public interface Source {
                             method public void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -98,7 +98,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
                         import java.io.IOException;
 
-                        public interface Source  {
+                        public interface Source {
                             void method();
                         }
                     """
@@ -129,7 +129,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public interface Source {
                             method public default void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -142,7 +142,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
                         import java.io.IOException;
 
-                        interface Source  {
+                        public interface Source {
                             default void method() {}
                         }
                     """
@@ -174,7 +174,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public interface Source {
                             method public static void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -187,7 +187,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
                         import java.io.IOException;
 
-                        interface Source  {
+                        public interface Source {
                             static void method() {}
                         }
                     """
@@ -218,7 +218,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          public final class Target implements Source {
+                          public final class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -265,7 +265,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          @Deprecated public class Target implements Source {
+                          @Deprecated public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -317,7 +317,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           @Deprecated public class Source {
                             method public void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -369,7 +369,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method @Deprecated public void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """

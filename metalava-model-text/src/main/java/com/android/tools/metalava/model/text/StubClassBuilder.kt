@@ -18,13 +18,13 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -32,9 +32,8 @@ import com.android.tools.metalava.reporter.FileLocation
  * definition of the class but a [DefaultClassItem] is still needed.
  */
 internal class StubClassBuilder(
-    val codebase: DefaultCodebase,
-    val qualifiedName: String,
-    private val fullName: String,
+    internal val assembler: TextCodebaseAssembler,
+    internal val qualifiedName: String,
     private val containingClass: ClassItem?,
     val containingPackage: PackageItem,
 ) {
@@ -47,19 +46,18 @@ internal class StubClassBuilder(
     var superClassType: ClassTypeItem? = null
 
     private fun build(): DefaultClassItem =
-        codebase.assembler.itemFactory.createClassItem(
+        assembler.itemFactory.createClassItem(
             fileLocation = FileLocation.UNKNOWN,
             modifiers = modifiers,
             classKind = classKind,
             containingClass = containingClass,
             containingPackage = containingPackage,
             qualifiedName = qualifiedName,
-            fullName = fullName,
             typeParameterList = TypeParameterList.NONE,
-            // If this was from the class path then it would have been provided by the external
-            // `ClassResolver`. So, while this does not come from the signature file it also
-            // does not come from the class path either.
-            isFromClassPath = false,
+            // Always treat stubs as if they are from the class path. While that is not strictly
+            // true stubs classes should be treated as if they did come from there, i.e. they can be
+            // referenced but not emitted.
+            origin = ClassOrigin.CLASS_PATH,
             superClassType = superClassType,
             interfaceTypes = emptyList(),
         )
@@ -70,18 +68,16 @@ internal class StubClassBuilder(
          * [qualifiedName], after applying the specified mutator.
          */
         fun build(
-            codebase: DefaultCodebase,
+            assembler: TextCodebaseAssembler,
             qualifiedName: String,
-            fullName: String,
             containingClass: ClassItem?,
             containingPackage: PackageItem,
             mutator: StubClassBuilder.() -> Unit,
         ): DefaultClassItem {
             val builder =
                 StubClassBuilder(
-                    codebase = codebase,
+                    assembler = assembler,
                     qualifiedName = qualifiedName,
-                    fullName = fullName,
                     containingClass = containingClass,
                     containingPackage = containingPackage,
                 )

@@ -21,14 +21,17 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -36,15 +39,23 @@ open class DefaultPackageItem(
     val containingPackage: PackageItem?,
     override val overviewDocumentation: ResourceFile?,
 ) :
-    DefaultItem(
+    DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     PackageItem {
+
+    init {
+        // Newly created package's always have `emit = false` as they should only be emitted if they
+        // have at least one class that has `emit = true`. That will be updated, if necessary, when
+        // adding a class or type alias to the package.
+        emit = false
+    }
 
     private val topClasses = mutableListOf<ClassItem>()
 
@@ -63,5 +74,15 @@ open class DefaultPackageItem(
 
     fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
+    }
+
+    private val typeAliases = mutableListOf<TypeAliasItem>()
+
+    internal fun addTypeAlias(typeAlias: DefaultTypeAliasItem) {
+        typeAliases += typeAlias
+    }
+
+    override fun typeAliases(): List<TypeAliasItem> {
+        return typeAliases.toList()
     }
 }

@@ -16,8 +16,7 @@
 
 package com.android.tools.metalava.model
 
-import java.util.LinkedHashSet
-import java.util.function.Predicate
+import com.android.tools.metalava.model.annotation.AnnotationClass
 
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
@@ -45,6 +44,9 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
 
+    /** The origin of this class. */
+    override val origin: ClassOrigin
+
     /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
         return sequenceOf(this).plus(nestedClasses().asSequence().flatMap { it.allClasses() })
@@ -54,24 +56,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
-
-    /**
-     * The qualified name where nested classes use $ as a separator. In class foo.bar.Outer.Inner,
-     * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
-     * files for example.)
-     */
-    fun qualifiedNameWithDollarNestedClasses(): String {
-        var curr: ClassItem? = this
-        while (curr?.containingClass() != null) {
-            curr = curr.containingClass()
-        }
-
-        if (curr == null) {
-            return fullName().replace('.', '$')
-        }
-
-        return curr.containingPackage().qualifiedName() + "." + fullName().replace('.', '$')
-    }
 
     /** Returns the internal name of the class, as seen in bytecode */
     fun internalName(): String {
@@ -216,6 +200,19 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     override fun setType(type: TypeItem) =
         error("Cannot call setType(TypeItem) on PackageItem: $this")
 
+    /** True if [freeze] has been called on this, false otherwise. */
+    val frozen: Boolean
+
+    /**
+     * Freeze this [ClassItem] so it cannot be mutated.
+     *
+     * A frozen [ClassItem] cannot have new members (including nested classes) added or its
+     * modifiers mutated.
+     *
+     * Freezing a [ClassItem] will also freeze its super types.
+     */
+    fun freeze()
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,
@@ -258,22 +255,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     override fun toStringForItem() = "class ${qualifiedName()}"
 
     companion object {
-        /** Looks up the retention policy for the given class */
-        fun findRetention(cls: ClassItem): AnnotationRetention {
-            val modifiers = cls.modifiers
-            val annotation = modifiers.findAnnotation(AnnotationItem::isRetention)
-            val value = annotation?.findAttribute(ANNOTATION_ATTR_VALUE)
-            val source = value?.value?.toSource()
-            return when {
-                source == null -> AnnotationRetention.getDefault(cls)
-                source.contains("CLASS") -> AnnotationRetention.CLASS
-                source.contains("RUNTIME") -> AnnotationRetention.RUNTIME
-                source.contains("SOURCE") -> AnnotationRetention.SOURCE
-                source.contains("BINARY") -> AnnotationRetention.BINARY
-                else -> AnnotationRetention.getDefault(cls)
-            }
-        }
-
         // Same as doclava1 (modulo the new handling when class names match)
         val comparator: Comparator<in ClassItem> = Comparator { o1, o2 ->
             val delta = o1.fullName().compareTo(o2.fullName())
@@ -334,7 +315,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * Finds a method matching the given method that satisfies the given predicate, considering all
      * methods defined on this class and its super classes
      */
-    fun findPredicateMethodWithSuper(template: MethodItem, filter: Predicate<Item>?): MethodItem? {
+    fun findPredicateMethodWithSuper(template: MethodItem, filter: FilterPredicate?): MethodItem? {
         val method = findMethod(template, true, true)
         if (method == null) {
             return null
@@ -456,16 +437,20 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     }
 
     /** Returns the corresponding source file, if any */
-    fun getSourceFile(): SourceFile?
+    fun sourceFile(): SourceFile?
 
-    /** If this class is an annotation type, returns the retention of this class */
-    fun getRetention(): AnnotationRetention
+    /**
+     * Get the [AnnotationClass] for this class.
+     *
+     * This must only be called when [ClassItem.classKind] is [ClassKind.ANNOTATION_TYPE].
+     */
+    val annotationClass: AnnotationClass
 
     /**
      * Return superclass matching the given predicate. When a superclass doesn't match, we'll keep
      * crawling up the tree until we find someone who matches.
      */
-    fun filteredSuperclass(predicate: Predicate<Item>): ClassItem? {
+    fun filteredSuperclass(predicate: FilterPredicate): ClassItem? {
         val superClass = superClass() ?: return null
         return if (predicate.test(superClass)) {
             superClass
@@ -474,7 +459,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         }
     }
 
-    fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
+    fun filteredSuperClassType(predicate: FilterPredicate): ClassTypeItem? {
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
@@ -504,7 +489,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * matching method in an ancestor class.
      */
     fun filteredMethods(
-        predicate: Predicate<Item>,
+        predicate: FilterPredicate,
         includeSuperClassMethods: Boolean = false
     ): Collection<MethodItem> {
         val methods = LinkedHashSet<MethodItem>()
@@ -525,7 +510,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     }
 
     /** Returns the constructors that match the given predicate */
-    fun filteredConstructors(predicate: Predicate<Item>): Sequence<ConstructorItem> {
+    fun filteredConstructors(predicate: FilterPredicate): Sequence<ConstructorItem> {
         return constructors().asSequence().filter { predicate.test(it) }
     }
 
@@ -533,7 +518,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * Return fields matching the given predicate. Also clones fields from ancestors that would
      * match had they been defined in this class.
      */
-    fun filteredFields(predicate: Predicate<Item>, showUnannotated: Boolean): List<FieldItem> {
+    fun filteredFields(predicate: FilterPredicate, showUnannotated: Boolean): List<FieldItem> {
         val fields = LinkedHashSet<FieldItem>()
         if (showUnannotated) {
             for (clazz in allInterfaces()) {
@@ -593,7 +578,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<ClassTypeItem> {
+    fun filteredInterfaceTypes(predicate: FilterPredicate): Collection<ClassTypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -606,7 +591,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         return interfaceTypes
     }
 
-    fun allInterfaceTypes(predicate: Predicate<Item>): Collection<TypeItem> {
+    fun allInterfaceTypes(predicate: FilterPredicate): Collection<TypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -623,7 +608,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     }
 
     private fun filteredInterfaceTypes(
-        predicate: Predicate<Item>,
+        predicate: FilterPredicate,
         types: LinkedHashSet<ClassTypeItem>,
         includeSelf: Boolean,
         includeParents: Boolean,
@@ -676,14 +661,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         }
         return types
     }
-
-    /**
-     * The default constructor to invoke on this class from subclasses; initially null but may be
-     * updated during use. (Note that in some cases [stubConstructor] may not be in [constructors],
-     * e.g. when we need to create a constructor to match a public parent class with a non-default
-     * constructor and the one in the code is not a match, e.g. is marked @hide etc.)
-     */
-    var stubConstructor: ConstructorItem?
 
     /**
      * Creates a map of type parameters of the target class to the type variables substituted for

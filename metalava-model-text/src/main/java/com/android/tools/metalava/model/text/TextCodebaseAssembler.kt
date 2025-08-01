@@ -20,20 +20,25 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
-import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
+import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
+import java.io.File
 
 internal class TextCodebaseAssembler(
-    private val codebase: DefaultCodebase,
+    codebaseFactory: DefaultCodebaseFactory,
     private val classResolver: ClassResolver?,
-) : CodebaseAssembler {
+) : DefaultCodebaseAssembler() {
+
+    internal val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =
@@ -41,7 +46,7 @@ internal class TextCodebaseAssembler(
             codebase = codebase,
             // Signature files do not contain information about whether an item was originally
             // created from Java or Kotlin.
-            defaultItemLanguage = ItemLanguage.UNKNOWN,
+            defaultSourceLanguage = SourceLanguage.UNKNOWN,
             // Signature files have already been separated by API surface variants, so they can use
             // the same immutable ApiVariantSelectors.
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
@@ -139,18 +144,7 @@ internal class TextCodebaseAssembler(
                 // We created a new nested class stub. We need to fully initialize it with outer
                 // classes, themselves possibly stubs
                 val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
-                // Pass classResolver = null, so it only looks in this codebase for the outer class.
-                val outerClass =
-                    getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase = true)
-
-                // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
-                // another.
-                if (outerClass.codebase != codebase) {
-                    throw IllegalStateException(
-                        "Outer class $outerClass is from ${outerClass.codebase} but" +
-                            " inner class $qualifiedName is from $this"
-                    )
-                }
+                val outerClass = getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase)
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
                 // DefaultClassItem so cast it to one so that the code below can use
@@ -165,27 +159,51 @@ internal class TextCodebaseAssembler(
             if (outerClass == null) {
                 val endIndex = qualifiedName.lastIndexOf('.')
                 val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-                codebase.findOrCreatePackage(pkgPath, emit = false)
+                codebase.findOrCreatePackage(pkgPath)
             } else {
                 outerClass.containingPackage() as DefaultPackageItem
             }
 
         // Build a stub class of the required kind.
         val requiredStubKind = requiredStubKindForClass.remove(qualifiedName) ?: StubKind.CLASS
-        val stubClass =
-            StubClassBuilder.build(
-                codebase = codebase,
-                qualifiedName = qualifiedName,
-                fullName = fullName,
-                containingClass = outerClass,
-                containingPackage = pkg,
-            ) {
-                // Apply stub kind specific mutations to the stub class being built.
-                requiredStubKind.mutator(this)
-            }
 
-        stubClass.emit = false
+        return StubClassBuilder.build(
+            assembler = this,
+            qualifiedName = qualifiedName,
+            containingClass = outerClass,
+            containingPackage = pkg,
+        ) {
+            // Apply stub kind specific mutations to the stub class being built.
+            requiredStubKind.mutator(this)
+        }
+    }
 
-        return stubClass
+    companion object {
+        /** Create a [TextCodebaseAssembler]. */
+        fun createAssembler(
+            location: File,
+            description: String,
+            codebaseConfig: Codebase.Config,
+            classResolver: ClassResolver?,
+        ): TextCodebaseAssembler {
+            val assembler =
+                TextCodebaseAssembler(
+                    codebaseFactory = { assembler ->
+                        DefaultCodebase(
+                            location = location,
+                            description = description,
+                            preFiltered = true,
+                            config = codebaseConfig,
+                            trustedApi = true,
+                            supportsDocumentation = false,
+                            assembler = assembler,
+                        )
+                    },
+                    classResolver = classResolver,
+                )
+            assembler.initialize()
+
+            return assembler
+        }
     }
 }

@@ -16,25 +16,30 @@
 
 package com.android.tools.metalava.model.type
 
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultClassTypeItem(
-    private val codebase: Codebase,
+open class DefaultClassTypeItem(
+    internal val classResolver: ClassResolver,
     modifiers: TypeModifiers,
-    override val qualifiedName: String,
-    override val arguments: List<TypeArgumentTypeItem>,
-    override val outerClassType: ClassTypeItem?,
+    final override val qualifiedName: String,
+    final override val arguments: List<TypeArgumentTypeItem>,
+    final override val outerClassType: ClassTypeItem?,
+    private val isValueClassType: Boolean = false,
 ) : ClassTypeItem, DefaultTypeItem(modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
-        lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
+        lazy(LazyThreadSafetyMode.NONE) { classResolver.resolveClass(qualifiedName) }
 
     override fun asClass() = asClassCache
+
+    override fun isValueClassType(): Boolean {
+        return isValueClassType
+    }
 
     @Deprecated(
         "implementation detail of this class",
@@ -45,6 +50,12 @@ class DefaultClassTypeItem(
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
-        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, arguments, outerClassType)
+        return DefaultClassTypeItem(
+            classResolver,
+            modifiers,
+            qualifiedName,
+            arguments,
+            outerClassType
+        )
     }
 }

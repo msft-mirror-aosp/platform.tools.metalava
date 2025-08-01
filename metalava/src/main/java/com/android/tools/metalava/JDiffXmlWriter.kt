@@ -30,12 +30,11 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.psi.CodePrinter
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.utils.XmlUtils
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 /**
  * Writes out an XML format in the JDiff schema: See $ANDROID/external/jdiff/src/api.xsd (though
@@ -156,12 +155,6 @@ class JDiffXmlWriter(
 
     override fun visitField(field: FieldItem) {
         val modifiers = field.modifiers
-        val initialValue = field.initialValue(true)
-        val value =
-            if (initialValue != null) {
-                XmlUtils.toXmlAttributeValue(CodePrinter.constantToSource(initialValue))
-            } else null
-
         writer.print("<field name=\"")
         writer.print(field.name())
         writer.print("\"\n type=\"")
@@ -170,7 +163,9 @@ class JDiffXmlWriter(
         writer.print(modifiers.isTransient())
         writer.print("\"\n volatile=\"")
         writer.print(modifiers.isVolatile())
-        if (value != null) {
+        field.constantValue?.asLiteralValue()?.let { literalValue ->
+            val value = XmlUtils.toXmlAttributeValue(literalValue.toValueString())
+
             writer.print("\"\n value=\"")
             writer.print(value)
         }
@@ -292,30 +287,26 @@ class JDiffXmlWriter(
             }
         }
     }
-
-    /**
-     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
-     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * classes. It will delegate any visitor calls that pass through its filter to this
-     * [JDiffXmlWriter] instance.
-     */
-    fun createFilteringVisitor(
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>,
-        preFiltered: Boolean,
-        showUnannotated: Boolean,
-        filterSuperClassType: Boolean = true,
-    ): ApiVisitor =
-        FilteringApiVisitor(
-            this,
-            preserveClassNesting = false,
-            inlineInheritedFields = true,
-            interfaceListComparator = TypeItem.totalComparator,
-            filterEmit = filterEmit,
-            filterReference = filterReference,
-            preFiltered = preFiltered,
-            filterSuperClassType = filterSuperClassType,
-            showUnannotated = showUnannotated,
-            config = ApiVisitor.Config(),
-        )
 }
+
+/**
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
+ * parameters and in a manner appropriate for writing JDiff files, e.g. not nesting classes. It will
+ * delegate any visitor calls that pass through its filter to [delegate].
+ */
+fun createFilteringVisitorForJDiffWriter(
+    delegate: DelegatedVisitor,
+    apiFilters: ApiFilters,
+    preFiltered: Boolean,
+    showUnannotated: Boolean,
+    filterSuperClassType: Boolean = true,
+): ApiVisitor =
+    FilteringApiVisitor(
+        delegate,
+        inlineInheritedFields = true,
+        interfaceListComparator = TypeItem.totalComparator,
+        apiFilters = apiFilters,
+        preFiltered = preFiltered,
+        filterSuperClassType = filterSuperClassType,
+        showUnannotated = showUnannotated,
+    )

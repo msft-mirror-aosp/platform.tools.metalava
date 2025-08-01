@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
 import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
@@ -43,6 +45,9 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_LEVEL_ENUMS
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_MASK
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.asInt
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
@@ -264,7 +269,7 @@ interface ModifierFlags {
          * An internal copy of VisibilityLevel.values() to avoid paying the cost of duplicating the
          * array on every call.
          */
-        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.values()
+        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.entries
 
         // Check that the constants above are consistent with the VisibilityLevel enum, i.e. the
         // mask is large enough
@@ -442,6 +447,10 @@ internal class DefaultMutableModifierList(
         set(ACTUAL, actual)
     }
 
+    override fun setConst(const: Boolean) {
+        set(CONST, const)
+    }
+
     override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
         val mutable = annotations.toMutableList()
         mutable.mutator()
@@ -499,19 +508,22 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(
 ) {
     // By policy, include explicit retention policy annotation if missing
     val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-    addAnnotation(
-        codebase.createAnnotation(
-            buildString {
-                append('@')
-                append(Retention::class.qualifiedName)
-                append('(')
-                append(RetentionPolicy::class.qualifiedName)
-                append('.')
-                append(defaultRetentionPolicy.name)
-                append(')')
-            },
+    // Create a reference to the default retention policy enum value.
+    val policyValue =
+        Value.createFieldReferenceValue(
+            codebase,
+            RetentionPolicy::class.qualifiedName!!,
+            defaultRetentionPolicy.name
         )
-    )
+    // Create a retention annotation.
+    val retentionAnnotation =
+        AnnotationItem.createSingleElementAnnotation(
+            codebase,
+            Retention::class.qualifiedName!!,
+            policyValue,
+        )
+    // Add the retention annotation.
+    addAnnotation(retentionAnnotation)
 }
 
 /**
@@ -537,11 +549,77 @@ fun createMutableModifiers(
 }
 
 /**
+ * Modifies the modifier flags based on the `VisibleForTesting` annotation's `otherwise` value.
+ *
+ * @param otherwiseValue the value of the `otherwise` attribute, or `""` if no attribute is
+ *   provided.
+ */
+private fun useVisibilityFromVisibleForTesting(otherwiseValue: Value, flags: Int): Int {
+    /** Check to see if this matches [visibility] or numeric [value]. */
+    fun Value.matchesVisibility(visibility: String, value: Int) =
+        // If it is a field then check the name, otherwise check to see if the numeric value
+        // matches. Do not call asInt() on FieldReferenceValue as that would cause the field to be
+        // resolved which could cause problems as this is called during Codebase construction. It
+        // does mean that if a custom constant field was used instead of one of the ones from
+        // VisibleForTesting.Companion then it might not work as expected. However, that would be
+        // confusing having `@VisibleForTesting(otherwise = CUSTOM_FIELD)`. If supporting that was
+        // required then the processing of @VisibleForTesting would have to be done AFTER codebase
+        // creation.
+        if (this is FieldReferenceValue) fieldName == visibility else asInt() == value
+
+    val visibilityFlags =
+        when {
+            otherwiseValue.matchesVisibility("PROTECTED", VisibleForTesting.PROTECTED) -> {
+                PROTECTED
+            }
+            otherwiseValue.matchesVisibility(
+                "PACKAGE_PRIVATE",
+                VisibleForTesting.PACKAGE_PRIVATE
+            ) -> {
+                PACKAGE_PRIVATE
+            }
+            otherwiseValue.matchesVisibility("PRIVATE", VisibleForTesting.PRIVATE) ||
+                otherwiseValue.matchesVisibility("NONE", VisibleForTesting.NONE) -> {
+                PRIVATE
+            }
+            else -> {
+                // Return the flags without changes.
+                return flags
+            }
+        }
+
+    return (flags and VISIBILITY_MASK.inv()) or visibilityFlags
+}
+
+/**
  * Create a [MutableModifierList] from a set of [flags] and an optional list of [AnnotationItem]s.
  */
 fun createMutableModifiers(
     flags: Int,
     annotations: List<AnnotationItem> = emptyList(),
 ): MutableModifierList {
-    return DefaultMutableModifierList(flags, annotations)
+    val actualFlags =
+        annotations
+            .find { it.qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING }
+            ?.let { visibleForTesting ->
+                visibleForTesting.findAttribute(ATTR_OTHERWISE)?.value?.let { otherwiseValue ->
+                    useVisibilityFromVisibleForTesting(otherwiseValue, flags)
+                }
+            } ?: flags
+
+    return DefaultMutableModifierList(actualFlags, annotations)
+}
+
+private const val ANDROIDX_VISIBLE_FOR_TESTING = "androidx.annotation.VisibleForTesting"
+private const val ATTR_OTHERWISE = "otherwise"
+
+/** Defines the numeric values of the symbols used in tests that use numbers instead of symbols. */
+// TODO(b/387992791): Use a real VisibleForTesting annotation.
+interface VisibleForTesting {
+    companion object {
+        const val PRIVATE = 2
+        const val PACKAGE_PRIVATE = 3
+        const val PROTECTED = 4
+        const val NONE = 5
+    }
 }

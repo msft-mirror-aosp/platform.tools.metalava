@@ -16,11 +16,15 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -299,10 +303,10 @@ class ApiAnalyzerTest : DriverTest() {
                             /** @deprecated */
                             @Deprecated
                             public void bar() { throw new RuntimeException("Stub!"); }
+                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             /** @deprecated */
                             @Deprecated
                             public <T> void foo(@Deprecated T t) { throw new RuntimeException("Stub!"); }
-                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
@@ -364,14 +368,15 @@ class ApiAnalyzerTest : DriverTest() {
                             /** @deprecated */
                             @Deprecated
                             public void bar() { throw new RuntimeException("Stub!"); }
+                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             /** @deprecated */
                             @Deprecated
                             public void foo(@Deprecated java.lang.String t) { throw new RuntimeException("Stub!"); }
-                            public void baz(@Deprecated int i) { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
                 ),
+            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
         )
     }
 
@@ -393,10 +398,9 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             api =
                 """
-                    // Signature format: 2.0
                     package test.pkg {
                       @Deprecated public final class Foo {
                         ctor @Deprecated public Foo(@Deprecated int i, @Deprecated boolean b);
@@ -404,8 +408,8 @@ class ApiAnalyzerTest : DriverTest() {
                         method @Deprecated public int getI();
                         method @Deprecated public void setB(boolean);
                         method @Deprecated public void setI(int);
-                        property @Deprecated public final boolean b;
-                        property @Deprecated public final int i;
+                        property @Deprecated public boolean b;
+                        property @Deprecated public int i;
                       }
                     }
                 """,
@@ -445,7 +449,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
@@ -506,42 +510,6 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-        )
-    }
-
-    @Test
-    fun `Test deprecated status not propagated to removed items`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-
-                            /**
-                             * @deprecated
-                             * @removed
-                             */
-                            public class Concrete {
-                                public void bar() {}
-                            }
-                        """
-                    ),
-                ),
-            format = FileFormat.V2,
-            api = """
-                    // Signature format: 2.0
-                """,
-            removedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @Deprecated public class Concrete {
-                        ctor public Concrete();
-                        method public void bar();
-                      }
-                    }
-                """,
         )
     }
 
@@ -766,11 +734,10 @@ class ApiAnalyzerTest : DriverTest() {
 
     @Test
     fun `Test propagation of @hide through package and class nesting`() {
-        //
         check(
             // Include system API annotations as a show annotation overrides hidden on a class that
             // is in a hidden package.
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             // This is set to true so any class that is incorrectly unhidden will be included in the
             // generated API and fail the test.
             showUnannotated = true,
@@ -830,6 +797,7 @@ class ApiAnalyzerTest : DriverTest() {
                             public class C {}
                         """
                     ),
+                    KnownSourceFiles.systemApiSource,
                 ),
             api =
                 """
@@ -844,6 +812,150 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Fail when erased type changes after pushing down methods from hidden super class`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Hidden.java:3: error: Explicitly override method test.pkg.Hidden.bad1() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ltest/pkg/Hidden; to ()Ltest/pkg/Public;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:4: error: Explicitly override method test.pkg.Hidden.bad1(T) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ltest/pkg/Hidden;)V to (Ltest/pkg/Public;)V, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:6: error: Explicitly override method test.pkg.Hidden.bad2() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ljava/lang/Object; to ()Ljava/lang/Integer;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:7: error: Explicitly override method test.pkg.Hidden.bad2(U) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ljava/lang/Object;)V to (Ljava/lang/Integer;)V, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:9: error: Explicitly override method test.pkg.Hidden.bad3() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ljava/lang/Object; to ()Ljava/lang/Number;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:10: error: Explicitly override method test.pkg.Hidden.bad3(V) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ljava/lang/Object;)V to (Ljava/lang/Number;)V, and cause failures at runtime. [InheritChangesSignature]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Public<N extends Number, O> extends Hidden<Public, Integer, N, O> {
+                                @Override
+                                public Public overriddenOk() { return null; }
+                                @Override
+                                public void overriddenOk(Public t) { return null; }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            class Hidden<T extends Hidden, U, V, W> {
+                                public T bad1() { return null; }
+                                public void bad1(T t) {}
+
+                                public U bad2() { return null; }
+                                public void bad2(U t) {}
+
+                                public V bad3() { return null; }
+                                public void bad3(V t) {}
+
+                                public W ok() { return null; }
+                                public void ok(W t) { }
+
+                                public T overriddenOk() { return null; }
+                                public void overriddenOk(T t) { }
+
+                                /** @hide */
+                                public T hiddenOk() { return null; }
+                                /** @hide */
+                                public void hiddenOk(T t) { }
+                            }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_ERROR, Issues.INHERIT_CHANGES_SIGNATURE.name)
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN, Capability.JAR_WITH_SOURCES)
+    @Test
+    fun `Checks do not run on bytecode-only items`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(int) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
+                src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
+                src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(int) [ReferencesHidden]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            @JvmInline value class IntValue(val v: Int)
+
+                            /** @hide */
+                            class HiddenClass
+
+                            interface Foo {
+                                fun usesHiddenTypeAndValueClass(iv: IntValue): HiddenClass
+                            }
+                        """
+                    )
+                ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31WeTgU3hoeM0ayZBvCVD8TIcuQLWRJ00wxYUwI2cZOxjbG" +
+                        "zqSGMGookSxFKvs6lCU7WSZClDUSgxQSIurSvc+96rl1zvP9d773O8/3nu89" +
+                        "LwYNYoYAWFlZAQAADLB7QQDMAH2ksY6srgFKTl/HQBeFPG8M10d97wAAlvXp" +
+                        "nefQsvAeTrSsVBe9uwwr/0pxfMoHrqcvo6vfQ8ylYRf1ZL2l9Oh0adPFLrn2" +
+                        "dvrk1LspIACD3sNaxHe0SG27wPHtwPyx/P7t8HUk+Mp5XXKW0/XwNcW5Ex3h" +
+                        "9u44AiHUePQ81ATyYzSl6IVTeMpLbOn9VcQwmSreYpEHybpfTskwyTbq6OP1" +
+                        "azxVGj2o/4haM2szflVOfWOcnUv9fHiJ4r53KaRbkwGfnG7JwybP+Wh3aTL8" +
+                        "u9bTCKsLJNIPUL2V+zExzc4Vn5Utny6vmkxzV4tj8iwlzhV0yxbfjsrHw8Gm" +
+                        "7RRYMzf8onU8LKFdmCMfSUIgOPQOHPAOWvXDJ+FoXkyEdFxbHj6Ac/ho91B/" +
+                        "UMSET2ubQJD1kGeW/0ObihGa9AlT0UieyBnQcMkzpDY5M1IMK8WMEuI9aJg8" +
+                        "cOVKZ5brwIfEsib5lMqZqczJ+vaaSGnBpDuuke06POkXUuNibmG9p37w2yTF" +
+                        "eMpLHtwnCHdkcSiaEC5Ej0JPPxqUZChz4MyO+Hnyhlc/qq7GDpcAgU2QQ7dh" +
+                        "gwjYvvxSB7cYSyJNmS6SZydcJqzwuTletDa/6K5TC+f9VgVURt348iCDw61v" +
+                        "sPDZYrlSzfVsWm0nd05gtelVGLEn5o4nopONC9jvtYfAy9jyY0Py48x1jHLV" +
+                        "Cl+7JNZYiLKiZ7+uitL3uUgPArnE3iBYPlrqBcYcsxdUAFvXiSapNUrOv66J" +
+                        "+fh+1aJ/xC3PTdU3viB5XiPfPL3SPki8PaCcP1MI5xPdCX718ZsYCdcJVRs/" +
+                        "wbzZN9tAvE0l3Kb0gW6HWUpKXThMk3Ch9mqdO3Ghq9ZaWFvzzmRghcbNGLbC" +
+                        "5ZCZ+ecuZnspbblwSNVzBiRjbsI70Zn6Y6Ni6y73UC43ApviQE/ivBXBLSrG" +
+                        "Z2WOzRq4ZWUccbinSc+4uasWZxmpNzs5kjAythYVOniIQxRsN6FbVoVXTk8e" +
+                        "5kcnlpsqSCPLcJ3BIgeGFum93++ac32aQxUMSppT3QN1i44f7C60QA6Xz65k" +
+                        "TL7S6CvLyTTGG4ATx85/Pq8jYU5jzRRbT/VQ05X5GJ+ThOGarTfKUp5jV6td" +
+                        "5AwBi82c7o9T5BGsQwt/lt1is1sWTMLan3m5IlojXnrmaRD5OGlJc+1kb0An" +
+                        "Nbxdl/2kBwuPpMIVvpG5J0ZVN1zDgCnQtOwVvhGtecUo3zS6b9884ebCk1m1" +
+                        "jCVW93SsX+ngl1nthjqEmK9qKFsY2V/gS/vClPLI9Ae0hf34Ekl+JPKAKCwZ" +
+                        "jGvr08zUY/H6ZwE8XgrHSsNBd7UaQuQyKwI1os6mhxAapmjgaUp4pToxNiIn" +
+                        "+u397+rFfniZcsrDDf16VkIJerr/MrRwraxxWFa09ysAHb4q++50bYtNuOfc" +
+                        "c7NPRRc05PU65ExJz9StWll8TYWlvxbL1ZG1lkB2E/d49q203eAeRDMq9cYf" +
+                        "XJ5jPrS+7u2+Mde9mLpqpR567pu9gnIFt0Kx2zgfCJzfw2PIkbvy+KItXKtp" +
+                        "QwBl5QJXsWzeJPYgB5DNyFctoTY+1OmOllSK0H6h/a9DJuIoEz9+ao7xLI+g" +
+                        "HDMAMLznb5ojvFtzzro6ODh6IHYE59+ygzeqNgDqQDQV6w9LdyBOL5rkRbA3" +
+                        "G9hnirXqY/iUlYxBJxrCHQfkQSXvL26CpPnYETJbkpNWWTQ1NWqwBMOplqSl" +
+                        "xZRqS81weFgytly8YJUnElclxGbfa8uxHn6HTQ5StTBK3FPq3HdWXtVZTzq4" +
+                        "K05V1d05/srk4WglRK/W0SaMx9ba+FFEhnKsezbNX7SAlcz/fqlHSQdpxpEs" +
+                        "WF8f+b4u26w/CkyM3FqnEwMjqjUM3bXy6M6c1vZJOUUXrjECNfptlz7lFuEv" +
+                        "kvkCNWivsoXAN2GvsRZjBigrtTDIaFyqnfRcdLFsq9QAui80SnwyvQZbkj1m" +
+                        "SDMRHTRFGQVlEB0iTOJVsq/2NXQWLm2R+bFjp0A5D/zza3gmsnnVSeIVe8vQ" +
+                        "6eHVbf4CTyNGW5wxoR2lB8VC8tfN1uIR6ZJsWjFvZi4LJRTrVoZfwqh4hTHt" +
+                        "EJNDyz9hxAQAtDP9jRje3cSgPD3/8w9gGjz6TkJSn+i6v054V4HphTwVgale" +
+                        "Ho2CShjn5BpJYnUq39NynvSId1V1FCKCKBsSi/xRoJjG69RTGtewcdxn844v" +
+                        "+zm/hb54snCvDhBw4xuZ+Dif0n3m6tdiyRBumHBHTizBlWUp5TsmTf0f5cam" +
+                        "XqngrLJzyf77GXMP26sU5Pp14AWhQ2nX30qU8eDWvDeyCJpLj0OOBDbwqbc4" +
+                        "cHPd/mCYpaKS2AoxULeS14aPeCcz8ofmY9mSLvHVmRo49erW8k26Xt/Cmgzk" +
+                        "AoFLKsf6TJLkO1f3SlACFSH6PDEux7jWjTfZTotcKZu2GxPY+8wNmXnkpsUw" +
+                        "ZS72+oMzNto9drWbM/0guc9JSY1c0IbPTVfJue34RhSjO+END/TNN0MRchrp" +
+                        "ociXhOKtb8rKHivUex6b77pRNxj3ElpnS/ReGF8c7Q5sIlqTF/FGBgb9GV38" +
+                        "j8OOfPx+5EsAbM4MaSqhNF6yLODPvxELDM6rogTH7gmBFrsVXLOIkXdEmz3X" +
+                        "f/TmrDe7EZdDSXTBISAFTxkW8Jfxk/lkoSQrLDDGtUMtFG86nbJNqxXwb9RC" +
+                        "t+O/NgOPc/WAX/L0dXf1sMF7OhDdHe1tbW2dtoPZzoBFEmP30g7wc55XDtc8" +
+                        "49vOFPzpIZiAEMD/0Hf7ix0T8+v6k6X5HWW3Yuz/BYH0Z2fyO8ju1y38C8gy" +
+                        "89+k5nec3a3k/QUnluX/Tcbv+bvbBf0l35n1r+3HoMEsO8fA29ty+wJNO3iA" +
+                        "fwFEnOJ9NQoAAA=="
+                )
         )
     }
 }

@@ -18,10 +18,13 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -33,7 +36,10 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
 
@@ -42,7 +48,7 @@ private constructor(
     override val codebase: PsiBasedCodebase,
     override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
-    containingClass: PsiClassItem,
+    containingClass: ClassItem,
     name: String,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -51,12 +57,14 @@ private constructor(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     implicitConstructor: Boolean = false,
-    override val isPrimary: Boolean = false
+    isPrimary: Boolean = false,
+    targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultConstructorItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = psiMethod.itemLanguage,
+        sourceLanguage = psiMethod.sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -68,15 +76,18 @@ private constructor(
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
         implicitConstructor = implicitConstructor,
+        isPrimary = isPrimary,
     ),
     PsiCallableItem {
 
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
+            psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+            targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
@@ -118,6 +129,7 @@ private constructor(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             constructorTypeItemFactory,
+                            psiParameters,
                         )
                     },
                     returnType = containingClass.type(),
@@ -125,13 +137,39 @@ private constructor(
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
+                    targetLanguages = targetLanguages,
                 )
+
+            // Undo setting of constructors with value class types to private (b/395472914).
+            // Constructors that use value class types are effectively private to java callers, but
+            // they can be public in source to kotlin callers, so we want to track them.
+            if (
+                constructor.modifiers.isPrivate() &&
+                    constructor.parameters().any { (it.type() as PsiTypeItem).isValueClassType() }
+            ) {
+                (psiMethod.sourceElement as? KtConstructor<*>)?.let { sourcePsi ->
+                    if (!sourcePsi.hasModifier(KtTokens.PRIVATE_KEYWORD)) {
+                        constructor.mutateModifiers {
+                            val correctedVisibility =
+                                when {
+                                    sourcePsi.hasModifier(KtTokens.PROTECTED_KEYWORD) ->
+                                        VisibilityLevel.PROTECTED
+                                    sourcePsi.hasModifier(KtTokens.INTERNAL_KEYWORD) ->
+                                        VisibilityLevel.INTERNAL
+                                    else -> VisibilityLevel.PUBLIC
+                                }
+                            setVisibilityLevel(correctedVisibility)
+                        }
+                    }
+                }
+            }
+
             return constructor
         }
 
         fun createDefaultConstructor(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiClass: PsiClass,
             visibilityLevel: VisibilityLevel,
         ): PsiConstructorItem {
@@ -157,11 +195,17 @@ private constructor(
                     typeParameterList = TypeParameterList.NONE,
                     throwsTypes = emptyList(),
                     implicitConstructor = true,
+                    targetLanguages = TargetLanguageSet.ALL,
                 )
             return item
         }
 
-        private val UMethod.isPrimaryConstructor: Boolean
+        /**
+         * Whether the [UMethod] is the primary constructor of a Kotlin class. A primary constructor
+         * is declared in the class header, and all other constructors must delegate to it (see
+         * https://kotlinlang.org/docs/classes.html#constructors).
+         */
+        internal val UMethod.isPrimaryConstructor: Boolean
             get() = sourcePsi is KtPrimaryConstructor || sourcePsi is KtClassOrObject
     }
 }

@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -28,6 +30,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -77,7 +80,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -133,7 +136,7 @@ class CommonTypeItemTest : BaseModelTest() {
             // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -189,7 +192,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -232,7 +235,7 @@ class CommonTypeItemTest : BaseModelTest() {
             // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -305,7 +308,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -375,7 +378,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         ctor public Foo();
@@ -456,7 +459,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<C> {
                         ctor public Foo();
@@ -511,7 +514,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         method public T bar1();
@@ -574,7 +577,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         method public void bar1(T p);
@@ -632,7 +635,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         field public T foo;
@@ -665,7 +668,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         property public T foo;
@@ -714,7 +717,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -798,7 +801,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer {
                         ctor public Outer();
@@ -871,7 +874,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Test {
                         ctor public Outer();
@@ -929,7 +932,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer<O> {
                         ctor public Outer();
@@ -1002,8 +1005,9 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             inputSet(
                 signature(
+                    "api1.txt",
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg1 {
                           public class Outer<O> {
                             ctor public Outer();
@@ -1018,8 +1022,9 @@ class CommonTypeItemTest : BaseModelTest() {
                     """
                 ),
                 signature(
+                    "api2.txt",
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Test {
                             ctor public Test();
@@ -1569,7 +1574,7 @@ class CommonTypeItemTest : BaseModelTest() {
                     val typeToTest = method.returnType()
 
                     fun TypeItem.typeInfo() =
-                        toTypeString(
+                        testTypeString(
                             annotations = true,
                             kotlinStyleNulls = true,
                         )
@@ -1742,7 +1747,7 @@ class CommonTypeItemTest : BaseModelTest() {
                     val typeToTest = method.returnType()
 
                     fun TypeItem.typeInfo() =
-                        toTypeString(
+                        testTypeString(
                             annotations = true,
                             kotlinStyleNulls = true,
                         )
@@ -1851,6 +1856,183 @@ class CommonTypeItemTest : BaseModelTest() {
 
             val interfaceType = codebase.assertClass("test.pkg.Foo").interfaceTypes().single()
             assertThat(interfaceType.hasTypeArguments()).isTrue()
+        }
+    }
+
+    @Test
+    fun `Test toSimpleType on varargs parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(String...p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(vararg p: String)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(String...);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType()).isEqualTo("java.lang.String...")
+        }
+    }
+
+    @Test
+    fun `Test toSimpleType on varargs generic parameter`() {
+        runCodebaseTest(
+            java(
+                @Suppress("unchecked")
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(Comparable<? super String>...p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(vararg p: Comparable<String>)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(Comparable<? super String>...);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType())
+                .isEqualTo("Comparable<? super java.lang.String>...")
+        }
+    }
+
+    @Test
+    fun `Test toSimpleType on nested class`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public interface Foo {
+                        void foo(Thread.UncaughtExceptionHandler p);
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    interface Foo {
+                        fun foo(p: Thread.UncaughtExceptionHandler)
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                        method public void foo(Thread.UncaughtExceptionHandler);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val varargsType =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
+            assertThat(varargsType.toSimpleType())
+                .isEqualTo("java.lang.Thread.UncaughtExceptionHandler")
+        }
+    }
+
+    @Test
+    fun `Non-last varargs param in deprecated method`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo {
+                        fun notDeprecated(vararg str: String, i: Int) = Unit
+                        @Deprecated(message = "message", level = DeprecationLevel.WARNING)
+                        fun deprecatedWarning(vararg str: String, i: Int) = Unit
+                        @Deprecated(message = "message", level = DeprecationLevel.ERROR)
+                        fun deprecatedError(vararg str: String, i: Int) = Unit
+                        @Deprecated(message = "message", level = DeprecationLevel.HIDDEN)
+                        fun deprecatedHidden(vararg str: String, i: Int) = Unit
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhevDb6dd9lBwPa1StmrZSuFNfYWtDvlNzjvsBVR" +
+                        "ZNS9osEissDmS+bsNZdyZaQrtwv2/xX716AuwL/i0UT5h/oCm/0UAiZwCAXa" +
+                        "zJtrmX6uL/375+v88owxx3XbmsS8fq+3yv3vKGOdwHNP732h/ZPA2/Wb9mrP" +
+                        "uuXYdnCfrvLK9wYpYtPNuE8cLJvYenjCVesgQ5Fse/Go1BkdSXvV4lQXndya" +
+                        "Yeijn3e1ber8ly5ub68mZE5+WKPrd+vfugu3OadP/FTpErIu1afO9trXvQZL" +
+                        "qiSXTrbp4llutZEv9cn7b7v29WzxUJL75ZjCpXUzhM+mbeWzvowytifLbR7G" +
+                        "Ojq0tR699fBdWP39qZkbepT1vCxOFTzh/52WMGlew8Irvy4+9p7nMkXFLXfD" +
+                        "0cT/Rwp2OWneE+PZGfDF5YRBtYS77nWfUwvi7+Veaf7l3HZy4aGqSUeuuObt" +
+                        "vVhxaYEnr7H0pqtCgr2ZyhHR0esv79t3vU7HJL/w7MplV9+mZrw7M8Mw2cG2" +
+                        "RONf1KzQ1j3XQtv02X9/XmeavHNa+Yb3UZWPI9YV7hWyPbpv9nKfsmcJ+7NC" +
+                        "b+y9s9zcrFFOt3Km5epJa6ftvTMnetvnNTmhc7pq+3Kufvs0Rfp2QdAa7xsf" +
+                        "6w+IuR3TqxCuP/xt4rK7WsbyB5cpVy9d/NLgfn+0yYKTs3pcatfv1p30vMZ6" +
+                        "icdOMfPKHSeFM681P6hJ1r+0SbtphfrUJRf6J5eVV7RI3pm//uCbhs030/9w" +
+                        "1Yi9V/X96NDGFJ548a/RfpncCeukb3KtrTE2Fo6ta/8TXaTTpOQrvd9r2wX2" +
+                        "BB69vd4SyzumTrr+Mlft7Zop6veTX4Xv8tV0tr/czvPimPajiKhLB03SOgrP" +
+                        "zpHvdhLWXNASGXSib9EE6cCHVVL7Hf1nPioWsVxXIKPO4vfoyvtfy92vlv9r" +
+                        "/jfT+VccZ7qnvXHXvxv1F+zdV8/OjLV33aNwpPLXps/RJ1h2CDxIamDVmdS9" +
+                        "lOF0xE2m4B0tp6M1tHZwhYvktF5eGeyj+3d5cHSAxWqD1Qb/eEEZxcx4UeBL" +
+                        "JgYGFTZ8GUUaiOH5NDcxM08vO78kJzMvPjc/pTQnNTkhISENiFmS/Ng0ApIu" +
+                        "JDGAM+FXpT17hYE6JcCZkJFJhAFhOnIGBZUCqABXmYBuCrLrhVBMqMeatdH1" +
+                        "I7tQGkX/Cma8Pg7wZmUDKWMGwvNAmgXsAwDUrWD46QQAAA=="
+                )
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo")
+            val notDeprecated = foo.methods().single { it.name() == "notDeprecated" }
+            val deprecatedWarning = foo.methods().single { it.name() == "deprecatedWarning" }
+            val deprecatedError = foo.methods().single { it.name() == "deprecatedError" }
+            val deprecatedHidden = foo.methods().single { it.name() == "deprecatedHidden" }
+
+            fun MethodItem.firstParameterIsVarargs() =
+                (parameters().first().type() as ArrayTypeItem).isVarargs
+
+            assertThat(notDeprecated.firstParameterIsVarargs()).isFalse()
+            assertThat(deprecatedWarning.firstParameterIsVarargs()).isFalse()
+            assertThat(deprecatedError.firstParameterIsVarargs()).isFalse()
+            assertThat(deprecatedHidden.firstParameterIsVarargs()).isFalse()
         }
     }
 }
