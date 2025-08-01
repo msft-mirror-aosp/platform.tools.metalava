@@ -17,56 +17,72 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultPackageItem(
+open class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
+    val containingPackage: PackageItem?,
+    override val overviewDocumentation: ResourceFile?,
 ) :
-    DefaultItem(
+    DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     PackageItem {
 
+    init {
+        // Newly created package's always have `emit = false` as they should only be emitted if they
+        // have at least one class that has `emit = true`. That will be updated, if necessary, when
+        // adding a class or type alias to the package.
+        emit = false
+    }
+
     private val topClasses = mutableListOf<ClassItem>()
 
-    override fun qualifiedName(): String = qualifiedName
+    final override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
+    final override fun topLevelClasses(): List<ClassItem> =
+        // Return a copy to avoid a ConcurrentModificationException.
+        topClasses.toList()
 
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
-    private lateinit var containingPackageField: PackageItem
-
-    override fun containingPackage(): PackageItem? {
-        return if (qualifiedName.isEmpty()) null
-        else {
-            if (!::containingPackageField.isInitialized) {
-                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
-            }
-            containingPackageField
-        }
+    final override fun containingPackage(): PackageItem? {
+        return containingPackage
     }
 
     fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
+    }
+
+    private val typeAliases = mutableListOf<TypeAliasItem>()
+
+    internal fun addTypeAlias(typeAlias: DefaultTypeAliasItem) {
+        typeAliases += typeAlias
+    }
+
+    override fun typeAliases(): List<TypeAliasItem> {
+        return typeAliases.toList()
     }
 }

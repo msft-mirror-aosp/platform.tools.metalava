@@ -17,26 +17,31 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultConstructorItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
@@ -47,11 +52,13 @@ open class DefaultConstructorItem(
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
     private val implicitConstructor: Boolean,
+    override val isPrimary: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
@@ -64,8 +71,6 @@ open class DefaultConstructorItem(
         callableBodyFactory = callableBodyFactory,
     ),
     ConstructorItem {
-
-    final override var superConstructor: ConstructorItem? = null
 
     /** Override to specialize the return type. */
     final override fun returnType() = super.returnType() as ClassTypeItem
@@ -80,20 +85,21 @@ open class DefaultConstructorItem(
     companion object {
         fun createDefaultConstructor(
             codebase: Codebase,
-            itemLanguage: ItemLanguage,
+            sourceLanguage: SourceLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
+            visibility: VisibilityLevel,
         ): ConstructorItem {
             val name = containingClass.simpleName()
-            val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
-            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val modifiers = createImmutableModifiers(visibility)
 
             val ctorItem =
                 DefaultConstructorItem(
                     codebase = codebase,
                     // Use the location of the containing class for the default constructor.
                     fileLocation = containingClass.fileLocation,
-                    itemLanguage = itemLanguage,
+                    sourceLanguage = sourceLanguage,
+                    targetLanguages = TargetLanguageSet.ALL,
                     modifiers = modifiers,
                     documentationFactory = ItemDocumentation.NONE_FACTORY,
                     variantSelectorsFactory = variantSelectorsFactory,

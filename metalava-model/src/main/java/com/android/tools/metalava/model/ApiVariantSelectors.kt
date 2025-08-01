@@ -374,6 +374,11 @@ sealed class ApiVariantSelectors {
                 return
             }
 
+            // Propagate hidden status from fields to properties.
+            if (item is PropertyItem && item.backingField?.hidden == true) {
+                hidden = true
+            }
+
             // Inheritance is only done on a few Item types, ignore the rest.
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
@@ -382,7 +387,7 @@ sealed class ApiVariantSelectors {
                 // marked @hide, but since we only see the .class files we don't know that.
                 if (
                     item.simpleName().startsWith("I") &&
-                        item.isFromClassPath() &&
+                        item.origin == ClassOrigin.CLASS_PATH &&
                         item.interfaceTypes().any { it.qualifiedName == "android.os.IInterface" }
                 ) {
                     hidden = true

@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.item.ParameterDefaultValue
 
 @MetalavaApi
-interface ParameterItem : Item {
+interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
 
@@ -47,8 +47,7 @@ interface ParameterItem : Item {
 
     /**
      * The public name of this parameter. In Kotlin, names are part of the public API; in Java they
-     * are not. In Java, you can annotate a parameter with {@literal @ParameterName("foo")} to name
-     * the parameter something (potentially different from the actual code parameter name).
+     * are not.
      */
     fun publicName(): String?
 
@@ -57,38 +56,14 @@ interface ParameterItem : Item {
      * Java, it's supported via a special annotation, {@literal @DefaultValue("source"). This does
      * not necessarily imply that the default value is accessible, and we know the body of the
      * default value.
-     *
-     * @see isDefaultValueKnown
      */
     fun hasDefaultValue(): Boolean
 
-    /**
-     * Returns whether this parameter has an accessible default value that we plan to keep. This is
-     * a superset of [hasDefaultValue] - if we are not writing the default values to the signature
-     * file, then the default value might not be available, even though the parameter does have a
-     * default.
-     *
-     * @see hasDefaultValue
-     */
-    fun isDefaultValueKnown(): Boolean
-
-    /**
-     * Returns the default value.
-     *
-     * **This method should only be called if [isDefaultValueKnown] returned true!** (This is
-     * necessary since the null return value is a valid default value separate from no default value
-     * specified.)
-     *
-     * The default value is the source string literal representation of the value, e.g. strings
-     * would be surrounded by quotes, Booleans are the strings "true" or "false", and so on.
-     */
-    fun defaultValueAsString(): String?
-
     /** The default value of this [ParameterItem]. */
-    val defaultValue: DefaultValue
+    val defaultValue: ParameterDefaultValue
 
     /** Whether this is a varargs parameter */
-    fun isVarArgs(): Boolean
+    fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
     val property: PropertyItem?
@@ -118,9 +93,24 @@ interface ParameterItem : Item {
      * - Kotlin lambda = true
      * - Any other type = false
      */
-    fun isSamCompatibleOrKotlinLambda(): Boolean =
-        // TODO(b/354889186): Implement correctly
-        false
+    fun isSamCompatibleOrKotlinLambda(): Boolean {
+        if (type() is LambdaTypeItem) return true
+
+        // Check the parameter type to see if it is defined in Kotlin or not.
+        // Interfaces defined in Kotlin do not support SAM conversion, but `fun` interfaces do.
+        // This is a best-effort check, since external dependencies (bytecode) won't appear to
+        // be Kotlin for psi, and won't have a `fun` modifier visible. To resolve this, we could
+        // parse the kotlin.metadata annotation on the bytecode declaration , but in reality the
+        // amount of Java methods with a Kotlin interface with a single abstract method from an
+        // external dependency should be minimal.
+        val cls = type().asClass() ?: return false
+        if (!cls.isInterface()) return false
+        return if (cls.isKotlin()) {
+            cls.modifiers.isFunctional()
+        } else {
+            cls.methods().singleOrNull { it.modifiers.isAbstract() } != null
+        }
+    }
 
     /**
      * Create a duplicate of this for [containingCallable].
@@ -154,6 +144,9 @@ interface ParameterItem : Item {
     override fun containingClass(): ClassItem = containingCallable().containingClass()
 
     override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
+
+    override val targetLanguages: Set<TargetLanguage>
+        get() = containingCallable().targetLanguages
 
     // TODO: modifier list
 }

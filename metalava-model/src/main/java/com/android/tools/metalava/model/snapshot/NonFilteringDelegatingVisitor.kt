@@ -25,14 +25,20 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TypeAliasItem
 
 /**
  * A [BaseItemVisitor] that will delegate to [delegate].
  *
- * Always preserves class nesting while visiting.
+ * Preserves class nesting as required by the [delegate]'s [DelegatedVisitor.requiresClassNesting]
+ * property.
  */
-class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
-    BaseItemVisitor(preserveClassNesting = true) {
+open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
+    BaseItemVisitor(
+        preserveClassNesting = delegate.requiresClassNesting,
+        // [DelegatedVisitor] does not support visiting parameters.
+        visitParameterItems = false,
+    ) {
 
     override fun visitCodebase(codebase: Codebase) {
         delegate.visitCodebase(codebase)
@@ -58,7 +64,7 @@ class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
         delegate.afterVisitClass(cls)
     }
 
-    override fun visit(constructor: ConstructorItem) {
+    override fun visitConstructor(constructor: ConstructorItem) {
         delegate.visitConstructor(constructor)
     }
 
@@ -72,5 +78,9 @@ class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
 
     override fun visitProperty(property: PropertyItem) {
         delegate.visitProperty(property)
+    }
+
+    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
+        delegate.visitTypeAlias(typeAlias)
     }
 }

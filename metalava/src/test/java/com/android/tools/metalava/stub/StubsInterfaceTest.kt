@@ -128,12 +128,12 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public interface MyClass {
                 public static final java.lang.String[] CONSTANT1 = null;
-                public static final boolean CONSTANT2 = false;
-                public static final int CONSTANT3 = 0; // 0x0
-                public static final java.lang.String CONSTANT4 = null;
+                public static final boolean CONSTANT2 = java.lang.Boolean.parseBoolean("false");
+                public static final int CONSTANT3 = java.lang.Integer.parseInt("0");
+                public static final java.lang.String CONSTANT4 = java.lang.String.valueOf(0);
                 }
                 """,
-            checkTextStubEquivalence = true
+            checkTextStubEquivalence = true,
         )
     }
 
@@ -275,13 +275,13 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass extends test.pkg.PublicSuperParent implements test.pkg.PublicInterface, test.pkg.PublicInterface2 {
                 public MyClass() { throw new RuntimeException("Stub!"); }
+                public void inheritedMethod2() { throw new RuntimeException("Stub!"); }
                 public void myMethod() { throw new RuntimeException("Stub!"); }
+                public void publicInterfaceMethod() { throw new RuntimeException("Stub!"); }
                 public void publicInterfaceMethod2() { throw new RuntimeException("Stub!"); }
                 public void publicMethod() { throw new RuntimeException("Stub!"); }
                 public void publicMethod2() { throw new RuntimeException("Stub!"); }
-                public void publicInterfaceMethod() { throw new RuntimeException("Stub!"); }
-                public void inheritedMethod2() { throw new RuntimeException("Stub!"); }
-                public static final int MY_CONSTANT = 5; // 0x5
+                public static final int MY_CONSTANT = 5;
                 }
                 """
         )
@@ -387,8 +387,8 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                 public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                 }
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static interface PublicInterface<A, B> {

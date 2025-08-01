@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.lint
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
@@ -33,25 +34,17 @@ import org.junit.Test
 
 class ApiLintTest : DriverTest() {
 
-    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test names`() {
         // Make sure we only flag issues in new API
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_HIDE, "MissingNullability"),
             expectedIssues =
                 """
-                src/Dp.kt:3: warning: Acronyms should not be capitalized in method names: was `badCALL`, should this be `badCall`? [AcronymName]
-                src/android/pkg/ALL_CAPS.java:3: warning: Acronyms should not be capitalized in class names: was `ALL_CAPS`, should this be `AllCaps`? [AcronymName]
-                src/android/pkg/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName]
                 src/android/pkg/MyStringImpl.java:3: error: Don't expose your implementation details: `MyStringImpl` ends with `Impl` [EndsWithImpl]
-                src/android/pkg/badlyNamedClass.java:5: error: Class must start with uppercase char: badlyNamedClass [StartWithUpper]
-                src/android/pkg/badlyNamedClass.java:6: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper]
-                src/android/pkg/badlyNamedClass.java:7: error: Method name must start with lowercase char: BadlyNamedMethod1 [StartWithLower]
-                src/android/pkg/badlyNamedClass.java:9: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName]
-                src/android/pkg/badlyNamedClass.java:10: warning: Acronyms should not be capitalized in method names: was `toXML`, should this be `toXml`? [AcronymName]
-                src/android/pkg/badlyNamedClass.java:12: warning: Acronyms should not be capitalized in method names: was `getID`, should this be `getId`? [AcronymName]
+                src/android/pkg/badlyNamedClass.java:3: error: Class must start with uppercase char: badlyNamedClass [StartWithUpper]
+                src/android/pkg/badlyNamedClass.java:4: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper]
+                src/android/pkg/badlyNamedClass.java:5: error: Method name must start with lowercase char: BadlyNamedMethod1 [StartWithLower]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -60,33 +53,9 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    import androidx.annotation.Nullable;
-
                     public class badlyNamedClass {
                         public static final int BadlyNamedField = 1;
                         public void BadlyNamedMethod1() { }
-
-                        public void fromHTMLToHTML() { }
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { } // OK
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class ALL_CAPS { // like android.os.Build.VERSION_CODES
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class HTMLWriter {
                     }
                     """
                     ),
@@ -98,66 +67,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    kotlin(
-                        """
-                    inline class Dp(val value: Float)
-                    fun greatCall(width: Dp)
-                    fun badCALL(width: Dp)
-                """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Test names against previous API`() {
-        check(
-            apiLint =
-                """
-                package android.pkg {
-                  public class badlyNamedClass {
-                    ctor public badlyNamedClass();
-                    method public void BadlyNamedMethod1();
-                    method public void fromHTMLToHTML();
-                    method public String getID();
-                    method public void toXML();
-                    field public static final int BadlyNamedField = 1; // 0x1
-                  }
-                }
-            """
-                    .trimIndent(),
-            expectedIssues =
-                """
-                src/android/pkg/badlyNamedClass.java:8: warning: Acronyms should not be capitalized in method names: was `toXML2`, should this be `toXmL2`? [AcronymName]
-                src/android/pkg2/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName]
-                src/android/pkg2/HTMLWriter.java:4: warning: Acronyms should not be capitalized in method names: was `fromHTMLToHTML`, should this be `fromHtmlToHtml`? [AcronymName]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-
-                        public void fromHTMLToHTML() { }
-                        public void toXML() { }
-                        public void toXML2() { }
-                        public String getID() { return null; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg2;
-
-                    public class HTMLWriter {
-                        public void fromHTMLToHTML() { }
-                    }
-                    """
-                    )
                 )
         )
     }
@@ -1267,12 +1176,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            // missing errors for `isVisibleSetterBad`,
+            // missing errors for `isVisibleSetterBad`, `transientStateBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
@@ -1355,18 +1263,18 @@ class ApiLintTest : DriverTest() {
 
                     public class OverlappingFlags {
                         private OverlappingFlags() { }
-                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128; // 0x80
-                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1; // 0x1
-                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2; // 0x2
-                        public static final int DRAG_FLAG_OPAQUE = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4; // 0x4
-                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2; // 0x2
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048; // 0x800
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096; // 0x1000
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024; // 0x400
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256; // 0x100
-                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16; // 0x10
+                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128;
+                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1;
+                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2;
+                        public static final int DRAG_FLAG_OPAQUE = 512;
+                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4;
+                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256;
+                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16;
 
                         public static final int TEST1_FLAG_FIRST = 1;
                         public static final int TEST1_FLAG_SECOND = 3;
@@ -1592,6 +1500,35 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check context first for suspend fun`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
+                src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package android.pkg
+                    import android.content.Context
+
+                    suspend fun okCall(context: Context, value: Int) {}
+                    suspend fun badCall(value: Int, context: Context) {}
+
+                    suspend fun String.okCallExtension(context: Context, value: Int) {}
+                    suspend fun String.badCallExtension(value: Int, context: Context) {}
+                    """
+                    ),
+                )
+        )
+    }
+
     @Test
     fun `Check listener last`() {
         check(
@@ -1672,7 +1609,8 @@ class ApiLintTest : DriverTest() {
         // TODO: This check is not yet hooked up
         check(
             apiLint = "", // enabled
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             sourceFiles =
                 arrayOf(
@@ -2310,6 +2248,43 @@ class ApiLintTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Allow arrays for kotlin only APIs`() {
+        check(
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                src/test/pkg/ConstructorCanBeUsedFromJava.kt:2: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
+                src/test/pkg/IntValue.kt:2: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val value: Int)
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        class ConstructorCanBeUsedFromJava(i: Int, arr: Array<Number>)
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        // IntValue is a value class type, which can't be used from Java
+                        // Arrays can be used for Kotlin only APIs, so this usage is okay
+                        class ConstructorCannotBeUsedFromJava(iv: IntValue, arr: Array<Number>)
+                        """
+                    ),
                 )
         )
     }
@@ -3270,6 +3245,134 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                         }
                     """
                     )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `throw unresolved error`() {
+        // Regression test from b/364736827
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        import kotlin.random.Random
+
+                        public class SubspaceSemanticsNodeInteraction() {
+                            /**
+                             * @throws [UnresolvedAssertionError] if failed
+                             */
+                            public fun assertDoesNotExist() {
+                                if (Random.nextBoolean()) {
+                                    throw UnresolvedAssertionError("Failed")
+                                }
+                            }
+                        }
+                    """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `data class definition`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            data class Foo(val v: Int)
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_ERROR, "DataClassDefinition"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                "src/test/pkg/Foo.kt:2: error: Exposing data classes as public API is discouraged because they are difficult to update while maintaining binary compatibility. [DataClassDefinition]"
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN, Capability.JAR_WITH_SOURCES)
+    @Test
+    fun `Checks do not run on bytecode-only items`() {
+        check(
+            apiLint = "", // enabled
+            expectedFail = DefaultLintErrorMessage,
+            // Error is only on the source element, not the mangled version in bytecode.
+            expectedIssues =
+                "src/test/pkg/IntValue.kt:4: error: Method name must start with lowercase char: FunWithBadName [StartWithLower]",
+            extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val v: Int)
+                        class Foo {
+                            fun FunWithBadName(iv: IntValue) = Unit
+                        }
+                        """
+                    )
+                ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31VeTQUahufmBmyDsYu0vhKlhkNksmSO0bXDBljiwzGFsJg" +
+                        "ZoRLcxVuZrpXZUvKxRWR7HRlzT5mPpIlW7JkGcl6KVy56jvn+9T56nnP74/3" +
+                        "nPf5Pe/7nN/7/PA4XiAUwM/PDwAAlAH7AwoAAiwxtiaa5ufMEJYm58zNMDa2" +
+                        "cEuzj50AwJolh22B04T3COM01bo43eUErT7t8ekQONZSw9yyh1ZQQVjGagar" +
+                        "YTkcdfvlLgSLxZmanpzmAeBxfPzFEseL9fcK6O0B/83y0nugelGoiKBLFxHm" +
+                        "gVR7kj/NC+7hT6JQomxf2cjbQXdfpRf/2zs6/TmhLHMDPRKTcLTV6RE0J7OS" +
+                        "mWX30LqzVzy06Yey+CHL3IRaruv4NQRqa1xQFGUTXaotMplOT5wKW/RO1FKe" +
+                        "sggx7jKcvdy1eZ+ysUSn7/I2Ev1PqBiy10PWd0K6gmqzHX2dTmiBSy9WcZxb" +
+                        "qZ3VeSM/2bOYyi0Q+AWXW8pJLDmhQgwdjRbCKigER2yEBqSSKoIOUDJIHY8C" +
+                        "woRHjncP90fEToS0dUhFuAyTcy4/cK0arVA/bQ+LE4ub4x0prcMYx2THqRDU" +
+                        "gGay4oes0gauXmXn+A68TSlv1kqvnpvOnmpk1capy6Te8Y1jmYhlONy7yUgk" +
+                        "BE/vSrqmMshaqodEZOBeYM/iCbki3Ct509wh1VldIdL5f4WSxaNrcmtqCCOl" +
+                        "PDzNUMVk5SG0skhhmacfw5lWocs5/MhdrlwOudpyC1ZfWHzXu1U4sw1pltUw" +
+                        "vjY0K+TXO1RUt1ypU/vrw4p6NiQ/vMb+mjKth3GHjGYLiPL0B/FRxGd3QgUw" +
+                        "kiRHE+sC/aKXPim1TjB+HPfDBowj4qM+xCOqMogGv3PGhjNOeMggQS4NsFT9" +
+                        "JtWFl7WMd282nPpH/R75naLeepy2YFDomFHtEXGUFVYpmS1LColng/rebavQ" +
+                        "SWx5/fHTwL97uc9oyQmUZGYvb/IVZ1U1hyMVx3wSXhhZnHboqneRMza8MxVe" +
+                        "ZXCbIVC0Fjm30O5z/iCzowAOfdo+C82anwhOuZiwu1W1cxcyXABBE9I9OanC" +
+                        "ibEQmIoE0ZGQM5BItI090tOMtW3pqic5x2G5U6NJo2Pvr0cNKQrBQO4T5uVP" +
+                        "A3Qz0kYkcSmV9kh1TDmJ/dNhheFlzouPdx1FF+fNHg+pOib4h5sX6x3qLnLC" +
+                        "jFRy17Om+gx6y/OzbQPOgVLGbFZtTI45VvBnq2zeC9Q313h3Kz8VL8pttM7R" +
+                        "nRfUr18WjgSpzJn239QWk2nAya1q7gi4r8mkEjzOPl+H1R4tO/tnRIwefcXw" +
+                        "/ZkXYeyEaJa54JlAsJgq8qrE6PwT66e/+V7hSZe//3BdYtRoQfs69T6H2rtA" +
+                        "ub30hKuftcLvn0EILRv6i2v8rAGtQj0VJXAl5rLUX6ylad3Rmbc4J4/xFbrW" +
+                        "aJwCTDkNROroNczGgoOUlkDjZXCCOpz3rtGzSER2VbjB9R8zIinPpitAM8zo" +
+                        "ahTtRmx+/OvMj6iS0ACNSuaDLctGfkopbqb/Z/mi9+VNI5qwFx8AuOgNzUnT" +
+                        "+lbXaPJ8+/nFYgcDLWwnwp5ehyK2gan2cuofShANMUYrvO4Tv4uJrHf8BhnC" +
+                        "zVZjx//4eR6ouLkZ7L813718b4OIirLY9kDqVkGQJX7jErygwh4xK6GC9bwL" +
+                        "bnCj5i0pM6IP/KRzy9+0HswApgXT1xrlGpIw09l6jykrLSv9MnLiJnNi9/PM" +
+                        "seWKySCAAMAI3/dmjvj+mWNGJv9n3BCtLcm9ZyBRNecU2s1t8mJvg1WV6iqS" +
+                        "G32BxyDiGIYnlAHsMHxTYV4YKk/PXEC9kVmxGlcK4gk+Y/3nyh+Q8kAxJaPa" +
+                        "8DXvsYWurfbu4tcAg0Y4mngWu00+lncFwVZzExqrvnPQWIqbvxsSpvgrFSR1" +
+                        "bed8LsGYVLKx0YzqLCEm4UmqXO18GbmdBj5D98H5aW5838Wz7pEat+dcTlmN" +
+                        "0WYkkAugbWXeVG2wlJbOdqJFO3Ld1dTpRqyU5wyLky2P5LXjzXRZXa3Wcfxl" +
+                        "8MPNCc9qn5raVuKipjT8stBEUZYZJexS9dyqyGm1YqNh2/Cx1cKTS0lPqxxy" +
+                        "fei7TSmCasn3GLOFY2uMC6H2SqEozo0lJMVn6rWmzMndBdkcFDRYsSfqUsPm" +
+                        "Tnyu8O9eHn7EJbYOqiuRpBMFiztxXH7HX2USb/GAhcC8p6VYnbW2uuu5bZfh" +
+                        "l2aaZXu7wKpXp/cHtobdKWCetJ5SHrNH9PBoFkePjC6NXJbtysuOZD6Hmwo+" +
+                        "OfhWWvhh04NB08f4G5ukHqv0j2QNybbHzMkHPSW6Ovz6i9AdveBU94QkmtyS" +
+                        "sBvIBzzIXxKvbhqsmyn7EuwmoOkvircLkhwWqGpav1p4fBT/8Hgf/cAnVbQd" +
+                        "IUYOHAAAUnm+pwr5PfzXCANIvoHwS2Sqv2+gawDZk+bv5eHm5ua9B6D7ObAq" +
+                        "3v25O+Cz4taP1NZJ7GXKfHa5AzxQwP/Y9zvgJ5v9Mr5lul+z7Ne09BcM9G97" +
+                        "59ck+1sg/gXJGvD/fYav8/c/U/6L/IN8320bHgcCfzoG3FvQvQt48X3a/QMK" +
+                        "X7YyjwgAAA=="
                 )
         )
     }

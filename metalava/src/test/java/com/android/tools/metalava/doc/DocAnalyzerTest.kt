@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
@@ -163,6 +164,55 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Check construct ApiLookup works correctly for major-minor`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public Foo() {}
+                                public Foo(int i) { this.i = i; }
+
+                                private int i;
+                            }
+                        """
+                    ),
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4">
+                        <class name="test/pkg/Foo" since="17">
+                            <method name="&lt;init>()V" since="18.0"/>
+                            <method name="&lt;init>(I)V" since="19.3"/>
+                        </class>
+                    </api>
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 17 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 18 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 19.3 */
+                            public Foo(int i) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Fix first sentence handling`() {
         check(
             sourceFiles =
@@ -187,6 +237,8 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 ),
+            // Override default to emit android.annotation classes.
+            skipEmitPackages = emptyList(),
             checkCompilation = true,
             docStubs = true,
             stubFiles =
@@ -868,7 +920,7 @@ class DocAnalyzerTest : DriverTest() {
                     ARG_CURRENT_VERSION,
                     "35" // not real api level of Z
                 ),
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -912,10 +964,66 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
                     /**
                      * @hide
+                     * @apiSince Z
                      */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Api levels current codename but no current version`() {
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_CURRENT_CODENAME,
+                    "Z",
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            public class Test {
+                               public static final String UNIT_TEST_1 = "unit.test.1";
+                               public static final String UNIT_TEST_2 = "unit.test.2";
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="android/pkg/Test" since="1">
+                            <field name="UNIT_TEST_1" since="24" deprecated="30"/>
+                            <field name="UNIT_TEST_2" since="36"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 24
+                             * @deprecatedSince 30
+                             */
+                            public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
+                            /** @apiSince 36 */
+                            public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
+                            }
+                        """
                     )
                 )
         )
@@ -1481,19 +1589,19 @@ class DocAnalyzerTest : DriverTest() {
                     @Deprecated
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
-                     * {@inheritDoc}
-                     * @deprecated Blah blah blah 1
-                     */
-                    @Deprecated
-                    @androidx.annotation.NonNull
-                    public java.lang.String toString() { throw new RuntimeException("Stub!"); }
-                    /**
                      * My description
                      * @deprecated Existing deprecation message.
                      * Blah blah blah 2
                      */
                     @Deprecated
                     public int hashCode() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * {@inheritDoc}
+                     * @deprecated Blah blah blah 1
+                     */
+                    @Deprecated
+                    @androidx.annotation.NonNull
+                    public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                     }
                     """
                     )
@@ -1687,7 +1795,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link Cursor.NONEXISTENT}, and are read-only and cannot be mutated.
                      */
-                    @android.provider.Column(value=Cursor.NONEXISTENT, readOnly=true) public static final java.lang.String BOGUS = "bogus";
+                    @android.provider.Column(readOnly=true, value=Cursor.NONEXISTENT) public static final java.lang.String BOGUS = "bogus";
                     /**
                      * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} .
                      */
@@ -1695,11 +1803,11 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_BLOB Cursor#FIELD_TYPE_BLOB} , and are read-only and cannot be mutated.
                      */
-                    @android.provider.Column(value=android.database.Cursor.FIELD_TYPE_BLOB, readOnly=true) public static final java.lang.String HASH = "_hash";
+                    @android.provider.Column(readOnly=true, value=android.database.Cursor.FIELD_TYPE_BLOB) public static final java.lang.String HASH = "_hash";
                     /**
                      * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} , and are read-only and cannot be mutated.
                      */
-                    @android.provider.Column(value=android.database.Cursor.FIELD_TYPE_STRING, readOnly=true) public static final java.lang.String TITLE = "title";
+                    @android.provider.Column(readOnly=true, value=android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String TITLE = "title";
                     }
                     """
                     )
