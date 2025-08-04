@@ -26,13 +26,13 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtTypeParameter
 
 internal class PsiTypeParameterItem(
-    override val codebase: PsiBasedCodebase,
+    private val codebase: PsiBasedCodebase,
     private val psiTypeParameter: PsiTypeParameter,
     name: String,
     modifiers: BaseModifierList
 ) :
     DefaultTypeParameterItem(
-        codebase = codebase,
+        classResolver = codebase,
         modifiers = modifiers,
         name = name,
         isReified = isReified(psiTypeParameter),
@@ -75,6 +75,26 @@ internal class PsiTypeParameterItem(
                 return true
             }
             return false
+        }
+
+        /**
+         * Creates a [DefaultTypeParameterItem] using the [ktTypeParameter]. Should be used only
+         * when there is no [PsiTypeParameter] available.
+         *
+         * The returned type parameter uses the default type implementation, which does not create a
+         * [PsiVariableTypeItem], as the analysis API doesn't have a direct way to create a psi type
+         * from the [KtTypeParameter].
+         */
+        fun create(
+            codebase: PsiBasedCodebase,
+            ktTypeParameter: KtTypeParameter
+        ): DefaultTypeParameterItem {
+            return DefaultTypeParameterItem(
+                classResolver = codebase,
+                modifiers = PsiModifierItem.createForKtDeclaration(codebase, ktTypeParameter),
+                name = ktTypeParameter.name!!,
+                isReified = ktTypeParameter.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
+            )
         }
     }
 }
