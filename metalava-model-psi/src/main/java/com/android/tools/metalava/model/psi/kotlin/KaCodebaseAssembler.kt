@@ -280,6 +280,8 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
         if (functionSymbol.isExpect) return false
         // Generate reified inline functions.
         if (functionSymbol.typeParameters.any { it.isReified }) return true
+        // Generate delegate functions.
+        if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) return true
         // Generate JvmSynthetic functions.
         return functionSymbol.annotations.any { it.classId?.asFqNameString() == JVM_SYNTHETIC }
     }
