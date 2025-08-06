@@ -26,16 +26,8 @@ typealias ItemDocumentationFactory = (Item) -> ItemDocumentation
  *
  * This implements [CharSequence] to simplify migration.
  */
-interface ItemDocumentation : CharSequence {
+interface ItemDocumentation {
     val text: String
-
-    override val length
-        get() = text.length
-
-    override fun get(index: Int) = text.get(index)
-
-    override fun subSequence(startIndex: Int, endIndex: Int) =
-        text.subSequence(startIndex, endIndex)
 
     /**
      * True if the documentation contains one of the following tags that indicates that it should
