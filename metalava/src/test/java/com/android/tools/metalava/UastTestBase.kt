@@ -1990,6 +1990,9 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `actual typealias -- without common split`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
+        // This case is not meant to be supported for K2 -- the project xml file should be used to
+        // separate the common and android modules.
+        val expandedTypeAlias = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
         check(
             sourceFiles =
                 arrayOf(
@@ -2029,7 +2032,7 @@ abstract class UastTestBase : DriverTest() {
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor @KotlinOnly public PointerKeyboardModifiers(int packedValue);
+                    ctor @KotlinOnly public PointerKeyboardModifiers($expandedTypeAlias packedValue);
                   }
                 }
                 """

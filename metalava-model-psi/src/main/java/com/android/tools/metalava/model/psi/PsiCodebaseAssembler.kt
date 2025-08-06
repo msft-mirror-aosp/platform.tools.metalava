@@ -75,11 +75,9 @@ import java.util.zip.ZipFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
-import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
@@ -811,7 +809,13 @@ internal class PsiCodebaseAssembler(
         // Create the initial set of packages that were found in the source files.
         codebase.packageTracker.createInitialPackages(packageDocs)
 
-        findTypeAliases(psiClasses, codebase)
+        // Add type aliases.
+        val kaCodebaseAssembler =
+            psiFiles
+                .filterIsInstance<KtFile>()
+                .takeIf { it.isNotEmpty() }
+                ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, codebase) }
+        kaCodebaseAssembler?.createTypeAliases()
 
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
@@ -831,34 +835,7 @@ internal class PsiCodebaseAssembler(
         }
 
         // Add kotlin-only APIs.
-        val kaCodebaseAssembler =
-            psiFiles
-                .filterIsInstance<KtFile>()
-                .takeIf { it.isNotEmpty() }
-                ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, codebase) }
         kaCodebaseAssembler?.assemble()
-    }
-
-    /**
-     * Finds all type aliases declared in the [KtFile]s underlying any file facade classes in
-     * [psiClasses] and adds them to the codebase.
-     */
-    private fun findTypeAliases(psiClasses: List<PsiClass>, codebase: PsiBasedCodebase) {
-        val typeAliases =
-            psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
-        for (typeAlias in typeAliases) {
-            PsiTypeAliasItem.create(typeAlias, codebase)
-        }
-    }
-
-    /**
-     * Returns a list of declarations from the [fileFacadeClass]. If [fileFacadeClass] is not
-     * actually a file facade class, returns an empty list.
-     */
-    private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
-        return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
-            it.declarations
-        } ?: emptyList()
     }
 
     /**

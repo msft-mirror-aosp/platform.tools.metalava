@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
+import com.android.tools.metalava.model.item.DefaultTypeAliasItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
@@ -69,6 +70,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaReceiverParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
+import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
@@ -103,7 +105,25 @@ internal class KaCodebaseAssembler(
     private val kaValueFactory = KaValueFactory(codebase, this, kaTypeItemFactory)
     private val kaModifierFactory = KaModifierFactory(this)
 
-    /** Analyze the [ktFiles] to add items to the codebase for this [kaModule]. */
+    /** Analyze the [ktFiles] to add type aliases to the codebase for this [kaModule]. */
+    fun createTypeAliases() {
+        analyze(kaModule) {
+            for (packageName in packages) {
+                findPackage(packageName)?.let { packageSymbol ->
+                    val packageScope = packageSymbol.packageScope
+                    for (typeAliasSymbol in
+                        packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>()) {
+                        processTypeAlias(typeAliasSymbol)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Analyze the [ktFiles] to add items to the codebase for this [kaModule] (except type aliases,
+     * which are added by [createTypeAliases]).
+     */
     fun assemble() {
         analyze(kaModule) {
             for (packageName in packages) {
@@ -167,6 +187,33 @@ internal class KaCodebaseAssembler(
         for (callableSymbol in delegateScope.callables) {
             processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
+    }
+
+    /** Creates a [DefaultTypeAliasItem] from the [typeAlias]. */
+    private fun processTypeAlias(typeAlias: KaTypeAliasSymbol) {
+        val qualifiedName = typeAlias.classId?.asFqNameString() ?: return
+        val packageName = qualifiedName.substringBeforeLast(".")
+        val containingPackage = codebase.findOrCreatePackage(packageName)
+
+        val typeParameterListAndFactory =
+            typeParameterListAndFactory(
+                kaTypeItemFactory,
+                "for type alias $qualifiedName",
+                typeAlias.typeParameters,
+            )
+
+        DefaultTypeAliasItem(
+            codebase = codebase,
+            fileLocation = PsiFileLocation.fromPsiElement(typeAlias.psi),
+            modifiers = kaModifierFactory.createForDeclaration(typeAlias),
+            documentationFactory = ItemDocumentation.NONE_FACTORY,
+            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+            aliasedType =
+                typeParameterListAndFactory.factory.getGeneralType(typeAlias.expandedType),
+            qualifiedName = qualifiedName,
+            typeParameterList = typeParameterListAndFactory.typeParameterList,
+            containingPackage = containingPackage,
+        )
     }
 
     /**
