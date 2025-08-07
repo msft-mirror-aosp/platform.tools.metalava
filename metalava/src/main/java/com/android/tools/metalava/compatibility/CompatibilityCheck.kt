@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -238,6 +239,33 @@ class CompatibilityCheck(
                     )
                 }
                 TargetLanguage.KOTLIN -> {
+                    if (old is CallableItem) {
+                        // If the callable appears to be removed from kotlin, check that there isn't
+                        // another callable which isn't an exact signature match but could replace
+                        // all calls to the old callable.
+                        val compatibleOverload =
+                            when (old) {
+                                is MethodItem ->
+                                    new.containingClass()
+                                        ?.filteredMethods(
+                                            { candidate ->
+                                                isCompatibleKotlinOverload(
+                                                    original = old,
+                                                    candidate = candidate as CallableItem,
+                                                )
+                                            },
+                                            includeSuperClassMethods = true
+                                        )
+                                        ?.firstOrNull()
+                                is ConstructorItem ->
+                                    new.containingClass()?.constructors()?.firstOrNull {
+                                        isCompatibleKotlinOverload(original = old, candidate = it)
+                                    }
+                                else -> error("Unknown callable $old")
+                            }
+                        if (compatibleOverload != null) continue
+                    }
+
                     report(
                         Issues.REMOVED_FROM_KOTLIN,
                         old,
@@ -252,6 +280,56 @@ class CompatibilityCheck(
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Check if all calls in Kotlin source to the [original] item could instead resolve to the
+     * [candidate] item. This is for when [original] can no longer be resolved from Kotlin source,
+     * such as when it is deprecated with [DeprecationLevel.HIDDEN].
+     */
+    private fun isCompatibleKotlinOverload(
+        original: CallableItem,
+        candidate: CallableItem,
+    ): Boolean {
+        // Item must be usable from kotlin.
+        if (TargetLanguage.KOTLIN !in candidate.targetLanguages) return false
+        // Items must have the same name.
+        if (candidate.name() != original.name()) return false
+        // The new item can't be less visible than the old.
+        if (candidate.modifiers.getVisibilityLevel() < original.modifiers.getVisibilityLevel())
+            return false
+        // While it might be possible to switch to a method with a different return type in some
+        // cases, in general this is not a safe source compatible change.
+        if (candidate.returnType() != original.returnType()) return false
+        // The nullability of the return type also can't change from non-null to nullable, because
+        // usages of the return are currently expecting it to be non-null.
+        if (
+            original.returnType().modifiers.isNonNull && candidate.returnType().modifiers.isNullable
+        )
+            return false
+        // All parameters from the original need to be present on the candidate, initial check to
+        // make sure there are at least as many parameters (check for if they match is below).
+        if (candidate.parameters().size <= original.parameters().size) return false
+        // All new parameters on the candidate need to be optional for calls to the original to
+        // still work since they won't be providing these new parameters.
+        val additionalParameters =
+            candidate.parameters().subList(original.parameters().size, candidate.parameters().size)
+        if (additionalParameters.any { !it.hasDefaultValue() }) return false
+        // Verify that all parameters from the original are present.
+        return candidate.parameters().zip(original.parameters()).all {
+            (candidateParameter, oldParameter) ->
+            // Since the item could be called using named parameters, the name can't change.
+            candidateParameter.name() == oldParameter.name() &&
+                // Parameter types must be the same.
+                candidateParameter.type() == oldParameter.type() &&
+                // The nullability can't change from nullable to non-null, because that would mean
+                // that usages that pass in a nullable value would no longer work.
+                (oldParameter.type().modifiers.isNonNull ||
+                    candidateParameter.type().modifiers.isNullable) &&
+                // If there was a default value, an existing caller might not be providing the
+                // parameter, so the parameters needs to still be optional.
+                (!oldParameter.hasDefaultValue() || candidateParameter.hasDefaultValue())
         }
     }
 
