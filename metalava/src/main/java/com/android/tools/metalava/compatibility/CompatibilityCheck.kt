@@ -243,27 +243,8 @@ class CompatibilityCheck(
                         // If the callable appears to be removed from kotlin, check that there isn't
                         // another callable which isn't an exact signature match but could replace
                         // all calls to the old callable.
-                        val compatibleOverload =
-                            when (old) {
-                                is MethodItem ->
-                                    new.containingClass()
-                                        ?.filteredMethods(
-                                            { candidate ->
-                                                isCompatibleKotlinOverload(
-                                                    original = old,
-                                                    candidate = candidate as CallableItem,
-                                                )
-                                            },
-                                            includeSuperClassMethods = true
-                                        )
-                                        ?.firstOrNull()
-                                is ConstructorItem ->
-                                    new.containingClass()?.constructors()?.firstOrNull {
-                                        isCompatibleKotlinOverload(original = old, candidate = it)
-                                    }
-                                else -> error("Unknown callable $old")
-                            }
-                        if (compatibleOverload != null) continue
+                        if (findCompatibleKotlinOverload(old, new.containingClass()) != null)
+                            continue
                     }
 
                     report(
@@ -280,6 +261,35 @@ class CompatibilityCheck(
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Check if there is a callable in [newContainingClass] which could replace all calls in Kotlin
+     * source to [original]. See [isCompatibleKotlinOverload].
+     */
+    private fun findCompatibleKotlinOverload(
+        original: CallableItem,
+        newContainingClass: ClassItem?,
+    ): CallableItem? {
+        return when (original) {
+            is MethodItem ->
+                newContainingClass
+                    ?.filteredMethods(
+                        { candidate ->
+                            isCompatibleKotlinOverload(
+                                original = original,
+                                candidate = candidate as CallableItem,
+                            )
+                        },
+                        includeSuperClassMethods = true
+                    )
+                    ?.firstOrNull()
+            is ConstructorItem ->
+                newContainingClass?.constructors()?.firstOrNull {
+                    isCompatibleKotlinOverload(original = original, candidate = it)
+                }
+            else -> error("Unknown callable $original")
         }
     }
 
@@ -1058,6 +1068,12 @@ class CompatibilityCheck(
     }
 
     override fun removedCallableItem(old: CallableItem, from: ClassItem) {
+        // If the callable could only be used from Kotlin, check that there isn't another callable
+        // which isn't an exact signature match but could replace all calls to the old callable.
+        if (old.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) {
+            if (findCompatibleKotlinOverload(old, from) != null) return
+        }
+
         // At this point, ComparisonVisitor.dispatchToRemovedOrCompareIfItemWasMoved has already
         // looked for an accessible super method matching the old one.
         val error =

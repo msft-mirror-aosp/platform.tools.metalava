@@ -500,4 +500,34 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test adding optional parameter to a reified inline function`() {
+        check(
+            expectedIssues =
+                """
+                released-api.txt:5: error: Source breaking change: Removed method test.pkg.Foo.incompatibleOverloadNonOptionalParameter(T,String) [RemovedMethod]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public inline <reified T> void compatibleOverload(T t, optional String s);
+                    method @KotlinOnly public inline <reified T> void incompatibleOverloadNonOptionalParameter(T t, optional String s);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public inline <reified T> void compatibleOverload(T t, optional String s, optional int i);
+                    method @KotlinOnly public inline <reified T> void incompatibleOverloadNonOptionalParameter(T t, optional String s, int i);
+                  }
+                }
+                """,
+        )
+    }
 }
