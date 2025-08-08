@@ -831,7 +831,12 @@ internal class PsiCodebaseAssembler(
         }
 
         // Add kotlin-only APIs.
-        KaCodebaseAssembler.assembleFromKotlin(psiFiles.filterIsInstance<KtFile>(), codebase)
+        val kaCodebaseAssembler =
+            psiFiles
+                .filterIsInstance<KtFile>()
+                .takeIf { it.isNotEmpty() }
+                ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, codebase) }
+        kaCodebaseAssembler?.assemble()
     }
 
     /**
