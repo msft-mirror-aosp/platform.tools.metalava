@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
@@ -485,6 +486,120 @@ class KotlinInteropChecksTest : DriverTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check JvmName for file facade classes`() {
+        check(
+            apiLint = "", // Enabled
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                test/pkg/ErrorNeedsJvmName.kt:1: error: Use `@file:JvmName` to provide a name for this file facade class for Java callers [FacadeClassJvmName]
+                """,
+            hideAnnotations = arrayOf("test.pkg.Hide"),
+            extraArguments = arrayOf(ARG_ERROR, "FacadeClassJvmName"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "test/pkg/ErrorNeedsJvmName.kt",
+                        """
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkUsesJvmName.kt",
+                        """
+                        @file:JvmName("OkUsesJvmName")
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        annotation class Hide
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasHidden.kt",
+                        """
+                        package test.pkg
+                        @Hide
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasKotlinOnly.kt",
+                        """
+                        package test.pkg
+                        inline fun <reified T> foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasSuspend.kt",
+                        """
+                        package test.pkg
+                        suspend fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkSuppressesError.kt",
+                        """
+                        @file:Suppress("FacadeClassJvmName")
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkMultiFile1.kt",
+                        """
+                        @file:JvmMultifileClass
+                        @file:JvmName("OkMultiFile")
+                        package test.pkg
+                        fun multiFile1() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkMultiFile2.kt",
+                        """
+                        @file:JvmMultifileClass
+                        @file:JvmName("OkMultiFile")
+                        package test.pkg
+                        fun multiFile2() = Unit
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class ErrorNeedsJvmNameKt {
+                    method public static void foo();
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Hide {
+                  }
+                  public final class OkMultiFile {
+                    method public static void multiFile1();
+                    method public static void multiFile2();
+                  }
+                  public final class OkOnlyHasKotlinOnlyKt {
+                    method @KotlinOnly public static inline <reified T> void foo();
+                  }
+                  public final class OkOnlyHasSuspendKt {
+                    method public static suspend Object? foo(kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                  }
+                  public final class OkSuppressesErrorKt {
+                    method public static void foo();
+                  }
+                  public final class OkUsesJvmName {
+                    method public static void foo();
+                  }
+                }
+                """,
         )
     }
 }

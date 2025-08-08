@@ -93,6 +93,7 @@ Available Issues                             |  Category                        
   ExecutorRegistration                       |  api_lint                             |   warning
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
+  FacadeClassJvmName                         |  api_lint                             |   hidden
   FlaggedApiLiteral                          |  api_lint                             |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                             |   error
   ForbiddenTag                               |  documentation                        |   error
