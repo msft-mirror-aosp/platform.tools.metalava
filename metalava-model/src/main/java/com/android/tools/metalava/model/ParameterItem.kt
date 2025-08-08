@@ -82,22 +82,6 @@ interface ParameterItem : ClassContentItem, Item {
     }
 
     /**
-     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
-     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
-     * syntax.
-     *
-     * Specifically this will attempt to handle the follow cases:
-     * - Java SAM interface = true
-     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
-     * - Kotlin fun interface = true
-     * - Kotlin lambda = true
-     * - Any other type = false
-     */
-    fun isSamCompatibleOrKotlinLambda(): Boolean =
-        // TODO(b/354889186): Implement correctly
-        false
-
-    /**
      * Create a duplicate of this for [containingCallable].
      *
      * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
@@ -129,6 +113,9 @@ interface ParameterItem : ClassContentItem, Item {
     override fun containingClass(): ClassItem = containingCallable().containingClass()
 
     override fun containingPackage(): PackageItem? = containingCallable().containingPackage()
+
+    override val targetLanguages: Set<TargetLanguage>
+        get() = containingCallable().targetLanguages
 
     // TODO: modifier list
 }

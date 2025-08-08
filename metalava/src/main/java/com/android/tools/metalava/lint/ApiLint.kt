@@ -2888,6 +2888,10 @@ private constructor(
             return
         }
 
+        // Arrays can be used for APIs that only target Kotlin
+        // (go/android-api-guidelines#exception-for-kotlin)
+        if (item.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) return
+
         when (typeString) {
             "java.lang.String[]",
             "byte[]",
@@ -3271,7 +3275,7 @@ private constructor(
         val lastRequiredParameter = requiredParameters.last()
         val hasTrailingLambda =
             lastRequiredParameter.parameterIndex == parameters.lastIndex &&
-                lastRequiredParameter.isSamCompatibleOrKotlinLambda()
+                lastRequiredParameter.type().isSamCompatibleOrKotlinLambda()
         val lastRequiredParameterIndex =
             if (hasTrailingLambda) {
                     requiredParameters.dropLast(1).lastOrNull()

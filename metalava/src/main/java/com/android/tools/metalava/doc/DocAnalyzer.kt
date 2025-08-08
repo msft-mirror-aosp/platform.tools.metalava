@@ -35,12 +35,12 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.value.FieldReferenceValue
@@ -251,7 +251,7 @@ class DocAnalyzer(
                             // i.e. not ParameterItems, so ignore it on them.
                             if (item is SelectableItem) handleRequiresApi(annotation, item)
                         "android.provider.Column" -> handleColumn(annotation, item)
-                        "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
+                        KOTLIN_DEPRECATED -> handleKotlinDeprecation(annotation, item)
                         "androidx.annotation.RestrictedForEnvironment" ->
                             handleRestrictedForEnvironment(annotation, item)
                     }
@@ -266,7 +266,7 @@ class DocAnalyzer(
                     annotation.resolve()?.modifiers?.annotations()?.forEach { nested ->
                         if (depth == 20) { // Temp debugging
                             throw StackOverflowError(
-                                "Unbounded recursion, processing annotation ${annotation.toSource()} " +
+                                "Unbounded recursion, processing annotation $annotation " +
                                     "in $item at ${annotation.fileLocation} "
                             )
                         } else if (nested.qualifiedName !in visitedClasses) {
@@ -281,7 +281,7 @@ class DocAnalyzer(
                                 ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
                             ?.value
                             ?.asString() ?: return
-                    if (text.isBlank() || item.documentation.contains(text)) {
+                    if (text.isBlank() || item.documentation.text.contains(text)) {
                         return
                     }
 
@@ -309,7 +309,7 @@ class DocAnalyzer(
                                         (documentation.findTagDocumentation("return") ?: "")
                                 }
                                 else -> {
-                                    documentation
+                                    documentation.text
                                 }
                             }
                         if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
@@ -513,7 +513,8 @@ class DocAnalyzer(
                         }
 
                     val enforcement =
-                        annotation.getAttributeValue("enforcement") ?: DEFAULT_ENFORCEMENT
+                        annotation.findAttribute("enforcement")?.value?.asString()
+                            ?: DEFAULT_ENFORCEMENT
 
                     // Compute the link uri and text from the enforcement setting.
                     val regexp = """(?:.*\.)?([^.#]+)#(.*)""".toRegex()
@@ -842,7 +843,7 @@ class DocAnalyzer(
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
             // are talking about language levels rather than API versions!
-            if (!item.documentation.contains("@apiSince")) {
+            if (!item.documentation.text.contains("@apiSince")) {
                 item.appendDocumentation(apiVersionLabel, "@apiSince")
             } else {
                 reporter.report(
@@ -864,7 +865,7 @@ class DocAnalyzer(
      *   [item].
      */
     private fun addApiExtensionsDocumentation(sdkExtSince: SdkAndVersion, item: SelectableItem) {
-        if (item.documentation.contains("@sdkExtSince")) {
+        if (item.documentation.text.contains("@sdkExtSince")) {
             reporter.report(
                 Issues.FORBIDDEN_TAG,
                 item,
@@ -890,7 +891,7 @@ class DocAnalyzer(
             }
             val apiVersionLabel = apiVersionLabelProvider(version)
 
-            if (!item.documentation.contains("@deprecatedSince")) {
+            if (!item.documentation.text.contains("@deprecatedSince")) {
                 item.appendDocumentation(apiVersionLabel, "@deprecatedSince")
             } else {
                 reporter.report(

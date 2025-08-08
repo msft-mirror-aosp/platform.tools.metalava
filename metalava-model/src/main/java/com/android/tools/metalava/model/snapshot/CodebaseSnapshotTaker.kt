@@ -333,6 +333,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
                     callableBodyFactory = methodToSnapshot.body::snapshot,
                     defaultValueProvider = defaultValueProvider,
+                    isExtensionMethod = methodToSnapshot.isExtensionMethod(),
                 )
             }
         newMethod.copySelectedApiVariants(methodToSnapshot)
@@ -443,10 +444,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         // Take a snapshot of a class that is referenced from, but not defined within, the snapshot.
         originalClass.accept(referenceVisitor)
 
-        // Find the newly added class.
-        val classItem =
-            snapshotCodebase.findClass(originalClass.qualifiedName())
-                ?: error("Could not snapshot class $qualifiedName")
+        // Find the newly added class, if no class was added then it is not part of this snapshot
+        // so return `null`.
+        val classItem = snapshotCodebase.findClass(originalClass.qualifiedName()) ?: return null
 
         // Any class that is created only when resolving references is by definition not part of the
         // codebase and so will not be emitted.

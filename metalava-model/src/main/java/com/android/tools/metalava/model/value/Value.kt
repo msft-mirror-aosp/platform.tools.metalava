@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -104,11 +105,11 @@ sealed interface Value {
     fun asFlatList(): List<ArrayElementValue>
 
     /**
-     * Create a snapshot for this suitable for use in [targetCodebase].
+     * Create a snapshot for this suitable for use in [targetContext].
      *
-     * This is needed as some [Value]s will reference items in the [Codebase].
+     * This is needed as some [Value]s will reference items within the [ValueContext].
      */
-    fun snapshot(targetCodebase: Codebase) = this
+    fun snapshot(targetContext: ValueContext) = this
 
     /**
      * Transform this [Value].
@@ -184,8 +185,18 @@ sealed interface Value {
      * interfaces this will need to be implemented in the implementation classes.
      */
     @Deprecated(message = "Do not call directly", replaceWith = ReplaceWith("toString()"))
-    fun appendDebugStringTo(builder: StringBuilder) =
+    fun appendDebugStringTo(builder: StringBuilder) {
         appendValueStringTo(builder, ValueStringConfiguration.DEBUG)
+        appendLegacyStateTo(builder)
+    }
+
+    /**
+     * Append any legacy state to the string representation.
+     *
+     * Care must be taken when deciding what legacy state needs to be included in the string
+     * representation as that will affect whether values are considered strictly equal or not.
+     */
+    fun appendLegacyStateTo(builder: StringBuilder) {}
 
     /** Append this [Value]'s [toString] result to [builder]. */
     fun appendToStringTo(builder: StringBuilder)
@@ -202,6 +213,9 @@ sealed interface Value {
      */
     companion object : ValueFactory
 }
+
+/** Provides contextual information needed by [Value]s. */
+interface ValueContext : ClassResolver
 
 /** Get this [Value] as an [Any], or `null` if it cannot be represented as an [Any]. */
 fun Value.asAny() = asLiteralValue()?.underlyingValue
@@ -232,12 +246,25 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * @param annotationQualifiedNameGetter The lambda to call to retrieve the qualified class name for
  *   an [AnnotationItem].
  * @param classObjectValueFormat How to format a [ClassObjectValue].
+ * @param inlineFieldReferenceChecker Optional lambda that checks whether a [FieldReferenceValue]
+ *   should be inlined (returns `true`) or not (returns `false`). If it is not provided then the
+ *   [FieldReferenceValue] is never inlined.
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
+ * @param nonLiteralFloatSuffix The suffix to use for a [FloatValue] that was represented in the
+ *   source as an expression (including negative numbers which are represented as a unary minus
+ *   expression).
+ * @param nonLiteralIntFormat How to format an [IntValue] that was represented in the source as an
+ *   expression (including negative numbers which are represented as a unary minus expression).
+ * @param showKotlinCompanionClass Whether to show that a field is in a Kotlin Companion object or
+ *   not.
+ * @param showKotlinConversionFunction Whether to show an explicit conversion function call, e.g.
+ *   `.toLong()` for a field reference that requires converting in Kotlin.
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
  *   they were added.
- * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
- *   `int` if it was originally specified as an `int`.
+ * @param useOriginalValueForNumbers Whether to use the original value for a number value, i.e.
+ *   [ByteValue], [DoubleValue], [FloatValue], [IntValue], [LongValue], [ShortValue]. At the moment
+ *   this is limited to only using the original value if it was an `Int`.
  * @param valueLanguage The language whose representation of [Value] should be used.
  */
 data class ValueStringConfiguration(
@@ -245,12 +272,17 @@ data class ValueStringConfiguration(
         AnnotationAttributeNameValueSeparator.WITH_SPACES,
     val annotationQualifiedNameGetter: (AnnotationItem) -> String = { it.qualifiedName },
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
+    val inlineFieldReferenceChecker: ((FieldReferenceValue) -> Boolean)? = null,
+    val showKotlinCompanionClass: Boolean = false,
+    val showKotlinConversionFunction: Boolean = false,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
+    val nonLiteralFloatSuffix: Char = 'f',
+    val nonLiteralIntFormat: IntFormat = IntFormat.DECIMAL,
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
     val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
-    val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
+    val useOriginalValueForNumbers: Boolean = false,
     val valueLanguage: ValueLanguage = ValueLanguage.JAVA,
 ) {
     /** Use the [nestedValueAppender] to append a string representation of [Value] to [builder]. */
@@ -302,6 +334,15 @@ enum class ClassObjectValueFormat {
      * [JAVA].
      */
     SOURCE,
+}
+
+/** Possible ways to format an [IntValue]. */
+enum class IntFormat {
+    /** Format as a decimal number. */
+    DECIMAL,
+
+    /** Format as a hexadecimal number with a leader 0x. */
+    HEXADECIMAL,
 }
 
 /** Enumeration of how an array containing a single element should be formatted. */
@@ -422,7 +463,7 @@ sealed interface ArrayElementValue : Value {
     override fun asFlatList() = listOf(this)
 
     /** Override to specialize the return type. */
-    override fun snapshot(targetCodebase: Codebase): ArrayElementValue = this
+    override fun snapshot(targetContext: ValueContext): ArrayElementValue = this
 
     /** Override to specialize the return type. */
     override fun transform(transformer: (ArrayElementValue) -> ArrayElementValue?) =
@@ -430,7 +471,23 @@ sealed interface ArrayElementValue : Value {
 }
 
 /** A [Value] that can be used in a constant field as defined by JLS 15.28. */
-sealed interface ConstantValue : ArrayElementValue
+sealed interface ConstantValue : ArrayElementValue {
+    /**
+     * Convert this [ConstantValue] to be of the [optionalTypeItem].
+     *
+     * @param optionalTypeItem if `null` then no conversion is possible or if this [ConstantValue]
+     *   is already of the correct type then no conversion is necessary. In either case this just
+     *   returns itself. Otherwise, it will use [Value.createLiteralValue] to perform the
+     *   conversion.
+     * @param forceNonLiteralInSource if `true` then the returned value will, if possible, be marked
+     *   as non-literal which can affect the legacy formatting. If `false` then the returned value
+     *   will preserve the non-literal status of this.
+     */
+    fun convertToType(
+        optionalTypeItem: TypeItem?,
+        forceNonLiteralInSource: Boolean = false,
+    ): ConstantValue
+}
 
 /**
  * A [Value] that encapsulates an [underlyingValue] that can be either a primitive or a String.
@@ -472,6 +529,11 @@ sealed interface BooleanValue : PrimitiveValue<Boolean> {
         other is BooleanValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val FALSE: BooleanValue = DefaultBooleanValue(false)
+        val TRUE: BooleanValue = DefaultBooleanValue(true)
+    }
 }
 
 /** A [Value] that encapsulates an integral value, i.e. a [Byte], [Int], [Long] or [Short]. */
@@ -521,18 +583,14 @@ sealed interface DoubleValue : FloatingPointValue<Double> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        configuration.specialValues[this]?.let { builder.append(it) }
-            ?: builder.append(underlyingValue)
-    }
-
     companion object {
-        val NaN: DoubleValue = DefaultDoubleValue(Double.NaN)
-        val NEGATIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.NEGATIVE_INFINITY)
-        val POSITIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.POSITIVE_INFINITY)
+        // These are all non-literals as there is no source literal for these. They all either
+        // require using a division-by-zero expression or a field that itself uses division-by-zero.
+        val NaN: DoubleValue = DefaultDoubleValue(Double.NaN, nonLiteralInSource = true)
+        val NEGATIVE_INFINITY: DoubleValue =
+            DefaultDoubleValue(Double.NEGATIVE_INFINITY, nonLiteralInSource = true)
+        val POSITIVE_INFINITY: DoubleValue =
+            DefaultDoubleValue(Double.POSITIVE_INFINITY, nonLiteralInSource = true)
     }
 }
 
@@ -548,18 +606,14 @@ sealed interface FloatValue : FloatingPointValue<Float> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        configuration.specialValues[this]?.let { builder.append(it) }
-            ?: builder.append(underlyingValue).append('f')
-    }
-
     companion object {
-        val NaN: FloatValue = DefaultFloatValue(Float.NaN)
-        val NEGATIVE_INFINITY: FloatValue = DefaultFloatValue(Float.NEGATIVE_INFINITY)
-        val POSITIVE_INFINITY: FloatValue = DefaultFloatValue(Float.POSITIVE_INFINITY)
+        // These are all non-literals as there is no source literal for these. They all either
+        // require using a division-by-zero expression or a field that itself uses division-by-zero.
+        val NaN: FloatValue = DefaultFloatValue(Float.NaN, nonLiteralInSource = true)
+        val NEGATIVE_INFINITY: FloatValue =
+            DefaultFloatValue(Float.NEGATIVE_INFINITY, nonLiteralInSource = true)
+        val POSITIVE_INFINITY: FloatValue =
+            DefaultFloatValue(Float.POSITIVE_INFINITY, nonLiteralInSource = true)
     }
 }
 
@@ -572,6 +626,16 @@ sealed interface IntValue : IntegralValue<Int> {
         other is IntValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val MIN_VALUE: IntValue =
+            DefaultIntValue(
+                Int.MIN_VALUE,
+                // This is non-literal as it is a negative number and literals have no sign.
+                nonLiteralInSource = true,
+            )
+        val MAX_VALUE: IntValue = DefaultIntValue(Int.MAX_VALUE)
+    }
 }
 
 /** A [Value] that encapsulates a [Long]. */
@@ -583,13 +647,6 @@ sealed interface LongValue : IntegralValue<Long> {
         other is LongValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
-
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        builder.append(underlyingValue).append('L')
-    }
 }
 
 /** A [Value] that encapsulates a [Short]. */
@@ -686,7 +743,12 @@ sealed interface AnnotationValue : ArrayElementValue {
     override fun appendValueStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
-    ) = annotationItem.appendAnnotationStringTo(builder, configuration)
+    ) =
+        annotationItem.appendAnnotationStringTo(
+            builder,
+            configuration,
+            annotationIsValue = true,
+        )
 }
 
 /** A [Value] reference to a [Class] object. */

@@ -31,6 +31,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import java.io.File
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.uast.UMethod
 
 const val METHOD_ESTIMATE = 1000
@@ -55,6 +56,8 @@ internal class PsiBasedCodebase(
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
     val isMultiplatform: Boolean,
+    /** The KaModule to use for adding kotlin-only APIs to the codebase. */
+    val mainAnalysisModule: KaModule? = null,
 ) :
     DefaultCodebase(
         location = location,
@@ -70,12 +73,6 @@ internal class PsiBasedCodebase(
 
     internal val project: Project
         get() = psiAssembler.project
-
-    /**
-     * Printer which can convert PSI, UAST and constants into source code, with ability to filter
-     * out elements that are not part of a codebase etc
-     */
-    internal val printer = CodePrinter()
 
     /**
      * Map from classes to the set of callables for each (but only for classes where we've called
