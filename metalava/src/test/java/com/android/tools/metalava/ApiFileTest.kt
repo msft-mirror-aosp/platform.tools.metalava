@@ -5993,9 +5993,11 @@ class ApiFileTest : DriverTest() {
                  public final class Foo {
                    ctor public Foo();
                    method @BytecodeOnly @Deprecated public void deprecatedHidden();
-                   method public void newNameForRenamed();
-                   method @Deprecated public void newNameForRenamedAndDeprecatedError();
+                   method @InaccessibleFromKotlin public void newNameForRenamed();
+                   method @InaccessibleFromKotlin @Deprecated public void newNameForRenamedAndDeprecatedError();
                    method @BytecodeOnly @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                   method @KotlinOnly public void renamed();
+                   method @KotlinOnly @Deprecated public void renamedAndDeprecatedError();
                  }
                }
             """

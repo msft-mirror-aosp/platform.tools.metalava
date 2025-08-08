@@ -468,10 +468,13 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // type, update the target language set. Exclude reified inline functions because even
         // though these are present in bytecode, there's an error if they're actually used.
         if (callableItem.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) {
+            val jvmName = (callableItem as? MethodItem)?.findJvmNameFromAnnotation()
             if (
                 callableItem is ConstructorItem ||
                     callableItem.returnType().toErasedTypeString() == erasedReturn &&
-                        callableItem.typeParameterList.none { it.isReified() }
+                        callableItem.typeParameterList.none { it.isReified() } &&
+                        // Make sure not to merge separate method definitions which use JvmName.
+                        (jvmName == null || jvmName == callableItem.name())
             ) {
                 callableItem.targetLanguages = TargetLanguageSet.NOT_JAVA
             } else {
