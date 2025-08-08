@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.JVM_SYNTHETIC
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
@@ -272,20 +271,40 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
      * If this condition is updated, the one in PsiCodebaseAssembler determining which methods not
      * to create needs to be updated too.
      */
-    private fun shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
+    private fun KaSession.shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
         // Don't generate hidden functions since they cannot be resolved from source.
         if (functionSymbol.isDeprecatedHidden()) return false
         // For an expect/actual function, there are separate KaNamedFunctionSymbols for the expect
         // and actual. Only create a MethodItem based on the actual.
         if (functionSymbol.isExpect) return false
-        // Generate reified inline functions.
-        if (functionSymbol.typeParameters.any { it.isReified }) return true
-        // Generate JvmSynthetic functions.
-        return functionSymbol.annotations.any { it.classId?.asFqNameString() == JVM_SYNTHETIC }
+        // Generate delegate functions.
+        if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) return true
+        // Skip generated equals and hashCode methods, when they aren't implemented in source.
+        if (
+            functionSymbol.origin == KaSymbolOrigin.SOURCE_MEMBER_GENERATED &&
+                functionSymbol.name.identifierOrNullIfSpecial?.let { name ->
+                    name == "equals" || name == "hashCode"
+                } ?: false
+        )
+            return false
+
+        // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
+        // only, but with K1 value class types weren't handled differently from other types so there
+        // might be a UElement for a constructor using a value class type even though it should be
+        // kotlin only.
+        if (
+            functionSymbol.existsAsUElement() &&
+                !hasValueClassTypeParameter(functionSymbol) &&
+                !isValueClassType(functionSymbol.returnType) &&
+                functionSymbol.receiverType?.let { isValueClassType(it) } != true
+        )
+            return false
+
+        return true
     }
 
     /** Constructs a method from the [functionSymbol] and adds it to the [containingClass]. */
-    private fun processFunction(
+    private fun KaSession.processFunction(
         functionSymbol: KaNamedFunctionSymbol,
         containingClass: DefaultClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory
