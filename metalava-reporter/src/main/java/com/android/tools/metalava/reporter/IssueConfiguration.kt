@@ -27,7 +27,10 @@ class IssueConfiguration {
     fun getSeverity(issue: Issues.Issue): Severity {
         val level = overrides[issue] ?: issue.defaultLevel
         // Upgrade warnings to errors if requested
-        if (warningsAsErrors && level == Severity.WARNING) {
+        if (
+            warningsAsErrors &&
+                (level == Severity.WARNING || level == Severity.WARNING_ERROR_WHEN_NEW)
+        ) {
             return Severity.ERROR
         }
         if (level == Severity.INHERIT) {

@@ -219,9 +219,8 @@ class IssueReportingOptionsTest :
                 Severity.WARNING_ERROR_WHEN_NEW,
                 Issues.GETTER_SETTER_NULLABILITY.defaultLevel
             )
-            // TODO (b/438246528): this should be upgraded to error
             assertEquals(
-                Severity.WARNING_ERROR_WHEN_NEW,
+                Severity.ERROR,
                 issueConfiguration.getSeverity(Issues.GETTER_SETTER_NULLABILITY)
             )
         }
