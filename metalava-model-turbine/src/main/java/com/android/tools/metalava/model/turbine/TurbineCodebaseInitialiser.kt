@@ -397,6 +397,8 @@ internal class TurbineCodebaseInitialiser(
         codebase.packageTracker.createInitialPackages(packageDocs)
     }
 
+    override fun emptyPackageDocumentationFactory() = "".toItemDocumentationFactory()
+
     private fun createAllCommandLineClasses(
         sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
         apiPackages: PackageFilter?,

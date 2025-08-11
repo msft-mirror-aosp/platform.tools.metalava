@@ -158,6 +158,22 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         )
     }
 
+    /**
+     * Override to throw an error.
+     *
+     * This should never be called when taking a snapshot as:
+     * 1. This will only be called for package items that have a null [PackageDoc.commentFactory].
+     * 2. Every [PackageItem] that is created in the snapshot [Codebase] must have a matching
+     *    [PackageItem] in the original [Codebase].
+     * 3. [packageDocsForPackageItem] will ensure that the [PackageDoc.commentFactory] for every
+     *    [PackageItem] being snapshot is set to a non-null value.
+     */
+    override fun emptyPackageDocumentationFactory(): ItemDocumentationFactory {
+        error(
+            "Internal Error: PackageItems in the snapshot must always be created from PackageItems in the original codebase"
+        )
+    }
+
     /** Get the [PackageItem] corresponding to this [PackageItem] in the snapshot codebase. */
     private fun PackageItem.getSnapshotPackage(): PackageItem {
         // Check to see if the package already exists to avoid unnecessarily creating PackageDocs.
