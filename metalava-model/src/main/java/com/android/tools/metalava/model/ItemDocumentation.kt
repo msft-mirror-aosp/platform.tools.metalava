@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import java.util.regex.Pattern
 
 /** A factory that will create an [ItemDocumentation] for a specific [Item]. */
@@ -63,7 +64,7 @@ interface ItemDocumentation {
      * Like [duplicate] except that it returns an instance of [ItemDocumentation] suitable for use
      * in the snapshot.
      */
-    fun snapshot(item: Item): ItemDocumentation = text.toItemDocumentation()
+    fun snapshot(item: Item): ItemDocumentation
 
     /** Work around javadoc cutting off the summary line after the first ". ". */
     fun workAroundJavaDocSummaryTruncationIssue() {}
@@ -328,6 +329,8 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
 internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
 
     override fun duplicate(item: Item) = DefaultItemDocumentation(text)
+
+    override fun snapshot(item: Item) = text.toItemDocumentation()
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
         TODO("Not yet implemented")
