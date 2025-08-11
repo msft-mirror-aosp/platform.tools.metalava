@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import java.util.regex.Pattern
 
 /** A factory that will create an [ItemDocumentation] for a specific [Item]. */
@@ -147,14 +146,6 @@ interface ItemDocumentation {
          * parameters.
          */
         val NONE_FACTORY: ItemDocumentationFactory = { NONE }
-
-        /** Wrap a [String] in an [ItemDocumentationFactory]. */
-        fun String.toItemDocumentationFactory(): ItemDocumentationFactory = {
-            toItemDocumentation()
-        }
-
-        /** Wrap a [String] in an [ItemDocumentation] instance. */
-        fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
     }
 
     /** An empty [ItemDocumentation] that can never contain any text. */
@@ -322,22 +313,6 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
 
     override fun removeDeprecatedSection() {
         text = removeDeprecatedSection(text)
-    }
-}
-
-/** A default [ItemDocumentation] containing JavaDoc/KDoc. */
-internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
-
-    override fun duplicate(item: Item) = DefaultItemDocumentation(text)
-
-    override fun snapshot(item: Item) = text.toItemDocumentation()
-
-    override fun mergeDocumentation(comment: String, tagSection: String?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun findMainDocumentation(): String {
-        TODO("Not yet implemented")
     }
 }
 
