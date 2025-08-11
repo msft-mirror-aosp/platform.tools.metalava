@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.AbstractItemDocumentation
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
