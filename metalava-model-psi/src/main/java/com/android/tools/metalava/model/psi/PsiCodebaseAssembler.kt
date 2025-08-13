@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -336,8 +337,27 @@ internal class PsiCodebaseAssembler(
                     continue
                 }
 
+                // Property accessors can't be resolved from kotlin, direct access is used instead.
+                val targetLanguages =
+                    if (
+                        PsiMethodItem.isKotlinProperty(psiMethod) &&
+                            // Data class component methods are one kind of property accessor that
+                            // can be resolved from Kotlin source.
+                            !(classItem.modifiers.isData() &&
+                                psiMethod.name.startsWith("component"))
+                    ) {
+                        TargetLanguageSet.NOT_KOTLIN
+                    } else {
+                        TargetLanguageSet.ALL
+                    }
                 val method =
-                    PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
+                    PsiMethodItem.create(
+                        codebase,
+                        classItem,
+                        psiMethod,
+                        classTypeItemFactory,
+                        targetLanguages = targetLanguages
+                    )
 
                 // With K2, any methods using value class types which don't use JvmName
                 // will already have been filtered out because they are represented with fake UAST
