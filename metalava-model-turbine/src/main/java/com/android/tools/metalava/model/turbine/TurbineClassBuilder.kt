@@ -682,7 +682,7 @@ internal class TurbineClassBuilder(
      * the method does not have a default value, returns null.
      */
     private fun getAnnotationDefaultExpression(method: MethodInfo) =
-        method.decl()?.defaultValue()?.orElse(null)?.let { defaultTree ->
+        method.decl()?.defaultValue()?.getOrNull()?.let { defaultTree ->
 
             // Turbine stores the default value as a Tree not an Expression so that it can use an
             // Anno class (which is not an Expression). It could wrap the Anno in an AnnoExpr but
