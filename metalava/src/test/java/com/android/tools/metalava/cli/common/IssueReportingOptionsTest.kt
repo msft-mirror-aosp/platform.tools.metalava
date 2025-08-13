@@ -174,4 +174,56 @@ class IssueReportingOptionsTest :
             )
         }
     }
+
+    @Test
+    fun `Test --warnings-as-errors for issue with warning as default level`() {
+        runTest(ARG_WARNINGS_AS_ERRORS) {
+            val issueConfiguration = options.issueConfiguration
+            // If the default level of this issue is changed and this test fails, the test should
+            // just be updated to use a different issue with default level WARNING
+            assertEquals(Severity.WARNING, Issues.ACRONYM_NAME.defaultLevel)
+            assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.ACRONYM_NAME))
+        }
+    }
+
+    @Test
+    fun `Test --warnings-as-errors for issue set to warning level`() {
+        runTest(ARG_WARNINGS_AS_ERRORS, ARG_WARNING, "StartWithLower") {
+            val issueConfiguration = options.issueConfiguration
+            assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
+        }
+    }
+
+    @Test
+    fun `Test --warnings-as-errors for issue with inherited severity`() {
+        runTest(ARG_WARNINGS_AS_ERRORS, "--warning", "RemovedClass") {
+            val issueConfiguration = options.issueConfiguration
+            assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.REMOVED_CLASS))
+            // If the default level of this issue is changed and this test fails, the test should
+            // just be updated to use a different issue with default level INHERIT
+            assertEquals(Severity.INHERIT, Issues.REMOVED_DEPRECATED_CLASS.defaultLevel)
+            assertEquals(
+                Severity.ERROR,
+                issueConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
+            )
+        }
+    }
+
+    @Test
+    fun `Test --warnings-as-errors for issue with warning_error_when_new as default level`() {
+        runTest(ARG_WARNINGS_AS_ERRORS) {
+            val issueConfiguration = options.issueConfiguration
+            // If the default level of this issue is changed and this test fails, the test should
+            // just be updated to use a different issue with default level WARNING_ERROR_WHEN_NEW
+            assertEquals(
+                Severity.WARNING_ERROR_WHEN_NEW,
+                Issues.GETTER_SETTER_NULLABILITY.defaultLevel
+            )
+            // TODO (b/438246528): this should be upgraded to error
+            assertEquals(
+                Severity.WARNING_ERROR_WHEN_NEW,
+                issueConfiguration.getSeverity(Issues.GETTER_SETTER_NULLABILITY)
+            )
+        }
+    }
 }
