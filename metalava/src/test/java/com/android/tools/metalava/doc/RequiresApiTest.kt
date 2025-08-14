@@ -83,11 +83,11 @@ class RequiresApiTest : DriverTest() {
                         // TODO(b/424435764): Should decode 3100000 to 31.0 and 3600001 to 36.1.
                         """
                             package test.pkg;
-                            /** @apiSince 3100000 */
+                            /** @apiSince 31.0 */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class MyClass1 {
                             public MyClass1() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 3600001 */
+                            /** @apiSince 36.1 */
                             public void foo() { throw new RuntimeException("Stub!"); }
                             }
                         """
