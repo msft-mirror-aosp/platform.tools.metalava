@@ -55,4 +55,44 @@ class RequiresApiTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Check RequiresApi handling of full version code`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.RequiresApi;
+                            // Full encoding for S
+                            @RequiresApi(value = 3100000)
+                            public class MyClass1 {
+                            // Full encoding for BAKLAVA_1
+                            @RequiresApi(value = 3600001)
+                            public void foo() {}
+                            }
+                        """
+                    ),
+                    requiresApiSource
+                ),
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        // TODO(b/424435764): Should decode 3100000 to 31.0 and 3600001 to 36.1.
+                        """
+                            package test.pkg;
+                            /** @apiSince 3100000 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class MyClass1 {
+                            public MyClass1() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 3600001 */
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                )
+        )
+    }
 }

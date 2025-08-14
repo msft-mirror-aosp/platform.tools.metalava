@@ -119,6 +119,7 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   memberDoc crash[turbine]
 
 com.android.tools.metalava.doc.RequiresApiTest
+  Check RequiresApi handling of full version code[turbine]
   Check RequiresApi handling[turbine]
 
 com.android.tools.metalava.doc.RestrictedForEnvironmentTest
