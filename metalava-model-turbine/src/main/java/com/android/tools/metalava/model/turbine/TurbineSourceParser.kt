@@ -41,8 +41,16 @@ internal class TurbineSourceParser(
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
-        projectDescription: File?
+        projectDescription: File?,
+        compiledSourceJar: File?,
     ): Codebase {
+        if (projectDescription != null) {
+            error("Turbine model does not support --project")
+        }
+        if (compiledSourceJar != null) {
+            error("Turbine model does not support --compiled-jar")
+        }
+
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
         val assembler =
@@ -69,7 +77,7 @@ internal class TurbineSourceParser(
         return assembler.codebase
     }
 
-    override fun loadFromJar(apiJar: File): Codebase {
+    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
         TODO("b/299044569 handle this")
     }
 }

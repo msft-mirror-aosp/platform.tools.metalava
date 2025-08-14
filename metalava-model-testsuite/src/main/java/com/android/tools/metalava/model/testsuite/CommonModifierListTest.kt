@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
@@ -61,8 +61,7 @@ class CommonModifierListTest : BaseModelTest() {
     @Test
     fun `test equals() of empty modifiers`() {
         runWithCodebase {
-            val annotation =
-                DefaultAnnotationItem.create(codebase, JAVA_LANG_DEPRECATED, emptyList())!!
+            val annotation = AnnotationItem.createMarkerAnnotation(codebase, JAVA_LANG_DEPRECATED)!!
 
             // Create an empty set of modifiers
             val modifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
@@ -102,7 +101,11 @@ class CommonModifierListTest : BaseModelTest() {
     fun `test toString()`() {
         runWithCodebase {
             val annotation =
-                DefaultAnnotationItem.create(codebase, FileLocation.UNKNOWN, JAVA_LANG_DEPRECATED) {
+                AnnotationItem.createAttributesLazily(
+                    codebase,
+                    FileLocation.UNKNOWN,
+                    JAVA_LANG_DEPRECATED
+                ) {
                     emptyList()
                 }!!
             val modifiers =
