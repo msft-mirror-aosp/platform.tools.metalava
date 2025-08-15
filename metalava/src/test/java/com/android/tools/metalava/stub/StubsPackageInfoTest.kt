@@ -16,9 +16,10 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.testing.html
@@ -48,7 +49,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    androidxNullableSource,
                 ),
             warnings = "",
             api =
@@ -66,8 +67,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 """,
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
                     // By default metalava rewrites androidx.annotation.Nullable to
                     // android.annotation.Nullable, but the latter does not have target PACKAGE thus
                     // fails to compile. This forces stubs keep the androidx annotation.
@@ -164,6 +163,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test package-info annotations`() {
         check(
@@ -179,7 +179,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         )
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }"""),
-                    restrictToSource
+                    restrictToSource,
                 ),
             api =
                 """
@@ -191,20 +191,21 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 """,
             stubFiles =
                 arrayOf(
-                    java("""
-                    package test.pkg;
-                    """),
                     java(
                         """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public abstract class Class1 {
-                    public Class1() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public abstract class Class1 {
+                            public Class1() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 

@@ -22,11 +22,8 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for the [MethodItem.superMethods] method. */
-@RunWith(Parameterized::class)
 class CommonSuperMethodsTest : BaseModelTest() {
 
     @Test
@@ -741,7 +738,8 @@ class CommonSuperMethodsTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.Foo").methods().first()
             val parentInterfaceMethod =
                 codebase.assertClass("test.pkg.ParentInterface").methods().first()
-            val hiddenClassMethod = codebase.assertClass("test.pkg.HiddenClass").methods().first()
+            val hiddenClassMethod =
+                codebase.assertResolvedClass("test.pkg.HiddenClass").methods().first()
 
             assertEquals(listOf(hiddenClassMethod, parentInterfaceMethod), method.superMethods())
         }

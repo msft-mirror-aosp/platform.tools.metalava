@@ -16,12 +16,15 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class HideAnnotationTest : DriverTest() {
     // Regression test for b/133364476 crash
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Using hide annotation with Kotlin source`() {
         check(
@@ -136,6 +139,7 @@ class HideAnnotationTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Using hide annotation on file scope`() {
         check(
@@ -170,6 +174,140 @@ class HideAnnotationTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    @RequiresCapabilities(Capability.KOTLIN)
+    fun `Hide annotation on Kotlin const properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        annotation class HideAnnotation
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            companion object {
+                                @field:HideAnnotation
+                                const val CONST_FIELD_TARGET = 0
+
+                                @property:HideAnnotation
+                                const val CONST_PROPERTY_TARGET = 0
+
+                                @HideAnnotation
+                                const val CONST_NO_TARGET = 0
+                            }
+                        }
+                        """
+                    )
+                ),
+            hideAnnotations = arrayOf("test.pkg.HideAnnotation"),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    field public static final test.pkg.Foo.Companion Companion;
+                  }
+                  public static final class Foo.Companion {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface HideAnnotation {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    @RequiresCapabilities(Capability.KOTLIN)
+    fun `Hide annotation on Kotlin JvmField properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        annotation class HideAnnotation
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            companion object {
+                                @field:HideAnnotation
+                                @JvmField
+                                var jvmFieldWithFieldTarget = 0
+
+                                @property:HideAnnotation
+                                @JvmField
+                                var jvmFieldWithPropertyTarget = 0
+
+                                @HideAnnotation
+                                @JvmField
+                                var jvmFieldWithNoTarget = 0
+                            }
+                        }
+                        """
+                    )
+                ),
+            hideAnnotations = arrayOf("test.pkg.HideAnnotation"),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    field public static final test.pkg.Foo.Companion Companion;
+                  }
+                  public static final class Foo.Companion {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface HideAnnotation {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    @RequiresCapabilities(Capability.KOTLIN)
+    fun `Hide annotation is inherited from package to type alias`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Target;
+                        @Target(ElementType.PACKAGE)
+                        @interface HideAnnotation {}
+                        """
+                    ),
+                    java(
+                        "test/pkg/package-info.java",
+                        """
+                        @HideAnnotation
+                        package test.pkg;
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    )
+                ),
+            hideAnnotations = arrayOf("test.pkg.HideAnnotation"),
+            // No public API, everything is in the hidden package
+            api = ""
         )
     }
 }
