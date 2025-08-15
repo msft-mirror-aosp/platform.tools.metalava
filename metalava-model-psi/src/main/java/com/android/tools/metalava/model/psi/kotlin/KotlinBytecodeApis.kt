@@ -55,12 +55,12 @@ import kotlin.metadata.KmFunction
 import kotlin.metadata.KmProperty
 import kotlin.metadata.KmPropertyAccessorAttributes
 import kotlin.metadata.Visibility
+import kotlin.metadata.hasAnnotations
 import kotlin.metadata.isReified
 import kotlin.metadata.jvm.JvmMethodSignature
 import kotlin.metadata.jvm.KotlinClassMetadata
 import kotlin.metadata.jvm.Metadata
 import kotlin.metadata.jvm.getterSignature
-import kotlin.metadata.jvm.hasAnnotationsInBytecode
 import kotlin.metadata.jvm.setterSignature
 import kotlin.metadata.jvm.signature
 import kotlin.metadata.jvm.syntheticMethodForAnnotations
@@ -606,7 +606,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         kmProperty: KmProperty,
         psiClass: PsiClass,
     ) {
-        if (!kmProperty.hasAnnotationsInBytecode) return
+        if (!kmProperty.hasAnnotations) return
 
         // The annotations on a property in source end up in bytecode on a synthetic method
         // generated to track the annotations. Find that method in the psi class.
