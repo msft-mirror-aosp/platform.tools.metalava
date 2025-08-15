@@ -3415,50 +3415,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Test KDoc suppress`() {
-        // Basic class; also checks that default constructor is made explicit
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    public class Foo {
-                        private Foo() { }
-                        /** @suppress */
-                        public void hidden() {
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    /**
-                    * Some comment.
-                    * @suppress
-                    */
-                    public class Hidden {
-                        private Hidden() { }
-                        public void hidden() {
-                        }
-                        public class Inner {
-                        }
-                    }
-                    """
-                    )
-                ),
-            api =
-                """
-                    package test.pkg {
-                      public class Foo {
-                      }
-                    }
-                """
-        )
-    }
-
-    @Test
     fun `Check skipping implicit final or deprecated override`() {
         // Regression test for 122358225
         check(
@@ -5806,7 +5762,7 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
 
                         /**
-                         * @suppress
+                         * @hide
                          */
                         @PublishedApi
                         internal fun internalYetPublished() {}
