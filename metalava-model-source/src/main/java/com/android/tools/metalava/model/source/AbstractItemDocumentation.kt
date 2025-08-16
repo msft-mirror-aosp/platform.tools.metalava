@@ -31,12 +31,7 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
     abstract override var text: String
 
     override val isHidden
-        get() =
-            text.contains('@') &&
-                (text.contains("@hide") ||
-                    text.contains("@pending") ||
-                    // KDoc:
-                    text.contains("@suppress"))
+        get() = text.contains("@hide")
 
     override val isDocOnly
         get() = text.contains("@doconly")
