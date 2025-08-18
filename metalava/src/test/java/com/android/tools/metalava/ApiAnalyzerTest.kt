@@ -522,7 +522,7 @@ class ApiAnalyzerTest : DriverTest() {
                     kotlin(
                         """
                             package test.pkg
-                            /** @suppress */
+                            /** @hide */
                             interface HiddenInterface
                             class PublicClass {
                                 fun returnsHiddenInterface(): HiddenInterface = TODO()

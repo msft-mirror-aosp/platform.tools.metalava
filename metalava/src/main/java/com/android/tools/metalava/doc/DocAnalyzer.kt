@@ -545,7 +545,7 @@ class DocAnalyzer(
                  * constructors, fields and/or properties, i.e. not parameters.
                  */
                 private fun handleRequiresApi(annotation: AnnotationItem, item: SelectableItem) {
-                    val level = run {
+                    val possibleFullVersionCode = run {
                         val api = annotation.findAttribute("api")?.value?.asInt()
                         if (api == null || api == 1) {
                             annotation.findAttribute("value")?.value?.asInt() ?: return
@@ -554,7 +554,8 @@ class DocAnalyzer(
                         }
                     }
 
-                    addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
+                    val apiVersion = decodePossibleFullVersionCode(possibleFullVersionCode)
+                    addApiVersionDocumentation(apiVersion, item)
                 }
 
                 private fun handleRestrictedForEnvironment(
@@ -902,6 +903,27 @@ class DocAnalyzer(
                 )
             }
         }
+    }
+
+    companion object {
+        /**
+         * Major value used in android.os.Build.VERSION_CODES_FULL to encode a major/minor version
+         * into a single int. That encoding is used in `@RequiresApi(api=....)`.
+         */
+        const val SDK_INT_MULTIPLIER = 100000
+
+        /**
+         * Decode a version number that could either be a major version on its own, or a full
+         * version code that encodes a major and minor number.
+         */
+        private fun decodePossibleFullVersionCode(possibleFullVersionCode: Int) =
+            if (possibleFullVersionCode > SDK_INT_MULTIPLIER) {
+                val major = possibleFullVersionCode / SDK_INT_MULTIPLIER
+                val minor = possibleFullVersionCode % SDK_INT_MULTIPLIER
+                ApiVersion.fromMajorMinor(major, minor)
+            } else {
+                ApiVersion.fromLevel(possibleFullVersionCode)
+            }
     }
 }
 
