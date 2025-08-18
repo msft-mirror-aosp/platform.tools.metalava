@@ -171,4 +171,77 @@ class DocCommentParserTest {
                 """,
         )
     }
+
+    @Test
+    fun `Test a @hide at the end of the text`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * An invalid block tag at the end of the text. @hide
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * An invalid block tag at the end of the text. @hide>>
+                    @hide <<>>
+                """,
+        )
+    }
+
+    @Test
+    fun `Test a @hide at the end of a block tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * An invalid block tag at the end of the text.
+                     * @deprecated for some reason. @hide
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * An invalid block tag at the end of the text.>>
+                    @deprecated <<for some reason. @hide>>
+                    @hide <<>>
+                """,
+        )
+    }
+
+    @Test
+    fun `Test a {@hide} at the end of the text`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * An inline tag at the end of some text {@hide reason why hidden}
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * An inline tag at the end of some text {@hide reason why hidden}>>
+                    @hide <<>>
+                """,
+        )
+    }
+
+    @Test
+    fun `Test an inline {@hide} tag used like a block tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * An inline tag.
+                     * @see Something
+                     * {@hide}
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * An inline tag.>>
+                    @see <<Something\n * {@hide}>>
+                    @hide <<>>
+                """,
+        )
+    }
 }

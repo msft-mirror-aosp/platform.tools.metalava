@@ -129,6 +129,24 @@ object DocCommentParser {
             }
         }
 
+        // If no block tag `@hide` was found then just look for an `@hide` anywhere in the comment.
+        // That matches the legacy behavior which some downstream clients rely upon.
+        if (!foundHide) {
+            // Search through the input for `@hide`.
+            //
+            // If a `@hide` was found then add a block tag for it. This purposely does not try and
+            // remove the `@hide` from the comment as it would be quite complicated (it could be in
+            // the main description or a block tag description) and in most places it will prevent
+            // the tagged item from being included in the API so the Javadoc will not be used. The
+            // exceptions are when it is used with `@SystemApi` (or similar) in which case the
+            // Javadoc will end up in the system API doc stubs. Longer term that will not be an
+            // issue as the intent is to remove the need to use `@hide` with `@SystemApi` (or
+            // similar) altogether.
+            if (text.contains("@hide")) {
+                blockTagSections.add(DefaultBlockTagSection("hide", DocDescription.EMPTY))
+            }
+        }
+
         // Create the description, from the start of the comment body to the start of the first
         // block tag, if present, or the end of the comment body, otherwise.
         val description =
