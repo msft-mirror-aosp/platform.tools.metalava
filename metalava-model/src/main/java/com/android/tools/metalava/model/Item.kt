@@ -397,8 +397,15 @@ abstract class DefaultItem(
      *
      * The leaking of `this` is safe as the implementations do not access anything that has not been
      * initialized.
+     *
+     * If this is private then it cannot be included in an API so its documentation is irrelevant.
+     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
+     * instead. The latter is immutable and attempting to change it will throw an error but that is
+     * safe as only documentation for API [Item]s is modified.
      */
-    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
+    final override val documentation =
+        if (modifiers.isPrivate()) ItemDocumentation.NONE
+        else @Suppress("LeakingThis") documentationFactory(this)
 
     /**
      * The immutable [modifiers].
