@@ -1262,7 +1262,10 @@ class JavadocTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/429965593): Incorrect use of @hide should be reported.
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                """,
             api =
                 """
                     // Signature format: 5.0
