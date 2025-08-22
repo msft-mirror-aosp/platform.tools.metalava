@@ -2830,7 +2830,10 @@ class ApiFileTest : DriverTest() {
                         public int removedField;
                         /** @removed */
                         public void removedMethod() { }
-                        /** @removed and @hide - should not be listed */
+                        /**
+                         * @removed
+                         * @hide - should not be listed
+                         */
                         public int hiddenField;
 
                         /** @removed */
