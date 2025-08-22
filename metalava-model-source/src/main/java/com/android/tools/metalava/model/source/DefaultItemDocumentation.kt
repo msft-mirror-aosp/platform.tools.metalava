@@ -21,11 +21,14 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
 
 /** A default [com.android.tools.metalava.model.ItemDocumentation] containing JavaDoc/KDoc. */
-internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
+internal class DefaultItemDocumentation(
+    item: SelectableItem,
+    override var text: String,
+) : AbstractItemDocumentation(item) {
 
-    override fun duplicate(item: SelectableItem) = DefaultItemDocumentation(text)
+    override fun duplicate(item: SelectableItem) = DefaultItemDocumentation(item, text)
 
-    override fun snapshot(item: SelectableItem) = text.toItemDocumentation()
+    override fun snapshot(item: SelectableItem) = text.toItemDocumentation(item)
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
         TODO("Not yet implemented")
@@ -37,7 +40,8 @@ internal class DefaultItemDocumentation(override var text: String) : AbstractIte
 }
 
 /** Wrap a [String] in an [ItemDocumentationFactory]. */
-fun String.toItemDocumentationFactory(): ItemDocumentationFactory = { toItemDocumentation() }
+fun String.toItemDocumentationFactory(): ItemDocumentationFactory = { toItemDocumentation(it) }
 
 /** Wrap a [String] in an [ItemDocumentation] instance. */
-private fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
+private fun String.toItemDocumentation(item: SelectableItem): ItemDocumentation =
+    DefaultItemDocumentation(item, this)

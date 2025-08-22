@@ -17,12 +17,15 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.SelectableItem
 import java.util.regex.Pattern
 
 /**
  * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
  */
-abstract class AbstractItemDocumentation : ItemDocumentation {
+abstract class AbstractItemDocumentation(
+    protected val item: SelectableItem,
+) : ItemDocumentation {
 
     /**
      * The mutable text contents of the documentation. This is abstract to allow the implementations

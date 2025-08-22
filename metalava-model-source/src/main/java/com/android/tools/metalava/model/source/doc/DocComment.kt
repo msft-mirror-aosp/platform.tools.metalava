@@ -29,7 +29,7 @@ interface DocComment {
     val blockTagSections: List<BlockTagSection>
 
     companion object {
-        /** Create a [DocComment] from [text]. */
+        /** Create a [DocComment] from [text], reporting any issues to [reporter]. */
         fun createDocComment(text: String): DocComment {
             return DocCommentParser.parseText(text)
         }

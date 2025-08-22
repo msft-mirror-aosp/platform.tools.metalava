@@ -51,11 +51,11 @@ import org.jetbrains.uast.sourcePsiElement
 
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
-    private val item: SelectableItem,
+    item: SelectableItem,
     private val codebase: PsiBasedCodebase,
     private val psi: PsiElement,
     private val extraDocs: String?,
-) : AbstractItemDocumentation() {
+) : AbstractItemDocumentation(item) {
 
     /** Lazily initialized backing property for [text]. */
     private lateinit var _text: String
