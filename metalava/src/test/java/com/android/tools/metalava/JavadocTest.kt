@@ -1243,4 +1243,46 @@ class JavadocTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Test non-block @hide tag`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                private Foo() {}
+                                /**
+                                 * A method that does not use @hide correctly
+                                 */
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            // TODO(b/429965593): Incorrect use of @hide should be reported.
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                )
+        )
+    }
 }
