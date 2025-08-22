@@ -385,7 +385,7 @@ interface Item : Reportable {
 
 /** Base [Item] implementation that is common to all models. */
 abstract class DefaultItem(
-    override val codebase: Codebase,
+    final override val codebase: Codebase,
     final override val fileLocation: FileLocation,
     final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
