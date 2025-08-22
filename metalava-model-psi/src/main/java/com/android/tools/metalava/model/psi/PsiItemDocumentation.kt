@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.Issues
@@ -50,7 +51,7 @@ import org.jetbrains.uast.sourcePsiElement
 
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
-    private val item: Item,
+    private val item: SelectableItem,
     private val codebase: PsiBasedCodebase,
     private val psi: PsiElement,
     private val extraDocs: String?,
@@ -71,11 +72,11 @@ internal class PsiItemDocumentation(
         return _text
     }
 
-    override fun duplicate(item: Item) =
+    override fun duplicate(item: SelectableItem) =
         if (item is PsiItem) PsiItemDocumentation(item, codebase, psi, extraDocs)
         else text.toItemDocumentationFactory()(item)
 
-    override fun snapshot(item: Item) = this
+    override fun snapshot(item: SelectableItem) = this
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi is PsiCompiledElement) {

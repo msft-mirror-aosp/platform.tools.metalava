@@ -402,9 +402,14 @@ abstract class DefaultItem(
      * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
      * instead. The latter is immutable and attempting to change it will throw an error but that is
      * safe as only documentation for API [Item]s is modified.
+     *
+     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
+     * [ParameterItem] as they do not have documentation.
+     *
+     * TODO: Move this to [com.android.tools.metalava.model.item.DefaultSelectableItem],
      */
     final override val documentation =
-        if (modifiers.isPrivate()) ItemDocumentation.NONE
+        if (modifiers.isPrivate() || this !is SelectableItem) ItemDocumentation.NONE
         else @Suppress("LeakingThis") documentationFactory(this)
 
     /**
