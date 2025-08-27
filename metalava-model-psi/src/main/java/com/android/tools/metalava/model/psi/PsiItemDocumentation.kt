@@ -24,9 +24,11 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -69,10 +71,20 @@ internal class PsiItemDocumentation(
             textChanged()
         }
 
+    private var psiComment: PsiComment? = null
+
+    override val fileLocation: FileLocation
+        get() {
+            // Make sure that the psiComment is initialized.
+            text
+            return PsiFileLocation.fromPsiElement(psiComment)
+        }
+
     /**
-     * Lazy initializer for [_text].
+     * Lazy initializer for [_text] and [psiComment].
      *
-     * Updates the [_text] field with the text of the document comment associated with [element].
+     * Updates the [_text] field with the text of the document comment associated with [element] and
+     * [psiComment] with the [PsiComment] for the document comment.
      */
     private fun initializeFromPsiElement(element: PsiElement) {
         when (element) {
@@ -82,6 +94,7 @@ internal class PsiItemDocumentation(
             is KtDeclaration -> {
                 element.docComment?.let { comment ->
                     _text = comment.text
+                    psiComment = comment
                     return
                 }
             }
@@ -91,6 +104,7 @@ internal class PsiItemDocumentation(
                     for (comment in comments) {
                         val text = comment.text
                         if (text.startsWith("/**")) {
+                            psiComment = comment.sourcePsi
                             _text = text
                             return
                         }
@@ -104,6 +118,7 @@ internal class PsiItemDocumentation(
                     // Make sure that the text is a doc comment, i.e. starts with /**.
                     if (text.startsWith("/**")) {
                         _text = text
+                        psiComment = docComment
                         return
                     }
                 }
@@ -111,6 +126,7 @@ internal class PsiItemDocumentation(
         }
 
         _text = ""
+        psiComment = null
     }
 
     override fun duplicate(item: SelectableItem) =
