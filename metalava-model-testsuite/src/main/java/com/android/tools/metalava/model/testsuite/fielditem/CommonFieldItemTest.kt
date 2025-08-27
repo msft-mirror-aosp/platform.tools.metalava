@@ -17,10 +17,12 @@
 package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.runNullabilityTest
+import com.android.tools.metalava.model.value.asFloat
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -295,13 +297,15 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field4" to "T",
                     "field5" to "java.util.Map.Entry<T!,java.lang.String!>",
                 )
-            for (field in codebase.assertClass("test.pkg.Foo").fields()) {
+            val fields = codebase.assertClass("test.pkg.Foo").fields()
+            assertEquals(expectedTypes.size, fields.size, message = "field count")
+            for (field in fields) {
                 val name = field.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the field to ensure that only the outermost
                 // type is affected by the not-type-use nullability annotation.
                 assertWithMessage(name)
-                    .that(field.type().toTypeString(kotlinStyleNulls = true))
+                    .that(field.type().testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -354,13 +358,15 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field4" to "T?",
                     "field5" to "java.util.Map.Entry<T!,java.lang.String!>?",
                 )
-            for (field in codebase.assertClass("test.pkg.Foo").fields()) {
+            val fields = codebase.assertClass("test.pkg.Foo").fields()
+            assertEquals(expectedTypes.size, fields.size, message = "field count")
+            for (field in fields) {
                 val name = field.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the field to ensure that only the outermost
                 // type is affected by the not-type-use nullability annotation.
                 assertWithMessage(name)
-                    .that(field.type().toTypeString(kotlinStyleNulls = true))
+                    .that(field.type().testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -491,14 +497,16 @@ class CommonFieldItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             val minNormalBits = java.lang.Float.MIN_NORMAL.toBits()
-            for (field in testClass.fields()) {
-                val value = field.initialValue(true) as Float
+            val fields = testClass.fields()
+            assertEquals(3, fields.size, message = "field count")
+            for (field in fields) {
+                val value = field.constantValue?.asFloat()!!
                 val valueBits = value.toBits()
                 assertEquals(
                     minNormalBits,
                     valueBits,
                     message =
-                        "field ${field.name()} - expected ${Integer.toHexString(minNormalBits)}, found ${Integer.toHexString(valueBits)}"
+                        "field ${field.name()} - constantValue - expected ${Integer.toHexString(minNormalBits)}, found ${Integer.toHexString(valueBits)}"
                 )
 
                 val written =

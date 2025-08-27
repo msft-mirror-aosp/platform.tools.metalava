@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -31,10 +30,109 @@ class AnnotationsMergerTest : DriverTest() {
     // Test with jar file
 
     @Test
+    fun `Merge conflicting nullability when merging from sources`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    androidxNullableSource,
+                    androidxNonNullSource,
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.Nullable;
+                            import androidx.annotation.NonNull;
+                            public class MyTest {
+                                private MyTest() {}
+                                public @NonNull Number nonNull;
+                                public @Nullable Number nullable;
+                            }
+                        """
+                    )
+                ),
+            mergeJavaStubAnnotations =
+                """
+                    package test.pkg;
+                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
+                    public class MyTest {
+                        private MyTest() {}
+                        public @Nullable Number nonNull;
+                        public @NonNull Number nullable;
+                    }
+                """,
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MyTest {
+                        field @NonNull public Number nonNull;
+                        field @Nullable public Number nullable;
+                      }
+                    }
+                """,
+            expectedIssues =
+                """
+                    src/test/pkg/MyTest.java:6: warning: Merge conflict, has @NonNull (or equivalent) attempting to merge @Nullable (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                    src/test/pkg/MyTest.java:7: warning: Merge conflict, has @Nullable (or equivalent) attempting to merge @NonNull (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                """,
+        )
+    }
+
+    @Test
+    fun `Merge conflicting nullability when merging from XML`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    androidxNullableSource,
+                    androidxNonNullSource,
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.Nullable;
+                            import androidx.annotation.NonNull;
+                            public class MyTest {
+                                private MyTest() {}
+                                public @NonNull Number nonNull;
+                                public @Nullable Number nullable;
+                            }
+                        """
+                    )
+                ),
+            mergeXmlAnnotations =
+                """<?xml version="1.0" encoding="UTF-8"?>
+                    <root>
+                      <item name="test.pkg.MyTest nonNull">
+                        <annotation name="androidx.annotation.Nullable" />
+                      </item>
+                      <item name="test.pkg.MyTest nullable">
+                        <annotation name="androidx.annotation.NonNull" />
+                      </item>
+                    </root>
+                """,
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MyTest {
+                        field @NonNull public Number nonNull;
+                        field @Nullable public Number nullable;
+                      }
+                    }
+                """,
+            expectedIssues =
+                """
+                    src/test/pkg/MyTest.java:6: warning: Merge conflict, has @NonNull (or equivalent) attempting to merge @Nullable (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                    src/test/pkg/MyTest.java:7: warning: Merge conflict, has @Nullable (or equivalent) attempting to merge @NonNull (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                """,
+        )
+    }
+
+    @Test
     fun `Signature files contain annotations`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -57,10 +155,6 @@ class AnnotationsMergerTest : DriverTest() {
                     intRangeAnnotationSource,
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -155,7 +249,7 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             mergeSignatureAnnotations =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public interface Appendable {
                     method public test.pkg.Appendable append(java.lang.CharSequence?);
@@ -202,8 +296,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -242,7 +334,7 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge qualifier annotations from Java stub files onto stubs that are not in the API signature file`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.TEST,
             sourceFiles =
                 arrayOf(
                     java(
@@ -332,8 +424,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -378,8 +468,6 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
-                    // Hide libcore.util classes.
-                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -389,7 +477,7 @@ class AnnotationsMergerTest : DriverTest() {
                 import libcore.util.Nullable;
 
                 public class PublicClass {
-                    @NonNull public @NonNull String publicMethod(@Nullable Object object) {return "";}
+                    @NonNull public String publicMethod(@Nullable Object object) {return "";}
                 }
                 """,
             api =
@@ -410,7 +498,7 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             expectedIssues =
                 """
-                    inclusion/src/test/pkg/Example.java:13: warning: inclusion annotations were given for method test.pkg.HiddenExample.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
+                    inclusion1/src/test/pkg/HiddenExample.java:7: warning: inclusion annotations were given for method test.pkg.HiddenExample.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
                 """,
             sourceFiles =
                 arrayOf(
@@ -451,6 +539,11 @@ class AnnotationsMergerTest : DriverTest() {
                                 @test.annotation.Hide void bHidden();
                                 @test.annotation.Hide @test.annotation.Show void cShown();
                             }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
 
                             @test.annotation.Hide
                             public interface HiddenExample {

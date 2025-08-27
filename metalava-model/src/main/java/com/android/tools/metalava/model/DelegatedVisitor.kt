@@ -21,6 +21,17 @@ package com.android.tools.metalava.model
  * wants to delegate the visiting of the [Item]s to another class.
  */
 interface DelegatedVisitor {
+    /**
+     * If `true` then a nested class is visited while visiting the containing class, otherwise
+     * nested classes are visited after visiting the containing class. A class is being visited
+     * between calls to [visitClass] and [afterVisitClass].
+     *
+     * Defaults to `false` simply because most implementations do not need to preserve class
+     * nesting.
+     */
+    val requiresClassNesting: Boolean
+        get() = false
+
     fun visitCodebase(codebase: Codebase) {}
 
     fun afterVisitCodebase(codebase: Codebase) {}
@@ -40,4 +51,6 @@ interface DelegatedVisitor {
     fun visitMethod(method: MethodItem) {}
 
     fun visitProperty(property: PropertyItem) {}
+
+    fun visitTypeAlias(typeAlias: TypeAliasItem) {}
 }
