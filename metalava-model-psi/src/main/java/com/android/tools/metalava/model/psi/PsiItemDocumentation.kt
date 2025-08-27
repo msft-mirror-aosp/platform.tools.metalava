@@ -42,10 +42,8 @@ import com.intellij.psi.impl.source.tree.JavaDocElementType
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.javadoc.PsiDocToken
 import com.intellij.psi.javadoc.PsiInlineDocTag
-import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.uast.UElement
-import org.jetbrains.uast.sourcePsiElement
 
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
@@ -625,13 +623,6 @@ internal class PsiItemDocumentation(
                         val text = it.text
                         if (text.startsWith("/**")) text else null
                     } ?: ""
-                } else {
-                    // Temporary workaround: UAST seems to not return document nodes
-                    // https://youtrack.jetbrains.com/issue/KT-22135
-                    val first = element.sourcePsiElement?.firstChild
-                    if (first is KDoc) {
-                        return first.text
-                    }
                 }
             }
 
