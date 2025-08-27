@@ -75,36 +75,37 @@ internal class PsiItemDocumentation(
      * Updates the [_text] field with the text of the document comment associated with [element].
      */
     private fun initializeFromPsiElement(element: PsiElement) {
-        if (element is PsiCompiledElement) {
-            _text = ""
-            return
-        }
-
-        if (element is KtDeclaration) {
-            _text = element.docComment?.text.orEmpty()
-            return
-        }
-
-        if (element is UElement) {
-            val comments = element.comments
-            if (comments.isNotEmpty()) {
-                _text =
-                    comments.firstNotNullOfOrNull {
-                        val text = it.text
-                        if (text.startsWith("/**")) text else null
-                    } ?: ""
-                return
+        when (element) {
+            is PsiCompiledElement -> {
+                // Drop through.
             }
-        }
-
-        if (element is PsiDocCommentOwner) {
-            val docComment = element.docComment
-            if (docComment != null && docComment !is PsiCompiledElement) {
-                val text = docComment.text
-                // Make sure that the text is a doc comment, i.e. starts with /**.
-                if (text != null && text.startsWith("/**")) {
-                    _text = text
+            is KtDeclaration -> {
+                element.docComment?.let { comment ->
+                    _text = comment.text
                     return
+                }
+            }
+            is UElement -> {
+                val comments = element.comments
+                if (comments.isNotEmpty()) {
+                    for (comment in comments) {
+                        val text = comment.text
+                        if (text.startsWith("/**")) {
+                            _text = text
+                            return
+                        }
+                    }
+                }
+            }
+            is PsiDocCommentOwner -> {
+                val docComment = element.docComment
+                if (docComment != null) {
+                    val text = docComment.text
+                    // Make sure that the text is a doc comment, i.e. starts with /**.
+                    if (text.startsWith("/**")) {
+                        _text = text
+                        return
+                    }
                 }
             }
         }
