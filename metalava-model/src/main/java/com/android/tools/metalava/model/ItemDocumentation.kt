@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model
 
-/** A factory that will create an [ItemDocumentation] for a specific [Item]. */
-typealias ItemDocumentationFactory = (Item) -> ItemDocumentation
+/** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
+typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
 
 /**
  * The documentation associated with an [Item].
@@ -55,13 +55,13 @@ interface ItemDocumentation {
      *
      * [ItemDocumentation] instances can be mutable, and if they are then they must not be shared.
      */
-    fun duplicate(item: Item): ItemDocumentation
+    fun duplicate(item: SelectableItem): ItemDocumentation
 
     /**
      * Like [duplicate] except that it returns an instance of [ItemDocumentation] suitable for use
      * in the snapshot.
      */
-    fun snapshot(item: Item): ItemDocumentation
+    fun snapshot(item: SelectableItem): ItemDocumentation
 
     /** Work around javadoc cutting off the summary line after the first ". ". */
     fun workAroundJavaDocSummaryTruncationIssue() {}
@@ -78,6 +78,13 @@ interface ItemDocumentation {
      *   `@`, e.g. `@deprecated`, not `deprecated`.
      */
     fun appendDocumentation(comment: String, tagSection: String?)
+
+    /**
+     * Check to see whether this has a tag section of [blockTagType].
+     *
+     * @param blockTagType the type of the tag, e.g. `param` for `@param p ...`.
+     */
+    fun hasBlockTagOfType(blockTagType: String): Boolean
 
     /**
      * Check to see whether this has the named tag section.
@@ -161,10 +168,13 @@ interface ItemDocumentation {
             get() = false
 
         // This is ok to share as it is immutable.
-        override fun duplicate(item: Item) = this
+        override fun duplicate(item: SelectableItem) = this
 
         // This is ok to use in a snapshot as it is immutable and model independent.
-        override fun snapshot(item: Item) = this
+        override fun snapshot(item: SelectableItem) = this
+
+        // Empty documentation never has any tag sections.
+        override fun hasBlockTagOfType(blockTagType: String) = false
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 
