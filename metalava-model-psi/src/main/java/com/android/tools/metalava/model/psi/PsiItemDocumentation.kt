@@ -69,6 +69,40 @@ internal class PsiItemDocumentation(
         return _text
     }
 
+    // Gets the javadoc of the current element
+    private fun javadoc(element: PsiElement): String {
+        if (element is PsiCompiledElement) {
+            return ""
+        }
+
+        if (element is KtDeclaration) {
+            return element.docComment?.text.orEmpty()
+        }
+
+        if (element is UElement) {
+            val comments = element.comments
+            if (comments.isNotEmpty()) {
+                return comments.firstNotNullOfOrNull {
+                    val text = it.text
+                    if (text.startsWith("/**")) text else null
+                } ?: ""
+            }
+        }
+
+        if (element is PsiDocCommentOwner) {
+            val docComment = element.docComment
+            if (docComment != null && docComment !is PsiCompiledElement) {
+                val text = docComment.text
+                // Make sure that the text is a doc comment, i.e. starts with /**.
+                if (text != null && text.startsWith("/**")) {
+                    return text
+                }
+            }
+        }
+
+        return ""
+    }
+
     override fun duplicate(item: SelectableItem) =
         if (item is PsiItem) PsiItemDocumentation(item, codebase, psi, extraDocs)
         else text.toItemDocumentationFactory()(item)
@@ -605,40 +639,6 @@ internal class PsiItemDocumentation(
                     // Otherwise, there is no documentation to use.
                     ?: ItemDocumentation.NONE_FACTORY
             }
-
-        // Gets the javadoc of the current element
-        private fun javadoc(element: PsiElement): String {
-            if (element is PsiCompiledElement) {
-                return ""
-            }
-
-            if (element is KtDeclaration) {
-                return element.docComment?.text.orEmpty()
-            }
-
-            if (element is UElement) {
-                val comments = element.comments
-                if (comments.isNotEmpty()) {
-                    return comments.firstNotNullOfOrNull {
-                        val text = it.text
-                        if (text.startsWith("/**")) text else null
-                    } ?: ""
-                }
-            }
-
-            if (element is PsiDocCommentOwner) {
-                val docComment = element.docComment
-                if (docComment != null && docComment !is PsiCompiledElement) {
-                    val text = docComment.text
-                    // Make sure that the text is a doc comment, i.e. starts with /**.
-                    if (text != null && text.startsWith("/**")) {
-                        return text
-                    }
-                }
-            }
-
-            return ""
-        }
     }
 }
 
