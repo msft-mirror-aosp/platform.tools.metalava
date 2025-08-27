@@ -57,35 +57,43 @@ internal class PsiItemDocumentation(
     private lateinit var _text: String
 
     override var text: String
-        get() = if (::_text.isInitialized) _text else initializeText()
+        get() {
+            if (!::_text.isInitialized) {
+                initializeFromPsiElement(psi)
+                if (extraDocs != null) _text = "$_text\n$extraDocs"
+            }
+            return _text
+        }
         set(value) {
             _text = value
             textChanged()
         }
 
-    /** Lazy initializer for [_text]. */
-    private fun initializeText(): String {
-        _text = javadoc(psi).let { if (extraDocs != null) it + "\n$extraDocs" else it }
-        return _text
-    }
-
-    // Gets the javadoc of the current element
-    private fun javadoc(element: PsiElement): String {
+    /**
+     * Lazy initializer for [_text].
+     *
+     * Updates the [_text] field with the text of the document comment associated with [element].
+     */
+    private fun initializeFromPsiElement(element: PsiElement) {
         if (element is PsiCompiledElement) {
-            return ""
+            _text = ""
+            return
         }
 
         if (element is KtDeclaration) {
-            return element.docComment?.text.orEmpty()
+            _text = element.docComment?.text.orEmpty()
+            return
         }
 
         if (element is UElement) {
             val comments = element.comments
             if (comments.isNotEmpty()) {
-                return comments.firstNotNullOfOrNull {
-                    val text = it.text
-                    if (text.startsWith("/**")) text else null
-                } ?: ""
+                _text =
+                    comments.firstNotNullOfOrNull {
+                        val text = it.text
+                        if (text.startsWith("/**")) text else null
+                    } ?: ""
+                return
             }
         }
 
@@ -95,12 +103,13 @@ internal class PsiItemDocumentation(
                 val text = docComment.text
                 // Make sure that the text is a doc comment, i.e. starts with /**.
                 if (text != null && text.startsWith("/**")) {
-                    return text
+                    _text = text
+                    return
                 }
             }
         }
 
-        return ""
+        _text = ""
     }
 
     override fun duplicate(item: SelectableItem) =
