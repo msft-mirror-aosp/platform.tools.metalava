@@ -25,6 +25,7 @@ import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
 
@@ -118,6 +119,7 @@ class IssueReportingOptions(
                         .trimIndent()
             )
             .flag()
+            .validate { issueConfiguration.warningsAsErrors = it }
 
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
     private val reportEvenIfSuppressedFile by
@@ -148,7 +150,6 @@ class IssueReportingOptions(
             val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile?.printWriter()
 
             DefaultReporter.Config(
-                warningsAsErrors = warningsAsErrors,
                 outputReportFormatter = TerminalReportFormatter.forTerminal(commonOptions.terminal),
                 reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
             )
