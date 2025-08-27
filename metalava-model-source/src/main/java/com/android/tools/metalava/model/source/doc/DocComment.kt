@@ -28,6 +28,9 @@ interface DocComment {
      */
     val blockTagSections: List<BlockTagSection>
 
+    /** Check to see whether there are any block tags of type [blockTagType]. */
+    fun hasBlockTagOfType(blockTagType: String): Boolean
+
     companion object {
         /** Create a [DocComment] from [text], reporting any issues to [reporter]. */
         fun createDocComment(text: String): DocComment {
@@ -40,6 +43,9 @@ internal class DefaultDocComment(
     override val description: DocDescription,
     override val blockTagSections: List<BlockTagSection>
 ) : DocComment {
+    override fun hasBlockTagOfType(blockTagType: String) =
+        blockTagSections.any { it.tagType == blockTagType }
+
     override fun toString() = buildString {
         append("description: ")
         append(description)

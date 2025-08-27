@@ -80,6 +80,13 @@ interface ItemDocumentation {
     fun appendDocumentation(comment: String, tagSection: String?)
 
     /**
+     * Check to see whether this has a tag section of [blockTagType].
+     *
+     * @param blockTagType the type of the tag, e.g. `param` for `@param p ...`.
+     */
+    fun hasBlockTagOfType(blockTagType: String): Boolean
+
+    /**
      * Check to see whether this has the named tag section.
      *
      * @param tagSection the name of the tag section, including preceding `@`.
@@ -165,6 +172,9 @@ interface ItemDocumentation {
 
         // This is ok to use in a snapshot as it is immutable and model independent.
         override fun snapshot(item: SelectableItem) = this
+
+        // Empty documentation never has any tag sections.
+        override fun hasBlockTagOfType(blockTagType: String) = false
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 

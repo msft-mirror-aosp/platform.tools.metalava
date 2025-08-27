@@ -23,8 +23,14 @@ import com.android.tools.metalava.model.SelectableItem
 /** A default [com.android.tools.metalava.model.ItemDocumentation] containing JavaDoc/KDoc. */
 internal class DefaultItemDocumentation(
     item: SelectableItem,
-    override var text: String,
+    text: String,
 ) : AbstractItemDocumentation(item) {
+
+    override var text: String = text
+        set(value) {
+            field = value
+            textChanged()
+        }
 
     override fun duplicate(item: SelectableItem) = DefaultItemDocumentation(item, text)
 

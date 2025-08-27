@@ -62,6 +62,7 @@ internal class PsiItemDocumentation(
         get() = if (::_text.isInitialized) _text else initializeText()
         set(value) {
             _text = value
+            textChanged()
         }
 
     /** Lazy initializer for [_text]. */
