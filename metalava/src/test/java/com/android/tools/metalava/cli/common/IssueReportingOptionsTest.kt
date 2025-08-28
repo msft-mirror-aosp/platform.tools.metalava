@@ -42,7 +42,10 @@ Issue Reporting:
   --error-when-new-category <name>           Report all issues in the given category as errors-when-new.
   --warning-category <name>                  Report all issues in the given category as warnings.
   --hide-category <name>                     Hide/skip all issues in the given category.
-  --warnings-as-errors                       Promote all warnings to errors.
+  --warnings-as-errors                       Promote all warnings to errors. That includes both `warning` and
+                                             `warning-error-when-new`.
+  --treat-as-error [inherit|hidden|info|warning|warning_error_when_new|error]
+                                             Treat all issues of the specified severity as if they were errors.
   --report-even-if-suppressed <file>         Write all issues into the given file, even if suppressed (via annotation or
                                              baseline) but not if hidden (by '--hide' or '--hide-category').
   --repeat-errors-max <n>                    When specified, repeat at most N errors before finishing. (default: 0)
@@ -223,6 +226,14 @@ class IssueReportingOptionsTest :
                 Severity.ERROR,
                 issueConfiguration.getSeverity(Issues.GETTER_SETTER_NULLABILITY)
             )
+        }
+    }
+
+    @Test
+    fun `Test --treat-as-error for issue set to hidden severity`() {
+        runTest(ARG_TREAT_AS_ERROR, "hidden", ARG_HIDE, "ParseError") {
+            val issueConfiguration = options.issueConfiguration
+            assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.PARSE_ERROR))
         }
     }
 }

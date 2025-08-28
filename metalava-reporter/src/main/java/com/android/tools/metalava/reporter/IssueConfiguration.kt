@@ -20,23 +20,31 @@ package com.android.tools.metalava.reporter
 class IssueConfiguration {
     private val overrides = mutableMapOf<Issues.Issue, Severity>()
 
-    /** Whether to upgrade all warnings to errors. */
-    var warningsAsErrors = false
+    /**
+     * Map from [Severity] obtained from the [Issues.Issue] to the [Severity] to pass to the
+     * [Reporter].
+     */
+    var severityMap = emptyMap<Severity, Severity>()
 
-    /** Returns the severity of the given issue */
+    /**
+     * Returns the severity of the given issue, taking into account any [overrides] and the
+     * [severityMap].
+     */
     fun getSeverity(issue: Issues.Issue): Severity {
-        val level = overrides[issue] ?: issue.defaultLevel
-        // Upgrade warnings to errors if requested
-        if (
-            warningsAsErrors &&
-                (level == Severity.WARNING || level == Severity.WARNING_ERROR_WHEN_NEW)
-        ) {
-            return Severity.ERROR
+        var severityOfIssue = getSeverityOfIssue(issue)
+
+        // Map severity to a different severity if needed, e.g. map WARNING to ERROR.
+        return severityMap[severityOfIssue] ?: severityOfIssue
+    }
+
+    /** Returns the severity of the given issue, taking into account any [overrides]. */
+    private fun getSeverityOfIssue(issue: Issues.Issue): Severity {
+        val severity = overrides[issue] ?: issue.defaultLevel
+
+        if (severity == Severity.INHERIT) {
+            return getSeverityOfIssue(issue.parent!!)
         }
-        if (level == Severity.INHERIT) {
-            return getSeverity(issue.parent!!)
-        }
-        return level
+        return severity
     }
 
     fun setSeverity(issue: Issues.Issue, severity: Severity) {
