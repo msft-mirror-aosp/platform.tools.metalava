@@ -16,13 +16,23 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.CollatingDocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.DefaultDocDescription
+import com.android.tools.metalava.model.source.doc.DocComment
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class JavadocParserTest {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
     private fun checkParse(text: String) {
-        var trimmed = text.trimIndent()
-        JavadocParser.parse(trimmed, 0, trimmed.length)
+        val reporter = CollatingDocumentationIssueReporter()
+        val docComment = DocComment.createDocComment(text.trimIndent(), reporter)
+        // Make sure that no unexpected DocComment errors were found.
+        assertEquals("", reporter.toString().trim(), message = "doc comment parser errors")
+
+        // Parse the main description
+        val description = docComment.description as DefaultDocDescription
+        description.content
     }
 
     @Test

@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.JavadocParser
+
 /**
  * A [DocComment] description block.
  *
@@ -38,6 +41,17 @@ internal class DefaultDocDescription(
     private val startInclusive: Int,
     private val endExclusive: Int
 ) : DocDescription {
+
+    private lateinit var _content: JavadocContent
+
+    val content: JavadocContent
+        get() {
+            if (!::_content.isInitialized) {
+                _content = JavadocParser.parse(text, startInclusive, endExclusive)
+            }
+            return _content
+        }
+
     override fun toString() = buildString {
         append("<<")
         // Ignore any whitespace at the end of the description.

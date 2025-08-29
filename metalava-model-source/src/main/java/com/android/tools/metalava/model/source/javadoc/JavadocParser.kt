@@ -27,14 +27,13 @@ import org.antlr.v4.runtime.NoViableAltException
 import org.antlr.v4.runtime.RecognitionException
 import org.antlr.v4.runtime.Recognizer
 import org.antlr.v4.runtime.TokenStream
-import org.antlr.v4.runtime.tree.ErrorNode
 
 /**
- * Parses a block of text into a [JavadocComment].
+ * Parses a block of text into a [JavadocContent].
  *
  * A wrapper around [antlrParser] which actually does the parsing.
  */
-class JavadocParser private constructor(private val antlrParser: AntlrJavadocParser) {
+internal class JavadocParser private constructor(private val antlrParser: AntlrJavadocParser) {
 
     companion object {
         /**
@@ -56,7 +55,7 @@ class JavadocParser private constructor(private val antlrParser: AntlrJavadocPar
             fileName: String = "<unknown>",
             startLineNumber: Int = 1,
             errorListener: ANTLRErrorListener = JavadocErrorListener(fileName, startLineNumber),
-        ): JavadocComment {
+        ): JavadocContent {
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
             val lexer = AntlrJavadocLexer(charStream)
             val tokenStream = CommonTokenStream(lexer)
@@ -87,16 +86,12 @@ class JavadocParser private constructor(private val antlrParser: AntlrJavadocPar
         }
     }
 
-    private fun parse(): JavadocComment {
-        val documentationContext = antlrParser.documentation()
-        val visitor =
-            object : AntlrJavadocParserBaseVisitor<Void>() {
-                override fun visitErrorNode(node: ErrorNode?): Void? {
-                    return super.visitErrorNode(node)
-                }
-            }
-        documentationContext.accept(visitor)
-        return JavadocComment()
+    private fun parse(): JavadocContent {
+        // Verify that the antlrParser recognizes the content, failing if there is an error.
+        antlrParser.description()
+
+        // Temporarily return an empty comment.
+        return JavadocContent.EMPTY
     }
 }
 

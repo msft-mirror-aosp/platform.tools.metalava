@@ -16,9 +16,18 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.DocDescription
+
 /**
- * A javadoc comment created by [JavadocParser.parse].
+ * A component of a Javadoc [DocDescription].
  *
  * Currently, just a placeholder but will be expanded in the future.
  */
-class JavadocComment
+internal sealed interface JavadocContent {
+    companion object {
+        val EMPTY: JavadocContent = EmptyJavadocContent()
+    }
+}
+
+/** An empty [JavadocContent]. */
+private class EmptyJavadocContent : JavadocContent
