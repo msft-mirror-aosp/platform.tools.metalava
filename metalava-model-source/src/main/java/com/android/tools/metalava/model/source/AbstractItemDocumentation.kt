@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.reporter.Issues
+import java.io.PrintWriter
 import java.util.regex.Pattern
 
 /**
@@ -74,6 +75,15 @@ abstract class AbstractItemDocumentation(
 
     override fun hasBlockTagOfType(blockTagType: String) =
         docComment.hasBlockTagOfType(blockTagType)
+
+    override fun print(writer: PrintWriter) {
+        val text = fullyQualifiedDocumentation()
+        if (text.isNotBlank()) {
+            val trimmed = trimDocIndent(text)
+            writer.println(trimmed)
+            writer.println()
+        }
+    }
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
@@ -189,6 +199,28 @@ abstract class AbstractItemDocumentation(
         val location = fileLocation.forLineOffset(lineOffset)
         item.codebase.reporter.report(issue, null, message, location)
     }
+}
+
+/**
+ * Trim indentation from the [existingDoc] comment.
+ *
+ * Removes indentation whitespace after the first newline, making sure that there is at least one
+ * white space of indentation.
+ */
+fun trimDocIndent(existingDoc: String): String {
+    val index = existingDoc.indexOf('\n')
+    if (index == -1) {
+        return existingDoc
+    }
+
+    return existingDoc.substring(0, index + 1) +
+        existingDoc.substring(index + 1).trimIndent().split('\n').joinToString(separator = "\n") {
+            if (!it.startsWith(" ")) {
+                " ${it.trimEnd()}"
+            } else {
+                it.trimEnd()
+            }
+        }
 }
 
 /** Regular expression to match the start of a doc comment. */
