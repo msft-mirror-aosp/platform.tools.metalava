@@ -39,23 +39,6 @@ options {
     tokenVocab = AntlrJavadocLexer;
 }
 
-documentation
-    : skipWhitespace* EOF
-    | skipWhitespace* JAVADOC_START skipWhitespace* documentationContent skipWhitespace* JAVADOC_END skipWhitespace* EOF
-    | skipWhitespace* documentationContent skipWhitespace* EOF
-    ;
-
-documentationContent
-    : description
-    | tagSection
-    | description NEWLINE+ skipWhitespace* tagSection
-    ;
-
-skipWhitespace
-    : SPACE
-    | NEWLINE
-    ;
-
 description
     : descriptionLine (descriptionNewline+ descriptionLine)*
     ;
@@ -71,7 +54,6 @@ descriptionLineNoSpaceNoAt
     | SLASH
     | BRACE_OPEN
     | BRACE_CLOSE
-    | JAVADOC_START
     ;
 
 descriptionLineElement
@@ -85,18 +67,6 @@ descriptionLineText
 
 descriptionNewline
     : NEWLINE
-    ;
-
-tagSection
-    : blockTag+
-    ;
-
-blockTag
-    : SPACE? AT blockTagName SPACE? description
-    ;
-
-blockTagName
-    : NAME
     ;
 
 inlineTag
