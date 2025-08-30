@@ -425,7 +425,7 @@ abstract class DefaultItem(
         private set
 
     init {
-        if (!modifiers.isDeprecated() && documentation.hasTagSection("@deprecated")) {
+        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
             @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }
