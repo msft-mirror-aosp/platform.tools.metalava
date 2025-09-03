@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -25,7 +24,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
-import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.util.PsiUtil
@@ -48,7 +46,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
         if (isKotlin) {
             ensureDefaultParamsHaveJvmOverloads(method)
             ensureCompanionJvmStatic(method)
-            ensureExceptionsDocumented(method)
         } else {
             ensureMethodNameNotKeyword(method)
             ensureParameterNamesNotKeywords(method)
@@ -64,50 +61,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
 
     fun checkProperty(property: PropertyItem) {
         ensureCompanionJvmField(property)
-    }
-
-    private fun ensureExceptionsDocumented(method: MethodItem) {
-        if (!method.isKotlin() || method.body == CallableBody.UNAVAILABLE) {
-            return
-        }
-
-        val exceptions = method.body.findThrownExceptions()
-        if (exceptions.isEmpty()) {
-            return
-        }
-        val doc =
-            method.documentation.text.ifEmpty { method.property?.documentation?.text.orEmpty() }
-        for (exception in exceptions.sortedBy { it.qualifiedName() }) {
-            val checked =
-                !(exception.extends("java.lang.RuntimeException") ||
-                    exception.extends("java.lang.Error"))
-            if (checked) {
-                val annotation = method.modifiers.findAnnotation("kotlin.jvm.Throws")
-                if (annotation != null) {
-                    // There can be multiple values
-                    for (attribute in annotation.attributes) {
-                        for (v in attribute.value.asFlatList()) {
-                            if (v is ClassObjectValue && v.typeItem == exception.type()) {
-                                return
-                            }
-                        }
-                    }
-                }
-                reporter.report(
-                    Issues.DOCUMENT_EXCEPTIONS,
-                    method,
-                    "Method ${method.containingClass().simpleName()}.${method.name()} appears to be throwing ${exception.qualifiedName()}; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions"
-                )
-            } else {
-                if (!doc.contains(exception.simpleName())) {
-                    reporter.report(
-                        Issues.DOCUMENT_EXCEPTIONS,
-                        method,
-                        "Method ${method.containingClass().simpleName()}.${method.name()} appears to be throwing ${exception.qualifiedName()}; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions"
-                    )
-                }
-            }
-        }
     }
 
     private fun ensureLambdaLastParameter(method: MethodItem) {
@@ -167,7 +120,9 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     property,
                     "Companion object constants like ${property.name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
                 )
-            } else if (property.modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
+            } else if (
+                property.backingField?.modifiers?.findAnnotation("kotlin.jvm.JvmField") == null
+            ) {
                 reporter.report(
                     Issues.MISSING_JVMSTATIC,
                     property,
@@ -301,7 +256,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             "java.lang.Iterable" -> return false
         }
 
-        return parameter.isSamCompatibleOrKotlinLambda()
+        return parameter.type().isSamCompatibleOrKotlinLambda()
     }
 
     private fun disallowValueClasses(cls: ClassItem) {
