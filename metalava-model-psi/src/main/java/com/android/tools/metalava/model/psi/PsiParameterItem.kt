@@ -32,7 +32,7 @@ import com.intellij.psi.PsiParameter
 
 internal class PsiParameterItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     internal val psiParameter: PsiParameter,
     modifiers: BaseModifierList,
     name: String,
@@ -43,7 +43,7 @@ internal constructor(
     defaultValueFactory: ParameterDefaultValueFactory,
 ) :
     DefaultParameterItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
         sourceLanguage = psiParameter.sourceLanguage,
         modifiers = modifiers,
@@ -67,7 +67,7 @@ internal constructor(
         typeVariableMap: TypeParameterBindings
     ) =
         PsiParameterItem(
-            codebase = codebase,
+            psiCodebase = psiCodebase,
             psiParameter = psiParameter,
             modifiers = modifiers,
             name = name(),
@@ -89,27 +89,24 @@ internal constructor(
         ): PsiParameterItem {
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
-            val psiType = codebase.psiAssembler.getPsiTypeForPsiParameter(psiParameter)
             val type =
                 enclosingMethodTypeItemFactory.getMethodParameterType(
-                    underlyingParameterType = PsiTypeInfo(psiType, psiParameter),
+                    underlyingParameterType = PsiTypeInfo(psiParameter.type, psiParameter),
                     itemAnnotations = modifiers.annotations(),
                     fingerprint = fingerprint,
                     parameterIndex = parameterIndex,
-                    isVarArg = psiType is PsiEllipsisType,
+                    isVarArg = psiParameter.type is PsiEllipsisType,
                 )
             val parameter =
                 PsiParameterItem(
-                    codebase = codebase,
+                    psiCodebase = codebase,
                     psiParameter = psiParameter,
                     modifiers = modifiers,
                     name = name,
                     publicNameProvider = { (it as PsiParameterItem).getPublicName() },
                     containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
-                    // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
-                    // underlying PsiType.
-                    type = type as PsiTypeItem,
+                    type = type,
                     defaultValueFactory = {
                         if (it.isKotlin()) PsiParameterDefaultValue(it as PsiParameterItem)
                         else ParameterDefaultValue.NONE
