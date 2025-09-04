@@ -282,6 +282,10 @@ private constructor(
         }
     }
 
+    override fun visitConstructor(constructor: ConstructorItem) {
+        filteredReporter.withContext(constructor) { kotlinInterop.checkConstructor(constructor) }
+    }
+
     override fun visitField(field: FieldItem) {
         filteredReporter.withContext(field) {
             checkField(field)
