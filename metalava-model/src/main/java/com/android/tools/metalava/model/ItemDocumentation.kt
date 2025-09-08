@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model
 
-/** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
-typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
+/** A factory that will create an [ItemDocumentation] for a specific [Item]. */
+typealias ItemDocumentationFactory = (Item) -> ItemDocumentation
 
 /**
  * The documentation associated with an [Item].
@@ -55,13 +55,13 @@ interface ItemDocumentation {
      *
      * [ItemDocumentation] instances can be mutable, and if they are then they must not be shared.
      */
-    fun duplicate(item: SelectableItem): ItemDocumentation
+    fun duplicate(item: Item): ItemDocumentation
 
     /**
      * Like [duplicate] except that it returns an instance of [ItemDocumentation] suitable for use
      * in the snapshot.
      */
-    fun snapshot(item: SelectableItem): ItemDocumentation
+    fun snapshot(item: Item): ItemDocumentation
 
     /** Work around javadoc cutting off the summary line after the first ". ". */
     fun workAroundJavaDocSummaryTruncationIssue() {}
@@ -80,11 +80,30 @@ interface ItemDocumentation {
     fun appendDocumentation(comment: String, tagSection: String?)
 
     /**
-     * Check to see whether this has a tag section of [blockTagType].
+     * Check to see whether this has the named tag section.
      *
-     * @param blockTagType the type of the tag, e.g. `param` for `@param p ...`.
+     * @param tagSection the name of the tag section, including preceding `@`.
      */
-    fun hasBlockTagOfType(blockTagType: String): Boolean
+    fun hasTagSection(tagSection: String): Boolean {
+        val length = text.length
+        var startIndex = 0
+
+        // Scan through the documentation looking for the tag section.
+        while (startIndex < length) {
+            // Find the position of the tag section starting with the supplied name.
+            val index = text.indexOf(tagSection, startIndex)
+            if (index == -1) return false
+
+            // If the tag section is at the end of the documentation or is followed by a whitespace
+            // then it matches.
+            val nextIndex = index + tagSection.length
+            if (text.length == nextIndex || Character.isWhitespace(text[nextIndex])) return true
+
+            // Else, continue scanning from the end of the tag section.
+            startIndex = nextIndex
+        }
+        return false
+    }
 
     /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
@@ -142,13 +161,10 @@ interface ItemDocumentation {
             get() = false
 
         // This is ok to share as it is immutable.
-        override fun duplicate(item: SelectableItem) = this
+        override fun duplicate(item: Item) = this
 
         // This is ok to use in a snapshot as it is immutable and model independent.
-        override fun snapshot(item: SelectableItem) = this
-
-        // Empty documentation never has any tag sections.
-        override fun hasBlockTagOfType(blockTagType: String) = false
+        override fun snapshot(item: Item) = this
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 

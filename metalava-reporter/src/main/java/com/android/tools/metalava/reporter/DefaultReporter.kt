@@ -57,6 +57,9 @@ class DefaultReporter(
      * for the bootstrapping reporter. That receives a default instance of this.
      */
     class Config(
+        /** If true, treat all warnings as errors */
+        val warningsAsErrors: Boolean = false,
+
         /** Formats the report suitable for use in a file. */
         val fileReportFormatter: ReportFormatter = DefaultReportFormatter.DEFAULT,
 
@@ -85,9 +88,15 @@ class DefaultReporter(
         maximumSeverity: Severity,
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
+        val upgradedSeverity =
+            if (severity == WARNING && config.warningsAsErrors) {
+                ERROR
+            } else {
+                severity
+            }
 
         // Limit the Severity to the maximum allowed.
-        val effectiveSeverity = minOf(severity, maximumSeverity)
+        val effectiveSeverity = minOf(upgradedSeverity, maximumSeverity)
         if (effectiveSeverity == HIDDEN) {
             return false
         }

@@ -32,7 +32,7 @@ import com.intellij.psi.PsiParameter
 
 internal class PsiParameterItem
 internal constructor(
-    override val psiCodebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     internal val psiParameter: PsiParameter,
     modifiers: BaseModifierList,
     name: String,
@@ -43,7 +43,7 @@ internal constructor(
     defaultValueFactory: ParameterDefaultValueFactory,
 ) :
     DefaultParameterItem(
-        codebase = psiCodebase,
+        codebase = codebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
         sourceLanguage = psiParameter.sourceLanguage,
         modifiers = modifiers,
@@ -67,7 +67,7 @@ internal constructor(
         typeVariableMap: TypeParameterBindings
     ) =
         PsiParameterItem(
-            psiCodebase = psiCodebase,
+            codebase = codebase,
             psiParameter = psiParameter,
             modifiers = modifiers,
             name = name(),
@@ -99,7 +99,7 @@ internal constructor(
                 )
             val parameter =
                 PsiParameterItem(
-                    psiCodebase = codebase,
+                    codebase = codebase,
                     psiParameter = psiParameter,
                     modifiers = modifiers,
                     name = name,

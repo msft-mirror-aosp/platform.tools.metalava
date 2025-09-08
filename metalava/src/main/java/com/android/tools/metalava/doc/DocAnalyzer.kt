@@ -844,7 +844,7 @@ class DocAnalyzer(
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
             // are talking about language levels rather than API versions!
-            if (!item.documentation.hasBlockTagOfType("apiSince")) {
+            if (!item.documentation.text.contains("@apiSince")) {
                 item.appendDocumentation(apiVersionLabel, "@apiSince")
             } else {
                 reporter.report(
@@ -866,7 +866,7 @@ class DocAnalyzer(
      *   [item].
      */
     private fun addApiExtensionsDocumentation(sdkExtSince: SdkAndVersion, item: SelectableItem) {
-        if (item.documentation.hasBlockTagOfType("sdkExtSince")) {
+        if (item.documentation.text.contains("@sdkExtSince")) {
             reporter.report(
                 Issues.FORBIDDEN_TAG,
                 item,
@@ -892,7 +892,7 @@ class DocAnalyzer(
             }
             val apiVersionLabel = apiVersionLabelProvider(version)
 
-            if (!item.documentation.hasBlockTagOfType("deprecatedSince")) {
+            if (!item.documentation.text.contains("@deprecatedSince")) {
                 item.appendDocumentation(apiVersionLabel, "@deprecatedSince")
             } else {
                 reporter.report(

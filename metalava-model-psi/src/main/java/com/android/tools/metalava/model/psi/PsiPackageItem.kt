@@ -32,7 +32,7 @@ import com.intellij.psi.PsiPackage
 
 internal class PsiPackageItem
 internal constructor(
-    override val psiCodebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     fileLocation: FileLocation,
     modifiers: BaseModifierList,
@@ -42,7 +42,7 @@ internal constructor(
     overviewDocumentation: ResourceFile?,
 ) :
     DefaultPackageItem(
-        codebase = psiCodebase,
+        codebase = codebase,
         fileLocation = fileLocation,
         sourceLanguage = psiPackage.sourceLanguage,
         targetLanguages = TargetLanguageSet.ALL,
@@ -76,7 +76,7 @@ internal constructor(
             val qualifiedName = psiPackage.qualifiedName
 
             return PsiPackageItem(
-                psiCodebase = codebase,
+                codebase = codebase,
                 psiPackage = psiPackage,
                 fileLocation = packageDoc.fileLocation,
                 modifiers = modifiers,

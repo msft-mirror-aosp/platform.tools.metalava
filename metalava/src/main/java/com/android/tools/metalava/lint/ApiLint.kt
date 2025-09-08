@@ -1839,11 +1839,7 @@ private constructor(
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
             val throwableClass = throwableType.erasedClass ?: continue
             if (isUncheckedException(throwableClass)) {
-                report(
-                    BANNED_THROW,
-                    callable,
-                    "Unchecked exception ${throwableType.toTypeString()} does not need to be listed in the method throws clause (only in documentation)"
-                )
+                report(BANNED_THROW, callable, "Methods must not throw unchecked exceptions")
             } else if (throwableType is VariableTypeItem) {
                 // Preserve legacy behavior where the following check did nothing for type
                 // parameters as a type parameters qualifiedName(), which is just its name without
@@ -2010,6 +2006,23 @@ private constructor(
      * Check to see whether a `FlaggedApi` annotation is required due to changes on an existing API.
      */
     private fun checkFlaggedApiOnPreviouslyReleasedApi(previousItem: Item, currentItem: Item) {
+        // Generate the modifiers from the previous API.
+        val previousModifiers = normalizeModifiers(previousItem)
+        // Generate the modifiers from the current API.
+        val currentModifiers = normalizeModifiers(currentItem)
+
+        if (currentModifiers != previousModifiers) {
+            report(
+                UNFLAGGED_API,
+                currentItem,
+                "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
+                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
+            )
+            // Reporting the same issue on the same Item is pointless as the first report will
+            // update the baseline and so suppress the second report so return immediately.
+            return
+        }
+
         // Check the deprecated status, if it has changed
         val previousDeprecated = previousItem.effectivelyDeprecated
         val currentDeprecated = currentItem.effectivelyDeprecated
@@ -2032,23 +2045,6 @@ private constructor(
                 "Changes from $previous to $current must be flagged with @FlaggedApi: ${currentItem.describe()}",
                 location = location ?: FileLocation.UNKNOWN,
                 maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW,
-            )
-            // Reporting the same issue on the same Item is pointless as the first report will
-            // update the baseline and so suppress the second report so return immediately.
-            return
-        }
-
-        // Generate the modifiers from the previous API.
-        val previousModifiers = normalizeModifiers(previousItem)
-        // Generate the modifiers from the current API.
-        val currentModifiers = normalizeModifiers(currentItem)
-
-        if (currentModifiers != previousModifiers) {
-            report(
-                UNFLAGGED_API,
-                currentItem,
-                "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
-                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
             )
             // Reporting the same issue on the same Item is pointless as the first report will
             // update the baseline and so suppress the second report so return immediately.

@@ -628,7 +628,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             annotationMethod.annotations
                 .firstOrNull { it.qualifiedName == "kotlin.PublishedApi" }
                 ?.let { publishedAnnotation ->
-                    val annotationItem = PsiAnnotationItem.create(psiCodebase, publishedAnnotation)
+                    val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
                     mutateModifiers { addAnnotation(annotationItem) }
                 }
         }
@@ -647,7 +647,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             // to a property, they are implicitly propagated to the getter and setter
             // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
             if (annotationClass.hasAnnotation("kotlin.RequiresOptIn")) {
-                val annotationItem = PsiAnnotationItem.create(psiCodebase, annotationEntry)
+                val annotationItem = PsiAnnotationItem.create(codebase, annotationEntry)
                 mutateModifiers { addAnnotation(annotationItem) }
             }
         }

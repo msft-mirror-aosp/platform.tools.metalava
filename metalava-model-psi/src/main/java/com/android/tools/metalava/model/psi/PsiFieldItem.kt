@@ -41,7 +41,7 @@ import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.uast.UField
 
 internal class PsiFieldItem(
-    override val psiCodebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiField: PsiField,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -52,7 +52,7 @@ internal class PsiFieldItem(
     constantValueProvider: OptionalValueProvider?,
 ) :
     DefaultFieldItem(
-        codebase = psiCodebase,
+        codebase = codebase,
         fileLocation = PsiFileLocation(psiField),
         sourceLanguage = psiField.sourceLanguage,
         targetLanguages = TargetLanguageSet.ALL,
@@ -74,10 +74,10 @@ internal class PsiFieldItem(
 
     override fun duplicate(targetContainingClass: ClassItem) =
         create(
-                psiCodebase,
+                codebase,
                 targetContainingClass,
                 psiField,
-                psiCodebase.globalTypeItemFactory.from(targetContainingClass),
+                codebase.globalTypeItemFactory.from(targetContainingClass),
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
@@ -133,7 +133,7 @@ internal class PsiFieldItem(
                 else null
 
             return PsiFieldItem(
-                psiCodebase = codebase,
+                codebase = codebase,
                 psiField = psiField,
                 documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
                 modifiers = modifiers,
