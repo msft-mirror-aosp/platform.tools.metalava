@@ -214,6 +214,7 @@ Available Issues                             |  Category                        
   SuperfluousPrefix                          |  unknown                              |   warning
   Todo                                       |  documentation                        |   error
   TopLevelBuilder                            |  api_lint                             |   warning
+  TypeParameterName                          |  api_lint                             |   hidden
   TypeParseError                             |  unknown                              |   error
   UnavailableSymbol                          |  documentation                        |   warning
   UnflaggedApi                               |  api_lint                             |   hidden
