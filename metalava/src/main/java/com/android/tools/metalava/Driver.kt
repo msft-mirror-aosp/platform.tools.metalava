@@ -250,7 +250,8 @@ internal fun processFlags(
                 )
         }
 
-        createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
+        createOutputFileFromCodebaseFragment(progressTracker, codebaseFragment, apiFile, "API") {
+            printWriter ->
             SignatureWriter(
                 writer = printWriter,
                 fileFormat = fileFormat,
@@ -285,7 +286,7 @@ internal fun processFlags(
                 )
         }
 
-        createReportFile(
+        createOutputFileFromCodebaseFragment(
             progressTracker,
             codebaseFragment,
             apiFile,
@@ -306,7 +307,8 @@ internal fun processFlags(
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
         val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
-        createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
+        createOutputFileFromCodebase(progressTracker, codebase, proguard, "Proguard file") {
+            printWriter ->
             ProguardWriter(printWriter).let { proguardWriter ->
                 FilteringApiVisitor(
                     proguardWriter,
@@ -905,18 +907,18 @@ private fun createStubFiles(
     )
 }
 
-fun createReportFile(
+fun createOutputFileFromCodebaseFragment(
     progressTracker: ProgressTracker,
     codebaseFragment: CodebaseFragment,
-    apiFile: File,
+    outputFile: File,
     description: String?,
     deleteEmptyFiles: Boolean = false,
     createVisitorWriter: (PrintWriter) -> DelegatedVisitor,
 ) {
-    createReportFile(
+    createOutputFileFromCodebase(
         progressTracker,
         codebaseFragment.codebase,
-        apiFile,
+        outputFile,
         description,
         deleteEmptyFiles,
     ) {
@@ -925,13 +927,13 @@ fun createReportFile(
     }
 }
 
-fun createReportFile(
+fun createOutputFileFromCodebase(
     progressTracker: ProgressTracker,
     codebase: Codebase,
-    apiFile: File,
+    outputFile: File,
     description: String?,
     deleteEmptyFiles: Boolean = false,
-    createVisitor: (PrintWriter) -> ItemVisitor
+    createWriterVisitor: (PrintWriter) -> ItemVisitor
 ) {
     if (description != null) {
         progressTracker.progress("Writing $description file: ")
@@ -941,20 +943,20 @@ fun createReportFile(
         val stringWriter = StringWriter()
         val writer = PrintWriter(stringWriter)
         writer.use { printWriter ->
-            val apiWriter = createVisitor(printWriter)
-            codebase.accept(apiWriter)
+            val writerVisitor = createWriterVisitor(printWriter)
+            codebase.accept(writerVisitor)
         }
         val text = stringWriter.toString()
         if (text.isNotEmpty() || !deleteEmptyFiles) {
-            apiFile.parentFile.mkdirs()
-            apiFile.writeText(text)
+            outputFile.parentFile.mkdirs()
+            outputFile.writeText(text)
         }
     } catch (e: IOException) {
-        codebase.reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")
+        codebase.reporter.report(Issues.IO_ERROR, outputFile, "Cannot open file for write.")
     }
     if (description != null) {
         progressTracker.progress(
-            "$PROGRAM_NAME wrote $description file $apiFile in ${localTimer.elapsed(SECONDS)} seconds\n"
+            "$PROGRAM_NAME wrote $description file $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
     }
 }
