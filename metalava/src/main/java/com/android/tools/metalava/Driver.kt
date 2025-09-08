@@ -67,6 +67,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubConstructorManager
 import com.android.tools.metalava.stub.StubWriter
 import com.android.tools.metalava.stub.createFilteringVisitorForStubs
@@ -202,27 +203,13 @@ internal fun processFlags(
 
     generateApiHistoryFromOptions(options, codebase, progressTracker)
 
-    if (options.docStubsDir != null || options.enhanceDocumentation) {
-        if (!codebase.supportsDocumentation()) {
-            error("Codebase does not support documentation, so it cannot be enhanced.")
-        }
-        progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer =
-            DocAnalyzer(
-                executionEnvironment,
-                codebase,
-                reporter,
-                options.apiVersionLabelProvider,
-                options.includeApiLevelInDocumentation,
-                options.apiPredicateConfig,
-            )
-        docAnalyzer.enhance()
-        val applyApiLevelsXml = options.applyApiLevelsXml
-        if (applyApiLevelsXml != null) {
-            progressTracker.progress("Applying API levels")
-            docAnalyzer.applyApiVersions(applyApiLevelsXml)
-        }
-    }
+    enhanceCodebaseDocumentationFromOptions(
+        options,
+        codebase,
+        progressTracker,
+        executionEnvironment,
+        reporter,
+    )
 
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let {
@@ -377,6 +364,37 @@ internal fun processFlags(
     progressTracker.progress(
         "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
+}
+
+/** Depending on option flags, enhance codebase documentation */
+private fun enhanceCodebaseDocumentationFromOptions(
+    options: Options,
+    codebase: Codebase,
+    progressTracker: ProgressTracker,
+    executionEnvironment: ExecutionEnvironment,
+    reporter: Reporter,
+) {
+    if (options.docStubsDir == null && !options.enhanceDocumentation) return
+    if (!codebase.supportsDocumentation()) {
+        error("Codebase does not support documentation, so it cannot be enhanced.")
+    }
+
+    progressTracker.progress("Enhancing docs: ")
+    val docAnalyzer =
+        DocAnalyzer(
+            executionEnvironment,
+            codebase,
+            reporter,
+            options.apiVersionLabelProvider,
+            options.includeApiLevelInDocumentation,
+            options.apiPredicateConfig,
+        )
+    docAnalyzer.enhance()
+    val applyApiLevelsXml = options.applyApiLevelsXml
+    if (applyApiLevelsXml != null) {
+        progressTracker.progress("Applying API levels")
+        docAnalyzer.applyApiVersions(applyApiLevelsXml)
+    }
 }
 
 /** Create [ModelOptions] object from option flags */
