@@ -5793,18 +5793,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     kotlin(
-                        "test/pkg/test2.kt",
-                        """
-                        package test.pkg
-                        import androidx.annotation.VisibleForTesting
-
-                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
-                        fun shouldBePackagePrivate() {}
-
-                        private fun shouldBePrivate() {}
-                    """
-                    ),
-                    kotlin(
                         "test/pkg/Path1.kt",
                         """
                         package test.pkg
