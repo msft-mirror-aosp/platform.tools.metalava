@@ -25,6 +25,7 @@ import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -255,28 +256,14 @@ internal fun processFlags(
         actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
     }
 
-    val previouslyReleasedApi = options.migrateNullsFrom
-    if (previouslyReleasedApi != null) {
-        val previous =
-            previouslyReleasedApi.load { signatureFiles -> signatureFileCache.load(signatureFiles) }
-
-        // If configured, checks for newly added nullness information compared
-        // to the previous stable API and marks the newly annotated elements
-        // as migrated (which will cause the Kotlin compiler to treat problems
-        // as warnings instead of errors
-
-        NullnessMigration.migrateNulls(codebase, previous)
-
-        previous.dispose()
-    }
-
     convertToWarningNullabilityAnnotations(
         codebase,
-        options.forceConvertToWarningNullabilityAnnotations
+        options.migrateNullsFrom,
+        options.forceConvertToWarningNullabilityAnnotations,
+        signatureFileCache
     )
 
     // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
-
     options.stubsDir?.let {
         createStubFiles(
             progressTracker,
@@ -675,7 +662,26 @@ private fun compareFileContents(file1: File, file2: File): Boolean {
  */
 internal var fastPathCheckResult: Boolean? = null
 
-private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
+private fun convertToWarningNullabilityAnnotations(
+    codebase: Codebase,
+    previouslyReleasedApi: PreviouslyReleasedApi?,
+    filter: PackageFilter?,
+    signatureFileCache: SignatureFileCache
+) {
+    if (previouslyReleasedApi != null) {
+        val previousCodebase =
+            previouslyReleasedApi.load { signatureFiles -> signatureFileCache.load(signatureFiles) }
+
+        // If configured, checks for newly added nullness information compared
+        // to the previous stable API and marks the newly annotated elements
+        // as migrated (which will cause the Kotlin compiler to treat problems
+        // as warnings instead of errors
+
+        NullnessMigration.migrateNulls(codebase, previousCodebase)
+
+        previousCodebase.dispose()
+    }
+
     if (filter != null) {
         // Our caller has asked for these APIs to not trigger nullness errors (only warnings) if
         // their callers make incorrect nullness assumptions (for example, calling a function on a
