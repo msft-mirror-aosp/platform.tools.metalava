@@ -299,16 +299,16 @@ class CommonItemDocumentationTest : BaseModelTest() {
             java(
                 """
                     package test.pkg;
-                    
+
                     /** Single line comment. */
                     public class Test {
-                        /** 
+                        /**
                          * Multi-line
                          * comment.
                          */
                         public Test() {}
 
-                        /** 
+                        /**
                          * Comment with start comment token
                          * /**.
                          */
@@ -340,16 +340,16 @@ class CommonItemDocumentationTest : BaseModelTest() {
             kotlin(
                 """
                     package test.pkg
-                    
+
                     /** Single line comment. */
                     class Test {
-                        /** 
+                        /**
                          * Multi-line
                          * comment.
                          */
                         constructor()
 
-                        /** 
+                        /**
                          * Comment with start comment token
                          * /**. */
                          */

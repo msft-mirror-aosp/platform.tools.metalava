@@ -95,7 +95,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                             package test.pkg;
                             import android.annotation.SystemApi;
-                            /** 
+                            /**
                              * This class is OK because it is all hidden
                              * @hide
                              */
