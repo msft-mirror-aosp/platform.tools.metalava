@@ -87,6 +87,7 @@ object Issues {
     val REMOVED_FROM_KOTLIN by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
 
     // Issues in javadoc generation
+    val INVALID_JAVADOC by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val UNRESOLVED_LINK by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
