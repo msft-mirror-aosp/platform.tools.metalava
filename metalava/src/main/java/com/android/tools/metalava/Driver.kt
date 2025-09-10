@@ -169,37 +169,19 @@ internal fun processFlags(
             reporterApiLint = reporter,
             sourceParser = sourceParser,
         )
-
     val classResolverProvider =
         ClassResolverProvider(
             sourceParser = sourceParser,
             apiClassResolution = options.apiClassResolution,
             classpath = options.classpath,
         )
-
-    val sources = options.sources
     val codebase =
-        if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
-            // Make sure all the source files have .txt extensions.
-            sources
-                .firstOrNull { !it.path.endsWith(DOT_TXT) }
-                ?.let {
-                    cliError(
-                        "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
-                    )
-                }
-            val signatureFileLoader = options.signatureFileLoader
-            signatureFileLoader.load(
-                SignatureFile.fromFiles(sources),
-                classResolverProvider.classResolver,
-            )
-        } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            actionContext.loadFromJarFile(sources[0])
-        } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-            actionContext.loadFromSources(signatureFileCache, classResolverProvider)
-        } else {
-            return
-        }
+        createCodebaseFromOptions(
+            options,
+            classResolverProvider,
+            signatureFileCache,
+            actionContext,
+        ) ?: return
 
     // If provided by a test, run some additional checks on the internal state of this.
     executionEnvironment.testEnvironment?.let { testEnvironment ->
@@ -481,6 +463,37 @@ private fun createModelOptions(
         }
         // Otherwise, use the default
         ?: ModelOptions.empty
+}
+
+/** Create [Codebase] object from option flags */
+private fun createCodebaseFromOptions(
+    options: Options,
+    classResolverProvider: ClassResolverProvider,
+    signatureFileCache: SignatureFileCache,
+    actionContext: ActionContext
+): Codebase? {
+    val sources = options.sources
+    if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
+        // Make sure all the source files have .txt extensions.
+        sources
+            .firstOrNull { !it.path.endsWith(DOT_TXT) }
+            ?.let {
+                cliError(
+                    "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
+                )
+            }
+        val signatureFileLoader = options.signatureFileLoader
+        return signatureFileLoader.load(
+            SignatureFile.fromFiles(sources),
+            classResolverProvider.classResolver,
+        )
+    } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
+        return actionContext.loadFromJarFile(sources[0])
+    } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
+        return actionContext.loadFromSources(signatureFileCache, classResolverProvider)
+    }
+
+    return null
 }
 
 private fun ActionContext.subtractApi(
