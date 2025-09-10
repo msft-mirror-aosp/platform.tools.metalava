@@ -223,83 +223,11 @@ internal fun processFlags(
 
     // Based on the input flags, generates various output files such as signature files and/or stubs
     // files
-    options.apiFile?.let { apiFile ->
-        val fileFormat = options.signatureFileFormat
-        var codebaseFragment =
-            CodebaseFragment.create(codebase) { delegate ->
-                createFilteringVisitorForSignatures(
-                    delegate = delegate,
-                    fileFormat = fileFormat,
-                    apiType = ApiType.PUBLIC_API,
-                    preFiltered = codebase.preFiltered,
-                    showUnannotated = options.showUnannotated,
-                    apiPredicateConfig = options.apiPredicateConfig,
-                )
-            }
-
-        // If reverting some changes then create a snapshot that combines the items from the sources
-        // for any un-reverted changes and items from the previously released API for any reverted
-        // changes.
-        if (codebaseFragment.codebase.containsRevertedItem) {
-            codebaseFragment =
-                codebaseFragment.snapshotIncludingRevertedItems(
-                    // Allow references to any of the ClassItems in the original Codebase. This
-                    // should not be a problem for signature files as they only refer to them by
-                    // name and do not care about their contents.
-                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
-                )
-        }
-
-        createOutputFileFromCodebaseFragment(progressTracker, codebaseFragment, apiFile, "API") {
-            printWriter ->
-            SignatureWriter(
-                writer = printWriter,
-                fileFormat = fileFormat,
-            )
-        }
-    }
-
-    options.removedApiFile?.let { apiFile ->
-        val fileFormat = options.signatureFileFormat
-        var codebaseFragment =
-            CodebaseFragment.create(codebase) { delegate ->
-                createFilteringVisitorForSignatures(
-                    delegate = delegate,
-                    fileFormat = fileFormat,
-                    apiType = ApiType.REMOVED,
-                    preFiltered = false,
-                    showUnannotated = options.showUnannotated,
-                    apiPredicateConfig = options.apiPredicateConfig,
-                )
-            }
-
-        // If reverting some changes then create a snapshot that combines the items from the sources
-        // for any un-reverted changes and items from the previously released API for any reverted
-        // changes.
-        if (codebaseFragment.codebase.containsRevertedItem) {
-            codebaseFragment =
-                codebaseFragment.snapshotIncludingRevertedItems(
-                    // Allow references to any of the ClassItems in the original Codebase. This
-                    // should not be a problem for signature files as they only refer to them by
-                    // name and do not care about their contents.
-                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
-                )
-        }
-
-        createOutputFileFromCodebaseFragment(
-            progressTracker,
-            codebaseFragment,
-            apiFile,
-            "removed API",
-            options.deleteEmptyRemovedSignatures
-        ) { printWriter ->
-            SignatureWriter(
-                writer = printWriter,
-                emitHeader = options.includeSignatureFormatVersionRemoved,
-                fileFormat = fileFormat,
-            )
-        }
-    }
+    createApiSignatureFilesFromOptions(
+        options,
+        codebase,
+        progressTracker,
+    )
 
     options.proguard?.let { proguard ->
         val apiPredicateConfig = options.apiPredicateConfig
@@ -366,6 +294,86 @@ internal fun processFlags(
     progressTracker.progress(
         "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
+}
+
+/** write api signature to files specified by option flags (e.g. current.txt) */
+private fun createApiSignatureFilesFromOptions(
+    options: Options,
+    codebase: Codebase,
+    progressTracker: ProgressTracker,
+) {
+    val fileFormat = options.signatureFileFormat
+
+    options.apiFile?.let { apiFile ->
+        val codebaseFragment =
+            createCodeFragmentForSignatureFile(codebase) { delegate ->
+                createFilteringVisitorForSignatures(
+                    delegate = delegate,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.PUBLIC_API,
+                    preFiltered = codebase.preFiltered,
+                    showUnannotated = options.showUnannotated,
+                    apiPredicateConfig = options.apiPredicateConfig,
+                )
+            }
+
+        createOutputFileFromCodebaseFragment(progressTracker, codebaseFragment, apiFile, "API") {
+            printWriter ->
+            SignatureWriter(
+                writer = printWriter,
+                fileFormat = fileFormat,
+            )
+        }
+    }
+
+    options.removedApiFile?.let { apiFile ->
+        val codebaseFragment =
+            createCodeFragmentForSignatureFile(codebase) { delegate ->
+                createFilteringVisitorForSignatures(
+                    delegate = delegate,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.REMOVED,
+                    preFiltered = false,
+                    showUnannotated = options.showUnannotated,
+                    apiPredicateConfig = options.apiPredicateConfig,
+                )
+            }
+
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            codebaseFragment,
+            apiFile,
+            "removed API",
+            options.deleteEmptyRemovedSignatures
+        ) { printWriter ->
+            SignatureWriter(
+                writer = printWriter,
+                emitHeader = options.includeSignatureFormatVersionRemoved,
+                fileFormat = fileFormat,
+            )
+        }
+    }
+}
+
+fun createCodeFragmentForSignatureFile(
+    codebase: Codebase,
+    fragmentFactory: (DelegatedVisitor) -> ItemVisitor
+): CodebaseFragment {
+    var codebaseFragment = CodebaseFragment.create(codebase, fragmentFactory)
+
+    // If reverting some changes then create a snapshot that combines the items from the sources
+    // for any un-reverted changes and items from the previously released API for any reverted
+    // changes.
+    if (codebaseFragment.codebase.containsRevertedItem) {
+        codebaseFragment =
+            codebaseFragment.snapshotIncludingRevertedItems(
+                // Allow references to any of the ClassItems in the original Codebase. This
+                // should not be a problem for signature files as they only refer to them by
+                // name and do not care about their contents.
+                referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+            )
+    }
+    return codebaseFragment
 }
 
 /** Depending on option flags, enhance codebase documentation */
