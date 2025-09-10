@@ -6518,7 +6518,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Delegated {
                     ctor public Delegated();
-                    method @InaccessibleFromJava public void baseMethod();
+                    method public void baseMethod();
                     method @BytecodeOnly public int getBaseVal();
                     property public int baseVal;
                   }
