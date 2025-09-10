@@ -675,6 +675,83 @@ class CommonTargetLanguageTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test function returning value class type where bytecode method is not mangled`() {
+        // In the case of a top-level extension function, the compiler-generated name for the
+        // bytecode method is not mangled.
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    fun Int.toIntValue(): IntValue = IntValue(this)
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/32VeTQb2BfHQy3RxlJbainSQa1J6JhahtYSEhH7rsYSsQsl" +
+                        "1mFKLWOnpUVrqWKsVXRhakk6WmtQRkQVjXWKiK2iatSP+Z3z+2nPtPed+8c7" +
+                        "553vfe/ed74fc/QJNkEAEAgEAAAQwPEQBLABMAhrXWWUqSEMo2uKMkRYWUMx" +
+                        "hp/6AIAtDLnfBK0MHeZGKysMkoceWcJHL9AWgqHGGCUUZji05rHlurHyVQVj" +
+                        "MlnRdn0Q1ttLnluYXWAFmKM5gQ8F5B9qHBa4eJjmXy0PPkwCLoQAC/LzgqHw" +
+                        "BFs3/1AcFOvvFhISYz0Q8saa76D9L5iDrfhrnz/tuV7xeq9Gj+LlKrJly1Hy" +
+                        "NkGiyFQIN/jlsLqx/2v7psruSRqMRmLn4LkSHCuCVCUkcS1lEFPcxs/3hnVt" +
+                        "wMsi11Y7pt4yPoWVfPq0k3WJZfJlHkieSpiMxhJvUgOaPaydPEHpulMXJgw7" +
+                        "fMdv/T3BLHYIwwJVkEJ/NrsBcSGa+uWraBM7vnhBTqNCCJ3hyNOJ3GBlindm" +
+                        "O70NunvbuaDRN0Ohc6GuWJF5fzfcI7zCpXm0qUbL80KSW9K7E/1PJ9lhGTev" +
+                        "C46oWqfDQeHncO3kRZkrsn5lw/DVs0kF9JdIcDxn3KLglef5pAG4Cahvs22m" +
+                        "BV7Il9R/EPjhGTw6voW+TgqS14plYacGOY9PS+lleFbccwWiCs50oKQZooOM" +
+                        "4JhuEBJkFTWaac2bGAFXvP4AdZLSaAvPKEyXJ8v1pAoYFUPcfqGo1pgC1O5Q" +
+                        "0vYHSvq1vbKdmGH7iV4VtACDxB1n0bhnrX4/iIyA25MjJR0JkXxV17XyhdTX" +
+                        "9mRyPRIQYErwVNikZy197K6uo+X5p3lueJJ3ikqEFEli5MenIrkhOCG5obr6" +
+                        "NNWIuUx7T67KFpfw2ttFb/2om4qrd/A5UobfU363V3PGdgdxj2w4ahkEJqXI" +
+                        "QIXNc2NGiA0JBiwfeFgOCFFBzovYK4vLS3EmknYyBejTEwKPjXzMRgYrHj0E" +
+                        "d5vyekbGKXNXlilQIyAEJvZ7pURKT+pvxtLdXjI2Y39g60jFbR/HiJiqvtQa" +
+                        "Hi6/ERWzPGlem7OyRROUitH3UTVpChayjvapNY2PAs+Aqy13rS/f159ejcnT" +
+                        "lDJMKDa/YR8xURNwd8CrK4wi+OBBXoZvr7ejHk+uvli9xbSLmmicUuCo00DT" +
+                        "7ji/nmc7rtV2QMkhE9HMG9DKEK1HOFdkhvg2JRcLE0GaKV0IPhlMSnmb1G1m" +
+                        "z3xgNu8SaUPjgYVZ70biXzQRKd3zy0kR4LitVg8IQxVWipeYs4x6D7wTlkAd" +
+                        "nTxdLzEz4NLWo50Nmt4Mdp19wi51MR4kfeM5F357DzlFep/EWiJWVPdEYFKH" +
+                        "HpJMiDcJ76efsny3s8Reep7/Q51FqPv442oiiagvTVAPPflLQvjik5S1xDPM" +
+                        "3YlyNQ6JA06UZHBu7rxwOcR0J1nhBimmDRyb1gGsbUF6L7OFtKdH70Rk31CP" +
+                        "ZCiAYdAgF+DkQi+WbJZ5wLNLjWvfapyH3qZzs3xHToQW2J3At4wNndwxMhyg" +
+                        "nVDiGGtOFrgKvsbVUX0WW010uar0s6n8BnV5zc6rbzy2t492WodeCyvNOIi1" +
+                        "/+CVoK/d9J0Bczaynj9C3LyIZPRTjPiQ9tZQA2IPWlT8qj5npU9YT1NnzGK0" +
+                        "MbWS8OJOptn6knB+fKi/v9uLuFlaQXx+M1S9RyNZPVmzZc2HMdwaDF9xndAd" +
+                        "e65mpjEvtSt55D6XM73yNNgAgBXOb7mPyL+5D5rwX//BmWPQnZcFC6ceV3f5" +
+                        "lm3XbjtFmetaIdZpKDaIvZB11JLP3aRnP2CkW09n7SsX77PM6r4ou2Qc7STE" +
+                        "Btuaboskd7zOGsqzA+zZe8mtmPus1VO3/7a/iMhNrHwG6KJNp/48gzjHiAKv" +
+                        "voHfq35JezcfngVpngn8CMo5UDopl62b/cK40uFeDsGJuXb/nKGb1pk4fXfM" +
+                        "W6TN3kpXuk1Z3jtk17RDFcLI+2oPaW9H2LkflC4KWGWadKKis3+rtaK+xlW1" +
+                        "c6cOviHNbE3OMIBPKDfRpBX/NOruXtmAcz+dYbHZRWxdUlOV3KvQ0sZAsnJ4" +
+                        "nO18e9R/HPq4Cm8XXk2WtcqQ5rOwKh9ZLykNueXhw1eM1FfIc6jDXfI3lkFp" +
+                        "p84ZnFJecmo4lSne0Wmd/SsmNCXf6w+LAbsSFaaHqnvBKwke5To+YSK4KpN3" +
+                        "mwKBumcss/gIlN9ybIhu0ZGNMSmlY0Uv6HiqUFmt8o0qEgv1fiqtabjneo3l" +
+                        "aHb5dvCgUBYAgJ/1W7MTO8z/gSvAzQcP9Qsk+PvgXQICPUL9cVhXV1fPw2Rz" +
+                        "N+WQo/HPzcqhDkGm2GMKnt0kK3KhyfKYbaiF+yt3wD+0Gq7rxyseKsL/oRUL" +
+                        "qyDg/1WPk+wIl5/H1+D5pcrxHwn+TOHa1xn4pcjx1oh8JrLP9o2v/KXM8deK" +
+                        "fSbzO8c3u2qOZuc4OsZ2uMQO76HMebT7DzjBy8xeCAAA"
+                ),
+        ) {
+            val facadeClass = codebase.assertClass("test.pkg.IntValueKt")
+
+            val bytecodeMethod =
+                facadeClass.assertMethod("toIntValue", listOf("int"), TargetLanguage.BYTECODE)
+            assertThat(bytecodeMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(bytecodeMethod.returnType().toTypeString()).isEqualTo("int")
+
+            val kotlinMethod =
+                facadeClass.assertMethod("toIntValue", listOf("int"), TargetLanguage.KOTLIN)
+            assertThat(kotlinMethod.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            assertThat(kotlinMethod.returnType().toTypeString()).isEqualTo("test.pkg.IntValue")
+        }
+    }
+
+    @Test
     fun `Test functions returning value class types and visibility`() {
         runCodebaseTest(
             inputSet(
