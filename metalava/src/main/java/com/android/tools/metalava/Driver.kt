@@ -237,14 +237,12 @@ internal fun processFlags(
         val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
         createOutputFileFromCodebase(progressTracker, codebase, proguard, "Proguard file") {
             printWriter ->
-            ProguardWriter(printWriter).let { proguardWriter ->
-                FilteringApiVisitor(
-                    proguardWriter,
-                    inlineInheritedFields = true,
-                    apiFilters = apiFilters,
-                    preFiltered = codebase.preFiltered,
-                )
-            }
+            FilteringApiVisitor(
+                ProguardWriter(printWriter),
+                inlineInheritedFields = true,
+                apiFilters = apiFilters,
+                preFiltered = codebase.preFiltered,
+            )
         }
     }
 
