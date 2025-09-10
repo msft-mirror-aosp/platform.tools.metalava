@@ -1110,7 +1110,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", "")
             assertThat(jvmNameOnGetGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
             val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", "int")
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
@@ -1118,14 +1118,14 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(jvmNameOnSetGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", "int")
             assertThat(jvmNameOnSetSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
 
             val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", "")
             assertThat(jvmNameOnBothGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
             val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", "int")
             assertThat(jvmNameOnBothSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
         }
     }
 
@@ -1227,7 +1227,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", "int")
             assertThat(jvmNameOnGetGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
             val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-6VC4vj0", "int,int")
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
@@ -1235,14 +1235,14 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(jvmNameOnSetGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", "int,int")
             assertThat(jvmNameOnSetSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
 
             val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", "int")
             assertThat(jvmNameOnBothGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
             val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", "int,int")
             assertThat(jvmNameOnBothSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
         }
     }
 
@@ -2654,6 +2654,34 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(bytecodeMethod.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(fooClass.methods()).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `Test target languages for data class property accessors`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                data class Foo(val v1: Int, val v2: String)
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val v1Getter = fooClass.assertMethod("getV1", "")
+            assertThat(v1Getter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+
+            val v1Component = fooClass.assertMethod("component1", "")
+            assertThat(v1Component.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+
+            val v2Getter = fooClass.assertMethod("getV2", "")
+            assertThat(v2Getter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+
+            val v2Component = fooClass.assertMethod("component2", "")
+            assertThat(v2Component.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
         }
     }
 }
