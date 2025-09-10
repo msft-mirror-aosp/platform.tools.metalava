@@ -200,46 +200,7 @@ internal fun processFlags(
         actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
-    val generateXmlConfig =
-        options.apiLevelsGenerationOptions.forAndroidConfig(
-            // Do not use a cache here as each file loaded is only loaded once and the created
-            // Codebase is discarded immediately after use so caching just uses memory for no
-            // performance benefit.
-            options.signatureFileLoader,
-        ) {
-            var codebaseFragment =
-                CodebaseFragment.create(codebase) { delegatedVisitor ->
-                    FilteringApiVisitor(
-                        delegate = delegatedVisitor,
-                        apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
-                        preFiltered = false,
-                    )
-                }
-
-            // If reverting some changes then create a snapshot that combines the items from the
-            // sources for any un-reverted changes and items from the previously released API for
-            // any reverted changes.
-            if (codebaseFragment.codebase.containsRevertedItem) {
-                codebaseFragment =
-                    codebaseFragment.snapshotIncludingRevertedItems(
-                        // Allow references to any of the ClassItems in the original Codebase. This
-                        // should not be a problem for api-versions.xml files as they only refer to
-                        // them
-                        // by name and do not care about their contents.
-                        referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
-                    )
-            }
-
-            codebaseFragment
-        }
-    val apiGenerator = ApiGenerator()
-    if (generateXmlConfig != null) {
-        progressTracker.progress(
-            "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "
-        )
-
-        apiGenerator.generateApiHistory(generateXmlConfig)
-    }
+    generateApiHistoryFromOptions(options, codebase, progressTracker)
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {
         if (!codebase.supportsDocumentation()) {
@@ -262,35 +223,6 @@ internal fun processFlags(
             docAnalyzer.applyApiVersions(applyApiLevelsXml)
         }
     }
-
-    options.apiLevelsGenerationOptions
-        .fromSignatureFilesConfig(
-            // Do not use a cache here as each file loaded is only loaded once and the created
-            // Codebase is discarded immediately after use so caching just uses memory for no
-            // performance benefit.
-            options.signatureFileLoader,
-            // Provide a CodebaseFragment from the sources that will be included in the generated
-            // version history.
-            codebaseFragmentProvider = {
-                val apiType = ApiType.PUBLIC_API
-                val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
-
-                CodebaseFragment.create(codebase) { delegatedVisitor ->
-                    FilteringApiVisitor(
-                        delegate = delegatedVisitor,
-                        apiFilters = apiFilters,
-                        preFiltered = false,
-                    )
-                }
-            }
-        )
-        ?.let { config ->
-            progressTracker.progress(
-                "Generating API version history file ${config.outputFile.name}: "
-            )
-
-            apiGenerator.generateApiHistory(config)
-        }
 
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let {
@@ -494,6 +426,88 @@ private fun createCodebaseFromOptions(
     }
 
     return null
+}
+
+/** write api history to files specified by option flags (e.g. api-versions.xml) */
+private fun generateApiHistoryFromOptions(
+    options: Options,
+    codebase: Codebase,
+    progressTracker: ProgressTracker
+) {
+    val androidConfigCodeFragmentProvider: () -> CodebaseFragment = {
+        var codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegate = delegatedVisitor,
+                    apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
+                    preFiltered = false,
+                )
+            }
+
+        // If reverting some changes then create a snapshot that combines the items from the
+        // sources for any un-reverted changes and items from the previously released API for
+        // any reverted changes.
+        if (codebaseFragment.codebase.containsRevertedItem) {
+            // Allow references to any of the ClassItems in the original Codebase. This
+            // should not be a problem for api-versions.xml files as they only refer to
+            // them
+            // by name and do not care about their contents.
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
+
+        codebaseFragment
+    }
+
+    // Provide a CodebaseFragment from the sources that will be included in the generated
+    // version history.
+    val signatureFileConfigCodeFragmentProvider: () -> CodebaseFragment = {
+        val apiType = ApiType.PUBLIC_API
+        val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
+
+        CodebaseFragment.create(codebase) { delegatedVisitor ->
+            FilteringApiVisitor(
+                delegate = delegatedVisitor,
+                apiFilters = apiFilters,
+                preFiltered = false,
+            )
+        }
+    }
+
+    val apiGenerator = ApiGenerator()
+    options.apiLevelsGenerationOptions
+        .forAndroidConfig(
+            // Do not use a cache here as each file loaded is only loaded once and the created
+            // Codebase is discarded immediately after use so caching just uses memory for no
+            // performance benefit.
+            options.signatureFileLoader,
+            androidConfigCodeFragmentProvider,
+        )
+        ?.let { config ->
+            progressTracker.progress(
+                "Generating API levels XML descriptor file, ${config.outputFile.name}: "
+            )
+
+            apiGenerator.generateApiHistory(config)
+        }
+
+    options.apiLevelsGenerationOptions
+        .fromSignatureFilesConfig(
+            // Do not use a cache here as each file loaded is only loaded once and the created
+            // Codebase is discarded immediately after use so caching just uses memory for no
+            // performance benefit.
+            options.signatureFileLoader,
+            codebaseFragmentProvider = signatureFileConfigCodeFragmentProvider
+        )
+        ?.let { config ->
+            progressTracker.progress(
+                "Generating API version history file ${config.outputFile.name}: "
+            )
+
+            apiGenerator.generateApiHistory(config)
+        }
 }
 
 private fun ActionContext.subtractApi(
