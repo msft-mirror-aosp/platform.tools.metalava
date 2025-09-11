@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
+import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
@@ -295,6 +296,11 @@ internal class PsiCodebaseAssembler(
             ) {
                 continue
             }
+
+            // Composable APIs will have a different signature in bytecode than in source. The
+            // source signature will be generated as kotlin-only by KaCodebaseAssembler and the
+            // bytecode signature will be generated as bytecode-only by KotlinBytecodeApis.
+            if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
 
             if (psiMethod.isConstructor) {
                 // Kotlin value class primary constructors cannot be called from Java, so they will
