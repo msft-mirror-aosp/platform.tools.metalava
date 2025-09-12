@@ -98,16 +98,25 @@ private constructor(
         /** Map from element id to message. */
         private val elementId2Message = mutableMapOf<String, String>()
 
+        /** The set of element ids that should be suppressed. */
+        private val suppressedElementIds = mutableSetOf<String>()
+
         /** The number of element ids/messages that have been reported for a specific [Issue]. */
         val size
             get() = elementId2Message.size
 
         /** Check to see if issues for [elementId] should be ignored. */
-        fun ignoreIssueForElementId(elementId: String) = elementId in elementId2Message
+        fun ignoreIssueForElementId(elementId: String) = elementId in suppressedElementIds
 
-        /** Add [message] for [elementId]. */
-        fun addMessageForElementId(elementId: String, message: String) {
+        /**
+         * Add [message] for [elementId].
+         *
+         * If [suppress] is `true` then any issues with [elementId] will be suppressed, otherwise
+         * they will not.
+         */
+        fun addMessageForElementId(elementId: String, message: String, suppress: Boolean) {
             elementId2Message[elementId] = message
+            if (suppress) suppressedElementIds += elementId
         }
 
         /** Iterate over the element id/message pairs. */
@@ -139,7 +148,13 @@ private constructor(
         }
 
         if (updateFile != null) {
-            perIssueBaseline?.addMessageForElementId(elementId, message)
+            // Add the element id/message pair to the set of issues reported. They will be written
+            // out to the baseline update file. This intentionally will not cause other messages
+            // reported with the same element id to be ignored to allow for multiple messages with
+            // the same element id (but different location) to be reported. This will ensure that
+            // all issues for a specific element id will be reported (unless suppressed by an entry
+            // in a baseline file) making it easier to fix all of them together.
+            perIssueBaseline?.addMessageForElementId(elementId, message, suppress = false)
 
             // When creating baselines don't report issues
             if (silentUpdate) {
@@ -207,7 +222,8 @@ private constructor(
                             issue2PerIssueBaseline[issue] = new
                             new
                         }
-                perIssueBaseline.addMessageForElementId(elementId, message)
+                // Suppress all issues with element id.
+                perIssueBaseline.addMessageForElementId(elementId, message, suppress = true)
             }
         }
         readCount = issue2PerIssueBaseline.values.sumOf { it.size }

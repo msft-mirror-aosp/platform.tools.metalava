@@ -1354,10 +1354,11 @@ class JavadocTest : DriverTest() {
                     silentUpdate = false,
                 ),
             expectedIssues =
-                // TODO(b/429965593): Should have multiple errors but they are being suppressed by
-                //  baseline.
                 """
                     src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
                 """,
             api =
                 """
