@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.reporter
 
+import com.android.tools.metalava.reporter.Issues.Issue
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
@@ -70,8 +71,8 @@ private constructor(
      */
     private val silentUpdate: Boolean = updateFile != null && updateFile.path == file?.path
 
-    /** Map from issue id to element id to message */
-    private val map = HashMap<Issues.Issue, MutableMap<String, String>>()
+    /** Map from issue id to [PerIssueBaseline] */
+    private val issue2PerIssueBaseline = HashMap<Issue, PerIssueBaseline>()
 
     /** Count of the number of issues read in. */
     private var readCount = 0
@@ -84,40 +85,61 @@ private constructor(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(key: BaselineKey, message: String, issue: Issues.Issue): Boolean {
+    fun mark(key: BaselineKey, message: String, issue: Issue): Boolean {
         val elementId = key.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)
     }
 
-    private fun MutableMap<String, String>.findOldMessageByElementId(elementId: String): String? {
-        get(elementId)?.let {
-            return it
+    /**
+     * Encapsulates information about all the element ids and messages that have been added to the
+     * baseline for a specific [Issue].
+     */
+    private class PerIssueBaseline {
+        /** Map from element id to message. */
+        private val elementId2Message = mutableMapOf<String, String>()
+
+        /** The number of element ids/messages that have been reported for a specific [Issue]. */
+        val size
+            get() = elementId2Message.size
+
+        /** Check to see if issues for [elementId] should be ignored. */
+        fun ignoreIssueForElementId(elementId: String) = elementId in elementId2Message
+
+        /** Add [message] for [elementId]. */
+        fun addMessageForElementId(elementId: String, message: String) {
+            elementId2Message[elementId] = message
         }
 
-        return null
+        /** Iterate over the element id/message pairs. */
+        inline fun forEachElementIdAndMessage(action: (String, String) -> Unit) {
+            elementId2Message.keys.sorted().forEach { elementId ->
+                val message = elementId2Message[elementId]!!
+                action(elementId, message)
+            }
+        }
     }
 
-    private fun mark(elementId: String, message: String, issue: Issues.Issue): Boolean {
-        val idMap: MutableMap<String, String>? =
-            map[issue]
+    private fun mark(elementId: String, message: String, issue: Issue): Boolean {
+        val perIssueBaseline: PerIssueBaseline? =
+            issue2PerIssueBaseline[issue]
                 ?: run {
                     if (updateFile != null) {
-                        val new = HashMap<String, String>()
-                        map[issue] = new
+                        val new = PerIssueBaseline()
+                        issue2PerIssueBaseline[issue] = new
                         new
                     } else {
                         null
                     }
                 }
 
-        idMap?.findOldMessageByElementId(elementId)?.let {
+        if (perIssueBaseline?.ignoreIssueForElementId(elementId) == true) {
             // Do not match the error messages; the ids are unique enough and allows us
             // to tweak issue messages compatibly without recording all the deltas here.
             return true
         }
 
         if (updateFile != null) {
-            idMap?.set(elementId, message)
+            perIssueBaseline?.addMessageForElementId(elementId, message)
 
             // When creating baselines don't report issues
             if (silentUpdate) {
@@ -178,33 +200,32 @@ private constructor(
             if (issue == null) {
                 println("Invalid metalava baseline file: unknown issue id '$issueId'")
             } else {
-                val newIdMap =
-                    map[issue]
+                val perIssueBaseline =
+                    issue2PerIssueBaseline[issue]
                         ?: run {
-                            val new = HashMap<String, String>()
-                            map[issue] = new
+                            val new = PerIssueBaseline()
+                            issue2PerIssueBaseline[issue] = new
                             new
                         }
-                newIdMap[elementId] = message
+                perIssueBaseline.addMessageForElementId(elementId, message)
             }
         }
-        readCount = map.values.sumOf { it.size }
+        readCount = issue2PerIssueBaseline.values.sumOf { it.size }
     }
 
     private fun write(): Boolean {
         val updateFile = this.updateFile ?: return false
-        if (map.isNotEmpty() || !config.deleteEmptyBaselines) {
+        if (issue2PerIssueBaseline.isNotEmpty() || !config.deleteEmptyBaselines) {
             val sb = StringBuilder()
             sb.append(BASELINE_FILE_HEADER)
             sb.append(headerComment)
 
-            map.keys
+            issue2PerIssueBaseline.keys
                 .asSequence()
                 .sortedBy { it.name }
                 .forEach { issue ->
-                    val idMap = map[issue]
-                    idMap?.keys?.sorted()?.forEach { elementId ->
-                        val message = idMap[elementId]!!
+                    val perIssueBaseline = issue2PerIssueBaseline[issue]
+                    perIssueBaseline?.forEachElementIdAndMessage { elementId, message ->
                         sb.append(issue.name).append(": ")
                         sb.append(elementId)
                         sb.append(":\n    ")
@@ -224,15 +245,15 @@ private constructor(
         }
         // Only output a message saying that the baseline file has been written if the map has had
         // extra issues added to it since it was read in.
-        val totalCount = map.values.sumOf { it.size }
+        val totalCount = issue2PerIssueBaseline.values.sumOf { it.size }
         return totalCount > readCount
     }
 
     fun dumpStats(writer: PrintWriter) {
-        val counts = mutableMapOf<Issues.Issue, Int>()
-        map.keys.asSequence().forEach { issue ->
-            val idMap = map[issue]
-            val count = idMap?.count() ?: 0
+        val counts = mutableMapOf<Issue, Int>()
+        issue2PerIssueBaseline.keys.asSequence().forEach { issue ->
+            val perIssueBaseline = issue2PerIssueBaseline[issue]!!
+            val count = perIssueBaseline.size
             counts[issue] = count
         }
 
