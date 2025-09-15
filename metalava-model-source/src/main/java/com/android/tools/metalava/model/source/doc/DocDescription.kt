@@ -28,8 +28,12 @@ import com.android.tools.metalava.model.source.javadoc.JavadocParser
 interface DocDescription {
     companion object {
         /** An empty [DocDescription]. */
-        val EMPTY: DocDescription = DefaultDocDescription("", 0, 0)
+        val EMPTY: DocDescription = EmptyDocDescription()
     }
+}
+
+internal class EmptyDocDescription : DocDescription {
+    override fun toString() = "<<>>"
 }
 
 /**
