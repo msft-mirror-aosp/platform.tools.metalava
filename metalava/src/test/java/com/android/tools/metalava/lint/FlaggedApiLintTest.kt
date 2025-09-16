@@ -17,10 +17,10 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.KnownJarFiles
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.systemApiSource
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -261,7 +261,6 @@ class FlaggedApiLintTest : DriverTest() {
                             package android.foobar;
 
                             import android.annotation.SystemApi;
-
                             public class Existing {
                                 public class Inner {
                                     /** @hide */

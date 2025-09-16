@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
+
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
  *
@@ -186,6 +188,12 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      */
     fun isFileFacade() = false
 
+    /**
+     * Whether this class is a multi-file facade class, generated from Kotlin files annotated with
+     * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
+     */
+    fun isMultiFileClass() = false
+
     /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
 
@@ -253,22 +261,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     override fun toStringForItem() = "class ${qualifiedName()}"
 
     companion object {
-        /** Looks up the retention policy for the given class */
-        fun findRetention(cls: ClassItem): AnnotationRetention {
-            val modifiers = cls.modifiers
-            val annotation = modifiers.findAnnotation(AnnotationItem::isRetention)
-            val value = annotation?.findAttribute(ANNOTATION_ATTR_VALUE)
-            val source = value?.value?.toSource()
-            return when {
-                source == null -> AnnotationRetention.getDefault(cls)
-                source.contains("CLASS") -> AnnotationRetention.CLASS
-                source.contains("RUNTIME") -> AnnotationRetention.RUNTIME
-                source.contains("SOURCE") -> AnnotationRetention.SOURCE
-                source.contains("BINARY") -> AnnotationRetention.BINARY
-                else -> AnnotationRetention.getDefault(cls)
-            }
-        }
-
         // Same as doclava1 (modulo the new handling when class names match)
         val comparator: Comparator<in ClassItem> = Comparator { o1, o2 ->
             val delta = o1.fullName().compareTo(o2.fullName())
@@ -453,8 +445,12 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     /** Returns the corresponding source file, if any */
     fun sourceFile(): SourceFile?
 
-    /** If this class is an annotation type, returns the retention of this class */
-    fun getRetention(): AnnotationRetention
+    /**
+     * Get the [AnnotationClass] for this class.
+     *
+     * This must only be called when [ClassItem.classKind] is [ClassKind.ANNOTATION_TYPE].
+     */
+    val annotationClass: AnnotationClass
 
     /**
      * Return superclass matching the given predicate. When a superclass doesn't match, we'll keep

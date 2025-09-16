@@ -23,7 +23,9 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.google.common.truth.Truth.assertThat
@@ -155,7 +157,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.name()).isEqualTo("foo")
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PROTECTED)
-            assertThat(field.initialValue()).isNull()
+            assertThat(field.constantValue).isNull()
         }
     }
 
@@ -165,7 +167,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public class Foo {
-                    field public static foo: String = "hi";
+                    field public static final foo: String = "hi";
                   }
                 }
             """
@@ -179,7 +181,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(field.modifiers.isStatic()).isTrue()
-            assertThat(field.initialValue()).isEqualTo("hi")
+            assertThat(field.constantValue?.asString()).isEqualTo("hi")
         }
     }
 
@@ -256,8 +258,8 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
             assertThat(method.parameters()).isEmpty()
 
-            assertThat(method.hasDefaultValue()).isTrue()
-            assertThat(method.defaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
+            assertThat(method.defaultValue)
+                .isEqualTo(fieldReferenceValue("java.lang.Integer", "MIN_VALUE"))
         }
     }
 
@@ -286,7 +288,7 @@ class SignatureInputOutputTest : Assertions {
     }
 
     @Test
-    fun `Test method with one named parameter with concise default value`() {
+    fun `Test method with one named parameter with default value`() {
         val api =
             """
                 package test.pkg {
@@ -308,36 +310,6 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
 
             assertThat(param.hasDefaultValue()).isTrue()
-            assertThat(param.isDefaultValueKnown()).isFalse()
-        }
-    }
-
-    @Test
-    fun `Test method with one named parameter with non-concise default value`() {
-        val format = kotlinStyleFormat.copy(conciseDefaultValues = false)
-        val api =
-            """
-                package test.pkg {
-                  public class Foo {
-                    method public foo(arg: int = 3): String;
-                  }
-                }
-            """
-                .trimIndent()
-        runInputOutputTest(api, format) {
-            val foo = codebase.assertClass("test.pkg.Foo")
-            val method = foo.methods().single()
-
-            assertThat(method.parameters()).hasSize(1)
-            val param = method.parameters().single()
-            assertThat(param.name()).isEqualTo("arg")
-            assertThat(param.publicName()).isEqualTo("arg")
-            assertThat((param.type() as PrimitiveTypeItem).kind)
-                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
-
-            assertThat(param.hasDefaultValue()).isTrue()
-            assertThat(param.isDefaultValueKnown()).isTrue()
-            assertThat(param.defaultValueAsString()).isEqualTo("3")
         }
     }
 
@@ -857,6 +829,104 @@ class SignatureInputOutputTest : Assertions {
                     method @SuppressCompatibility @ReturnThis public test.pkg.FancyBar fancy(@SuppressCompatibility int);
                   }
                 }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Check loading signature file with duplicate method signatures`() {
+        val api =
+            """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void method(int);
+                    method public void method(int);
+                  }
+                }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test method target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                method @BytecodeOnly public void bytecodeOnly();
+                method @BytecodeOnly @OtherAnnotation public void bytecodeOnlyWithOtherAnnotation();
+                method @InaccessibleFromJava public void inaccessibleFromJava();
+                method @InaccessibleFromKotlin public void inaccessibleFromKotlin();
+                method @KotlinOnly public void kotlinOnly();
+                method public void noTargetsListed();
+                method @OtherAnnotation public void noTargetsWithOtherAnnotation();
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test constructor target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                ctor @BytecodeOnly public Foo();
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test field target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                field @InaccessibleFromKotlin public int inaccessibleFromKotlin;
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test class target language`() {
+        val api =
+            """
+            package test.pkg {
+              @KotlinOnly public class KotlinOnlyClass {
+              }
+              @KotlinOnly @OtherAnnotation public class KotlinOnlyClassWithOtherAnnotation {
+              }
+              public class NoTargetsListed {
+              }
+              @OtherAnnotation public class NoTargetsWithOtherAnnotation {
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test type aliases`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public typealias TypeAlias = String;
+              @test.pkg.AnnoA @test.pkg.AnnoB public typealias TypeAliasAnnotated = String;
+              public typealias TypeAliasPrimitive = int;
+              public typealias TypeAliasPrimitiveArray = int[];
+              public typealias TypeAliasTypeParameter<T> = java.util.List<T>;
+              public typealias TypeAliasTypeParameters<K, V> = java.util.Map.Entry<K,V>;
+            }
             """
         runInputOutputTest(api, FileFormat.V5)
     }

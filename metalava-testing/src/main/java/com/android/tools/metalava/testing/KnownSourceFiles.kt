@@ -63,14 +63,6 @@ object KnownSourceFiles {
             """
         )
 
-    val androidAnnotationHide: TestFile =
-        TestFiles.java(
-            """
-                /** @hide */
-                package android.annotation;
-            """
-        )
-
     val nonNullSource: TestFile =
         TestFiles.java(
             """
@@ -111,14 +103,6 @@ object KnownSourceFiles {
     public @interface Nullable {
     }
     """
-        )
-
-    val libcodeUtilHide: TestFile =
-        TestFiles.java(
-            """
-                /** @hide */
-                package libcore.util;
-            """
         )
 
     val libcoreNonNullSource: TestFile =
@@ -164,14 +148,6 @@ object KnownSourceFiles {
             """
         )
 
-    val androidxAnnotationHide: TestFile =
-        TestFiles.java(
-            """
-                /** @hide */
-                package androidx.annotation;
-            """
-        )
-
     /** TYPE_USE version of [com.android.tools.metalava.intRangeAnnotationSource] */
     val intRangeTypeUseSource =
         java(
@@ -187,22 +163,6 @@ object KnownSourceFiles {
             long to() default Long.MAX_VALUE;
         }
         """
-        )
-
-    val supportParameterName =
-        java(
-            """
-                package androidx.annotation;
-                import java.lang.annotation.*;
-                import static java.lang.annotation.ElementType.*;
-                import static java.lang.annotation.RetentionPolicy.SOURCE;
-                @SuppressWarnings("WeakerAccess")
-                @Retention(SOURCE)
-                @Target({METHOD, PARAMETER, FIELD})
-                public @interface ParameterName {
-                    String value();
-                }
-            """
         )
 
     val systemApiSource: TestFile =
@@ -244,4 +204,103 @@ object KnownSourceFiles {
                 }
             """
         )
+
+    val intRangeAnnotationSource: TestFile =
+        TestFiles.java(
+            """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @Retention(SOURCE)
+                @Target({METHOD,PARAMETER,FIELD,LOCAL_VARIABLE,ANNOTATION_TYPE})
+                public @interface IntRange {
+                    /** Smallest value, inclusive */
+                    long from() default Long.MIN_VALUE;
+                    /** Largest value, inclusive */
+                    long to() default Long.MAX_VALUE;
+                }
+            """
+        )
+
+    val floatRangeAnnotationSource: TestFile =
+        TestFiles.java(
+            """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @Retention(SOURCE)
+                @Target({METHOD,PARAMETER,FIELD,LOCAL_VARIABLE,ANNOTATION_TYPE})
+                public @interface FloatRange {
+                    /** Smallest value. Whether it is inclusive or not is determined
+                     * by {@link #fromInclusive} */
+                    double from() default Double.NEGATIVE_INFINITY;
+                    /** Largest value. Whether it is inclusive or not is determined
+                     * by {@link #toInclusive} */
+                    double to() default Double.POSITIVE_INFINITY;
+                    /** Whether the from value is included in the range */
+                    boolean fromInclusive() default true;
+                    /** Whether the to value is included in the range */
+                    boolean toInclusive() default true;
+                }
+            """
+        )
+
+    val restrictToSource: TestFile =
+        TestFiles.kotlin(
+                """
+                    package androidx.annotation
+
+                    import androidx.annotation.RestrictTo.Scope
+                    import java.lang.annotation.ElementType.*
+
+                    @MustBeDocumented
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.ANNOTATION_CLASS,
+                        AnnotationTarget.CLASS,
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.PROPERTY_GETTER,
+                        AnnotationTarget.PROPERTY_SETTER,
+                        AnnotationTarget.CONSTRUCTOR,
+                        AnnotationTarget.FIELD,
+                        AnnotationTarget.FILE
+                    )
+                    // Needed due to Kotlin's lack of PACKAGE annotation target
+                    // https://youtrack.jetbrains.com/issue/KT-45921
+                    @Suppress("DEPRECATED_JAVA_ANNOTATION")
+                    @java.lang.annotation.Target(ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE)
+                    annotation class RestrictTo(vararg val value: Scope) {
+                        enum class Scope {
+                            LIBRARY,
+                            LIBRARY_GROUP,
+                            LIBRARY_GROUP_PREFIX,
+                            @Deprecated("Use LIBRARY_GROUP_PREFIX instead.")
+                            GROUP_ID,
+                            TESTS,
+                            SUBCLASSES,
+                        }
+                    }
+                """
+            )
+            .indented()
+
+    val sdkConstantSource: TestFile =
+        TestFiles.java(
+                """
+                    package android.annotation;
+                    import java.lang.annotation.*;
+                    /** @hide */
+                    @Target({ ElementType.FIELD })
+                    @Retention(RetentionPolicy.SOURCE)
+                    public @interface SdkConstant {
+                        enum SdkConstantType {
+                            ACTIVITY_INTENT_ACTION, BROADCAST_INTENT_ACTION, SERVICE_ACTION, INTENT_CATEGORY, FEATURE
+                        }
+                        SdkConstantType value();
+                    }
+                """
+            )
+            .indented()
 }

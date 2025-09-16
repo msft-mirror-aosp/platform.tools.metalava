@@ -28,7 +28,10 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -77,7 +80,6 @@ class SignatureWriter(
 
     override fun afterVisitPackage(pkg: PackageItem) {
         write("}\n\n")
-        writer.flush()
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
@@ -109,12 +111,23 @@ class SignatureWriter(
             write(field.name())
         }
 
-        field.writeValueWithSemicolon(
-            writer,
-            allowDefaultValue = false,
-            requireInitialValue = false
-        )
+        field.writeValueWithSemicolon(writer)
         write("\n")
+    }
+
+    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
+        write("  ")
+
+        writeModifiers(typeAlias)
+
+        write("typealias ")
+
+        write(typeAlias.simpleName)
+        writeTypeParameterList(typeAlias.typeParameterList, addSpace = false)
+
+        write(" = ")
+        writeType(typeAlias.aliasedType)
+        write(";\n\n")
     }
 
     override fun visitProperty(property: PropertyItem) {
@@ -165,7 +178,7 @@ class SignatureWriter(
         writeThrowsList(method)
 
         if (method.containingClass().isAnnotationType()) {
-            val default = method.defaultValue()
+            val default = method.legacyDefaultValue()
             if (default.isNotEmpty()) {
                 write(" default ")
                 write(default)
@@ -203,7 +216,18 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
+        (item as? SelectableItem)?.let { writeTargetLanguage(it) }
         modifierListWriter.write(item, normalizeFinal = fileFormat.normalizeFinalModifier)
+    }
+
+    private fun writeTargetLanguage(item: SelectableItem) {
+        // Properties and type aliases are always only for Kotlin use, so don't bother writing it.
+        if (item is PropertyItem || item is TypeAliasItem) return
+
+        val modifier =
+            TargetLanguageSet.targetLanguageSetToSignatureFileRepresentation[item.targetLanguages]
+                ?: return
+        write("$modifier ")
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
@@ -285,8 +309,8 @@ class SignatureWriter(
             if (writtenParams > 0) {
                 write(", ")
             }
-            if (parameter.hasDefaultValue() && fileFormat.conciseDefaultValues) {
-                // Concise representation of a parameter with a default
+            if (parameter.hasDefaultValue() && fileFormat.includeDefaultParameterValues) {
+                // Indicate the parameter has a default.
                 write("optional ")
             }
             writeModifiers(parameter)
@@ -308,16 +332,6 @@ class SignatureWriter(
                 }
             }
 
-            if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
-                write(" = ")
-                val defaultValue = parameter.defaultValueAsString()
-                if (defaultValue != null) {
-                    write(defaultValue)
-                } else {
-                    // null is a valid default value!
-                    write("null")
-                }
-            }
             writtenParams++
         }
         write(")")

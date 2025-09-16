@@ -109,11 +109,13 @@ Arguments:
     @Test
     fun `Update signature (blank to v2)`() {
         checkUpdateSignatures(
-            contents = """
+            contents =
+                """
 
                 """,
             format = FileFormat.V2,
-            expectedOutput = """
+            expectedOutput =
+                """
 
                 """,
         )
@@ -129,7 +131,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (v2 to v3)`() {
+    fun `Update signature (v2 to v4)`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -137,10 +139,10 @@ Arguments:
                     package test.pkg {
                     }
                 """,
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             expectedOutput =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                     }
                 """,
@@ -150,10 +152,11 @@ Arguments:
     @Test
     fun `Update signature (wrong file to v3)`() {
         checkUpdateSignatures(
-            contents = """
+            contents =
+                """
                     Wrong file
                 """,
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             expectedStderr =
                 "Could not update header for TESTROOT/api.txt: TESTROOT/api.txt:1: Signature format error - invalid prefix, found 'Wrong file', expected '// Signature format: '",
         )
@@ -200,7 +203,7 @@ Arguments:
     }
 
     @Test
-    fun `Update signature (v2 to v3 + kotlin-style-nulls=false,migrating=test)`() {
+    fun `Update signature (v2 to v4 + kotlin-style-nulls=false,migrating=test)`() {
         checkUpdateSignatures(
             contents =
                 """
@@ -208,10 +211,10 @@ Arguments:
                     package pkg {
                     }
                 """,
-            format = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test"),
+            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
             expectedOutput =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     // - kotlin-style-nulls=no
                     // - migrating=test
                     package pkg {

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
@@ -31,9 +32,8 @@ class KotlinInteropChecksTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 """
-                src/test/pkg/Test.java:7: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
-                src/test/pkg/Test.java:8: error: Avoid parameter names that are Kotlin hard keywords ("typealias"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
-                src/test/pkg/Test.java:10: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
+                    src/test/pkg/Test.java:6: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
+                    src/test/pkg/Test.java:9: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -43,18 +43,16 @@ class KotlinInteropChecksTest : DriverTest() {
                     package test.pkg;
 
                     import androidx.annotation.NonNull;
-                    import androidx.annotation.ParameterName;
 
                     public class Test {
                         public void fun() { }
-                        public void foo(int fun, @ParameterName("typealias") int internalName) { }
+                        public void foo(int fun) { }
                         @NonNull
                         public final Object object = null;
                     }
                     """
                     ),
-                    supportParameterName,
-                    androidxNonNullSource
+                    androidxNonNullSource,
                 )
         )
     }
@@ -154,24 +152,27 @@ class KotlinInteropChecksTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Foo.kt:8: warning: Companion object constants like BIG_INTEGER_ONE should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:11: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:12: warning: Companion object constants like WRONG2 should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
-                src/test/pkg/Foo.kt:15: warning: Companion object methods like missing should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:10: warning: Companion object methods like getWrongNeedsJvmStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:10: warning: Companion object methods like setWrongNeedsJvmStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
+                src/test/pkg/Foo.kt:12: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/Foo.kt:13: warning: Companion object constants like WRONG2 should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
+                src/test/pkg/Foo.kt:16: warning: Companion object methods like missing should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
                 """,
             sourceFiles =
                 arrayOf(
                     kotlin(
                         """
                     package test.pkg
-
+                    import java.math.BigInteger
                     @SuppressWarnings("all")
                     class Foo {
                         fun ok1() { }
                         companion object {
                             const val INTEGER_ONE = 1
-                            val BIG_INTEGER_ONE = BigInteger.ONE
-                            private val PRIVATE_BIG_INTEGER = BigInteger.ONE
-                            var ok = 1
+                            val BIG_INTEGER_ONE: BigInteger = BigInteger.ONE // type specified to define nullability
+                            private val PRIVATE_BIG_INTEGER: BigInteger = BigInteger.ONE
+                            var wrongNeedsJvmStatic = 1
+                            @JvmStatic var ok = 1.5
                             @JvmStatic val WRONG = 2
                             @JvmStatic @JvmField val WRONG2 = 2
                             @JvmField val ok3 = 3
@@ -248,127 +249,6 @@ class KotlinInteropChecksTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Methods which throw exceptions should document them`() {
-        check(
-            apiLint = "",
-            extraArguments = arrayOf(ARG_HIDE, "BannedThrow", ARG_HIDE, "GenericException"),
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:6: error: Method Foo.error_throws_multiple_times appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:17: error: Method Foo.error_throwsCheckedExceptionWithWrongExceptionClassInThrows appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:37: error: Method Foo.error_throwsRuntimeExceptionDocsMissing appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:44: error: Method Foo.error_missingSpecificAnnotation appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:76: error: Method Foo.getErrorVar appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:77: error: Method Foo.setErrorVar appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    import java.io.FileNotFoundException
-                    import java.lang.UnsupportedOperationException
-
-                    class Foo {
-                        fun error_throws_multiple_times(x: Int) {
-                            if (x < 0) {
-                                throw FileNotFoundException("Something")
-                            }
-                            if (x > 10) { // make sure we don't list this twice
-                                throw FileNotFoundException("Something")
-                            }
-                        }
-
-
-                        @Throws(Exception::class)
-                        fun error_throwsCheckedExceptionWithWrongExceptionClassInThrows(x: Int) {
-                            if (x < 0) {
-                                throw FileNotFoundException("Something")
-                            }
-                        }
-
-                        @Throws(FileNotFoundException::class)
-                        fun ok_hasThrows1(x: Int) {
-                            if (x < 0) {
-                                throw FileNotFoundException("Something")
-                            }
-                        }
-
-                        @Throws(UnsupportedOperationException::class, FileNotFoundException::class)
-                        fun ok_hasThrows2(x: Int) {
-                            if (x < 0) {
-                                throw FileNotFoundException("Something")
-                            }
-                        }
-
-                        fun error_throwsRuntimeExceptionDocsMissing(x: Int) {
-                            if (x < 0) {
-                                throw UnsupportedOperationException("Something")
-                            }
-                        }
-
-                        /** This method throws FileNotFoundException if blah blah blah */
-                        fun error_missingSpecificAnnotation(x: Int) {
-                            if (x < 0) {
-                                throw UnsupportedOperationException("Something")
-                            }
-                        }
-
-                        /** This method throws UnsupportedOperationException if blah blah blah */
-                        fun ok_docsPresent(x: Int) {
-                            if (x < 0) {
-                                throw UnsupportedOperationException("Something")
-                            }
-                        }
-
-                        fun ok_exceptionCaught(x: Int) {
-                            try {
-                                if (s.startsWith(" ")) {
-                                    throw NumberFormatException()
-                                }
-                                println("Hello")
-                            } catch (e: NumberFormatException) {}
-                        }
-
-                        fun ok_exceptionCaught2(x: Int) {
-                            try {
-                                if (s.startsWith(" ")) {
-                                    throw NumberFormatException()
-                                }
-                                println("Hello")
-                            } catch (e: Exception) {}
-                        }
-
-                        var errorVar: Int
-                            get() { throw UnsupportedOperationException() }
-                            set(value) { throw UnsupportedOperationException() }
-
-                        @get:Throws(FileNotFoundException::class)
-                        var okValAnnotation: Int
-                            get() { throw FileNotFoundException("Something") }
-
-                        /** Throws [UnsupportedOperationException] */
-                        val okValDocumented: Int
-                            get() { throw UnsupportedOperationException() }
-
-                        /** Throws [UnsupportedOperationException] */
-                        var okVarDocumented: Int = 0
-                            set(value) { throw UnsupportedOperationException() }
-
-                        // TODO: What about something where you call in Java a method
-                        // known to throw something (e.g. Integer.parseInt) and you don't catch it; should you
-                        // pass it on? Hard to say; if the logic is complicated it may
-                        // be the case that it can never happen, and this might be an annoying false positive.
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
     fun `Check value classes are banned`() {
         check(
             apiLint = "",
@@ -405,6 +285,321 @@ class KotlinInteropChecksTest : DriverTest() {
                         """
                     )
                 ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check usage of JvmStatic on hidden property`() {
+        // Regression test for b/401569415 -- MissingJvmstatic should not apply to hidden properties
+        check(
+            apiLint = "",
+            expectedIssues = "",
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object {
+                                    /** @hide */
+                                    @JvmStatic
+                                    val hiddenProperty = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check usage of JvmStatic on property of value class type`() {
+        // b/401569415 -- JvmField cannot be used on properties of value class type
+        check(
+            apiLint = "",
+            expectedIssues =
+                "src/test/pkg/IntValue.kt:13: warning: Companion object methods like getValueClassTypePropertyJvmNameNoStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
+            extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            @JvmInline
+                            value class IntValue(val value: Int) {
+                                companion object {
+                                    @JvmStatic
+                                    val valueClassTypePropertyJvmStatic = IntValue(0)
+
+                                    // No error for this property, because there is not an accessor
+                                    // that can be used from Java.
+                                    val valueClassTypePropertyNoAnnotation = IntValue(0)
+
+                                    @get:JvmName("getValueClassTypePropertyJvmNameNoStatic")
+                                    val valueClassTypePropertyJvmNameNoStatic = IntValue(0)
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check methods and properties in a named companion object should be annotated JvmStatic`() {
+        check(
+            apiLint = "",
+            // TODO: this is inconsistent between methods and properties
+            expectedIssues =
+                "src/test/pkg/Foo.kt:9: warning: Companion object constants like missingJvmField should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]",
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object FooCompanion {
+                                    fun missingJvmStatic() = Unit
+
+                                    @JvmStatic
+                                    fun ok() = Unit
+
+                                    val missingJvmField = 0
+
+                                    @JvmField
+                                    val ok = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check interface companion properties`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                "src/test/pkg/Foo.kt:10: warning: Companion object methods like getUnannotatedProperty should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            interface Foo {
+                                companion object {
+                                    // Cannot use @JvmField here, causes a compiler error:
+                                    // JvmField could be applied only if all interface companion
+                                    // properties are 'public final val' with '@JvmField' annotation
+                                    @JvmStatic
+                                    val jvmStaticProperty = 0
+
+                                    val unannotatedProperty = 0
+
+                                    private val privateProperty = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check companion property without backing field`() {
+        check(
+            apiLint = "",
+            expectedIssues =
+                "src/test/pkg/Foo.kt:11: warning: Companion object methods like getUnannotatedPropertyWithoutBackingField should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
+            extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Foo {
+                                companion object {
+                                    // Cannot use @JvmField here: this annotation is not applicable
+                                    // to target 'member property without backing field or delegate'
+                                    @JvmStatic
+                                    val jvmStaticPropertyWithoutBackingField
+                                        get() = 0
+
+                                    val unannotatedPropertyWithoutBackingField
+                                        get() = 0
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check no JvmOverloads warning for data class copy method`() {
+        check(
+            apiLint = "", // Enabled
+            expectedIssues =
+                // Line 3 is where notCopy is defined. The copy method would get line 2 (where the
+                // class/constructor is defined).
+                "src/test/pkg/Foo.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        data class Foo(val p0: Int = 0, val p1: String = "") {
+                            fun notCopy(p0: Int = 0, p1: String = "") = Unit
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check no JvmOverloads warning for suspend function`() {
+        check(
+            apiLint = "", // Enabled
+            expectedIssues =
+                // Line 3 is where regularFun is defined
+                "src/test/pkg/Foo.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            fun regularFun(p0: Int = 0, p1: Int = 0) = Unit
+                            suspend fun suspendFun(p0: Int = 0, p1: Int = 0) = Unit
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check JvmName for file facade classes`() {
+        check(
+            apiLint = "", // Enabled
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                test/pkg/ErrorNeedsJvmName.kt:1: error: Use `@file:JvmName` to provide a name for this file facade class for Java callers [FacadeClassJvmName]
+                """,
+            hideAnnotations = arrayOf("test.pkg.Hide"),
+            extraArguments = arrayOf(ARG_ERROR, "FacadeClassJvmName"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "test/pkg/ErrorNeedsJvmName.kt",
+                        """
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkUsesJvmName.kt",
+                        """
+                        @file:JvmName("OkUsesJvmName")
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        annotation class Hide
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasHidden.kt",
+                        """
+                        package test.pkg
+                        @Hide
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasKotlinOnly.kt",
+                        """
+                        package test.pkg
+                        inline fun <reified T> foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasSuspend.kt",
+                        """
+                        package test.pkg
+                        suspend fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkSuppressesError.kt",
+                        """
+                        @file:Suppress("FacadeClassJvmName")
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkMultiFile1.kt",
+                        """
+                        @file:JvmMultifileClass
+                        @file:JvmName("OkMultiFile")
+                        package test.pkg
+                        fun multiFile1() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkMultiFile2.kt",
+                        """
+                        @file:JvmMultifileClass
+                        @file:JvmName("OkMultiFile")
+                        package test.pkg
+                        fun multiFile2() = Unit
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class ErrorNeedsJvmNameKt {
+                    method public static void foo();
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Hide {
+                  }
+                  public final class OkMultiFile {
+                    method public static void multiFile1();
+                    method public static void multiFile2();
+                  }
+                  public final class OkOnlyHasKotlinOnlyKt {
+                    method @KotlinOnly public static inline <reified T> void foo();
+                  }
+                  public final class OkOnlyHasSuspendKt {
+                    method public static suspend Object? foo(kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                  }
+                  public final class OkSuppressesErrorKt {
+                    method public static void foo();
+                  }
+                  public final class OkUsesJvmName {
+                    method public static void foo();
+                  }
+                }
+                """,
         )
     }
 }

@@ -29,6 +29,7 @@ import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
+import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
@@ -146,23 +147,9 @@ internal fun processFlags(
     progressTracker: ProgressTracker
 ) {
     val stopwatch = Stopwatch.createStarted()
-
     val reporter = options.reporter
-
     val codebaseConfig = options.codebaseConfig
-    val modelOptions =
-        // If the option was specified on the command line then use [ModelOptions] created from
-        // that.
-        options.useK2Uast?.let { useK2Uast ->
-            ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
-        }
-        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
-                // Make sure that the [options.useK2Uast] matches the test environment.
-                options.useK2Uast = this[PsiModelOptions.useK2Uast]
-            }
-            // Otherwise, use the default
-            ?: ModelOptions.empty
+    val modelOptions = createModelOptions(options, executionEnvironment)
     val sourceParser =
         environmentManager.createSourceParser(
             codebaseConfig = codebaseConfig,
@@ -248,11 +235,9 @@ internal fun processFlags(
                 }
 
             // If reverting some changes then create a snapshot that combines the items from the
-            // sources
-            // for any un-reverted changes and items from the previously released API for any
-            // reverted
-            // changes.
-            if (options.revertAnnotations.isNotEmpty()) {
+            // sources for any un-reverted changes and items from the previously released API for
+            // any reverted changes.
+            if (codebaseFragment.codebase.containsRevertedItem) {
                 codebaseFragment =
                     codebaseFragment.snapshotIncludingRevertedItems(
                         // Allow references to any of the ClassItems in the original Codebase. This
@@ -354,7 +339,7 @@ internal fun processFlags(
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
         // changes.
-        if (options.revertAnnotations.isNotEmpty()) {
+        if (codebaseFragment.codebase.containsRevertedItem) {
             codebaseFragment =
                 codebaseFragment.snapshotIncludingRevertedItems(
                     // Allow references to any of the ClassItems in the original Codebase. This
@@ -389,7 +374,7 @@ internal fun processFlags(
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
         // changes.
-        if (options.revertAnnotations.isNotEmpty()) {
+        if (codebaseFragment.codebase.containsRevertedItem) {
             codebaseFragment =
                 codebaseFragment.snapshotIncludingRevertedItems(
                     // Allow references to any of the ClassItems in the original Codebase. This
@@ -480,6 +465,24 @@ internal fun processFlags(
     )
 }
 
+/** Create [ModelOptions] object from option flags */
+private fun createModelOptions(
+    options: Options,
+    executionEnvironment: ExecutionEnvironment
+): ModelOptions {
+    // If the option was specified on the command line then use [ModelOptions] created from that
+    return options.useK2Uast?.let { useK2Uast ->
+        ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
+    }
+        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
+            // Make sure that the [options.useK2Uast] matches the test environment.
+            options.useK2Uast = this[PsiModelOptions.useK2Uast]
+        }
+        // Otherwise, use the default
+        ?: ModelOptions.empty
+}
+
 private fun ActionContext.subtractApi(
     signatureFileCache: SignatureFileCache,
     codebase: Codebase,
@@ -542,8 +545,7 @@ private fun ActionContext.checkCompatibility(
         val compatibilityCheckCanBeSkipped =
             check.lastSignatureFile?.let { signatureFile ->
                 compareFileContents(apiFile, signatureFile)
-            }
-                ?: false
+            } ?: false
         // TODO(b/301282006): Remove global variable use when this can be tested properly
         fastPathCheckResult = compatibilityCheckCanBeSkipped
         if (compatibilityCheckCanBeSkipped) return
@@ -554,8 +556,12 @@ private fun ActionContext.checkCompatibility(
             signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
         }
 
-    // If configured, compares the new API with the previous API and reports
-    // any incompatibilities.
+    val apiName =
+        if (apiType == ApiType.REMOVED) {
+            "removed"
+        } else options.apiSelectionOptions.apiSurface
+
+    // If configured, compares the new API with the previous API and reports any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
         oldCodebase,
@@ -563,6 +569,7 @@ private fun ActionContext.checkCompatibility(
         reporter,
         options.issueConfiguration,
         options.apiCompatAnnotations,
+        apiName,
     )
 }
 
@@ -652,6 +659,7 @@ private fun ActionContext.loadFromSources(
             classPath = options.classpath,
             apiPackages = options.apiPackages,
             projectDescription = options.projectDescription,
+            compiledSourceJar = options.compiledSourceJar
         )
 
     progressTracker.progress("Analyzing API: ")
@@ -798,7 +806,7 @@ private fun createStubFiles(
 
     // If reverting some changes then create a snapshot that combines the items from the sources for
     // any un-reverted changes and items from the previously released API for any reverted changes.
-    if (options.revertAnnotations.isNotEmpty()) {
+    if (codebaseFragment.codebase.containsRevertedItem) {
         codebaseFragment =
             codebaseFragment.snapshotIncludingRevertedItems(
                 referenceVisitorFactory = { delegate ->
@@ -919,6 +927,7 @@ private fun createMetalavaCommand(
     command.subcommands(
         MainCommand(command.commonOptions, executionEnvironment),
         AndroidJarsToSignaturesCommand(),
+        FlagReportCommand(),
         HelpCommand(),
         JarToJDiffCommand(),
         MakeAnnotationsPackagePrivateCommand(),

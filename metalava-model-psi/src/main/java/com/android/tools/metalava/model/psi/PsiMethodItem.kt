@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -31,22 +33,22 @@ import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.CombinedValueProvider
+import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.uast.UAnnotation
+import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
-import org.jetbrains.uast.toUElement
 
 internal class PsiMethodItem(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
@@ -59,11 +61,15 @@ internal class PsiMethodItem(
     parameterItemsFactory: ParameterItemsFactory,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
+    val defaultValueProvider: OptionalValueProvider?,
+    targetLanguages: Set<TargetLanguage>,
+    isExtensionMethod: Boolean,
 ) :
     DefaultMethodItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = fileLocation,
-        itemLanguage = psiMethod.itemLanguage,
+        sourceLanguage = psiMethod.sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -74,41 +80,15 @@ internal class PsiMethodItem(
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+        defaultValueProvider = defaultValueProvider,
+        isExtensionMethod = isExtensionMethod,
     ),
     PsiCallableItem {
 
-    override var property: PsiPropertyItem? = null
-
-    override fun isExtensionMethod(): Boolean {
-        if (isKotlin()) {
-            val ktParameters =
-                ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
-                    ?: return false
-            return ktParameters.size < parameters().size
-        }
-
-        return false
-    }
+    override var property: PropertyItem? = null
 
     override fun isKotlinProperty(): Boolean {
-        return psiMethod is UMethod &&
-            (psiMethod.sourcePsi is KtProperty ||
-                psiMethod.sourcePsi is KtPropertyAccessor ||
-                psiMethod.sourcePsi is KtParameter &&
-                    (psiMethod.sourcePsi as KtParameter).hasValOrVar())
-    }
-
-    override fun defaultValue(): String {
-        return when (psiMethod) {
-            is UAnnotationMethod -> {
-                psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
-            }
-            is PsiAnnotationMethod -> {
-                psiMethod.defaultValue?.let { codebase.printer.toSourceExpression(it, this) }
-                    ?: super.defaultValue()
-            }
-            else -> super.defaultValue()
-        }
+        return isKotlinProperty(psiMethod)
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
@@ -125,7 +105,7 @@ internal class PsiMethodItem(
             else emptyMap()
 
         return PsiMethodItem(
-                codebase,
+                psiCodebase,
                 psiMethod,
                 fileLocation,
                 targetContainingClass,
@@ -140,6 +120,9 @@ internal class PsiMethodItem(
                 },
                 typeParameterList,
                 throwsTypes(),
+                defaultValueProvider,
+                targetLanguages,
+                isExtensionMethod = isExtensionMethod(),
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -173,31 +156,10 @@ internal class PsiMethodItem(
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+            targetLanguages: Set<TargetLanguage> = containingClass.targetLanguages,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
-            // UAST workaround: @JvmName for UMethod with fake LC PSI
-            // TODO: https://youtrack.jetbrains.com/issue/KTIJ-25133
-            val name =
-                if (psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) {
-                    psiMethod.sourcePsi
-                        ?.annotationEntries
-                        ?.find { annoEntry ->
-                            val text = annoEntry.typeReference?.text ?: return@find false
-                            JvmName::class.qualifiedName?.contains(text) == true
-                        }
-                        ?.toUElement(UAnnotation::class.java)
-                        ?.takeIf {
-                            // Above `find` deliberately avoids resolution and uses verbatim text.
-                            // Below, we need annotation value anyway, but just double-check
-                            // if the converted annotation is indeed the resolved @JvmName
-                            it.qualifiedName == JvmName::class.qualifiedName
-                        }
-                        ?.findAttributeValue("name")
-                        ?.evaluate() as? String
-                        ?: psiMethod.name
-                } else {
-                    psiMethod.name
-                }
+            val name = psiMethod.name
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
 
             if (containingClass.classKind == ClassKind.INTERFACE) {
@@ -236,14 +198,20 @@ internal class PsiMethodItem(
                     isAnnotationElement = isAnnotationElement,
                 )
 
+            val defaultValueProvider = psiMethod.defaultValueProvider(codebase, returnType)
+
+            // Use psi util which works for source kt elements to determine if this is an extension
+            val isExtensionMethod =
+                (psiMethod as? UMethod)?.sourcePsi?.isExtensionDeclaration() ?: false
+
             val method =
                 PsiMethodItem(
-                    codebase = codebase,
+                    psiCodebase = codebase,
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     returnType = returnType,
                     parameterItemsFactory = { containingCallable ->
                         parameterList(
@@ -256,9 +224,49 @@ internal class PsiMethodItem(
                     },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
+                    defaultValueProvider = defaultValueProvider,
+                    targetLanguages = targetLanguages,
+                    isExtensionMethod = isExtensionMethod
                 )
 
             return method
         }
+
+        fun isKotlinProperty(psiMethod: PsiMethod): Boolean {
+            return psiMethod is UMethod &&
+                (psiMethod.sourcePsi is KtProperty ||
+                    psiMethod.sourcePsi is KtPropertyAccessor ||
+                    psiMethod.sourcePsi is KtParameter &&
+                        (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+        }
     }
+}
+
+internal fun PsiMethod.defaultValueProvider(
+    codebase: PsiBasedCodebase,
+    returnType: TypeItem
+): CombinedValueProvider? {
+    val defaultValueProvider =
+        when (this) {
+            is UAnnotationMethod -> {
+                uastDefaultValue?.let { uDefaultValue ->
+                    codebase.valueFactory.providerFor(
+                        returnType,
+                        uDefaultValue,
+                        ValueUseSite.ANNOTATION,
+                    )
+                }
+            }
+            is PsiAnnotationMethod -> {
+                defaultValue?.let { psiDefaultValue ->
+                    codebase.valueFactory.providerFor(
+                        returnType,
+                        psiDefaultValue,
+                        ValueUseSite.ANNOTATION,
+                    )
+                }
+            }
+            else -> null
+        }
+    return defaultValueProvider
 }

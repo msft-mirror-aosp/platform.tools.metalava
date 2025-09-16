@@ -22,9 +22,10 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.reporter.FileLocation
@@ -32,15 +33,16 @@ import com.android.tools.metalava.reporter.FileLocation
 abstract class DefaultSelectableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
+    override var targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultItem(
         codebase,
         fileLocation,
-        itemLanguage,
+        sourceLanguage,
         modifiers,
         documentationFactory,
     ),
@@ -83,4 +85,16 @@ abstract class DefaultSelectableItem(
 
     final override val showability: Showability
         get() = variantSelectors.showability
+
+    final override fun appendDocumentation(comment: String, tagSection: String?) {
+        if (comment.isBlank()) {
+            return
+        }
+
+        // TODO: Figure out if an annotation should go on the return value, or on the method.
+        // For example; threading: on the method, range: on the return value.
+        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
+
+        documentation.appendDocumentation(comment, tagSection)
+    }
 }
