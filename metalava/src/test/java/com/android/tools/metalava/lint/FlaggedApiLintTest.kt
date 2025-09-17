@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.lint
 
+import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
@@ -715,6 +716,92 @@ class FlaggedApiLintTest : DriverTest() {
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
+
+    // This test ensure any implementation that compares annotations does not do so through
+    // inheritance
+    @Test
+    fun `Do not require @FlaggedApi on concrete class methods that override an annotated method`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.annotation {
+                        @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD}) public @interface Custom {}
+                     }
+                    package test.pkg {
+                      public class Base {
+                        method @test.annotation.Custom public void method();
+                      }
+                      public class Foo extends test.pkg.Base {
+                      }
+                    }
+                """,
+            api =
+                """
+                package test.annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD}) public @interface Custom {
+                  }
+                }
+                package test.pkg {
+                  public class Base {
+                    method @test.annotation.Custom public void method();
+                  }
+                  public class Foo extends test.pkg.Base {
+                  }
+                }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.annotation;
+
+                            import static java.lang.annotation.ElementType.METHOD;
+                            import java.lang.annotation.Target;
+
+                            @Target({METHOD})
+                            public @interface Custom {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import test.annotation.Custom;
+
+                            public class Base {
+                                private Base() {}
+                                @Custom()
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo extends Base {
+                                private Foo() {}
+                                @Override
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments =
+                arrayOf(
+                    ARG_WARNING,
+                    "UnflaggedApi",
+                    ARG_PASS_THROUGH_ANNOTATION,
+                    "test.annotation.Custom"
+                ),
         )
     }
 }
