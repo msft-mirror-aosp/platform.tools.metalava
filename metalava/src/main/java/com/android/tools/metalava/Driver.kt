@@ -231,12 +231,19 @@ internal fun processFlags(
         codebase,
         reporter
     ) { codebase, previouslyReleasedCodebase, reporter, options ->
-        FlaggedApiLint.check(
-            codebase,
-            previouslyReleasedCodebase,
-            reporter,
-            options.apiPredicateConfig,
-        )
+        val flaggedApiLintVisitor =
+            FlaggedApiLint(previouslyReleasedCodebase, reporter, options.apiPredicateConfig)
+        val codebaseFragment =
+            CodebaseFragment.create(codebase) { delegate ->
+                FilteringApiVisitor(
+                    delegate = delegate,
+                    apiFilters =
+                        ApiType.PUBLIC_API.getNonElidingApiFilters(options.apiPredicateConfig),
+                    preFiltered = codebase.preFiltered,
+                    targetLanguages = com.android.tools.metalava.model.TargetLanguageSet.SOURCE
+                )
+            }
+        codebaseFragment.accept(flaggedApiLintVisitor)
     }
 
     // Based on the input flags, generates various output files such as signature files and/or stubs
