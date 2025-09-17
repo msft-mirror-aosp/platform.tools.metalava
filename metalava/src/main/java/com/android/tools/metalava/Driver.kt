@@ -43,6 +43,7 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
+import com.android.tools.metalava.lint.FlaggedApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -784,6 +785,12 @@ private fun ActionContext.loadFromSources(
             options.manifest,
             options.apiPredicateConfig,
             options.apiLintOptions.allowedAcronyms,
+        )
+        FlaggedApiLint.check(
+            codebase,
+            previouslyReleasedCodebase,
+            reporter,
+            options.apiPredicateConfig,
         )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
