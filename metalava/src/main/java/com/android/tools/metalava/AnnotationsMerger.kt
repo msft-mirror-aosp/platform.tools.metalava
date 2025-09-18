@@ -478,9 +478,9 @@ class AnnotationsMerger(
 
         val callableItem =
             if (methodName == classItem.simpleName()) {
-                classItem.findConstructor(parameters)
+                classItem.findBytecodeConstructor(parameters)
             } else {
-                classItem.findMethod(methodName, parameters)
+                classItem.findBytecodeMethod(methodName, parameters)
             }
         if (callableItem == null) {
             if (wellKnownIgnoredImport(containingClass)) {

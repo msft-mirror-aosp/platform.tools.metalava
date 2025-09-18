@@ -104,14 +104,14 @@ class CommonClassItemTest : BaseModelTest() {
 
             // This should not find the method as `findMethod` splits parameters by `,` so it looks
             // for one parameter of type `java.util.Map<String` and one of type `Integer>`.
-            val foundMethod = fooClass.findMethod("foo", "java.util.Map<String, Integer>")
+            val foundMethod = fooClass.findBytecodeMethod("foo", "java.util.Map<String, Integer>")
             assertNull(
                 foundMethod,
                 message = "unexpectedly found method with multiple type parameters"
             )
 
             // This should find the method.
-            assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
+            assertSame(fooMethod, fooClass.findBytecodeMethod("foo", "java.util.Map"))
         }
     }
 
