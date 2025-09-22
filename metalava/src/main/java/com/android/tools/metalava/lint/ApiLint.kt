@@ -1206,12 +1206,19 @@ private constructor(
                 }
         }
 
-        fun ensureContextNameSuffix(cls: ClassItem, suffix: String) {
-            if (!cls.simpleName().endsWith(suffix)) {
+        fun ensureContextNameSuffixes(cls: ClassItem, suffixes: List<String>) {
+            // Check if the class name ends with any of the provided suffixes
+            val hasMatchingSuffix = suffixes.any { suffix -> cls.simpleName().endsWith(suffix) }
+
+            if (!hasMatchingSuffix) {
+                // Build a user-friendly string of expected suffixes
+                val expectedSuffixesString =
+                    suffixes.joinToString(separator = "`, `", prefix = "`", postfix = "`")
+
                 report(
                     CONTEXT_NAME_SUFFIX,
                     cls,
-                    "Inconsistent class name; should be `<Foo>$suffix`, was `${cls.simpleName()}`"
+                    "Inconsistent class name; should end with one of [${expectedSuffixesString}], but was `${cls.simpleName()}`"
                 )
             }
         }
@@ -1221,21 +1228,21 @@ private constructor(
         when {
             cls.extends("android.app.Service") -> {
                 testMethods = true
-                ensureContextNameSuffix(cls, "Service")
+                ensureContextNameSuffixes(cls, arrayListOf("Service", "ServiceCompat"))
                 ensureFieldValue(fields, "SERVICE_INTERFACE", cls.qualifiedName())
             }
             cls.extends("android.content.ContentProvider") -> {
                 testMethods = true
-                ensureContextNameSuffix(cls, "Provider")
+                ensureContextNameSuffixes(cls, arrayListOf("Provider", "ProviderCompat"))
                 ensureFieldValue(fields, "PROVIDER_INTERFACE", cls.qualifiedName())
             }
             cls.extends("android.content.BroadcastReceiver") -> {
                 testMethods = true
-                ensureContextNameSuffix(cls, "Receiver")
+                ensureContextNameSuffixes(cls, arrayListOf("Receiver", "ReceiverCompat"))
             }
             cls.extends("android.app.Activity") -> {
                 testMethods = true
-                ensureContextNameSuffix(cls, "Activity")
+                ensureContextNameSuffixes(cls, arrayListOf("Activity", "ActivityCompat"))
             }
         }
 
