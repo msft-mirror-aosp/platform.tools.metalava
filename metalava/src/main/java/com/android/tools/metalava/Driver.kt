@@ -759,14 +759,14 @@ private fun ActionContext.loadFromSources(
         val localTimer = Stopwatch.createStarted()
 
         // See if we should provide a previous codebase to provide a delta from?
-        val previouslyReleasedApi =
+        val previouslyReleasedCodebase =
             apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
                 signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
             }
 
         ApiLint.check(
             codebase,
-            previouslyReleasedApi,
+            previouslyReleasedCodebase,
             reporter,
             options.manifest,
             options.apiPredicateConfig,
