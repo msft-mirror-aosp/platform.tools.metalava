@@ -476,7 +476,12 @@ class AnnotationsMerger(
     ) {
         @Suppress("NAME_SHADOWING") val parameters = fixParameterString(parameters)
 
-        val callableItem = classItem.findCallable(methodName, parameters)
+        val callableItem =
+            if (methodName == classItem.simpleName()) {
+                classItem.findConstructor(parameters)
+            } else {
+                classItem.findMethod(methodName, parameters)
+            }
         if (callableItem == null) {
             if (wellKnownIgnoredImport(containingClass)) {
                 return

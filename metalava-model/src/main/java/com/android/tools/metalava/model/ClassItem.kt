@@ -412,14 +412,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     fun findConstructor(parameters: String) =
         constructors().firstOrNull { parametersMatch(it, parameters) }
 
-    /**
-     * Find the [CallableItem] in this.
-     *
-     * If [name] is [simpleName] then call [findConstructor] else call [findMethod].
-     */
-    fun findCallable(name: String, parameters: String) =
-        if (name == simpleName()) findConstructor(parameters) else findMethod(name, parameters)
-
     private fun parametersMatch(callable: CallableItem, description: String): Boolean {
         val parameterStrings =
             description.splitToSequence(",").map(String::trim).filter(String::isNotEmpty).toList()
