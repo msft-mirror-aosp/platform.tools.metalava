@@ -197,9 +197,9 @@ internal fun processFlags(
         "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
 
-    options.subtractApi?.let {
+    options.subtractApiFile?.let {
         progressTracker.progress("Subtracting API: ")
-        actionContext.subtractApi(signatureFileCache, codebase, it)
+        actionContext.subtractApiFromCodebase(signatureFileCache, codebase, it)
     }
 
     generateApiHistoryFromOptions(options, codebase, progressTracker)
@@ -523,7 +523,7 @@ private fun generateApiHistoryFromOptions(
         }
 }
 
-private fun ActionContext.subtractApi(
+private fun ActionContext.subtractApiFromCodebase(
     signatureFileCache: SignatureFileCache,
     codebase: Codebase,
     subtractApiFile: File,
