@@ -19,109 +19,115 @@ package com.android.tools.metalava.model.source.javadoc
 import org.junit.Test
 
 class JavadocParserTest {
+    /** Check that [text] is parsed correctly by [JavadocParser]. */
+    private fun checkParse(text: String) {
+        JavadocParser.parse(text.trimIndent())
+    }
+
     @Test
     fun `Test simple comment`() {
-        JavadocParser.parse("/** Simple text */")
+        checkParse(
+            "/** Simple text */",
+        )
     }
 
     @Test
     fun `Test simple comment - leading newline`() {
-        JavadocParser.parse("\n/** Simple text */")
+        checkParse(
+            "\n/** Simple text */",
+        )
     }
 
     @Test
     fun `Test simple comment - trailing newline`() {
-        JavadocParser.parse("/** Simple text */\n")
+        checkParse(
+            "/** Simple text */\n",
+        )
     }
 
     @Test
     fun `Test comment with nested javadoc start`() {
-        JavadocParser.parse("/** /** */\n")
+        checkParse(
+            "/** /** */\n",
+        )
     }
 
     @Test
     fun `Test link - standalone`() {
-        JavadocParser.parse(
+        checkParse(
             """
                 /**
                  * {@link Class}
                  */
-            """
-                .trimIndent()
+            """,
         )
     }
 
     @Test
     fun `Test link - in text`() {
-        JavadocParser.parse(
+        checkParse(
             """
                 /**
                  * Text before link {@link Class} and some text after.
                  */
-            """
-                .trimIndent()
+            """,
         )
     }
 
     @Test
     fun `Test link - on new line`() {
-        JavadocParser.parse(
+        checkParse(
             """
                 /**
                  * Text before link
                  * {@link Class}
                  * and some text after.
                  */
-            """
-                .trimIndent()
+            """,
         )
     }
 
     @Test
     fun `Test @ inside inline tag`() {
-        JavadocParser.parse(
+        checkParse(
             """
                 /**
                  * {@code @Annotation}
                  */
-            """
-                .trimIndent()
+            """,
         )
     }
 
     @Test
     fun `Test nested inline tags`() {
-        JavadocParser.parse(
+        checkParse(
             """
                 /**
                  * {@code some {@code nested} inline tags}
                  */
-            """
-                .trimIndent()
+            """,
         )
     }
 
     @Test
     fun `Test unclosed inline tags`() {
-        JavadocParser.parse(
+        checkParse(
             """
                 /**
                  * {@code not closed
                  */
-            """
-                .trimIndent()
+            """,
         )
     }
 
     @Test
     fun `Test space between @ and inline tag name`() {
-        JavadocParser.parse(
+        checkParse(
             """
                 /**
                  * {@ code extra space}
                  */
-            """
-                .trimIndent()
+            """,
         )
     }
 }
