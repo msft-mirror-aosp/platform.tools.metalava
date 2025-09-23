@@ -936,26 +936,6 @@ fun createOutputFileFromCodebaseFragment(
     deleteEmptyFiles: Boolean = false,
     createVisitorWriter: (PrintWriter) -> DelegatedVisitor,
 ) {
-    createOutputFileFromCodebase(
-        progressTracker,
-        codebaseFragment.codebase,
-        outputFile,
-        description,
-        deleteEmptyFiles,
-    ) {
-        val delegatedWriter = createVisitorWriter(it)
-        codebaseFragment.createVisitor(delegatedWriter)
-    }
-}
-
-fun createOutputFileFromCodebase(
-    progressTracker: ProgressTracker,
-    codebase: Codebase,
-    outputFile: File,
-    description: String?,
-    deleteEmptyFiles: Boolean = false,
-    createWriterVisitor: (PrintWriter) -> ItemVisitor
-) {
     if (description != null) {
         progressTracker.progress("Writing $description file: ")
     }
@@ -964,8 +944,8 @@ fun createOutputFileFromCodebase(
         val stringWriter = StringWriter()
         val writer = PrintWriter(stringWriter)
         writer.use { printWriter ->
-            val writerVisitor = createWriterVisitor(printWriter)
-            codebase.accept(writerVisitor)
+            val writerVisitor = createVisitorWriter(printWriter)
+            codebaseFragment.accept(writerVisitor)
         }
         val text = stringWriter.toString()
         if (text.isNotEmpty() || !deleteEmptyFiles) {
@@ -973,6 +953,7 @@ fun createOutputFileFromCodebase(
             outputFile.writeText(text)
         }
     } catch (e: IOException) {
+        val codebase = codebaseFragment.codebase
         codebase.reporter.report(Issues.IO_ERROR, outputFile, "Cannot open file for write.")
     }
     if (description != null) {
