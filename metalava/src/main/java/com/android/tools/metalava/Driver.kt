@@ -236,14 +236,23 @@ internal fun processFlags(
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
         val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
-        createOutputFileFromCodebase(progressTracker, codebase, proguard, "Proguard file") {
-            printWriter ->
-            FilteringApiVisitor(
-                ProguardWriter(printWriter),
-                inlineInheritedFields = true,
-                apiFilters = apiFilters,
-                preFiltered = codebase.preFiltered,
-            )
+        val codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegatedVisitor,
+                    inlineInheritedFields = true,
+                    apiFilters = apiFilters,
+                    preFiltered = codebase.preFiltered,
+                )
+            }
+
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            codebaseFragment,
+            proguard,
+            "Proguard file",
+        ) { printWriter ->
+            ProguardWriter(printWriter)
         }
     }
 
