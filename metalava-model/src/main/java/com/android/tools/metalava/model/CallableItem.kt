@@ -152,7 +152,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                 return false
             }
         }
-        return true
+
+        // Check target languages are equal for methods to be equal
+        return targetLanguages == other.targetLanguages
     }
 
     override fun hashCodeForItem(): Int {
@@ -163,7 +165,8 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /**
      * Returns true if this callable is a signature match for the given callable (e.g. can be
      * overriding if it is a method). This checks that the name and parameter lists match, but
-     * ignores differences in parameter names, return value types and throws list types.
+     * ignores differences in parameter names, return value types and throws list types. It allows
+     * for differences in the target language sets, but requires at least some overlap.
      */
     fun matches(other: CallableItem): Boolean {
         if (this === other) return true
@@ -175,6 +178,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         if (name() != other.name()) {
             return false
         }
+
+        // Require at least one shared target language.
+        if (targetLanguages.intersect(other.targetLanguages).isEmpty()) return false
 
         val parameters1 = parameters()
         val parameters2 = other.parameters()
