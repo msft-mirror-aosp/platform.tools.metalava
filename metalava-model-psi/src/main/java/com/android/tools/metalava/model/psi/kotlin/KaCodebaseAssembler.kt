@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi.kotlin
 
+import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
@@ -73,6 +74,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.psi
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
@@ -335,6 +337,11 @@ internal class KaCodebaseAssembler(
         )
             return false
 
+        // Composable APIs will have a different signature in bytecode than in source, so the source
+        // signature should be generated here as kotlin-only.
+        if (functionSymbol.annotations.any { it.classId?.asFqNameString() == ANDROIDX_COMPOSABLE })
+            return true
+
         // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
         // only, but with K1 value class types weren't handled differently from other types so there
         // might be a UElement for a constructor using a value class type even though it should be
@@ -391,13 +398,27 @@ internal class KaCodebaseAssembler(
                 originalReturnType
             }
 
+        val targetLanguages =
+            if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) {
+                // Note: it could be possible for there to be a method from a delegate that is not
+                // accessible from Java, for instance if it used a value class type. However, it has
+                // been difficult to find a reliable way of telling if the delegate method can be
+                // used from Java without special casing certain situations (it should be possible
+                // to do by looking at the psi of the KaNamedFunctionSymbol or by checking the super
+                // methods metalava has created for the methodItem created below, but those aren't
+                // working when using mapped kotlin collections types).
+                TargetLanguageSet.ALL
+            } else {
+                TargetLanguageSet.KOTLIN_ONLY
+            }
+
         val modifiers = kaModifierFactory.createForFunction(functionSymbol, containingClass)
         val methodItem =
             DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = PsiFileLocation.fromPsiElement(functionSymbol.psi),
                 sourceLanguage = SourceLanguage.KOTLIN,
-                targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
+                targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -80,8 +81,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 listOf(
                     codebase.assertPackage("test.pkg"),
                     cls,
-                    cls.assertConstructor(""),
-                    cls.assertMethod("fooMethod", ""),
+                    cls.assertConstructor(emptyList()),
+                    cls.assertMethod("fooMethod", emptyList()),
                     cls.assertField("fooField"),
                 )
 
@@ -200,7 +201,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val intValue = codebase.assertClass("test.pkg.IntValue")
 
-            val ctorImpl = intValue.assertMethod("constructor-impl", "int")
+            val ctorImpl = intValue.assertMethod("constructor-impl", listOf("int"))
             ctorImpl.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
             }
@@ -208,7 +209,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(ctorImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(ctorImpl.modifiers.isStatic()).isTrue()
 
-            val boxImpl = intValue.assertMethod("box-impl", "int")
+            val boxImpl = intValue.assertMethod("box-impl", listOf("int"))
             boxImpl.returnType().assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
             }
@@ -216,7 +217,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(boxImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(boxImpl.modifiers.isStatic()).isTrue()
 
-            val unboxImpl = intValue.assertMethod("unbox-impl", "")
+            val unboxImpl = intValue.assertMethod("unbox-impl", emptyList())
             unboxImpl.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
             }
@@ -236,7 +237,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
 
             // Value class constructor can only be used from kotlin
-            val ctor = intValue.assertConstructor("int")
+            val ctor = intValue.assertConstructor(listOf("int"))
             assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
         }
     }
@@ -309,13 +310,14 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val mangledMethod = fooClass.assertMethod("usesIntValue-Vxmw0xk", "int")
+            val mangledMethod = fooClass.assertMethod("usesIntValue-Vxmw0xk", listOf("int"))
             assertThat(mangledMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             mangledMethod.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            val nonMangledMethod = fooClass.assertMethod("usesIntValue", "test.pkg.IntValue")
+            val nonMangledMethod =
+                fooClass.assertMethod("usesIntValue", listOf("test.pkg.IntValue"))
             assertThat(nonMangledMethod.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
 
             assertThat(fooClass.methods()).hasSize(2)
@@ -379,13 +381,13 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val intValue = codebase.assertClass("test.pkg.IntValue")
 
-            val mangledMethod = intValue.assertMethod("foo-impl", "int")
+            val mangledMethod = intValue.assertMethod("foo-impl", listOf("int"))
             assertThat(mangledMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             mangledMethod.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            val nonMangledMethod = intValue.assertMethod("foo", "")
+            val nonMangledMethod = intValue.assertMethod("foo", emptyList())
             assertThat(nonMangledMethod.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
 
             assertThat(intValue.methods().map { it.name() })
@@ -500,25 +502,25 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
 
-            val mangledMethodA = foo.assertMethod("foo-GHfTWwk", "int")
+            val mangledMethodA = foo.assertMethod("foo-GHfTWwk", listOf("int"))
             assertThat(mangledMethodA.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             mangledMethodA.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            val mangledMethodB = foo.assertMethod("foo-wveqTnY", "int")
+            val mangledMethodB = foo.assertMethod("foo-wveqTnY", listOf("int"))
             assertThat(mangledMethodB.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             mangledMethodB.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            val nonMangledMethodA = foo.assertMethod("foo", "test.pkg.IntValueA")
+            val nonMangledMethodA = foo.assertMethod("foo", listOf("test.pkg.IntValueA"))
             assertThat(nonMangledMethodA.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
             nonMangledMethodA.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            val nonMangledMethodB = foo.assertMethod("foo", "test.pkg.IntValueB")
+            val nonMangledMethodB = foo.assertMethod("foo", listOf("test.pkg.IntValueB"))
             assertThat(nonMangledMethodB.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
             nonMangledMethodB.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
@@ -568,7 +570,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            fooClass.assertMethod("foo", "java.lang.Object")
+            fooClass.assertMethod("foo", listOf("T"))
             assertThat(fooClass.methods()).hasSize(1)
         }
     }
@@ -655,13 +657,13 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val barClass = codebase.assertClass("test.pkg.Foo.Bar")
 
-            val mangledMethod = barClass.assertMethod("foobar-RVb1_dM", "")
+            val mangledMethod = barClass.assertMethod("foobar-RVb1_dM", emptyList())
             assertThat(mangledMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             mangledMethod.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
             }
 
-            val nonMangledMethod = barClass.assertMethod("foobar", "")
+            val nonMangledMethod = barClass.assertMethod("foobar", emptyList())
             assertThat(nonMangledMethod.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
             nonMangledMethod.returnType().assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
@@ -748,7 +750,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val publicMangledMethod = fooClass.assertMethod("publicValueClassFunction-RVb1_dM", "")
+            val publicMangledMethod =
+                fooClass.assertMethod("publicValueClassFunction-RVb1_dM", emptyList())
             assertThat(publicMangledMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(publicMangledMethod.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
@@ -757,7 +760,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
 
             val protectedMangledMethod =
-                fooClass.assertMethod("protectedValueClassFunction-RVb1_dM", "")
+                fooClass.assertMethod("protectedValueClassFunction-RVb1_dM", emptyList())
             assertThat(protectedMangledMethod.targetLanguages)
                 .containsExactly(TargetLanguage.BYTECODE)
             assertThat(protectedMangledMethod.modifiers.getVisibilityLevel())
@@ -767,7 +770,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
 
             val internalMangledMethod =
-                fooClass.assertMethod("internalValueClassFunction-RVb1_dM", "")
+                fooClass.assertMethod("internalValueClassFunction-RVb1_dM", emptyList())
             assertThat(internalMangledMethod.targetLanguages)
                 .containsExactly(TargetLanguage.BYTECODE)
             assertThat(internalMangledMethod.modifiers.getVisibilityLevel())
@@ -778,7 +781,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             // There isn't a private mangled method since those don't need to be tracked.
 
-            val publicNonMangledMethod = fooClass.assertMethod("publicValueClassFunction", "")
+            val publicNonMangledMethod =
+                fooClass.assertMethod("publicValueClassFunction", emptyList())
             assertThat(publicNonMangledMethod.targetLanguages)
                 .containsExactly(TargetLanguage.KOTLIN)
             assertThat(publicNonMangledMethod.modifiers.getVisibilityLevel())
@@ -788,7 +792,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(modifiers.isNonNull).isTrue()
             }
 
-            val protectedNonMangledMethod = fooClass.assertMethod("protectedValueClassFunction", "")
+            val protectedNonMangledMethod =
+                fooClass.assertMethod("protectedValueClassFunction", emptyList())
             assertThat(protectedNonMangledMethod.targetLanguages)
                 .containsExactly(TargetLanguage.KOTLIN)
             assertThat(protectedNonMangledMethod.modifiers.getVisibilityLevel())
@@ -798,7 +803,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(modifiers.isNonNull).isTrue()
             }
 
-            val internalNonMangledMethod = fooClass.assertMethod("internalValueClassFunction", "")
+            val internalNonMangledMethod =
+                fooClass.assertMethod("internalValueClassFunction", emptyList())
             assertThat(internalNonMangledMethod.targetLanguages)
                 .containsExactly(TargetLanguage.KOTLIN)
             assertThat(internalNonMangledMethod.modifiers.getVisibilityLevel())
@@ -866,12 +872,12 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val intValue = codebase.assertClass("test.pkg.IntValue")
 
-            val ctorImpl = intValue.assertMethod("constructor-impl", "int")
+            val ctorImpl = intValue.assertMethod("constructor-impl", listOf("int"))
             assertThat(ctorImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(ctorImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
 
             // Value class constructor can only be used from kotlin
-            val ctor = intValue.assertConstructor("int")
+            val ctor = intValue.assertConstructor(listOf("int"))
             assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
         }
     }
@@ -957,7 +963,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val publicMangledGetter =
-                fooClass.assertMethod("getPublicValueClassProperty-RVb1_dM", "")
+                fooClass.assertMethod("getPublicValueClassProperty-RVb1_dM", emptyList())
             assertThat(publicMangledGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(publicMangledGetter.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
@@ -965,7 +971,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
             }
             val publicMangledSetter =
-                fooClass.assertMethod("setPublicValueClassProperty-Vxmw0xk", "int")
+                fooClass.assertMethod("setPublicValueClassProperty-Vxmw0xk", listOf("int"))
             assertThat(publicMangledSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(publicMangledSetter.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
@@ -974,7 +980,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
 
             val protectedMangledGetter =
-                fooClass.assertMethod("getProtectedValueClassProperty-RVb1_dM", "")
+                fooClass.assertMethod("getProtectedValueClassProperty-RVb1_dM", emptyList())
             assertThat(protectedMangledGetter.targetLanguages)
                 .containsExactly(TargetLanguage.BYTECODE)
             assertThat(protectedMangledGetter.modifiers.getVisibilityLevel())
@@ -983,7 +989,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
             }
             val protectedMangledSetter =
-                fooClass.assertMethod("setProtectedValueClassProperty-Vxmw0xk", "int")
+                fooClass.assertMethod("setProtectedValueClassProperty-Vxmw0xk", listOf("int"))
             assertThat(protectedMangledSetter.targetLanguages)
                 .containsExactly(TargetLanguage.BYTECODE)
             assertThat(protectedMangledSetter.modifiers.getVisibilityLevel())
@@ -993,7 +999,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
 
             val internalMangledGetter =
-                fooClass.assertMethod("getInternalValueClassProperty-RVb1_dM", "")
+                fooClass.assertMethod("getInternalValueClassProperty-RVb1_dM", emptyList())
             assertThat(internalMangledGetter.targetLanguages)
                 .containsExactly(TargetLanguage.BYTECODE)
             assertThat(internalMangledGetter.modifiers.getVisibilityLevel())
@@ -1002,7 +1008,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
             }
             val internalMangledSetter =
-                fooClass.assertMethod("setInternalValueClassProperty-Vxmw0xk", "int")
+                fooClass.assertMethod("setInternalValueClassProperty-Vxmw0xk", listOf("int"))
             assertThat(internalMangledSetter.targetLanguages)
                 .containsExactly(TargetLanguage.BYTECODE)
             assertThat(internalMangledSetter.modifiers.getVisibilityLevel())
@@ -1103,29 +1109,29 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val noJvmNameGetter = fooClass.assertMethod("getNoJvmName-RVb1_dM", "")
+            val noJvmNameGetter = fooClass.assertMethod("getNoJvmName-RVb1_dM", emptyList())
             assertThat(noJvmNameGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
-            val noJvmNameSetter = fooClass.assertMethod("setNoJvmName-Vxmw0xk", "int")
+            val noJvmNameSetter = fooClass.assertMethod("setNoJvmName-Vxmw0xk", listOf("int"))
             assertThat(noJvmNameSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", "")
+            val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", emptyList())
             assertThat(jvmNameOnGetGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
-            val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", "int")
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", listOf("int"))
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            val jvmNameOnSetGetter = fooClass.assertMethod("getJvmNameOnSet-RVb1_dM", "")
+            val jvmNameOnSetGetter = fooClass.assertMethod("getJvmNameOnSet-RVb1_dM", emptyList())
             assertThat(jvmNameOnSetGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
-            val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", "int")
+            val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", listOf("int"))
             assertThat(jvmNameOnSetSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
 
-            val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", "")
+            val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", emptyList())
             assertThat(jvmNameOnBothGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
-            val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", "int")
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", listOf("int"))
             assertThat(jvmNameOnBothSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
         }
     }
 
@@ -1220,29 +1226,32 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val noJvmNameGetter = fooClass.assertMethod("getNoJvmName-Vxmw0xk", "int")
+            val noJvmNameGetter = fooClass.assertMethod("getNoJvmName-Vxmw0xk", listOf("int"))
             assertThat(noJvmNameGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
-            val noJvmNameSetter = fooClass.assertMethod("setNoJvmName-6VC4vj0", "int,int")
+            val noJvmNameSetter =
+                fooClass.assertMethod("setNoJvmName-6VC4vj0", listOf("int", "int"))
             assertThat(noJvmNameSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", "int")
+            val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", listOf("int"))
             assertThat(jvmNameOnGetGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
-            val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-6VC4vj0", "int,int")
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            val jvmNameOnGetSetter =
+                fooClass.assertMethod("setJvmNameOnGet-6VC4vj0", listOf("int", "int"))
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            val jvmNameOnSetGetter = fooClass.assertMethod("getJvmNameOnSet-Vxmw0xk", "int")
+            val jvmNameOnSetGetter = fooClass.assertMethod("getJvmNameOnSet-Vxmw0xk", listOf("int"))
             assertThat(jvmNameOnSetGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
-            val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", "int,int")
+            val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", listOf("int", "int"))
             assertThat(jvmNameOnSetSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
 
-            val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", "int")
+            val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", listOf("int"))
             assertThat(jvmNameOnBothGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
-            val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", "int,int")
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            val jvmNameOnBothSetter =
+                fooClass.assertMethod("setJvmNameOnBoth", listOf("int", "int"))
             assertThat(jvmNameOnBothSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
         }
     }
 
@@ -1339,25 +1348,25 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val mangledMethodA = fooClass.assertMethod("fooA-Vxmw0xk", "int")
+            val mangledMethodA = fooClass.assertMethod("fooA-Vxmw0xk", listOf("int"))
             assertThat(mangledMethodA.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             mangledMethodA.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            val mangledMethodB = fooClass.assertMethod("fooB-Vxmw0xk", "int")
+            val mangledMethodB = fooClass.assertMethod("fooB-Vxmw0xk", listOf("int"))
             assertThat(mangledMethodB.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             mangledMethodB.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            val nonMangledMethodA = fooClass.assertMethod("fooA", "test.pkg.IntValue")
+            val nonMangledMethodA = fooClass.assertMethod("fooA", listOf("test.pkg.IntValue"))
             assertThat(nonMangledMethodA.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
             nonMangledMethodA.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            val nonMangledMethodB = fooClass.assertMethod("fooB", "test.pkg.IntValue")
+            val nonMangledMethodB = fooClass.assertMethod("fooB", listOf("test.pkg.IntValue"))
             assertThat(nonMangledMethodB.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
             nonMangledMethodB.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
@@ -1437,7 +1446,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val mangledMethod = fooClass.assertMethod("foo-Vxmw0xk", "int")
+            val mangledMethod = fooClass.assertMethod("foo-Vxmw0xk", listOf("int"))
             assertThat(mangledMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             mangledMethod.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
@@ -1524,11 +1533,11 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(property.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(property.annotationNames()).contains("kotlin.PublishedApi")
 
-            val getter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            val getter = fooClass.assertMethod("getFoo-RVb1_dM", emptyList())
             assertThat(getter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(getter.annotationNames()).contains("kotlin.PublishedApi")
 
-            val setter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            val setter = fooClass.assertMethod("setFoo-Vxmw0xk", listOf("int"))
             assertThat(setter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(setter.annotationNames()).contains("kotlin.PublishedApi")
         }
@@ -1546,7 +1555,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val anno = codebase.assertClass("test.pkg.Anno")
             assertThat(anno.isAnnotationType()).isTrue()
-            val ctor = anno.assertConstructor("int")
+            val ctor = anno.assertConstructor(listOf("int"))
             assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
         }
     }
@@ -1590,7 +1599,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val ctor = fooClass.assertConstructor("int")
+            val ctor = fooClass.assertConstructor(listOf("int"))
             assertThat(ctor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
         }
     }
@@ -1639,9 +1648,9 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             assertThat(fooClass.properties()).isEmpty()
-            val getter = fooClass.assertMethod("getDeprecatedProperty", "")
+            val getter = fooClass.assertMethod("getDeprecatedProperty", emptyList())
             assertThat(getter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
-            val setter = fooClass.assertMethod("setDeprecatedProperty", "int")
+            val setter = fooClass.assertMethod("setDeprecatedProperty", listOf("int"))
             assertThat(setter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
         }
     }
@@ -1733,26 +1742,26 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val publicCtorClass = codebase.assertClass("test.pkg.PublicConstructor")
-            val publicValueCtor = publicCtorClass.assertConstructor("test.pkg.IntValue")
+            val publicValueCtor = publicCtorClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(publicValueCtor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
             assertThat(publicValueCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
             val publicIntCtor =
                 publicCtorClass.assertConstructor(
-                    "int,kotlin.jvm.internal.DefaultConstructorMarker"
+                    listOf("int", "kotlin.jvm.internal.DefaultConstructorMarker")
                 )
             assertThat(publicIntCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(publicIntCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
 
             val internalCtorClass = codebase.assertClass("test.pkg.InternalConstructor")
-            val internalValueCtor = internalCtorClass.assertConstructor("test.pkg.IntValue")
+            val internalValueCtor = internalCtorClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(internalValueCtor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
             assertThat(internalValueCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
             val internalIntCtor =
                 internalCtorClass.assertConstructor(
-                    "int,kotlin.jvm.internal.DefaultConstructorMarker"
+                    listOf("int", "kotlin.jvm.internal.DefaultConstructorMarker")
                 )
             assertThat(internalIntCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(internalIntCtor.modifiers.getVisibilityLevel())
@@ -1836,16 +1845,18 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val kotlinCtor = fooClass.assertConstructor("test.pkg.IntValue")
+            val kotlinCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(kotlinCtor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
 
             val bytecodeCtor =
-                fooClass.assertConstructor("int,kotlin.jvm.internal.DefaultConstructorMarker")
+                fooClass.assertConstructor(
+                    listOf("int", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
             assertThat(bytecodeCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
             // When a kotlin constructor has a single default parameter, an overload is generated
             // with no parameters.
-            val defaultCtor = fooClass.assertConstructor("")
+            val defaultCtor = fooClass.assertConstructor(emptyList())
             assertThat(defaultCtor.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
 
             // Check that the bytecode constructor with extra int and DefaultConstructorMarker
@@ -1918,7 +1929,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooCtor = fooClass.assertConstructor("test.pkg.IntValue")
+            val fooCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(fooCtor.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_JAVA)
             assertThat(fooClass.constructors()).hasSize(1)
@@ -2003,7 +2014,9 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val bytecodeCtor =
-                fooClass.assertConstructor("int,kotlin.jvm.internal.DefaultConstructorMarker")
+                fooClass.assertConstructor(
+                    listOf("int", "kotlin.jvm.internal.DefaultConstructorMarker")
+                )
             assertThat(bytecodeCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
             // Check that the source version of the constructor is not created since it is hidden.
@@ -2095,10 +2108,10 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooProperty = fooClass.assertProperty("foo")
             assertThat(fooProperty.annotationNames()).contains("test.pkg.ExperimentalFoo")
-            val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", emptyList())
             assertThat(fooGetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
             assertThat(fooGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
-            val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", listOf("int"))
             assertThat(fooSetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
             assertThat(fooSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
         }
@@ -2191,10 +2204,10 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooProperty = fooClass.assertProperty("foo")
             assertThat(fooProperty.annotationNames()).contains("test.pkg.ExperimentalFoo")
-            val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", emptyList())
             assertThat(fooGetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
             assertThat(fooGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
-            val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", listOf("int"))
             assertThat(fooSetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
             assertThat(fooSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
         }
@@ -2238,7 +2251,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooMethod = fooClass.assertMethod("foo", "")
+            val fooMethod = fooClass.assertMethod("foo", emptyList())
             fooMethod.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
@@ -2305,7 +2318,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val extensionFun = fooClass.assertMethod("extensionFun", "java.lang.String")
+            val extensionFun = fooClass.assertMethod("extensionFun", listOf("java.lang.String"))
             extensionFun.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
@@ -2315,7 +2328,11 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(extensionFunTypeParameter.name()).isEqualTo("T")
             assertThat(extensionFunTypeParameter.isReified()).isTrue()
 
-            val suspendFun = fooClass.assertMethod("suspendFun", "kotlin.coroutines.Continuation")
+            val suspendFun =
+                fooClass.assertMethod(
+                    "suspendFun",
+                    listOf("kotlin.coroutines.Continuation<? super java.lang.Void>")
+                )
             // Check that Object return for suspend functions
             suspendFun.returnType().assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.lang.Object")
@@ -2330,7 +2347,10 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val suspendExtensionFun =
                 fooClass.assertMethod(
                     "suspendExtensionFun",
-                    "java.lang.String,kotlin.coroutines.Continuation"
+                    listOf(
+                        "java.lang.String",
+                        "kotlin.coroutines.Continuation<? super java.lang.Void>"
+                    )
                 )
             // Check that Object return for suspend functions
             suspendExtensionFun.returnType().assertClassTypeItem {
@@ -2468,7 +2488,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val kotlinMethod = fooClass.assertMethod("foo", "test.pkg.IntValue")
+            val kotlinMethod = fooClass.assertMethod("foo", listOf("test.pkg.IntValue"))
             assertThat(kotlinMethod.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.KOTLIN_ONLY)
             val typeParameter = kotlinMethod.typeParameterList.single()
@@ -2517,7 +2537,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooMethod = fooClass.assertMethod("foo", "")
+            val fooMethod = fooClass.assertMethod("foo", emptyList())
             fooMethod.returnType().assertPrimitiveTypeItem {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
@@ -2570,10 +2590,10 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             // The accessors are listed as bytecode only since direct property references are
             // expected from kotlin.
-            val getter = fooClass.assertMethod("getFoo", "")
+            val getter = fooClass.assertMethod("getFoo", emptyList())
             assertThat(getter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
-            val setter = fooClass.assertMethod("setFoo", "int")
+            val setter = fooClass.assertMethod("setFoo", listOf("int"))
             assertThat(setter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(fooClass.methods()).hasSize(2)
@@ -2647,13 +2667,157 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val kotlinMethod = fooClass.assertMethod("foo", "test.pkg.IntValue")
+            val kotlinMethod = fooClass.assertMethod("foo", listOf("test.pkg.IntValue"))
             assertThat(kotlinMethod.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.KOTLIN_ONLY)
-            val bytecodeMethod = fooClass.assertMethod("foo-Vxmw0xk", "int")
+            val bytecodeMethod = fooClass.assertMethod("foo-Vxmw0xk", listOf("int"))
             assertThat(bytecodeMethod.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(fooClass.methods()).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `Test target languages for data class property accessors`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                data class Foo(val v1: Int, val v2: String)
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val v1Getter = fooClass.assertMethod("getV1", emptyList())
+            assertThat(v1Getter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+
+            val v1Component = fooClass.assertMethod("component1", emptyList())
+            assertThat(v1Component.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+
+            val v2Getter = fooClass.assertMethod("getV2", emptyList())
+            assertThat(v2Getter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+
+            val v2Component = fooClass.assertMethod("component2", emptyList())
+            assertThat(v2Component.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+        }
+    }
+
+    @Test
+    fun `Test target language for composable APIs`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package androidx.test.pkg
+                    import androidx.compose.runtime.Composable
+                    public class Foo {
+                        @Composable public fun FooFunction(i: Int): Unit = Unit
+                        @get:Composable
+                            public val fooVal: Int
+                                get() = 0
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package androidx.compose.runtime
+                    @MustBeDocumented
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.TYPE,
+                        AnnotationTarget.TYPE_PARAMETER,
+                        AnnotationTarget.PROPERTY_GETTER,
+                    )
+                    annotation class Composable
+                    """
+                )
+            ),
+            compiledSourceJar =
+                // Generated from a gradle project using the AndroidXComposePlugin.
+                base64gzip(
+                    "test.jar",
+                    "" +
+                        "H4sIAAAAAAAA/42WeTQU7B7HpzEGhTDWxvrOqBQGr6XkZikmM0y2LC8yzAxh" +
+                        "mIkhGonLHSoUrxQilBFlG0rW9ArZxmuZFttYyzIMslXSTed2y73V6fuc5znn" +
+                        "Oefz/f3z++P7tULzgACfpcSvBAR8I4FP19LUzljNHGOGsPop5u6PDyB540N+" +
+                        "ggl/i1EIgZSfsGL/x5J9vf7L83/my4NJb2rBAMAJIQAA+l3ejERSxxHdAwPj" +
+                        "7dFUyHOZ8M5JH/MnjIgIIYzS3oTxF/JkS7RGLu9zmhLjiB8OCM/Feate1kmz" +
+                        "9jTbd9tveohbWT5YMrvbldLlmXhddXEe32WaWfQuqq/GC+6EM4pQmGmvDHv9" +
+                        "fogbMBRYt872uslz/bEbr/B0cGNQe6scS8/Aza+3YPqfY3BFEMP5LNpBbbCo" +
+                        "oLiYJEMwjIw1Wr/hnb4RGnks+2GKseCCeM4x/qMfLHsgB+zO3mtyitSWQGjP" +
+                        "Mkj6D4yys5bhbZjakRDatK4f+x502oXKYfo06kRey9x9p9gZLDSOTnA+USF4" +
+                        "fpBl2W8b1B8c5pr2pjeXTuD1SEzNR5QBm89Yr5RlABppBm5nPhBotJvooh4i" +
+                        "f5xE+WiPiMwcEXyQcxzHzwdK6JAwYUpd2+65oLqH7rNxId729+UKtvloaCTk" +
+                        "eOPSrkCyY05Amv/LvzlCzYV8wttvqBjw0G0QufvrfPtYTqkNorLm7tJI3pXQ" +
+                        "dExPQTtbs9WSLRIr4e/TmC5TE1Fsfjyhq3yqsKqq/BwrqKBoRHPiHqi1JhZi" +
+                        "gz6JZcw0J9/LV3nWm0zRFY/EackubXCW8j3EcMCoOjt9thbxvCntj2GycU95" +
+                        "85ha1l61eAiJ1F/j2oI1sR/T2M2b+cbHE8cSsJFUzY9FS2G6U9wdVjwpjPno" +
+                        "6KLkDNrpQuuuc7BJrdKetapeHcjRWqnuFZVUoci5dnGFjNZRKJDPRKnF+ey5" +
+                        "2pzXAiXiKMKaHVNLcfDvgg+tKUi6XWBYWznL1+DOUSq4mJ41zMHKGsDfKE2c" +
+                        "C4qe93lAsnNiUu97LqhFSlGL0oPb8mV8VObdu+aXhWo5h+YGQXUdUW5cS/71" +
+                        "PJHuoZfNcumYCa2MMsHLzS/ydaAjB4Iv3mc3saqFYKp1yBmIVP/umzV6N2oT" +
+                        "Xh0cZNhbsLEUxLDHdvZj2VvvXRk4ZyOsrvirmICH0JZCe9fBSZGcvOD802ko" +
+                        "KbIKklanasVJn4+Z0YrcLxhU5nAHnmxSIf4uNan5UXSj9smGpAiNtz0g8GJG" +
+                        "Kzl/TAaFUUxFkBZzNPYNuOiEPVtO8xeokb1owvbouagdqhi3hLpbd/u5ci7S" +
+                        "Lxx2bVWvaEccU4JpvTpulrW+DhM8azs8CXvy8E61TsMsufVuJ2iPHUEpKQxC" +
+                        "Mvd5W1dvp6dMnVKLK2wm5bWQDEWkp3jieuGIZK/Y0vZe/VYxngqODQdmUEKk" +
+                        "AOV6Y+xJjovdL0Se3kfjijLyeNHFSVW3atrKBXXd6VaN9mBvPNxJ48yUyCV4" +
+                        "PfRQvlrhvZOOael7uMFlrOzr4CH5CJ4U9D7uc+geUvWEJB8qk1fnCpdlZtAJ" +
+                        "vdt+STm0yIK2fUj0ggHC4eQwMO99zGP4jsoH/vnt41XeqRuuJ8NpM7skJM0L" +
+                        "sqtVIagQ0cxdh11pVWtwicTKIJTKcorLCTzPs9B42zMWB3+b2HfVFjiz8wHS" +
+                        "ptVdORevQMxLxkfLKStXv4THlOJH56NmvSduP7y+NkpaOGXTYlYk226GTP6z" +
+                        "dCpEl0kaZbhkry1aBRsldLqMHjgsZklnTCE25DuPoXtM+i5XtDkqwqZGHvg6" +
+                        "0uY0+U9nyg3FWXTcsB0JKcH3NdmU1fk/vDurMYHCOFU8ozxPHmOOHwbTXZx7" +
+                        "oRkLiRMrtqgyZ7qXzZwJV/PJte6Guw7VogOwlD8EhmR20NuZZK/OPtwSAaGf" +
+                        "wF3Q8i9PHWhQkbTW5l/SmBulchontd0uET/WJ+6zVfRqNjRddOPsXYM5VwrK" +
+                        "Prn5wrMPKG108ZaSU1osKP0jmmUTGvqbXogCn4QqZlx4Fkvx0H439w94joLS" +
+                        "LvfVwwlI8k4EZziX+nQcjLw60HYoRFlaeA47DRO0GOCDdK6U18efx31cS+zq" +
+                        "zNq2ulAFLKhUzzadl+8fOzZggZ38yDGDWIHet9OJMT2lUAGtU0+jXvPsbOrf" +
+                        "e0heBFGkJd7doJVSanKTQLoaKFrTWbcUrvBIYf6aMEqms3R/xiPa/YQ3uldb" +
+                        "75c6BOgFVASTq8eG4m+hMNwqqTwqpTd2PSrJb916b0xStQgubLlFUcF3pu9f" +
+                        "ByQBf4o0A7EoAPGKlXLJDGiNhtQQG4n4yxrKjg3Dk+G/VzepNq91JCikGuwa" +
+                        "HDKehfQa0laPMy/Uv7KgyoVfcUTlvBRAS6qt4B0Z24SnvCQNx13EzQdeFspf" +
+                        "MN0QSJV/xaPAODFPXU9lE9LeCljWUHeIChmySjrOr1s0XF4IFHpUjyAZh6xJ" +
+                        "hJ+7xHW9bbDedKT9yMAR/Uk3ob64GHa37U5f+XApkJJlLXd+FZY/hdCG76Bk" +
+                        "LrzfzRxZd9iaku/+0gcL/ydNYd/m85f4U9+MP7fNRz2YEBDoTfLXVNdQ11Bz" +
+                        "J5JPuWtobt8aovHL0Z1Sn37S/zvu85QAApHgHkhQ9yVRiN7+bn4kfBCRgMNi" +
+                        "sZ6fLsgDAwYHhSt2ZD3JagQArNDbgACeHzeEL5o1BmytFb9q27O1ZvzYJrzF" +
+                        "hvlO7fixV2yL9+wPasgX//eLyBfdjiz4eS3ZHCQN+PFuvyqL75c2/XXg97f7" +
+                        "VVy+X9q1FZoXvInzfTqsbQAAkn/z928UjmckMgoAAA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("androidx.test.pkg.Foo")
+
+            val sourceFooFunction = fooClass.assertMethod("FooFunction", listOf("int"))
+            assertThat(sourceFooFunction.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            assertThat(sourceFooFunction.annotationNames()).contains(ANDROIDX_COMPOSABLE)
+
+            // Signature generated by the compose compiler.
+            val bytecodeFooFunction =
+                fooClass.assertMethod(
+                    "FooFunction",
+                    listOf("int", "androidx.compose.runtime.Composer", "int")
+                )
+            assertThat(bytecodeFooFunction.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(bytecodeFooFunction.annotationNames()).contains(ANDROIDX_COMPOSABLE)
+
+            val sourceFooVal = fooClass.assertProperty("fooVal")
+            assertThat(sourceFooVal.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            // The annotation is applied to the getter, not the property.
+            assertThat(sourceFooVal.annotationNames()).doesNotContain(ANDROIDX_COMPOSABLE)
+
+            // Signature generated by the compose compiler.
+            val bytecodeFooVal =
+                fooClass.assertMethod(
+                    "getFooVal",
+                    listOf("androidx.compose.runtime.Composer", "int")
+                )
+            assertThat(bytecodeFooVal.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(bytecodeFooVal.annotationNames()).contains(ANDROIDX_COMPOSABLE)
         }
     }
 }

@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for the [MethodItem.superMethods] method. */
@@ -933,6 +934,54 @@ class CommonSuperMethodsTest : BaseModelTest() {
                     message = "Could not find superMethods() of $name"
                 )
             }
+        }
+    }
+
+    @Test
+    fun `Test super method with different target languages`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @BytecodeOnly public void differentTargetLanguagesDisjoint();
+                    method @InaccessibleFromJava public void differentTargetLanguagesWithOverlap();
+                  }
+                  public class ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @KotlinOnly public void differentTargetLanguagesDisjoint();
+                    method public void differentTargetLanguagesWithOverlap();
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // When the target languages are the same, the super method should be found.
+            val sameAllTargetLanguages =
+                fooClass.assertMethod("sameAllTargetLanguages", emptyList())
+            assertEquals(sameAllTargetLanguages.superMethods().size, 1)
+            val sameJustKotlin = fooClass.assertMethod("sameJustKotlin", emptyList())
+            assertEquals(sameJustKotlin.superMethods().size, 1)
+            val sameJustBytecode = fooClass.assertMethod("sameJustBytecode", emptyList())
+            assertEquals(sameJustBytecode.superMethods().size, 1)
+
+            // When the target languages are different, the super method should not be found
+            val differentTargetLanguagesDisjoint =
+                fooClass.assertMethod("differentTargetLanguagesDisjoint", emptyList())
+            assertTrue(differentTargetLanguagesDisjoint.superMethods().isEmpty())
+
+            // There is a common target language, so the super method should be found
+            val differentTargetLanguagesWithOverlap =
+                fooClass.assertMethod("differentTargetLanguagesWithOverlap", emptyList())
+            assertEquals(differentTargetLanguagesWithOverlap.superMethods().size, 1)
         }
     }
 }
