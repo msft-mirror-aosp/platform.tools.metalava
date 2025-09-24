@@ -193,7 +193,17 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             val parameter1Type = parameters1[i].type()
             val parameter2Type = parameters2[i].type()
             if (parameter1Type == parameter2Type) continue
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) continue
+            // If these have the same erased type, they're considered equal for bytecode. If this
+            // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
+            // allow for the case that one version has wildcards that the other doesn't (common
+            // when comparing types generated from PSI vs the Kotlin analysis API).
+            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) {
+                if (TargetLanguage.BYTECODE in targetLanguages) {
+                    continue
+                } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {
+                    continue
+                }
+            }
 
             val convertedType =
                 parameter1Type.convertType(other.containingClass(), containingClass())
