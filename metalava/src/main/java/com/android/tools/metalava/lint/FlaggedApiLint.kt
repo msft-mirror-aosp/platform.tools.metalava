@@ -298,30 +298,6 @@ private constructor(
             flaggedApiLint.check()
         }
 
-        // An acronym is 2 or more capital letters. Following the acronym there can either be a next
-        // word (capital followed by a non-capital), digit, underscore, or word break (digits and
-        // underscores count as word characters).
-        // Including the next character in the regex means the first capture group will contain just
-        // the acronym and not the start of the next word, e.g. for "HTMLWriter" the acronym is
-        // "HTML", not "HTMLW".
-        private val acronymPattern = Regex("([A-Z]{2,})(?:[A-Z][a-z]|[0-9]|_|\\b)")
-
-        private fun getFirstAcronym(name: String, allowedAcronyms: List<String>): String? {
-            val fullMatch = acronymPattern.find(name) ?: return null
-            // Group 1 is just the acronym.
-            val result = fullMatch.groups[1] ?: return null
-
-            val acronym = name.substring(result.range.first, result.range.last + 1)
-            return if (acronym !in allowedAcronyms) {
-                acronym
-            } else if (fullMatch.range.last < name.length) {
-                // Keep searching from the end of the last match, if possible.
-                getFirstAcronym(name.substring(result.range.last + 1), allowedAcronyms)
-            } else {
-                null
-            }
-        }
-
         /**
          * Heuristically converts the given string [literal] into a reference to the equivalent
          * `aconfig`-generated `Flags.java` field.
