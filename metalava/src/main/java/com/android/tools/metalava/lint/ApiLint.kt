@@ -209,14 +209,14 @@ private constructor(
         location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
-        reporter.report(id, item, message, location, maximumSeverity)
+        filteredReporter.report(id, item, message, location, maximumSeverity)
     }
 
     private fun check() {
         codebase.accept(this)
     }
 
-    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
+    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.filteredReporter)
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
@@ -225,14 +225,14 @@ private constructor(
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allCallables = methods.asSequence() + constructors.asSequence()
-        reporter.withContext(cls) {
+        filteredReporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
         }
         kotlinInterop.checkClass(cls, allCallables + fields)
     }
 
     override fun visitCallable(callable: CallableItem) {
-        reporter.withContext(callable) {
+        filteredReporter.withContext(callable) {
             checkExceptions(callable, filterReference)
             checkContextFirst(callable)
             checkListenerLast(callable)
@@ -247,7 +247,7 @@ private constructor(
     }
 
     override fun visitMethod(method: MethodItem) {
-        reporter.withContext(method) {
+        filteredReporter.withContext(method) {
             checkMethodNames(method)
             checkProtected(method)
             checkSynchronized(method)
@@ -263,7 +263,7 @@ private constructor(
     }
 
     override fun visitField(field: FieldItem) {
-        reporter.withContext(field) {
+        filteredReporter.withContext(field) {
             checkField(field)
             checkType(field.type(), field)
             kotlinInterop.checkField(field)
@@ -271,7 +271,7 @@ private constructor(
     }
 
     override fun visitProperty(property: PropertyItem) {
-        reporter.withContext(property) { kotlinInterop.checkProperty(property) }
+        filteredReporter.withContext(property) { kotlinInterop.checkProperty(property) }
     }
 
     private fun checkType(type: TypeItem, item: Item) {

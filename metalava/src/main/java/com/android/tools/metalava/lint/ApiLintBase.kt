@@ -40,7 +40,8 @@ abstract class ApiLintBase(
     ) {
 
     /** [Reporter] that filters out items that are not relevant for the current API surface. */
-    inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
+    inner class FilteringReporter(private val delegateReporter: Reporter) :
+        Reporter by delegateReporter {
         override fun report(
             id: Issues.Issue,
             reportable: Reportable?,
@@ -77,7 +78,7 @@ abstract class ApiLintBase(
                 }
             }
 
-            return delegate.report(id, reportable, message, location, actualMaximumSeverity)
+            return delegateReporter.report(id, reportable, message, location, actualMaximumSeverity)
         }
 
         private fun computeMaximumSeverity(item: Item?, previousItem: Item?, issue: Issues.Issue) =
@@ -127,5 +128,5 @@ abstract class ApiLintBase(
     /** Check to see if [item] was previously released. */
     private fun wasPreviouslyReleased(item: Item?) = findPreviouslyReleased(item) != null
 
-    protected val reporter = FilteringReporter(reporter)
+    protected val filteredReporter = FilteringReporter(reporter)
 }

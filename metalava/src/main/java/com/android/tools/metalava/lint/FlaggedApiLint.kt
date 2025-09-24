@@ -69,7 +69,7 @@ private constructor(
         location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
-        reporter.report(id, item, message, location, maximumSeverity)
+        filteredReporter.report(id, item, message, location, maximumSeverity)
     }
 
     private fun check() {
@@ -77,18 +77,18 @@ private constructor(
     }
 
     override fun visitClass(cls: ClassItem) {
-        reporter.withContext(cls) { checkClass(cls) }
+        filteredReporter.withContext(cls) { checkClass(cls) }
     }
 
     override fun visitCallable(callable: CallableItem) {
-        reporter.withContext(callable) {
+        filteredReporter.withContext(callable) {
             checkHasFlaggedApi(callable)
             checkFlaggedApiLiteral(callable)
         }
     }
 
     override fun visitField(field: FieldItem) {
-        reporter.withContext(field) { checkField(field) }
+        filteredReporter.withContext(field) { checkField(field) }
     }
 
     private fun checkClass(
