@@ -222,7 +222,7 @@ class Options(
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
 
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
-    var subtractApi: File? = null
+    var subtractApiFile: File? = null
 
     /**
      * Backing property for [nullabilityAnnotationsValidator]
@@ -476,8 +476,8 @@ class Options(
     /** Proguard Keep list file to write */
     var proguard: File? = null
 
-    val apiFile by signatureFileOptions::apiFile
-    val removedApiFile by signatureFileOptions::removedApiFile
+    val apiSignatureFile by signatureFileOptions::apiFile
+    val removedApiSignatureFile by signatureFileOptions::removedApiFile
     val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Path to directory to write SDK values to */
@@ -650,10 +650,10 @@ class Options(
                     }
                 }
                 ARG_SUBTRACT_API -> {
-                    if (subtractApi != null) {
+                    if (subtractApiFile != null) {
                         cliError("Only one $ARG_SUBTRACT_API can be supplied")
                     }
-                    subtractApi = stringToExistingFile(getValue(args, ++index))
+                    subtractApiFile = stringToExistingFile(getValue(args, ++index))
                 }
 
                 // TODO: Remove the legacy --merge-annotations flag once it's no longer used to

@@ -19,10 +19,14 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.JVM_STATIC
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -53,9 +57,18 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
     }
 
-    fun checkClass(cls: ClassItem, isKotlin: Boolean = cls.isKotlin()) {
+    /**
+     * Check for interop issues on the [cls]. The [filteredMembers] should be any callables and
+     * fields defined on the class which are part of the API surface.
+     */
+    fun checkClass(
+        cls: ClassItem,
+        filteredMembers: Sequence<MemberItem>,
+        isKotlin: Boolean = cls.isKotlin(),
+    ) {
         if (isKotlin) {
             disallowValueClasses(cls)
+            requireJvmNameForFacadeClass(cls, filteredMembers)
         }
     }
 
@@ -265,6 +278,36 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 Issues.VALUE_CLASS_DEFINITION,
                 cls,
                 "Value classes should not be public in APIs targeting Java clients."
+            )
+        }
+    }
+
+    /**
+     * If a file facade class has any members which can be used from Java source, it should use
+     * JvmName.
+     */
+    private fun requireJvmNameForFacadeClass(
+        cls: ClassItem,
+        filteredMembers: Sequence<MemberItem>,
+    ) {
+        if (
+            cls.isFileFacade() &&
+                // Technically it is possible to use JvmMultifileClass without using JvmName, but it
+                // wouldn't make sense to and it is difficult to find the annotations in psi in this
+                // case, so skip the check for multi-file classes.
+                !cls.isMultiFileClass() &&
+                !cls.modifiers.hasAnnotation { it.qualifiedName == JVM_NAME } &&
+                filteredMembers.any {
+                    // Check that there are no members that can be used from Java. While it is
+                    // technically possible to call suspend functions from Java, they generally
+                    // aren't intended for Java use so skip them for the check.
+                    TargetLanguage.JAVA in it.targetLanguages && !it.modifiers.isSuspend()
+                }
+        ) {
+            reporter.report(
+                Issues.FACADE_CLASS_JVM_NAME,
+                cls,
+                "Use `@file:JvmName` to provide a name for this file facade class for Java callers"
             )
         }
     }
