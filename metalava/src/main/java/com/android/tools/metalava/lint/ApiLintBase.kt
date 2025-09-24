@@ -115,7 +115,7 @@ abstract class ApiLintBase(
     }
 
     /** Find the corresponding item in the previously released API if available. */
-    protected fun findPreviouslyReleased(item: Item?): Item? {
+    private fun findPreviouslyReleased(item: Item?): Item? {
         return oldCodebase?.let {
             item?.findCorrespondingItemIn(
                 oldCodebase,

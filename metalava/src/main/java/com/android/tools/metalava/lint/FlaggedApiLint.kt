@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -49,14 +50,14 @@ import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 class FlaggedApiLint
 private constructor(
     private val codebase: Codebase,
-    oldCodebase: Codebase?,
-    reporter: Reporter,
+    private val oldCodebase: Codebase?,
+    private val reporter: Reporter,
     apiPredicateConfig: ApiPredicate.Config,
 ) :
-    ApiLintBase(
-        oldCodebase,
-        reporter,
-        apiPredicateConfig,
+    ApiVisitor(
+        visitParameterItems = false,
+        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
+        targetLanguages = com.android.tools.metalava.model.TargetLanguageSet.SOURCE,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
@@ -69,7 +70,7 @@ private constructor(
         location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
-        filteredReporter.report(id, item, message, location, maximumSeverity)
+        reporter.report(id, item, message, location, maximumSeverity)
     }
 
     private fun check() {
@@ -77,18 +78,16 @@ private constructor(
     }
 
     override fun visitClass(cls: ClassItem) {
-        filteredReporter.withContext(cls) { checkClass(cls) }
+        checkClass(cls)
     }
 
     override fun visitCallable(callable: CallableItem) {
-        filteredReporter.withContext(callable) {
-            checkHasFlaggedApi(callable)
-            checkFlaggedApiLiteral(callable)
-        }
+        checkHasFlaggedApi(callable)
+        checkFlaggedApiLiteral(callable)
     }
 
     override fun visitField(field: FieldItem) {
-        filteredReporter.withContext(field) { checkField(field) }
+        checkField(field)
     }
 
     private fun checkClass(
@@ -271,6 +270,16 @@ private constructor(
                 )
             modifierListWriter.writeKeywords(item, normalizeFinal = true)
             writer.toString().trim()
+        }
+    }
+
+    private fun findPreviouslyReleased(item: Item?): Item? {
+        return oldCodebase?.let {
+            item?.findCorrespondingItemIn(
+                oldCodebase,
+                superMethods = true,
+                duplicate = true,
+            )
         }
     }
 
