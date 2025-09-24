@@ -476,8 +476,8 @@ class Options(
     /** Proguard Keep list file to write */
     var proguard: File? = null
 
-    val apiFile by signatureFileOptions::apiFile
-    val removedApiFile by signatureFileOptions::removedApiFile
+    val apiSignatureFile by signatureFileOptions::apiFile
+    val removedApiSignatureFile by signatureFileOptions::removedApiFile
     val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Path to directory to write SDK values to */

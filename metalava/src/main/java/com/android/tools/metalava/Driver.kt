@@ -298,7 +298,7 @@ private fun createApiSignatureFilesFromOptions(
 ) {
     val fileFormat = options.signatureFileFormat
 
-    options.apiFile?.let { apiFile ->
+    options.apiSignatureFile?.let { apiSignatureFile ->
         val codebaseFragment =
             createCodeFragmentForSignatureFile(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
@@ -311,8 +311,12 @@ private fun createApiSignatureFilesFromOptions(
                 )
             }
 
-        createOutputFileFromCodebaseFragment(progressTracker, codebaseFragment, apiFile, "API") {
-            printWriter ->
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            codebaseFragment,
+            apiSignatureFile,
+            "API"
+        ) { printWriter ->
             SignatureWriter(
                 writer = printWriter,
                 fileFormat = fileFormat,
@@ -320,7 +324,7 @@ private fun createApiSignatureFilesFromOptions(
         }
     }
 
-    options.removedApiFile?.let { apiFile ->
+    options.removedApiSignatureFile?.let { apiSignatureFile ->
         val codebaseFragment =
             createCodeFragmentForSignatureFile(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
@@ -336,7 +340,7 @@ private fun createApiSignatureFilesFromOptions(
         createOutputFileFromCodebaseFragment(
             progressTracker,
             codebaseFragment,
-            apiFile,
+            apiSignatureFile,
             "removed API",
             options.deleteEmptyRemovedSignatures
         ) { printWriter ->
@@ -579,8 +583,8 @@ private fun ActionContext.checkCompatibility(
     val apiType = check.apiType
     val generatedApiFile =
         when (apiType) {
-            ApiType.PUBLIC_API -> options.apiFile
-            ApiType.REMOVED -> options.removedApiFile
+            ApiType.PUBLIC_API -> options.apiSignatureFile
+            ApiType.REMOVED -> options.removedApiSignatureFile
             else -> error("unsupported $apiType")
         }
 
