@@ -110,21 +110,36 @@ interface Assertions {
         return fieldItem
     }
 
-    /** Get the method from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertMethod(methodName: String, parameters: String): MethodItem {
-        val methodItem = findMethod(methodName, parameters)
-        assertNotNull(methodItem, message = "Expected $methodName($parameters) to be defined")
-        return methodItem
+    /** Finds the callable in the list, failing if it does not exist. */
+    private fun <T : CallableItem> List<T>.assertCallable(
+        callableName: String,
+        parameters: List<String>
+    ): T {
+        val callableItem = singleOrNull {
+            it.name() == callableName &&
+                it.parameters().size == parameters.size &&
+                it.parameters().zip(parameters).all { (parameterItem, expectedTypeString) ->
+                    parameterItem.type().toTypeString() == expectedTypeString
+                }
+        }
+        assertNotNull(callableItem, message = "Expected $callableName($parameters) to be defined")
+        return callableItem
     }
 
-    /** Get the constructor from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertConstructor(parameters: String): ConstructorItem {
-        val constructorItem = findConstructor(parameters)
-        assertNotNull(
-            constructorItem,
-            message = "Expected ${simpleName()}($parameters) to be defined"
-        )
-        return assertIs(constructorItem)
+    /**
+     * Get the method from the [ClassItem], failing if it does not exist. The [parameters] are
+     * expected to be type strings formatted according to [TypeStringConfiguration.DEFAULT].
+     */
+    fun ClassItem.assertMethod(methodName: String, parameters: List<String>): MethodItem {
+        return methods().assertCallable(methodName, parameters)
+    }
+
+    /**
+     * Get the constructor from the [ClassItem], failing if it does not exist. The [parameters] are
+     * expected to be type strings formatted according to [TypeStringConfiguration.DEFAULT].
+     */
+    fun ClassItem.assertConstructor(parameters: List<String>): ConstructorItem {
+        return constructors().assertCallable(simpleName(), parameters)
     }
 
     /** Get the property from the [ClassItem], failing if it does not exist. */
