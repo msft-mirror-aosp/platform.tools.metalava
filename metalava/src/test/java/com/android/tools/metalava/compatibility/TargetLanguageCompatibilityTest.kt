@@ -530,4 +530,55 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test comparing by super methods for different target languages`() {
+        check(
+            // When it is no longer listed for Foo, differentTargetLanguagesDisjoint appears removed
+            // because the ParentClass version has a disjoint target language set.
+            // For differentTargetLanguagesWithOverlap, the old Foo version is compared to the
+            // ParentClass version, and seen as removing a target language because the ParentClass
+            // version has an overlapping but not identical target language set.
+            expectedIssues =
+                """
+                released-api.txt:7: error: Binary breaking change: Removed method test.pkg.Foo.differentTargetLanguagesDisjoint() [RemovedMethod]
+                released-api.txt:8: error: Source breaking change: method test.pkg.Foo.differentTargetLanguagesWithOverlap() can no longer be resolved from Java source [RemovedFromJava]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @BytecodeOnly public void differentTargetLanguagesDisjoint();
+                    method public void differentTargetLanguagesWithOverlap();
+                  }
+                  public class ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @KotlinOnly public void differentTargetLanguagesDisjoint();
+                    method @InaccessibleFromJava public void differentTargetLanguagesWithOverlap();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                  }
+                  public class ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @KotlinOnly public void differentTargetLanguagesDisjoint();
+                    method @InaccessibleFromJava public void differentTargetLanguagesWithOverlap();
+                  }
+                }
+                """
+        )
+    }
 }
