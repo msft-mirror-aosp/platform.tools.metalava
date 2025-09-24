@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import java.nio.CharBuffer
 import kotlin.math.max
 import org.antlr.v4.runtime.ANTLRErrorListener
 import org.antlr.v4.runtime.BaseErrorListener
-import org.antlr.v4.runtime.CharStreams
+import org.antlr.v4.runtime.CodePointBuffer
+import org.antlr.v4.runtime.CodePointCharStream
 import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.NoViableAltException
 import org.antlr.v4.runtime.RecognitionException
@@ -36,8 +38,12 @@ class JavadocParser private constructor(private val antlrParser: AntlrJavadocPar
 
     companion object {
         /**
-         * Parse [text] as a javadoc comment (optionally including the /** ... */).
+         * Parse [text] from [startInclusive] up to, but not including [endExclusive] as a javadoc
+         * comment (optionally including the /** ... */).
          *
+         * @param text the String to be parsed.
+         * @param startInclusive the index of the first character to parse.
+         * @param endExclusive the index after the last character to parse.
          * @param fileName the file where the comment was located.
          * @param startLineNumber the line number where within [fileName] where the comment starts.
          * @param errorListener the optional [ANTLRErrorListener], defaults to
@@ -45,11 +51,13 @@ class JavadocParser private constructor(private val antlrParser: AntlrJavadocPar
          */
         fun parse(
             text: String,
+            startInclusive: Int,
+            endExclusive: Int,
             fileName: String = "<unknown>",
             startLineNumber: Int = 1,
             errorListener: ANTLRErrorListener = JavadocErrorListener(fileName, startLineNumber),
         ): JavadocComment {
-            val charStream = CharStreams.fromString(text)
+            val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
             val lexer = AntlrJavadocLexer(charStream)
             val tokenStream = CommonTokenStream(lexer)
             val antlrParser = AntlrJavadocParser(tokenStream)
@@ -57,6 +65,25 @@ class JavadocParser private constructor(private val antlrParser: AntlrJavadocPar
             antlrParser.addErrorListener(errorListener)
             val parser = JavadocParser(antlrParser)
             return parser.parse()
+        }
+
+        /**
+         * Create a [CodePointCharStream] that is backed by [text] from [startInclusive] up to but
+         * not including [endExclusive].
+         */
+        private fun charStreamFromStringRange(
+            text: String,
+            startInclusive: Int,
+            endExclusive: Int,
+            fileName: String,
+        ): CodePointCharStream {
+            var length = endExclusive - startInclusive
+            val codePointBufferBuilder = CodePointBuffer.builder(length)
+            val cb = CharBuffer.allocate(length)
+            cb.put(text, startInclusive, endExclusive)
+            cb.flip()
+            codePointBufferBuilder.append(cb)
+            return CodePointCharStream.fromBuffer(codePointBufferBuilder.build(), fileName)
         }
     }
 

@@ -21,7 +21,8 @@ import org.junit.Test
 class JavadocParserTest {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
     private fun checkParse(text: String) {
-        JavadocParser.parse(text.trimIndent())
+        var trimmed = text.trimIndent()
+        JavadocParser.parse(trimmed, 0, trimmed.length)
     }
 
     @Test
