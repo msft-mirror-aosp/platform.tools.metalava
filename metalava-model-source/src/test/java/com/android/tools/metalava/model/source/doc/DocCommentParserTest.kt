@@ -111,6 +111,7 @@ class DocCommentParserTest {
                 """
                     /**
                      *Some text
+                     *
                      * @see something
                      * @see other thing
                      */
@@ -139,6 +140,7 @@ class DocCommentParserTest {
                 """
                     /**
                      * Some text
+                     *
                      * @see something
                      * @see other thing
                      */
@@ -340,6 +342,7 @@ class DocCommentParserTest {
                 """
                     /**
                      * An inline tag.
+                     *
                      * @see Something
                      * {@hide}
                      */

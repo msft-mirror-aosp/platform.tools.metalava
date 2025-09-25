@@ -118,6 +118,14 @@ internal class DefaultDocComment(
 
         // Print the tag sections if they are not empty.
         if (blockTagSections.isNotEmpty()) {
+            // If the block tag section requires multiple lines and the main description was added
+            // then add a blank line between the main description and the block tag section.
+            if (
+                blockTagSectionRequiredSpace == RequiredSpace.MULTI_LINE &&
+                    mainDescriptionRequiredSpace != RequiredSpace.EMPTY
+            ) {
+                writer.println(" *")
+            }
             for (section in blockTagSections) {
                 if (multiLine) {
                     writer.print(" *")
