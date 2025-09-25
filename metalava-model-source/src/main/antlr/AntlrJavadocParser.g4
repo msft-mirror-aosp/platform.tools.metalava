@@ -91,6 +91,7 @@ braceExpression
 braceContent
     : braceExpression
     | braceText
+    | inlineTag
     ;
 
 braceText
@@ -101,5 +102,4 @@ braceText
     | SLASH
     | NEWLINE
     | AT
-    | inlineTag
     ;
