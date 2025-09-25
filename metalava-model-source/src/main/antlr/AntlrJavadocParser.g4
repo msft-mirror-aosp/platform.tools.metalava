@@ -90,7 +90,7 @@ braceExpression
 
 braceContent
     : braceExpression
-    | braceText (NEWLINE* braceText)*
+    | braceText
     ;
 
 braceText
