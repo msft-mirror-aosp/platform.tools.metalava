@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import java.io.PrintWriter
+
 /** A Javadoc or KDoc comment associated with an API element. */
 interface DocComment {
     /** The main description, i.e. the part before any block tags. */
@@ -30,6 +32,9 @@ interface DocComment {
 
     /** Check to see whether there are any block tags of type [blockTagType]. */
     fun hasBlockTagOfType(blockTagType: String): Boolean
+
+    /** Print this as a Javadoc comment to [writer]. */
+    fun printAsJavadocComment(writer: PrintWriter)
 
     companion object {
         /** Create a [DocComment] from [text], reporting any issues to [reporter]. */
@@ -48,6 +53,35 @@ internal class DefaultDocComment(
 ) : DocComment {
     override fun hasBlockTagOfType(blockTagType: String) =
         blockTagSections.any { it.tagType == blockTagType }
+
+    override fun printAsJavadocComment(writer: PrintWriter) {
+        // Start the doc comment.
+        writer.print("/**")
+        writer.println()
+
+        // Print the main description, if it is not empty.
+        if (description.isNotEmpty()) {
+            writer.print(" *")
+            description.printAsJavadocComment(writer)
+            writer.println()
+        }
+
+        // Print the tag sections if they are not empty.
+        if (blockTagSections.isNotEmpty()) {
+            for (section in blockTagSections) {
+                writer.print(" * @${section.tagType}")
+                val sectionDescription = section.description
+                if (sectionDescription.isNotEmpty()) {
+                    writer.print(" ")
+                    sectionDescription.printAsJavadocComment(writer)
+                }
+                writer.println()
+            }
+        }
+
+        // End the doc comment.
+        writer.println(" */")
+    }
 
     override fun toString() = buildString {
         append("description: ")
