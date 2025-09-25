@@ -81,7 +81,7 @@ class JavadocParserTest {
     fun `Test simple comment`() {
         checkParse(
             "/** Simple text */",
-            expectedStructure = "text: ' Simple text '",
+            expectedStructure = "text: ' Simple text'",
         )
     }
 
@@ -89,7 +89,7 @@ class JavadocParserTest {
     fun `Test simple comment - leading newline`() {
         checkParse(
             "\n/** Simple text */",
-            expectedStructure = """text: ' Simple text '""",
+            expectedStructure = """text: ' Simple text'""",
         )
     }
 
@@ -97,7 +97,7 @@ class JavadocParserTest {
     fun `Test simple comment - trailing newline`() {
         checkParse(
             "/** Simple text */\n",
-            expectedStructure = """text: ' Simple text '""",
+            expectedStructure = """text: ' Simple text'""",
         )
     }
 
@@ -107,7 +107,7 @@ class JavadocParserTest {
             "/** /** */\n",
             expectedStructure =
                 """
-                    text: ' /** '
+                    text: ' /**'
                 """,
         )
     }
@@ -125,7 +125,6 @@ class JavadocParserTest {
                     text: ' '
                     inlineTag: link
                       text: 'Class'
-                    text: '\n '
                 """,
         )
     }
@@ -143,7 +142,7 @@ class JavadocParserTest {
                     text: ' Text before link '
                     inlineTag: link
                       text: 'Class'
-                    text: ' and some text after.\n '
+                    text: ' and some text after.'
                 """,
         )
     }
@@ -163,7 +162,7 @@ class JavadocParserTest {
                     text: ' Text before link\n '
                     inlineTag: link
                       text: 'Class'
-                    text: '\n and some text after.\n '
+                    text: '\n and some text after.'
                 """,
         )
     }
@@ -181,7 +180,6 @@ class JavadocParserTest {
                     text: ' '
                     inlineTag: code
                       text: '@Annotation'
-                    text: '\n '
                 """,
         )
     }
@@ -202,7 +200,6 @@ class JavadocParserTest {
                       inlineTag: code
                         text: 'nested'
                       text: ' inline tags'
-                    text: '\n '
                 """,
         )
     }
@@ -237,7 +234,6 @@ class JavadocParserTest {
                     text: ' '
                     inlineTag: code
                       text: 'extra space'
-                    text: '\n '
                 """,
         )
     }
@@ -252,7 +248,6 @@ class JavadocParserTest {
                 """
                     text: ' '
                     inlineTag: inheritDoc
-                    text: ' '
                 """,
         )
     }
@@ -271,7 +266,7 @@ class JavadocParserTest {
                 .replace('X', ' '),
             expectedStructure =
                 """
-                    text: ' Some text with trailing whitespace\n on multiple lines\n '
+                    text: ' Some text with trailing whitespace\n on multiple lines'
                 """,
         )
     }

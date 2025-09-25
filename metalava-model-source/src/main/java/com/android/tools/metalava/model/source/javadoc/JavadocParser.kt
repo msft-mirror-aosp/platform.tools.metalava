@@ -190,8 +190,10 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
      */
     private fun appendContent(javadocContent: JavadocContent) {
         // Make sure that any text which has been appended to [textBuffer] has been added to the
-        // content list so that it appears before [javadocContent].
-        flushText()
+        // content list so that it appears before [javadocContent]. Trailing whitespace is not
+        // trimmed as it could provide significant separation between any non-whitespace content and
+        // [javadocContent].
+        flushText(trimTrailingWhitespace = false)
 
         contentList.add(javadocContent)
 
@@ -251,9 +253,18 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
     /**
      * If [textBuffer] is not empty then this will wrap it in a [JavadocText] object, add that to
      * the [contentList] and clear [textBuffer].
+     *
+     * @param trimTrailingWhitespace if true then remove any trailing whitespace from [textBuffer].
      */
-    private fun flushText() {
+    private fun flushText(trimTrailingWhitespace: Boolean) {
         if (textBuffer.isNotEmpty()) {
+            // If required, remove any trailing whitespace from [textBuffer] before flushing.
+            if (trimTrailingWhitespace) {
+                // Trim trailing whitespace from the text buffer which may empty [textBuffer].
+                trimTrailingWhitespaceFromTextBuffer()
+                if (textBuffer.isEmpty()) return
+            }
+
             var text = textBuffer.toString()
             textBuffer.clear()
             contentList.add(JavadocText(text))
@@ -270,8 +281,10 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
     @Suppress("DEPRECATION")
     private fun nestedContent(body: () -> Unit): JavadocContent? {
         // Make sure that any text which has been appended to [textBuffer] has been added to the
-        // content list so that it appears before any nested content.
-        flushText()
+        // content list so that it appears before any nested content. Trailing whitespace is not
+        // trimmed as it could provide significant separation between any non-whitespace content and
+        // the nested content.
+        flushText(trimTrailingWhitespace = false)
 
         // Save away the current _contentList and set it to null so a new list will be created if
         // any nested content is added.
@@ -281,8 +294,10 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
             // Call the body lambda which will add any nested content.
             body()
 
-            // Get the nested content that was added by [body].
-            return getContent()
+            // Get the nested content that was added by [body]. Trailing whitespace is not trimmed
+            // as it could provide significant separation between any non-whitespace content in the
+            // nested content and following content.
+            return getContent(trimTrailingWhitespace = false)
         } finally {
             // Restore _contentList back to what it was before.
             _contentList = oldContentList
@@ -300,12 +315,15 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
      * Otherwise, the [_contentList] is wrapped in a [JavadocContentList].
      *
      * Irrespective of what this returns, [_contentList] will be `null` after this returns.
+     *
+     * @param trimTrailingWhitespace if true then remove any trailing whitespace from [textBuffer].
      */
     @Suppress("DEPRECATION")
-    private fun getContent(): JavadocContent? {
+    private fun getContent(trimTrailingWhitespace: Boolean): JavadocContent? {
         // Make sure that any text which has been appended to [textBuffer] has been added to the
-        // content list so that it will be included in the returned content.
-        flushText()
+        // content list so that it will be included in the returned content. Remove trailing
+        // whitespace if required.
+        flushText(trimTrailingWhitespace)
 
         val contentList = _contentList
         return if (contentList == null) {
@@ -380,7 +398,7 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
             descriptionContext.accept(builder)
 
             // Get the [JavadocContent], if any, that was created.
-            return builder.getContent()
+            return builder.getContent(trimTrailingWhitespace = true)
         }
     }
 }
