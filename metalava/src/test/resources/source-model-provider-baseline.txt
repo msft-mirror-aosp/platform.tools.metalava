@@ -146,6 +146,7 @@ com.android.tools.metalava.lint.CheckBuilderTest
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
   Do not require @FlaggedApi on RequiresPermission[turbine]
+  Do not require @FlaggedApi on API that modify annotations[turbine]
 
 com.android.tools.metalava.stub.StubsAnnotationTest
   Pass through libcore annotations[turbine]

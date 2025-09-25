@@ -804,4 +804,95 @@ class FlaggedApiLintTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Do not require @FlaggedApi on API that modify annotations`() {
+        check(
+            // b/442395516 this test will be updated to enforce flagging annotation changes
+            expectedIssues = "",
+            apiLint =
+                """
+                    package test.annotation {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.CONSTRUCTOR}) public @interface Custom {
+                        method public abstract int value() default 0;
+                      }
+                    }
+                    package test.pkg {
+                      @test.annotation.Custom(1) public class Foo {
+                        ctor public Foo();
+                        method public void method_add_flagged_annotation();
+                        method @test.annotation.Custom(1) public void method_remove_annotation();
+                        field @test.annotation.Custom(1) public int field_change_annotation;
+                      }
+                    }
+                """,
+            api =
+                """
+                    package test.annotation {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.CONSTRUCTOR}) public @interface Custom {
+                        method public abstract int value() default 0;
+                      }
+                    }
+                    package test.pkg {
+                      @test.annotation.Custom(1) public class Foo {
+                        ctor @test.annotation.Custom(1) public Foo();
+                        method @FlaggedApi(Flags.FLAG_MY_FEATURE) @test.annotation.Custom(1) public void method_add_flagged_annotation();
+                        method public void method_remove_annotation();
+                        field @test.annotation.Custom(2) public int field_change_annotation;
+                      }
+                    }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.annotation;
+
+                            import static java.lang.annotation.ElementType.METHOD;
+                            import static java.lang.annotation.ElementType.FIELD;
+                            import static java.lang.annotation.ElementType.TYPE;
+                            import static java.lang.annotation.ElementType.CONSTRUCTOR;
+                            import java.lang.annotation.Target;
+
+                            @Target({METHOD, TYPE, FIELD, CONSTRUCTOR})
+                            public @interface Custom {
+                                int value() default 0;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import test.annotation.Custom;
+                            import android.annotation.FlaggedApi;
+
+                            @Custom(1)
+                            public class Foo {
+                                // Add new annotation
+                                @Custom(1)
+                                public Foo() {}
+
+                                @Custom(2)
+                                public int field_change_annotation = 1;
+                                public void method_remove_annotation() {}
+                                @FlaggedApi(Flags.FLAG_MY_FEATURE)
+                                @Custom(1)
+                                public void method_add_flagged_annotation() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments =
+                arrayOf(
+                    ARG_WARNING,
+                    "UnflaggedApi",
+                    ARG_PASS_THROUGH_ANNOTATION,
+                    "test.annotation.Custom"
+                ),
+        )
+    }
 }
