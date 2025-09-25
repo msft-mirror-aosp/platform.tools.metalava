@@ -130,4 +130,13 @@ class JavadocParserTest {
             """,
         )
     }
+
+    @Test
+    fun `Test empty inline tag`() {
+        checkParse(
+            """
+                /** {@inheritDoc} */
+            """,
+        )
+    }
 }
