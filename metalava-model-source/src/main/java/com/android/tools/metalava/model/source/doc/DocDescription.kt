@@ -37,6 +37,8 @@ interface DocDescription {
     /** Return `true` if this is not empty, `false` otherwise. */
     fun isNotEmpty() = !isEmpty()
 
+    fun requiredSpace(): RequiredSpace
+
     /** Print this as part of a Javadoc comment to [writer]. */
     fun printAsJavadocComment(writer: PrintWriter)
 
@@ -48,6 +50,8 @@ interface DocDescription {
 
 internal class EmptyDocDescription : DocDescription {
     override fun isEmpty() = true
+
+    override fun requiredSpace() = RequiredSpace.EMPTY
 
     override fun printAsJavadocComment(writer: PrintWriter) {
         // Nothing to do.
@@ -77,6 +81,13 @@ internal class DefaultDocDescription(
         }
 
     override fun isEmpty() = content == JavadocContent.EMPTY
+
+    override fun requiredSpace() =
+        when {
+            isEmpty() -> RequiredSpace.EMPTY
+            content.isMultiLine() -> RequiredSpace.MULTI_LINE
+            else -> RequiredSpace.SINGLE_LINE
+        }
 
     override fun printAsJavadocComment(writer: PrintWriter) {
         content.accept(

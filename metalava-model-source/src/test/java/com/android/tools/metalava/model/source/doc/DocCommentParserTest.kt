@@ -47,8 +47,7 @@ class DocCommentParserTest {
             expectedString = "description: <<>>",
             expectedPrintOutput =
                 """
-                    /**
-                     */
+                    /** */
                 """,
         )
     }
@@ -60,9 +59,7 @@ class DocCommentParserTest {
             expectedString = "description: <<Description>>",
             expectedPrintOutput =
                 """
-                    /**
-                     *Description
-                     */
+                    /**Description */
                 """,
         )
     }
@@ -74,9 +71,7 @@ class DocCommentParserTest {
             expectedString = "description: <<Description {@code something}>>",
             expectedPrintOutput =
                 """
-                    /**
-                     *Description {@code something}
-                     */
+                    /**Description {@code something} */
                 """,
         )
     }
@@ -92,9 +87,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /**
-                     * @see something
-                     */
+                    /** @see something */
                 """,
         )
     }
@@ -167,9 +160,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /**
-                     * @hide
-                     */
+                    /** @hide */
                 """,
         )
     }
@@ -267,9 +258,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /**
-                     * An invalid block tag at the end of the text. @hide
-                     */
+                    /** An invalid block tag at the end of the text. @hide */
                 """,
             expectedIssues =
                 """
@@ -322,9 +311,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /**
-                     * An inline tag at the end of some text {@hide reason why hidden}
-                     */
+                    /** An inline tag at the end of some text {@hide reason why hidden} */
                 """,
             expectedIssues =
                 """

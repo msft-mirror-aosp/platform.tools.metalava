@@ -24,6 +24,12 @@ package com.android.tools.metalava.model.source.javadoc
  */
 internal class JavadocInlineTag(val tagType: String, val content: JavadocContent?) :
     JavadocContent {
+    /**
+     * An inline tag occupies multiple lines if the nested content, if present, occupies multiple
+     * lines.
+     */
+    override fun isMultiLine() = content?.isMultiLine() == true
+
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }
