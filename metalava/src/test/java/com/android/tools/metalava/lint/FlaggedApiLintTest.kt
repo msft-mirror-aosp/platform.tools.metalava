@@ -652,4 +652,69 @@ class FlaggedApiLintTest : DriverTest() {
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
+
+    // b/442395516 Test added to showcase the discrepancy between how the previously released api
+    // (loaded from prebuilts) and the current api (loaded from sources) store @RequiresPermission.
+    // Comparisons for this annotation will be disabled until this discrepancy is resolved, hence
+    // changes in the @RequiresPermission annotation will not require flagging for the time being.
+    @Test
+    fun `Do not require @FlaggedApi on RequiresPermission`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @RequiresPermission("Permission-value") public class Foo {
+                      }
+                      public class Permissions {
+                        field public static final String Permission = "Permission-value";
+                      }
+                    }
+                """,
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      @RequiresPermission(Permissions.permission) public class Foo {
+                      }
+                      public class Permissions {
+                        field public static final String Permission = "Permission-value";
+                      }
+                    }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Permissions {
+                                Permissions() {}
+
+                                public static final String Permission
+                                   = "Permission-value";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import androidx.annotation.RequiresPermission;
+                            import test.pkg.Permissions;
+
+                            @RequiresPermission(Permissions.permission)
+                            public class Foo {
+                                Foo() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
 }
