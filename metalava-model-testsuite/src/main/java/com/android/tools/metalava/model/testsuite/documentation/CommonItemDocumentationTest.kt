@@ -541,9 +541,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 methodItem,
                 expectedOutput =
                     """
-                        /**
-                         * Appended.
-                         */
+                        /** Appended. */
 
                     """,
             )
