@@ -23,8 +23,10 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -114,7 +116,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", emptyList())
+                    .throwsTypes()
+                    .first()
             assertSame(throwable, exception.erasedClass)
         }
     }
@@ -149,7 +155,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", emptyList())
+                    .throwsTypes()
+                    .first()
             assertSame(error, exception.erasedClass)
         }
     }
@@ -174,7 +184,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", emptyList())
+                    .throwsTypes()
+                    .first()
             assertSame(throwable, exception.erasedClass)
         }
     }
@@ -209,7 +223,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure the stub UnknownException is used in the throws types.
             val exception =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", emptyList())
+                    .throwsTypes()
+                    .first()
             assertSame(unknownExceptionClass, exception.erasedClass)
         }
     }
@@ -245,7 +263,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
         // Make sure the UnknownException retrieved from the other codebase is used in the throws
         // types.
         val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            codebase
+                .assertClass("test.pkg.Foo")
+                .assertMethod("foo", emptyList())
+                .throwsTypes()
+                .first()
         assertSame(unknownExceptionClass, exception.erasedClass)
     }
 
@@ -388,6 +410,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     fun `Test split across multiple files, middle missing`() {
         checkPackageStructureCreatedCorrectly(
             signature(
+                "api1.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -397,6 +420,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api2.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -412,6 +436,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     fun `Test split across multiple files`() {
         checkPackageStructureCreatedCorrectly(
             signature(
+                "api1.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -421,6 +446,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api2.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -430,6 +456,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api3.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -439,6 +466,87 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         )
+    }
+
+    @Test
+    fun `Test duplicate methods across multiple files`() {
+        runSignatureTest(
+            signature(
+                "api1.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                            method public void foo();
+                        }
+                    }
+                """
+            ),
+            signature(
+                "api2.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                            method public void foo();
+                        }
+                    }
+                """
+            ),
+        ) {
+            // Make sure that duplicate methods loaded from multiple files are de-duped.
+            assertThat(codebase.assertClass("test.pkg.Foo").methods().size).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `Test duplicate methods within single file`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                            method public void foo();
+                            method public void foo();
+                        }
+                    }
+                """
+            ),
+        ) {
+            // Make sure that duplicate methods loaded from multiple files are not de-duped.
+            assertThat(codebase.assertClass("test.pkg.Foo").methods().size).isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `Test classes split across multiple files`() {
+        runSignatureTest(
+            signature(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                        }
+                    }
+                """
+            ),
+            signature(
+                "system.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        @test.pkg.Anno(12) public class Foo {
+                        }
+
+                        public @interface Anno {
+                            method public int value();
+                        }
+                    }
+                """
+            ),
+        ) {}
     }
 
     @Test
@@ -486,13 +594,13 @@ class ApiFileTest : BaseTextCodebaseTest() {
             assertThat(reportedIssues)
                 .isEqualTo(
                     """
-                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
-                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
-                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
-                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [SignatureFileError]
-                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
-                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
-                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
+                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
+                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
+                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]
+                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [TypeParseError]
+                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
+                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [TypeParseError]
+                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
                     """
                         .trimIndent()
                 )
@@ -516,7 +624,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         runSignatureTest(
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                         public abstract class Foo {
                             field public static final int? FIELD1 = 0;
@@ -527,7 +635,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         ) {
             assertThat(reportedIssues)
                 .isEqualTo(
-                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]"
+                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]"
                 )
 
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -558,6 +666,39 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .toString()
             )
             .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
+    }
+
+    @Test
+    fun `Test invalid field initializers`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                            field public final int FIELD1 = 1;
+                            field public static int FIELD2 = 2;
+                            field public static final int FIELD3 = 3;
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    """
+                        MAIN_SRC/api.txt:4: error: Field FIELD1 in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value [SignatureFileError]
+                        MAIN_SRC/api.txt:5: error: Field FIELD2 in class test.pkg.Foo has a value of `2` but is not `static` and `final`; ignoring value [SignatureFileError]
+                    """
+                        .trimIndent()
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertThat(fooClass.assertField("FIELD1").constantValue).isNull()
+            assertThat(fooClass.assertField("FIELD2").constantValue).isNull()
+            assertThat(fooClass.assertField("FIELD3").constantValue).isEqualTo(literalValue(3))
+        }
     }
 
     @Test
@@ -616,7 +757,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 annotationManager = noOpAnnotationManager,
                 apiSurfaces = apiSurfaces,
             )
-        val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
+        val classResolver = ClassLoaderBasedClassResolver(listOf(getAndroidJar()))
         val codebase =
             ApiFile.parseApi(
                 signatureFiles,
@@ -650,6 +791,154 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 .trimIndent(),
             current.joinToString("\n")
         )
+    }
+
+    @Test
+    fun `Test method target language`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void noTargetsListed();
+                    method @BytecodeOnly public void bytecodeOnly();
+                    method @KotlinOnly public void kotlinOnly();
+                    method @InaccessibleFromJava public void inaccessibleFromJava();
+                    method @InaccessibleFromKotlin public void inaccessibleFromKotlin();
+                    method @OtherAnnotation public void noTargetsWithOtherAnnotation();
+                    method @BytecodeOnly @OtherAnnotation public void bytecodeOnlyWithOtherAnnotation();
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noTargetsListed = fooClass.assertMethod("noTargetsListed", emptyList())
+            assertThat(noTargetsListed.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(noTargetsListed.annotationNames()).isEmpty()
+
+            val bytecodeOnly = fooClass.assertMethod("bytecodeOnly", emptyList())
+            assertThat(bytecodeOnly.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(bytecodeOnly.annotationNames()).isEmpty()
+
+            val kotlinOnly = fooClass.assertMethod("kotlinOnly", emptyList())
+            assertThat(kotlinOnly.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(kotlinOnly.annotationNames()).isEmpty()
+
+            val inaccessibleFromJava = fooClass.assertMethod("inaccessibleFromJava", emptyList())
+            assertThat(inaccessibleFromJava.targetLanguages).isEqualTo(TargetLanguageSet.NOT_JAVA)
+            assertThat(inaccessibleFromJava.annotationNames()).isEmpty()
+
+            val inaccessibleFromKotlin =
+                fooClass.assertMethod("inaccessibleFromKotlin", emptyList())
+            assertThat(inaccessibleFromKotlin.targetLanguages)
+                .isEqualTo(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(inaccessibleFromKotlin.annotationNames()).isEmpty()
+
+            val noTargetsWithOtherAnnotation =
+                fooClass.assertMethod("noTargetsWithOtherAnnotation", emptyList())
+            assertThat(noTargetsWithOtherAnnotation.targetLanguages)
+                .isEqualTo(TargetLanguageSet.ALL)
+            assertThat(noTargetsWithOtherAnnotation.annotationNames())
+                .containsExactly("androidx.annotation.OtherAnnotation")
+
+            val bytecodeOnlyWithOtherAnnotation =
+                fooClass.assertMethod("bytecodeOnlyWithOtherAnnotation", emptyList())
+            assertThat(bytecodeOnlyWithOtherAnnotation.targetLanguages)
+                .isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(bytecodeOnlyWithOtherAnnotation.annotationNames())
+                .containsExactly("androidx.annotation.OtherAnnotation")
+        }
+    }
+
+    @Test
+    fun `Test constructor target language`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    ctor @BytecodeOnly public Foo();
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val bytecodeOnlyCtor = fooClass.assertConstructor(emptyList())
+            assertThat(bytecodeOnlyCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(bytecodeOnlyCtor.annotationNames()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test field target language from signature file`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    field @InaccessibleFromKotlin public int inaccessibleFromKotlin;
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val inaccessibleFromKotlin = fooClass.assertField("inaccessibleFromKotlin")
+            assertThat(inaccessibleFromKotlin.targetLanguages)
+                .isEqualTo(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(inaccessibleFromKotlin.annotationNames()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test class target language`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class NoTargetsListed {
+                  }
+                  @KotlinOnly public class KotlinOnlyClass {
+                  }
+                  @OtherAnnotation public class NoTargetsWithOtherAnnotation {
+                  }
+                  @KotlinOnly @OtherAnnotation public class KotlinOnlyClassWithOtherAnnotation {
+                  }
+                }
+                """
+            )
+        ) {
+            val noTargetsListed = codebase.assertClass("test.pkg.NoTargetsListed")
+            assertThat(noTargetsListed.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(noTargetsListed.annotationNames()).isEmpty()
+
+            val kotlinOnlyClass = codebase.assertClass("test.pkg.KotlinOnlyClass")
+            assertThat(kotlinOnlyClass.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(kotlinOnlyClass.annotationNames()).isEmpty()
+
+            val noTargetsWithOtherAnnotation =
+                codebase.assertClass("test.pkg.NoTargetsWithOtherAnnotation")
+            assertThat(noTargetsWithOtherAnnotation.targetLanguages)
+                .isEqualTo(TargetLanguageSet.ALL)
+            assertThat(noTargetsWithOtherAnnotation.annotationNames())
+                .containsExactly("androidx.annotation.OtherAnnotation")
+
+            val kotlinOnlyClassWithOtherAnnotation =
+                codebase.assertClass("test.pkg.KotlinOnlyClassWithOtherAnnotation")
+            assertThat(kotlinOnlyClassWithOtherAnnotation.targetLanguages)
+                .isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(kotlinOnlyClassWithOtherAnnotation.annotationNames())
+                .containsExactly("androidx.annotation.OtherAnnotation")
+        }
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {

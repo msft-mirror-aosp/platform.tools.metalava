@@ -152,7 +152,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                 return false
             }
         }
-        return true
+
+        // Check target languages are equal for methods to be equal
+        return targetLanguages == other.targetLanguages
     }
 
     override fun hashCodeForItem(): Int {
@@ -163,7 +165,8 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /**
      * Returns true if this callable is a signature match for the given callable (e.g. can be
      * overriding if it is a method). This checks that the name and parameter lists match, but
-     * ignores differences in parameter names, return value types and throws list types.
+     * ignores differences in parameter names, return value types and throws list types. It allows
+     * for differences in the target language sets, but requires at least some overlap.
      */
     fun matches(other: CallableItem): Boolean {
         if (this === other) return true
@@ -175,6 +178,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         if (name() != other.name()) {
             return false
         }
+
+        // Require at least one shared target language.
+        if (targetLanguages.intersect(other.targetLanguages).isEmpty()) return false
 
         val parameters1 = parameters()
         val parameters2 = other.parameters()
@@ -234,6 +240,34 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                     superBound?.hasHiddenType(filterReference) == true
             else -> throw IllegalStateException("Unrecognized type: $this")
         }
+    }
+
+    /**
+     * Like [CallableItem.internalName] but is the desc-portion of the internal signature, e.g. for
+     * the method "void create(int x, int y)" the internal name of the constructor is "create" and
+     * the desc is "(II)V"
+     */
+    fun internalDesc(voidConstructorTypes: Boolean = false): String {
+        val sb = StringBuilder()
+        sb.append("(")
+
+        // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
+        // outer type
+        if (
+            isConstructor() &&
+                containingClass().containingClass() != null &&
+                !containingClass().modifiers.isStatic()
+        ) {
+            sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
+        }
+
+        for (parameter in parameters()) {
+            sb.append(parameter.type().internalName())
+        }
+
+        sb.append(")")
+        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
+        return sb.toString()
     }
 
     companion object {

@@ -21,76 +21,48 @@ import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
-/** Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [FlaggedApiTest]. */
+/**
+ * Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [ParameterizedFlaggedApiTest].
+ */
 class FlaggedApiEdgeCasesTest : DriverTest() {
     @Test
     fun `Test override flagged method from source path no previously released API`() {
         check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
             extraArguments =
                 arrayOf(
-                    // Revert all FlaggedApi annotations.
-                    ARG_REVERT_ANNOTATION,
-                    ANDROID_FLAGGED_API,
                     // Ignore any classes other than test.pkg.
                     ARG_STUB_PACKAGES,
                     "test.pkg*"
                 ),
             sourceFiles =
                 arrayOf(
-                    // A class that will be ignored during the initial codebase creation. However,
-                    // as it is referenced from test.pkg.Test class below it will be loaded in later
-                    // and that will result in it having an origin of ClassOrigin.SOURCE_PATH
-                    // instead of ClassOrigin.COMMAND_LINE like test.pkg.Test.
-                    java(
-                        """
-                            package other.pkg;
-
-                            public abstract class Other {
-                                @$ANDROID_FLAGGED_API("flag.name")
-                                public abstract void method();
-                            }
-                        """
-                    ),
                     java(
                         """
                             package test.pkg;
+                            import $ANDROID_FLAGGED_API;
 
-                            public final class Test extends other.pkg.Other {
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            public final class Test {
                                 private Test() {}
-                                // Overrides the flagged method in other.pkg.Other. The flagged
-                                // status of the overridden method should be ignored because the
-                                // containing class is not contributing to this API and there is no
-                                // previously released API provided so reverting will result in this
-                                // method being removed.
-                                @Override public void method() {}
                             }
                         """
                     ),
+                    flaggedApiSource
                 ),
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public final class Test extends other.pkg.Other {
-                            Test() { throw new RuntimeException("Stub!"); }
-                            public void method() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    )
-                ),
+            expectedFail =
+                "Aborting: Inconsistent options: API flags are provided in a --config-file but no previously released API is provided via --check-compatibility:api:released or --check-compatibility:removed:released",
         )
     }
 
     @Test
     fun `Test override flagged method from source path with previously released API`() {
         check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
             extraArguments =
                 arrayOf(
-                    // Revert all FlaggedApi annotations.
-                    ARG_REVERT_ANNOTATION,
-                    ANDROID_FLAGGED_API,
                     // Ignore any classes other than test.pkg.
                     ARG_STUB_PACKAGES,
                     "test.pkg*"
@@ -126,6 +98,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -147,6 +120,108 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Test javadoc for flagged class includes @apiSince`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                            * Javadoc for Test
+                            */
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            docStubs = true,
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                      <class name="test/pkg/Test" since="31">
+                      </class>
+                    </api>
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * Javadoc for Test
+                             * @apiSince 31
+                             */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unresolvable flag field`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @$ANDROID_FLAGGED_API(UnresolvableFlag.FLAG_NAME)
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
         )
     }
 }

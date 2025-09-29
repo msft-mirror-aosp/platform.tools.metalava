@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -38,7 +39,7 @@ import org.jetbrains.uast.getParentOfType
 
 internal class PsiClassItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     val psiClass: PsiClass,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -52,9 +53,10 @@ internal constructor(
     interfaceTypes: List<ClassTypeItem>
 ) :
     DefaultClassItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiClass),
-        itemLanguage = psiClass.itemLanguage,
+        sourceLanguage = psiClass.sourceLanguage,
+        targetLanguages = TargetLanguageSet.ALL,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -77,7 +79,7 @@ internal constructor(
         internal set
 
     override fun createClassTypeItemForThis() =
-        codebase.globalTypeItemFactory.getClassTypeForClass(this)
+        psiCodebase.globalTypeItemFactory.getClassTypeForClass(this)
 
     override fun sourceFile(): SourceFile? {
         if (isNestedClass()) {
@@ -97,17 +99,21 @@ internal constructor(
                 null
             }
 
-        return PsiSourceFile(codebase, containingFile, uFile)
+        return PsiSourceFile(psiCodebase, containingFile, uFile)
     }
 
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
-        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass, visibility)
+        return PsiConstructorItem.createDefaultConstructor(psiCodebase, this, psiClass, visibility)
     }
 
     override fun isFileFacade(): Boolean {
         return psiClass.isKotlin() &&
             psiClass is UClass &&
             psiClass.javaPsi is KtLightClassForFacade
+    }
+
+    override fun isMultiFileClass(): Boolean {
+        return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false
     }
 }

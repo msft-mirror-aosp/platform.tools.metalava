@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -134,24 +135,24 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * The language in which this was written, or [SourceLanguage.UNKNOWN] if not known, e.g. when
      * created from a signature file.
      */
-    val itemLanguage: ItemLanguage
+    val sourceLanguage: SourceLanguage
 
     /**
      * Is this element declared in Java (rather than Kotlin) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isJava() = itemLanguage.isJava()
+    fun isJava() = sourceLanguage.isJava()
 
     /**
      * Is this element declared in Kotlin (rather than Java) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isKotlin() = itemLanguage.isKotlin()
+    fun isKotlin() = sourceLanguage.isKotlin()
 
     /**
      * Returns true if this [Item]'s modifier list contains any suppress compatibility
@@ -193,6 +194,7 @@ interface Item : Reportable {
      *   as the type arguments.
      * * For type parameters it's a [VariableTypeItem] reference the type parameter.
      * * For packages and files, it's null.
+     * * For type aliases it's the underlying type for which the alias is an alternative name.
      */
     fun type(): TypeItem?
 
@@ -259,6 +261,9 @@ interface Item : Reportable {
      * See [BaselineKey.forElementId] for more details.
      */
     fun baselineElementId(): String
+
+    /** The languages from which this [Item] can be used. */
+    val targetLanguages: Set<TargetLanguage>
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -380,9 +385,9 @@ interface Item : Reportable {
 
 /** Base [Item] implementation that is common to all models. */
 abstract class DefaultItem(
-    override val codebase: Codebase,
+    final override val codebase: Codebase,
     final override val fileLocation: FileLocation,
-    final override val itemLanguage: ItemLanguage,
+    final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
 ) : Item {
@@ -392,8 +397,20 @@ abstract class DefaultItem(
      *
      * The leaking of `this` is safe as the implementations do not access anything that has not been
      * initialized.
+     *
+     * If this is private then it cannot be included in an API so its documentation is irrelevant.
+     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
+     * instead. The latter is immutable and attempting to change it will throw an error but that is
+     * safe as only documentation for API [Item]s is modified.
+     *
+     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
+     * [ParameterItem] as they do not have documentation.
+     *
+     * TODO: Move this to [com.android.tools.metalava.model.item.DefaultSelectableItem],
      */
-    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
+    final override val documentation =
+        if (modifiers.isPrivate() || this !is SelectableItem) ItemDocumentation.NONE
+        else @Suppress("LeakingThis") documentationFactory(this)
 
     /**
      * The immutable [modifiers].
@@ -408,7 +425,7 @@ abstract class DefaultItem(
         private set
 
     init {
-        if (!modifiers.isDeprecated() && documentation.hasTagSection("@deprecated")) {
+        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
             @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }
@@ -452,42 +469,16 @@ abstract class DefaultItem(
                 if (annotationName in SUPPRESS_ANNOTATIONS) {
                     for (attribute in annotation.attributes) {
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is varargs of String
-                        val value = attribute.value
-                        if (value is AnnotationArrayAttributeValue) {
-                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                            for (innerValue in value.values) {
-                                innerValue.value()?.toString()?.let { add(it) }
-                            }
-                        } else {
-                            // Example: @SuppressLint("RequiresFeature")
-                            value.value()?.toString()?.let { add(it) }
+                        // one attribute such as value/names that is an array of String, e.g.
+                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                        // Example: @SuppressLint("RequiresFeature")
+                        for (value in attribute.value.asFlatList()) {
+                            if (value is StringValue) add(value.underlyingValue)
                         }
                     }
                 }
             }
         }
-    }
-
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
-        }
-
-        // TODO: Figure out if an annotation should go on the return value, or on the method.
-        // For example; threading: on the method, range: on the return value.
-        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
-
-        if (this is ParameterItem) {
-            // For parameters, the documentation goes into the surrounding method's documentation!
-            // Find the right parameter location!
-            val parameterName = name()
-            val target = containingCallable()
-            target.appendDocumentation(comment, parameterName)
-            return
-        }
-
-        documentation.appendDocumentation(comment, tagSection)
     }
 
     final override fun equals(other: Any?) = equalsToItem(other)

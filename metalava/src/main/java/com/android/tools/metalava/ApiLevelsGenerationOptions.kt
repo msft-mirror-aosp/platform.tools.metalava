@@ -61,6 +61,11 @@ const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 
+const val ARG_API_VERSION_RANGE = "--api-version-range"
+const val ARG_API_VERSION_LABEL = "--api-version-label"
+
+const val ARG_API_VERSION_FOR_SDK_EXTENSION = "--api-version-for-sdk-extension"
+
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
@@ -70,7 +75,6 @@ const val ARG_API_VERSION_SIGNATURE_PATTERN = "--api-version-signature-pattern"
 // JSON API version related arguments
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
-const val ARG_API_VERSION_NAMES = "--api-version-names"
 
 /**
  * Factory for creating a [VersionedApi] from an [ApiHistoryUpdater] and a list of
@@ -151,6 +155,37 @@ class ApiLevelsGenerationOptions(
             .apiVersion()
             .default(ApiVersion.fromLevel(1))
 
+    /** Convert an option value to a [ClosedRange] of [ApiVersion]. */
+    private fun OptionWithValues<String?, String, String>.apiVersionRange() = convert { text ->
+        val parts = text.split(':')
+        if (parts.size != 2) {
+            error("Must be of the form <version>:<version> but found '$text'")
+        }
+        val (from, to) = parts
+        ApiVersion.fromString(from).rangeTo(ApiVersion.fromString(to))
+    }
+
+    /** The range of historical API versions that can be included in the API version history. */
+    private val apiVersionRange: ClosedRange<ApiVersion>? by
+        option(
+                ARG_API_VERSION_RANGE,
+                metavar = "<api-version>:<api-version>",
+                help =
+                    """
+                        The optional range of historical versions that can be included in the API
+                        version history. The `from` and `to` parts of the range are separated by a
+                        `:` and are both inclusive. See $ARG_CURRENT_VERSION for acceptable
+                        `<api-version>`s.
+
+                        If unspecified then this currently falls back to a range from
+                        `--first-api-version` to `--current-version` (or `--current-version + 1` if
+                        `--current-codename` is set to any value other than `REL`). However, in
+                        future it will default to allowing every historical version.
+                    """
+                        .trimIndent()
+            )
+            .apiVersionRange()
+
     /**
      * The last api level.
      *
@@ -201,6 +236,40 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .map { if (it == "REL") null else it }
+
+    /** Convert an option value to a [Pair] of [ApiVersion] and [String]. */
+    private fun OptionWithValues<String?, String, String>.apiVersionToLabel() = convert { text ->
+        // Split the value at the first `:` only.
+        val parts = text.split(':', limit = 2)
+        if (parts.size != 2) {
+            error("Must be of the form <version>:<label> but found '$text'")
+        }
+        val (version, label) = parts
+        ApiVersion.fromString(version) to label
+    }
+
+    /** A map from [ApiVersion] to a [String] label. */
+    private val apiVersionToLabel by
+        option(
+                ARG_API_VERSION_LABEL,
+                metavar = "<api-version>:<label>",
+                help =
+                    """
+                        Specifies a label to use in place of the `<api-version>` when augmenting the
+                        Javadoc to include information about the history of an API item, e.g. in
+                        `@apiSince` and `@deprecatedSince` doc tags. This can be specified multiple
+                        times to provide labels for multiple different versions.
+
+                        See $ARG_CURRENT_VERSION for acceptable `<api-version>`s.
+
+                        This only has an effect when generating doc stubs, or enhancing the javadoc
+                        of normal stubs. It has no effect on the generation of the API history.
+                    """
+                        .trimIndent(),
+            )
+            .apiVersionToLabel()
+            .multiple(default = emptyList())
+            .map { it.toMap() }
 
     /**
      * True if [currentCodeName] is specified, false otherwise.
@@ -278,14 +347,44 @@ class ApiLevelsGenerationOptions(
             )
             .existingFile()
 
+    private val apiVersionForSdkExtension: ApiVersion? by
+        option(
+                ARG_API_VERSION_FOR_SDK_EXTENSION,
+                metavar = "<api-version>",
+                help =
+                    """
+                        SDK extension APIs can be added between SDK versions and they do not become
+                        available in an SDK version until the next SDK version is released. However,
+                        when generating an API history it is required that every API is in an API
+                        version, even those added as part of an SDK extension.
+
+                        If an SDK extension is being prepared for inclusion in an SDK version then
+                        this should be the SDK version. If an SDK extension is being prepared
+                        between SDK versions than this should be a magic version number that
+                        indicates that it the newly added SDK extension APIs are not yet present in
+                        any SDK version.
+
+                        In the latter case the $ARG_API_VERSION_LABEL should be used when generating
+                        documentation from that `api-versions.xml` file to give the magic version a
+                        meaningful name in the documentation.
+                    """
+                        .trimIndent(),
+            )
+            .apiVersion()
+
     /**
      * Get label for [version].
      *
-     * If a codename has been specified and [version] is greater than the current API version (which
-     * defaults to `null` when not set) then use the codename as the label, otherwise use the
-     * version itself.
+     * Checks the [apiVersionToLabel] map first and if a label was found for [version] then returns
+     * it. Otherwise, if a codename has been specified and [version] is greater than the current API
+     * version (which defaults to `null` when not set) then use the codename as the label, otherwise
+     * use [version]'s [ApiVersion.toString] value.
      */
     fun getApiVersionLabel(version: ApiVersion): String {
+        // Check the apiVersionToLabel map first.
+        apiVersionToLabel[version]?.let {
+            return it
+        }
         val codename = currentCodeName
         val current = optionalCurrentApiVersion
         return if (current == null || codename == null || version <= current) version.toString()
@@ -320,7 +419,7 @@ class ApiLevelsGenerationOptions(
     private fun findHistoricalFiles(dir: File, patterns: List<String>): List<MatchedPatternFile> {
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
-        val versionRange = firstApiVersion.rangeTo(lastApiVersion)
+        val versionRange = apiVersionRange ?: firstApiVersion.rangeTo(lastApiVersion)
         val apiSurfaceByName = apiSurfacesProvider()?.byName
         val scanConfig =
             PatternNode.ScanConfig(
@@ -362,13 +461,9 @@ class ApiLevelsGenerationOptions(
         files: List<MatchedPatternFile>,
     ): VersionedApi {
         val version = updater.apiVersion
-        val jar =
-            files.singleOrNull()?.file
-                ?: error(
-                    "Expected only one jar file for version $version but found ${files.size}:\n${files.joinToString("\n") {"    $it"}}"
-                )
-        verbosePrint { "Found API $version at $jar" }
-        return VersionedJarApi(jar, updater)
+        val jarFiles = files.map { it.file }
+        verbosePrint { "Found API $version at ${jarFiles.joinToString()}" }
+        return VersionedJarApi(jarFiles, updater)
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
@@ -451,10 +546,15 @@ class ApiLevelsGenerationOptions(
             // Get the optional SDK extension arguments.
             val sdkExtensionsArguments =
                 if (sdkInfoFile != null) {
-                    // The not finalized SDK version is the version after the last historical
-                    // version. That is either the version used for the current codebase or the
-                    // next version.
-                    val notFinalizedSdkVersion = codebaseSdkVersion ?: nextSdkVersion
+                    // The not finalized SDK version is either:
+                    // 1. The version specified using --api-version-for-sdk-extension.
+                    // 2. Or the version after the last historical version.
+                    //
+                    // If the latter then that is either:
+                    // 1. The version used for the current codebase.
+                    // 2. Or the next version, i.e. --current-version + 1.
+                    val notFinalizedSdkVersion =
+                        apiVersionForSdkExtension ?: codebaseSdkVersion ?: nextSdkVersion
                     ApiGenerator.SdkExtensionsArguments(
                         sdkInfoFile!!,
                         notFinalizedSdkVersion,
@@ -484,9 +584,36 @@ class ApiLevelsGenerationOptions(
                     require(extensionApiFiles.isNotEmpty()) {
                         "no extension api files found by ${patterns.joinToString()}"
                     }
+
+                    // Get the potentially future API version that new SDK extension APIs will
+                    // be assumed to have been added.
+                    val apiVersionForNewSdkExtensionApis =
+                        sdkExtensionsArguments.notFinalizedSdkVersion
+
+                    // Any APIs added from the latest sources may not be present in the SDK
+                    // extension APIs so care needs to be taken to ensure that they are not treated
+                    // as being removed.
+                    if (codebaseSdkVersion != null) {
+                        // If the latest version of the API is not the same as the version that will
+                        // be used for new SDK extension APIs then assume that all APIs from the
+                        // latest version are present in the API version in which new SDK extension
+                        // APIs will be added. This is necessary because otherwise an API from the
+                        // latest version which is in an SDK extension class but not yet present in
+                        // an SDK extension version would not be present in that version and so
+                        // would be assumed to have been removed.
+                        if (codebaseSdkVersion != apiVersionForNewSdkExtensionApis) {
+                            add(
+                                VersionedSourceApi(
+                                    codebaseFragmentProvider,
+                                    apiVersionForNewSdkExtensionApis,
+                                )
+                            )
+                        }
+                    }
+
                     addVersionedExtensionApis(
                         this,
-                        sdkExtensionsArguments.notFinalizedSdkVersion,
+                        apiVersionForNewSdkExtensionApis,
                         extensionApiFiles,
                         sdkExtensionsArguments.sdkExtensionInfo,
                         versionedApiFactory,
@@ -534,14 +661,20 @@ class ApiLevelsGenerationOptions(
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
 
-            val byVersion = moduleFiles.groupBy { it.version }
-            byVersion.mapTo(list) { (version, files) ->
-                val extVersion = ExtVersion.fromLevel(version.major)
+            // Extension modules only have a major version so group by that.
+            val byMajorVersion = moduleFiles.groupBy { it.version.major }
+            val lastMajorVersion = byMajorVersion.keys.max()
+            byMajorVersion.mapTo(list) { (extVersionNumber, files) ->
+                val extVersion = ExtVersion.fromLevel(extVersionNumber)
+                // If the extension is the last extension version then it will make sure that any
+                // new APIs appear to have been added in `versionNotInAndroidSdk`.
+                val isLatestExtVersion = extVersionNumber == lastMajorVersion
                 val updater =
                     ApiHistoryUpdater.forExtVersion(
                         versionNotInAndroidSdk,
                         extVersion,
                         mainlineModule,
+                        isLatestExtVersion,
                     )
                 versionedApiFactory(updater, files)
             }
@@ -589,25 +722,6 @@ class ApiLevelsGenerationOptions(
             .default(emptyList(), defaultForHelp = "")
 
     /**
-     * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
-     * of the current API version (if it is not provided by [optionalCurrentApiVersion]).
-     */
-    private val apiVersionNames by
-        option(
-                ARG_API_VERSION_NAMES,
-                metavar = "<api-versions>",
-                help =
-                    """
-                        An ordered list of strings with the names to use for the API versions from
-                        $ARG_API_VERSION_SIGNATURE_FILES. If $ARG_CURRENT_VERSION is not provided
-                        then this must include an additional version at the end which is used for
-                        the current API version. Required for $ARG_GENERATE_API_VERSION_HISTORY.
-                    """
-                        .trimIndent()
-            )
-            .split(" ")
-
-    /**
      * Construct the [GenerateApiHistoryConfig] from the options.
      *
      * If no relevant command line options were provided then this will return `null`, otherwise it
@@ -626,9 +740,7 @@ class ApiLevelsGenerationOptions(
         val apiVersionsFile = generateApiVersionHistory
         return if (apiVersionsFile != null) {
             val (sourceVersion, matchedPatternFiles) =
-                if (signaturePatterns.isNotEmpty())
-                    sourceVersionAndMatchedPatternFilesFromSignaturePatterns()
-                else sourceVersionAndMatchedPatternFilesFromVersionNames()
+                sourceVersionAndMatchedPatternFilesFromSignaturePatterns()
 
             // Create VersionedApis for the signature files and the source codebase.
             val versionedApis = buildList {
@@ -656,62 +768,11 @@ class ApiLevelsGenerationOptions(
     }
 
     /**
-     * Get the source [ApiVersion] and list of [MatchedPatternFile]s from [apiVersionNames] as well
-     * as [optionalCurrentApiVersion] and [apiVersionSignatureFiles].
-     */
-    private fun sourceVersionAndMatchedPatternFilesFromVersionNames():
-        Pair<ApiVersion, List<MatchedPatternFile>> {
-        // The signature files can be null if the current version is the only version
-        val historicalSignatureFiles = apiVersionSignatureFiles
-
-        val currentApiVersion = optionalCurrentApiVersion
-        val allVersions = buildList {
-            apiVersionNames?.mapTo(this) { ApiVersion.fromString(it) }
-            if (currentApiVersion != null) add(currentApiVersion)
-        }
-
-        // Get the number of version names and signature files.
-        val numVersionNames = allVersions.size
-        if (numVersionNames == 0) {
-            cliError(
-                "Must specify $ARG_API_VERSION_NAMES and/or $ARG_CURRENT_VERSION with $ARG_GENERATE_API_VERSION_HISTORY"
-            )
-        }
-        // allVersions will include the current version but apiVersionSignatureFiles will not,
-        // so there should be 1 more name than signature files.
-        if (numVersionNames != historicalSignatureFiles.size + 1) {
-            if (currentApiVersion == null) {
-                cliError(
-                    "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name as $ARG_CURRENT_VERSION is not provided"
-                )
-            } else {
-                cliError(
-                    "$ARG_API_VERSION_NAMES must have the same number of versions as $ARG_API_VERSION_SIGNATURE_FILES has files as $ARG_CURRENT_VERSION is provided"
-                )
-            }
-        }
-
-        val sourceVersion = allVersions.last()
-
-        // Combine the `pastApiVersions` and `allVersion` into a list of `MatchedPatternFile`s.
-        val matchedPatternFiles =
-            historicalSignatureFiles.mapIndexed { index, file ->
-                MatchedPatternFile(file = file, version = allVersions[index])
-            }
-
-        return sourceVersion to matchedPatternFiles
-    }
-
-    /**
      * Get the source [ApiVersion] and list of [MatchedPatternFile]s from [signaturePatterns] as
      * well as [optionalCurrentApiVersion] and [apiVersionSignatureFiles].
      */
     private fun sourceVersionAndMatchedPatternFilesFromSignaturePatterns():
         Pair<ApiVersion, List<MatchedPatternFile>> {
-        if (apiVersionNames != null)
-            cliError(
-                "Cannot combine $ARG_API_VERSION_NAMES with $ARG_API_VERSION_SIGNATURE_PATTERN"
-            )
 
         val sourceVersion =
             optionalCurrentApiVersion

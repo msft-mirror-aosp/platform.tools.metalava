@@ -17,14 +17,14 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory
+import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory.Companion.typeNullability
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
-import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
-import org.jetbrains.kotlin.analysis.api.types.KaTypeParameterType
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
@@ -55,6 +55,11 @@ private constructor(
      * encapsulated within [kaType].
      */
     val overrideTypeArguments: List<KotlinTypeInfo>? = null,
+    /**
+     * A [KaType] for a class contains information about the type parameters for all levels of outer
+     * class types. This represents which level to use (0 is the innermost class).
+     */
+    private val classLevelFromInnermost: Int = 0,
 ) {
     constructor(context: PsiElement) : this(null, null, context)
 
@@ -81,21 +86,15 @@ private constructor(
      */
     fun nullability(): TypeNullability? {
         return if (analysisSession != null && kaType != null) {
-            analysisSession.run {
-                if (useSiteSession.isInheritedGenericType(kaType)) {
-                    TypeNullability.UNDEFINED
-                } else if (kaType.nullability == KaTypeNullability.NULLABLE) {
-                    TypeNullability.NULLABLE
-                } else if (kaType.nullability == KaTypeNullability.NON_NULLABLE) {
-                    TypeNullability.NONNULL
-                } else {
-                    // No nullability information, possibly a propagated platform type.
-                    null
-                }
-            }
+            KaTypeItemFactory.run { analysisSession.run { typeNullability(kaType) } }
         } else {
             null
         }
+    }
+
+    /** Checks whether the [kaType] is a value class type. */
+    fun isValueClassType(): Boolean {
+        return kaType?.let { analysisSession?.typeForValueClass(it) } ?: false
     }
 
     /**
@@ -121,7 +120,15 @@ private constructor(
             analysisSession,
             analysisSession?.run {
                 when (kaType) {
-                    is KaClassType -> kaType.typeArguments.getOrNull(index)?.type
+                    is KaClassType -> {
+                        // Find which level of type qualifiers to use. The qualifiers are in order
+                        // from outermost to innermost class, and the [classLevelFromInnermost]
+                        // starts at 0 for the innermost class.
+                        val innermostClassIndex = kaType.qualifiers.lastIndex
+                        val thisClassIndex = innermostClassIndex - classLevelFromInnermost
+                        val thisClass = kaType.qualifiers.getOrNull(thisClassIndex)
+                        thisClass?.typeArguments?.getOrNull(index)?.type
+                    }
                     else -> null
                 }
             },
@@ -131,22 +138,22 @@ private constructor(
 
     /**
      * Creates [KotlinTypeInfo] for the outer class type of this [kaType], assuming it is a class.
+     *
+     * Uses the same [kaType], but increments the [classLevelFromInnermost].
      */
     fun forOuterClass(): KotlinTypeInfo {
         return KotlinTypeInfo(
             analysisSession,
-            analysisSession?.run {
-                (kaType as? KaClassType)?.classId?.outerClassId?.let { outerClassId ->
-                    buildClassType(outerClassId) {
-                        // Add the parameters of the class type with nullability information.
-                        kaType.qualifiers
-                            .firstOrNull { it.name == outerClassId.shortClassName }
-                            ?.typeArguments
-                            ?.forEach { argument(it) }
-                    }
-                }
+            // Only keep using the kaType if the outer class level exists.
+            kaType?.takeIf {
+                // If the kaType isn't a class, don't use it for an outer class.
+                val finalClassIndex =
+                    (kaType as? KaClassType)?.qualifiers?.lastIndex ?: return@takeIf false
+                // Don't take the kaType if class level is already at the last of the outer classes.
+                finalClassIndex > classLevelFromInnermost
             },
             context,
+            classLevelFromInnermost = classLevelFromInnermost + 1,
         )
     }
 
@@ -181,8 +188,7 @@ private constructor(
                         typeFromSyntheticElement(context)
                     }
                 }
-            }
-                ?: KotlinTypeInfo(context)
+            } ?: KotlinTypeInfo(context)
         }
 
         /**
@@ -202,8 +208,7 @@ private constructor(
                                 // delegate, if any.
                                 context is UField -> ktElement.delegateExpression?.expressionType
                                 else -> null
-                            }
-                                ?: ktElement.returnType
+                            } ?: ktElement.returnType
                         KotlinTypeInfo(this, ktType, ktElement)
                     }
                 }
@@ -289,7 +294,11 @@ private constructor(
                             val returnKtType = sourcePsi.returnType
                             syntheticContinuationParameter(sourcePsi, returnKtType)
                         }
-                    } else null
+                    } else {
+                        // Find the KtParameter with the same index as the UParameter to use as the
+                        // source psi.
+                        fromKtElement(sourcePsi.valueParameters[parameterIndex], context)
+                    }
                 }
                 is KtPropertyAccessor ->
                     analyze(sourcePsi) {
@@ -353,13 +362,11 @@ private constructor(
                 else -> null
             }
 
-        // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
-        fun KaSession.isInheritedGenericType(ktType: KaType): Boolean {
-            return ktType is KaTypeParameterType &&
-                // explicitly nullable, e.g., T?
-                !ktType.isMarkedNullable &&
-                // non-null upper bound, e.g., T : Any
-                ktType.canBeNull
+        // Mimic `typeForValueClass` in
+        // `org.jetbrains.kotlin.light.classes.symbol.classes.symbolLightClassUtils.kt`
+        private fun KaSession.typeForValueClass(type: KaType): Boolean {
+            val symbol = type.expandedSymbol as? KaNamedClassSymbol ?: return false
+            return symbol.isInline
         }
     }
 }
