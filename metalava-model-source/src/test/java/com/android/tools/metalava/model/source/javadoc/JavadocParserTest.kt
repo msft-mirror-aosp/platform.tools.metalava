@@ -256,4 +256,23 @@ class JavadocParserTest {
                 """,
         )
     }
+
+    @Test
+    fun `Test trailing whitespace`() {
+        checkParse(
+            """
+                /**
+                 * Some text with trailing whitespaceXX
+                 * on multiple linesXX
+                 */
+            """
+                // Replace capital X with a space. This is needed to avoid adding literal trailing
+                // whitespace in the string as it will cause issues when checking this code.
+                .replace('X', ' '),
+            expectedStructure =
+                """
+                    text: '\n Some text with trailing whitespace  \n on multiple lines  \n '
+                """,
+        )
+    }
 }
