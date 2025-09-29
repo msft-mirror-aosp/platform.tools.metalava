@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -38,44 +39,7 @@ interface Item : Reportable {
     /** Return the modifiers of this class */
     @MetalavaApi val modifiers: ModifierList
 
-    /**
-     * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
-     * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
-     *
-     * @see variantSelectors
-     */
-    val originallyHidden: Boolean
-
-    /**
-     * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
-     * containing class/pkg)
-     *
-     * @see variantSelectors
-     */
-    val hidden: Boolean
-
-    /**
-     * Tracks the properties that determine whether this [Item] will be selected for each API
-     * variant.
-     *
-     * @see originallyHidden
-     * @see hidden
-     * @see removed
-     */
-    val variantSelectors: ApiVariantSelectors
-
-    /** Whether this element will be printed in the signature file */
-    var emit: Boolean
-
     fun parent(): SelectableItem?
-
-    /**
-     * Recursive check to see if this item or any of its parents (containing class, containing
-     * package) are hidden
-     */
-    fun hidden(): Boolean {
-        return hidden || parent()?.hidden() ?: false
-    }
 
     /**
      * Recursive check to see if compatibility checks should be suppressed for this item or any of
@@ -86,14 +50,6 @@ interface Item : Reportable {
             parent()?.isCompatibilitySuppressed() ?: false
     }
 
-    /**
-     * Whether this element has been removed with @removed/@Remove (or after propagation, in some
-     * containing class)
-     *
-     * @see variantSelectors
-     */
-    val removed: Boolean
-
     /** True if this item has been marked deprecated. */
     val originallyDeprecated: Boolean
 
@@ -102,9 +58,6 @@ interface Item : Reportable {
      * has been marked as deprecated.
      */
     val effectivelyDeprecated: Boolean
-
-    /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden || removed
 
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
@@ -182,37 +135,24 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * The language in which this was written, or [SourceLanguage.UNKNOWN] if not known, e.g. when
      * created from a signature file.
      */
-    val itemLanguage: ItemLanguage
+    val sourceLanguage: SourceLanguage
 
     /**
      * Is this element declared in Java (rather than Kotlin) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isJava() = itemLanguage.isJava()
+    fun isJava() = sourceLanguage.isJava()
 
     /**
      * Is this element declared in Kotlin (rather than Java) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isKotlin() = itemLanguage.isKotlin()
-
-    /** Determines whether this item will be shown as part of the API or not. */
-    val showability: Showability
-
-    /**
-     * Returns true if this item has any show annotations.
-     *
-     * See [Showability.show]
-     */
-    fun hasShowAnnotation(): Boolean = showability.show()
-
-    /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
+    fun isKotlin() = sourceLanguage.isKotlin()
 
     /**
      * Returns true if this [Item]'s modifier list contains any suppress compatibility
@@ -254,6 +194,7 @@ interface Item : Reportable {
      *   as the type arguments.
      * * For type parameters it's a [VariableTypeItem] reference the type parameter.
      * * For packages and files, it's null.
+     * * For type aliases it's the underlying type for which the alias is an alternative name.
      */
     fun type(): TypeItem?
 
@@ -320,6 +261,9 @@ interface Item : Reportable {
      * See [BaselineKey.forElementId] for more details.
      */
     fun baselineElementId(): String
+
+    /** The languages from which this [Item] can be used. */
+    val targetLanguages: Set<TargetLanguage>
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -440,12 +384,12 @@ interface Item : Reportable {
 }
 
 /** Base [Item] implementation that is common to all models. */
-abstract class AbstractItem(
+abstract class DefaultItem(
+    final override val codebase: Codebase,
     final override val fileLocation: FileLocation,
-    final override val itemLanguage: ItemLanguage,
+    final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
 
     /**
@@ -453,8 +397,20 @@ abstract class AbstractItem(
      *
      * The leaking of `this` is safe as the implementations do not access anything that has not been
      * initialized.
+     *
+     * If this is private then it cannot be included in an API so its documentation is irrelevant.
+     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
+     * instead. The latter is immutable and attempting to change it will throw an error but that is
+     * safe as only documentation for API [Item]s is modified.
+     *
+     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
+     * [ParameterItem] as they do not have documentation.
+     *
+     * TODO: Move this to [com.android.tools.metalava.model.item.DefaultSelectableItem],
      */
-    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
+    final override val documentation =
+        if (modifiers.isPrivate() || this !is SelectableItem) ItemDocumentation.NONE
+        else @Suppress("LeakingThis") documentationFactory(this)
 
     /**
      * The immutable [modifiers].
@@ -469,36 +425,10 @@ abstract class AbstractItem(
         private set
 
     init {
-        if (documentation.contains("@deprecated") && !modifiers.isDeprecated()) {
-            mutateModifiers { setDeprecated(true) }
+        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
+            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }
-
-    /**
-     * Create a [ApiVariantSelectors] appropriate for this [Item].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
-
-    /**
-     * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
-     * expensive.
-     */
-    final override val originallyHidden
-        get() = variantSelectors.originallyHidden
-
-    /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
-    final override val hidden
-        get() = variantSelectors.hidden
-
-    /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
-    final override val removed: Boolean
-        get() = variantSelectors.removed
-
-    final override val showability: Showability
-        get() = variantSelectors.showability
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -528,10 +458,6 @@ abstract class AbstractItem(
     final override val isPrivate: Boolean
         get() = modifiers.isPrivate()
 
-    final override var emit =
-        // Do not emit expect declarations in APIs.
-        !modifiers.isExpect()
-
     companion object {
         private var nextRank = AtomicInteger()
     }
@@ -543,42 +469,16 @@ abstract class AbstractItem(
                 if (annotationName in SUPPRESS_ANNOTATIONS) {
                     for (attribute in annotation.attributes) {
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is varargs of String
-                        val value = attribute.value
-                        if (value is AnnotationArrayAttributeValue) {
-                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                            for (innerValue in value.values) {
-                                innerValue.value()?.toString()?.let { add(it) }
-                            }
-                        } else {
-                            // Example: @SuppressLint("RequiresFeature")
-                            value.value()?.toString()?.let { add(it) }
+                        // one attribute such as value/names that is an array of String, e.g.
+                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                        // Example: @SuppressLint("RequiresFeature")
+                        for (value in attribute.value.asFlatList()) {
+                            if (value is StringValue) add(value.underlyingValue)
                         }
                     }
                 }
             }
         }
-    }
-
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
-        }
-
-        // TODO: Figure out if an annotation should go on the return value, or on the method.
-        // For example; threading: on the method, range: on the return value.
-        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
-
-        if (this is ParameterItem) {
-            // For parameters, the documentation goes into the surrounding method's documentation!
-            // Find the right parameter location!
-            val parameterName = name()
-            val target = containingCallable()
-            target.appendDocumentation(comment, parameterName)
-            return
-        }
-
-        documentation.appendDocumentation(comment, tagSection)
     }
 
     final override fun equals(other: Any?) = equalsToItem(other)

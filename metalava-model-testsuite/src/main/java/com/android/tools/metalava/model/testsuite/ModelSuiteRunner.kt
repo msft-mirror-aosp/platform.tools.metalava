@@ -17,10 +17,8 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
 import java.io.File
@@ -80,17 +78,14 @@ interface ModelSuiteRunner : FilterableCodebaseCreator {
          */
         val additionalMainSourceDir: SourceDir?,
 
-        /** The optional common sources. */
-        val commonSourceDir: SourceDir?,
+        /** Additional information to provide to the test runner. */
+        val testFixture: BaseModelTest.TestFixture,
 
-        /** The [AnnotationManager] to use when creating a [Codebase]. */
-        val annotationManager: AnnotationManager,
+        /** An XML file describing the structure of the project (mainly used for KMP projects). */
+        val projectDescription: File?,
 
-        /**
-         * The optional [PackageFilter] that defines which packages can contribute to the API. If
-         * this is unspecified then all packages can contribute to the API.
-         */
-        val apiPackages: PackageFilter?,
+        /** A jar file with the compiled sources of [mainSourceDir]. */
+        val compiledSourceJar: TestFile?,
     )
 
     /**

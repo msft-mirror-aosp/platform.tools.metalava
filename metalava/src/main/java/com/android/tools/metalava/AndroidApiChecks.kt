@@ -24,10 +24,14 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
 import java.util.regex.Pattern
 
 /** Misc API suggestions */
@@ -49,11 +53,13 @@ class AndroidApiChecks(val reporter: Reporter) {
         packageItem.accept(
             object :
                 ApiVisitor(
-                    // Sort by source order such that warnings follow source line number order
-                    callableComparator = CallableItem.sourceOrderComparator,
                     apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
                 ) {
-                override fun visitItem(item: Item) {
+
+                override fun visitSelectableItem(item: SelectableItem) {
+                    // TODOs are only checked on [Item]s with documentation and [ParameterItem]s
+                    // do not have any. Documentation for parameters is stored within the containing
+                    // callable in @param sections.
                     checkTodos(item)
                 }
 
@@ -187,30 +193,22 @@ class AndroidApiChecks(val reporter: Reporter) {
     }
 
     private fun checkTodos(item: Item) {
-        if (item.documentation.contains("TODO:") || item.documentation.contains("TODO(")) {
+        if (
+            item.documentation.text.contains("TODO:") || item.documentation.text.contains("TODO(")
+        ) {
             reporter.report(Issues.TODO, item, "Documentation mentions 'TODO'")
         }
     }
 
     private fun checkRequiresPermission(callable: CallableItem) {
-        val text = callable.documentation
+        val documentation = callable.documentation
+        val text = documentation.text
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
-        if (annotation != null) {
-            var conditional = false
-            val permissions = mutableListOf<String>()
-            for (attribute in annotation.attributes) {
-                when (attribute.name) {
-                    "value",
-                    "allOf",
-                    "anyOf" -> {
-                        attribute.leafValues().mapTo(permissions) { it.toSource() }
-                    }
-                    "conditional" -> {
-                        conditional = attribute.value.value() == true
-                    }
-                }
-            }
+        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
+        if (requiresPermissionInfo != null) {
+            val conditional = requiresPermissionInfo.conditional
+            val permissions = requiresPermissionInfo.permissionValues.mapNotNull { it.asString() }
             for (item in permissions) {
                 val perm = item.substringAfterLast('.')
                 // Search for the permission name as a whole word.
@@ -220,7 +218,11 @@ class AndroidApiChecks(val reporter: Reporter) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,
                         callable,
-                        "Method '${callable.name()}' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation"
+                        "Method '${callable.name()}' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation",
+                        // TODO(b/414336151): Temporarily downgrade severity to error-when-new as
+                        //   there are a few issues in Android that were not being reported
+                        //   correctly before switching to the new Value model.
+                        maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW,
                     )
                 } else if (!mentioned && conditional) {
                     reporter.report(
@@ -254,7 +256,8 @@ class AndroidApiChecks(val reporter: Reporter) {
         val hasSdkConstant =
             field.modifiers.findAnnotation("android.annotation.SdkConstant") != null
 
-        val text = field.documentation
+        val documentation = field.documentation
+        val text = documentation.text
 
         if (
             text.contains("Broadcast Action:") ||

@@ -16,13 +16,14 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -31,9 +32,7 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.reporter.BasicReporter
 import java.io.File
-import java.io.PrintWriter
 
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
@@ -48,7 +47,7 @@ internal class TextCodebaseAssembler(
             codebase = codebase,
             // Signature files do not contain information about whether an item was originally
             // created from Java or Kotlin.
-            defaultItemLanguage = ItemLanguage.UNKNOWN,
+            defaultSourceLanguage = SourceLanguage.UNKNOWN,
             // Signature files have already been separated by API surface variants, so they can use
             // the same immutable ApiVariantSelectors.
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
@@ -84,6 +83,18 @@ internal class TextCodebaseAssembler(
         // that the stubs should be is no longer needed.
         requiredStubKindForClass.remove(classItem.qualifiedName())
     }
+
+    /**
+     * Override to return an [ItemDocumentation.NONE_FACTORY].
+     *
+     * This will be called for every package loaded from a signature file as none of them have any
+     * documentation. The returned [ItemDocumentation.NONE_FACTORY] will create
+     * [ItemDocumentation.NONE] instances which will throw an exception if any attempt is made to
+     * modify the documentation. That should not be a problem as they will only be modified when
+     * creating stubs containing enhanced documentation which cannot be created from signature
+     * files.
+     */
+    override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
 
     /**
      * Register that the class type requires a specific stub kind.
@@ -185,21 +196,19 @@ internal class TextCodebaseAssembler(
         fun createAssembler(
             location: File,
             description: String,
-            annotationManager: AnnotationManager,
+            codebaseConfig: Codebase.Config,
             classResolver: ClassResolver?,
         ): TextCodebaseAssembler {
             val assembler =
                 TextCodebaseAssembler(
                     codebaseFactory = { assembler ->
-                        val reporter = BasicReporter(PrintWriter(System.err))
                         DefaultCodebase(
                             location = location,
                             description = description,
                             preFiltered = true,
-                            annotationManager = annotationManager,
+                            config = codebaseConfig,
                             trustedApi = true,
                             supportsDocumentation = false,
-                            reporter = reporter,
                             assembler = assembler,
                         )
                     },

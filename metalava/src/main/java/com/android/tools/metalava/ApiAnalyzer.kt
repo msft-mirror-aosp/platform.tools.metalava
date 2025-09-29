@@ -20,10 +20,6 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
@@ -33,25 +29,27 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.value.asString
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.Locale
-import java.util.function.Predicate
 
 /**
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
@@ -117,11 +115,7 @@ class ApiAnalyzer(
         propagateHiddenRemovedAndDocOnly()
     }
 
-    // TODO: Annotation test: @ParameterName, if present, must be supplied on *all* the arguments!
-    // Warn about @DefaultValue("null"); they probably meant @DefaultNull
-    // Supplying default parameter in override is not allowed!
-
-    fun generateInheritedStubs(filterEmit: Predicate<Item>, filterReference: Predicate<Item>) {
+    fun generateInheritedStubs(filterEmit: FilterPredicate, filterReference: FilterPredicate) {
         // When analyzing libraries we may discover some new classes during traversal; these aren't
         // part of the API but may be super classes or interfaces; these will then be added into the
         // package class lists, which could trigger a concurrent modification, so create a snapshot
@@ -134,8 +128,8 @@ class ApiAnalyzer(
 
     private fun generateInheritedStubs(
         cls: ClassItem,
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>,
+        filterEmit: FilterPredicate,
+        filterReference: FilterPredicate,
         visited: MutableSet<ClassItem>,
     ) {
         // If it is not a class, i.e. an interface, etc., then return.
@@ -169,7 +163,7 @@ class ApiAnalyzer(
     private fun addInheritedInterfacesFrom(
         cls: ClassItem,
         hiddenSuperClasses: Sequence<ClassItem>,
-        filterReference: Predicate<Item>
+        filterReference: FilterPredicate
     ) {
         var interfaceTypes: MutableList<ClassTypeItem>? = null
         var interfaceTypeClasses: MutableList<ClassItem>? = null
@@ -211,8 +205,8 @@ class ApiAnalyzer(
         cls: ClassItem,
         hiddenSuperClasses: Sequence<ClassItem>,
         superClasses: Sequence<ClassItem>,
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>
+        filterEmit: FilterPredicate,
+        filterReference: FilterPredicate
     ) {
         // Also generate stubs for any methods we would have inherited from abstract parents
         // All methods from super classes that (1) aren't overridden in this class already, and
@@ -330,6 +324,24 @@ class ApiAnalyzer(
                 return@forEach
             }
 
+            val runtimeDesc = it.internalDesc()
+            val stubDesc = method.internalDesc()
+            if (filterEmit.test(method) && runtimeDesc != stubDesc) {
+                // This is problematic primarily for the platform where we use stubs, and the
+                // generated method in the android.jar won't actually exist at runtime.
+                // While we don't use stubs in AndroidX, this can still cause compat issues because
+                // the current.txt (which will show the equivalent of stubDesc) won't actually match
+                // the ABI of the library (because call sites will reference runtimeDesc).
+                reporter.report(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                    it,
+                    "Explicitly override $it in $cls, or hide it in ${it.containingClass()};" +
+                        " it cannot be implicitly inherited as API from the hidden super class" +
+                        " because that would change its erased signature from $runtimeDesc to" +
+                        " $stubDesc, and cause failures at runtime.",
+                )
+            }
+
             cls.addMethod(method)
 
             // Make sure that the same method is not added from multiple super classes.
@@ -396,22 +408,14 @@ class ApiAnalyzer(
         // level classes and then propagate them, and removed status, down onto the nested classes
         // and members.
         val visitor =
-            object : BaseItemVisitor(preserveClassNesting = true) {
-
-                override fun visitPackage(pkg: PackageItem) {
-                    pkg.variantSelectors.inheritInto()
-                }
-
-                override fun visitClass(cls: ClassItem) {
-                    cls.variantSelectors.inheritInto()
-                }
-
-                override fun visitCallable(callable: CallableItem) {
-                    callable.variantSelectors.inheritInto()
-                }
-
-                override fun visitField(field: FieldItem) {
-                    field.variantSelectors.inheritInto()
+            object :
+                BaseItemVisitor(
+                    preserveClassNesting = true,
+                    // Only SelectableItems can have variantSelectors.
+                    visitParameterItems = false,
+                ) {
+                override fun visitSelectableItem(item: SelectableItem) {
+                    item.variantSelectors.inheritInto()
                 }
             }
 
@@ -422,75 +426,62 @@ class ApiAnalyzer(
         val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
-        if (annotation != null) {
+        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
+        if (requiresPermissionInfo != null) {
             hasAnnotation = true
-            for (attribute in annotation.attributes) {
-                var values: List<AnnotationAttributeValue>? = null
-                var any = false
-                when (attribute.name) {
-                    "value",
-                    "allOf" -> {
-                        values = attribute.leafValues()
-                    }
-                    "anyOf" -> {
-                        any = true
-                        values = attribute.leafValues()
-                    }
-                }
+            val values = requiresPermissionInfo.permissionValues
+            val any = requiresPermissionInfo.any
 
-                values ?: continue
-
-                val system = ArrayList<String>()
-                val nonSystem = ArrayList<String>()
-                val missing = ArrayList<String>()
-                for (value in values) {
-                    val perm = (value.value() ?: value.toSource()).toString()
-                    val level = config.manifest.getPermissionLevel(perm)
-                    if (level == null) {
-                        if (any) {
-                            missing.add(perm)
-                            continue
-                        }
-
-                        reporter.report(
-                            Issues.REQUIRES_PERMISSION,
-                            method,
-                            "Permission '$perm' is not defined by manifest ${config.manifest}."
-                        )
+            val system = ArrayList<String>()
+            val nonSystem = ArrayList<String>()
+            val missing = ArrayList<String>()
+            for (value in values) {
+                val permission = value.asString() ?: continue
+                val level = config.manifest.getPermissionLevel(permission)
+                if (level == null) {
+                    if (any) {
+                        missing.add(permission)
                         continue
                     }
-                    if (
-                        level.contains("normal") ||
-                            level.contains("dangerous") ||
-                            level.contains("ephemeral")
-                    ) {
-                        nonSystem.add(perm)
-                    } else {
-                        system.add(perm)
-                    }
-                }
-                if (any && missing.size == values.size) {
-                    reporter.report(
-                        Issues.REQUIRES_PERMISSION,
-                        method,
-                        "None of the permissions ${missing.joinToString()} are defined by manifest " +
-                            "${config.manifest}."
-                    )
-                }
 
-                if (system.isEmpty() && nonSystem.isEmpty()) {
-                    hasAnnotation = false
-                } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,
                         method,
-                        "Method '" +
-                            method.name() +
-                            "' must be protected with a system permission; it currently" +
-                            " allows non-system callers holding " +
-                            nonSystem.toString()
+                        "Permission '$permission' is not defined by manifest ${config.manifest}."
                     )
+                    continue
                 }
+                if (
+                    level.contains("normal") ||
+                        level.contains("dangerous") ||
+                        level.contains("ephemeral")
+                ) {
+                    nonSystem.add(permission)
+                } else {
+                    system.add(permission)
+                }
+            }
+            if (any && missing.size == values.size) {
+                reporter.report(
+                    Issues.REQUIRES_PERMISSION,
+                    method,
+                    "None of the permissions ${missing.joinToString()} are defined by manifest " +
+                        "${config.manifest}."
+                )
+            }
+
+            if (system.isEmpty() && nonSystem.isEmpty()) {
+                hasAnnotation = false
+            } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
+                reporter.report(
+                    Issues.REQUIRES_PERMISSION,
+                    method,
+                    "Method '" +
+                        method.name() +
+                        "' must be protected with a system permission; it currently" +
+                        " allows non-system callers holding " +
+                        nonSystem.toString()
+                )
             }
         }
 
@@ -509,9 +500,16 @@ class ApiAnalyzer(
             return
         }
 
+        // Create a special annotation with no attributes. This will not work in Android but it will
+        // work in SystemServerCheckTest.
+        // TODO(b/412743564): Fix this so it works in Android.
+        val systemServiceCheckAnnotation =
+            AnnotationItem.createFromSource(codebase, "@$ANDROID_SYSTEM_SERVICE_CHECK")
+
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
-                config.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
+                systemServiceCheckAnnotation != null &&
+                config.allShowAnnotations.matches(systemServiceCheckAnnotation) &&
                 !config.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
@@ -521,19 +519,22 @@ class ApiAnalyzer(
             object :
                 ApiVisitor(
                     apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                    // Don't run checks on elements that only exist in bytecode.
+                    targetLanguages = TargetLanguageSet.SOURCE,
                 ) {
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())
                 }
 
-                override fun visitItem(item: Item) {
-                    // None of the checks in this apply to [ParameterItem]. The deprecation checks
-                    // do not apply as there is no way to provide an `@deprecation` tag in Javadoc
-                    // for parameters. The unhidden showability annotation check
-                    // ('UnhiddemSystemApi`) does not apply as you cannot annotation a
-                    // [ParameterItem] with a showability annotation.
-                    if (item is ParameterItem) return
-
+                /**
+                 * Visit all [SelectableItem]s, i.e. all [Item]s apart from [ParameterItem]s.
+                 *
+                 * None of the checks in this apply to [ParameterItem]. The deprecation checks do
+                 * not apply as there is no way to provide an `@deprecation` tag in Javadoc for
+                 * parameters. The unhidden showability annotation check ('UnhiddemSystemApi`) does
+                 * not apply as you cannot annotate a [ParameterItem] with a showability annotation.
+                 */
+                override fun visitSelectableItem(item: SelectableItem) {
                     if (
                         item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&
@@ -542,13 +543,7 @@ class ApiAnalyzer(
                             // messages (unlike java.lang.Deprecated which has no attributes).
                             // Instead, these
                             // are added to the documentation by the [DocAnalyzer].
-                            !item.isKotlin() &&
-                            // @DeprecatedForSdk will show up as an alias for @Deprecated, but it's
-                            // correct
-                            // and expected to *not* combine this with @deprecated in the text;
-                            // here,
-                            // the text comes from an annotation attribute.
-                            item.modifiers.isAnnotatedWith(JAVA_LANG_DEPRECATED)
+                            !item.isKotlin()
                     ) {
                         reporter.report(
                             Issues.DEPRECATION_MISMATCH,
@@ -556,22 +551,6 @@ class ApiAnalyzer(
                             "${item.toString().capitalize()}: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match"
                         )
                         // TODO: Check opposite (doc tag but no annotation)
-                    } else {
-                        val deprecatedForSdk =
-                            item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
-                        if (deprecatedForSdk != null) {
-                            if (item.documentation.contains("@deprecated")) {
-                                reporter.report(
-                                    Issues.DEPRECATION_MISMATCH,
-                                    item,
-                                    "${item.toString().capitalize()}: Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk"
-                                )
-                            } else {
-                                val value = deprecatedForSdk.findAttribute(ANNOTATION_ATTR_VALUE)
-                                val message = value?.value?.value()?.toString() ?: ""
-                                item.appendDocumentation(message, "@deprecated")
-                            }
-                        }
                     }
 
                     if (
@@ -665,7 +644,12 @@ class ApiAnalyzer(
     fun handleStripping() {
         val notStrippable = HashSet<ClassItem>(5000)
 
-        val filter = ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
+        val filter = FilterPredicate { selectableItem ->
+            ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
+                .test(selectableItem) &&
+                // Don't consider references from elements that only exist in bytecode.
+                selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
+        }
 
         // If a class is public or protected, not hidden, not imported and marked as included,
         // then we can't strip it
@@ -680,7 +664,9 @@ class ApiAnalyzer(
             if (!cl.isHiddenOrRemoved()) {
                 val publiclyConstructable =
                     !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
-                for (m in cl.methods()) {
+                for (m in
+                // Don't run checks on elements that only exist in bytecode.
+                cl.methods().filter { it.targetLanguages != TargetLanguageSet.BYTECODE_ONLY }) {
                     if (!m.isApiCandidate()) {
                         if (publiclyConstructable && m.modifiers.isAbstract()) {
                             reporter.report(
@@ -744,7 +730,7 @@ class ApiAnalyzer(
 
     private fun cantStripThis(
         cl: ClassItem,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
         notStrippable: MutableSet<ClassItem>,
         from: Item,
         usage: String
@@ -837,7 +823,7 @@ class ApiAnalyzer(
 
     private fun cantStripThis(
         callables: List<CallableItem>,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
         notStrippable: MutableSet<ClassItem>,
     ) {
         // for each callable, blow open the parameters, throws and return types. also blow open
@@ -867,7 +853,7 @@ class ApiAnalyzer(
 
     private fun cantStripThis(
         typeParameterList: TypeParameterList,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
         notStrippable: MutableSet<ClassItem>,
         context: Item
     ) {
@@ -881,7 +867,7 @@ class ApiAnalyzer(
     private fun cantStripThis(
         type: TypeItem,
         context: Item,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
         notStrippable: MutableSet<ClassItem>,
         usage: String,
     ) {
@@ -992,9 +978,10 @@ private fun SelectableItem.isApiCandidate(): Boolean {
  * also looks at any inherited documentation.
  */
 private fun Item.documentationContainsDeprecated(): Boolean {
+    if (documentation.hasBlockTagOfType("deprecated")) return true
+    if (this !is MethodItem) return false
     val text = documentation.text
-    if (text.contains("@deprecated")) return true
-    if (this is MethodItem && (text == "" || text.contains("@inheritDoc"))) {
+    if (text == "" || text.contains("@inheritDoc")) {
         return superMethods().any { it.documentationContainsDeprecated() }
     }
     return false
@@ -1047,3 +1034,9 @@ private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
         }
     }
 }
+
+/**
+ * A special constant used to ensure that [ApiAnalyzer.checkSystemPermissions] is only called from
+ * the SystemServiceCheckTest.
+ */
+const val ANDROID_SYSTEM_SERVICE_CHECK = "android.annotation.SystemServiceCheck"

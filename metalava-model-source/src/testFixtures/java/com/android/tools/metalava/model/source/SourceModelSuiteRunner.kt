@@ -23,11 +23,9 @@ import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.SourceDir
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import java.io.File
-import java.io.PrintWriter
 
 /** A [ModelSuiteRunner] that is implemented using a [SourceModelProvider]. */
 class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvider) :
@@ -50,12 +48,20 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         inputs: ModelSuiteRunner.TestInputs,
         test: (Codebase) -> Unit
     ) {
+        // Skip tests that require using compiled sources if the provider does not support it
+        if (
+            inputs.compiledSourceJar != null &&
+                !sourceModelProvider.capabilities.contains(Capability.JAR_WITH_SOURCES)
+        )
+            return
+
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
             val classPath = buildList {
                 add(getAndroidJar())
                 if (inputs.inputFormat == InputFormat.KOTLIN) {
                     addAll(getKotlinStdlibPaths())
                 }
+                addAll(inputs.testFixture.additionalClassPath)
             }
             val codebase =
                 createTestCodebase(
@@ -76,19 +82,19 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
     ): Codebase {
-        val reporter = BasicReporter(PrintWriter(System.err))
+        val testFixture = inputs.testFixture
         val sourceParser =
             environmentManager.createSourceParser(
-                reporter = reporter,
-                annotationManager = inputs.annotationManager,
+                codebaseConfig = testFixture.codebaseConfig,
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(
             sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
-            sourceSet(inputs.commonSourceDir),
             description = "Test Codebase",
             classPath = classPath,
-            apiPackages = inputs.apiPackages,
+            apiPackages = testFixture.apiPackages,
+            projectDescription = inputs.projectDescription,
+            compiledSourceJar = inputs.compiledSourceJar?.createFile(inputs.mainSourceDir.dir)
         )
     }
 

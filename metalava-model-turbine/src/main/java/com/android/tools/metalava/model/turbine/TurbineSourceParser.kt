@@ -16,19 +16,16 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 internal class TurbineSourceParser(
-    private val reporter: Reporter,
-    private val annotationManager: AnnotationManager,
+    private val codebaseConfig: Codebase.Config,
     private val allowReadingComments: Boolean
 ) : SourceParser {
 
@@ -41,11 +38,19 @@ internal class TurbineSourceParser(
      */
     override fun parseSources(
         sourceSet: SourceSet,
-        commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
+        projectDescription: File?,
+        compiledSourceJar: File?,
     ): Codebase {
+        if (projectDescription != null) {
+            error("Turbine model does not support --project")
+        }
+        if (compiledSourceJar != null) {
+            error("Turbine model does not support --compiled-jar")
+        }
+
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
         val assembler =
@@ -55,10 +60,9 @@ internal class TurbineSourceParser(
                         location = rootDir,
                         description = description,
                         preFiltered = false,
-                        annotationManager = annotationManager,
+                        config = codebaseConfig,
                         trustedApi = false,
                         supportsDocumentation = true,
-                        reporter = reporter,
                         assembler = assembler,
                     )
                 },
@@ -73,7 +77,7 @@ internal class TurbineSourceParser(
         return assembler.codebase
     }
 
-    override fun loadFromJar(apiJar: File): Codebase {
+    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
         TODO("b/299044569 handle this")
     }
 }

@@ -16,12 +16,10 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
-import com.android.tools.metalava.cli.common.JarBasedApi
 import com.android.tools.metalava.cli.common.SignatureBasedApi
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
@@ -34,6 +32,15 @@ Compatibility Checks:
 
   Options controlling which, if any, compatibility checks are performed against a previously released API.
 
+  --check-compatibility [enabled|disabled]   Determines whether the --check-compatibility:api:released and
+                                             --check-compatibility:removed:released cause a compatibility check to be
+                                             performed. This must be set to `disabled` when those options are only
+                                             provided to supply the previously released API to which flagged APIs are
+                                             reverted.
+
+                                             enabled (default) - Compatibility checks are performed.
+
+                                             disabled - Compatibility checks are NOT performed.
   --check-compatibility:api:released <file>  Check compatibility of the previously released API.
 
                                              When multiple files are provided any files that are a delta on another file
@@ -129,7 +136,11 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
+                            previouslyReleasedApi =
+                                SignatureBasedApi.fromFiles(
+                                    listOf(file),
+                                    apiVariantType = ApiVariantType.REMOVED,
+                                ),
                             apiType = ApiType.REMOVED,
                         ),
                     )
@@ -146,17 +157,17 @@ class CompatibilityCheckOptionsTest :
     @Test
     fun `check compatibility api released from jar`() {
         val jarFile = fakeJar()
-        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
-            assertThat(options.compatibilityChecks)
-                .isEqualTo(
-                    listOf(
-                        CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(jarFile),
-                            apiType = ApiType.PUBLIC_API,
-                        ),
-                    )
-                )
-        }
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
+                    options.compatibilityChecks
+                }
+            }
+
+        assertThat(exception.message)
+            .isEqualTo(
+                "$ARG_CHECK_COMPATIBILITY_API_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
+            )
     }
 
     @Test
@@ -179,7 +190,7 @@ class CompatibilityCheckOptionsTest :
 
         assertThat(exception.message)
             .isEqualTo(
-                "--check-compatibility:api:released: Cannot mix jar files (e.g. $jarFile) and signature files (e.g. $signatureFile)"
+                "$ARG_CHECK_COMPATIBILITY_API_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
             )
     }
 
@@ -195,34 +206,8 @@ class CompatibilityCheckOptionsTest :
             }
         assertThat(exception.message)
             .isEqualTo(
-                "--check-compatibility:removed:released: Cannot specify jar files for removed API but found $jarFile"
+                "$ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
             )
-    }
-
-    @Test
-    fun `check compatibility api released jar is not supported for --revert-annotation`() {
-        val jarFile = fakeJar()
-        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
-            assertThat(options.compatibilityChecks)
-                .isEqualTo(
-                    listOf(
-                        CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(jarFile),
-                            apiType = ApiType.PUBLIC_API,
-                        ),
-                    )
-                )
-
-            val exception =
-                assertThrows(IllegalStateException::class.java) {
-                    options.previouslyReleasedCodebases(SignatureFileCache(noOpAnnotationManager))
-                }
-
-            assertThat(exception.message)
-                .isEqualTo(
-                    "Unexpected file $jarFile: jar files do not work with --revert-annotation"
-                )
-        }
     }
 
     @Test
@@ -235,6 +220,25 @@ class CompatibilityCheckOptionsTest :
         ) {
             assertThat(options.apiCompatAnnotations)
                 .containsExactly("com.example.MyAnnotation", "com.example.MyOtherAnnotation")
+        }
+    }
+
+    @Test
+    fun `Test check-compatibility=disabled disables check but not previously released API`() {
+        val file =
+            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        runTest(
+            ARG_CHECK_COMPATIBILITY_API_RELEASED,
+            file.path,
+            ARG_CHECK_COMPATIBILITY,
+            "disabled",
+        ) {
+            // Make sure that no compatibility checks are returned when they are disabled.
+            assertThat(options.compatibilityChecks).isEmpty()
+
+            // Make sure that the previously released API is returned even when the checks are
+            // disabled.
+            assertThat(options.previouslyReleasedApi).isNotNull()
         }
     }
 }

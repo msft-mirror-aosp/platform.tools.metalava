@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -26,7 +25,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
@@ -49,16 +47,20 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         inputs: ModelSuiteRunner.TestInputs,
         test: (Codebase) -> Unit
     ) {
-        if (inputs.commonSourceDir != null) {
-            error("text model does not support common sources")
+        if (inputs.projectDescription != null) {
+            error("text model does not support project description")
         }
 
-        val signatureFiles = SignatureFile.fromFiles(inputs.mainSourceDir.createFiles())
-        val resolver = ClassLoaderBasedClassResolver(getAndroidJar(), inputs.annotationManager)
+        val testFixture = inputs.testFixture
+        val codebaseConfig = testFixture.codebaseConfig
+
+        val signatureFiles = SignatureFile.forTest(inputs.mainSourceDir.createFiles())
+        val classPath = listOf(getAndroidJar()) + inputs.testFixture.additionalClassPath
+        val resolver = ClassLoaderBasedClassResolver(classPath, codebaseConfig)
         val codebase =
             ApiFile.parseApi(
                 signatureFiles,
-                annotationManager = inputs.annotationManager,
+                codebaseConfig = codebaseConfig,
                 classResolver = resolver,
             )
 
@@ -84,16 +86,17 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  * change in the future.
  */
 class ClassLoaderBasedClassResolver(
-    jar: File,
-    annotationManager: AnnotationManager = noOpAnnotationManager,
+    jars: List<File>,
+    codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
 ) : ClassResolver {
 
     private val assembler by
         lazy(LazyThreadSafetyMode.NONE) {
+            val location = jars.first()
             TextCodebaseAssembler.createAssembler(
-                location = jar,
-                description = "Codebase for resolving classes in $jar for tests",
-                annotationManager = annotationManager,
+                location = location,
+                description = "Codebase for resolving classes in $location for tests",
+                codebaseConfig = codebaseConfig,
                 classResolver = null,
             )
         }
@@ -101,7 +104,10 @@ class ClassLoaderBasedClassResolver(
     private val codebase by lazy(LazyThreadSafetyMode.NONE) { assembler.codebase }
 
     private val classLoader by
-        lazy(LazyThreadSafetyMode.NONE) { URLClassLoader(arrayOf(jar.toURI().toURL()), null) }
+        lazy(LazyThreadSafetyMode.NONE) {
+            val urls = jars.map { it.toURI().toURL() }.toTypedArray()
+            URLClassLoader(urls, null)
+        }
 
     private fun findClassInClassLoader(qualifiedName: String): Class<*>? {
         var binaryName = qualifiedName

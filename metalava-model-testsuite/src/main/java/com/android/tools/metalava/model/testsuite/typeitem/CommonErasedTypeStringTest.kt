@@ -177,7 +177,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
     private fun signatureTestFile() =
         signature(
             """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Foo {
                             ctor public Foo();
@@ -208,7 +208,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val fooMethod = fooClass.methods().single()
-            val foundMethod = fooClass.findMethod("foo", parameters.searchParameters)
+            val foundMethod = fooClass.findBytecodeMethod("foo", parameters.searchParameters)
 
             if (foundMethod == null) {
                 Assert.fail(

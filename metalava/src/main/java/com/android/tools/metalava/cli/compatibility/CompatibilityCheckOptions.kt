@@ -16,22 +16,23 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.JarBasedApi
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
+import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
 import java.io.File
+
+const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
 
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
@@ -58,6 +59,35 @@ class CompatibilityCheckOptions(
             """
                 .trimIndent(),
     ) {
+
+    private val checkCompatibility: CheckCompatibility by
+        enumOption(
+            ARG_CHECK_COMPATIBILITY,
+            help =
+                """
+                   Determines whether the $ARG_CHECK_COMPATIBILITY_API_RELEASED and
+                   $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED cause a compatibility check to be
+                   performed. This must be set to `disabled` when those options are only provided to
+                   supply the previously released API to which flagged APIs are reverted.
+                """
+                    .trimIndent(),
+            enumValueHelpGetter = { it.help },
+            default = CheckCompatibility.ENABLED,
+        )
+
+    /**
+     * Determines whether [compatibilityChecks] returns a list of [checkReleasedApi] and
+     * [checkReleasedRemoved] or not.
+     */
+    private enum class CheckCompatibility(val help: String) {
+        ENABLED(
+            help = "Compatibility checks are performed.",
+        ),
+        @Suppress("unused") // Used implicitly by [checkCompatibility]
+        DISABLED(
+            help = "Compatibility checks are NOT performed.",
+        ),
+    }
 
     private val checkReleasedApi: CheckRequest? by
         option(
@@ -170,20 +200,14 @@ class CompatibilityCheckOptions(
             internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
                 PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                         checkCompatibilityOptionForApiType(apiType),
-                        files
+                        files,
+                        apiVariantType =
+                            when (apiType) {
+                                ApiType.REMOVED -> ApiVariantType.REMOVED
+                                else -> ApiVariantType.CORE
+                            },
                     )
-                    ?.let { previouslyReleasedApi ->
-                        // It makes no sense to supply a jar file for the removed API because the
-                        // removed API is only a tiny fraction and incomplete part of an API
-                        // surface, so it could never be guaranteed to be able to compile into a jar
-                        // file.
-                        if (apiType == ApiType.REMOVED && previouslyReleasedApi is JarBasedApi) {
-                            throw IllegalStateException(
-                                "$ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED: Cannot specify jar files for removed API but found ${previouslyReleasedApi.file}"
-                            )
-                        }
-                        CheckRequest(previouslyReleasedApi, apiType)
-                    }
+                    ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, apiType) }
 
             private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
                 "--check-compatibility:${apiType.flagName}:released"
@@ -196,26 +220,29 @@ class CompatibilityCheckOptions(
     }
 
     /**
-     * The list of [CheckRequest] instances that need to be performed on the API being generated.
+     * The list of unfiltered [CheckRequest] instances that need to be performed on the API being
+     * generated.
      */
-    val compatibilityChecks by
+    private val unfilteredCompatibilityChecks by
         lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
 
     /**
-     * The list of [Codebase]s corresponding to [compatibilityChecks].
-     *
-     * This is used to provide the previously released API needed for `--revert-annotation`. It does
-     * not support jar files.
+     * The list of [CheckRequest] instances that need to be performed on the API being generated
+     * taking into account [checkCompatibility].
      */
-    fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        compatibilityChecks.map {
-            it.previouslyReleasedApi.load(
-                {
-                    throw IllegalStateException(
-                        "Unexpected file $it: jar files do not work with --revert-annotation"
-                    )
-                },
-                { signatureFileCache.load(it) }
-            )
+    val compatibilityChecks by
+        lazy(LazyThreadSafetyMode.NONE) {
+            when (checkCompatibility) {
+                CheckCompatibility.ENABLED -> unfilteredCompatibilityChecks
+                else -> emptyList()
+            }
+        }
+
+    /** The optional [PreviouslyReleasedApi]. */
+    val previouslyReleasedApi by
+        lazy(LazyThreadSafetyMode.NONE) {
+            unfilteredCompatibilityChecks
+                .map { it.previouslyReleasedApi }
+                .reduceOrNull { p1, p2 -> p1.combine(p2) }
         }
 }

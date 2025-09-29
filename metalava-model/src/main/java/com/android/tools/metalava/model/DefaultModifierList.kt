@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
 import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
@@ -43,6 +45,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_LEVEL_ENUMS
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_MASK
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
+import com.android.tools.metalava.model.value.Value
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
@@ -264,7 +267,7 @@ interface ModifierFlags {
          * An internal copy of VisibilityLevel.values() to avoid paying the cost of duplicating the
          * array on every call.
          */
-        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.values()
+        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.entries
 
         // Check that the constants above are consistent with the VisibilityLevel enum, i.e. the
         // mask is large enough
@@ -442,6 +445,10 @@ internal class DefaultMutableModifierList(
         set(ACTUAL, actual)
     }
 
+    override fun setConst(const: Boolean) {
+        set(CONST, const)
+    }
+
     override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
         val mutable = annotations.toMutableList()
         mutable.mutator()
@@ -499,19 +506,22 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(
 ) {
     // By policy, include explicit retention policy annotation if missing
     val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-    addAnnotation(
-        codebase.createAnnotation(
-            buildString {
-                append('@')
-                append(Retention::class.qualifiedName)
-                append('(')
-                append(RetentionPolicy::class.qualifiedName)
-                append('.')
-                append(defaultRetentionPolicy.name)
-                append(')')
-            },
+    // Create a reference to the default retention policy enum value.
+    val policyValue =
+        Value.createFieldReferenceValue(
+            codebase,
+            RetentionPolicy::class.qualifiedName!!,
+            defaultRetentionPolicy.name
         )
-    )
+    // Create a retention annotation.
+    val retentionAnnotation =
+        AnnotationItem.createSingleElementAnnotation(
+            codebase,
+            Retention::class.qualifiedName!!,
+            policyValue,
+        )
+    // Add the retention annotation.
+    addAnnotation(retentionAnnotation)
 }
 
 /**

@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlags
+
 /**
  * Encapsulates information that metalava needs to know about a specific annotation type.
  *
@@ -41,6 +44,15 @@ interface AnnotationInfo {
      * if so how.
      */
     val showability: Showability
+
+    /**
+     * The [ApiFlag] referenced by the annotation.
+     *
+     * This will be `null` if no [ApiFlags] have been provided or the annotation type is not
+     * [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
+     * [ApiFlag.REVERT_FLAGGED_API].
+     */
+    val apiFlag: ApiFlag?
 
     val suppressCompatibility: Boolean
 }
@@ -82,12 +94,12 @@ enum class ShowOrHide(private val show: Boolean?) {
          * If the [revertItem] is not null and `emit = true`, i.e. is for the API surface currently
          * being generated, then reverting will still show this item.
          */
-        override fun show(revertItem: Item?): Boolean {
+        override fun show(revertItem: SelectableItem?): Boolean {
             return revertItem != null && revertItem.emit
         }
 
         /** If the [revertItem] is null then reverting will hide this item. */
-        override fun hide(revertItem: Item?): Boolean {
+        override fun hide(revertItem: SelectableItem?): Boolean {
             return revertItem == null
         }
     },
@@ -100,7 +112,7 @@ enum class ShowOrHide(private val show: Boolean?) {
      *   reverted. This is only set for, and only has an effect on, [REVERT_UNSTABLE_API], see
      *   [REVERT_UNSTABLE_API.show] for details.
      */
-    open fun show(revertItem: Item?): Boolean = show == true
+    open fun show(revertItem: SelectableItem?): Boolean = show == true
 
     /**
      * Return true if this hides an `Item` from the API.
@@ -109,30 +121,31 @@ enum class ShowOrHide(private val show: Boolean?) {
      *   reverted. This is only set for, and only has an effect on, [REVERT_UNSTABLE_API], see
      *   [REVERT_UNSTABLE_API.show] for details.
      */
-    open fun hide(revertItem: Item?): Boolean = show == false
+    open fun hide(revertItem: SelectableItem?): Boolean = show == false
 
     /** Return the highest priority between this and another [ShowOrHide]. */
     fun highestPriority(other: ShowOrHide): ShowOrHide = maxOf(this, other)
 }
 
 /**
- * Determines how an annotation will affect whether [Item]s annotated with it are part of the API or
- * not and also determines whether an [Item] is part of the API or not.
+ * Determines how an annotation will affect whether [SelectableItem]s annotated with it are part of
+ * the API or not and also determines whether a [SelectableItem] is part of the API or not.
  */
 data class Showability(
     /**
-     * Determines whether an API [Item] is shown as part of the API or hidden from the API.
+     * Determines whether an API [SelectableItem] is shown as part of the API or hidden from the
+     * API.
      *
-     * If [ShowOrHide.show] is `true` then the annotated [Item] will be shown as part of the API.
-     * That is the case for annotations that match `--show-annotation`, or
+     * If [ShowOrHide.show] is `true` then the annotated [SelectableItem] will be shown as part of
+     * the API. That is the case for annotations that match `--show-annotation`, or
      * `--show-single-annotation`, but not `--show-for-stub-purposes-annotation`.
      *
-     * If [ShowOrHide.hide] is `true` then the annotated [Item] will NOT be shown as part of the
-     * API. That is the case for annotations that match `--hide-annotation`.
+     * If [ShowOrHide.hide] is `true` then the annotated [SelectableItem] will NOT be shown as part
+     * of the API. That is the case for annotations that match `--hide-annotation`.
      *
-     * If neither of the above is then this has no effect on whether an annotated [Item] will be
-     * shown or not, that decision will be determined by its container's [Showability.recursive]
-     * setting.
+     * If neither of the above is then this has no effect on whether an annotated [SelectableItem]
+     * will be shown or not, that decision will be determined by its container's
+     * [Showability.recursive] setting.
      */
     private val show: ShowOrHide,
 
@@ -163,7 +176,7 @@ data class Showability(
     private val forStubsOnly: ShowOrHide,
 
     /** The item to which this item should be reverted. Null if no such item exists. */
-    val revertItem: Item? = null,
+    val revertItem: SelectableItem? = null,
 ) {
     /**
      * Check whether the annotated item should be considered part of the API or not.
@@ -240,6 +253,17 @@ data class Showability(
                 show = ShowOrHide.NO_EFFECT,
                 recursive = ShowOrHide.NO_EFFECT,
                 forStubsOnly = ShowOrHide.NO_EFFECT
+            )
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val REVERT_UNSTABLE_API =
+            Showability(
+                show = ShowOrHide.REVERT_UNSTABLE_API,
+                recursive = ShowOrHide.REVERT_UNSTABLE_API,
+                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
             )
     }
 }

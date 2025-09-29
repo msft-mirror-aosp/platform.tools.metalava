@@ -27,16 +27,15 @@ interface AnnotationManager {
      *
      * Annotations that should not be used internally are mapped to null.
      */
-    fun normalizeInputName(qualifiedName: String?): String?
+    fun normalizeInputName(qualifiedName: String): String?
 
     /**
      * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
-     * Annotations that should not be exported are mapped to null.
      */
     fun normalizeOutputName(
-        qualifiedName: String?,
+        qualifiedName: String,
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
-    ): String?
+    ): String
 
     /** Returns true if [annotationName] is the name of one of the show annotations. */
     fun isShowAnnotationName(annotationName: String): Boolean = false
@@ -49,14 +48,14 @@ interface AnnotationManager {
     fun hasAnyStubPurposesAnnotations(): Boolean = false
 
     /**
-     * Get the [Showability] for the supplied [Item].
+     * Get the [Showability] for the supplied [SelectableItem].
      *
      * This combines the [Showability] of all the annotations of this item and returns the result.
      *
      * If the annotations on the item conflict then this could throw an exception or report an error
      * as appropriate.
      */
-    fun getShowabilityForItem(item: Item): Showability = Showability.NO_EFFECT
+    fun getShowabilityForItem(item: SelectableItem): Showability = Showability.NO_EFFECT
 
     /**
      * Checks to see if the modifiers contain any hide annotations.
@@ -150,11 +149,11 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
         return NoOpAnnotationInfo(annotationItem.qualifiedName)
     }
 
-    override fun normalizeInputName(qualifiedName: String?): String? {
+    override fun normalizeInputName(qualifiedName: String): String {
         return qualifiedName
     }
 
-    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
+    override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
         return qualifiedName
     }
 
@@ -180,8 +179,11 @@ internal class NoOpAnnotationInfo(
     override val showability
         get() = Showability.NO_EFFECT
 
+    override val apiFlag
+        get() = null
+
     override val suppressCompatibility
-        get() = false
+        get() = qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 }
 
 val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()

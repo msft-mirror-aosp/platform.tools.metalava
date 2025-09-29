@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ApiPredicate
-import com.android.tools.metalava.FilterPredicate
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -25,16 +23,16 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
-import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
-import com.android.tools.metalava.model.removeDeprecatedSection
-import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -97,7 +95,7 @@ internal class StubWriter(
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
         val writeDocumentation =
-            config.includeDocumentationInStubs && pkg.documentation.isNotBlank()
+            config.includeDocumentationInStubs && pkg.documentation.text.isNotBlank()
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =
@@ -144,14 +142,8 @@ internal class StubWriter(
         assert(classItem.containingClass() == null) { "Should only be called on top level classes" }
         val packageDir = getPackageDir(classItem.containingPackage())
 
-        // Kotlin From-text stub generation is not supported.
-        // This method will raise an error if
-        // config.kotlinStubs == true and classItem is TextClassItem.
-        return if (config.kotlinStubs && classItem.isKotlin()) {
-            File(packageDir, "${classItem.simpleName()}.kt")
-        } else {
-            File(packageDir, "${classItem.simpleName()}.java")
-        }
+        // Kotlin stub generation is not supported.
+        return File(packageDir, "${classItem.simpleName()}.java")
     }
 
     /**
@@ -198,23 +190,20 @@ internal class StubWriter(
                     errorTextWriter
                 }
 
-            val kotlin = config.kotlinStubs && cls.isKotlin()
-            val language = if (kotlin) Language.KOTLIN else Language.JAVA
-
             val modifierListWriter =
                 ModifierListWriter.forStubs(
                     writer = textWriter,
                     docStubs = docStubs,
                     runtimeAnnotationsOnly = !generateAnnotations,
-                    language = language,
                 )
 
             stubWriter =
-                if (kotlin) {
-                    error("Generating Kotlin stubs is not supported")
-                } else {
-                    JavaStubWriter(textWriter, modifierListWriter, config, stubConstructorManager)
-                }
+                JavaStubWriter(
+                    textWriter,
+                    modifierListWriter,
+                    config,
+                    stubConstructorManager,
+                )
 
             // Copyright statements from the original file?
             cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
@@ -272,13 +261,19 @@ fun createFilteringVisitorForStubs(
     docStubs: Boolean,
     preFiltered: Boolean,
     apiPredicateConfig: ApiPredicate.Config,
+    ignoreEmit: Boolean = false,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
             includeDocOnly = docStubs,
             config = apiPredicateConfig.copy(ignoreShown = true),
         )
-    val filterEmit = FilterPredicate(filterReference)
+    val filterEmit = MatchOverridingMethodPredicate(filterReference)
+    val apiFilters =
+        ApiFilters(
+            emit = filterEmit,
+            reference = filterReference,
+        )
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
@@ -287,9 +282,9 @@ fun createFilteringVisitorForStubs(
         // consistent order will prevent churn in the generated stubs caused by changes to Metalava
         // itself or changes to the order of methods in the sources.
         callableComparator = CallableItem.comparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
+        ignoreEmit = ignoreEmit,
     )
 }
 
@@ -299,35 +294,8 @@ internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWr
         val text = documentation.fullyQualifiedDocumentation()
         if (text.isNotBlank()) {
             val trimmed = trimDocIndent(text)
-            val output = revertDocumentationDeprecationChange(item, trimmed)
-            writer.println(output)
+            writer.println(trimmed)
             writer.println()
         }
     }
-}
-
-/**
- * Revert the documentation change that accompanied a deprecation change.
- *
- * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc tag
- * with text that explains why it is being deprecated and what will replace it. When the deprecation
- * change is being reverted then this will remove the `@deprecated` tag and its associated text to
- * avoid warnings when compiling and misleading information being written into the Javadoc.
- */
-fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
-    val actualItem = currentItem.actualItemToSnapshot
-    // The documentation does not need to be reverted if...
-    if (
-        // the current item is not being reverted
-        currentItem === actualItem
-        // or if the current item and the actual item have the same deprecation setting
-        ||
-            currentItem.effectivelyDeprecated == actualItem.effectivelyDeprecated
-            // or if the actual item is deprecated
-            ||
-            actualItem.effectivelyDeprecated
-    )
-        return docs
-
-    return removeDeprecatedSection(docs)
 }

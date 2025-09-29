@@ -24,12 +24,15 @@ import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.SourceOptions
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
@@ -88,8 +91,7 @@ class MainCommand(
     private val sourceOptions by SourceOptions()
 
     /** Issue reporter configuration. */
-    private val issueReportingOptions by
-        IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
+    private val issueReportingOptions by IssueReportingOptions(commonOptions)
 
     private val commonBaselineOptions by
         CommonBaselineOptions(
@@ -105,7 +107,34 @@ class MainCommand(
             defaultBaselineFileProvider = { getDefaultBaselineFile() },
         )
 
-    private val apiSelectionOptions by ApiSelectionOptions()
+    private val configFileOptions by ConfigFileOptions()
+
+    private val apiSelectionOptions: ApiSelectionOptions by
+        ApiSelectionOptions(
+            apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
+            checkSurfaceConsistencyProvider = {
+                val sources = optionGroup.sources
+                // The --show-unannotated and --show*-annotation options affect the ApiSurfaces that
+                // is used. As do the --api-surface and API surfaces defined in a config file. In
+                // the long term the former will be discarded in favor of the latter but during the
+                // transition it is important that they are consistent. Consistency is important
+                // when the --show* options are significant, i.e. affect the output of Metalava.
+                // Unfortunately, they can be significant even if they are not specified, i.e. if
+                // none of them are specified then it behaves as if --show-unannotated was specified
+                // and depending on other options they may be significant or not.
+                //
+                // The --show* options are always significant if sources are provided, and they are
+                // not signature files or jar files. If they are signature files then the --show*
+                // options are not significant because signature files are already pre-filtered. If
+                // they are jar files then they are almost certainly stubs and so the --show*
+                // options are not significant because stub jar files are are also already
+                // pre-filtered.
+                sources.isNotEmpty() &&
+                    sources[0].extension.let { extension ->
+                        extension != "jar" && extension != "txt"
+                    }
+            },
+        )
 
     /** API lint options. */
     private val apiLintOptions by
@@ -130,22 +159,33 @@ class MainCommand(
     /** Stub generation options. */
     private val stubGenerationOptions by StubGenerationOptions()
 
+    /** Api levels generation options. */
+    private val apiLevelsGenerationOptions by
+        ApiLevelsGenerationOptions(
+            executionEnvironment = executionEnvironment,
+            earlyOptions = commonOptions,
+            apiSurfacesProvider = { apiSelectionOptions.apiSurfaces },
+        )
+
     /**
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
      */
     internal val optionGroup by
         Options(
+            executionEnvironment = executionEnvironment,
             commonOptions = commonOptions,
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
             generalReportingOptions = generalReportingOptions,
+            configFileOptions = configFileOptions,
             apiSelectionOptions = apiSelectionOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
             stubGenerationOptions = stubGenerationOptions,
+            apiLevelsGenerationOptions = apiLevelsGenerationOptions,
         )
 
     override fun run() {
@@ -175,17 +215,19 @@ class MainCommand(
         val remainingArgs = flags.toTypedArray()
 
         // Parse any remaining arguments
-        optionGroup.parse(executionEnvironment, remainingArgs)
+        optionGroup.parse(remainingArgs)
 
         // Update the global options.
         @Suppress("DEPRECATION")
         options = optionGroup
 
+        checkOptionConsistency()
+
         val sourceModelProvider =
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
             executionEnvironment.testEnvironment?.sourceModelProvider
-            // Otherwise, use the one specified on the command line, or the default.
-            ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
+                // Otherwise, use the one specified on the command line, or the default.
+                ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
 
         try {
             sourceModelProvider
@@ -205,6 +247,17 @@ class MainCommand(
 
             // Make sure that the process exits with an error code.
             throw MetalavaCliException(exitCode = -1)
+        }
+    }
+
+    private fun checkOptionConsistency() {
+        val config = configFileOptions.config
+        if (config.apiFlags != null) {
+            if (compatibilityCheckOptions.previouslyReleasedApi == null) {
+                cliError(
+                    "Inconsistent options: API flags are provided in a $ARG_CONFIG_FILE but no previously released API is provided via $ARG_CHECK_COMPATIBILITY_API_RELEASED or $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED"
+                )
+            }
         }
     }
 

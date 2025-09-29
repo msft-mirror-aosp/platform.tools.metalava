@@ -23,7 +23,10 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNullableSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSource
 import com.android.tools.metalava.testing.java
@@ -31,6 +34,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -66,7 +70,6 @@ class CommonClassItemTest : BaseModelTest() {
             assertEquals("Test", testClass.fullName())
             assertEquals("test/pkg/Test", testClass.internalName())
             assertEquals("test.pkg.Test", testClass.qualifiedName())
-            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarNestedClasses())
             assertEquals(1, testClass.constructors().size)
             assertEquals(emptyList(), testClass.methods())
             assertEquals(emptyList(), testClass.fields())
@@ -102,14 +105,42 @@ class CommonClassItemTest : BaseModelTest() {
 
             // This should not find the method as `findMethod` splits parameters by `,` so it looks
             // for one parameter of type `java.util.Map<String` and one of type `Integer>`.
-            val foundMethod = fooClass.findMethod("foo", "java.util.Map<String, Integer>")
+            val foundMethod = fooClass.findBytecodeMethod("foo", "java.util.Map<String, Integer>")
             assertNull(
                 foundMethod,
                 message = "unexpectedly found method with multiple type parameters"
             )
 
             // This should find the method.
-            assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
+            assertSame(fooMethod, fooClass.findBytecodeMethod("foo", "java.util.Map"))
+        }
+    }
+
+    @Test
+    fun `Find method by multiple erased types`() {
+        runCodebaseTest(
+            java(
+                """
+                package test.pkg;
+                import java.util.List;
+                import java.util.Map;
+                public class Foo {
+                    public void multipleSimpleParams(int i, float f, String s) {}
+                    public <T1, T2 extends Integer> void multipleVariableParams(T1 t1, T2 t2, List<T1> t1s, Map<T2, T1> map) {}
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertNotNull(
+                fooClass.findBytecodeMethod("multipleSimpleParams", "int,float,java.lang.String")
+            )
+            assertNotNull(
+                fooClass.findBytecodeMethod(
+                    "multipleVariableParams",
+                    "java.lang.Object,java.lang.Integer,java.util.List,java.util.Map"
+                )
+            )
         }
     }
 
@@ -602,7 +633,7 @@ class CommonClassItemTest : BaseModelTest() {
             inputSet(
                 signature(
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Generic<T, U> {
                           }
@@ -654,7 +685,7 @@ class CommonClassItemTest : BaseModelTest() {
             val superClassType = fooClass.superClassType()!!
             assertEquals(
                 "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
-                superClassType.toTypeString(kotlinStyleNulls = true)
+                superClassType.testTypeString(kotlinStyleNulls = true)
             )
         }
     }
@@ -665,7 +696,7 @@ class CommonClassItemTest : BaseModelTest() {
             inputSet(
                 signature(
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public interface Generic<T, U> {
                           }
@@ -717,7 +748,7 @@ class CommonClassItemTest : BaseModelTest() {
             val superClassType = fooClass.interfaceTypes().single()
             assertEquals(
                 "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
-                superClassType.toTypeString(kotlinStyleNulls = true)
+                superClassType.testTypeString(kotlinStyleNulls = true)
             )
         }
     }
@@ -758,6 +789,7 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     /**
+                     * @noinspection DeprecatedIsStillUsed
                      * @deprecated
                      */
                     public class Bar {}
@@ -765,8 +797,48 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is not treated as deprecated by @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertNotDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is treated as deprecated if @deprecated comes after @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     * @deprecated Really deprecated
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -786,6 +858,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
+                    /** @noinspection DeprecatedIsStillUsed */
                     @Deprecated
                     public class Bar {}
                 """
@@ -800,8 +873,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -833,8 +905,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(false, barClass.originallyDeprecated)
-            assertEquals(false, barClass.effectivelyDeprecated)
+            barClass.assertNotDeprecated()
         }
     }
 
@@ -1400,7 +1471,7 @@ class CommonClassItemTest : BaseModelTest() {
 
                 val parameterType = inheritedMethod.parameters().single().type()
                 assertWithMessage("testing type of $name")
-                    .that(parameterType.toTypeString(kotlinStyleNulls = true))
+                    .that(parameterType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedTypes[name])
             }
         }
@@ -1413,8 +1484,8 @@ class CommonClassItemTest : BaseModelTest() {
         // nullability annotation.
         runSourceCodebaseTest(
             inputSet(
-                typeUseOnlyNonNullSource,
-                typeUseOnlyNullableSource,
+                notTypeUseNonNullSource,
+                notTypeUseNullableSource,
                 java(
                     """
                         package test.pkg;
@@ -1454,7 +1525,7 @@ class CommonClassItemTest : BaseModelTest() {
                 val returnType = inheritedMethod.returnType()
                 val (expectedType, expectedNullability) = expectedTypesAndNullability[name]!!
                 assertWithMessage("testing type of $name")
-                    .that(returnType.toTypeString(kotlinStyleNulls = true))
+                    .that(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
 
                 assertWithMessage("testing type nullability of $name")
