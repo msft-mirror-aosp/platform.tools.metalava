@@ -148,6 +148,17 @@ internal class JavadocErrorListener(
 /** Builds [JavadocContent] from [AntlrJavadocParser.DescriptionContext]. */
 private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
     /**
+     * Determines whether newlines should be trimmed from the start of the content.
+     *
+     * Initialized to `true`, set to `false` as soon as any non-newline content is added.
+     *
+     * This is needed because an extra newline is often added at the beginning of a multi-line
+     * comment to prettify the formatting. That newline needs to be removed to ensure consistent
+     * behavior.
+     */
+    private var trimLeadingNewlines = true
+
+    /**
      * A [MutableList] of consecutive [JavadocContent] instances that have been created from the
      * Javadoc.
      *
@@ -182,6 +193,10 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
         flushText()
 
         contentList.add(javadocContent)
+
+        // Some non-newline content has been added so any newlines left are significant and should
+        // be kept.
+        trimLeadingNewlines = false
     }
 
     /** [StringBuilder] into which consecutive blocks of text from the Javadoc are accumulated. */
@@ -189,7 +204,26 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
 
     /** Append [text] to [textBuffer]. */
     private fun appendText(text: String) {
-        textBuffer.append(text)
+        // If this could be the start of the whole description block then check to see if there are
+        // any leading newlines that can be skipped.
+        if (trimLeadingNewlines) {
+            // Find the first non-newline character in the text to be appended.
+            val length = text.length
+            var start = 0
+            while (start < length && text[start] == '\n') start += 1
+
+            // If the text only consists of a newline character then do nothing.
+            if (start == length) return
+
+            // Append the text from the first non-newline character.
+            textBuffer.append(text, start, length)
+
+            // As a non-newline character was seen any newline characters found from now onwards
+            // cannot be a leading newline.
+            trimLeadingNewlines = false
+        } else {
+            textBuffer.append(text)
+        }
     }
 
     /** Append newline character to [textBuffer]. */

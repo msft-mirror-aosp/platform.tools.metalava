@@ -122,7 +122,7 @@ class JavadocParserTest {
             """,
             expectedStructure =
                 """
-                    text: '\n '
+                    text: ' '
                     inlineTag: link
                       text: 'Class'
                     text: '\n '
@@ -140,7 +140,7 @@ class JavadocParserTest {
             """,
             expectedStructure =
                 """
-                    text: '\n Text before link '
+                    text: ' Text before link '
                     inlineTag: link
                       text: 'Class'
                     text: ' and some text after.\n '
@@ -160,7 +160,7 @@ class JavadocParserTest {
             """,
             expectedStructure =
                 """
-                    text: '\n Text before link\n '
+                    text: ' Text before link\n '
                     inlineTag: link
                       text: 'Class'
                     text: '\n and some text after.\n '
@@ -178,7 +178,7 @@ class JavadocParserTest {
             """,
             expectedStructure =
                 """
-                    text: '\n '
+                    text: ' '
                     inlineTag: code
                       text: '@Annotation'
                     text: '\n '
@@ -196,7 +196,7 @@ class JavadocParserTest {
             """,
             expectedStructure =
                 """
-                    text: '\n '
+                    text: ' '
                     inlineTag: code
                       text: 'some '
                       inlineTag: code
@@ -217,7 +217,7 @@ class JavadocParserTest {
             """,
             expectedStructure =
                 """
-                    text: '\n '
+                    text: ' '
                     inlineTag: code
                       text: 'not closed\n '
                 """,
@@ -234,7 +234,7 @@ class JavadocParserTest {
             """,
             expectedStructure =
                 """
-                    text: '\n '
+                    text: ' '
                     inlineTag: code
                       text: 'extra space'
                     text: '\n '
@@ -271,7 +271,7 @@ class JavadocParserTest {
                 .replace('X', ' '),
             expectedStructure =
                 """
-                    text: '\n Some text with trailing whitespace  \n on multiple lines  \n '
+                    text: ' Some text with trailing whitespace  \n on multiple lines  \n '
                 """,
         )
     }
