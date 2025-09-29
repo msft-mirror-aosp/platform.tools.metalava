@@ -271,7 +271,7 @@ class JavadocParserTest {
                 .replace('X', ' '),
             expectedStructure =
                 """
-                    text: ' Some text with trailing whitespace  \n on multiple lines  \n '
+                    text: ' Some text with trailing whitespace\n on multiple lines\n '
                 """,
         )
     }

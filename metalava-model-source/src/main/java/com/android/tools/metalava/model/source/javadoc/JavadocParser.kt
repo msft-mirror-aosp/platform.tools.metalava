@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
 import java.nio.CharBuffer
 import kotlin.math.max
 import org.antlr.v4.runtime.ANTLRErrorListener
@@ -226,8 +227,24 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
         }
     }
 
+    /**
+     * Trim any trailing whitespace from the end of [textBuffer].
+     *
+     * It does that by scanning backwards from the end of the [textBuffer] to find the first
+     * non-whitespace character and sets the length to ignore any characters after that.
+     */
+    private fun trimTrailingWhitespaceFromTextBuffer() {
+        var length = textBuffer.length
+        var trimmedEnd = textBuffer.skipBackwardsOverTrailingWhitespace(length - 1) + 1
+        textBuffer.setLength(trimmedEnd)
+    }
+
     /** Append newline character to [textBuffer]. */
     private fun appendNewline() {
+        // Before appending the newline character remove any trailing whitespace from the end of the
+        // text buffer.
+        trimTrailingWhitespaceFromTextBuffer()
+
         appendText("\n")
     }
 
