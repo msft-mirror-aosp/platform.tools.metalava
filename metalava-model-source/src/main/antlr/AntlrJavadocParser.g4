@@ -40,7 +40,7 @@ options {
 }
 
 description
-    : descriptionLine (descriptionNewline+ descriptionLine)* EOF
+    : descriptionLine (newline+ descriptionLine)* EOF
     ;
 
 descriptionLine
@@ -65,7 +65,8 @@ descriptionLineText
     : (descriptionLineNoSpaceNoAt | SPACE | AT)+
     ;
 
-descriptionNewline
+// Newline requires special handling when constructing the model.
+newline
     : NEWLINE
     ;
 
@@ -92,6 +93,7 @@ braceContent
     : braceExpression
     | braceText
     | inlineTag
+    | newline
     ;
 
 braceText
@@ -100,6 +102,5 @@ braceText
     | SPACE
     | STAR
     | SLASH
-    | NEWLINE
     | AT
     ;

@@ -350,11 +350,10 @@ class JavadocParserTest {
                  */
             """,
             expectedStructure =
-                // TODO(b/429965593): The " *" indent should not be included in the model.
                 """
                     text: ' Summary.\n <pre>'
                     inlineTag: code
-                      text: '\n * someSampleCode()\n * '
+                      text: '\n someSampleCode()\n '
                     text: '</pre>'
                 """,
         )

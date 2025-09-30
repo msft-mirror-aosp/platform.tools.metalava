@@ -350,7 +350,7 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
         appendText(ctx.text)
     }
 
-    override fun visitDescriptionNewline(ctx: AntlrJavadocParser.DescriptionNewlineContext?) {
+    override fun visitNewline(ctx: AntlrJavadocParser.NewlineContext?) {
         // This matches a newline possible following by white space and then a `*` (but not '*/').
         // However, the white space and `*` are not considered part of the comment so are ignored.
         appendNewline()
