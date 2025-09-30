@@ -323,10 +323,9 @@ class JavadocParserTest {
                 )
             }
 
-        // TODO(b/429965593): Correct the line number and character position in the following
         assertEquals(
             """
-                <unknown>:1:19 mismatched input '*/' expecting {<EOF>, NEWLINE}
+                <unknown>:3:29 mismatched input '*/' expecting {<EOF>, NEWLINE}
                   Expected:
                     EOF
                     NEWLINE

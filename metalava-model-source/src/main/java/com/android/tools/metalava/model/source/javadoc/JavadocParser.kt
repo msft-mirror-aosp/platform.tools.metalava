@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.characterOffsetFor
+import com.android.tools.metalava.model.source.doc.lineOffsetFor
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
 import java.nio.CharBuffer
-import kotlin.math.max
-import org.antlr.v4.runtime.ANTLRErrorListener
 import org.antlr.v4.runtime.BaseErrorListener
 import org.antlr.v4.runtime.CodePointBuffer
 import org.antlr.v4.runtime.CodePointCharStream
@@ -44,19 +44,14 @@ internal class JavadocParser private constructor(private val antlrParser: AntlrJ
          * @param text the String to be parsed.
          * @param startInclusive the index of the first character to parse.
          * @param endExclusive the index after the last character to parse.
-         * @param fileName the file where the comment was located.
-         * @param startLineNumber the line number where within [fileName] where the comment starts.
-         * @param errorListener the optional [ANTLRErrorListener], defaults to
-         *   [JavadocErrorListener] which will throw an exception.
          */
         fun parse(
             text: String,
             startInclusive: Int,
             endExclusive: Int,
-            fileName: String = "<unknown>",
-            startLineNumber: Int = 1,
-            errorListener: ANTLRErrorListener = JavadocErrorListener(fileName, startLineNumber),
         ): JavadocContent {
+            var fileName = "<unknown>"
+            val errorListener = JavadocErrorListener(fileName, text, startInclusive)
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
             val lexer = AntlrJavadocLexer(charStream)
             val tokenStream = CommonTokenStream(lexer)
@@ -96,10 +91,9 @@ internal class JavadocParser private constructor(private val antlrParser: AntlrJ
 /** A [BaseErrorListener] that throws an exception for syntax errors. */
 internal class JavadocErrorListener(
     private val fileName: String,
-    startLineNumber: Int,
+    private val text: String,
+    private val startInclusive: Int,
 ) : BaseErrorListener() {
-    private val lineOffset = max(0, startLineNumber - 1)
-
     override fun syntaxError(
         recognizer: Recognizer<*, *>?,
         offendingSymbol: Any?,
@@ -141,8 +135,14 @@ internal class JavadocErrorListener(
                     }
                 }
             } ?: msg
+        val lineOffset = text.lineOffsetFor(startInclusive)
         val actualLine = line + lineOffset
-        error("$fileName:$actualLine:$charPositionInLine $fullMsg")
+        val actualChar =
+            charPositionInLine +
+                // If the issue was found on the first line then add the offset of the first
+                // character that was parsed to the character position.
+                if (line == 1) text.characterOffsetFor(startInclusive) else 0
+        error("$fileName:$actualLine:$actualChar $fullMsg")
     }
 }
 

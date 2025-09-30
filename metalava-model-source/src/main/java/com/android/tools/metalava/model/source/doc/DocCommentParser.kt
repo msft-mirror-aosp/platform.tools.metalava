@@ -214,11 +214,35 @@ internal object DocCommentParser {
     }
 }
 
-private fun String.lineOffsetFor(index: Int): Int {
+/**
+ * Compute the line number offset from the beginning of this for [index].
+ *
+ * e.g. If [index] is `0` then the line number offset will also be `0` as [index] is on the first
+ * line. If [index] was `100` and it was on line number `10` then the line number offset would be
+ * `9`.
+ */
+internal fun String.lineOffsetFor(index: Int): Int {
     var count = 0
     for (i in 0 until index) {
         val c = this[i]
         if (c == '\n') count += 1
+    }
+    return count
+}
+
+/**
+ * Compute the character offset from the beginning of the containing line for [index].
+ *
+ * e.g. If [index] is `0` then the character offset will also be `0` as [index] is the first
+ * character on the first line. If [index] was `100` and it was on line number `10` and character
+ * position `7` then the character offset would be `6`.
+ */
+internal fun String.characterOffsetFor(index: Int): Int {
+    var count = 0
+    for (i in index - 1 downTo 0) {
+        val c = this[i]
+        if (c == '\n') break
+        count += 1
     }
     return count
 }
