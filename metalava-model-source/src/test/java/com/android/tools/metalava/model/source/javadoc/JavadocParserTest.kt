@@ -337,4 +337,26 @@ class JavadocParserTest {
             exception.message?.trim()
         )
     }
+
+    @Test
+    fun `Test an inline tag split across multiple lines`() {
+        checkParse(
+            """
+                /**
+                 * Summary.
+                 * <pre>{@code
+                 * someSampleCode()
+                 * }</pre>
+                 */
+            """,
+            expectedStructure =
+                // TODO(b/429965593): The " *" indent should not be included in the model.
+                """
+                    text: ' Summary.\n <pre>'
+                    inlineTag: code
+                      text: '\n * someSampleCode()\n * '
+                    text: '</pre>'
+                """,
+        )
+    }
 }
