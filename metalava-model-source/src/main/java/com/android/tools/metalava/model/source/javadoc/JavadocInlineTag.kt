@@ -30,6 +30,9 @@ internal class JavadocInlineTag(val tagType: String, val content: JavadocContent
      */
     override fun isMultiLine() = content?.isMultiLine() == true
 
+    /** An inline tag does not start with a newline. */
+    override fun startsWithNewline() = false
+
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }

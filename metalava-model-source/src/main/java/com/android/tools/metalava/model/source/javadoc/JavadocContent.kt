@@ -31,6 +31,9 @@ internal sealed interface JavadocContent {
      */
     fun isMultiLine(): Boolean
 
+    /** Check to see whether this starts with a newline character. */
+    fun startsWithNewline(): Boolean
+
     /**
      * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
      */
@@ -45,6 +48,9 @@ internal sealed interface JavadocContent {
 private class EmptyJavadocContent : JavadocContent {
     /** Empty content does not occupy multiple lines. */
     override fun isMultiLine() = false
+
+    /** Empty content does not start with a newline. */
+    override fun startsWithNewline() = false
 
     override fun accept(visitor: JavadocContentVisitor) {
         // Do nothing.
@@ -64,6 +70,9 @@ internal interface JavadocContentVisitor {
 internal class JavadocContentList(private val list: List<JavadocContent>) : JavadocContent {
     /** A list of [JavadocContent] occupies multiple lines if any of them occupy multiple lines. */
     override fun isMultiLine() = list.any { it.isMultiLine() }
+
+    /** A list of [JavadocContent] starts with newline if the first item starts with newline. */
+    override fun startsWithNewline() = list.first().startsWithNewline()
 
     /** Visit the contents of this in turn. */
     fun visitContents(visitor: JavadocContentVisitor) {

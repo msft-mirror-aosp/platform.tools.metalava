@@ -100,7 +100,9 @@ internal class DefaultDocDescription(
                     writer.print("{@")
                     writer.print(inlineTag.tagType)
                     inlineTag.content?.let { nestedContent ->
-                        writer.print(" ")
+                        if (!nestedContent.startsWithNewline()) {
+                            writer.print(" ")
+                        }
                         nestedContent.accept(this)
                     }
                     writer.print("}")

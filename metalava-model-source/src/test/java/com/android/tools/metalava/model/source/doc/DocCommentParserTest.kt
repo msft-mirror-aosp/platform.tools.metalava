@@ -401,20 +401,14 @@ class DocCommentParserTest {
                     description: <<\n * Summary.\n * <pre>{@code\n * someSampleCode()\n * }</pre>>>
                 """,
             expectedPrintOutput =
-                // TODO(b/429965593): Stop adding space after the inline tag name if the content
-                //   starts with a newline.
                 """
                     /**
                      * Summary.
-                     * <pre>{@codeX
+                     * <pre>{@code
                      * someSampleCode()
                      * }</pre>
                      */
-                """
-                    // Replace capital X with a space. This is needed to avoid adding literal
-                    // trailing whitespace in the string as it will cause issues when checking this
-                    // code.
-                    .replace('X', ' '),
+                """,
         )
     }
 }
