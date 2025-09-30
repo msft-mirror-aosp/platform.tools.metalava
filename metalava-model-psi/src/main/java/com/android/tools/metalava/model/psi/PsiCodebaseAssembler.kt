@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
@@ -399,6 +400,15 @@ internal class PsiCodebaseAssembler(
                         targetLanguages = targetLanguages
                     )
 
+                val hasJvmName = method.modifiers.annotations().any { it.qualifiedName == JVM_NAME }
+                // If a method is annotated with JvmName, then mark it as not usable from Kotlin. It
+                // is possible that JvmName is used even though the method signature will be
+                // identical between Java and Kotlin. If that happens, in the KaCodebaseAssembler
+                // step, the method will be updated again to include Kotlin as a target language.
+                if (hasJvmName) {
+                    method.targetLanguages -= TargetLanguage.KOTLIN
+                }
+
                 // With K2, any methods using value class types which don't use JvmName
                 // will already have been filtered out because they are represented with fake UAST
                 // elements. With K1, value class types are not treated differently so the elements
@@ -415,8 +425,7 @@ internal class PsiCodebaseAssembler(
                                     ?.arguments
                                     ?.singleOrNull() as? WildcardTypeItem)
                                 ?.superBound
-                                ?.isValueClassType() == true)) &&
-                        method.modifiers.annotations().none { it.qualifiedName == JVM_NAME }
+                                ?.isValueClassType() == true)) && !hasJvmName
                 ) {
                     continue
                 }
