@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.source.doc.DefaultDocDescription
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocDescription
 import kotlin.test.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class JavadocParserTest {
@@ -280,35 +281,60 @@ class JavadocParserTest {
 
     @Test
     fun `Test invalid Javadoc comment with end comment token in main description`() {
-        // TODO(b/429965593): Make this break as it is invalid.
-        checkParse(
-            """
-                /**
-                 * Some text with */ inside
-                 */
-            """,
-            expectedStructure =
-                """
-                    text: ' Some text with */ inside'
-                """,
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                checkParse(
+                    """
+                        /**
+                         * Some text with */ inside
+                         */
+                    """,
+                    expectedStructure =
+                        """
+                            text: ' Some text with */ inside'
+                        """,
+                )
+            }
+
+        assertEquals(
+            "<unknown>:2:18 extraneous input '*/' expecting {<EOF>, NEWLINE}",
+            exception.message
         )
     }
 
     @Test
     fun `Test invalid Javadoc comment with end comment token in block tag description`() {
-        // TODO(b/429965593): Make this break as it is invalid.
-        checkParse(
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                checkParse(
+                    """
+                        /**
+                         * Some text
+                         * @param p A block tag with */ inside
+                         */
+                    """,
+                    descriptionGetter = { docComment ->
+                        docComment.blockTagSections.single().description
+                    },
+                    expectedStructure =
+                        """
+                            text: 'p A block tag with */ inside'
+                        """,
+                )
+            }
+
+        // TODO(b/429965593): Correct the line number and character position in the following
+        assertEquals(
             """
-                /**
-                 * Some text
-                 * @param p A block tag with */ inside
-                 */
-            """,
-            descriptionGetter = { docComment -> docComment.blockTagSections.single().description },
-            expectedStructure =
-                """
-                    text: 'p A block tag with */ inside'
-                """,
+                <unknown>:1:19 mismatched input '*/' expecting {<EOF>, NEWLINE}
+                  Expected:
+                    EOF
+                    NEWLINE
+                  Found:
+                    COMMENT_END "*/"
+            """
+                .trimIndent(),
+            exception.message?.trim()
         )
     }
 }

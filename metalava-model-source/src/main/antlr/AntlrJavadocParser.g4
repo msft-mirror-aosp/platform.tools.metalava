@@ -40,7 +40,7 @@ options {
 }
 
 description
-    : descriptionLine (descriptionNewline+ descriptionLine)*
+    : descriptionLine (descriptionNewline+ descriptionLine)* EOF
     ;
 
 descriptionLine
