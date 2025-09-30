@@ -275,7 +275,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                    line 2: Invalid @hide syntax, must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -306,7 +306,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 3: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                    line 3: Invalid @hide syntax, must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -334,7 +334,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                    line 2: Invalid @hide syntax, must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -367,7 +367,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 4: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                    line 4: Invalid @hide syntax, must be a block tag [InvalidHideDocTag]
                 """,
         )
     }

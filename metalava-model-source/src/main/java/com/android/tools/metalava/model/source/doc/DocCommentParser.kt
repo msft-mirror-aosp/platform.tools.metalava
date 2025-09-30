@@ -148,7 +148,7 @@ internal object DocCommentParser {
                 blockTagSections.add(DefaultBlockTagSection("hide", DocDescription.EMPTY))
 
                 reporter.report(
-                    Issues.INVALID_JAVADOC,
+                    Issues.INVALID_HIDE_DOC_TAG,
                     "Invalid @hide syntax, must be a block tag",
                     text.lineOffsetFor(hideIndex)
                 )
