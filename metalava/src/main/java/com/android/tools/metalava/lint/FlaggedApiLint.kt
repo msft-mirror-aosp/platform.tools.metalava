@@ -278,10 +278,7 @@ class FlaggedApiLint(
                     writer,
                     skipNullnessAnnotations = true,
                 )
-            modifierListWriter.writeKeywords(
-                item,
-                normalizeFinal = true,
-            )
+            modifierListWriter.write(item, normalizeFinal = true, skipRequiresPermission = true)
             val normalizedModifiers = writer.toString().trim()
             normalizedModifiers
         }

@@ -223,35 +223,15 @@ internal fun processFlags(
         )
     }
 
-    runApiChecksFromOptions(
-        options,
-        progressTracker,
-        signatureFileCache,
-        classResolverProvider,
-        codebase,
-        reporter
-    ) { codebase, previouslyReleasedCodebase, reporter, options ->
-        val flaggedApiLintVisitor =
-            FlaggedApiLint(previouslyReleasedCodebase, reporter, options.apiPredicateConfig)
-        val codebaseFragment =
-            CodebaseFragment.create(codebase) { delegate ->
-                FilteringApiVisitor(
-                    delegate = delegate,
-                    apiFilters =
-                        ApiType.PUBLIC_API.getNonElidingApiFilters(options.apiPredicateConfig),
-                    preFiltered = codebase.preFiltered,
-                    targetLanguages = com.android.tools.metalava.model.TargetLanguageSet.SOURCE
-                )
-            }
-        codebaseFragment.accept(flaggedApiLintVisitor)
-    }
-
     // Based on the input flags, generates various output files such as signature files and/or stubs
     // files
     createApiSignatureFilesFromOptions(
         options,
         codebase,
         progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        reporter
     )
 
     options.proguard?.let { proguard ->
@@ -347,22 +327,37 @@ private fun createApiSignatureFilesFromOptions(
     options: Options,
     codebase: Codebase,
     progressTracker: ProgressTracker,
+    signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
+    reporter: Reporter,
 ) {
     val fileFormat = options.signatureFileFormat
+    val codebaseFragment =
+        createCodeFragmentForSignatureFile(codebase) { delegate ->
+            createFilteringVisitorForSignatures(
+                delegate = delegate,
+                fileFormat = fileFormat,
+                apiType = ApiType.PUBLIC_API,
+                preFiltered = codebase.preFiltered,
+                showUnannotated = options.showUnannotated,
+                apiPredicateConfig = options.apiPredicateConfig,
+            )
+        }
+
+    runApiChecksFromOptions(
+        options,
+        progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        codebase,
+        reporter
+    ) { _, previouslyReleasedCodebase, reporter, options ->
+        val flaggedApiLintVisitor =
+            FlaggedApiLint(previouslyReleasedCodebase, reporter, options.apiPredicateConfig)
+        codebaseFragment.accept(flaggedApiLintVisitor)
+    }
 
     options.apiSignatureFile?.let { apiSignatureFile ->
-        val codebaseFragment =
-            createCodeFragmentForSignatureFile(codebase) { delegate ->
-                createFilteringVisitorForSignatures(
-                    delegate = delegate,
-                    fileFormat = fileFormat,
-                    apiType = ApiType.PUBLIC_API,
-                    preFiltered = codebase.preFiltered,
-                    showUnannotated = options.showUnannotated,
-                    apiPredicateConfig = options.apiPredicateConfig,
-                )
-            }
-
         createOutputFileFromCodebaseFragment(
             progressTracker,
             codebaseFragment,
@@ -377,7 +372,7 @@ private fun createApiSignatureFilesFromOptions(
     }
 
     options.removedApiSignatureFile?.let { apiSignatureFile ->
-        val codebaseFragment =
+        val removedApiCodebaseFragment =
             createCodeFragmentForSignatureFile(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -391,7 +386,7 @@ private fun createApiSignatureFilesFromOptions(
 
         createOutputFileFromCodebaseFragment(
             progressTracker,
-            codebaseFragment,
+            removedApiCodebaseFragment,
             apiSignatureFile,
             "removed API",
             options.deleteEmptyRemovedSignatures
