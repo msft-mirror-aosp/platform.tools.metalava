@@ -43,6 +43,7 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
+import com.android.tools.metalava.lint.FlaggedApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -222,6 +223,22 @@ internal fun processFlags(
         )
     }
 
+    runApiChecksFromOptions(
+        options,
+        progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        codebase,
+        reporter
+    ) { codebase, previouslyReleasedCodebase, reporter, options ->
+        FlaggedApiLint.check(
+            codebase,
+            previouslyReleasedCodebase,
+            reporter,
+            options.apiPredicateConfig,
+        )
+    }
+
     // Based on the input flags, generates various output files such as signature files and/or stubs
     // files
     createApiSignatureFilesFromOptions(
@@ -288,6 +305,34 @@ internal fun processFlags(
     progressTracker.progress(
         "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
+}
+
+private fun runApiChecksFromOptions(
+    options: Options,
+    progressTracker: ProgressTracker,
+    signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
+    codebase: Codebase,
+    reporter: Reporter,
+    apiCheckMethod: (Codebase, Codebase?, Reporter, Options) -> Unit
+) {
+    options.apiLintOptions.let { apiLintOptions ->
+        if (!apiLintOptions.apiLintEnabled) return@let
+
+        progressTracker.progress("API Lint: ")
+        val localTimer = Stopwatch.createStarted()
+
+        // See if we should provide a previous codebase to provide a delta from?
+        val previouslyReleasedCodebase by lazy {
+            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+            }
+        }
+        apiCheckMethod(codebase, previouslyReleasedCodebase, reporter, options)
+        progressTracker.progress(
+            "$PROGRAM_NAME ran api api-lint in ${localTimer.elapsed(SECONDS)} seconds"
+        )
+    }
 }
 
 /** write api signature to files specified by option flags (e.g. current.txt) */
@@ -765,18 +810,14 @@ private fun ActionContext.loadFromSources(
     // General API checks for Android APIs
     AndroidApiChecks(reporterApiLint).check(codebase)
 
-    options.apiLintOptions.let { apiLintOptions ->
-        if (!apiLintOptions.apiLintEnabled) return@let
-
-        progressTracker.progress("API Lint: ")
-        val localTimer = Stopwatch.createStarted()
-
-        // See if we should provide a previous codebase to provide a delta from?
-        val previouslyReleasedCodebase =
-            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-            }
-
+    runApiChecksFromOptions(
+        options,
+        progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        codebase,
+        reporter
+    ) { codebase, previouslyReleasedCodebase, reporter, options ->
         ApiLint.check(
             codebase,
             previouslyReleasedCodebase,
@@ -784,9 +825,6 @@ private fun ActionContext.loadFromSources(
             options.manifest,
             options.apiPredicateConfig,
             options.apiLintOptions.allowedAcronyms,
-        )
-        progressTracker.progress(
-            "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
         )
     }
 
