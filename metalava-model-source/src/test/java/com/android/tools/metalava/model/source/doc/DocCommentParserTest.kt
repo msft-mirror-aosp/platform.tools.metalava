@@ -372,13 +372,11 @@ class DocCommentParserTest {
                     description: <<\n * Summary.\n * <pre>\n// Java line comment\nsomeSampleCode()\n * </pre>>>
                 """,
             expectedPrintOutput =
-                // TODO(b/429965593): This comment is invalid as it contains */ which will end the
-                //   comment prematurely.
                 """
                     /**
                      * Summary.
                      * <pre>
-                     *// Java line comment
+                    // Java line comment
                      *someSampleCode()
                      * </pre>
                      */

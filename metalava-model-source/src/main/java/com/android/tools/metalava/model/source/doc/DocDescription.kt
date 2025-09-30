@@ -107,11 +107,17 @@ internal class DefaultDocDescription(
                 }
 
                 override fun visit(text: JavadocText) {
+                    var previousChar = '\u0000'
                     for (c in text.text) {
-                        writer.print(c)
-                        if (c == '\n') {
+                        if (previousChar == '\n' && c != '/') {
                             writer.print(" *")
                         }
+                        writer.print(c)
+                        previousChar = c
+                    }
+
+                    if (previousChar == '\n') {
+                        writer.print(" *")
                     }
                 }
             }
