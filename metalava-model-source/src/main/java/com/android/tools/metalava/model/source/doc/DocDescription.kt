@@ -67,7 +67,8 @@ internal class EmptyDocDescription : DocDescription {
 internal class DefaultDocDescription(
     private val text: String,
     private val startInclusive: Int,
-    private val endExclusive: Int
+    private val endExclusive: Int,
+    private val reporter: DocumentationIssueReporter,
 ) : DocDescription {
 
     private lateinit var _content: JavadocContent
@@ -75,7 +76,13 @@ internal class DefaultDocDescription(
     val content: JavadocContent
         get() {
             if (!::_content.isInitialized) {
-                _content = JavadocParser.parse(text, startInclusive, endExclusive)
+                _content =
+                    JavadocParser.parse(
+                        text,
+                        startInclusive,
+                        endExclusive,
+                        reporter,
+                    )
             }
             return _content
         }

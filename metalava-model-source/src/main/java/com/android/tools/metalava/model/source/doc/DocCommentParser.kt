@@ -107,6 +107,7 @@ internal object DocCommentParser {
                         text,
                         blockTagDescriptionStartInclusive,
                         blockTagDescriptionEndExclusive,
+                        reporter,
                     )
                 blockTagSections.add(DefaultBlockTagSection(blockTagType, blockTagDescription))
             }
@@ -154,6 +155,7 @@ internal object DocCommentParser {
                 text,
                 commentBodyStartInclusive,
                 descriptionEndExclusive,
+                reporter,
             )
 
         // Create the doc comment.

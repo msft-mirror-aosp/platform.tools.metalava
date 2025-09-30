@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.source.doc.DefaultDocDescription
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocDescription
 import kotlin.test.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class JavadocParserTest {
@@ -32,6 +31,7 @@ class JavadocParserTest {
             docComment.description
         },
         expectedStructure: String,
+        expectedJavadocIssues: String = "",
     ) {
         val reporter = CollatingDocumentationIssueReporter()
         val docComment = DocComment.createDocComment(text.trimIndent(), reporter)
@@ -40,9 +40,16 @@ class JavadocParserTest {
 
         // Parse the main description
         val description = descriptionGetter(docComment) as DefaultDocDescription
+        var content = description.content
+
+        // Make sure that no unexpected JavadocParser issues were found.
+        assertEquals(
+            expectedJavadocIssues.trimIndent(),
+            reporter.toString().trim(),
+            message = "javadoc parser issues"
+        )
 
         // Generate a string representation of the model structure.
-        var content = description.content
         val actualStructure = buildString {
             content.accept(
                 object : JavadocContentVisitor {
@@ -281,59 +288,49 @@ class JavadocParserTest {
 
     @Test
     fun `Test invalid Javadoc comment with end comment token in main description`() {
-        val exception =
-            assertThrows(IllegalStateException::class.java) {
-                checkParse(
-                    """
-                        /**
-                         * Some text with */ inside
-                         */
-                    """,
-                    expectedStructure =
-                        """
-                            text: ' Some text with */ inside'
-                        """,
-                )
-            }
-
-        assertEquals(
-            "<unknown>:2:18 extraneous input '*/' expecting {<EOF>, NEWLINE}",
-            exception.message
+        checkParse(
+            """
+                /**
+                 * Some text with */ inside
+                 */
+            """,
+            expectedStructure =
+                // Error recovery ignores the */ and everything after it.
+                """
+                    text: ' Some text with'
+                """,
+            expectedJavadocIssues =
+                """
+                    line 2: 18:extraneous input '*/' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
+                """,
         )
     }
 
     @Test
     fun `Test invalid Javadoc comment with end comment token in block tag description`() {
-        val exception =
-            assertThrows(IllegalStateException::class.java) {
-                checkParse(
-                    """
-                        /**
-                         * Some text
-                         * @param p A block tag with */ inside
-                         */
-                    """,
-                    descriptionGetter = { docComment ->
-                        docComment.blockTagSections.single().description
-                    },
-                    expectedStructure =
-                        """
-                            text: 'p A block tag with */ inside'
-                        """,
-                )
-            }
-
-        assertEquals(
+        checkParse(
             """
-                <unknown>:3:29 mismatched input '*/' expecting {<EOF>, NEWLINE}
-                  Expected:
-                    EOF
-                    NEWLINE
-                  Found:
-                    COMMENT_END "*/"
-            """
-                .trimIndent(),
-            exception.message?.trim()
+                /**
+                 * Some text
+                 * @param p A block tag with */ inside
+                 */
+            """,
+            descriptionGetter = { docComment -> docComment.blockTagSections.single().description },
+            expectedStructure =
+                // Error recovery ignores the */ and everything after it.
+                """
+                    text: 'p A block tag with'
+                """,
+            expectedJavadocIssues =
+                """
+                    line 3: 29:mismatched input '*/' expecting {<EOF>, NEWLINE}
+                      Expected:
+                        EOF
+                        NEWLINE
+                      Found:
+                        COMMENT_END "*/"
+                     [InvalidJavadoc]
+                """,
         )
     }
 

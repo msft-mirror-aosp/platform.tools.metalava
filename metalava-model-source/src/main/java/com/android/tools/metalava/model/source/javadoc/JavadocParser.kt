@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.characterOffsetFor
 import com.android.tools.metalava.model.source.doc.lineOffsetFor
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
+import com.android.tools.metalava.reporter.Issues
 import java.nio.CharBuffer
 import org.antlr.v4.runtime.BaseErrorListener
 import org.antlr.v4.runtime.CodePointBuffer
@@ -49,9 +51,10 @@ internal class JavadocParser private constructor(private val antlrParser: AntlrJ
             text: String,
             startInclusive: Int,
             endExclusive: Int,
+            reporter: DocumentationIssueReporter,
         ): JavadocContent {
             var fileName = "<unknown>"
-            val errorListener = JavadocErrorListener(fileName, text, startInclusive)
+            val errorListener = JavadocErrorListener(text, startInclusive, reporter)
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
             val lexer = AntlrJavadocLexer(charStream)
             val tokenStream = CommonTokenStream(lexer)
@@ -90,9 +93,9 @@ internal class JavadocParser private constructor(private val antlrParser: AntlrJ
 
 /** A [BaseErrorListener] that throws an exception for syntax errors. */
 internal class JavadocErrorListener(
-    private val fileName: String,
     private val text: String,
     private val startInclusive: Int,
+    private val reporter: DocumentationIssueReporter,
 ) : BaseErrorListener() {
     override fun syntaxError(
         recognizer: Recognizer<*, *>?,
@@ -135,14 +138,16 @@ internal class JavadocErrorListener(
                     }
                 }
             } ?: msg
-        val lineOffset = text.lineOffsetFor(startInclusive)
-        val actualLine = line + lineOffset
-        val actualChar =
-            charPositionInLine +
-                // If the issue was found on the first line then add the offset of the first
-                // character that was parsed to the character position.
-                if (line == 1) text.characterOffsetFor(startInclusive) else 0
-        error("$fileName:$actualLine:$actualChar $fullMsg")
+        if (fullMsg != null) {
+            val lineOffset = text.lineOffsetFor(startInclusive)
+            val actualLine = line + lineOffset
+            val actualChar =
+                charPositionInLine +
+                    // If the issue was found on the first line then add the offset of the first
+                    // character that was parsed to the character position.
+                    if (line == 1) text.characterOffsetFor(startInclusive) else 0
+            reporter.report(Issues.INVALID_JAVADOC, "$actualChar:$fullMsg", actualLine - 1)
+        }
     }
 }
 
