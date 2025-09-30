@@ -19,19 +19,26 @@ package com.android.tools.metalava.model.source.javadoc
 import com.android.tools.metalava.model.source.doc.CollatingDocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.DefaultDocDescription
 import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocDescription
 import kotlin.test.assertEquals
 import org.junit.Test
 
 class JavadocParserTest {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
-    private fun checkParse(text: String, expectedStructure: String) {
+    private fun checkParse(
+        text: String,
+        descriptionGetter: (DocComment) -> DocDescription = { docComment ->
+            docComment.description
+        },
+        expectedStructure: String,
+    ) {
         val reporter = CollatingDocumentationIssueReporter()
         val docComment = DocComment.createDocComment(text.trimIndent(), reporter)
         // Make sure that no unexpected DocComment errors were found.
         assertEquals("", reporter.toString().trim(), message = "doc comment parser errors")
 
         // Parse the main description
-        val description = docComment.description as DefaultDocDescription
+        val description = descriptionGetter(docComment) as DefaultDocDescription
 
         // Generate a string representation of the model structure.
         var content = description.content
@@ -267,6 +274,40 @@ class JavadocParserTest {
             expectedStructure =
                 """
                     text: ' Some text with trailing whitespace\n on multiple lines'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test invalid Javadoc comment with end comment token in main description`() {
+        // TODO(b/429965593): Make this break as it is invalid.
+        checkParse(
+            """
+                /**
+                 * Some text with */ inside
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: ' Some text with */ inside'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test invalid Javadoc comment with end comment token in block tag description`() {
+        // TODO(b/429965593): Make this break as it is invalid.
+        checkParse(
+            """
+                /**
+                 * Some text
+                 * @param p A block tag with */ inside
+                 */
+            """,
+            descriptionGetter = { docComment -> docComment.blockTagSections.single().description },
+            expectedStructure =
+                """
+                    text: 'p A block tag with */ inside'
                 """,
         )
     }
