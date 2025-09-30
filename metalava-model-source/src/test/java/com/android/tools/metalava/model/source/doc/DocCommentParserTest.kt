@@ -353,6 +353,38 @@ class DocCommentParserTest {
                 """,
         )
     }
+
+    @Test
+    fun `Test a comment that has a line that starts with forward slash`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     * <pre>
+                    // Java line comment
+                    someSampleCode()
+                     * </pre>
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * Summary.\n * <pre>\n// Java line comment\nsomeSampleCode()\n * </pre>>>
+                """,
+            expectedPrintOutput =
+                // TODO(b/429965593): This comment is invalid as it contains */ which will end the
+                //   comment prematurely.
+                """
+                    /**
+                     * Summary.
+                     * <pre>
+                     *// Java line comment
+                     *someSampleCode()
+                     * </pre>
+                     */
+                """,
+        )
+    }
 }
 
 /**
