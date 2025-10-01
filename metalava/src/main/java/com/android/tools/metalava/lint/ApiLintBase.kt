@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.lint
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
@@ -53,7 +54,7 @@ abstract class ApiLintBase(
 
             val item = reportable as? Item
             if (item != null) {
-                val previousItem = findPreviouslyReleased(item)
+                val previousItem = Codebase.findPreviouslyReleased(oldCodebase, item)
 
                 val computedMaximumSeverity = computeMaximumSeverity(item, previousItem, id)
                 if (computedMaximumSeverity == Severity.HIDDEN) {
@@ -100,7 +101,8 @@ abstract class ApiLintBase(
             val oldMaximumSeverityForItemContents = this.maximumSeverityForItemContents
             try {
                 this.contextItem = contextItem
-                val previouslyReleased = oldCodebase != null && wasPreviouslyReleased(contextItem)
+                val previouslyReleased =
+                    oldCodebase != null && Codebase.wasPreviouslyReleased(oldCodebase, contextItem)
                 this.maximumSeverityForItem =
                     if (previouslyReleased) Severity.HIDDEN else Severity.UNLIMITED
                 this.maximumSeverityForItemContents = maximumSeverityForItem
@@ -113,20 +115,6 @@ abstract class ApiLintBase(
             }
         }
     }
-
-    /** Find the corresponding item in the previously released API if available. */
-    protected fun findPreviouslyReleased(item: Item?): Item? {
-        return oldCodebase?.let {
-            item?.findCorrespondingItemIn(
-                oldCodebase,
-                superMethods = true,
-                duplicate = true,
-            )
-        }
-    }
-
-    /** Check to see if [item] was previously released. */
-    private fun wasPreviouslyReleased(item: Item?) = findPreviouslyReleased(item) != null
 
     protected val filteredReporter = FilteringReporter(reporter)
 }

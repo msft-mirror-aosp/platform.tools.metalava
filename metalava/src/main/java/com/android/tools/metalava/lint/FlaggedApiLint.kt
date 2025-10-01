@@ -49,7 +49,7 @@ import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 class FlaggedApiLint
 private constructor(
     private val codebase: Codebase,
-    oldCodebase: Codebase?,
+    private val oldCodebase: Codebase?,
     reporter: Reporter,
     apiPredicateConfig: ApiPredicate.Config,
 ) :
@@ -166,7 +166,7 @@ private constructor(
                 it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
             }
         ) {
-            val previouslyReleasedItem = findPreviouslyReleased(item)
+            val previouslyReleasedItem = Codebase.findPreviouslyReleased(oldCodebase, item)
             if (previouslyReleasedItem == null) {
                 checkFlaggedApiOnNewApi(item)
             } else {
