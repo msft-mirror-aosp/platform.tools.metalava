@@ -380,6 +380,13 @@ abstract class DriverTest :
         /** Expected paths of stub files created */
         stubPaths: Array<String>? = null,
         /**
+         * Controls whether blank lines are filtered from stub files before comparing against the
+         * expected content.
+         *
+         * Defaults to `true`.
+         */
+        filterBlankLinesFromStubFiles: Boolean = true,
+        /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
          * annotations, etc
@@ -1244,7 +1251,9 @@ abstract class DriverTest :
                             "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
-                val actualContents = readFileFilterBlankLines(actual)
+                val actualContents =
+                    if (filterBlankLinesFromStubFiles) readFileFilterBlankLines(actual)
+                    else readFile(actual)
                 val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
                 val message =
                     "Generated from-$stubSource stub contents does not match expected contents"
@@ -1330,6 +1339,12 @@ abstract class DriverTest :
         protected fun readFileFilterBlankLines(file: File): String {
             val apiLines = file.readLines().filter { it.isNotBlank() }
             return apiLines.joinToString(separator = "\n") { it }.trim()
+        }
+
+        /** Read a text file, removing whitespace from the end. */
+        private fun readFile(file: File): String {
+            val apiLines = file.readLines()
+            return apiLines.joinToString(separator = "\n") { it }.trimEnd()
         }
 
         /**
