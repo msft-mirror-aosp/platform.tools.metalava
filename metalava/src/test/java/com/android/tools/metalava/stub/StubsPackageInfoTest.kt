@@ -152,11 +152,8 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     java(
                         """
                     package test.pkg;
-
-
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class Class1 {
-
                     public Class1() { throw new RuntimeException("Stub!"); }
                     }
                     """
