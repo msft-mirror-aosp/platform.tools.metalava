@@ -377,7 +377,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
-    fun CodebaseContext.checkItemDocumentationPrint(item: SelectableItem, expectedOutput: String) {
+    private fun checkItemDocumentationPrint(item: SelectableItem, expectedOutput: String) {
         val documentation = item.documentation
         val stringWriter = StringWriter()
         PrintWriter(stringWriter).use { documentation.print(it) }
@@ -447,11 +447,105 @@ class CommonItemDocumentationTest : BaseModelTest() {
                      """,
             )
 
-            // Check location of javadoc that is not specified.
             val methodItem = testClass.assertMethod("noComment", emptyList())
             checkItemDocumentationPrint(
                 methodItem,
                 expectedOutput = "",
+            )
+        }
+    }
+
+    private fun checkItemDocumentationAppend(item: SelectableItem, expectedOutput: String) {
+        val documentation = item.documentation
+        documentation.appendDocumentation("Appended.", null)
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals(expectedOutput.trimIndent(), actualOutput)
+    }
+
+    @Test
+    fun `Test ItemDocumentation appendDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** Single line comment. */
+                    public class Test {
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+                        public Test() {}
+
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+                        public int field = 0;
+
+                        public void noComment() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationAppend(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Single line comment.
+                         * <br>
+                         * Appended.
+                         */
+
+                    """,
+            )
+
+            val constructorItem = testClass.assertConstructor(emptyList())
+            checkItemDocumentationAppend(
+                constructorItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Multi-line
+                         * comment.
+
+                         * <br>
+                         * Appended.
+                         */
+
+                     """,
+            )
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationAppend(
+                fieldItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Comment with start comment token
+                         * /**.
+
+                         * <br>
+                         * Appended.
+                         */
+
+                     """,
+            )
+
+            val methodItem = testClass.assertMethod("noComment", emptyList())
+            checkItemDocumentationAppend(
+                methodItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Appended.
+                         */
+
+                    """,
             )
         }
     }
