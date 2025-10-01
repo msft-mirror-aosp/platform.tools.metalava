@@ -145,8 +145,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 arrayOf(
                     java(
                         """
-
-                     /** My package docs */
+                    /** My package docs */
                     package test.pkg;
                     """
                     ),

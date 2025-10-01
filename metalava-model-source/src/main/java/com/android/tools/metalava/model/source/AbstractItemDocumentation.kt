@@ -207,13 +207,16 @@ abstract class AbstractItemDocumentation(
  * white space of indentation.
  */
 fun trimDocIndent(existingDoc: String): String {
-    val index = existingDoc.indexOf('\n')
+    // Trim leading/trailing whitespace from the existing documentation
+    val trimmed = existingDoc.trim()
+
+    val index = trimmed.indexOf('\n')
     if (index == -1) {
-        return existingDoc
+        return trimmed
     }
 
-    return existingDoc.substring(0, index + 1) +
-        existingDoc.substring(index + 1).trimIndent().split('\n').joinToString(separator = "\n") {
+    return trimmed.substring(0, index + 1) +
+        trimmed.substring(index + 1).trimIndent().split('\n').joinToString(separator = "\n") {
             if (!it.startsWith(" ")) {
                 " ${it.trimEnd()}"
             } else {
