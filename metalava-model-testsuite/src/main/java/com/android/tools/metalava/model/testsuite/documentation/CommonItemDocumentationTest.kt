@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -372,6 +374,88 @@ class CommonItemDocumentationTest : BaseModelTest() {
             // Check location of javadoc that is not specified.
             val methodItem = testClass.assertMethod("noComment", emptyList())
             checkItemDocumentationLocation(methodItem, "null")
+        }
+    }
+
+    fun CodebaseContext.checkItemDocumentationPrint(item: SelectableItem, expectedOutput: String) {
+        val documentation = item.documentation
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals(expectedOutput.trimIndent(), actualOutput)
+    }
+
+    @Test
+    fun `Test ItemDocumentation print`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** Single line comment. */
+                    public class Test {
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+                        public Test() {}
+
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+                        public int field = 0;
+
+                        public void noComment() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /** Single line comment. */
+
+
+                    """,
+            )
+
+            val constructorItem = testClass.assertConstructor(emptyList())
+            checkItemDocumentationPrint(
+                constructorItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+
+
+                     """,
+            )
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationPrint(
+                fieldItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+
+
+                     """,
+            )
+
+            // Check location of javadoc that is not specified.
+            val methodItem = testClass.assertMethod("noComment", emptyList())
+            checkItemDocumentationPrint(
+                methodItem,
+                expectedOutput = "",
+            )
         }
     }
 }
