@@ -81,7 +81,6 @@ abstract class AbstractItemDocumentation(
         if (text.isNotBlank()) {
             val trimmed = trimDocIndent(text)
             writer.println(trimmed)
-            writer.println()
         }
     }
 

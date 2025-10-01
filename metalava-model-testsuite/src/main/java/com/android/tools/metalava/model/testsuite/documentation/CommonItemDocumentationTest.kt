@@ -418,7 +418,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     """
                         /** Single line comment. */
 
-
                     """,
             )
 
@@ -432,7 +431,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * comment.
                          */
 
-
                      """,
             )
 
@@ -445,7 +443,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * Comment with start comment token
                          * /**.
                          */
-
 
                      """,
             )
