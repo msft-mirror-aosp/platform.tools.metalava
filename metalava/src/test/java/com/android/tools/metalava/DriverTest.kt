@@ -385,7 +385,7 @@ abstract class DriverTest :
          *
          * Defaults to `true`.
          */
-        filterBlankLinesFromStubFiles: Boolean = true,
+        filterBlankLinesFromStubFiles: Boolean = false,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration

@@ -88,6 +88,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * These are the docs for method2. It can sometimes return null.
                      * @param factor1 This value must never be {@code null}.
+
                      * @param factor2 This value must never be {@code null}.
                      */
                     @androidx.annotation.Nullable
@@ -101,6 +102,7 @@ class DocAnalyzerTest : DriverTest() {
                     public java.lang.Double method3(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     /**
                      * @param factor2 Don't pass null here please.
+                    X
                      * @param factor1 This value must never be {@code null}.
                      * @return This value may be {@code null}.
                      */
@@ -108,6 +110,10 @@ class DocAnalyzerTest : DriverTest() {
                     public java.lang.Double method4(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     }
                     """
+                            // Replace capital X with a space. This is needed to avoid adding
+                            // literal trailing whitespace in the string as it will cause issues
+                            // when checking this code.
+                            .replace('X', ' ')
                     )
                 )
         )
@@ -501,6 +507,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
+
                      * <br>
                      * This method may take several seconds to complete, so it should
                      * only be called from a worker thread.
@@ -761,6 +768,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * Multiple lines of it.
+
                      * <br>
                      * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
                      */
@@ -1556,12 +1564,14 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * My description
                      * @deprecated Existing deprecation message.
+
                      * Blah blah blah 2
                      */
                     @Deprecated
                     public int hashCode() { throw new RuntimeException("Stub!"); }
                     /**
                      * {@inheritDoc}
+
                      * @deprecated Blah blah blah 1
                      */
                     @Deprecated
@@ -1841,6 +1851,7 @@ class DocAnalyzerTest : DriverTest() {
                             public Fun() { throw new RuntimeException("Stub!"); }
                             /**
                              * Separate comment
+
                              * <br>
                              * Important {@link another.pkg.Bar#BAR}
                              * and here

@@ -83,6 +83,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             package test.pkg;
                             /**
                              * Javadoc for MyClass1
+
                              * <br>
                              * Restricted for SDK Runtime environment in API level 14.
                              */
@@ -179,8 +180,10 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             package test.pkg;
                             /**
                              * Javadoc for MyClass1
+                            X
                              * <br>
                              * Restricted for SDK Runtime environment in API level 14.
+
                              * <br>
                              * Restricted for SDK Runtime environment in API level 16.
                              */
@@ -189,6 +192,10 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             public MyClass1() { throw new RuntimeException("Stub!"); }
                             }
                         """
+                            // Replace capital X with a space. This is needed to avoid adding
+                            // literal trailing whitespace in the string as it will cause issues
+                            // when checking this code.
+                            .replace('X', ' ')
                     )
                 ),
         )
