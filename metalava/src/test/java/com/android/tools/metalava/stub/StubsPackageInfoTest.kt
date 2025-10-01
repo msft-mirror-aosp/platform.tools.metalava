@@ -151,7 +151,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     ),
                     java(
                         """
-
                     package test.pkg;
 
 

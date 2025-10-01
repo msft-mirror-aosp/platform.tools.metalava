@@ -489,7 +489,6 @@ class StubsAnnotationTest : AbstractStubsTest() {
             """,
             source =
                 """
-
                 package test.pkg;
 
 
