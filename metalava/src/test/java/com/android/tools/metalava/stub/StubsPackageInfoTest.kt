@@ -145,21 +145,27 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 arrayOf(
                     java(
                         """
-                    /** My package docs */
+
+                     /** My package docs */
                     package test.pkg;
                     """
                     ),
                     java(
                         """
+
                     package test.pkg;
+
+
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class Class1 {
+
                     public Class1() { throw new RuntimeException("Stub!"); }
                     }
                     """
                     )
                 ),
-            docStubs = true
+            docStubs = true,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
