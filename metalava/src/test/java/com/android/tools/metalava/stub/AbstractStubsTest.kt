@@ -72,7 +72,7 @@ abstract class AbstractStubsTest : DriverTest() {
                 return
             }
             check(
-                signatureSources = arrayOf(readFile(getApiFile())),
+                signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
                 stubFiles = stubFilesArr,
                 expectedIssues = warnings,
