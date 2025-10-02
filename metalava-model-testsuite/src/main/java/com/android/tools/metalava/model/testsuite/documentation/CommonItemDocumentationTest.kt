@@ -549,4 +549,77 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test mixture of indentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * Summary line.
+                    No leading asterisks
+                        No leading asterisks but leading whitespace
+                    ****** Multiple leading asterisks
+                         **  **  ** Mixture of leading asterisks and whitespace
+                    // Leading forwards slash
+                     // Leading whitespace then forwards slash
+                     */
+                    public class Test {
+                        /**
+                         * Summary line.
+                        No leading asterisks
+                            No leading asterisks but leading whitespace
+                        ****** Multiple leading asterisks
+                             **  **  ** Mixture of leading asterisks and whitespace
+                        // Leading forwards slash
+                         // Leading whitespace then forwards slash
+                         */
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    // TODO(b/448617351): Indentation is not handled as specified in
+                    // https://docs.oracle.com/en/java/javase/11/docs/specs/doc-comment-spec.html#leading-asterisks
+                    """
+                        /**
+                         * Summary line.
+                         No leading asterisks
+                            No leading asterisks but leading whitespace
+                         ****** Multiple leading asterisks
+                             **  **  ** Mixture of leading asterisks and whitespace
+                         // Leading forwards slash
+                         // Leading whitespace then forwards slash
+                         */
+
+                    """,
+            )
+
+            val testMethod = testClass.methods().single()
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput =
+                    // TODO(b/448617351): Indentation is not handled as specified in
+                    // https://docs.oracle.com/en/java/javase/11/docs/specs/doc-comment-spec.html#leading-asterisks
+                    """
+                        /**
+                         * Summary line.
+                         No leading asterisks
+                            No leading asterisks but leading whitespace
+                         ****** Multiple leading asterisks
+                             **  **  ** Mixture of leading asterisks and whitespace
+                         // Leading forwards slash
+                         // Leading whitespace then forwards slash
+                         */
+
+                    """,
+            )
+        }
+    }
 }
