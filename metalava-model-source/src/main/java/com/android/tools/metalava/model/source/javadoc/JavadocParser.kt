@@ -241,11 +241,28 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
         textBuffer.setLength(trimmedEnd)
     }
 
+    /**
+     * Trim any trailing non-newline whitespace from the end of [textBuffer].
+     *
+     * It does that by scanning backwards from the end of the [textBuffer] to find the first
+     * non-whitespace/newline character and sets the length to ignore any characters after that.
+     */
+    private fun trimTrailingNonNewlineWhitespaceFromTextBuffer() {
+        // Skip backwards over any trailing non-newline whitespace.
+        var end = textBuffer.length - 1
+        while (end >= 0) {
+            val c = textBuffer[end]
+            if (c == '\n' || !c.isWhitespace()) break
+            end -= 1
+        }
+        textBuffer.setLength(end + 1)
+    }
+
     /** Append newline character to [textBuffer]. */
     private fun appendNewline() {
-        // Before appending the newline character remove any trailing whitespace from the end of the
-        // text buffer.
-        trimTrailingWhitespaceFromTextBuffer()
+        // Before appending the newline character remove any trailing non-newline/whitespace from
+        // the end of the text buffer.
+        trimTrailingNonNewlineWhitespaceFromTextBuffer()
 
         appendText("\n")
     }

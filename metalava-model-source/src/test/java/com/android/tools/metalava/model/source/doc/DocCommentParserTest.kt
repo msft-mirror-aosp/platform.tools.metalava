@@ -433,12 +433,14 @@ class DocCommentParserTest {
                     description: <<\n * Summary line.\n *\n * <pre>\n * Text before multiple blank lines.\n *\n *\n * Text after multiple blank lines.\n * </pre>>>
                 """,
             expectedPrintOutput =
-                // TODO(b/429965593): Should not collapse blank lines
                 """
                     /**
                      * Summary line.
+                     *
                      * <pre>
                      * Text before multiple blank lines.
+                     *
+                     *
                      * Text after multiple blank lines.
                      * </pre>
                      */

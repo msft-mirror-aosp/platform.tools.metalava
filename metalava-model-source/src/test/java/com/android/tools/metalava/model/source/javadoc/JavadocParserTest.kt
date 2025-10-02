@@ -375,9 +375,8 @@ class JavadocParserTest {
                  */
             """,
             expectedStructure =
-                // TODO(b/429965593): Should not collapse blank lines
                 """
-                    text: ' Summary line.\n <pre>\n Text before multiple blank lines.\n Text after multiple blank lines.\n </pre>'
+                    text: ' Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
                 """,
         )
     }
