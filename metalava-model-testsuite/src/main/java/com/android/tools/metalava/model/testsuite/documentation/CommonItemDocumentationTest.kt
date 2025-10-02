@@ -585,16 +585,14 @@ class CommonItemDocumentationTest : BaseModelTest() {
             checkItemDocumentationPrint(
                 testClass,
                 expectedOutput =
-                    // TODO(b/448617351): Indentation is not handled as specified in
-                    // https://docs.oracle.com/en/java/javase/11/docs/specs/doc-comment-spec.html#leading-asterisks
                     """
                         /**
                          * Summary line.
-                         No leading asterisks
+                        No leading asterisks
                             No leading asterisks but leading whitespace
-                         ****** Multiple leading asterisks
-                             **  **  ** Mixture of leading asterisks and whitespace
-                         // Leading forwards slash
+                         * Multiple leading asterisks
+                         *  **  ** Mixture of leading asterisks and whitespace
+                        // Leading forwards slash
                          // Leading whitespace then forwards slash
                          */
 
@@ -605,17 +603,15 @@ class CommonItemDocumentationTest : BaseModelTest() {
             checkItemDocumentationPrint(
                 testMethod,
                 expectedOutput =
-                    // TODO(b/448617351): Indentation is not handled as specified in
-                    // https://docs.oracle.com/en/java/javase/11/docs/specs/doc-comment-spec.html#leading-asterisks
                     """
                         /**
                          * Summary line.
-                         No leading asterisks
-                            No leading asterisks but leading whitespace
-                         ****** Multiple leading asterisks
-                             **  **  ** Mixture of leading asterisks and whitespace
-                         // Leading forwards slash
-                         // Leading whitespace then forwards slash
+                            No leading asterisks
+                                No leading asterisks but leading whitespace
+                         * Multiple leading asterisks
+                         *  **  ** Mixture of leading asterisks and whitespace
+                            // Leading forwards slash
+                             // Leading whitespace then forwards slash
                          */
 
                     """,

@@ -201,6 +201,20 @@ abstract class AbstractItemDocumentation(
 }
 
 /**
+ * Matches a comment line, allowing significant content to be extracted.
+ *
+ * Significant content excludes trailing whitespace and leading asterisks
+ * https://docs.oracle.com/en/java/javase/11/docs/specs/doc-comment-spec.html#leading-asterisks
+ */
+private val COMMENT_LINE = Pattern.compile("""^(\h*\*+)?(.*?)\h*$""", Pattern.MULTILINE)
+
+/** The group in [COMMENT_LINE] that contains the optional leading asterisks. */
+private const val LEADING_ASTERISKS_GROUP = 1
+
+/** The group in [COMMENT_LINE] that contains the significant content. */
+private const val SIGNIFICANT_TEXT_GROUP = 2
+
+/**
  * Trim indentation from the [existingDoc] comment.
  *
  * Removes indentation whitespace after the first newline, making sure that there is at least one
@@ -220,29 +234,41 @@ fun trimDocIndent(existingDoc: String): String {
     val firstLine = trimmed.substring(0, index)
 
     // Trim any shared indentation from the remaining lines before splitting them.
-    val remainingLines = trimmed.substring(index + 1).trimIndent().split('\n')
+    val remainingLines = trimmed.substring(index + 1).split('\n')
 
     // Combine the first and remaining lines together into a single string.
     return buildString {
         append(firstLine)
         for (line in remainingLines) {
             append('\n')
-            val trimmedLine = line.trimEnd()
-
-            // Replace blank lines with " *" to make them consistent with other empty lines.
-            if (trimmedLine.isEmpty()) {
+            // Handle empty string specially because [COMMENT_LINE] will not match an empty string
+            // due to
+            // https://stackoverflow.com/questions/8896201/regular-expression-doesnt-match-empty-string-in-multiline-mode-java.
+            if (line.isEmpty()) {
                 append(" *")
                 continue
             }
 
-            // Make sure that each line after the first line is indented by a space. The assumption
-            // is that each line starts with a '*' and adding a space at the front will align each
-            // `*` with the first `*` in `/**` from the first line. However, that may not strictly
-            // be true.
-            if (!trimmedLine.startsWith(" ")) {
-                append(" ")
+            // Match the comment line to determine if it has any leading asterisks and what the
+            // significant content is.
+            val matcher = COMMENT_LINE.matcher(line)
+            if (!matcher.matches())
+                error("COMMENT_LINE should always match but did not match '$line'")
+
+            // Get the bounds of the significant text from the comment line.
+            val start = matcher.start(SIGNIFICANT_TEXT_GROUP)
+            val end = matcher.end(SIGNIFICANT_TEXT_GROUP)
+
+            if (matcher.start(LEADING_ASTERISKS_GROUP) != -1 || start == end) {
+                // It either has leading asterisks in which case they need to be replaced with " *"
+                // or it is blank in which case it should be represented with " *".
+                append(" *")
             }
-            append(trimmedLine)
+
+            // Add the significant text from the comment line.
+            if (start != end) {
+                append(line, start, end)
+            }
         }
     }
 }
