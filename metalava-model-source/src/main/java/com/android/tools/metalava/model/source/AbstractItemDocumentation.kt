@@ -229,31 +229,16 @@ fun trimDocIndent(existingDoc: String): String {
         return trimmed
     }
 
-    // The first line will not be indented as its leading whitespace has been removed, so extract
-    // it but do not include the newline character.
-    val firstLine = trimmed.substring(0, index)
-
-    // Trim any shared indentation from the remaining lines before splitting them.
-    val remainingLines = trimmed.substring(index + 1).split('\n')
-
-    // Combine the first and remaining lines together into a single string.
+    // Transform the comment normalizing the indentation.
     return buildString {
-        append(firstLine)
-        for (line in remainingLines) {
-            append('\n')
-            // Handle empty string specially because [COMMENT_LINE] will not match an empty string
-            // due to
-            // https://stackoverflow.com/questions/8896201/regular-expression-doesnt-match-empty-string-in-multiline-mode-java.
-            if (line.isEmpty()) {
-                append(" *")
-                continue
-            }
+        var separator = ""
+        val matcher = COMMENT_LINE.matcher(trimmed)
 
-            // Match the comment line to determine if it has any leading asterisks and what the
-            // significant content is.
-            val matcher = COMMENT_LINE.matcher(line)
-            if (!matcher.matches())
-                error("COMMENT_LINE should always match but did not match '$line'")
+        // Match each comment line to determine if it has any leading asterisks and what the
+        // significant content is.
+        while (matcher.find()) {
+            append(separator)
+            separator = "\n"
 
             // Get the bounds of the significant text from the comment line.
             val start = matcher.start(SIGNIFICANT_TEXT_GROUP)
@@ -267,7 +252,7 @@ fun trimDocIndent(existingDoc: String): String {
 
             // Add the significant text from the comment line.
             if (start != end) {
-                append(line, start, end)
+                append(trimmed, start, end)
             }
         }
     }
