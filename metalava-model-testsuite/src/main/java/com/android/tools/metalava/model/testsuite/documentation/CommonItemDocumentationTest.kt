@@ -512,7 +512,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                         /**
                          * Multi-line
                          * comment.
-
+                         *
                          * <br>
                          * Appended.
                          */
@@ -528,7 +528,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                         /**
                          * Comment with start comment token
                          * /**.
-
+                         *
                          * <br>
                          * Appended.
                          */

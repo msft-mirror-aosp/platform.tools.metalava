@@ -227,14 +227,22 @@ fun trimDocIndent(existingDoc: String): String {
         append(firstLine)
         for (line in remainingLines) {
             append('\n')
+            val trimmedLine = line.trimEnd()
+
+            // Replace blank lines with " *" to make them consistent with other empty lines.
+            if (trimmedLine.isEmpty()) {
+                append(" *")
+                continue
+            }
+
             // Make sure that each line after the first line is indented by a space. The assumption
             // is that each line starts with a '*' and adding a space at the front will align each
             // `*` with the first `*` in `/**` from the first line. However, that may not strictly
             // be true.
-            if (!line.startsWith(" ")) {
+            if (!trimmedLine.startsWith(" ")) {
                 append(" ")
             }
-            append(line.trimEnd())
+            append(trimmedLine)
         }
     }
 }
