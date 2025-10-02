@@ -304,6 +304,33 @@ class FlaggedApiLintTest : DriverTest() {
                       }
                     }
                 """,
+            // TODO b/442395516 : currently android.foobar.Bad.BAD_INHERITED is not written to the
+            // api signature file despite an expected warning that it's addition should be flagged.
+            // This inconsistency will be resolved in later Cls where the signature writer
+            // should write fields in this edge case
+            api =
+                """
+                package android.foobar {
+                  public class Bad {
+                    method public void badInherited();
+                  }
+                  public class Existing extends android.foobar.ExistingPublicSuperClass implements android.foobar.ExistingPublicInterface {
+                  }
+                  public interface ExistingSystemInterface {
+                    method public default void existingSystemInterfaceMethod();
+                    field public static final String EXISTING_SYSTEM_INTERFACE_FIELD = "foo";
+                  }
+                  public class ExistingSystemSuperClass {
+                    ctor public ExistingSystemSuperClass();
+                    method public void existingSystemSuperMethod();
+                    field public static final String EXISTING_SYSTEM_SUPER_FIELD = "foo";
+                  }
+                  public class Ok extends android.foobar.ExistingSystemSuperClass implements android.foobar.ExistingSystemInterface {
+                  }
+                  public class Ok2 extends android.foobar.ExistingPublicSuperClass implements android.foobar.ExistingPublicInterface {
+                  }
+                }
+            """,
             sourceFiles =
                 arrayOf(
                     java(
