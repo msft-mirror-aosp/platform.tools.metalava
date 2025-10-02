@@ -358,4 +358,27 @@ class JavadocParserTest {
                 """,
         )
     }
+
+    @Test
+    fun `Test multiple blank lines`() {
+        checkParse(
+            """
+                /**
+                 * Summary line.
+                 *
+                 * <pre>
+                 * Text before multiple blank lines.
+                 *
+                 *
+                 * Text after multiple blank lines.
+                 * </pre>
+                 */
+            """,
+            expectedStructure =
+                // TODO(b/429965593): Should not collapse blank lines
+                """
+                    text: ' Summary line.\n <pre>\n Text before multiple blank lines.\n Text after multiple blank lines.\n </pre>'
+                """,
+        )
+    }
 }
