@@ -215,14 +215,28 @@ fun trimDocIndent(existingDoc: String): String {
         return trimmed
     }
 
-    return trimmed.substring(0, index + 1) +
-        trimmed.substring(index + 1).trimIndent().split('\n').joinToString(separator = "\n") {
-            if (!it.startsWith(" ")) {
-                " ${it.trimEnd()}"
-            } else {
-                it.trimEnd()
+    // The first line will not be indented as its leading whitespace has been removed, so extract
+    // it but do not include the newline character.
+    val firstLine = trimmed.substring(0, index)
+
+    // Trim any shared indentation from the remaining lines before splitting them.
+    val remainingLines = trimmed.substring(index + 1).trimIndent().split('\n')
+
+    // Combine the first and remaining lines together into a single string.
+    return buildString {
+        append(firstLine)
+        for (line in remainingLines) {
+            append('\n')
+            // Make sure that each line after the first line is indented by a space. The assumption
+            // is that each line starts with a '*' and adding a space at the front will align each
+            // `*` with the first `*` in `/**` from the first line. However, that may not strictly
+            // be true.
+            if (!line.startsWith(" ")) {
+                append(" ")
             }
+            append(line.trimEnd())
         }
+    }
 }
 
 /** Regular expression to match the start of a doc comment. */
