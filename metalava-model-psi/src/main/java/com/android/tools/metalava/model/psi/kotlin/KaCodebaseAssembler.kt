@@ -977,6 +977,8 @@ private constructor(
                 backingField = backingField,
                 receiver = receiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
+                setterVisibility =
+                    propertySymbol.setter?.let { kaModifierFactory.getVisibilityLevel(it) }
             )
         getter?.property = propertyItem
         setter?.property = propertyItem
