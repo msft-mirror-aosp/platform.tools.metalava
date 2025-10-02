@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -53,14 +54,15 @@ private constructor(
     reporter: Reporter,
     apiPredicateConfig: ApiPredicate.Config,
 ) :
-    ApiLintBase(
-        oldCodebase,
-        reporter,
-        apiPredicateConfig,
+    ApiVisitor(
+        visitParameterItems = false,
+        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
+        targetLanguages = com.android.tools.metalava.model.TargetLanguageSet.SOURCE,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
     private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
+    private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
 
     private fun report(
         id: Issue,
