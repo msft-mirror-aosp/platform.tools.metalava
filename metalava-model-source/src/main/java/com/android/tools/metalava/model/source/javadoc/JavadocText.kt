@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
-/**
- * A javadoc comment created by [JavadocParser.parse].
- *
- * Currently, just a placeholder but will be expanded in the future.
- */
-class JavadocComment
+/** A block of text in a Javadoc comment. */
+internal class JavadocText(val text: String) : JavadocContent {
+    override fun accept(visitor: JavadocContentVisitor) {
+        visitor.visit(this)
+    }
+}

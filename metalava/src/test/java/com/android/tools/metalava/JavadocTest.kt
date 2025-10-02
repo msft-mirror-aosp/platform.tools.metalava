@@ -1280,10 +1280,10 @@ class JavadocTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
                 """,
             api =
                 """
@@ -1348,17 +1348,17 @@ class JavadocTest : DriverTest() {
                     expectedOutputContents =
                         """
                             // Baseline format: 1.0
-                            InvalidJavadoc: test/pkg/Foo.java:
+                            InvalidHideDocTag: test/pkg/Foo.java:
                                 Invalid @hide syntax, must be a block tag
                         """,
                     silentUpdate = false,
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
                 """,
             api =
                 """

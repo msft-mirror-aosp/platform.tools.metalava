@@ -24,7 +24,7 @@ import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.psi.trimDocIndent
+import com.android.tools.metalava.model.source.trimDocIndent
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource

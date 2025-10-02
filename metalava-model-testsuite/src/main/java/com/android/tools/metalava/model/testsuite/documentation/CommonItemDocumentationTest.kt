@@ -322,14 +322,14 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3")
 
-            val constructorItem = testClass.assertConstructor("")
+            val constructorItem = testClass.assertConstructor(emptyList())
             checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5")
 
             val fieldItem = testClass.assertField("field")
             checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11")
 
             // Check location of javadoc that is not specified.
-            val methodItem = testClass.assertMethod("noComment", "")
+            val methodItem = testClass.assertMethod("noComment", emptyList())
             checkItemDocumentationLocation(methodItem, "null")
         }
     }
@@ -363,14 +363,14 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3")
 
-            val constructorItem = testClass.assertConstructor("")
+            val constructorItem = testClass.assertConstructor(emptyList())
             checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5")
 
             val propertyItem = testClass.assertProperty("property")
             checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11")
 
             // Check location of javadoc that is not specified.
-            val methodItem = testClass.assertMethod("noComment", "")
+            val methodItem = testClass.assertMethod("noComment", emptyList())
             checkItemDocumentationLocation(methodItem, "null")
         }
     }

@@ -43,6 +43,7 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
+import com.android.tools.metalava.lint.FlaggedApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -222,6 +223,22 @@ internal fun processFlags(
         )
     }
 
+    runApiChecksFromOptions(
+        options,
+        progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        codebase,
+        reporter
+    ) { codebase, previouslyReleasedCodebase, reporter, options ->
+        FlaggedApiLint.check(
+            codebase,
+            previouslyReleasedCodebase,
+            reporter,
+            options.apiPredicateConfig,
+        )
+    }
+
     // Based on the input flags, generates various output files such as signature files and/or stubs
     // files
     createApiSignatureFilesFromOptions(
@@ -236,14 +253,23 @@ internal fun processFlags(
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
         val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
-        createOutputFileFromCodebase(progressTracker, codebase, proguard, "Proguard file") {
-            printWriter ->
-            FilteringApiVisitor(
-                ProguardWriter(printWriter),
-                inlineInheritedFields = true,
-                apiFilters = apiFilters,
-                preFiltered = codebase.preFiltered,
-            )
+        val codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegatedVisitor,
+                    inlineInheritedFields = true,
+                    apiFilters = apiFilters,
+                    preFiltered = codebase.preFiltered,
+                )
+            }
+
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            codebaseFragment,
+            proguard,
+            "Proguard file",
+        ) { printWriter ->
+            ProguardWriter(printWriter)
         }
     }
 
@@ -281,6 +307,34 @@ internal fun processFlags(
     )
 }
 
+private fun runApiChecksFromOptions(
+    options: Options,
+    progressTracker: ProgressTracker,
+    signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
+    codebase: Codebase,
+    reporter: Reporter,
+    apiCheckMethod: (Codebase, Codebase?, Reporter, Options) -> Unit
+) {
+    options.apiLintOptions.let { apiLintOptions ->
+        if (!apiLintOptions.apiLintEnabled) return@let
+
+        progressTracker.progress("API Lint: ")
+        val localTimer = Stopwatch.createStarted()
+
+        // See if we should provide a previous codebase to provide a delta from?
+        val previouslyReleasedCodebase by lazy {
+            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+            }
+        }
+        apiCheckMethod(codebase, previouslyReleasedCodebase, reporter, options)
+        progressTracker.progress(
+            "$PROGRAM_NAME ran api api-lint in ${localTimer.elapsed(SECONDS)} seconds"
+        )
+    }
+}
+
 /** write api signature to files specified by option flags (e.g. current.txt) */
 private fun createApiSignatureFilesFromOptions(
     options: Options,
@@ -289,7 +343,7 @@ private fun createApiSignatureFilesFromOptions(
 ) {
     val fileFormat = options.signatureFileFormat
 
-    options.apiFile?.let { apiFile ->
+    options.apiSignatureFile?.let { apiSignatureFile ->
         val codebaseFragment =
             createCodeFragmentForSignatureFile(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
@@ -302,8 +356,12 @@ private fun createApiSignatureFilesFromOptions(
                 )
             }
 
-        createOutputFileFromCodebaseFragment(progressTracker, codebaseFragment, apiFile, "API") {
-            printWriter ->
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            codebaseFragment,
+            apiSignatureFile,
+            "API"
+        ) { printWriter ->
             SignatureWriter(
                 writer = printWriter,
                 fileFormat = fileFormat,
@@ -311,7 +369,7 @@ private fun createApiSignatureFilesFromOptions(
         }
     }
 
-    options.removedApiFile?.let { apiFile ->
+    options.removedApiSignatureFile?.let { apiSignatureFile ->
         val codebaseFragment =
             createCodeFragmentForSignatureFile(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
@@ -327,7 +385,7 @@ private fun createApiSignatureFilesFromOptions(
         createOutputFileFromCodebaseFragment(
             progressTracker,
             codebaseFragment,
-            apiFile,
+            apiSignatureFile,
             "removed API",
             options.deleteEmptyRemovedSignatures
         ) { printWriter ->
@@ -570,8 +628,8 @@ private fun ActionContext.checkCompatibility(
     val apiType = check.apiType
     val generatedApiFile =
         when (apiType) {
-            ApiType.PUBLIC_API -> options.apiFile
-            ApiType.REMOVED -> options.removedApiFile
+            ApiType.PUBLIC_API -> options.apiSignatureFile
+            ApiType.REMOVED -> options.removedApiSignatureFile
             else -> error("unsupported $apiType")
         }
 
@@ -752,18 +810,14 @@ private fun ActionContext.loadFromSources(
     // General API checks for Android APIs
     AndroidApiChecks(reporterApiLint).check(codebase)
 
-    options.apiLintOptions.let { apiLintOptions ->
-        if (!apiLintOptions.apiLintEnabled) return@let
-
-        progressTracker.progress("API Lint: ")
-        val localTimer = Stopwatch.createStarted()
-
-        // See if we should provide a previous codebase to provide a delta from?
-        val previouslyReleasedCodebase =
-            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-            }
-
+    runApiChecksFromOptions(
+        options,
+        progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        codebase,
+        reporter
+    ) { codebase, previouslyReleasedCodebase, reporter, options ->
         ApiLint.check(
             codebase,
             previouslyReleasedCodebase,
@@ -771,9 +825,6 @@ private fun ActionContext.loadFromSources(
             options.manifest,
             options.apiPredicateConfig,
             options.apiLintOptions.allowedAcronyms,
-        )
-        progressTracker.progress(
-            "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
         )
     }
 
@@ -927,26 +978,6 @@ fun createOutputFileFromCodebaseFragment(
     deleteEmptyFiles: Boolean = false,
     createVisitorWriter: (PrintWriter) -> DelegatedVisitor,
 ) {
-    createOutputFileFromCodebase(
-        progressTracker,
-        codebaseFragment.codebase,
-        outputFile,
-        description,
-        deleteEmptyFiles,
-    ) {
-        val delegatedWriter = createVisitorWriter(it)
-        codebaseFragment.createVisitor(delegatedWriter)
-    }
-}
-
-fun createOutputFileFromCodebase(
-    progressTracker: ProgressTracker,
-    codebase: Codebase,
-    outputFile: File,
-    description: String?,
-    deleteEmptyFiles: Boolean = false,
-    createWriterVisitor: (PrintWriter) -> ItemVisitor
-) {
     if (description != null) {
         progressTracker.progress("Writing $description file: ")
     }
@@ -955,8 +986,8 @@ fun createOutputFileFromCodebase(
         val stringWriter = StringWriter()
         val writer = PrintWriter(stringWriter)
         writer.use { printWriter ->
-            val writerVisitor = createWriterVisitor(printWriter)
-            codebase.accept(writerVisitor)
+            val writerVisitor = createVisitorWriter(printWriter)
+            codebaseFragment.accept(writerVisitor)
         }
         val text = stringWriter.toString()
         if (text.isNotEmpty() || !deleteEmptyFiles) {
@@ -964,6 +995,7 @@ fun createOutputFileFromCodebase(
             outputFile.writeText(text)
         }
     } catch (e: IOException) {
+        val codebase = codebaseFragment.codebase
         codebase.reporter.report(Issues.IO_ERROR, outputFile, "Cannot open file for write.")
     }
     if (description != null) {
