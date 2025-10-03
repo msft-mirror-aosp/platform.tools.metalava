@@ -205,7 +205,12 @@ internal class StubWriter(
                 )
 
             // Copyright statements from the original file?
-            cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
+            cls.sourceFile()?.getHeaderComments()?.let { headerComment ->
+                val trimmed = headerComment.trim()
+                if (trimmed.isNotEmpty()) {
+                    textWriter.println(trimmed)
+                }
+            }
         }
         stubWriter?.visitClass(cls)
 
