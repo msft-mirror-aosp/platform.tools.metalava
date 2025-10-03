@@ -588,12 +588,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     """
                         /**
                          * Summary line.
-                        No leading asterisks
-                            No leading asterisks but leading whitespace
+                         *No leading asterisks
+                         *    No leading asterisks but leading whitespace
                          * Multiple leading asterisks
                          *  **  ** Mixture of leading asterisks and whitespace
                         // Leading forwards slash
-                         // Leading whitespace then forwards slash
+                         * // Leading whitespace then forwards slash
                          */
 
                     """,
@@ -606,12 +606,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     """
                         /**
                          * Summary line.
-                            No leading asterisks
-                                No leading asterisks but leading whitespace
+                         *    No leading asterisks
+                         *        No leading asterisks but leading whitespace
                          * Multiple leading asterisks
                          *  **  ** Mixture of leading asterisks and whitespace
-                            // Leading forwards slash
-                             // Leading whitespace then forwards slash
+                         *    // Leading forwards slash
+                         *     // Leading whitespace then forwards slash
                          */
 
                     """,

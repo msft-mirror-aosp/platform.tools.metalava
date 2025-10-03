@@ -248,6 +248,14 @@ fun trimDocIndent(existingDoc: String): String {
                 // It either has leading asterisks in which case they need to be replaced with " *"
                 // or it is blank in which case it should be represented with " *".
                 append(" *")
+            } else {
+                val c = trimmed[start]
+                // Add a leading " *" to every line except lines that start with a "/" as that would
+                // produce a "*/" token which would prematurely end the comment and cause
+                // compilation errors.
+                if (c != '/') {
+                    append(" *")
+                }
             }
 
             // Add the significant text from the comment line.
