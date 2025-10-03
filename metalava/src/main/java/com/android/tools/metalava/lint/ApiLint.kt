@@ -81,6 +81,8 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -197,11 +199,14 @@ private constructor(
     apiPredicateConfig: ApiPredicate.Config,
     private val allowedAcronyms: List<String>,
 ) :
-    ApiLintBase(
-        oldCodebase,
-        reporter,
-        apiPredicateConfig,
+    ApiVisitor(
+        visitParameterItems = false,
+        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
+        targetLanguages = TargetLanguageSet.SOURCE,
     ) {
+
+    private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
+
     private fun report(
         id: Issue,
         item: Item,
