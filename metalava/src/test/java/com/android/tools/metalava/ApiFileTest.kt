@@ -74,6 +74,171 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Check that Metalava propagates desired annotation companion object as field`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        annotation class ExperimentalFeature
+
+                        class MyOuterClass {
+                            @ExperimentalFeature
+                            const val a: Int = 0
+
+                            @ExperimentalFeature
+                            companion object {
+                                @ExperimentalFeature
+                                const val b: Int = 0
+                            }
+                        }
+                        """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.Companion Companion;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.Companion {
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check that Metalava does not propagate annotation to inner class as field`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        annotation class ExperimentalFeature
+
+                        class MyClassField {}
+
+                        class MyOuterClass {
+                            @ExperimentalFeature
+                            const val a: Int = 0
+
+                            @ExperimentalFeature
+                            class MyInnerClass { }
+
+                            const val c: MyInnerClass = null
+
+                            @ExperimentalFeature
+                            const val myField: MyClassField = null
+
+                            @ExperimentalFeature
+                            companion object MyCompObjectWithNonDefaultName {
+                                @ExperimentalFeature
+                                const val b: Int = 0
+                            }
+                        }
+                        """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  public final class MyClassField {
+                    ctor public MyClassField();
+                  }
+                  public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
+                    property public static test.pkg.MyOuterClass.MyInnerClass c;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static test.pkg.MyClassField myField;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.MyCompObjectWithNonDefaultName MyCompObjectWithNonDefaultName;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
+                    field public final test.pkg.MyOuterClass.MyInnerClass c;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField myField;
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyCompObjectWithNonDefaultName {
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyInnerClass {
+                    ctor public MyOuterClass.MyInnerClass();
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check for no unintended behavior when having class as member inside of companion object`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        annotation class ExperimentalFeature
+
+                        class MyClassField {}
+
+                        class MyOuterClass {
+
+                            @ExperimentalFeature
+                            companion object MyCompObjectWithNonDefaultName {
+                                @ExperimentalFeature
+                                const val myClassFieldA: MyClassField
+                                const val myClassFieldB: MyClassField
+                            }
+                        }
+                        """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  public final class MyClassField {
+                    ctor public MyClassField();
+                  }
+                  public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.MyCompObjectWithNonDefaultName MyCompObjectWithNonDefaultName;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyClassField myClassFieldA;
+                    field public static final test.pkg.MyClassField myClassFieldB;
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyCompObjectWithNonDefaultName {
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static test.pkg.MyClassField myClassFieldA;
+                    property public static test.pkg.MyClassField myClassFieldB;
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Check that Metalava propagates desired annotation to inner classes`() {
         check(
             format = FileFormat.V4,
