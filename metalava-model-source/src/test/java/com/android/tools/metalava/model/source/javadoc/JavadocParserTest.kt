@@ -220,7 +220,7 @@ class JavadocParserTest {
     }
 
     @Test
-    fun `Test unclosed inline tags`() {
+    fun `Test unclosed inline tags in main description`() {
         checkParse(
             // This purposely indents the second and third lines so they no longer align with the
             // first so that there is some extra indentation on the last line with the */ token to
@@ -235,6 +235,10 @@ class JavadocParserTest {
                     text: ' '
                     inlineTag: code
                       text: 'unclosed'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:6: unclosed inline '@code' tag [UnclosedInlineTag]
                 """,
         )
     }

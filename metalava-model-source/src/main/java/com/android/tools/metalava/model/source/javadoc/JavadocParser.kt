@@ -34,7 +34,11 @@ import org.antlr.v4.runtime.TokenStream
  *
  * A wrapper around [antlrParser] which actually does the parsing.
  */
-internal class JavadocParser private constructor(private val antlrParser: AntlrJavadocParser) {
+internal class JavadocParser
+private constructor(
+    private val antlrParser: AntlrJavadocParser,
+    private val reporter: DocumentationIssueReporter,
+) {
 
     companion object {
         /**
@@ -59,7 +63,7 @@ internal class JavadocParser private constructor(private val antlrParser: AntlrJ
             val antlrParser = AntlrJavadocParser(tokenStream)
             antlrParser.removeErrorListeners()
             antlrParser.addErrorListener(errorListener)
-            val parser = JavadocParser(antlrParser)
+            val parser = JavadocParser(antlrParser, reporter)
             return parser.parse()
         }
 
@@ -85,7 +89,7 @@ internal class JavadocParser private constructor(private val antlrParser: AntlrJ
 
     private fun parse(): JavadocContent {
         val descriptionContext = antlrParser.description()
-        return JavadocContentBuilder.buildFrom(descriptionContext) ?: JavadocContent.EMPTY
+        return JavadocContentBuilder.buildFrom(descriptionContext, reporter) ?: JavadocContent.EMPTY
     }
 }
 
@@ -147,7 +151,9 @@ internal class JavadocErrorListener(
 }
 
 /** Builds [JavadocContent] from [AntlrJavadocParser.DescriptionContext]. */
-private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
+private class JavadocContentBuilder(
+    private val reporter: DocumentationIssueReporter,
+) : AntlrJavadocParserBaseVisitor<Unit>() {
     /**
      * Determines whether newlines should be trimmed from the start of the content.
      *
@@ -376,6 +382,22 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
         val tagType = ctx.inlineTagName().NAME().text
 
+        // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
+        // report the issue.
+        if (ctx.BRACE_CLOSE() == null) {
+            var startToken = ctx.INLINE_TAG_START().symbol
+            // The token's `line` property is 1-based but lineOffset is 0-based so convert the
+            // former to the latter. No such conversion is needed for the token's charPositionInLine
+            // as that is already 0-based like charOffset.
+            var lineOffset = startToken.line - 1
+            reporter.report(
+                Issues.UNCLOSED_INLINE_TAG,
+                "unclosed inline '@${tagType}' tag",
+                lineOffset,
+                startToken.charPositionInLine,
+            )
+        }
+
         // Get the nested content, if any.
         val inlineTagContentContext = ctx.inlineTagContent()
         val tagContent =
@@ -406,10 +428,13 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
 
     companion object {
         /** Build a optional [JavadocContent] from [descriptionContext]. */
-        fun buildFrom(descriptionContext: AntlrJavadocParser.DescriptionContext): JavadocContent? {
+        fun buildFrom(
+            descriptionContext: AntlrJavadocParser.DescriptionContext,
+            reporter: DocumentationIssueReporter,
+        ): JavadocContent? {
             // Create a builder that will create [JavadocContent] by traversing the
             // [descriptionContext] structure.
-            val builder = JavadocContentBuilder()
+            val builder = JavadocContentBuilder(reporter)
 
             // Traverse the [descriptionContent] structure.
             descriptionContext.accept(builder)
