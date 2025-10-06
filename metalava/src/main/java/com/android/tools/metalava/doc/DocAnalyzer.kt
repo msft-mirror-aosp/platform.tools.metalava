@@ -674,7 +674,7 @@ class DocAnalyzer(
         // If there is no such text then return immediately.
         val taggedText = annotationDocumentation.findTagDocumentation(tag) ?: return
 
-        val insert = stripLeadingAsterisks(stripMetaTags(taggedText.substring(tag.length + 2)))
+        val insert = stripLeadingAsterisks(taggedText.substring(tag.length + 2))
         val qualified =
             if (containsLinkTags(insert)) {
                 val original = "/** $insert */"
@@ -730,16 +730,6 @@ class DocAnalyzer(
         }
 
         return s
-    }
-
-    private fun stripMetaTags(string: String): String {
-        // Get rid of @hide and @remove tags etc. that are part of documentation snippets
-        // we pull in, such that we don't accidentally start applying this to the
-        // item that is pulling in the documentation.
-        if (string.contains("@hide") || string.contains("@remove")) {
-            return string.replace("@hide", "").replace("@remove", "")
-        }
-        return string
     }
 
     private fun tweakGrammar() {
