@@ -74,6 +74,56 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Check that Metalava does not propagate annotations to object declarations`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        annotation class ExperimentalFeature
+
+                        @ExperimentalFeature
+                        object MyObject {
+                            @ExperimentalFeature
+                            val a: Int = 1
+
+                            @ExperimentalFeature
+                            fun myFun() {}
+                        }
+
+                        class MyOuterClass {
+                            const val b: MyObject = MyObject()
+                        }
+                        """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyObject {
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalFeature public int getA();
+                    method @SuppressCompatibility @test.pkg.ExperimentalFeature public void myFun();
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int a;
+                    field public static final test.pkg.MyObject INSTANCE;
+                  }
+                  public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    property public static test.pkg.MyObject b;
+                    field public final test.pkg.MyObject b;
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Check that Metalava propagates desired annotation companion object as field`() {
         check(
             format = FileFormat.V4,

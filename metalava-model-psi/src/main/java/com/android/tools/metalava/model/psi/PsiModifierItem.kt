@@ -472,7 +472,10 @@ internal object PsiModifierItem {
             // primitives, lambdas, etc) don't have this property.
             if (
                 companionObjectClass is UClass &&
-                    companionObjectClass.sourcePsi is KtObjectDeclaration
+                    companionObjectClass.sourcePsi is KtObjectDeclaration &&
+                    (companionObjectClass.sourcePsi as KtObjectDeclaration).hasModifier(
+                        KtTokens.COMPANION_KEYWORD
+                    )
             ) {
                 companionObjectClass.uAnnotations.forEach { newAnnotation ->
                     // prevent duplicate annotations from being copied over
