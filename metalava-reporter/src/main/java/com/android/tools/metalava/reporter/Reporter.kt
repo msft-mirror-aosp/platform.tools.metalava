@@ -17,7 +17,6 @@
 package com.android.tools.metalava.reporter
 
 import java.io.File
-import java.io.OutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.io.Writer
@@ -152,8 +151,6 @@ abstract class AbstractBasicReporter : Reporter {
  */
 class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
     constructor(writer: Writer) : this(stderr = PrintWriter(writer))
-
-    constructor(outputStream: OutputStream) : this(stderr = PrintWriter(outputStream))
 
     override fun handleFormattedMessage(formattedMessage: String): Boolean {
         stderr.println(formattedMessage)
