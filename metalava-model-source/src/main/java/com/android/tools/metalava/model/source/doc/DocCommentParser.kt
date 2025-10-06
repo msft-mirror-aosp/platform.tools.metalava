@@ -239,7 +239,7 @@ fun String.lineOffsetFor(index: Int): Int {
  * character on the first line. If [index] was `100` and it was on line number `10` and character
  * position `7` then the character offset would be `6`.
  */
-internal fun String.characterOffsetFor(index: Int): Int {
+fun String.characterOffsetFor(index: Int): Int {
     var count = 0
     for (i in index - 1 downTo 0) {
         val c = this[i]

@@ -76,4 +76,18 @@ class RecordingReporterTest {
             )
         }
     }
+
+    @Test
+    fun `Test reporter with file location with path and line number and character position`() {
+        checkReporter(
+            expectedOutput = "file.txt:9:12: error: message [InvalidSyntax]",
+        ) {
+            reporter.report(
+                Issues.INVALID_SYNTAX,
+                NULL_REPORTABLE,
+                "message",
+                FileLocation.createLocation(Paths.get("file.txt"), line = 9, characterPosition = 12)
+            )
+        }
+    }
 }

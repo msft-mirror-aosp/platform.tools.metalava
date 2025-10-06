@@ -24,14 +24,27 @@ import java.nio.file.Path
  *
  * The file location is optional as it is not always available. An unavailable source location is
  * indicated by a null [path]. Even when the [path] is available the [line] may be unknown, which is
- * indicated by a non-positive value.
+ * indicated by a non-positive value. Even when [line] is available then [characterPosition] may be
+ * unknown.
  */
 abstract class FileLocation {
     /** The absolute path to the location, or `null` if it could not be found. */
     abstract val path: Path?
 
-    /** The line number, may be non-positive indicating that it could not be found. */
+    /**
+     * The 1-base line number.
+     *
+     * If this is non-positive then it indicates that it could not be found or was not provided.
+     */
     abstract val line: Int
+
+    /**
+     * The 1-based character position from the start of the line.
+     *
+     * If this is non-positive then it indicates that it could not be found or was not provided.
+     */
+    open val characterPosition: Int
+        get() = -1
 
     /** The optional [BaselineKey] for the [path]. */
     open val baselineKey: BaselineKey?
@@ -52,20 +65,29 @@ abstract class FileLocation {
     fun forLineOffset(lineOffset: Int): FileLocation =
         if (lineOffset == 0 || line < 1) this else FixedFileLocation(path, line + lineOffset)
 
-    override fun toString() = if (line < 1) path.toString() else "$path:$line"
+    override fun toString() =
+        when {
+            line < 1 -> path.toString()
+            characterPosition < 1 -> "$path:$line"
+            else -> "$path:$line:$characterPosition"
+        }
 
     /** A fixed location, known at construction time. */
     private class FixedFileLocation(
         override val path: Path?,
         override val line: Int = 0,
+        override val characterPosition: Int = 0,
     ) : FileLocation()
 
     companion object {
         /** The unknown location. */
         val UNKNOWN: FileLocation = FixedFileLocation(null, 0)
 
-        /** Create a [FileLocation] for a [path] and optional [line] number. */
-        fun createLocation(path: Path, line: Int = 0): FileLocation = FixedFileLocation(path, line)
+        /**
+         * Create a [FileLocation] for a [path] and optional [line] number and [characterPosition].
+         */
+        fun createLocation(path: Path, line: Int = 0, characterPosition: Int = 0): FileLocation =
+            FixedFileLocation(path, line, characterPosition)
 
         fun forFile(file: File?): FileLocation {
             file ?: return UNKNOWN

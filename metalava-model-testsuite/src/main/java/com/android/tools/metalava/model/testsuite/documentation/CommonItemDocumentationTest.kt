@@ -322,13 +322,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3")
+            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3:1")
 
             val constructorItem = testClass.assertConstructor(emptyList())
-            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5")
+            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5:5")
 
             val fieldItem = testClass.assertField("field")
-            checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11")
+            checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11:5")
 
             // Check location of javadoc that is not specified.
             val methodItem = testClass.assertMethod("noComment", emptyList())
@@ -363,13 +363,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3")
+            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3:1")
 
             val constructorItem = testClass.assertConstructor(emptyList())
-            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5")
+            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5:5")
 
             val propertyItem = testClass.assertProperty("property")
-            checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11")
+            checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11:5")
 
             // Check location of javadoc that is not specified.
             val methodItem = testClass.assertMethod("noComment", emptyList())

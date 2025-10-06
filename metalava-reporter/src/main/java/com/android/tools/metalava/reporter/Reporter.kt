@@ -119,9 +119,15 @@ abstract class AbstractBasicReporter : Reporter {
         val formattedMessage = buildString {
             val usableLocation = reportable?.fileLocation ?: location
             append(usableLocation.path)
-            if (usableLocation.line > 0) {
+            var line = usableLocation.line
+            if (line > 0) {
                 append(":")
-                append(usableLocation.line)
+                append(line)
+            }
+            var characterPosition = usableLocation.characterPosition
+            if (characterPosition > 0) {
+                append(":")
+                append(characterPosition)
             }
             append(": ")
             val severity = id.defaultLevel
