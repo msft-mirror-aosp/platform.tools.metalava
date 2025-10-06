@@ -674,15 +674,6 @@ class DocAnalyzer(
         // If there is no such text then return immediately.
         val taggedText = annotationDocumentation.findTagDocumentation(tag) ?: return
 
-        assert(taggedText.startsWith("@$tag")) { taggedText }
-        val section =
-            when {
-                taggedText.startsWith("@returnDoc") -> "@return"
-                taggedText.startsWith("@paramDoc") -> "@param"
-                taggedText.startsWith("@memberDoc") -> null
-                else -> null
-            }
-
         val insert = stripLeadingAsterisks(stripMetaTags(taggedText.substring(tag.length + 2)))
         val qualified =
             if (containsLinkTags(insert)) {
@@ -695,6 +686,23 @@ class DocAnalyzer(
                 }
             } else {
                 insert
+            }
+
+        // Select the section where the documentation will be appended.
+        val section =
+            when (tag) {
+                "returnDoc" ->
+                    // Return documentation gets added to the `return` block tag.
+                    "@return"
+                "paramDoc" ->
+                    // Parameter documentation gets added to the `param` block tag associated with
+                    // `item` which must be a [ParameterItem].
+                    "@param"
+                else ->
+                    // Everything else, i.e. class and member documentation gets added to the main
+                    // section of `item` which must either be a [ClassItem] or [MemberItem]
+                    // respectively.
+                    null
             }
 
         item.appendDocumentation(qualified, section) // 2: @ and space after tag
