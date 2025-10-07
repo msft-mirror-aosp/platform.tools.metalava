@@ -76,13 +76,19 @@ internal class DefaultDocDescription(
     val content: JavadocContent
         get() {
             if (!::_content.isInitialized) {
+                // Trim whitespace from the end of the description.
+                val trimmedEnd = text.skipBackwardsOverTrailingWhitespace(endExclusive - 1) + 1
                 _content =
-                    JavadocParser.parse(
-                        text,
-                        startInclusive,
-                        endExclusive,
-                        reporter,
-                    )
+                    if (trimmedEnd <= startInclusive) {
+                        JavadocContent.EMPTY
+                    } else {
+                        JavadocParser.parse(
+                            text,
+                            startInclusive,
+                            trimmedEnd,
+                            reporter,
+                        )
+                    }
             }
             return _content
         }

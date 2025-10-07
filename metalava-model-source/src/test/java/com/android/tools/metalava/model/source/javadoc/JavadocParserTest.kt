@@ -231,12 +231,10 @@ class JavadocParserTest {
                     */
             """,
             expectedStructure =
-                // TODO(b/429965593): The whitespace after `unclosed/n` is the whitespace at the
-                //   start of `    */`. That should be removed.
                 """
                     text: ' '
                     inlineTag: code
-                      text: 'unclosed\n    '
+                      text: 'unclosed'
                 """,
         )
     }

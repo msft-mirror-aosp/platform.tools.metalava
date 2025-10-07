@@ -465,17 +465,8 @@ class DocCommentParserTest {
                     description: <<\n   * {@code unclosed>>
                 """,
             expectedPrintOutput =
-                // TODO(b/429965593): The whitespace after `unclosed` is the whitespace at the
-                //   start of `    */`. That should be removed. Note: this is parsed from the
-                //   description and the `expectedString` value above seems to show that the
-                //   description does not contain the whitespace. That is not true though, it is
-                //   just that the string representation of `DefaultDocDescription` trims the
-                //   whitespace already.
                 """
-                    /**
-                     * {@code unclosed
-                     *    }
-                     */
+                    /** {@code unclosed} */
                 """,
         )
     }
