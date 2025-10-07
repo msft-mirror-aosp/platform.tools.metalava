@@ -77,10 +77,22 @@ abstract class AbstractItemDocumentation(
         docComment.hasBlockTagOfType(blockTagType)
 
     override fun print(writer: PrintWriter) {
-        val text = fullyQualifiedDocumentation()
-        if (text.isNotBlank()) {
-            val trimmed = trimDocIndent(text)
-            writer.println(trimmed)
+        val originalText = text
+
+        // Before printing fully qualify the comment. This expects a whole comment and will fix up
+        // @link and @see tags.
+        val fullyQualifiedText = fullyQualifiedDocumentation(text)
+
+        // Only print the comment if it is not blank.
+        if (fullyQualifiedText.isNotBlank()) {
+            // If fully qualifying did not change the text then used the docComment, otherwise
+            // create a new one from the fully qualified text.
+            val fullyQualifiedComment =
+                if (fullyQualifiedText == originalText) docComment
+                else DocComment.createDocComment(fullyQualifiedText, this)
+
+            // Print the docComment as Javadoc.
+            fullyQualifiedComment.printAsJavadocComment(writer)
         }
     }
 
