@@ -223,7 +223,7 @@ internal object DocCommentParser {
  * line. If [index] was `100` and it was on line number `10` then the line number offset would be
  * `9`.
  */
-internal fun String.lineOffsetFor(index: Int): Int {
+fun String.lineOffsetFor(index: Int): Int {
     var count = 0
     for (i in 0 until index) {
         val c = this[i]

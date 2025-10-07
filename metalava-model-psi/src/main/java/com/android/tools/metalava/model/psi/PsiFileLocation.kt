@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.source.doc.lineOffsetFor
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -121,7 +122,7 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
             if (range == null) {
                 -1 // No source offsets, use invalid line number
             } else {
-                getLineNumber(psiFile.text, range.startOffset) + 1
+                psiFile.text.lineOffsetFor(range.startOffset) + 1
             }
     }
 
@@ -153,19 +154,6 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
             }
 
             return range
-        }
-
-        /** Returns the 0-based line number of character position <offset> in <text> */
-        private fun getLineNumber(text: String, offset: Int): Int {
-            var line = 0
-            var curr = 0
-            val target = offset.coerceAtMost(text.length)
-            while (curr < target) {
-                if (text[curr++] == '\n') {
-                    line++
-                }
-            }
-            return line
         }
 
         internal fun getBaselineKey(element: PsiElement?): BaselineKey {
