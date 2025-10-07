@@ -222,16 +222,21 @@ class JavadocParserTest {
     @Test
     fun `Test unclosed inline tags`() {
         checkParse(
+            // This purposely indents the second and third lines so they no longer align with the
+            // first so that there is some extra indentation on the last line with the */ token to
+            // test the handling of that newline.
             """
                 /**
-                 * {@code not closed
-                 */
+                   * {@code unclosed
+                    */
             """,
             expectedStructure =
+                // TODO(b/429965593): The whitespace after `unclosed/n` is the whitespace at the
+                //   start of `    */`. That should be removed.
                 """
                     text: ' '
                     inlineTag: code
-                      text: 'not closed\n '
+                      text: 'unclosed\n    '
                 """,
         )
     }
