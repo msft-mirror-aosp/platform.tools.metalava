@@ -18,6 +18,12 @@ package com.android.tools.metalava.model.source.javadoc
 
 /** A block of text in a Javadoc comment. */
 internal class JavadocText(val text: String) : JavadocContent {
+    /** A block of text occupies multiple lines if it contains a newline. */
+    override fun isMultiLine() = text.contains('\n')
+
+    /** A block of text starts with a newline if the first character is a newline. */
+    override fun startsWithNewline() = text[0] == '\n'
+
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }

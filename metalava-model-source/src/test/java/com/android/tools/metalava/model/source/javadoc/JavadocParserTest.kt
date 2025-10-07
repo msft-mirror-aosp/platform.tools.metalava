@@ -19,22 +19,37 @@ package com.android.tools.metalava.model.source.javadoc
 import com.android.tools.metalava.model.source.doc.CollatingDocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.DefaultDocDescription
 import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocDescription
 import kotlin.test.assertEquals
 import org.junit.Test
 
 class JavadocParserTest {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
-    private fun checkParse(text: String, expectedStructure: String) {
+    private fun checkParse(
+        text: String,
+        descriptionGetter: (DocComment) -> DocDescription = { docComment ->
+            docComment.description
+        },
+        expectedStructure: String,
+        expectedJavadocIssues: String = "",
+    ) {
         val reporter = CollatingDocumentationIssueReporter()
         val docComment = DocComment.createDocComment(text.trimIndent(), reporter)
         // Make sure that no unexpected DocComment errors were found.
         assertEquals("", reporter.toString().trim(), message = "doc comment parser errors")
 
         // Parse the main description
-        val description = docComment.description as DefaultDocDescription
+        val description = descriptionGetter(docComment) as DefaultDocDescription
+        var content = description.content
+
+        // Make sure that no unexpected JavadocParser issues were found.
+        assertEquals(
+            expectedJavadocIssues.trimIndent(),
+            reporter.toString().trim(),
+            message = "javadoc parser issues"
+        )
 
         // Generate a string representation of the model structure.
-        var content = description.content
         val actualStructure = buildString {
             content.accept(
                 object : JavadocContentVisitor {
@@ -267,6 +282,97 @@ class JavadocParserTest {
             expectedStructure =
                 """
                     text: ' Some text with trailing whitespace\n on multiple lines'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test invalid Javadoc comment with end comment token in main description`() {
+        checkParse(
+            """
+                /**
+                 * Some text with */ inside
+                 */
+            """,
+            expectedStructure =
+                // Error recovery ignores the */ and everything after it.
+                """
+                    text: ' Some text with'
+                """,
+            expectedJavadocIssues =
+                """
+                    line 2: 18:extraneous input '*/' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test invalid Javadoc comment with end comment token in block tag description`() {
+        checkParse(
+            """
+                /**
+                 * Some text
+                 * @param p A block tag with */ inside
+                 */
+            """,
+            descriptionGetter = { docComment -> docComment.blockTagSections.single().description },
+            expectedStructure =
+                // Error recovery ignores the */ and everything after it.
+                """
+                    text: 'p A block tag with'
+                """,
+            expectedJavadocIssues =
+                """
+                    line 3: 29:mismatched input '*/' expecting {<EOF>, NEWLINE}
+                      Expected:
+                        EOF
+                        NEWLINE
+                      Found:
+                        COMMENT_END "*/"
+                     [InvalidJavadoc]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test an inline tag split across multiple lines`() {
+        checkParse(
+            """
+                /**
+                 * Summary.
+                 * <pre>{@code
+                 * someSampleCode()
+                 * }</pre>
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: ' Summary.\n <pre>'
+                    inlineTag: code
+                      text: '\n someSampleCode()\n '
+                    text: '</pre>'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test multiple blank lines`() {
+        checkParse(
+            """
+                /**
+                 * Summary line.
+                 *
+                 * <pre>
+                 * Text before multiple blank lines.
+                 *
+                 *
+                 * Text after multiple blank lines.
+                 * </pre>
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: ' Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
                 """,
         )
     }

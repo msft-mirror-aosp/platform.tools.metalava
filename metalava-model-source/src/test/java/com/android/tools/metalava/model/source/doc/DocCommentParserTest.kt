@@ -47,8 +47,7 @@ class DocCommentParserTest {
             expectedString = "description: <<>>",
             expectedPrintOutput =
                 """
-                    /**
-                     */
+                    /** */
                 """,
         )
     }
@@ -60,9 +59,7 @@ class DocCommentParserTest {
             expectedString = "description: <<Description>>",
             expectedPrintOutput =
                 """
-                    /**
-                     *Description
-                     */
+                    /**Description */
                 """,
         )
     }
@@ -74,9 +71,7 @@ class DocCommentParserTest {
             expectedString = "description: <<Description {@code something}>>",
             expectedPrintOutput =
                 """
-                    /**
-                     *Description {@code something}
-                     */
+                    /**Description {@code something} */
                 """,
         )
     }
@@ -92,9 +87,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /**
-                     * @see something
-                     */
+                    /** @see something */
                 """,
         )
     }
@@ -118,6 +111,7 @@ class DocCommentParserTest {
                 """
                     /**
                      *Some text
+                     *
                      * @see something
                      * @see other thing
                      */
@@ -146,6 +140,7 @@ class DocCommentParserTest {
                 """
                     /**
                      * Some text
+                     *
                      * @see something
                      * @see other thing
                      */
@@ -167,9 +162,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /**
-                     * @hide
-                     */
+                    /** @hide */
                 """,
         )
     }
@@ -267,9 +260,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /**
-                     * An invalid block tag at the end of the text. @hide
-                     */
+                    /** An invalid block tag at the end of the text. @hide */
                 """,
             expectedIssues =
                 """
@@ -322,9 +313,7 @@ class DocCommentParserTest {
                 """,
             expectedPrintOutput =
                 """
-                    /**
-                     * An inline tag at the end of some text {@hide reason why hidden}
-                     */
+                    /** An inline tag at the end of some text {@hide reason why hidden} */
                 """,
             expectedIssues =
                 """
@@ -353,6 +342,7 @@ class DocCommentParserTest {
                 """
                     /**
                      * An inline tag.
+                     *
                      * @see Something
                      * {@hide}
                      */
@@ -360,6 +350,100 @@ class DocCommentParserTest {
             expectedIssues =
                 """
                     line 4: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test a comment that has a line that starts with forward slash`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     * <pre>
+                    // Java line comment
+                    someSampleCode()
+                     * </pre>
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * Summary.\n * <pre>\n// Java line comment\nsomeSampleCode()\n * </pre>>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * <pre>
+                    // Java line comment
+                     *someSampleCode()
+                     * </pre>
+                     */
+                """,
+        )
+    }
+
+    @Test
+    fun `Test an inline tag split across multiple lines`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     * <pre>{@code
+                     * someSampleCode()
+                     * }</pre>
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * Summary.\n * <pre>{@code\n * someSampleCode()\n * }</pre>>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * <pre>{@code
+                     * someSampleCode()
+                     * }</pre>
+                     */
+                """,
+        )
+    }
+
+    @Test
+    fun `Test multiple blank lines`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Summary line.
+                     *
+                     * <pre>
+                     * Text before multiple blank lines.
+                     *
+                     *
+                     * Text after multiple blank lines.
+                     * </pre>
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * Summary line.\n *\n * <pre>\n * Text before multiple blank lines.\n *\n *\n * Text after multiple blank lines.\n * </pre>>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary line.
+                     *
+                     * <pre>
+                     * Text before multiple blank lines.
+                     *
+                     *
+                     * Text after multiple blank lines.
+                     * </pre>
+                     */
                 """,
         )
     }

@@ -47,6 +47,17 @@ interface DocComment {
     }
 }
 
+enum class RequiredSpace {
+    EMPTY,
+    SINGLE_LINE,
+    MULTI_LINE,
+    ;
+
+    operator fun plus(other: RequiredSpace): RequiredSpace {
+        return entries[(ordinal + other.ordinal).coerceAtMost(MULTI_LINE.ordinal)]
+    }
+}
+
 internal class DefaultDocComment(
     override val description: DocDescription,
     override val blockTagSections: List<BlockTagSection>
@@ -54,28 +65,80 @@ internal class DefaultDocComment(
     override fun hasBlockTagOfType(blockTagType: String) =
         blockTagSections.any { it.tagType == blockTagType }
 
+    /** Get the [RequiredSpace] for the block tag sections. */
+    private fun requiredSpaceForBlockTagSections(): RequiredSpace =
+        when (blockTagSections.size) {
+            // If the block tag section is empty then the required space is empty.
+            0 -> RequiredSpace.EMPTY
+            // If the block tag section has a single tag then the block tag section requires at
+            // least a single line (even if the description is empty) but is otherwise determined by
+            // the space required for the description.
+            1 ->
+                blockTagSections
+                    .single()
+                    .description
+                    .requiredSpace()
+                    .coerceAtLeast(RequiredSpace.SINGLE_LINE)
+            // If the block tag section has multiple tags then it requires multiple lines.
+            else -> RequiredSpace.MULTI_LINE
+        }
+
     override fun printAsJavadocComment(writer: PrintWriter) {
+        // Compute require space for the main description and block tag sections.
+        val mainDescriptionRequiredSpace = description.requiredSpace()
+        val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
+        val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
+
+        // Check to see whether this is multi-line comment. If is then output it on multiple lines,
+        // e.g.
+        // ```
+        // /**
+        //  * ...
+        //  */
+        // ```
+        // if it is not then output it all on one line, e.g. `/** ... */`.
+        val multiLine = overallRequiredSpace == RequiredSpace.MULTI_LINE
+
         // Start the doc comment.
         writer.print("/**")
-        writer.println()
+        if (multiLine) {
+            writer.println()
+        }
 
         // Print the main description, if it is not empty.
-        if (description.isNotEmpty()) {
-            writer.print(" *")
+        if (mainDescriptionRequiredSpace != RequiredSpace.EMPTY) {
+            if (multiLine) {
+                writer.print(" *")
+            }
             description.printAsJavadocComment(writer)
-            writer.println()
+            if (multiLine) {
+                writer.println()
+            }
         }
 
         // Print the tag sections if they are not empty.
         if (blockTagSections.isNotEmpty()) {
+            // If the block tag section requires multiple lines and the main description was added
+            // then add a blank line between the main description and the block tag section.
+            if (
+                blockTagSectionRequiredSpace == RequiredSpace.MULTI_LINE &&
+                    mainDescriptionRequiredSpace != RequiredSpace.EMPTY
+            ) {
+                writer.println(" *")
+            }
             for (section in blockTagSections) {
-                writer.print(" * @${section.tagType}")
+                if (multiLine) {
+                    writer.print(" *")
+                }
+                writer.print(" @${section.tagType}")
                 val sectionDescription = section.description
                 if (sectionDescription.isNotEmpty()) {
                     writer.print(" ")
                     sectionDescription.printAsJavadocComment(writer)
                 }
-                writer.println()
+                if (multiLine) {
+                    writer.println()
+                }
             }
         }
 

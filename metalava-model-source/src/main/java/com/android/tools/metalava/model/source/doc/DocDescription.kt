@@ -37,6 +37,8 @@ interface DocDescription {
     /** Return `true` if this is not empty, `false` otherwise. */
     fun isNotEmpty() = !isEmpty()
 
+    fun requiredSpace(): RequiredSpace
+
     /** Print this as part of a Javadoc comment to [writer]. */
     fun printAsJavadocComment(writer: PrintWriter)
 
@@ -48,6 +50,8 @@ interface DocDescription {
 
 internal class EmptyDocDescription : DocDescription {
     override fun isEmpty() = true
+
+    override fun requiredSpace() = RequiredSpace.EMPTY
 
     override fun printAsJavadocComment(writer: PrintWriter) {
         // Nothing to do.
@@ -63,7 +67,8 @@ internal class EmptyDocDescription : DocDescription {
 internal class DefaultDocDescription(
     private val text: String,
     private val startInclusive: Int,
-    private val endExclusive: Int
+    private val endExclusive: Int,
+    private val reporter: DocumentationIssueReporter,
 ) : DocDescription {
 
     private lateinit var _content: JavadocContent
@@ -71,12 +76,25 @@ internal class DefaultDocDescription(
     val content: JavadocContent
         get() {
             if (!::_content.isInitialized) {
-                _content = JavadocParser.parse(text, startInclusive, endExclusive)
+                _content =
+                    JavadocParser.parse(
+                        text,
+                        startInclusive,
+                        endExclusive,
+                        reporter,
+                    )
             }
             return _content
         }
 
     override fun isEmpty() = content == JavadocContent.EMPTY
+
+    override fun requiredSpace() =
+        when {
+            isEmpty() -> RequiredSpace.EMPTY
+            content.isMultiLine() -> RequiredSpace.MULTI_LINE
+            else -> RequiredSpace.SINGLE_LINE
+        }
 
     override fun printAsJavadocComment(writer: PrintWriter) {
         content.accept(
@@ -89,18 +107,26 @@ internal class DefaultDocDescription(
                     writer.print("{@")
                     writer.print(inlineTag.tagType)
                     inlineTag.content?.let { nestedContent ->
-                        writer.print(" ")
+                        if (!nestedContent.startsWithNewline()) {
+                            writer.print(" ")
+                        }
                         nestedContent.accept(this)
                     }
                     writer.print("}")
                 }
 
                 override fun visit(text: JavadocText) {
+                    var previousChar = '\u0000'
                     for (c in text.text) {
-                        writer.print(c)
-                        if (c == '\n') {
+                        if (previousChar == '\n' && c != '/') {
                             writer.print(" *")
                         }
+                        writer.print(c)
+                        previousChar = c
+                    }
+
+                    if (previousChar == '\n') {
+                        writer.print(" *")
                     }
                 }
             }

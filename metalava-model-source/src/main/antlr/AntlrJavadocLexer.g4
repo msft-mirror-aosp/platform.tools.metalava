@@ -59,3 +59,5 @@ INLINE_TAG_START: '{@';
 BRACE_OPEN: '{';
 
 BRACE_CLOSE: '}';
+
+COMMENT_END: '*/';

@@ -21,10 +21,12 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.findAnnotation
@@ -33,7 +35,7 @@ import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiVisitor.Companion.addTargetLanguageCheck
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -47,22 +49,22 @@ import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
  * The [FlaggedApiLint] analyzer checks the API against a known set of preferred FlaggedAPI
  * practices by the Android API council.
  */
-class FlaggedApiLint
-private constructor(
-    private val codebase: Codebase,
+class FlaggedApiLint(
     private val oldCodebase: Codebase?,
     reporter: Reporter,
     apiPredicateConfig: ApiPredicate.Config,
-) :
-    ApiVisitor(
-        visitParameterItems = false,
-        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
-        targetLanguages = com.android.tools.metalava.model.TargetLanguageSet.SOURCE,
-    ) {
+) : DelegatedVisitor {
 
     /** Predicate that checks if the item appears in the signature file. */
     private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
+    private val apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig)
+    private val apiFiltersReference = apiFilters.reference
+    private val targetLanguages = com.android.tools.metalava.model.TargetLanguageSet.SOURCE
+    private val filterEmit = addTargetLanguageCheck(apiFilters.emit, targetLanguages)
     private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
+
+    /** The filter to use to determine if we should emit a reference to an item */
+    private val filterReference = addTargetLanguageCheck(apiFiltersReference, targetLanguages)
 
     private fun report(
         id: Issue,
@@ -71,26 +73,30 @@ private constructor(
         location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
-        filteredReporter.report(id, item, message, location, maximumSeverity)
-    }
-
-    private fun check() {
-        codebase.accept(this)
-    }
-
-    override fun visitClass(cls: ClassItem) {
-        filteredReporter.withContext(cls) { checkClass(cls) }
-    }
-
-    override fun visitCallable(callable: CallableItem) {
-        filteredReporter.withContext(callable) {
-            checkHasFlaggedApi(callable)
-            checkFlaggedApiLiteral(callable)
+        filteredReporter.withContext(item) {
+            filteredReporter.report(id, item, message, location, maximumSeverity)
         }
     }
 
+    override fun visitClass(cls: ClassItem) {
+        checkClass(cls)
+    }
+
+    private fun visitCallable(callable: CallableItem) {
+        checkHasFlaggedApi(callable)
+        checkFlaggedApiLiteral(callable)
+    }
+
+    override fun visitMethod(method: MethodItem) {
+        visitCallable(method)
+    }
+
+    override fun visitConstructor(constructor: ConstructorItem) {
+        visitCallable(constructor)
+    }
+
     override fun visitField(field: FieldItem) {
-        filteredReporter.withContext(field) { checkField(field) }
+        checkField(field)
     }
 
     private fun checkClass(
@@ -272,35 +278,13 @@ private constructor(
                     writer,
                     skipNullnessAnnotations = true,
                 )
-            modifierListWriter.writeKeywords(item, normalizeFinal = true)
-            writer.toString().trim()
+            modifierListWriter.write(item, normalizeFinal = true, skipRequiresPermission = true)
+            val normalizedModifiers = writer.toString().trim()
+            normalizedModifiers
         }
     }
 
     companion object {
-        /**
-         * Check the supplied [codebase] to see if it adheres to the API lint rules enforced by this
-         * class, reporting any issues that it finds.
-         *
-         * If [oldCodebase] is provided then it will ignore any issues that are present in the
-         * [oldCodebase] as there is little that can be done to rectify those.
-         */
-        fun check(
-            codebase: Codebase,
-            oldCodebase: Codebase?,
-            reporter: Reporter,
-            apiPredicateConfig: ApiPredicate.Config,
-        ) {
-            val flaggedApiLint =
-                FlaggedApiLint(
-                    codebase,
-                    oldCodebase,
-                    reporter,
-                    apiPredicateConfig,
-                )
-            flaggedApiLint.check()
-        }
-
         /**
          * Heuristically converts the given string [literal] into a reference to the equivalent
          * `aconfig`-generated `Flags.java` field.

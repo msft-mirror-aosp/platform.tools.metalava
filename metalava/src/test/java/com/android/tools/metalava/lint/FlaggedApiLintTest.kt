@@ -285,7 +285,6 @@ class FlaggedApiLintTest : DriverTest() {
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
                 """
-                    src/android/foobar/BadHiddenSuperClass.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD_INHERITED [UnflaggedApi]
                     src/android/foobar/BadHiddenSuperClass.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.badInherited() [UnflaggedApi]
                 """,
             apiLint =
@@ -304,8 +303,9 @@ class FlaggedApiLintTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO b/442395516 : currently android.foobar.Bad.BAD_INHERITED is not written to the
-            // api signature file despite an expected warning that it's addition should be flagged.
+
+            // TODO b/448620194 : currently android.foobar.Bad.BAD_INHERITED is not written to the
+            // api signature file.
             // This inconsistency will be resolved in later Cls where the signature writer
             // should write fields in this edge case
             api =
@@ -681,7 +681,7 @@ class FlaggedApiLintTest : DriverTest() {
         )
     }
 
-    // b/442395516 Test added to showcase the discrepancy between how the previously released api
+    // b/448616809 Test added to showcase the discrepancy between how the previously released api
     // (loaded from prebuilts) and the current api (loaded from sources) store @RequiresPermission.
     // Comparisons for this annotation will be disabled until this discrepancy is resolved, hence
     // changes in the @RequiresPermission annotation will not require flagging for the time being.
@@ -833,10 +833,14 @@ class FlaggedApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Do not require @FlaggedApi on API that modify annotations`() {
+    fun `Require @FlaggedApi on API that modify annotations`() {
         check(
-            // b/442395516 this test will be updated to enforce flagging annotation changes
-            expectedIssues = "",
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:10: warning: Changes to modifiers, from 'public' to '@test.annotation.Custom(1) public' must be flagged with @FlaggedApi: constructor test.pkg.Foo() [UnflaggedApi]
+                src/test/pkg/Foo.java:13: warning: Changes to modifiers, from '@test.annotation.Custom(1) public' to '@test.annotation.Custom(2) public' must be flagged with @FlaggedApi: field test.pkg.Foo.field_change_annotation [UnflaggedApi]
+                src/test/pkg/Foo.java:14: warning: Changes to modifiers, from '@test.annotation.Custom(1) public' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.method_remove_annotation() [UnflaggedApi]
+            """,
             apiLint =
                 """
                     package test.annotation {

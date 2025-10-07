@@ -25,6 +25,16 @@ import com.android.tools.metalava.model.source.doc.DocDescription
  */
 internal sealed interface JavadocContent {
     /**
+     * Checks to see whether the content will occupy multiple lines.
+     *
+     * @return `true` if it does, `false` otherwise.
+     */
+    fun isMultiLine(): Boolean
+
+    /** Check to see whether this starts with a newline character. */
+    fun startsWithNewline(): Boolean
+
+    /**
      * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
      */
     fun accept(visitor: JavadocContentVisitor)
@@ -36,6 +46,12 @@ internal sealed interface JavadocContent {
 
 /** An empty [JavadocContent]. */
 private class EmptyJavadocContent : JavadocContent {
+    /** Empty content does not occupy multiple lines. */
+    override fun isMultiLine() = false
+
+    /** Empty content does not start with a newline. */
+    override fun startsWithNewline() = false
+
     override fun accept(visitor: JavadocContentVisitor) {
         // Do nothing.
     }
@@ -52,6 +68,12 @@ internal interface JavadocContentVisitor {
 
 /** A [JavadocContent] that encapsulates a number of other [JavadocContent] instances. */
 internal class JavadocContentList(private val list: List<JavadocContent>) : JavadocContent {
+    /** A list of [JavadocContent] occupies multiple lines if any of them occupy multiple lines. */
+    override fun isMultiLine() = list.any { it.isMultiLine() }
+
+    /** A list of [JavadocContent] starts with newline if the first item starts with newline. */
+    override fun startsWithNewline() = list.first().startsWithNewline()
+
     /** Visit the contents of this in turn. */
     fun visitContents(visitor: JavadocContentVisitor) {
         list.forEach { content -> content.accept(visitor) }
