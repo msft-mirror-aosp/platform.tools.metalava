@@ -146,7 +146,7 @@ internal class JavadocErrorListener(
                     // If the issue was found on the first line then add the offset of the first
                     // character that was parsed to the character position.
                     if (line == 1) text.characterOffsetFor(startInclusive) else 0
-            reporter.report(Issues.INVALID_JAVADOC, "$actualChar:$fullMsg", actualLine - 1)
+            reporter.report(Issues.INVALID_JAVADOC, fullMsg, actualLine - 1, actualChar)
         }
     }
 }

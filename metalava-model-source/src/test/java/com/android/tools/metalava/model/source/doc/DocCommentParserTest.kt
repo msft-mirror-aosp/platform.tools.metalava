@@ -264,7 +264,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    2:49: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -293,7 +293,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 3: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    3:33: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -317,7 +317,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    2:43: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -349,7 +349,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 4: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    4:5: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -492,8 +492,8 @@ class DocCommentParserTest {
 class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
     private val builder = StringBuilder()
 
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int) {
-        builder.append("line ${lineOffset + 1}: $message [${issue.name}]\n")
+    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
+        builder.append("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]\n")
     }
 
     override fun toString() = builder.toString()

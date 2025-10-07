@@ -140,10 +140,13 @@ internal object DocCommentParser {
             // If a `@hide` was found then report it as an error.
             val hideIndex = text.indexOf("@hide")
             if (hideIndex > 0) {
+                val lineOffset = text.lineOffsetFor(hideIndex)
+                val charOffset = text.characterOffsetFor(hideIndex)
                 reporter.report(
                     Issues.INVALID_HIDE_DOC_TAG,
                     "Invalid @hide syntax, it is ignored as it must be a block tag",
-                    text.lineOffsetFor(hideIndex)
+                    lineOffset,
+                    charOffset,
                 )
             }
         }

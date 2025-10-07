@@ -304,7 +304,7 @@ class JavadocParserTest {
                 """,
             expectedJavadocIssues =
                 """
-                    line 2: 18:extraneous input '*/' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
+                    2:19: extraneous input '*/' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
                 """,
         )
     }
@@ -326,7 +326,7 @@ class JavadocParserTest {
                 """,
             expectedJavadocIssues =
                 """
-                    line 3: 29:mismatched input '*/' expecting {<EOF>, NEWLINE}
+                    3:30: mismatched input '*/' expecting {<EOF>, NEWLINE}
                       Expected:
                         EOF
                         NEWLINE
