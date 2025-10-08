@@ -344,6 +344,11 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                         // Skip enum synthetic methods since we don't track those.
                         it.isEnumSyntheticMethod()
                     }
+                    ?.also {
+                        if (it.name().endsWith(DEFAULT_MARKER)) {
+                            updateGeneratedDefaultCallable(it, classItem)
+                        }
+                    }
             } ?: return
 
         // Double check that there isn't already a callable with the same signature. The
@@ -390,6 +395,52 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     }
 
     /**
+     * When a Kotlin function or constructor has parameters with default values, the compiler
+     * generates a version of the callable with some extra parameters which is used in bytecode when
+     * the callable is called without all parameters from Kotlin source.
+     *
+     * The compiler does not include any annotations from the source callable on the generated one,
+     * but these can be important for API visibility and deprecation status. Also, callables with
+     * internal visibility appear public in bytecode. To correct these issues, this finds the source
+     * version of the callable and updates the compiler-generated version.
+     */
+    private fun updateGeneratedDefaultCallable(
+        callableItem: MethodItem,
+        containingClassItem: ClassItem,
+    ) {
+        // Remove the int and Object parameters added to the generated method.
+        var parametersForOriginal = callableItem.parameters().dropLast(2)
+        // For functions that aren't at the top level, the generated method has the class type as
+        // the first parameter.
+        if (!containingClassItem.isFileFacade()) {
+            parametersForOriginal = parametersForOriginal.drop(1)
+        }
+
+        // Find the source version of the callable.
+        val erasedParameters = parametersForOriginal.joinToString { it.type().toErasedTypeString() }
+        val originalCallableItem =
+            containingClassItem.findBytecodeMethod(
+                callableItem.name().removeSuffix(DEFAULT_MARKER),
+                erasedParameters
+            ) ?: return
+
+        // Add annotations from the source version, and update deprecation status and visibility as
+        // needed.
+        callableItem.mutateModifiers {
+            for (annotationItem in originalCallableItem.modifiers.annotations()) {
+                addAnnotation(annotationItem)
+                if (annotationItem.qualifiedName == KOTLIN_DEPRECATED) {
+                    setDeprecated(true)
+                }
+            }
+
+            if (originalCallableItem.isInternal) {
+                setVisibilityLevel(VisibilityLevel.INTERNAL)
+            }
+        }
+    }
+
+    /**
      * Whether an item with the given [methodName] should not be included in API tracking
      *
      * Value classes have equals, toString, and hashCode `-impl` methods which we don't track
@@ -398,13 +449,20 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * The `$` is used for mangled names of internal elements (which are not @PublishedApi), and
      * delegate and lambda generated elements used by the class itself but not external callers, so
      * they don't need to be tracked.
+     *
+     * However, `$` is also used for compiler-generated overloads of functions with default
+     * parameter values (see [DEFAULT_MARKER]), which can be used externally and do need tracking.
      */
     private fun skipTracking(methodName: String) =
         methodName == "equals-impl" ||
             methodName == "equals-impl0" ||
             methodName == "toString-impl" ||
             methodName == "hashCode-impl" ||
-            methodName.contains('$')
+            (methodName.contains('$') &&
+                // Default marked functions should be tracked, but if the method name contains more
+                // than one $, it has been additionally mangled (internal declarations) and doesn't
+                // need tracking.
+                !(methodName.endsWith(DEFAULT_MARKER) && methodName.count { it == '$' } == 1))
 
     /** Removes type arguments (anything between "<" and ">") from the type string. */
     private fun String.dropTypeArguments(): String =
@@ -582,8 +640,6 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             findMatchingConstructor(container)
         } else {
             val expectedDescriptor = internalDesc(voidConstructorTypes = true)
-            // Cut off the mangled part of the name, if there is one.
-            // val simpleName = name().substringBefore('-')
             // Check for a function with the right signature.
             container.functions
                 .firstOrNull { it.signature.matches(name(), expectedDescriptor) }
@@ -706,5 +762,14 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             override val isReified: Boolean
                 get() = kmProperty.typeParameters.any { it.isReified }
         }
+    }
+
+    companion object {
+        /**
+         * When a Kotlin function has parameters with default values, the compiler generates a
+         * version used when the source function is called without all parameters from Kotlin
+         * source. The generated method name will end with this default marker.
+         */
+        const val DEFAULT_MARKER = "\$default"
     }
 }
