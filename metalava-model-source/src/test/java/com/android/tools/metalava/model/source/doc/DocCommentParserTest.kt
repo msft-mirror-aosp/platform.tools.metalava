@@ -20,6 +20,7 @@ import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import org.junit.Test
 
 class DocCommentParserTest {
@@ -469,6 +470,19 @@ class DocCommentParserTest {
                     /** {@code unclosed} */
                 """,
         )
+    }
+
+    @Test
+    fun `Test lineOffsetFor with out of bounds index`() {
+        val str =
+            """
+            multi
+            line
+            string
+            """
+                .trimIndent()
+        val length = str.length
+        assertFails { str.lineOffsetFor(length + 1) }
     }
 }
 
