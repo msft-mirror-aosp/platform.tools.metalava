@@ -18,7 +18,11 @@ package com.android.tools.metalava.model.source.doc
 
 import java.io.PrintWriter
 
-/** A Javadoc or KDoc comment associated with an API element. */
+/**
+ * A Javadoc or KDoc comment associated with an API element.
+ *
+ * Implementations of these are mutable.
+ */
 interface DocComment {
     /** The main description, i.e. the part before any block tags. */
     val description: DocDescription
@@ -32,6 +36,13 @@ interface DocComment {
 
     /** Check to see whether there are any block tags of type [blockTagType]. */
     fun hasBlockTagOfType(blockTagType: String): Boolean
+
+    /**
+     * Removes any [BlockTagSection] for which [predicate] returns `true`.
+     *
+     * @return `true` if any [BlockTagSection]s were removed, `false` if it had no effect.
+     */
+    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean
 
     /** Print this as a Javadoc comment to [writer]. */
     fun printAsJavadocComment(writer: PrintWriter)
@@ -60,10 +71,22 @@ enum class RequiredSpace {
 
 internal class DefaultDocComment(
     override val description: DocDescription,
-    override val blockTagSections: List<BlockTagSection>
+    override var blockTagSections: List<BlockTagSection>
 ) : DocComment {
     override fun hasBlockTagOfType(blockTagType: String) =
         blockTagSections.any { it.tagType == blockTagType }
+
+    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean {
+        val filtered = blockTagSections.filter { !predicate(it) }
+        return if (filtered.size == blockTagSections.size) {
+            // No changes.
+            false
+        } else {
+            // Something was removed.
+            blockTagSections = filtered
+            true
+        }
+    }
 
     /** Get the [RequiredSpace] for the block tag sections. */
     private fun requiredSpaceForBlockTagSections(): RequiredSpace =
