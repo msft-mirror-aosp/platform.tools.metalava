@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
@@ -316,21 +315,27 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                         classTypeItemFactory,
                         targetLanguages = TargetLanguageSet.BYTECODE_ONLY,
                     )
-                    .takeUnless {
-                        // if a source constructor has an optional parameter, there are two
+                    .also {
+                        // If a source constructor has an optional parameter, there are two
                         // DefaultConstructorMarker constructors generated in the bytecode: one with
                         // a DefaultConstructorMarker parameter added, and one with both an int and
-                        // DefaultConstructorMarker parameter added. We don't need to track the
-                        // version with the extra int parameter. However, it is also possible that
-                        // the penultimate parameter of a DefaultConstructorMarker constructor is
-                        // int just because the last parameter of a source constructor was int, so
-                        // check if there is a constructor in the metadata matching the signature,
-                        // if there isn't, this is an extra copy because the source version had an
-                        // optional parameter.
-                        hasDefaultConstructorMarker &&
-                            (it.parameters()[it.parameters().size - 2].type() as? PrimitiveTypeItem)
-                                ?.kind == PrimitiveTypeItem.Primitive.INT &&
-                            it.findMatchingConstructor(metadataContainer) == null
+                        // DefaultConstructorMarker parameter added. The version with the extra int
+                        // parameter needs to be tracked because it is used when the constructor is
+                        // called from Kotlin source without all default parameter values provided.
+                        // However, it is also possible that the penultimate parameter of a
+                        // DefaultConstructorMarker constructor is int just because the last
+                        // parameter of a source constructor was int, so check if there is a
+                        // constructor in the metadata matching the signature, if there isn't, this
+                        // is an extra copy because the source version had an optional parameter.
+                        if (
+                            hasDefaultConstructorMarker &&
+                                (it.parameters()[it.parameters().size - 2].type()
+                                        as? PrimitiveTypeItem)
+                                    ?.kind == PrimitiveTypeItem.Primitive.INT &&
+                                it.findMatchingConstructor(metadataContainer) == null
+                        ) {
+                            updateGeneratedDefaultCallable(it, classItem, isConstructor = true)
+                        }
                     }
             } else {
                 PsiMethodItem.create(
@@ -346,7 +351,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                     }
                     ?.also {
                         if (it.name().endsWith(DEFAULT_MARKER)) {
-                            updateGeneratedDefaultCallable(it, classItem)
+                            updateGeneratedDefaultCallable(it, classItem, isConstructor = false)
                         }
                     }
             } ?: return
@@ -405,24 +410,30 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * version of the callable and updates the compiler-generated version.
      */
     private fun updateGeneratedDefaultCallable(
-        callableItem: MethodItem,
+        callableItem: CallableItem,
         containingClassItem: ClassItem,
+        isConstructor: Boolean,
     ) {
-        // Remove the int and Object parameters added to the generated method.
+        // Remove the int and Object parameters added to the generated method, or the int and
+        // DefaultConstructorMarker parameters added to the generated constructor.
         var parametersForOriginal = callableItem.parameters().dropLast(2)
         // For functions that aren't at the top level, the generated method has the class type as
         // the first parameter.
-        if (!containingClassItem.isFileFacade()) {
+        if (!isConstructor && !containingClassItem.isFileFacade()) {
             parametersForOriginal = parametersForOriginal.drop(1)
         }
 
         // Find the source version of the callable.
         val erasedParameters = parametersForOriginal.joinToString { it.type().toErasedTypeString() }
         val originalCallableItem =
-            containingClassItem.findBytecodeMethod(
-                callableItem.name().removeSuffix(DEFAULT_MARKER),
-                erasedParameters
-            ) ?: return
+            if (isConstructor) {
+                containingClassItem.findBytecodeConstructor(erasedParameters)
+            } else {
+                containingClassItem.findBytecodeMethod(
+                    callableItem.name().removeSuffix(DEFAULT_MARKER),
+                    erasedParameters
+                )
+            } ?: return
 
         // Add annotations from the source version, and update deprecation status and visibility as
         // needed.
