@@ -225,7 +225,9 @@ internal object DocCommentParser {
  */
 fun String.lineOffsetFor(index: Int): Int {
     var count = 0
-    for (i in 0 until index) {
+    // Handle the case when index is out of bounds by finding the offset for the final index.
+    val target = index.coerceAtMost(length)
+    for (i in 0 until target) {
         val c = this[i]
         if (c == '\n') count += 1
     }

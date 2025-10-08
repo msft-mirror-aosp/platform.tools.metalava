@@ -20,7 +20,6 @@ import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
-import kotlin.test.assertFails
 import org.junit.Test
 
 class DocCommentParserTest {
@@ -482,7 +481,7 @@ class DocCommentParserTest {
             """
                 .trimIndent()
         val length = str.length
-        assertFails { str.lineOffsetFor(length + 1) }
+        assertEquals(str.lineOffsetFor(length + 1), 2)
     }
 }
 
