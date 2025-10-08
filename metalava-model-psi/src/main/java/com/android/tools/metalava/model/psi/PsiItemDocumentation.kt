@@ -55,21 +55,10 @@ internal class PsiItemDocumentation(
     private val extraDocs: String?,
 ) : AbstractItemDocumentation(item) {
 
-    /** Lazily initialized backing property for [text]. */
-    private lateinit var _text: String
-
-    override var text: String
-        get() {
-            if (!::_text.isInitialized) {
-                initializeFromPsiElement(psi)
-                if (extraDocs != null) _text = "$_text\n$extraDocs"
-            }
-            return _text
-        }
-        set(value) {
-            _text = value
-            textChanged()
-        }
+    override fun initializeTextBackingField() {
+        initializeFromPsiElement(psi)
+        if (extraDocs != null) _text = "$_text\n$extraDocs"
+    }
 
     private var psiComment: PsiComment? = null
 

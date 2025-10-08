@@ -31,11 +31,31 @@ abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
 ) : ItemDocumentation, DocumentationIssueReporter {
 
+    /** Lazily initialized backing property for [text]. */
+    protected lateinit var _text: String
+
     /**
-     * The mutable text contents of the documentation. This is abstract to allow the implementations
-     * of this to optimize how it is accessed, e.g. initialize it lazily.
+     * Called when [_text] requires initializing. Implementations must set [_text] to a non-null
+     * value.
      */
-    abstract override var text: String
+    protected abstract fun initializeTextBackingField()
+
+    /**
+     * The mutable text contents of the documentation.
+     *
+     * It uses [_text] as its backing field and setting this will invoke [textChanged].
+     */
+    override var text: String
+        get() {
+            if (!::_text.isInitialized) {
+                initializeTextBackingField()
+            }
+            return _text
+        }
+        set(value) {
+            _text = value
+            textChanged()
+        }
 
     /**
      * Call when [text] changes to discard the [_docComment] so it will be regenerated next time it
@@ -45,7 +65,7 @@ abstract class AbstractItemDocumentation(
      * currently the [text] is modified directly. Longer term, changes will be applied directly to
      * [_docComment] and [text] will be dropped.
      */
-    protected fun textChanged() {
+    private fun textChanged() {
         _docComment = null
     }
 
