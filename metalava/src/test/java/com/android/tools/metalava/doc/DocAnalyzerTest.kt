@@ -491,7 +491,6 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
-                     *
                      * <br>
                      * This method may take several seconds to complete, so it should
                      * only be called from a worker thread.
@@ -576,7 +575,6 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
                     /**
-                     * <br>
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
                      * @apiSince 24
@@ -1810,7 +1808,6 @@ class DocAnalyzerTest : DriverTest() {
                             public Fun() { throw new RuntimeException("Stub!"); }
                             /**
                              * Separate comment
-                             *
                              * <br>
                              * Important {@link another.pkg.Bar#BAR}
                              * and here

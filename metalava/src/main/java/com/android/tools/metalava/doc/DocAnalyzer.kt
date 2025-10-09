@@ -25,6 +25,7 @@ import com.android.tools.metalava.SdkExtension
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.containsNullWord
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
@@ -41,9 +42,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
-import com.android.tools.metalava.model.psi.containsLinkTags
-import com.android.tools.metalava.model.source.doc.containsWord
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.FloatingPointValue
 import com.android.tools.metalava.model.value.IntegralValue
@@ -306,27 +306,20 @@ class DocAnalyzer(
                     item.documentation.addUniqueBlockTagSectionWithSimpleText("deprecated", text)
                 }
 
-                /** Returns `true` if this contains the word `null`. */
-                private fun String?.containsNullWord() = this != null && containsWord("null")
-
                 private fun documentationContainsNullWord(item: Item): Boolean {
                     return when (item) {
                         is ParameterItem -> {
-                            item
-                                .containingCallable()
-                                .documentation
-                                .findTagDocumentation("param", item.name())
-                                .containsNullWord()
+                            item.description.containsNullWord()
                         }
                         is CallableItem -> {
                             val documentation = item.documentation
                             // Don't inspect param docs (and other tags) for this purpose.
-                            documentation.findMainDocumentation().containsNullWord() ||
-                                documentation.findTagDocumentation("return").containsNullWord()
+                            documentation.mainDescription.containsNullWord() ||
+                                documentation.blockTagDescription("return").containsNullWord()
                         }
                         is SelectableItem -> {
                             val documentation = item.documentation
-                            documentation.text.containsNullWord()
+                            documentation.mainDescription.containsNullWord()
                         }
                         else -> false
                     }
@@ -342,17 +335,19 @@ class DocAnalyzer(
 
                     when (item) {
                         is FieldItem -> {
-                            addDoc(annotation, "memberDoc", item)
+                            addDoc(annotation, "memberDoc", item.descriptionOwner)
                         }
                         is CallableItem -> {
-                            addDoc(annotation, "memberDoc", item)
-                            addDoc(annotation, "returnDoc", item)
-                        }
-                        is ParameterItem -> {
-                            addDoc(annotation, "paramDoc", item)
+                            addDoc(annotation, "memberDoc", item.descriptionOwner)
+                            var returnDescriptionOwner =
+                                item.documentation.blockTagDescriptionOwner("return")
+                            addDoc(annotation, "returnDoc", returnDescriptionOwner)
                         }
                         is ClassItem -> {
-                            addDoc(annotation, "classDoc", item)
+                            addDoc(annotation, "classDoc", item.descriptionOwner)
+                        }
+                        is ParameterItem -> {
+                            addDoc(annotation, "paramDoc", item.descriptionOwner)
                         }
                     }
                 }
@@ -689,7 +684,15 @@ class DocAnalyzer(
         descriptionOwner.append(doc)
     }
 
-    private fun addDoc(annotation: AnnotationItem, tag: String, item: Item) {
+    /**
+     * Gets documentation from the [annotation]'s block tag [tag] (if any) and appends it to
+     * [descriptionOwner].
+     */
+    private fun addDoc(
+        annotation: AnnotationItem,
+        tag: String,
+        descriptionOwner: DocContentOwner,
+    ) {
         // Resolve the annotation class, returning immediately if it could not be found.
         val cls = annotation.resolve() ?: return
 
@@ -699,40 +702,10 @@ class DocAnalyzer(
 
         // Get the text for the supplied tag as that is what needs to be copied into the use site.
         // If there is no such text then return immediately.
-        val taggedText = annotationDocumentation.findTagDocumentation(tag) ?: return
+        val tagDescription =
+            annotationDocumentation.blockTagDescription(tag, forAppending = true) ?: return
 
-        val insert = stripLeadingAsterisks(taggedText.substring(tag.length + 2))
-        val qualified =
-            if (containsLinkTags(insert)) {
-                val original = "/** $insert */"
-                val qualified = annotationDocumentation.fullyQualifiedDocumentation(original)
-                if (original != qualified) {
-                    qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
-                } else {
-                    insert
-                }
-            } else {
-                insert
-            }
-
-        // Select the section where the documentation will be appended.
-        val section =
-            when (tag) {
-                "returnDoc" ->
-                    // Return documentation gets added to the `return` block tag.
-                    "@return"
-                "paramDoc" ->
-                    // Parameter documentation gets added to the `param` block tag associated with
-                    // `item` which must be a [ParameterItem].
-                    "@param"
-                else ->
-                    // Everything else, i.e. class and member documentation gets added to the main
-                    // section of `item` which must either be a [ClassItem] or [MemberItem]
-                    // respectively.
-                    null
-            }
-
-        item.appendDocumentation(qualified, section) // 2: @ and space after tag
+        descriptionOwner.append(tagDescription)
     }
 
     private fun stripLeadingAsterisks(s: String): String {
