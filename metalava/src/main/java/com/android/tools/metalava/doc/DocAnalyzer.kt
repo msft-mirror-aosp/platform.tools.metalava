@@ -846,8 +846,9 @@ class DocAnalyzer(
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
             // are talking about language levels rather than API versions!
-            if (!item.documentation.hasBlockTagOfType("apiSince")) {
-                item.appendDocumentation(apiVersionLabel, "@apiSince")
+            val documentation = item.documentation
+            if (!documentation.hasBlockTagOfType("apiSince")) {
+                documentation.addUniqueBlockTagSectionWithSimpleText("apiSince", apiVersionLabel)
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
@@ -868,7 +869,10 @@ class DocAnalyzer(
      *   [item].
      */
     private fun addApiExtensionsDocumentation(sdkExtSince: SdkAndVersion, item: SelectableItem) {
-        if (item.documentation.hasBlockTagOfType("sdkExtSince")) {
+        val documentation = item.documentation
+
+        // Report an issue if sdkExtSince is present in the sources.
+        if (documentation.hasBlockTagOfType("sdkExtSince")) {
             reporter.report(
                 Issues.FORBIDDEN_TAG,
                 item,
@@ -877,7 +881,9 @@ class DocAnalyzer(
             )
         }
 
-        item.appendDocumentation("${sdkExtSince.name} ${sdkExtSince.version}", "@sdkExtSince")
+        // Always set @sdkExtSince, overriding any existing value.
+        val content = "${sdkExtSince.name} ${sdkExtSince.version}"
+        documentation.addUniqueBlockTagSectionWithSimpleText("sdkExtSince", content)
     }
 
     /**
@@ -894,8 +900,12 @@ class DocAnalyzer(
             }
             val apiVersionLabel = apiVersionLabelProvider(version)
 
-            if (!item.documentation.hasBlockTagOfType("deprecatedSince")) {
-                item.appendDocumentation(apiVersionLabel, "@deprecatedSince")
+            var documentation = item.documentation
+            if (!documentation.hasBlockTagOfType("deprecatedSince")) {
+                documentation.addUniqueBlockTagSectionWithSimpleText(
+                    "deprecatedSince",
+                    apiVersionLabel
+                )
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
