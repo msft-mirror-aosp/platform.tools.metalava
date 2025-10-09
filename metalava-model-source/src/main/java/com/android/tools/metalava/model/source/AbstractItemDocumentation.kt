@@ -303,9 +303,6 @@ private val deprecatedTagPattern =
     """((?m:^\s*\*\s*)?@deprecated\b(?m:\s*.*?))($START_OF_LINE_TAG_RE|$BLOCK_COMMENT_END_RE)"""
         .toPattern(Pattern.DOTALL)
 
-/** A [Pattern] that matches a blank, i.e. white space only, doc comment. */
-private val blankDocCommentPattern = """$DOC_COMMENT_START_RE\s*$BLOCK_COMMENT_END_RE""".toPattern()
-
 /** Remove the `@deprecated` section, if any, from [docs]. */
 fun removeDeprecatedSection(docs: String): String {
     // Find the `@deprecated` tag.
@@ -322,12 +319,5 @@ fun removeDeprecatedSection(docs: String): String {
             // The part after the `@deprecated` tag.
             docs.substring(deprecatedTagMatcher.end(1))
 
-    // Check to see if the resulting document comment is empty and if it is then discard it all
-    // together.
-    val emptyDocCommentMatcher = blankDocCommentPattern.matcher(withoutDeprecated)
-    return if (emptyDocCommentMatcher.matches()) {
-        ""
-    } else {
-        withoutDeprecated
-    }
+    return withoutDeprecated
 }
