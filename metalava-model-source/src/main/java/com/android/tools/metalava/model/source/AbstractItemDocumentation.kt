@@ -31,8 +31,13 @@ abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
 ) : ItemDocumentation, DocumentationIssueReporter {
 
-    /** Lazily initialized backing property for [text]. */
-    protected lateinit var _text: String
+    /**
+     * Lazily initialized backing property for [text].
+     *
+     * If this is `null` then it requires setting. If [_docComment] is `null` then it will be set by
+     * calling [initializeTextBackingField]. Otherwise, it will be set by printing [_docComment].
+     */
+    protected var _text: String? = null
 
     /**
      * Called when [_text] requires initializing. Implementations must set [_text] to a non-null
@@ -44,13 +49,23 @@ abstract class AbstractItemDocumentation(
      * The mutable text contents of the documentation.
      *
      * It uses [_text] as its backing field and setting this will invoke [textChanged].
+     *
+     * If [_docComment] is null then this needs initializing from the model, otherwise this is
+     * initialized from [_docComment].
      */
     override var text: String
         get() {
-            if (!::_text.isInitialized) {
-                initializeTextBackingField()
+            if (_text == null) {
+                val docComment = _docComment
+                if (docComment == null) {
+                    // Initialize from the underlying model.
+                    initializeTextBackingField()
+                } else {
+                    // Initialize from the _docComment so that it reflects any changes in it.
+                    _text = docComment.asJavadocCommentString()
+                }
             }
-            return _text
+            return _text!!
         }
         set(value) {
             _text = value
@@ -58,12 +73,12 @@ abstract class AbstractItemDocumentation(
         }
 
     /**
-     * Call when [text] changes to discard the [_docComment] so it will be regenerated next time it
-     * is accessed.
+     * Called when [text] changes to discard [_docComment] so it will be regenerated the next time
+     * [docComment] is accessed.
      *
      * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
-     * currently the [text] is modified directly. Longer term, changes will be applied directly to
-     * [_docComment] and [text] will be dropped.
+     * currently both [text] and [docComment] are modified directly. Longer term, changes will be
+     * applied directly to [_docComment] and [text] will be dropped.
      */
     private fun textChanged() {
         _docComment = null
@@ -83,6 +98,18 @@ abstract class AbstractItemDocumentation(
                 docComment
             }
         }
+
+    /**
+     * Called when [docComment] is mutated to discard [_text] so it will be regenerated from
+     * [_docComment] the next time [text] is accessed.
+     *
+     * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
+     * currently both [text] and [docComment] are modified directly. Longer term, changes will be
+     * applied directly to [_docComment] and [text] will be dropped.
+     */
+    private fun docCommentMutated() {
+        _text = null
+    }
 
     override val isHidden
         get() = hasBlockTagOfType("hide")
@@ -223,7 +250,12 @@ abstract class AbstractItemDocumentation(
     }
 
     override fun removeDeprecatedSection() {
-        text = removeDeprecatedSection(text)
+        // Try and remove all the `@deprecated` sections. If any were removed then report that the
+        // docComment was mutated.
+        val mutated = docComment.removeBlockTagSections { it.tagType == "deprecated" }
+        if (mutated) {
+            docCommentMutated()
+        }
     }
 
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
@@ -296,48 +328,4 @@ fun trimDocIndent(existingDoc: String): String {
             }
         }
     }
-}
-
-/** Regular expression to match the start of a doc comment. */
-private const val DOC_COMMENT_START_RE = """\Q/**\E"""
-
-/**
- * Regular expression to match the end of a block comment. If the block comment is at the start of a
- * line, preceded by some white space then it includes all that white space.
- */
-private const val BLOCK_COMMENT_END_RE = """(?m:^\s*)?\Q*/\E"""
-
-/**
- * Regular expression to match the start of a line Javadoc tag, i.e. a Javadoc tag at the beginning
- * of a line. Optionally, includes the preceding white space and a `*` forming a left hand border.
- */
-private const val START_OF_LINE_TAG_RE = """(?m:^\s*)\Q*\E\s*@"""
-
-/**
- * A [Pattern[] for matching an `@deprecated` tag and its associated text. If the tag is at the
- * start of the line then it includes everything from the start of the line. It includes everything
- * up to the end of the comment (apart from the line for the end of the comment) or the start of the
- * next line tag.
- */
-private val deprecatedTagPattern =
-    """((?m:^\s*\*\s*)?@deprecated\b(?m:\s*.*?))($START_OF_LINE_TAG_RE|$BLOCK_COMMENT_END_RE)"""
-        .toPattern(Pattern.DOTALL)
-
-/** Remove the `@deprecated` section, if any, from [docs]. */
-fun removeDeprecatedSection(docs: String): String {
-    // Find the `@deprecated` tag.
-    val deprecatedTagMatcher = deprecatedTagPattern.matcher(docs)
-    if (!deprecatedTagMatcher.find()) {
-        // Nothing to do as the documentation does not include @deprecated.
-        return docs
-    }
-
-    // Remove the @deprecated tag and associated text.
-    val withoutDeprecated =
-        // The part before the `@deprecated` tag.
-        docs.substring(0, deprecatedTagMatcher.start(1)) +
-            // The part after the `@deprecated` tag.
-            docs.substring(deprecatedTagMatcher.end(1))
-
-    return withoutDeprecated
 }
