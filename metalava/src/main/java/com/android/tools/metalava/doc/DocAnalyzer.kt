@@ -842,14 +842,10 @@ class DocAnalyzer(
 
             val apiVersionLabel = apiVersionLabelProvider(apiVersion)
 
-            // Also add @since tag, unless already manually entered.
-            // TODO: Override it everywhere in case the existing doc is wrong (we know
-            // better), and at least for OpenJDK sources we *should* since the since tags
-            // are talking about language levels rather than API versions!
             val documentation = item.documentation
-            if (!documentation.hasBlockTagOfType("apiSince")) {
-                documentation.addUniqueBlockTagSectionWithSimpleText("apiSince", apiVersionLabel)
-            } else {
+
+            // Report an issue if apiSince is present in the sources.
+            if (documentation.hasBlockTagOfType("apiSince")) {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
                     item,
@@ -857,6 +853,9 @@ class DocAnalyzer(
                         "manually; it's computed and injected at build time by $PROGRAM_NAME"
                 )
             }
+
+            // Always set @apiSince, overriding any existing value.
+            documentation.addUniqueBlockTagSectionWithSimpleText("apiSince", apiVersionLabel)
         }
     }
 
@@ -900,13 +899,10 @@ class DocAnalyzer(
             }
             val apiVersionLabel = apiVersionLabelProvider(version)
 
-            var documentation = item.documentation
-            if (!documentation.hasBlockTagOfType("deprecatedSince")) {
-                documentation.addUniqueBlockTagSectionWithSimpleText(
-                    "deprecatedSince",
-                    apiVersionLabel
-                )
-            } else {
+            val documentation = item.documentation
+
+            // Report an issue if deprecatedSince is present in the sources.
+            if (documentation.hasBlockTagOfType("deprecatedSince")) {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
                     item,
@@ -914,6 +910,9 @@ class DocAnalyzer(
                         "manually; it's computed and injected at build time by $PROGRAM_NAME"
                 )
             }
+
+            // Always set @deprecatedSince, overriding any existing value.
+            documentation.addUniqueBlockTagSectionWithSimpleText("deprecatedSince", apiVersionLabel)
         }
     }
 

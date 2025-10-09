@@ -579,7 +579,7 @@ class DocAnalyzerTest : DriverTest() {
                      * <br>
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
-                     * @apiSince 15
+                     * @apiSince 24
                      */
                     public int getCurrentContentInsetRight() { throw new RuntimeException("Stub!"); }
                     }
