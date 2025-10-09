@@ -17,8 +17,6 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.reporter.Issues
-import java.io.PrintWriter
-import java.io.StringWriter
 import kotlin.test.assertEquals
 
 abstract class BaseDocCommentTest {
@@ -45,9 +43,8 @@ abstract class BaseDocCommentTest {
         expectedPrintOutput: String,
         message: String? = null,
     ) {
-        val writer = StringWriter()
-        PrintWriter(writer).use { printWriter -> docComment.printAsJavadocComment(printWriter) }
-        assertEquals(expectedPrintOutput.trimIndent(), writer.toString().trim(), message)
+        var actualPrintOutput = docComment.asJavadocCommentString().trim()
+        assertEquals(expectedPrintOutput.trimIndent(), actualPrintOutput, message)
     }
 }
 

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import java.io.PrintWriter
+import java.io.StringWriter
 
 /**
  * A Javadoc or KDoc comment associated with an API element.
@@ -46,6 +47,13 @@ interface DocComment {
 
     /** Print this as a Javadoc comment to [writer]. */
     fun printAsJavadocComment(writer: PrintWriter)
+
+    /** Get the output of [printAsJavadocComment] as a [String]. */
+    fun asJavadocCommentString(): String {
+        val writer = StringWriter()
+        PrintWriter(writer).use { printWriter -> printAsJavadocComment(printWriter) }
+        return writer.toString()
+    }
 
     companion object {
         /** Create a [DocComment] from [text], reporting any issues to [reporter]. */
