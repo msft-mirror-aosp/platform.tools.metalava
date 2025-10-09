@@ -43,6 +43,8 @@ com.android.tools.metalava.JavadocTest
   Rewrite relative documentation links in doc-stubs 4[turbine]
   Rewrite relative documentation links in doc-stubs but preserve custom link text[turbine]
   Rewrite relative documentation links in doc-stubs[turbine]
+  Test multiple javadoc issues with baseline[turbine]
+  Test non-block @hide tag[turbine]
   Warn about unresolved[turbine]
 
 com.android.tools.metalava.KeepFileTest
@@ -141,6 +143,10 @@ com.android.tools.metalava.lint.ApiLintTest
 
 com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
+
+com.android.tools.metalava.lint.FlaggedApiLintTest
+  Do not require @FlaggedApi on RequiresPermission[turbine]
+  Require @FlaggedApi on API that modify annotations[turbine]
 
 com.android.tools.metalava.stub.StubsAnnotationTest
   Pass through libcore annotations[turbine]

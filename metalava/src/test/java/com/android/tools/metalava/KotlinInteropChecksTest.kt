@@ -16,9 +16,12 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -240,127 +243,6 @@ class KotlinInteropChecksTest : DriverTest() {
                         @JvmSynthetic
                         fun foo(bar: Bar, baz: Baz? = null) {
                         }
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Methods which throw exceptions should document them`() {
-        check(
-            apiLint = "",
-            extraArguments = arrayOf(ARG_HIDE, "BannedThrow", ARG_HIDE, "GenericException"),
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:6: error: Method Foo.error_throws_multiple_times appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:17: error: Method Foo.error_throwsCheckedExceptionWithWrongExceptionClassInThrows appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:37: error: Method Foo.error_throwsRuntimeExceptionDocsMissing appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:44: error: Method Foo.error_missingSpecificAnnotation appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:76: error: Method Foo.getErrorVar appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                src/test/pkg/Foo.kt:77: error: Method Foo.setErrorVar appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    import java.io.FileNotFoundException
-                    import java.lang.UnsupportedOperationException
-
-                    class Foo {
-                        fun error_throws_multiple_times(x: Int) {
-                            if (x < 0) {
-                                throw FileNotFoundException("Something")
-                            }
-                            if (x > 10) { // make sure we don't list this twice
-                                throw FileNotFoundException("Something")
-                            }
-                        }
-
-
-                        @Throws(Exception::class)
-                        fun error_throwsCheckedExceptionWithWrongExceptionClassInThrows(x: Int) {
-                            if (x < 0) {
-                                throw FileNotFoundException("Something")
-                            }
-                        }
-
-                        @Throws(FileNotFoundException::class)
-                        fun ok_hasThrows1(x: Int) {
-                            if (x < 0) {
-                                throw FileNotFoundException("Something")
-                            }
-                        }
-
-                        @Throws(UnsupportedOperationException::class, FileNotFoundException::class)
-                        fun ok_hasThrows2(x: Int) {
-                            if (x < 0) {
-                                throw FileNotFoundException("Something")
-                            }
-                        }
-
-                        fun error_throwsRuntimeExceptionDocsMissing(x: Int) {
-                            if (x < 0) {
-                                throw UnsupportedOperationException("Something")
-                            }
-                        }
-
-                        /** This method throws FileNotFoundException if blah blah blah */
-                        fun error_missingSpecificAnnotation(x: Int) {
-                            if (x < 0) {
-                                throw UnsupportedOperationException("Something")
-                            }
-                        }
-
-                        /** This method throws UnsupportedOperationException if blah blah blah */
-                        fun ok_docsPresent(x: Int) {
-                            if (x < 0) {
-                                throw UnsupportedOperationException("Something")
-                            }
-                        }
-
-                        fun ok_exceptionCaught(x: Int) {
-                            try {
-                                if (s.startsWith(" ")) {
-                                    throw NumberFormatException()
-                                }
-                                println("Hello")
-                            } catch (e: NumberFormatException) {}
-                        }
-
-                        fun ok_exceptionCaught2(x: Int) {
-                            try {
-                                if (s.startsWith(" ")) {
-                                    throw NumberFormatException()
-                                }
-                                println("Hello")
-                            } catch (e: Exception) {}
-                        }
-
-                        var errorVar: Int
-                            get() { throw UnsupportedOperationException() }
-                            set(value) { throw UnsupportedOperationException() }
-
-                        @get:Throws(FileNotFoundException::class)
-                        var okValAnnotation: Int
-                            get() { throw FileNotFoundException("Something") }
-
-                        /** Throws [UnsupportedOperationException] */
-                        val okValDocumented: Int
-                            get() { throw UnsupportedOperationException() }
-
-                        /** Throws [UnsupportedOperationException] */
-                        var okVarDocumented: Int = 0
-                            set(value) { throw UnsupportedOperationException() }
-
-                        // TODO: What about something where you call in Java a method
-                        // known to throw something (e.g. Integer.parseInt) and you don't catch it; should you
-                        // pass it on? Hard to say; if the logic is complicated it may
-                        // be the case that it can never happen, and this might be an annoying false positive.
-                    }
                     """
                     )
                 )
@@ -606,6 +488,176 @@ class KotlinInteropChecksTest : DriverTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check JvmName for file facade classes`() {
+        check(
+            apiLint = "", // Enabled
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                test/pkg/ErrorNeedsJvmName.kt:1: error: Use `@file:JvmName` to provide a name for this file facade class for Java callers [FacadeClassJvmName]
+                """,
+            hideAnnotations = arrayOf("test.pkg.Hide"),
+            extraArguments = arrayOf(ARG_ERROR, "FacadeClassJvmName"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "test/pkg/ErrorNeedsJvmName.kt",
+                        """
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkUsesJvmName.kt",
+                        """
+                        @file:JvmName("OkUsesJvmName")
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        annotation class Hide
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasHidden.kt",
+                        """
+                        package test.pkg
+                        @Hide
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasKotlinOnly.kt",
+                        """
+                        package test.pkg
+                        inline fun <reified T> foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkOnlyHasSuspend.kt",
+                        """
+                        package test.pkg
+                        suspend fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkSuppressesError.kt",
+                        """
+                        @file:Suppress("FacadeClassJvmName")
+                        package test.pkg
+                        fun foo() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkMultiFile1.kt",
+                        """
+                        @file:JvmMultifileClass
+                        @file:JvmName("OkMultiFile")
+                        package test.pkg
+                        fun multiFile1() = Unit
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/OkMultiFile2.kt",
+                        """
+                        @file:JvmMultifileClass
+                        @file:JvmName("OkMultiFile")
+                        package test.pkg
+                        fun multiFile2() = Unit
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class ErrorNeedsJvmNameKt {
+                    method public static void foo();
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Hide {
+                  }
+                  public final class OkMultiFile {
+                    method public static void multiFile1();
+                    method public static void multiFile2();
+                  }
+                  public final class OkOnlyHasKotlinOnlyKt {
+                    method @KotlinOnly public static inline <reified T> void foo();
+                  }
+                  public final class OkOnlyHasSuspendKt {
+                    method public static suspend Object? foo(kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                  }
+                  public final class OkSuppressesErrorKt {
+                    method public static void foo();
+                  }
+                  public final class OkUsesJvmName {
+                    method public static void foo();
+                  }
+                }
+                """,
+        )
+    }
+
+    // K1 is disabled because which file is used for all the parameters in the multifile class is
+    // different between K1 and K2.
+    @FilterByProvider("psi", "k1", action = EXCLUDE)
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test file location for error on parameter within multifile class`() {
+        check(
+            apiLint = "", // Enabled
+            expectedFail = DefaultLintErrorMessage,
+            // TODO b(450539561): all [KotlinDefaultParameterOrder] issues have file location
+            //  `test/pkg/Foo1.kt:4`, but two of them are from `test/pkg/Foo2.kt`.
+            expectedIssues =
+                """
+                test/pkg/Foo1.kt:4: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                test/pkg/Foo1.kt:4: error: Parameter `i1` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+                test/pkg/Foo1.kt:4: error: Parameter `i2` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+                test/pkg/Foo1.kt:4: error: Parameter `i3` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+                test/pkg/Foo2.kt:4: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                test/pkg/Foo2.kt:5: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "test/pkg/Foo1.kt",
+                        """
+                        @file:JvmName("Foo")
+                        @file:JvmMultifileClass
+                        package test.pkg
+                        fun foo1(i1: Int = 0, s1: String)
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/Foo2.kt",
+                        """
+                        @file:JvmName("Foo")
+                        @file:JvmMultifileClass
+                        package test.pkg
+                        fun foo2(i2: Int = 0, s2: String)
+                        fun foo3(i3: Int = 0, s3: String)
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public static void foo1(optional int i1, String s1);
+                    method public static void foo2(optional int i2, String s2);
+                    method public static void foo3(optional int i3, String s3);
+                  }
+                }
+                """
         )
     }
 }
