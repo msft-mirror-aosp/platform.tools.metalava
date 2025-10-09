@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.source.doc.DefaultDocDescription
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 import java.util.regex.Pattern
@@ -256,6 +258,16 @@ abstract class AbstractItemDocumentation(
         if (mutated) {
             docCommentMutated()
         }
+    }
+
+    override fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String) {
+        // Remove any existing sections of the specified type.
+        docComment.removeBlockTagSections { it.tagType == blockTagType }
+
+        // Add a block tag section to the end.
+        docComment.addBlockTagSection(blockTagType, DefaultDocDescription(JavadocText(text)))
+
+        docCommentMutated()
     }
 
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {

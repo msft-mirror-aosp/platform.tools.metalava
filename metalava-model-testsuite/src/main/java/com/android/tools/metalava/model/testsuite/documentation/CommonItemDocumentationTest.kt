@@ -709,4 +709,59 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test addUniqueBlockTagSectionWithSimpleText`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * Summary line.
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /** Summary line. */
+
+                    """,
+            )
+
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("unique", "1")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * @unique 1
+                         */
+
+                    """,
+            )
+
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("unique", "2")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * @unique 2
+                         */
+
+                    """,
+            )
+        }
+    }
 }

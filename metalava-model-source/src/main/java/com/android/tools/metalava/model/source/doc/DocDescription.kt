@@ -111,6 +111,14 @@ internal abstract class AbstractDocDescription : DocDescription {
     }
 }
 
+/** A simple [DocDescription] that encapsulates [content]. */
+internal class DefaultDocDescription(override val content: JavadocContent) :
+    AbstractDocDescription() {
+    override fun toString(): String {
+        return "<$content>"
+    }
+}
+
 /**
  * A lazy [DocDescription] that creates [content] lazily by parsing a subsequence of [text] starting
  * from [startInclusive] and ending at [endExclusive].
