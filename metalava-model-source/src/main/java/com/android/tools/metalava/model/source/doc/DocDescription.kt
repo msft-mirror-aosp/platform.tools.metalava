@@ -121,6 +121,12 @@ internal class LazyDocDescription(
     private val endExclusive: Int,
     private val reporter: DocumentationIssueReporter,
 ) : AbstractDocDescription(), DocumentationIssueReporter {
+    /** Secondary constructor to simple creation during testing. */
+    constructor(
+        text: String,
+        reporter: DocumentationIssueReporter
+    ) : this(text, 0, text.length, reporter)
+
     private lateinit var _content: JavadocContent
 
     override val content: JavadocContent
