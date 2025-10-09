@@ -31,7 +31,7 @@ import java.io.PrintWriter
  * This represents a block of text and inline tags in a [DocComment]. It can either be the main
  * description for the item or the description of a block tag in the item.
  */
-interface DocDescription {
+internal interface DocDescription {
     /** Return `true` if this is empty, `false` otherwise. */
     fun isEmpty(): Boolean
 
@@ -61,41 +61,8 @@ internal class EmptyDocDescription : DocDescription {
     override fun toString() = "<<>>"
 }
 
-/**
- * The default [DocDescription] whose content is a subsequence of [text] starting from
- * [startInclusive] and ending at [endExclusive].
- */
-internal class DefaultDocDescription(
-    private val text: String,
-    private val startInclusive: Int,
-    private val endExclusive: Int,
-    private val reporter: DocumentationIssueReporter,
-) : DocDescription, DocumentationIssueReporter {
-
-    private lateinit var _content: JavadocContent
-
-    val content: JavadocContent
-        get() {
-            if (!::_content.isInitialized) {
-                // Trim whitespace from the end of the description.
-                val trimmedEnd = text.skipBackwardsOverTrailingWhitespace(endExclusive - 1) + 1
-                _content =
-                    if (trimmedEnd <= startInclusive) {
-                        JavadocContent.EMPTY
-                    } else {
-                        JavadocParser.parse(
-                            text,
-                            startInclusive,
-                            trimmedEnd,
-                            // Pass this as the reporter so that this can apply corrections to the
-                            // line and char offset based on the [startInclusive] position within
-                            // [text].
-                            this,
-                        )
-                    }
-            }
-            return _content
-        }
+internal abstract class AbstractDocDescription : DocDescription {
+    abstract val content: JavadocContent
 
     override fun isEmpty() = content == JavadocContent.EMPTY
 
@@ -142,6 +109,42 @@ internal class DefaultDocDescription(
             }
         )
     }
+}
+
+/**
+ * A lazy [DocDescription] that creates [content] lazily by parsing a subsequence of [text] starting
+ * from [startInclusive] and ending at [endExclusive].
+ */
+internal class LazyDocDescription(
+    private val text: String,
+    private val startInclusive: Int,
+    private val endExclusive: Int,
+    private val reporter: DocumentationIssueReporter,
+) : AbstractDocDescription(), DocumentationIssueReporter {
+    private lateinit var _content: JavadocContent
+
+    override val content: JavadocContent
+        get() {
+            if (!::_content.isInitialized) {
+                // Trim whitespace from the end of the description.
+                val trimmedEnd = text.skipBackwardsOverTrailingWhitespace(endExclusive - 1) + 1
+                _content =
+                    if (trimmedEnd <= startInclusive) {
+                        JavadocContent.EMPTY
+                    } else {
+                        JavadocParser.parse(
+                            text,
+                            startInclusive,
+                            trimmedEnd,
+                            // Pass this as the reporter so that this can apply corrections to the
+                            // line and char offset based on the [startInclusive] position within
+                            // [text].
+                            this,
+                        )
+                    }
+            }
+            return _content
+        }
 
     override fun toString() = buildString {
         append("<<")

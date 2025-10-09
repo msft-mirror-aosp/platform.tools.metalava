@@ -24,7 +24,7 @@ import java.io.StringWriter
  *
  * Implementations of these are mutable.
  */
-interface DocComment {
+internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
     val description: DocDescription
 
