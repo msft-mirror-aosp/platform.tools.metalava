@@ -1357,4 +1357,70 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test first sentence handling - pure text`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import static java.lang.annotation.ElementType.*;
+                    import static java.lang.annotation.RetentionPolicy.CLASS;
+                    import java.lang.annotation.*;
+
+                    /**
+                     * A summary line that uses e.g. to test whether the workaround for a Javadoc
+                     * problem that ends the summary line at the first `.` is applied when
+                     * printing.
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    // TODO(b/450228132): The workaround is not applied.
+                    """
+                        /**
+                         * A summary line that uses e.g. to test whether the workaround for a Javadoc
+                         * problem that ends the summary line at the first `.` is applied when
+                         * printing.
+                         */
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test first sentence handling - link tag`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import static java.lang.annotation.ElementType.*;
+                    import static java.lang.annotation.RetentionPolicy.CLASS;
+                    import java.lang.annotation.*;
+
+                    /**
+                     * A {@link java.util.List list} contains things, e.g. names.
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    // TODO(b/450228132): The workaround is not applied.
+                    """
+                        /** A {@link java.util.List list} contains things, e.g. names. */
+                    """,
+            )
+        }
+    }
 }
