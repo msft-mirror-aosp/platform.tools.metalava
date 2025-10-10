@@ -24,6 +24,7 @@ import com.android.tools.metalava.testing.kotlin
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.fail
 import org.junit.Test
 
 class CommonItemDocumentationTest : BaseModelTest() {
@@ -762,6 +763,50 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
                     """,
             )
+        }
+    }
+
+    @Test
+    fun `Test appending to Javadoc with errors`() {
+        val reporter = RecordingReporter()
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /** Unclosed {@code inline tag */
+                    public class Test {}
+                 """
+            ),
+            testFixture =
+                TestFixture(
+                    reporter = reporter,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // Add a block tag to the `DocComment`. This will create a DocComment from `text`, by
+            // splitting it into a main `DocDescription` and an empty set of `BlockTagSection`s. It
+            // does not parse the `DocDescription` content so does not detect the unclosed `code`
+            // tag. After creating the `DocComment` it mutates it by adding a `BlockTagSection`
+            // which again does not detect the unclosed `code` tag. It then sets `text` to `null` to
+            // force it to be regenerated from the `DocComment` next time it is accessed.
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("custom", "text")
+
+            // TODO(b/450228132): Should not throw a StackOverflowError
+            try {
+                // Append the documentation. This forces the `text` field to be generated from the
+                // `DocComment`. That first has to parse the `DocDescription` and create the
+                // `JavadocContent` model. During that process the unclosed `code` tag is detected
+                // and reported. Reporting requires accessing `ItemDocumentation.fileLocation` and
+                // in the `PsiItemDocumentation` implementation that requires the `psiComment` field
+                // to have been initialized. That is initialized at the same time as `text` so the
+                // current implementation just ensures that `text` has been initialized. That causes
+                // it to repeat the work in this comment leading to a `StackOverflowError`.
+                testClass.documentation.appendDocumentation("Blah", null)
+                fail("Did not result in a stack overflow")
+            } catch (_: StackOverflowError) {
+                // Expected.
+            }
         }
     }
 }
