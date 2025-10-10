@@ -165,7 +165,7 @@ internal class PsiItemDocumentation(
     }
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
-        text = mergeDocumentation(text, psi, comment, tagSection, append = true)
+        text = mergeDocumentation(text, psi, comment, tagSection)
     }
 
     override fun findMainDocumentation(): String {
