@@ -118,7 +118,8 @@ internal fun mergeDocumentation(
         } else {
             // Add text to the existing @return tag
             val offset = findTagEnd(returnTag)
-            return insertInto(doc, newText, offset)
+            // Insert a <br> before the appended docs
+            return insertInto(doc, "<br>\n$newText", offset)
         }
     } else if (tagSection != null) {
         val parameter =
@@ -147,14 +148,16 @@ internal fun mergeDocumentation(
         } else {
             // Add to existing tag/parameter
             val offset = findTagEnd(parameter)
-            return insertInto(doc, newText, offset)
+            // Insert a <br> before the appended docs
+            return insertInto(doc, "<br>\n$newText", offset)
         }
     } else {
         // Add to the main text section of the comment.
         val firstTag = findFirstTag(docComment)
         val startOffset = firstTag?.textRange?.startOffset ?: (doc.length - 2)
         // Insert a <br> before the appended docs, unless it's the beginning of a doc section
-        return insertInto(doc, if (startOffset > 4) "<br>\n$newText" else newText, startOffset)
+        var textToInsert = if (startOffset > 4) "<br>\n$newText" else newText
+        return insertInto(doc, textToInsert, startOffset)
     }
 }
 
