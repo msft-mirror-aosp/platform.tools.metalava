@@ -48,12 +48,25 @@ abstract class AbstractItemDocumentation(
     protected abstract fun initializeTextBackingField()
 
     /**
+     * Ensures that [text]'s backing field has been initialized even if it is currently `null`.
+     *
+     * The `text` field has been initialized if [_text] is non-null or if [_docComment] is non-null.
+     * As the [_docComment] is only created from [_text] if it is non-null then [_text] must have
+     * been non-null in the past.
+     */
+    protected fun ensureTextBackingFieldHasBeenInitialized() {
+        if (_text == null && _docComment == null) {
+            initializeTextBackingField()
+        }
+    }
+
+    /**
      * The mutable text contents of the documentation.
      *
      * It uses [_text] as its backing field and setting this will invoke [textChanged].
      *
-     * If [_docComment] is null then this needs initializing from the model, otherwise this is
-     * initialized from [_docComment].
+     * If [_docComment] is null then this needs initializing from the model, otherwise this is set
+     * from [_docComment].
      */
     override var text: String
         get() {

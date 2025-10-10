@@ -64,8 +64,10 @@ internal class PsiItemDocumentation(
 
     override val fileLocation: FileLocation
         get() {
-            // Make sure that the psiComment is initialized.
-            text
+            // Make sure that the psiComment is initialized by making sure that the text backing
+            // field has been initialized as they are initialized together in
+            // [initializeTextBackingField].
+            ensureTextBackingFieldHasBeenInitialized()
             return PsiFileLocation.fromPsiElement(psiComment)
         }
 

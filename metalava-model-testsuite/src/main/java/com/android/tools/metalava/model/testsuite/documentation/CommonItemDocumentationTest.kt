@@ -24,7 +24,6 @@ import com.android.tools.metalava.testing.kotlin
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
-import kotlin.test.fail
 import org.junit.Test
 
 class CommonItemDocumentationTest : BaseModelTest() {
@@ -792,21 +791,30 @@ class CommonItemDocumentationTest : BaseModelTest() {
             // force it to be regenerated from the `DocComment` next time it is accessed.
             testClass.documentation.addUniqueBlockTagSectionWithSimpleText("custom", "text")
 
-            // TODO(b/450228132): Should not throw a StackOverflowError
-            try {
-                // Append the documentation. This forces the `text` field to be generated from the
-                // `DocComment`. That first has to parse the `DocDescription` and create the
-                // `JavadocContent` model. During that process the unclosed `code` tag is detected
-                // and reported. Reporting requires accessing `ItemDocumentation.fileLocation` and
-                // in the `PsiItemDocumentation` implementation that requires the `psiComment` field
-                // to have been initialized. That is initialized at the same time as `text` so the
-                // current implementation just ensures that `text` has been initialized. That causes
-                // it to repeat the work in this comment leading to a `StackOverflowError`.
-                testClass.documentation.appendDocumentation("Blah", null)
-                fail("Did not result in a stack overflow")
-            } catch (_: StackOverflowError) {
-                // Expected.
-            }
+            // Append the documentation. This forces the `text` field to be generated from the
+            // `DocComment`. That first has to parse the `DocDescription` and create the
+            // `JavadocContent` model. During that process the unclosed `code` tag is detected and
+            // reported. Reporting requires accessing `ItemDocumentation.fileLocation` and in the
+            // `PsiItemDocumentation` implementation that requires the `psiComment` field to have
+            // been initialized. That is initialized at the same time as `text` was first
+            // initialized so the implementation checks to see whether `text` has been initialized
+            // before trying to initialize it to avoid re-entering the code to generate `text` from
+            // the `DocComment` which would cause a `StackOverflowError`.
+            testClass.documentation.appendDocumentation("Blah", null)
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Unclosed {@code inline tag}
+                         * <br>
+                         * Blah
+                         * @custom text
+                         */
+
+                    """,
+            )
         }
     }
 }
