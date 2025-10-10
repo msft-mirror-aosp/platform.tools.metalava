@@ -288,33 +288,37 @@ class DocAnalyzer(
                     item.appendDocumentation(text, "@deprecated")
                 }
 
+                /** Returns `true` if this contains the word `null`. */
+                private fun String?.containsNullWord() =
+                    this != null && contains("null") && mentionsNull.matcher(this).find()
+
+                private fun documentationContainsNullWord(item: Item): Boolean {
+                    val documentation = item.documentation
+                    return when (item) {
+                        is ParameterItem -> {
+                            item
+                                .containingCallable()
+                                .documentation
+                                .findTagDocumentation("param", item.name())
+                                .containsNullWord()
+                        }
+                        is CallableItem -> {
+                            // Don't inspect param docs (and other tags) for this purpose.
+                            documentation.findMainDocumentation().containsNullWord() ||
+                                documentation.findTagDocumentation("return").containsNullWord()
+                        }
+                        else -> {
+                            documentation.text.containsNullWord()
+                        }
+                    }
+                }
+
                 private fun handleInliningDocs(annotation: AnnotationItem, item: Item) {
                     if (annotation.isNullable() || annotation.isNonNull()) {
                         // Some docs already specifically talk about null policy; in that case,
                         // don't include the docs (since it may conflict with more specific
-                        // conditions
-                        // outlined in the docs).
-                        val documentation = item.documentation
-                        val doc =
-                            when (item) {
-                                is ParameterItem -> {
-                                    item
-                                        .containingCallable()
-                                        .documentation
-                                        .findTagDocumentation("param", item.name()) ?: ""
-                                }
-                                is CallableItem -> {
-                                    // Don't inspect param docs (and other tags) for this purpose.
-                                    documentation.findMainDocumentation() +
-                                        (documentation.findTagDocumentation("return") ?: "")
-                                }
-                                else -> {
-                                    documentation.text
-                                }
-                            }
-                        if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
-                            return
-                        }
+                        // conditions outlined in the docs).
+                        if (documentationContainsNullWord(item)) return
                     }
 
                     when (item) {
