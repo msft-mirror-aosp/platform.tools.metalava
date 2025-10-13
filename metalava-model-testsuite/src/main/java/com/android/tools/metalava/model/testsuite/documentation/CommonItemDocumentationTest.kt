@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.java
@@ -24,6 +25,8 @@ import com.android.tools.metalava.testing.kotlin
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.Test
 
 class CommonItemDocumentationTest : BaseModelTest() {
@@ -1047,6 +1050,77 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          */
 
                     """,
+            )
+        }
+    }
+
+    private fun assertDocContentOwnerToString(
+        owner: DocContentOwner?,
+        expected: String?,
+        message: String? = null
+    ) {
+        assertNotNull(owner)
+        val content = owner.docContent
+        if (expected == null) {
+            assertNull(content)
+        } else {
+            assertNotNull(content)
+            assertEquals(expected, content.toString(), message)
+        }
+    }
+
+    @Test
+    fun `Test DocContentOwner with main description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     * Main documentation.
+                     */
+                    public class Test {}
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val documentation = testClass.documentation
+
+            assertDocContentOwnerToString(
+                documentation.mainDescriptionOwner,
+                """JavadocText("Main documentation.")"""
+            )
+        }
+    }
+
+    @Test
+    fun `Test DocContentOwner without main description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     * @see String block tag documentation.
+                     */
+                    public class Test {}
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val documentation = testClass.documentation
+
+            assertDocContentOwnerToString(
+                documentation.mainDescriptionOwner,
+                expected = null,
+                message = "mainDescription"
+            )
+            assertDocContentOwnerToString(
+                documentation.blockTagDescriptionOwner("see"),
+                expected = """JavadocText("String block tag documentation.")""",
+                message = "@see block tag"
+            )
+            assertNull(
+                documentation.blockTagDescriptionOwner("unknown"),
+                message = "@unknown block tag"
             )
         }
     }

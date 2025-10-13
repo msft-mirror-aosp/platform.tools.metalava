@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
@@ -220,6 +221,12 @@ abstract class AbstractItemDocumentation(
             fullyQualifiedComment.printAsJavadocComment(writer)
         }
     }
+
+    override val mainDescriptionOwner: DocContentOwner
+        get() = docComment
+
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? =
+        docComment.blockTagSections.find { it.tagType.name == tagTypeName }
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.source.doc.RequiredSpace
 
 /**
@@ -24,7 +25,7 @@ import com.android.tools.metalava.model.source.doc.RequiredSpace
  * This represents a block of text and inline tags in a Javadoc comment. It can either be in the
  * main description for the item or the description of a block tag in the item.
  */
-internal sealed interface JavadocContent {
+internal sealed interface JavadocContent : DocContent {
     /**
      * Checks to see whether the content will occupy multiple lines.
      *

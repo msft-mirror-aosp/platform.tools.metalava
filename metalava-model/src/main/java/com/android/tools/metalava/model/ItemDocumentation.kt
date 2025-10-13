@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.PrintWriter
 
@@ -110,6 +111,16 @@ interface ItemDocumentation {
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
 
+    /** Get the owner of the main description for the comment. */
+    val mainDescriptionOwner: DocContentOwner?
+
+    /**
+     * Get the owner of the description for the first block tag of [tagTypeName].
+     *
+     * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
+     */
+    fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner?
+
     /**
      * Returns the [text], but with fully qualified links (except for the same package, and when
      * turning a relative reference into a fully qualified reference, use the javadoc syntax for
@@ -176,6 +187,11 @@ interface ItemDocumentation {
 
         // Empty documentation has nothing to print.
         override fun print(writer: PrintWriter) {}
+
+        override val mainDescriptionOwner: DocContentOwner?
+            get() = null
+
+        override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? = null
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 

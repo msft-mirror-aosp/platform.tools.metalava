@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
 import java.util.Optional
@@ -29,7 +30,7 @@ import kotlin.jvm.optionals.getOrNull
  *     * @<tag-type> <description>
  * ```
  */
-internal interface BlockTagSection {
+internal interface BlockTagSection : DocContentOwner {
     /** The type of the block tag. */
     val tagType: TagType<*>
 

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.requiredSpace
 import java.io.PrintWriter
@@ -26,7 +27,7 @@ import java.io.StringWriter
  *
  * Implementations of these are mutable.
  */
-internal interface DocComment {
+internal interface DocComment : DocContentOwner {
     /** The main description, i.e. the part before any block tags. */
     val description: JavadocContent?
 

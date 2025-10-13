@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 
 /**
@@ -26,7 +28,7 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
  */
 internal open class DescriptionOwner(
     protected val descriptionSupplier: ContentSupplier,
-) {
+) : DocContentOwner {
     /**
      * Get the [JavadocContent] from [descriptionSupplier].
      *
@@ -36,4 +38,7 @@ internal open class DescriptionOwner(
      */
     val description: JavadocContent?
         get() = descriptionSupplier.content
+
+    override val docContent: DocContent?
+        get() = description
 }
