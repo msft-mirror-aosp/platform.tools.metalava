@@ -16,11 +16,16 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
 
 internal object TestTagTypes {
-    val BAR_TAG_TYPE = BarTagType()
+    val BAR_TAG_TYPE =
+        BarTagType().also {
+            // Register for use as an inline tag.
+            InlineTagTypes.register(it)
+        }
 }
 
 internal class BarTagType : TagType<BarTagData>("bar") {

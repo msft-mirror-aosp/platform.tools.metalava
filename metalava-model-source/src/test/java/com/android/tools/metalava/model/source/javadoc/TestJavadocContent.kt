@@ -41,6 +41,10 @@ internal fun JavadocContent?.dumpContentStructure(): String = buildString {
                 appendPrefix()
                 append("inlineTag: ")
                 append(inlineTag.tagType)
+                inlineTag.tagData?.let { tagData ->
+                    append(" ")
+                    append(tagData)
+                }
                 append("\n")
                 inlineTag.content?.let { nestedContent -> indent { nestedContent.accept(this) } }
             }
