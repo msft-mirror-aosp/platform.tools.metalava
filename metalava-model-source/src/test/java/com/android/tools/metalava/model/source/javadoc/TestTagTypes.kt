@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
@@ -23,7 +24,8 @@ import com.android.tools.metalava.model.source.doc.TagType
 internal object TestTagTypes {
     val BAR_TAG_TYPE =
         BarTagType().also {
-            // Register for use as an inline tag.
+            // Register for use as block and inline tags.
+            BlockTagTypes.register(it)
             InlineTagTypes.register(it)
         }
 }

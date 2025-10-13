@@ -117,7 +117,12 @@ internal object DocCommentParser {
                         blockTagDescriptionStartInclusive,
                         blockTagDescriptionEndExclusive,
                     )
-                blockTagSections.add(DefaultBlockTagSection(blockTagType, blockTagDescription))
+                val blockTagSection =
+                    DefaultBlockTagSection(
+                        blockTagType,
+                        blockTagDescription,
+                    )
+                blockTagSections.add(blockTagSection)
             }
 
             if (matchStart == commentBodyEndExclusive) {
