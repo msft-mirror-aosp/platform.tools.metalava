@@ -38,23 +38,6 @@ internal sealed interface JavadocContent {
      * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
      */
     fun accept(visitor: JavadocContentVisitor)
-
-    companion object {
-        val EMPTY: JavadocContent = EmptyJavadocContent()
-    }
-}
-
-/** An empty [JavadocContent]. */
-private class EmptyJavadocContent : JavadocContent {
-    /** Empty content does not occupy multiple lines. */
-    override fun isMultiLine() = false
-
-    /** Empty content does not start with a newline. */
-    override fun startsWithNewline() = false
-
-    override fun accept(visitor: JavadocContentVisitor) {
-        // Do nothing.
-    }
 }
 
 /** Visitor of [JavadocContent] subclasses. */
