@@ -817,4 +817,43 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test leading whitespace in descriptions`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     *    Summary line with leading whitespace.
+                     * @see   "With leading whitespace"
+                     * @deprecated
+                     *     Block tag with leading whitespace on separate line.
+                     */
+                    public class Test {}
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            checkItemDocumentationPrint(
+                testClass,
+                // TODO(b/429965593): Make the handling of leading whitespace in descriptions more
+                //  consistent.
+                // The whitespace at the start of the summary line is kept but the whitespace after
+                // `@see` is removed. The newline after `@deprecated` is dropped but the 5 spaces
+                // between `*` and "Block" are kept.
+                expectedOutput =
+                    """
+                        /**
+                         *    Summary line with leading whitespace.
+                         *
+                         * @see "With leading whitespace"
+                         * @deprecated      Block tag with leading whitespace on separate line.
+                         */
+
+                    """,
+            )
+        }
+    }
 }
