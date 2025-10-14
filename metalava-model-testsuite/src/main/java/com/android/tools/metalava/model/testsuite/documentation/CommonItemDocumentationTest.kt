@@ -838,18 +838,15 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             checkItemDocumentationPrint(
                 testClass,
-                // TODO(b/429965593): Make the handling of leading whitespace in descriptions more
-                //  consistent.
-                // The whitespace at the start of the summary line is kept but the whitespace after
-                // `@see` is removed. The newline after `@deprecated` is dropped but the 5 spaces
-                // between `*` and "Block" are kept.
+                // The whitespace at the start of the summary line and at the start of each block
+                // tag is removed.
                 expectedOutput =
                     """
                         /**
-                         *    Summary line with leading whitespace.
+                         * Summary line with leading whitespace.
                          *
                          * @see "With leading whitespace"
-                         * @deprecated      Block tag with leading whitespace on separate line.
+                         * @deprecated Block tag with leading whitespace on separate line.
                          */
 
                     """,

@@ -93,7 +93,7 @@ class JavadocParserTest : BaseDocCommentTest() {
     fun `Test simple comment`() {
         checkParse(
             "/** Simple text */",
-            expectedStructure = "text: ' Simple text'",
+            expectedStructure = "text: 'Simple text'",
         )
     }
 
@@ -101,7 +101,7 @@ class JavadocParserTest : BaseDocCommentTest() {
     fun `Test simple comment - leading newline`() {
         checkParse(
             "\n/** Simple text */",
-            expectedStructure = """text: ' Simple text'""",
+            expectedStructure = """text: 'Simple text'""",
         )
     }
 
@@ -109,7 +109,7 @@ class JavadocParserTest : BaseDocCommentTest() {
     fun `Test simple comment - trailing newline`() {
         checkParse(
             "/** Simple text */\n",
-            expectedStructure = """text: ' Simple text'""",
+            expectedStructure = """text: 'Simple text'""",
         )
     }
 
@@ -119,7 +119,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             "/** /** */\n",
             expectedStructure =
                 """
-                    text: ' /**'
+                    text: '/**'
                 """,
         )
     }
@@ -134,7 +134,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: link
                       text: 'Class'
                 """,
@@ -151,7 +150,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' Text before link '
+                    text: 'Text before link '
                     inlineTag: link
                       text: 'Class'
                     text: ' and some text after.'
@@ -171,7 +170,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' Text before link\n '
+                    text: 'Text before link\n '
                     inlineTag: link
                       text: 'Class'
                     text: '\n and some text after.'
@@ -189,7 +188,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: code
                       text: '@Annotation'
                 """,
@@ -206,7 +204,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: code
                       text: 'some '
                       inlineTag: code
@@ -229,7 +226,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: code
                       text: 'unclosed'
                 """,
@@ -250,7 +246,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: code
                       text: 'extra space'
                 """,
@@ -265,7 +260,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: inheritDoc
                 """,
         )
@@ -285,7 +279,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                 .replace('X', ' '),
             expectedStructure =
                 """
-                    text: ' Some text with trailing whitespace\n on multiple lines'
+                    text: 'Some text with trailing whitespace\n on multiple lines'
                 """,
         )
     }
@@ -301,7 +295,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 // Error recovery ignores the */ and everything after it.
                 """
-                    text: ' Some text with'
+                    text: 'Some text with'
                 """,
             expectedJavadocIssues =
                 """
@@ -351,7 +345,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' Summary.\n <pre>'
+                    text: 'Summary.\n <pre>'
                     inlineTag: code
                       text: '\n someSampleCode()\n '
                     text: '</pre>'
@@ -376,7 +370,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
+                    text: 'Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
                 """,
         )
     }

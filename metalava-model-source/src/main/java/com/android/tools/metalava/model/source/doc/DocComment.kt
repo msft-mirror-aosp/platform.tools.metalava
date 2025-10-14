@@ -148,6 +148,8 @@ internal class DefaultDocComment(
             if (multiLine) {
                 writer.print(" *")
             }
+            // Add leading space as all leading whitespace was removed from description.
+            writer.print(" ")
             description.printAsJavadocComment(writer)
             if (multiLine) {
                 writer.println()

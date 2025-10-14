@@ -1171,7 +1171,7 @@ class DocAnalyzerTest : DriverTest() {
                         """
                     /**
                      * Some existing doc here.
-                     * @deprecated  <!-- comment -->
+                     * @deprecated <!-- comment -->
                      */
                     package android.pkg2;
                     """
