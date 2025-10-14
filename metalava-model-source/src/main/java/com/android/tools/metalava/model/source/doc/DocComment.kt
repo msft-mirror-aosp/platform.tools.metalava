@@ -24,7 +24,7 @@ import java.io.StringWriter
  *
  * Implementations of these are mutable.
  */
-interface DocComment {
+internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
     val description: DocDescription
 
@@ -37,6 +37,9 @@ interface DocComment {
 
     /** Check to see whether there are any block tags of type [blockTagType]. */
     fun hasBlockTagOfType(blockTagType: String): Boolean
+
+    /** Add a [BlockTagSection] of [blockTagType] with [description] to the list. */
+    fun addBlockTagSection(blockTagType: String, description: DocDescription)
 
     /**
      * Removes any [BlockTagSection] for which [predicate] returns `true`.
@@ -83,6 +86,10 @@ internal class DefaultDocComment(
 ) : DocComment {
     override fun hasBlockTagOfType(blockTagType: String) =
         blockTagSections.any { it.tagType == blockTagType }
+
+    override fun addBlockTagSection(blockTagType: String, description: DocDescription) {
+        blockTagSections = blockTagSections + DefaultBlockTagSection(blockTagType, description)
+    }
 
     override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean {
         val filtered = blockTagSections.filter { !predicate(it) }
@@ -141,6 +148,8 @@ internal class DefaultDocComment(
             if (multiLine) {
                 writer.print(" *")
             }
+            // Add leading space as all leading whitespace was removed from description.
+            writer.print(" ")
             description.printAsJavadocComment(writer)
             if (multiLine) {
                 writer.println()

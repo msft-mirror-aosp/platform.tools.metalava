@@ -829,6 +829,34 @@ class DocAnalyzer(
     }
 
     /**
+     * Add [blockTagType] with [content] to the [item]'s [Item.documentation].
+     *
+     * If there is an existing [blockTagType] then an [Issues.FORBIDDEN_TAG] error will be reported,
+     * and it will be removed. Irrespective of that a new [blockTagType] will be added with some
+     * simple textual content.
+     */
+    private fun addUniqueVersionBlockTag(
+        item: SelectableItem,
+        blockTagType: String,
+        content: String,
+    ) {
+        val documentation = item.documentation
+
+        // Report an issue if [blockTagType] is present in the sources.
+        if (documentation.hasBlockTagOfType(blockTagType)) {
+            reporter.report(
+                Issues.FORBIDDEN_TAG,
+                item,
+                "Documentation should not specify @$blockTagType " +
+                    "manually; it's computed and injected at build time by $PROGRAM_NAME"
+            )
+        }
+
+        // Always set @[blockTagType], overriding any existing value.
+        documentation.addUniqueBlockTagSectionWithSimpleText(blockTagType, content)
+    }
+
+    /**
      * Add API version documentation to the [item].
      *
      * This only applies to classes and class members, i.e. not parameters.
@@ -840,22 +868,9 @@ class DocAnalyzer(
                 return
             }
 
+            // Always set @apiSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(apiVersion)
-
-            // Also add @since tag, unless already manually entered.
-            // TODO: Override it everywhere in case the existing doc is wrong (we know
-            // better), and at least for OpenJDK sources we *should* since the since tags
-            // are talking about language levels rather than API versions!
-            if (!item.documentation.hasBlockTagOfType("apiSince")) {
-                item.appendDocumentation(apiVersionLabel, "@apiSince")
-            } else {
-                reporter.report(
-                    Issues.FORBIDDEN_TAG,
-                    item,
-                    "Documentation should not specify @apiSince " +
-                        "manually; it's computed and injected at build time by $PROGRAM_NAME"
-                )
-            }
+            addUniqueVersionBlockTag(item, "apiSince", apiVersionLabel)
         }
     }
 
@@ -868,16 +883,9 @@ class DocAnalyzer(
      *   [item].
      */
     private fun addApiExtensionsDocumentation(sdkExtSince: SdkAndVersion, item: SelectableItem) {
-        if (item.documentation.hasBlockTagOfType("sdkExtSince")) {
-            reporter.report(
-                Issues.FORBIDDEN_TAG,
-                item,
-                "Documentation should not specify @sdkExtSince " +
-                    "manually; it's computed and injected at build time by $PROGRAM_NAME"
-            )
-        }
-
-        item.appendDocumentation("${sdkExtSince.name} ${sdkExtSince.version}", "@sdkExtSince")
+        // Always set @sdkExtSince, overriding any existing value.
+        val sdkExtVersion = "${sdkExtSince.name} ${sdkExtSince.version}"
+        addUniqueVersionBlockTag(item, "sdkExtSince", sdkExtVersion)
     }
 
     /**
@@ -892,18 +900,10 @@ class DocAnalyzer(
                 // accurate historical data
                 return
             }
-            val apiVersionLabel = apiVersionLabelProvider(version)
 
-            if (!item.documentation.hasBlockTagOfType("deprecatedSince")) {
-                item.appendDocumentation(apiVersionLabel, "@deprecatedSince")
-            } else {
-                reporter.report(
-                    Issues.FORBIDDEN_TAG,
-                    item,
-                    "Documentation should not specify @deprecatedSince " +
-                        "manually; it's computed and injected at build time by $PROGRAM_NAME"
-                )
-            }
+            // Always set @deprecatedSince, overriding any existing value.
+            val apiVersionLabel = apiVersionLabelProvider(version)
+            addUniqueVersionBlockTag(item, "deprecatedSince", apiVersionLabel)
         }
     }
 
