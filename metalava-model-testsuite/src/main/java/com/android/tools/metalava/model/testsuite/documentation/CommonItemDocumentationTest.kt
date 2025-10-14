@@ -853,4 +853,110 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test fully qualifying links that wrap on multiple lines`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Other;
+                        /**
+                         * {@link
+                         * Other}
+                         * {@link
+                         * Other#Other}
+                         * {@link
+                         * Other#field}
+                         * {@link
+                         * Other#method}
+                         * <br>
+                         * {@link Other
+                         * other class}
+                         * {@link Other#method
+                         * custom text}
+                         */
+                        public class Test {
+                            /**
+                             * Method.
+                             * @param p Parameter
+                             *     {@link
+                             *     Other}
+                             *     {@link
+                             *     Other#Other}
+                             *     {@link
+                             *     Other#field}
+                             *     {@link
+                             *     Other#method}
+                             *     <br>
+                             *     {@link Other
+                             *     other class}
+                             *     {@link Other#method
+                             *     custom text}
+                             */
+                            public void method(int p) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package other.pkg;
+
+                        public class Other {
+                            public Other() {}
+                            public int field;
+                            public void method() {}
+                        }
+                    """
+                )
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            checkItemDocumentationPrint(
+                testClass,
+                // TODO(b/450228132): The member references without custom link text have no label,
+                //  it is just a space. The references with custom link text have extra spaces
+                //  before it.
+                expectedOutput =
+                    """
+                        /**
+                         * {@link other.pkg.Other Other}
+                         * {@link other.pkg.Other#Other  }
+                         * {@link other.pkg.Other#field  }
+                         * {@link other.pkg.Other#method  }
+                         * <br>
+                         * {@link other.pkg.Other  other class}
+                         * {@link other.pkg.Other#method  custom text}
+                         */
+
+                    """,
+            )
+
+            val testMethod = testClass.methods().single()
+            checkItemDocumentationPrint(
+                testMethod,
+                // TODO(b/450228132): The member references without custom link text have no label,
+                //  it is just a space. The references with custom link text have extra spaces
+                //  before it.
+                expectedOutput =
+                    """
+                        /**
+                         * Method.
+                         *
+                         * @param p Parameter
+                         *     {@link other.pkg.Other Other}
+                         *     {@link other.pkg.Other#Other      }
+                         *     {@link other.pkg.Other#field      }
+                         *     {@link other.pkg.Other#method      }
+                         *     <br>
+                         *     {@link other.pkg.Other      other class}
+                         *     {@link other.pkg.Other#method      custom text}
+                         */
+
+                    """,
+            )
+        }
+    }
 }
