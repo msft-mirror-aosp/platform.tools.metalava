@@ -327,7 +327,7 @@ internal class PsiItemDocumentation(
         val reference = extractReference(element)
         val referenceText = reference?.element?.text ?: element.text
         val customLinkText = extractCustomLinkText(element)
-        val displayText = customLinkText?.text ?: referenceText.replaceFirst('#', '.')
+        val displayText = customLinkText ?: referenceText.replaceFirst('#', '.')
         if (referenceText.startsWith("#")) {
             val suffix = element.text
             if (suffix.contains("(") && suffix.contains(")")) {
@@ -609,21 +609,18 @@ internal class PsiItemDocumentation(
         if (dataElements.isEmpty()) {
             return null
         }
-        val salientElement: PsiElement =
-            dataElements.firstOrNull { it !is PsiWhiteSpace && it !is PsiDocToken } ?: return null
-        val child = salientElement.firstChild
-        return if (child !is PsiReference) null else child
+        val salientElement = dataElements.firstOrNull { it !is PsiWhiteSpace && it !is PsiDocToken }
+        return salientElement?.firstChild as? PsiReference
     }
 
-    private fun extractCustomLinkText(tag: PsiDocTag): PsiDocToken? {
+    private fun extractCustomLinkText(tag: PsiDocTag): String? {
         val dataElements = tag.dataElements
         if (dataElements.isEmpty()) {
             return null
         }
-        val salientElement: PsiElement =
+        val salientElement =
             dataElements.lastOrNull { it !is PsiWhiteSpace && it !is PsiDocMethodOrFieldRef }
-                ?: return null
-        return if (salientElement !is PsiDocToken) null else salientElement
+        return (salientElement as? PsiDocToken)?.text
     }
 
     companion object {
