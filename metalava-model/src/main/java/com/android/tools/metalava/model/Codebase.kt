@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.DefaultAnnotationItem.Companion.formatAnnotationItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -119,10 +118,26 @@ interface Codebase : ClassResolver, AnnotationContext {
      */
     fun createAnnotationFromAttributes(
         originalName: String,
-        attributes: List<AnnotationAttribute> = emptyList(),
-        context: Item? = null
+        attributes: List<Pair<String, String>> = emptyList(),
+        context: Item? = null,
     ): AnnotationItem? {
-        val source = formatAnnotationItem(originalName, attributes)
+        val source = buildString {
+            append("@")
+            append(originalName)
+            if (attributes.isNotEmpty()) {
+                append("(")
+                attributes.forEachIndexed { i, attribute ->
+                    if (i != 0) {
+                        append(", ")
+                    }
+                    append(attribute.first)
+                    append("=")
+                    append(attribute.second)
+                }
+                append(")")
+            }
+        }
+
         return createAnnotation(source, context)
     }
 
@@ -174,5 +189,22 @@ interface Codebase : ClassResolver, AnnotationContext {
                     annotationManager = noOpAnnotationManager,
                 )
         }
+    }
+
+    companion object {
+        /** Find the corresponding item in the previously released API if available. */
+        fun findPreviouslyReleased(oldCodebase: Codebase?, item: Item?): Item? {
+            return oldCodebase?.let {
+                item?.findCorrespondingItemIn(
+                    oldCodebase,
+                    superMethods = true,
+                    duplicate = true,
+                )
+            }
+        }
+
+        /** Check to see if [item] was previously released. */
+        fun wasPreviouslyReleased(oldCodebase: Codebase?, item: Item?) =
+            findPreviouslyReleased(oldCodebase, item) != null
     }
 }

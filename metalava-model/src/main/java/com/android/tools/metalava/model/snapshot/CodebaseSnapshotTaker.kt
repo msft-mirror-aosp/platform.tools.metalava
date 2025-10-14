@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
@@ -121,19 +120,58 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
     }
 
     /**
-     * Construct a [PackageDocs] that contains a [PackageDoc] that in turn contains information
-     * extracted from [packageItem] that can be used to create a new [PackageItem] that is a
-     * snapshot of [packageItem].
+     * Construct a [PackageDocs] that contains a [PackageDoc] for [packageItem] and each of its
+     * ancestor [PackageItem]s from the original [Codebase] that have not yet been included in the
+     * snapshot.
+     *
+     * Each [PackageDoc] contains information necessary for create [PackageItem]s that are snapshots
+     * of the original [PackageItem].
+     *
+     * It is necessary to include a [PackageDoc] for ancestor [PackageItem]s as while the
+     * [PackageItem]s are visited in order from the top-most down, they are ignored by the visitor
+     * if they do not contain any classes.
      */
-    private fun packageDocsForPackageItem(packageItem: PackageItem) =
-        MutablePackageDoc(
-                qualifiedName = packageItem.qualifiedName(),
-                fileLocation = packageItem.fileLocation,
-                modifiers = packageItem.modifiers.snapshot(),
-                commentFactory = packageItem.documentation::snapshot,
-                overview = packageItem.overviewDocumentation,
-            )
-            .let { PackageDocs(mapOf(it.qualifiedName to it)) }
+    private fun packageDocsForPackageItem(packageItem: PackageItem): PackageDocs {
+        return PackageDocs(
+            buildMap {
+                var pkgItem: PackageItem? = packageItem
+                while (pkgItem != null) {
+                    val qualifiedName = pkgItem.qualifiedName()
+                    if (snapshotCodebase.findPackage(qualifiedName) != null) {
+                        break
+                    }
+
+                    val packageDoc =
+                        MutablePackageDoc(
+                            qualifiedName = qualifiedName,
+                            fileLocation = pkgItem.fileLocation,
+                            modifiers = pkgItem.modifiers.snapshot(),
+                            commentFactory = pkgItem.documentation::snapshot,
+                            overview = pkgItem.overviewDocumentation,
+                        )
+                    put(qualifiedName, packageDoc)
+
+                    pkgItem = pkgItem.containingPackage()
+                }
+            }
+        )
+    }
+
+    /**
+     * Override to throw an error.
+     *
+     * This should never be called when taking a snapshot as:
+     * 1. This will only be called for package items that have a null [PackageDoc.commentFactory].
+     * 2. Every [PackageItem] that is created in the snapshot [Codebase] must have a matching
+     *    [PackageItem] in the original [Codebase].
+     * 3. [packageDocsForPackageItem] will ensure that the [PackageDoc.commentFactory] for every
+     *    [PackageItem] being snapshot is set to a non-null value.
+     */
+    override fun emptyPackageDocumentationFactory(): ItemDocumentationFactory {
+        error(
+            "Internal Error: PackageItems in the snapshot must always be created from PackageItems in the original codebase"
+        )
+    }
 
     /** Get the [PackageItem] corresponding to this [PackageItem] in the snapshot codebase. */
     private fun PackageItem.getSnapshotPackage(): PackageItem {
@@ -143,13 +181,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             return it
         }
 
-        // Get a PackageDocs that contains a PackageDoc that contains information extracted from the
-        // PackageItem being visited. This is needed to ensure that the findOrCreatePackage(...)
-        // call below will use the correct information when creating the package. As only a single
-        // PackageDoc is provided for this package it means that if findOrCreatePackage(...) had to
-        // created a containing package that package would not have a PackageDocs and might be
-        // incorrect. However, that should not be a problem as the packages are visited in order
-        // such that a containing package is visited before any contained packages.
+        // Get a PackageDocs that contains a PackageDoc for the PackageItem being visited and each
+        // of its ancestor PackageItems that are not already been included in this snapshot. They
+        // are needed to ensure that the findOrCreatePackage(...) call below will use the correct
+        // information when creating the snapshots of the PackageItem.
         val packageDocs = packageDocsForPackageItem(this)
         val newPackageItem = snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
         newPackageItem.copySelectedApiVariants(this)
@@ -168,8 +203,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
      * into the Javadoc.
      */
     private fun snapshotDocumentation(
-        itemToSnapshot: Item,
-        documentedItem: Item,
+        itemToSnapshot: SelectableItem,
+        documentedItem: SelectableItem,
     ): ItemDocumentationFactory {
         // The documentation does not need to be reverted if...
         if (
@@ -227,6 +262,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             itemFactory.createClassItem(
                 fileLocation = classToSnapshot.fileLocation,
                 sourceLanguage = classToSnapshot.sourceLanguage,
+                targetLanguages = classToSnapshot.targetLanguages,
                 modifiers = classToSnapshot.modifiers.snapshot(),
                 documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = cls.sourceFile(),
@@ -265,6 +301,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 itemFactory.createConstructorItem(
                     fileLocation = constructorToSnapshot.fileLocation,
                     sourceLanguage = constructorToSnapshot.sourceLanguage,
+                    targetLanguages = constructorToSnapshot.targetLanguages,
                     modifiers = constructorToSnapshot.modifiers.snapshot(),
                     documentationFactory =
                         snapshotDocumentation(constructorToSnapshot, constructor),
@@ -317,6 +354,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 itemFactory.createMethodItem(
                     fileLocation = methodToSnapshot.fileLocation,
                     sourceLanguage = methodToSnapshot.sourceLanguage,
+                    targetLanguages = methodToSnapshot.targetLanguages,
                     modifiers = methodToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(methodToSnapshot, method),
                     name = methodToSnapshot.name(),
@@ -330,7 +368,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
                     callableBodyFactory = methodToSnapshot.body::snapshot,
                     defaultValueProvider = defaultValueProvider,
-                    annotationDefault = methodToSnapshot.legacyDefaultValue(),
+                    isExtensionMethod = methodToSnapshot.isExtensionMethod(),
                 )
             }
         newMethod.copySelectedApiVariants(methodToSnapshot)
@@ -345,10 +383,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         // This makes it easier to incrementally expand the Value model without breaking existing
         // snapshot tests.
         // TODO(b/354633349): Stop deferring retrieval.
-        val initialValueProvider =
+        val constantValueProvider =
             object : OptionalValueProvider {
                 override val optionalValue: Value?
-                    get() = fieldToSnapshot.initialValue?.snapshot(snapshotCodebase)
+                    get() = fieldToSnapshot.constantValue?.snapshot(snapshotCodebase)
             }
 
         val containingClass = field.containingClass().getSnapshotClass()
@@ -359,14 +397,14 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 itemFactory.createFieldItem(
                     fileLocation = fieldToSnapshot.fileLocation,
                     sourceLanguage = fieldToSnapshot.sourceLanguage,
+                    targetLanguages = fieldToSnapshot.targetLanguages,
                     modifiers = fieldToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
                     name = fieldToSnapshot.name(),
                     containingClass = containingClass,
                     type = fieldToSnapshot.type().snapshot(),
                     isEnumConstant = fieldToSnapshot.isEnumConstant(),
-                    fieldValue = fieldToSnapshot.legacyFieldValue?.snapshot(),
-                    initialValueProvider = initialValueProvider,
+                    constantValueProvider = constantValueProvider,
                 )
             }
         newField.copySelectedApiVariants(fieldToSnapshot)
@@ -441,10 +479,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         // Take a snapshot of a class that is referenced from, but not defined within, the snapshot.
         originalClass.accept(referenceVisitor)
 
-        // Find the newly added class.
-        val classItem =
-            snapshotCodebase.findClass(originalClass.qualifiedName())
-                ?: error("Could not snapshot class $qualifiedName")
+        // Find the newly added class, if no class was added then it is not part of this snapshot
+        // so return `null`.
+        val classItem = snapshotCodebase.findClass(originalClass.qualifiedName()) ?: return null
 
         // Any class that is created only when resolving references is by definition not part of the
         // codebase and so will not be emitted.

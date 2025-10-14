@@ -16,20 +16,22 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import java.io.File
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.uast.UMethod
 
 const val METHOD_ESTIMATE = 1000
@@ -54,6 +56,8 @@ internal class PsiBasedCodebase(
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
     val isMultiplatform: Boolean,
+    /** The KaModule to use for adding kotlin-only APIs to the codebase. */
+    val mainAnalysisModule: KaModule? = null,
 ) :
     DefaultCodebase(
         location = location,
@@ -69,12 +73,6 @@ internal class PsiBasedCodebase(
 
     internal val project: Project
         get() = psiAssembler.project
-
-    /**
-     * Printer which can convert PSI, UAST and constants into source code, with ability to filter
-     * out elements that are not part of a codebase etc
-     */
-    internal val printer = CodePrinter(this, reporter)
 
     /**
      * Map from classes to the set of callables for each (but only for classes where we've called
@@ -138,12 +136,6 @@ internal class PsiBasedCodebase(
         return methodItem
     }
 
-    internal fun findField(field: PsiField): FieldItem? {
-        val containingClass = field.containingClass ?: return null
-        val cls = findOrCreateClass(containingClass)
-        return cls.findField(field.name)
-    }
-
     private fun registerCallablesByPsiMethod(
         callables: List<CallableItem>,
         map: MutableMap<PsiMethod, PsiCallableItem>
@@ -165,4 +157,54 @@ internal class PsiBasedCodebase(
 
     override fun createAnnotation(source: String, context: Item?) =
         psiAssembler.createAnnotation(source, context)
+
+    /**
+     * Override to allow access to the [AnnotationDefaults] without having to resolve a [ClassItem]
+     * which can have side effects which can cause problems during [PsiBasedCodebase] construction.
+     *
+     * The side effects are encountered as follows:
+     * * There is an optimization in [PsiCodebaseAssembler] where it will not create inaccessible
+     *   classes.
+     * * An `internal` class may be accessible if it has a show annotation.
+     * * Computing the [AnnotationItem.showability] requires getting values for all an
+     *   [AnnotationItem]'s attributes, including default values.
+     * * Getting [AnnotationDefaults] using the default implementation of this will resolve the
+     *   [AnnotationItem]'s [ClassItem].
+     * * Resolving the [ClassItem] before it has itself been created and registered causes problems,
+     *   e.g. it has the wrong value for [ClassItem.emit].
+     */
+    override fun defaultsForAnnotationClass(qualifiedName: String): AnnotationDefaults {
+        // Use defaults from a class if it was already created.
+        findClass(qualifiedName)?.let {
+            return it.annotationClass.defaults
+        }
+
+        // Otherwise, find the `PsiClass` and compute the values from that instead. This does not
+        // cache the results as there are very few places outside tests where this is used.
+        psiAssembler.findPsiClass(qualifiedName)?.let { psiClass ->
+            if (psiClass.methods.isNotEmpty()) {
+                val defaultsByName =
+                    psiClass.methods
+                        .mapNotNull { psiMethod ->
+                            val psiReturnType = psiMethod.returnType ?: return@mapNotNull null
+                            val optionalTypeItem =
+                                globalTypeItemFactory.getType(
+                                    psiReturnType,
+                                    psiMethod,
+                                    ContextNullability.forceNonNull,
+                                )
+                            val valueProvider =
+                                psiMethod.defaultValueProvider(this, optionalTypeItem)
+                                    ?: return@mapNotNull null
+
+                            psiMethod.name to valueProvider.value
+                        }
+                        .toMap()
+
+                return AnnotationDefaults(defaultsByName)
+            }
+        }
+
+        return AnnotationDefaults.EMPTY
+    }
 }

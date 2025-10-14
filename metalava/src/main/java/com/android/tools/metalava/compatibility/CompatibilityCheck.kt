@@ -20,13 +20,12 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.cliError
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -38,8 +37,13 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.options
@@ -55,11 +59,11 @@ import com.android.tools.metalava.reporter.Severity
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
 class CompatibilityCheck(
-    val filterReference: FilterPredicate,
-    private val apiType: ApiType,
+    private val filterReference: FilterPredicate,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
     private val apiCompatAnnotations: Set<String>,
+    private val apiName: String?,
 ) : ComparisonVisitor() {
 
     var foundProblems = false
@@ -220,6 +224,157 @@ class CompatibilityCheck(
         compareItemNullability(old, new)
     }
 
+    override fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {
+        // Adding target languages is allowed, removing is not
+        val removedTargetLanguages = old.targetLanguages.minus(new.targetLanguages)
+        val item = describe(new)
+        // Report issues on the old version of the item. If they were reported on the new version,
+        // they wouldn't end up reported, since removing from bytecode is only binary breaking and
+        // wouldn't be reported for the new item which only targets source (similarly for removing
+        // a source target language).
+        for (removedTargetLanguage in removedTargetLanguages) {
+            when (removedTargetLanguage) {
+                TargetLanguage.BYTECODE -> {
+                    // Check if there's still a version of this method with the same erased
+                    // signature which can be used from bytecode.
+                    if (old is MethodItem) {
+                        if (findCompatibleBytecodeOverload(old, new.containingClass()) != null)
+                            continue
+                    }
+                    report(
+                        Issues.REMOVED_FROM_BYTECODE,
+                        old,
+                        "$item has been removed from bytecode",
+                    )
+                }
+                TargetLanguage.KOTLIN -> {
+                    if (old is CallableItem) {
+                        // If the callable appears to be removed from kotlin, check that there isn't
+                        // another callable which isn't an exact signature match but could replace
+                        // all calls to the old callable.
+                        if (findCompatibleKotlinOverload(old, new.containingClass()) != null)
+                            continue
+                    }
+
+                    report(
+                        Issues.REMOVED_FROM_KOTLIN,
+                        old,
+                        "$item can no longer be resolved from Kotlin source",
+                    )
+                }
+                TargetLanguage.JAVA -> {
+                    // Check if there's still a version of this method with the same erased
+                    // signature which can be used from Java.
+                    if (old is MethodItem) {
+                        val newCompatibleOverload =
+                            findCompatibleBytecodeOverload(old, new.containingClass())
+                        if (
+                            newCompatibleOverload != null &&
+                                newCompatibleOverload.targetLanguages.contains(TargetLanguage.JAVA)
+                        )
+                            continue
+                    }
+                    report(
+                        Issues.REMOVED_FROM_JAVA,
+                        old,
+                        "$item can no longer be resolved from Java source",
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if there is an erased-signature match for the [original] in the [newContainingClass].
+     */
+    private fun findCompatibleBytecodeOverload(
+        original: MethodItem,
+        newContainingClass: ClassItem?,
+    ): MethodItem? {
+        val erasedSignature =
+            original.parameters().joinToString(",") { it.type().toErasedTypeString() }
+        return newContainingClass?.findBytecodeMethod(original.name(), erasedSignature)
+    }
+
+    /**
+     * Check if there is a callable in [newContainingClass] which could replace all calls in Kotlin
+     * source to [original]. See [isCompatibleKotlinOverload].
+     */
+    private fun findCompatibleKotlinOverload(
+        original: CallableItem,
+        newContainingClass: ClassItem?,
+    ): CallableItem? {
+        return when (original) {
+            is MethodItem ->
+                newContainingClass
+                    ?.filteredMethods(
+                        { candidate ->
+                            isCompatibleKotlinOverload(
+                                original = original,
+                                candidate = candidate as CallableItem,
+                            )
+                        },
+                        includeSuperClassMethods = true
+                    )
+                    ?.firstOrNull()
+            is ConstructorItem ->
+                newContainingClass?.constructors()?.firstOrNull {
+                    isCompatibleKotlinOverload(original = original, candidate = it)
+                }
+            else -> error("Unknown callable $original")
+        }
+    }
+
+    /**
+     * Check if all calls in Kotlin source to the [original] item could instead resolve to the
+     * [candidate] item. This is for when [original] can no longer be resolved from Kotlin source,
+     * such as when it is deprecated with [DeprecationLevel.HIDDEN].
+     */
+    private fun isCompatibleKotlinOverload(
+        original: CallableItem,
+        candidate: CallableItem,
+    ): Boolean {
+        // Item must be usable from kotlin.
+        if (TargetLanguage.KOTLIN !in candidate.targetLanguages) return false
+        // Items must have the same name.
+        if (candidate.name() != original.name()) return false
+        // The new item can't be less visible than the old.
+        if (candidate.modifiers.getVisibilityLevel() < original.modifiers.getVisibilityLevel())
+            return false
+        // While it might be possible to switch to a method with a different return type in some
+        // cases, in general this is not a safe source compatible change.
+        if (candidate.returnType() != original.returnType()) return false
+        // The nullability of the return type also can't change from non-null to nullable, because
+        // usages of the return are currently expecting it to be non-null.
+        if (
+            original.returnType().modifiers.isNonNull && candidate.returnType().modifiers.isNullable
+        )
+            return false
+        // All parameters from the original need to be present on the candidate, initial check to
+        // make sure there are at least as many parameters (check for if they match is below).
+        if (candidate.parameters().size < original.parameters().size) return false
+        // All new parameters on the candidate need to be optional for calls to the original to
+        // still work since they won't be providing these new parameters.
+        val additionalParameters =
+            candidate.parameters().subList(original.parameters().size, candidate.parameters().size)
+        if (additionalParameters.any { !it.hasDefaultValue() }) return false
+        // Verify that all parameters from the original are present.
+        return candidate.parameters().zip(original.parameters()).all {
+            (candidateParameter, oldParameter) ->
+            // Since the item could be called using named parameters, the name can't change.
+            candidateParameter.name() == oldParameter.name() &&
+                // Parameter types must be the same.
+                candidateParameter.type() == oldParameter.type() &&
+                // The nullability can't change from nullable to non-null, because that would mean
+                // that usages that pass in a nullable value would no longer work.
+                (oldParameter.type().modifiers.isNonNull ||
+                    candidateParameter.type().modifiers.isNullable) &&
+                // If there was a default value, an existing caller might not be providing the
+                // parameter, so the parameters needs to still be optional.
+                (!oldParameter.hasDefaultValue() || candidateParameter.hasDefaultValue())
+        }
+    }
+
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
         val prevName = old.publicName()
         val newName = new.publicName()
@@ -240,11 +395,20 @@ class CompatibilityCheck(
         }
 
         if (old.hasDefaultValue() && !new.hasDefaultValue()) {
-            report(
-                Issues.DEFAULT_VALUE_CHANGE,
-                new,
-                "Attempted to remove default value from ${describe(new)}"
-            )
+            // Default values only matter for Kotlin clients. Check if there is another Kotlin
+            // function which could replace all calls to the old function with the default value.
+            // This could happen if the default value were removed from the old function to avoid
+            // a signature clash with a new function with additional optional parameters to the
+            // old function.
+            val compatibleOverload =
+                findCompatibleKotlinOverload(old.containingCallable(), new.containingClass())
+            if (compatibleOverload == null) {
+                report(
+                    Issues.DEFAULT_VALUE_CHANGE,
+                    new,
+                    "Attempted to remove default value from ${describe(new)}"
+                )
+            }
         }
 
         if (old.isVarArgs() && !new.isVarArgs()) {
@@ -433,6 +597,25 @@ class CompatibilityCheck(
                 new,
                 "Cannot remove @$JVM_DEFAULT_WITH_COMPATIBILITY annotation from " +
                     "${describe(new)}: Incompatible change"
+            )
+        }
+    }
+
+    override fun compareTypeAliasItems(old: TypeAliasItem, new: TypeAliasItem) {
+        if (old.type() != new.type()) {
+            val typeStringConfiguration =
+                TypeStringConfiguration(
+                    annotations = true,
+                    kotlinStyleNulls = true,
+                    spaceBetweenTypeArguments = true,
+                    stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS
+                )
+            val oldTypeString = old.type().toTypeString(typeStringConfiguration)
+            val newTypeString = new.type().toTypeString(typeStringConfiguration)
+            report(
+                Issues.CHANGED_TYPE,
+                new,
+                "${describe(new, capitalize = true)} has changed type from $oldTypeString to $newTypeString"
             )
         }
     }
@@ -805,7 +988,6 @@ class CompatibilityCheck(
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: SelectableItem) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -819,16 +1001,13 @@ class CompatibilityCheck(
             return
         }
 
-        var message = "Added ${describe(item)}"
-
-        // Clarify error message for removed API to make it less ambiguous
-        if (apiType == ApiType.REMOVED) {
-            message += " to the removed API"
-        } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesAnnotationName(ANDROID_SYSTEM_API)) {
-                message += " to the system API"
-            } else if (options.allShowAnnotations.matchesAnnotationName(ANDROID_TEST_API)) {
-                message += " to the test API"
+        val message = buildString {
+            append("Added ")
+            append(describe(item))
+            if (apiName != null) {
+                append(" to the ")
+                append(apiName)
+                append(" API")
             }
         }
 
@@ -949,44 +1128,19 @@ class CompatibilityCheck(
     }
 
     override fun removedCallableItem(old: CallableItem, from: ClassItem) {
-        // See if there's a member from inherited class
-        val inherited =
-            if (old is MethodItem) {
-                // This can also return self, specially handled below
-                from
-                    .findMethod(
-                        old,
-                        includeSuperClasses = true,
-                        includeInterfaces = from.isInterface()
-                    )
-                    ?.let {
-                        // If it was inherited but should still be treated as if it was removed then
-                        // pretend that it was not inherited.
-                        if (it.treatAsRemoved(old)) null else it
-                    }
-            } else null
-
-        if (inherited == null) {
-            val error =
-                if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
-                else Issues.REMOVED_METHOD
-            handleRemoved(error, old)
+        // If the callable could only be used from Kotlin, check that there isn't another callable
+        // which isn't an exact signature match but could replace all calls to the old callable.
+        if (old.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) {
+            if (findCompatibleKotlinOverload(old, from) != null) return
         }
-    }
 
-    /**
-     * Check the [Item] to see whether it should be treated as if it was removed.
-     *
-     * If an [Item] is an unstable API that will be reverted then it will not be treated as if it
-     * was removed. That is because reverting it will replace it with the old item against which it
-     * is being compared in this compatibility check. So, while this specific item will not appear
-     * in the API the old item will and so it has not been removed.
-     *
-     * Otherwise, an [Item] will be treated as it was removed it if it is hidden/removed or the
-     * [possibleMatch] does not match.
-     */
-    private fun MethodItem.treatAsRemoved(possibleMatch: MethodItem) =
-        !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
+        // At this point, ComparisonVisitor.dispatchToRemovedOrCompareIfItemWasMoved has already
+        // looked for an accessible super method matching the old one.
+        val error =
+            if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
+            else Issues.REMOVED_METHOD
+        handleRemoved(error, old)
+    }
 
     override fun removedFieldItem(old: FieldItem, from: ClassItem) {
         val inherited =
@@ -1003,6 +1157,10 @@ class CompatibilityCheck(
         }
     }
 
+    override fun removedTypeAliasItem(old: TypeAliasItem, from: PackageItem) {
+        handleRemoved(Issues.REMOVED_TYPE_ALIAS, old)
+    }
+
     private fun report(
         issue: Issue,
         item: Item,
@@ -1016,7 +1174,39 @@ class CompatibilityCheck(
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (reporter.report(issue, item, message, location, maximumSeverity = maximumSeverity)) {
+
+        val targetLanguages =
+            (item as? SelectableItem)?.targetLanguages ?: (item.parent())?.targetLanguages
+        val existsInBytecode = targetLanguages?.contains(TargetLanguage.BYTECODE) != false
+        // Add detail about the kind of compatibility issue this is, and skip the issue if it does
+        // not apply to the given target languages.
+        val newMessage =
+            when (issue.category) {
+                Issues.Category.BINARY_AND_SOURCE_COMPATIBILITY -> {
+                    // This issue matters for both binary and source compatibility. Binary compat is
+                    // more important, so if the item exists in bytecode, describe the issue as
+                    // binary breaking. If the item only exists in source, describe the issue as
+                    // source breaking.
+                    if (existsInBytecode) {
+                        "Binary breaking change: $message"
+                    } else {
+                        "Source breaking change: $message"
+                    }
+                }
+                Issues.Category.BINARY_COMPATIBILITY_ONLY -> {
+                    // The item doesn't exist in bytecode, don't report binary compatibility issues.
+                    if (!existsInBytecode) return
+                    "Binary breaking change: $message"
+                }
+                Issues.Category.SOURCE_COMPATIBILITY_ONLY -> {
+                    // The item can't be used from source, don't report source compatibility issues.
+                    if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) return
+                    "Source breaking change: $message"
+                }
+                else -> message
+            }
+
+        if (reporter.report(issue, item, newMessage, location, maximumSeverity = maximumSeverity)) {
             // If the issue was reported and was an error then remember that this found some
             // problems so that the process can be aborted after finishing the checks.
             val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))
@@ -1035,6 +1225,7 @@ class CompatibilityCheck(
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
+            apiName: String?,
         ) {
             val filter =
                 apiType
@@ -1046,10 +1237,10 @@ class CompatibilityCheck(
             val checker =
                 CompatibilityCheck(
                     filter,
-                    apiType,
                     reporter,
                     issueConfiguration,
                     apiCompatAnnotations,
+                    apiName,
                 )
 
             val oldFullCodebase =

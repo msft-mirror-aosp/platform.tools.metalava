@@ -111,6 +111,5 @@ interface SelectableItem : Item {
         duplicate: Boolean,
     ): SelectableItem?
 
-    /** The languages from which this [Item] can be used. */
-    val targetLanguages: Set<TargetLanguage>
+    override var targetLanguages: Set<TargetLanguage>
 }

@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
@@ -73,6 +74,16 @@ open class DefaultParameterItem(
     }
 
     final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
+
+    override var property: PropertyItem? = null
+
+    final override fun appendDocumentation(comment: String, tagSection: String?) {
+        // For parameters, the documentation goes into the surrounding method's documentation!
+        // Find the right parameter location!
+        val parameterName = name()
+        val target = containingCallable()
+        target.appendDocumentation(comment, parameterName)
+    }
 
     override fun duplicate(
         containingCallable: CallableItem,
