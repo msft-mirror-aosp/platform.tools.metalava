@@ -618,9 +618,8 @@ internal class PsiItemDocumentation(
         if (dataElements.isEmpty()) {
             return null
         }
-        val salientElement =
-            dataElements.lastOrNull { it !is PsiWhiteSpace && it !is PsiDocMethodOrFieldRef }
-        return (salientElement as? PsiDocToken)?.text
+        val salientElement = dataElements.lastOrNull { it !is PsiWhiteSpace }
+        return (salientElement as? PsiDocToken)?.text?.trimStart()
     }
 
     companion object {

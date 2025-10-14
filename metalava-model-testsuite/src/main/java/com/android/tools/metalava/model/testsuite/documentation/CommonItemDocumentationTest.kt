@@ -916,19 +916,16 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             checkItemDocumentationPrint(
                 testClass,
-                // TODO(b/450228132): The member references without custom link text have no label,
-                //  it is just a space. The references with custom link text have extra spaces
-                //  before it.
                 expectedOutput =
                     """
                         /**
                          * {@link other.pkg.Other Other}
-                         * {@link other.pkg.Other#Other  }
-                         * {@link other.pkg.Other#field  }
-                         * {@link other.pkg.Other#method  }
+                         * {@link other.pkg.Other#Other Other.Other}
+                         * {@link other.pkg.Other#field Other.field}
+                         * {@link other.pkg.Other#method Other.method}
                          * <br>
-                         * {@link other.pkg.Other  other class}
-                         * {@link other.pkg.Other#method  custom text}
+                         * {@link other.pkg.Other other class}
+                         * {@link other.pkg.Other#method custom text}
                          */
 
                     """,
@@ -937,9 +934,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.methods().single()
             checkItemDocumentationPrint(
                 testMethod,
-                // TODO(b/450228132): The member references without custom link text have no label,
-                //  it is just a space. The references with custom link text have extra spaces
-                //  before it.
                 expectedOutput =
                     """
                         /**
@@ -947,12 +941,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          *
                          * @param p Parameter
                          *     {@link other.pkg.Other Other}
-                         *     {@link other.pkg.Other#Other      }
-                         *     {@link other.pkg.Other#field      }
-                         *     {@link other.pkg.Other#method      }
+                         *     {@link other.pkg.Other#Other Other.Other}
+                         *     {@link other.pkg.Other#field Other.field}
+                         *     {@link other.pkg.Other#method Other.method}
                          *     <br>
-                         *     {@link other.pkg.Other      other class}
-                         *     {@link other.pkg.Other#method      custom text}
+                         *     {@link other.pkg.Other other class}
+                         *     {@link other.pkg.Other#method custom text}
                          */
 
                     """,
