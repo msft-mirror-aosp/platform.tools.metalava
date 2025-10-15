@@ -65,4 +65,21 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as JavadocContentList
+
+        return contents == other.contents
+    }
+
+    override fun hashCode() = contents.hashCode()
+
+    override fun toString() = buildString {
+        append("JavadocContentList(")
+        contents.joinTo(this)
+        append(")")
+    }
 }
