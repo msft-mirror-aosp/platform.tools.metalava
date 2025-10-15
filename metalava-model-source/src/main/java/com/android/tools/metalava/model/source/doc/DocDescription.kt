@@ -17,13 +17,8 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
-import com.android.tools.metalava.model.source.javadoc.JavadocContentList
-import com.android.tools.metalava.model.source.javadoc.JavadocContentVisitor
-import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocParser
-import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.reporter.Issues
-import java.io.PrintWriter
 import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
@@ -45,9 +40,6 @@ internal interface DocDescription {
 
     fun requiredSpace(): RequiredSpace
 
-    /** Print this as part of a Javadoc comment to [writer]. */
-    fun printAsJavadocComment(writer: PrintWriter)
-
     companion object {
         /** An empty [DocDescription]. */
         val EMPTY: DocDescription = EmptyDocDescription()
@@ -62,10 +54,6 @@ internal class EmptyDocDescription : DocDescription {
 
     override fun requiredSpace() = RequiredSpace.EMPTY
 
-    override fun printAsJavadocComment(writer: PrintWriter) {
-        // Nothing to do.
-    }
-
     override fun toString() = "<<>>"
 }
 
@@ -78,43 +66,6 @@ internal abstract class AbstractDocDescription : DocDescription {
             content?.isMultiLine() == true -> RequiredSpace.MULTI_LINE
             else -> RequiredSpace.SINGLE_LINE
         }
-
-    override fun printAsJavadocComment(writer: PrintWriter) {
-        content?.accept(
-            object : JavadocContentVisitor {
-                override fun visit(list: JavadocContentList) {
-                    list.visitContents(this)
-                }
-
-                override fun visit(inlineTag: JavadocInlineTag) {
-                    writer.print("{@")
-                    writer.print(inlineTag.tagType)
-                    inlineTag.content?.let { nestedContent ->
-                        if (!nestedContent.startsWithNewline()) {
-                            writer.print(" ")
-                        }
-                        nestedContent.accept(this)
-                    }
-                    writer.print("}")
-                }
-
-                override fun visit(text: JavadocText) {
-                    var previousChar = '\u0000'
-                    for (c in text.text) {
-                        if (previousChar == '\n' && c != '/') {
-                            writer.print(" *")
-                        }
-                        writer.print(c)
-                        previousChar = c
-                    }
-
-                    if (previousChar == '\n') {
-                        writer.print(" *")
-                    }
-                }
-            }
-        )
-    }
 }
 
 /** A simple [DocDescription] that encapsulates [content]. */
