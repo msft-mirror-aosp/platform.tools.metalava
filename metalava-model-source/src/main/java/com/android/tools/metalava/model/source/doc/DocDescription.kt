@@ -34,6 +34,9 @@ import kotlin.jvm.optionals.getOrNull
  * description for the item or the description of a block tag in the item.
  */
 internal interface DocDescription {
+    /** The [JavadocContent], `null` if this is empty. */
+    val content: JavadocContent?
+
     /** Return `true` if this is empty, `false` otherwise. */
     fun isEmpty(): Boolean
 
@@ -52,6 +55,9 @@ internal interface DocDescription {
 }
 
 internal class EmptyDocDescription : DocDescription {
+    override val content
+        get() = null
+
     override fun isEmpty() = true
 
     override fun requiredSpace() = RequiredSpace.EMPTY
@@ -64,8 +70,6 @@ internal class EmptyDocDescription : DocDescription {
 }
 
 internal abstract class AbstractDocDescription : DocDescription {
-    abstract val content: JavadocContent?
-
     override fun isEmpty() = content == null
 
     override fun requiredSpace() =

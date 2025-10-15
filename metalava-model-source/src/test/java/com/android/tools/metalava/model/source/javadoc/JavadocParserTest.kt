@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
-import com.android.tools.metalava.model.source.doc.AbstractDocDescription
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocDescription
@@ -36,7 +35,7 @@ class JavadocParserTest : BaseDocCommentTest() {
         val docComment = createTestDocComment(text)
 
         // Parse the main description
-        val description = descriptionGetter(docComment) as AbstractDocDescription
+        val description = descriptionGetter(docComment)
         var content = description.content
 
         // Make sure that no unexpected JavadocParser issues were found.
