@@ -379,7 +379,7 @@ private class JavadocContentBuilder(
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
-        val tagType = ctx.inlineTagName().NAME().text
+        val tagTypeName = ctx.inlineTagName().NAME().text
 
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
         // report the issue.
@@ -391,7 +391,7 @@ private class JavadocContentBuilder(
             var lineOffset = startToken.line - 1
             reporter.report(
                 Issues.UNCLOSED_INLINE_TAG,
-                "unclosed inline '@${tagType}' tag",
+                "unclosed inline '@${tagTypeName}' tag",
                 lineOffset,
                 startToken.charPositionInLine,
             )
@@ -409,7 +409,7 @@ private class JavadocContentBuilder(
             }
 
         // Add an inline tag to the content.
-        appendContent(JavadocInlineTag(tagType, tagContent))
+        appendContent(JavadocInlineTag(tagTypeName, tagContent))
     }
 
     override fun visitBraceExpression(ctx: AntlrJavadocParser.BraceExpressionContext) {

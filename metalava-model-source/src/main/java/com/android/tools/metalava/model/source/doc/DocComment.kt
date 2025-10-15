@@ -35,11 +35,11 @@ internal interface DocComment {
      */
     val blockTagSections: List<BlockTagSection>
 
-    /** Check to see whether there are any block tags of type [blockTagType]. */
-    fun hasBlockTagOfType(blockTagType: String): Boolean
+    /** Check to see whether there are any block tags of type [tagTypeName]. */
+    fun hasBlockTagOfType(tagTypeName: String): Boolean
 
-    /** Add a [BlockTagSection] of [blockTagType] with [description] to the list. */
-    fun addBlockTagSection(blockTagType: String, description: DocDescription)
+    /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
+    fun addBlockTagSection(tagTypeName: String, description: DocDescription)
 
     /**
      * Removes any [BlockTagSection] for which [predicate] returns `true`.
@@ -84,11 +84,11 @@ internal class DefaultDocComment(
     override val description: DocDescription,
     override var blockTagSections: List<BlockTagSection>
 ) : DocComment {
-    override fun hasBlockTagOfType(blockTagType: String) =
-        blockTagSections.any { it.tagType == blockTagType }
+    override fun hasBlockTagOfType(tagTypeName: String) =
+        blockTagSections.any { it.tagType == tagTypeName }
 
-    override fun addBlockTagSection(blockTagType: String, description: DocDescription) {
-        blockTagSections = blockTagSections + DefaultBlockTagSection(blockTagType, description)
+    override fun addBlockTagSection(tagTypeName: String, description: DocDescription) {
+        blockTagSections = blockTagSections + DefaultBlockTagSection(tagTypeName, description)
     }
 
     override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean {

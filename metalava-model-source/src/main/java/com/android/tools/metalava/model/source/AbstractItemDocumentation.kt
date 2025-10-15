@@ -194,12 +194,12 @@ abstract class AbstractItemDocumentation(
         }
     }
 
-    override fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String) {
+    override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
         // Remove any existing sections of the specified type.
-        docComment.removeBlockTagSections { it.tagType == blockTagType }
+        docComment.removeBlockTagSections { it.tagType == tagTypeName }
 
         // Add a block tag section to the end.
-        docComment.addBlockTagSection(blockTagType, DefaultDocDescription(JavadocText(text)))
+        docComment.addBlockTagSection(tagTypeName, DefaultDocDescription(JavadocText(text)))
 
         docCommentMutated()
     }
