@@ -102,22 +102,24 @@ interface SourceFile {
         return result
     }
 
-    fun docContainsWord(doc: String, word: String): Boolean {
+    companion object {
         // Cache pattern compilation across source files
         val regexMap = HashMap<String, Regex>()
 
-        if (!doc.contains(word)) {
-            return false
-        }
+        fun docContainsWord(doc: String, word: String): Boolean {
+            if (!doc.contains(word)) {
+                return false
+            }
 
-        val regex =
-            regexMap[word]
-                ?: run {
-                    val new = Regex("""\b$word\b""")
-                    regexMap[word] = new
-                    new
-                }
-        return regex.find(doc) != null
+            val regex =
+                regexMap[word]
+                    ?: run {
+                        val new = Regex("""\b$word\b""")
+                        regexMap[word] = new
+                        new
+                    }
+            return regex.find(doc) != null
+        }
     }
 }
 
