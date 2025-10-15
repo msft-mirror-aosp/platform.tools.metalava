@@ -33,12 +33,18 @@ internal interface DocDescription {
     val content: JavadocContent?
 
     /** Return `true` if this is empty, `false` otherwise. */
-    fun isEmpty(): Boolean
+    fun isEmpty(): Boolean = content == null
 
     /** Return `true` if this is not empty, `false` otherwise. */
     fun isNotEmpty() = !isEmpty()
 
-    fun requiredSpace(): RequiredSpace
+    /** Determines how much vertical space this [DocDescription] requires when printed. */
+    fun requiredSpace(): RequiredSpace =
+        when {
+            isEmpty() -> RequiredSpace.EMPTY
+            content?.isMultiLine() == true -> RequiredSpace.MULTI_LINE
+            else -> RequiredSpace.SINGLE_LINE
+        }
 
     companion object {
         /** An empty [DocDescription]. */
@@ -57,20 +63,8 @@ internal class EmptyDocDescription : DocDescription {
     override fun toString() = "<<>>"
 }
 
-internal abstract class AbstractDocDescription : DocDescription {
-    override fun isEmpty() = content == null
-
-    override fun requiredSpace() =
-        when {
-            isEmpty() -> RequiredSpace.EMPTY
-            content?.isMultiLine() == true -> RequiredSpace.MULTI_LINE
-            else -> RequiredSpace.SINGLE_LINE
-        }
-}
-
 /** A simple [DocDescription] that encapsulates [content]. */
-internal class DefaultDocDescription(override val content: JavadocContent) :
-    AbstractDocDescription() {
+internal class DefaultDocDescription(override val content: JavadocContent) : DocDescription {
     override fun toString(): String {
         return "<$content>"
     }
@@ -85,7 +79,7 @@ internal class LazyDocDescription(
     private val startInclusive: Int,
     private val endExclusive: Int,
     private val reporter: DocumentationIssueReporter,
-) : AbstractDocDescription(), DocumentationIssueReporter {
+) : DocDescription, DocumentationIssueReporter {
     /** Secondary constructor to simple creation during testing. */
     constructor(
         text: String,
