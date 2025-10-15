@@ -540,8 +540,7 @@ class CommonFieldItemTest : BaseModelTest() {
             val publicConst = fooClass.assertField("PUBLIC_CONST")
             assertEquals(publicConst.modifiers.getVisibilityModifiers(), "public")
             val privateConst = fooClass.assertField("PRIVATE_CONST")
-            // TODO: PRIVATE_CONST should be private
-            assertEquals(privateConst.modifiers.getVisibilityModifiers(), "public")
+            assertEquals(privateConst.modifiers.getVisibilityModifiers(), "private")
         }
     }
 }
