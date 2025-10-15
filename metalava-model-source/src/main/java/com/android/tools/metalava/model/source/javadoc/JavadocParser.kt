@@ -55,7 +55,7 @@ private constructor(
             startInclusive: Int,
             endExclusive: Int,
             reporter: DocumentationIssueReporter,
-        ): JavadocContent {
+        ): JavadocContent? {
             var fileName = "<unknown>"
             val errorListener = JavadocErrorListener(reporter)
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
@@ -88,9 +88,9 @@ private constructor(
         }
     }
 
-    private fun parse(): JavadocContent {
+    private fun parse(): JavadocContent? {
         val descriptionContext = antlrParser.description()
-        return JavadocContentBuilder.buildFrom(descriptionContext, reporter) ?: JavadocContent.EMPTY
+        return JavadocContentBuilder.buildFrom(descriptionContext, reporter)
     }
 }
 

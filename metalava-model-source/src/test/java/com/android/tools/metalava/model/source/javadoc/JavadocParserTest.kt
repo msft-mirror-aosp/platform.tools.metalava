@@ -48,7 +48,7 @@ class JavadocParserTest : BaseDocCommentTest() {
 
         // Generate a string representation of the model structure.
         val actualStructure = buildString {
-            content.accept(
+            content?.accept(
                 object : JavadocContentVisitor {
                     private var indent = ""
 

@@ -24,6 +24,8 @@ import com.android.tools.metalava.model.source.javadoc.JavadocParser
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
+import java.util.Optional
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * A [DocComment] description block.
@@ -62,19 +64,19 @@ internal class EmptyDocDescription : DocDescription {
 }
 
 internal abstract class AbstractDocDescription : DocDescription {
-    abstract val content: JavadocContent
+    abstract val content: JavadocContent?
 
-    override fun isEmpty() = content == JavadocContent.EMPTY
+    override fun isEmpty() = content == null
 
     override fun requiredSpace() =
         when {
             isEmpty() -> RequiredSpace.EMPTY
-            content.isMultiLine() -> RequiredSpace.MULTI_LINE
+            content?.isMultiLine() == true -> RequiredSpace.MULTI_LINE
             else -> RequiredSpace.SINGLE_LINE
         }
 
     override fun printAsJavadocComment(writer: PrintWriter) {
-        content.accept(
+        content?.accept(
             object : JavadocContentVisitor {
                 override fun visit(list: JavadocContentList) {
                     list.visitContents(this)
@@ -135,16 +137,16 @@ internal class LazyDocDescription(
         reporter: DocumentationIssueReporter
     ) : this(text, 0, text.length, reporter)
 
-    private lateinit var _content: JavadocContent
+    private lateinit var _content: Optional<JavadocContent>
 
-    override val content: JavadocContent
+    override val content: JavadocContent?
         get() {
             if (!::_content.isInitialized) {
                 // Trim whitespace from the end of the description.
                 val trimmedEnd = text.skipBackwardsOverTrailingWhitespace(endExclusive - 1) + 1
-                _content =
+                val optionalContent =
                     if (trimmedEnd <= startInclusive) {
-                        JavadocContent.EMPTY
+                        null
                     } else {
                         JavadocParser.parse(
                             text,
@@ -156,8 +158,9 @@ internal class LazyDocDescription(
                             this,
                         )
                     }
+                _content = Optional.ofNullable(optionalContent)
             }
-            return _content
+            return _content.getOrNull()
         }
 
     override fun toString() = buildString {
