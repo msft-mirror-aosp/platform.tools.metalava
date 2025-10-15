@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.source.doc.containsWord
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.FloatingPointValue
 import com.android.tools.metalava.model.value.IntegralValue
@@ -57,7 +58,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.nio.file.Files
-import java.util.regex.Pattern
 import javax.xml.parsers.SAXParserFactory
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
@@ -111,8 +111,6 @@ class DocAnalyzer(
         // TODO:
         // insertMissingDocFromHiddenSuperclasses()
     }
-
-    val mentionsNull: Pattern = Pattern.compile("\\bnull\\b")
 
     /** Format this [Value] for use in handling `IntRange` and `FloatRange` annotations. */
     private fun Value.forRange(): String =
@@ -289,8 +287,7 @@ class DocAnalyzer(
                 }
 
                 /** Returns `true` if this contains the word `null`. */
-                private fun String?.containsNullWord() =
-                    this != null && contains("null") && mentionsNull.matcher(this).find()
+                private fun String?.containsNullWord() = this != null && containsWord("null")
 
                 private fun documentationContainsNullWord(item: Item): Boolean {
                     val documentation = item.documentation
