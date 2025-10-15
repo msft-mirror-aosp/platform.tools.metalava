@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TraversingVisitor
+import com.android.tools.metalava.model.source.doc.containsWord
 import java.util.TreeSet
 
 /** Base class for model implementations of [SourceFile]. */
@@ -61,7 +62,7 @@ abstract class AbstractSourceFile : SourceFile {
                             // as text but having extra imports should not be an issue.
                             var found: MutableList<String>? = null
                             for (name in remainingImports.keys) {
-                                if (docContainsWord(doc, name)) {
+                                if (doc.containsWord(name)) {
                                     if (found == null) {
                                         found = mutableListOf()
                                     }
@@ -92,25 +93,5 @@ abstract class AbstractSourceFile : SourceFile {
             )
         }
         return result
-    }
-
-    companion object {
-        // Cache pattern compilation across source files
-        val regexMap = HashMap<String, Regex>()
-
-        fun docContainsWord(doc: String, word: String): Boolean {
-            if (!doc.contains(word)) {
-                return false
-            }
-
-            val regex =
-                regexMap[word]
-                    ?: run {
-                        val new = Regex("""\b$word\b""")
-                        regexMap[word] = new
-                        new
-                    }
-            return regex.find(doc) != null
-        }
     }
 }
