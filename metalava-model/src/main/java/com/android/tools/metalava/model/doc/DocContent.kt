@@ -30,6 +30,7 @@ interface DocContent
  *
  * @see ItemDocumentation.mainDescriptionOwner
  * @see ItemDocumentation.blockTagDescriptionOwner
+ * @see ItemDocumentation.paramTagDescriptionOwner
  */
 interface DocContentOwner {
     /**

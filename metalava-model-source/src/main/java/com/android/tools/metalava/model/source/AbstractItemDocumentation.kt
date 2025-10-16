@@ -228,6 +228,9 @@ abstract class AbstractItemDocumentation(
     override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? =
         docComment.blockTagSections.find { it.tagType.name == tagTypeName }
 
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner? =
+        docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
+
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
         val firstDot = text.indexOf(".")

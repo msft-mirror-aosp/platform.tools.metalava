@@ -40,6 +40,14 @@ internal interface BlockTagSection : DocContentOwner {
     /** The optional [tagType] specific data. */
     val tagData: TagData?
 
+    /**
+     * Get the type safe tag specific data for [tagType].
+     *
+     * Returns `null` if [tagType] is not [BlockTagSection.tagType] or the [tagType] returned `null`
+     * from [TagType.extractData].
+     */
+    fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D?
+
     companion object {
         /** Sort [TagData] so that `null` comes after non-`null`. */
         private val tagDataComparator = nullsLast(naturalOrder<TagData>())
@@ -91,6 +99,12 @@ internal class DefaultBlockTagSection(
 
             return _tagData.getOrNull()
         }
+
+    override fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D? {
+        if (this.tagType != tagType) return null
+        @Suppress("UNCHECKED_CAST") // Safe cast as tagData was created by tagType
+        return tagData as D?
+    }
 
     override fun toString() = buildString {
         append("@")

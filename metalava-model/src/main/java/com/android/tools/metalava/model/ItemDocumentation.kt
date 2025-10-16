@@ -122,6 +122,14 @@ interface ItemDocumentation {
     fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner?
 
     /**
+     * Get owner of the description for the @param tag for [name]
+     *
+     * Returns `null` if this has no Javadoc comment, or no such parameter, or the description is
+     * empty, i.e. has no significant non-whitespace content, or is invalid, e.g. no parameter name.
+     */
+    fun paramTagDescriptionOwner(name: String): DocContentOwner?
+
+    /**
      * Returns the [text], but with fully qualified links (except for the same package, and when
      * turning a relative reference into a fully qualified reference, use the javadoc syntax for
      * continuing to display the relative text, e.g. instead of {@link java.util.List}, use {@link
@@ -192,6 +200,8 @@ interface ItemDocumentation {
             get() = null
 
         override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? = null
+
+        override fun paramTagDescriptionOwner(name: String): DocContentOwner? = null
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 

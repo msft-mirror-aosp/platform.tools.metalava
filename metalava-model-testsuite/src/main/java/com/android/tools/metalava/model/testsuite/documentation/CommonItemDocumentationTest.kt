@@ -1124,4 +1124,40 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test DocContentOwner for param description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                        /**
+                         * @param p1 param 1 documentation.
+                         * @param p2 param 2 documentation.
+                         */
+                        public void method(String p1, int p2) {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.methods().single()
+            val documentation = testMethod.documentation
+
+            // TODO(b/450228132): p1 should not be included in the description.
+            assertDocContentOwnerToString(
+                documentation.paramTagDescriptionOwner("p1"),
+                """JavadocText("p1 param 1 documentation.")""",
+                message = "@param p1 tag"
+            )
+            // TODO(b/450228132): p2 should not be included in the description.
+            assertDocContentOwnerToString(
+                documentation.paramTagDescriptionOwner("p2"),
+                """JavadocText("p2 param 2 documentation.")""",
+                message = "@param p2 tag"
+            )
+            assertNull(documentation.paramTagDescriptionOwner("unknown"), message = "unknown param")
+        }
+    }
 }
