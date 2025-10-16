@@ -348,6 +348,98 @@ class DocCommentParserTest : BaseDocCommentTest() {
     }
 
     @Test
+    fun `Test ordering of block tags`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @serial some reason
+                     * @hide
+                     * @throws
+                     * @version current
+                     * @author me
+                     * @throws Throwable
+                     * @unknown
+                     * @param
+                     * @serialData some other reason
+                     * @inheritDoc
+                     * @sdkExtSince 7
+                     * @param p2
+                     * @serialField field name and type and explanation
+                     * @since 1.4
+                     * @return something
+                     * @deprecated
+                     * @attr ref xml-thing
+                     * @mysterious
+                     * @author them
+                     * @param p1
+                     * @apiSince 12
+                     * @exception Exception
+                     * @see #field
+                     * @see #Class()
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @serial <<some reason>>
+                    @hide <<>>
+                    @throws <<>>
+                    @version <<current>>
+                    @author <<me>>
+                    @throws <<Throwable>>
+                    @unknown <<>>
+                    @param <<>>
+                    @serialData <<some other reason>>
+                    @inheritDoc <<>>
+                    @sdkExtSince <<7>>
+                    @param <<p2>>
+                    @serialField <<field name and type and explanation>>
+                    @since <<1.4>>
+                    @return <<something>>
+                    @deprecated <<>>
+                    @attr <<ref xml-thing>>
+                    @mysterious <<>>
+                    @author <<them>>
+                    @param <<p1>>
+                    @apiSince <<12>>
+                    @exception <<Exception>>
+                    @see <<#field>>
+                    @see <<#Class()>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * @serial some reason
+                     * @hide
+                     * @throws
+                     * @version current
+                     * @author me
+                     * @throws Throwable
+                     * @unknown
+                     * @param
+                     * @serialData some other reason
+                     * @inheritDoc
+                     * @sdkExtSince 7
+                     * @param p2
+                     * @serialField field name and type and explanation
+                     * @since 1.4
+                     * @return something
+                     * @deprecated
+                     * @attr ref xml-thing
+                     * @mysterious
+                     * @author them
+                     * @param p1
+                     * @apiSince 12
+                     * @exception Exception
+                     * @see #field
+                     * @see #Class()
+                     */
+                """,
+        )
+    }
+
+    @Test
     fun `Test a comment that has a line that starts with forward slash`() {
         checkDocComment(
             input =
