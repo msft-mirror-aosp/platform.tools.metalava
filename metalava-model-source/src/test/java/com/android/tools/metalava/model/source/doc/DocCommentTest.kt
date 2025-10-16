@@ -16,8 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class DocCommentTest : BaseDocCommentTest() {
@@ -57,18 +56,27 @@ class DocCommentTest : BaseDocCommentTest() {
             message = "before mutations"
         )
 
-        // Try and remove a block tag that is not present.
-        assertFalse(
-            docComment.removeBlockTagSections { it.tagType == "unknown" },
+        val countBeforeRemoval = docComment.blockTagSections.size
+        assertEquals(3, countBeforeRemoval, message = "count before removal")
+
+        // Try and remove a block tag that is not present. Verify that it does not change the size
+        // of block tags.
+        docComment.removeBlockTagSections { it.tagType == "unknown" }
+        assertEquals(
+            countBeforeRemoval,
+            docComment.blockTagSections.size,
             message = "remove unknown"
         )
 
-        // Remove all singleLine block tag sections.
-        assertTrue(
-            docComment.removeBlockTagSections { it.tagType == "singleLine" },
+        // Remove all singleLine block tag sections. Verify that it removes 2 block tags.
+        docComment.removeBlockTagSections { it.tagType == "singleLine" }
+        assertEquals(
+            countBeforeRemoval - 2,
+            docComment.blockTagSections.size,
             message = "remove singleLine"
         )
 
+        // Make sure that the removal is reflected in the printed output.
         checkPrintOutput(
             docComment,
             expectedPrintOutput =
@@ -83,9 +91,11 @@ class DocCommentTest : BaseDocCommentTest() {
             message = "after remove @singleLine block tag sections"
         )
 
-        // Remove all block tag sections.
-        assertTrue(docComment.removeBlockTagSections { true }, message = "remove all")
+        // Remove all block tag sections. Verify that there are none left.
+        docComment.removeBlockTagSections { true }
+        assertEquals(0, docComment.blockTagSections.size, message = "remove all")
 
+        // Make sure that the removal is reflected in the printed output.
         checkPrintOutput(
             docComment,
             expectedPrintOutput =

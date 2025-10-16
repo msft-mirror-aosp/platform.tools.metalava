@@ -69,4 +69,9 @@ class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
 }
 
 /** A test [DocCommentContext] that provides basic no-op implementations. */
-class NoOpDocCommentContext : DocCommentContext
+class NoOpDocCommentContext : DocCommentContext, DocCommentMutationListener {
+    override val mutationListener: DocCommentMutationListener
+        get() = this
+
+    override fun docCommentMutated() {}
+}

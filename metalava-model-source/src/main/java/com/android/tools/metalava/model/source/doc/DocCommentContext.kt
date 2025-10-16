@@ -24,4 +24,10 @@ package com.android.tools.metalava.model.source.doc
  * that created at different levels within the [DocComment] whereas this applies to the whole
  * [DocComment].
  */
-internal interface DocCommentContext
+internal interface DocCommentContext {
+    /**
+     * The [DocCommentMutationListener] whose [DocCommentMutationListener.docCommentMutated] must be
+     * invoked when the [DocComment] is changed.
+     */
+    val mutationListener: DocCommentMutationListener
+}

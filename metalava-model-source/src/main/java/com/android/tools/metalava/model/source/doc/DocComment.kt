@@ -41,12 +41,8 @@ internal interface DocComment {
     /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
     fun addBlockTagSection(tagTypeName: String, description: DocDescription)
 
-    /**
-     * Removes any [BlockTagSection] for which [predicate] returns `true`.
-     *
-     * @return `true` if any [BlockTagSection]s were removed, `false` if it had no effect.
-     */
-    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean
+    /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
+    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
 
     /** Print this as a Javadoc comment to [writer]. */
     fun printAsJavadocComment(writer: PrintWriter)
@@ -83,26 +79,42 @@ enum class RequiredSpace {
     }
 }
 
+/**
+ * Interface that must be implemented by classes that need to respond to changes in a [DocComment].
+ */
+interface DocCommentMutationListener {
+    /** Invoked when [DocComment] is mutated. */
+    fun docCommentMutated()
+}
+
 internal class DefaultDocComment(
     override val description: DocDescription,
-    override var blockTagSections: List<BlockTagSection>
+    override var blockTagSections: List<BlockTagSection>,
+    private val mutationListener: DocCommentMutationListener,
 ) : DocComment {
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType == tagTypeName }
 
     override fun addBlockTagSection(tagTypeName: String, description: DocDescription) {
-        blockTagSections = blockTagSections + DefaultBlockTagSection(tagTypeName, description)
+        val blockTagSection =
+            DefaultBlockTagSection(
+                tagTypeName,
+                description,
+            )
+        blockTagSections = blockTagSections + blockTagSection
+
+        // Notify any listener.
+        mutationListener.docCommentMutated()
     }
 
-    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean {
+    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
         val filtered = blockTagSections.filter { !predicate(it) }
-        return if (filtered.size == blockTagSections.size) {
-            // No changes.
-            false
-        } else {
+        if (filtered.size != blockTagSections.size) {
             // Something was removed.
             blockTagSections = filtered
-            true
+
+            // Notify any listener.
+            mutationListener.docCommentMutated()
         }
     }
 

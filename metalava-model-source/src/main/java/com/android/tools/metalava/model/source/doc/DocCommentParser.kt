@@ -52,7 +52,11 @@ internal object DocCommentParser {
         // Trim any whitespace from the start as well as the start token `/**` (if any).
         val commentBodyStartInclusive = skipDocCommentStartToken(text)
         if (commentBodyStartInclusive == length) {
-            return DefaultDocComment(DocDescription.EMPTY, emptyList())
+            return DefaultDocComment(
+                DocDescription.EMPTY,
+                emptyList(),
+                context.mutationListener,
+            )
         }
 
         // Trim the end token (`*/`) as well as any whitespace that precedes or follows it.
@@ -166,7 +170,11 @@ internal object DocCommentParser {
             )
 
         // Create the doc comment.
-        return DefaultDocComment(description, blockTagSections.toList())
+        return DefaultDocComment(
+            description,
+            blockTagSections.toList(),
+            context.mutationListener,
+        )
     }
 
     /**

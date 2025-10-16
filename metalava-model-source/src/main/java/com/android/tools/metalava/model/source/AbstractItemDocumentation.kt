@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.doc.DefaultDocDescription
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.reporter.Issues
@@ -32,7 +33,13 @@ import java.util.regex.Pattern
  */
 abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
-) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
+) :
+    ItemDocumentation,
+    DocumentationIssueReporter,
+    DocCommentContext,
+    // Implement this as a temporary measure while this needs to keep [text] and [docComment] in
+    // sync.
+    DocCommentMutationListener {
 
     /**
      * Lazily initialized backing property for [text].
@@ -120,6 +127,10 @@ abstract class AbstractItemDocumentation(
             }
         }
 
+    /** Implements [DocCommentContext.mutationListener]. */
+    override val mutationListener: DocCommentMutationListener
+        get() = this
+
     /**
      * Called when [docComment] is mutated to discard [_text] so it will be regenerated from
      * [_docComment] the next time [text] is accessed.
@@ -128,7 +139,7 @@ abstract class AbstractItemDocumentation(
      * currently both [text] and [docComment] are modified directly. Longer term, changes will be
      * applied directly to [_docComment] and [text] will be dropped.
      */
-    private fun docCommentMutated() {
+    override fun docCommentMutated() {
         _text = null
     }
 
@@ -197,12 +208,8 @@ abstract class AbstractItemDocumentation(
     protected abstract fun mergeDocumentation(comment: String, tagSection: String?)
 
     override fun removeDeprecatedSection() {
-        // Try and remove all the `@deprecated` sections. If any were removed then report that the
-        // docComment was mutated.
-        val mutated = docComment.removeBlockTagSections { it.tagType == "deprecated" }
-        if (mutated) {
-            docCommentMutated()
-        }
+        // Try and remove all the `@deprecated` sections.
+        docComment.removeBlockTagSections { it.tagType == "deprecated" }
     }
 
     override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
@@ -211,8 +218,6 @@ abstract class AbstractItemDocumentation(
 
         // Add a block tag section to the end.
         docComment.addBlockTagSection(tagTypeName, DefaultDocDescription(JavadocText(text)))
-
-        docCommentMutated()
     }
 
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
