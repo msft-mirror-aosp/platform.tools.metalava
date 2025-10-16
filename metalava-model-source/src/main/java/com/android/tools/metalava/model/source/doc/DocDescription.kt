@@ -76,16 +76,10 @@ internal class DefaultDocDescription(override val content: JavadocContent) : Doc
  */
 internal class LazyDocDescription(
     private val text: String,
-    private val startInclusive: Int,
-    private val endExclusive: Int,
+    private val startInclusive: Int = 0,
+    private val endExclusive: Int = text.length,
     private val reporter: DocumentationIssueReporter,
 ) : DocDescription, DocumentationIssueReporter {
-    /** Secondary constructor to simple creation during testing. */
-    constructor(
-        text: String,
-        reporter: DocumentationIssueReporter
-    ) : this(text, 0, text.length, reporter)
-
     private lateinit var _content: Optional<JavadocContent>
 
     override val content: JavadocContent?

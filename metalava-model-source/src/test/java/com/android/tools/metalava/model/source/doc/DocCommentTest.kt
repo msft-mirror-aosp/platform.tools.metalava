@@ -102,7 +102,10 @@ class DocCommentTest : BaseDocCommentTest() {
                 """
             )
 
-        docComment.addBlockTagSection("custom", LazyDocDescription("a custom block tag", reporter))
+        docComment.addBlockTagSection(
+            "custom",
+            LazyDocDescription("a custom block tag", reporter = reporter)
+        )
 
         checkPrintOutput(
             docComment,
@@ -118,7 +121,7 @@ class DocCommentTest : BaseDocCommentTest() {
 
         docComment.addBlockTagSection(
             "custom",
-            LazyDocDescription("another custom block tag", reporter)
+            LazyDocDescription("another custom block tag", reporter = reporter)
         )
 
         checkPrintOutput(
