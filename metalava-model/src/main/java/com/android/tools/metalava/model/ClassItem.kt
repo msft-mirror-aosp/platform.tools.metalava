@@ -151,9 +151,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     /** The constructors in this class */
     @MetalavaApi fun constructors(): List<ConstructorItem>
 
-    /** Whether this class has an implicit default constructor */
-    fun hasImplicitDefaultConstructor(): Boolean
-
     /** The non-constructor methods in this class */
     @MetalavaApi fun methods(): List<MethodItem>
 
