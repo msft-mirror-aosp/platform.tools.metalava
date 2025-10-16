@@ -48,9 +48,9 @@ class DocCommentTest : BaseDocCommentTest() {
                     /**
                      * Some text.
                      *
-                     * @singleLine single line tag.
                      * @multipleLine a block tag
                      * that is spread across multiple lines.
+                     * @singleLine single line tag.
                      * @singleLine another single line tag.
                      */
                 """,

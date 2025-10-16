@@ -188,7 +188,7 @@ internal class DefaultDocComment(
             ) {
                 writer.println(" *")
             }
-            for (section in blockTagSections) {
+            for (section in blockTagSections.sortedWith(BlockTagSection.comparator)) {
                 if (multiLine) {
                     writer.print(" *")
                 }

@@ -179,8 +179,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedPrintOutput =
                 """
                     /**
-                     * @hide
                      * @deprecated
+                     * @hide
                      */
                 """,
         )
@@ -410,30 +410,30 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedPrintOutput =
                 """
                     /**
-                     * @serial some reason
-                     * @hide
-                     * @throws
-                     * @version current
-                     * @author me
-                     * @throws Throwable
-                     * @unknown
-                     * @param
-                     * @serialData some other reason
                      * @inheritDoc
-                     * @sdkExtSince 7
-                     * @param p2
-                     * @serialField field name and type and explanation
-                     * @since 1.4
-                     * @return something
-                     * @deprecated
-                     * @attr ref xml-thing
-                     * @mysterious
+                     * @author me
                      * @author them
+                     * @version current
+                     * @param
+                     * @param p2
                      * @param p1
-                     * @apiSince 12
+                     * @return something
+                     * @attr ref xml-thing
+                     * @throws
+                     * @throws Throwable
                      * @throws Exception
                      * @see #field
                      * @see #Class()
+                     * @since 1.4
+                     * @serial some reason
+                     * @serialData some other reason
+                     * @serialField field name and type and explanation
+                     * @deprecated
+                     * @hide
+                     * @apiSince 12
+                     * @sdkExtSince 7
+                     * @mysterious
+                     * @unknown
                      */
                 """,
         )

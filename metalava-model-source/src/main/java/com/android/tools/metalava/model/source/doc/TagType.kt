@@ -29,8 +29,17 @@ internal abstract class TagType<D : TagData>(
      * The name of the type, as used in Javadoc, e.g. `param` for `@param p ...` block tags and
      * `link` for `{@link Class}` inline tags.
      */
-    val name: String
+    val name: String,
 ) {
+    /**
+     * The ordinal of this tag type, defining its order within all tag types.
+     *
+     * This affects the order in which block tags appear in the block tag sections.
+     *
+     * Ignored for inline tags.
+     */
+    val ordinal: Int = BlockTagOrder.ordinalForTagType(name)
+
     /** This must be the [name] of the tag type. */
     override fun toString() = name
 }

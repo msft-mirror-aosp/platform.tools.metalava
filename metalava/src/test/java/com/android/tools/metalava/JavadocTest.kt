@@ -165,9 +165,9 @@ class JavadocTest : DriverTest() {
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     * @deprecated For some reason
                      * @see test.pkg2.OtherClass
                      * @see test.pkg2.OtherClass#bar(int, boolean)
+                     * @deprecated For some reason
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
@@ -375,9 +375,9 @@ class JavadocTest : DriverTest() {
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 * @deprecated For some reason
                  * @see test.pkg2.OtherClass
                  * @see test.pkg2.OtherClass#bar(int, boolean)
+                 * @deprecated For some reason
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated

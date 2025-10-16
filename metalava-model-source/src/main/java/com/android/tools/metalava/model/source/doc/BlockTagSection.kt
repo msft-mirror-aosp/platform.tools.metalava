@@ -32,6 +32,19 @@ internal interface BlockTagSection {
 
     /** The description of the block tag. */
     val description: JavadocContent?
+
+    companion object {
+        /**
+         * Comparator used to sort [BlockTagSection]s roughly according to the rules referenced in
+         * [BlockTagOrder].
+         */
+        val comparator: Comparator<BlockTagSection> =
+            // First, order by [BlockTagOrder].
+            compareBy<BlockTagSection> { it.tagType.ordinal }
+                // Then by tag type name for those tag types with the same ordinal, i.e. unknown tag
+                // types.
+                .thenBy { it.tagType.name }
+    }
 }
 
 internal class DefaultBlockTagSection(
