@@ -749,7 +749,6 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * Multiple lines of it.
-                     *
                      * <br>
                      * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
                      */

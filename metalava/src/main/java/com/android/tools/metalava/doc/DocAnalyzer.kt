@@ -660,24 +660,28 @@ class DocAnalyzer(
     }
 
     /**
-     * Appends the given documentation to the given item. If it's documentation on a parameter, it
-     * is redirected to the surrounding method's documentation.
+     * Appends the given documentation to the given [item]'s description.
      *
-     * If the [returnValue] flag is true, the documentation is added to the description text of the
-     * method, otherwise, it is added to the return tag. This lets for example a threading
+     * If [Item] is a [ParameterItem] then it appends it to the corresponding `@param` tag in the
+     * containing [CallableItem]'s documentation.
+     *
+     * If the [returnValue] flag is `false`, the documentation is added to the description text of
+     * the method, otherwise, it is added to the `@return` tag. This lets for example a threading
      * annotation requirement be listed as part of a method description's text, and a range
      * annotation be listed as part of the return value description.
      */
-    private fun appendDocumentation(doc: String?, item: Item, returnValue: Boolean) {
-        doc ?: return
+    private fun appendDocumentation(doc: String, item: Item, returnValue: Boolean) {
+        val descriptionOwner =
+            when (item) {
+                is ParameterItem -> item.descriptionOwner
+                is MethodItem ->
+                    // Document as part of return annotation, not member doc
+                    if (returnValue) item.documentation.blockTagDescriptionOwner("return")
+                    else item.descriptionOwner
+                else -> item.descriptionOwner
+            }
 
-        when (item) {
-            is ParameterItem -> item.containingCallable().appendDocumentation(doc, item.name())
-            is MethodItem ->
-                // Document as part of return annotation, not member doc
-                item.appendDocumentation(doc, if (returnValue) "@return" else null)
-            else -> item.appendDocumentation(doc)
-        }
+        descriptionOwner.append(doc)
     }
 
     private fun addDoc(annotation: AnnotationItem, tag: String, item: Item) {
