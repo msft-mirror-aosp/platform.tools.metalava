@@ -403,7 +403,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     @author <<them>>
                     @param <<p1>>
                     @apiSince <<12>>
-                    @exception <<Exception>>
+                    @throws <<Exception>>
                     @see <<#field>>
                     @see <<#Class()>>
                 """,
@@ -431,7 +431,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @author them
                      * @param p1
                      * @apiSince 12
-                     * @exception Exception
+                     * @throws Exception
                      * @see #field
                      * @see #Class()
                      */

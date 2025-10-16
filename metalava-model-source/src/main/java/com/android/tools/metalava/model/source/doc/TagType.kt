@@ -56,6 +56,19 @@ internal open class BaseTagTypes {
     private val tagTypes = mutableMapOf<String, TagType<*>>()
 
     /**
+     * Register [tagType] in [tagTypes] by [alias] if provided or [TagType.name] if not, throwing an
+     * error if it collides with an existing [TagType].
+     */
+    fun <D : TagData> register(tagType: TagType<D>, alias: String? = null): TagType<D> {
+        val name = alias ?: tagType.name
+        val existing = tagTypes.put(name, tagType)
+        if (existing != null) {
+            error("Duplicate tag types for $name, found $existing of ${existing.javaClass}")
+        }
+        return tagType
+    }
+
+    /**
      * Get a [TagType] for [name].
      *
      * If no such [TagType] has been registered then creates a [DefaultTagType] and caches that.
@@ -67,6 +80,13 @@ internal open class BaseTagTypes {
 
 /** Collection of all the block [TagType]s that have been created. */
 internal object BlockTagTypes : BaseTagTypes() {
+    val THROWS = tagTypeOf("throws")
+
+    init {
+        // @exception as an alias for @throws
+        register(THROWS, alias = "exception")
+    }
+
     val DEPRECATED = tagTypeOf("deprecated")
     val HIDE = tagTypeOf("hide")
 }
