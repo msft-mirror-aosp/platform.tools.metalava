@@ -77,7 +77,7 @@ internal object DocCommentParser {
 
         // The type of the previous block tag, null if there was none. This is set when matching a
         // block tag but used on the next iteration where the block tag is added to the list.
-        var blockTagType: String? = null
+        var blockTagType: TagType<*>? = null
 
         // The start of the description of the previous block tag, -1 if there was none. This is set
         // when matching a block tag but used on the next iteration where the block tag is added to
@@ -125,11 +125,13 @@ internal object DocCommentParser {
                 break
             } else {
                 // A block tag was found so record the block tag type and start of the description
-                // for use in the next iteration of the loop. Intern it as the number of different
-                // types will be small and interning will ensure faster checking later.
-                blockTagType = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!.intern()
+                // for use in the next iteration of the loop.
+                val tagTypeName = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!
 
-                if (!foundHide && blockTagType == "hide") {
+                // Map it to a [TagType].
+                blockTagType = BlockTagTypes.tagTypeOf(tagTypeName)
+
+                if (!foundHide && blockTagType == BlockTagTypes.HIDE) {
                     foundHide = true
                 }
 

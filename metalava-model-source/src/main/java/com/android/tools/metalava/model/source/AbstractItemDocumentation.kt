@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
@@ -208,12 +209,12 @@ abstract class AbstractItemDocumentation(
 
     override fun removeDeprecatedSection() {
         // Try and remove all the `@deprecated` sections.
-        docComment.removeBlockTagSections { it.tagType == "deprecated" }
+        docComment.removeBlockTagSections { it.tagType == BlockTagTypes.DEPRECATED }
     }
 
     override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
         // Remove any existing sections of the specified type.
-        docComment.removeBlockTagSections { it.tagType == tagTypeName }
+        docComment.removeBlockTagSections { it.tagType.name == tagTypeName }
 
         // Add a block tag section to the end.
         docComment.addBlockTagSection(tagTypeName, JavadocText(text))

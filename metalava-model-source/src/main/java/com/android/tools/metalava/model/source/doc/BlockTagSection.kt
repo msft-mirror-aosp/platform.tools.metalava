@@ -28,14 +28,14 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
  */
 internal interface BlockTagSection {
     /** The type of the block tag. */
-    val tagType: String
+    val tagType: TagType<*>
 
     /** The description of the block tag. */
     val description: JavadocContent?
 }
 
 internal class DefaultBlockTagSection(
-    override val tagType: String,
+    override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
 ) : DescriptionOwner(descriptionSupplier), BlockTagSection {
 

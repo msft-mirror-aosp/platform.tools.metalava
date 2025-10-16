@@ -62,7 +62,7 @@ class DocCommentTest : BaseDocCommentTest() {
 
         // Try and remove a block tag that is not present. Verify that it does not change the size
         // of block tags.
-        docComment.removeBlockTagSections { it.tagType == "unknown" }
+        docComment.removeBlockTagSections { it.tagType.name == "unknown" }
         assertEquals(
             countBeforeRemoval,
             docComment.blockTagSections.size,
@@ -70,7 +70,7 @@ class DocCommentTest : BaseDocCommentTest() {
         )
 
         // Remove all singleLine block tag sections. Verify that it removes 2 block tags.
-        docComment.removeBlockTagSections { it.tagType == "singleLine" }
+        docComment.removeBlockTagSections { it.tagType.name == "singleLine" }
         assertEquals(
             countBeforeRemoval - 2,
             docComment.blockTagSections.size,

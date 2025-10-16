@@ -96,12 +96,13 @@ internal class DefaultDocComment(
 ) : DescriptionOwner(descriptionSupplier), DocComment {
 
     override fun hasBlockTagOfType(tagTypeName: String) =
-        blockTagSections.any { it.tagType == tagTypeName }
+        blockTagSections.any { it.tagType.name == tagTypeName }
 
     override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?) {
+        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
         val blockTagSection =
             DefaultBlockTagSection(
-                tagTypeName,
+                tagType,
                 DefaultContentSupplier(description),
             )
         blockTagSections = blockTagSections + blockTagSection
