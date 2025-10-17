@@ -16,11 +16,12 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
 
 /**
- * Uses [tagType] to extract [TagData] from [JavadocContent].
+ * Uses [tagType] to extract [TagData] from [JavadocContent] using [context].
  *
  * Finds the [JavadocText], if any, at the beginning of the [JavadocContent] and calls
  * [TagType.extractData] on its [JavadocText.contents] property.
@@ -28,6 +29,7 @@ import com.android.tools.metalava.model.source.doc.TagType
  * @see [extractTagData].
  */
 internal class TagDataExtractor(
+    private val context: DocCommentContext,
     private val tagType: TagType<*>,
 ) : JavadocContentVisitor {
 
@@ -64,11 +66,12 @@ internal class TagDataExtractor(
      */
     override fun visit(text: JavadocText) {
         val contents = text.contents
-        tagData = tagType.extractData(contents)
+        tagData = tagType.extractData(context, contents)
     }
 }
 
 /** Extract [tagType]'s [TagData], if any, from this using [TagType.extractData]. */
 internal fun JavadocContent.extractTagDataForTagType(
+    context: DocCommentContext,
     tagType: TagType<*>,
-) = TagDataExtractor(tagType).extractTagData(this)
+) = TagDataExtractor(context, tagType).extractTagData(this)

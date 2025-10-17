@@ -68,6 +68,7 @@ internal interface BlockTagSection {
  * with as that only happens when processing documentation that will be part of the API.
  */
 internal class DefaultBlockTagSection(
+    private val context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
 ) : DescriptionOwner(descriptionSupplier), BlockTagSection {
@@ -83,7 +84,7 @@ internal class DefaultBlockTagSection(
     override val tagData: TagData?
         get() {
             if (!::_tagData.isInitialized) {
-                val data = description?.extractTagDataForTagType(tagType)
+                val data = description?.extractTagDataForTagType(context, tagType)
                 _tagData = Optional.ofNullable(data)
             }
 

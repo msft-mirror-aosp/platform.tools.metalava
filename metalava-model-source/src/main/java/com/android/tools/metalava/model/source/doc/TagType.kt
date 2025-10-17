@@ -43,7 +43,7 @@ internal abstract class TagType<D : TagData>(
     val ordinal: Int = BlockTagOrder.ordinalForTagType(name)
 
     /**
-     * Extract tag type specific data [D] from [text].
+     * Extract tag type specific data [D] from [text] using [context] where necessary.
      *
      * If this tag type does not have any type specific data then it returns `null`.
      *
@@ -52,7 +52,7 @@ internal abstract class TagType<D : TagData>(
      *
      * Otherwise, return an instance of [D].
      */
-    abstract fun extractData(text: CharSequence): D?
+    abstract fun extractData(context: DocCommentContext, text: CharSequence): D?
 
     /** This must be the [name] of the tag type. */
     override fun toString() = name
@@ -91,7 +91,7 @@ internal abstract class TagType<D : TagData>(
 
 /** The default [TagType] used for all tags that do not have special behavior. */
 internal class DefaultTagType(name: String) : TagType<TagData>(name) {
-    override fun extractData(text: CharSequence) = null
+    override fun extractData(context: DocCommentContext, text: CharSequence) = null
 }
 
 /**

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
@@ -39,6 +40,7 @@ import org.antlr.v4.runtime.TokenStream
 internal class JavadocParser
 private constructor(
     private val antlrParser: AntlrJavadocParser,
+    private val context: DocCommentContext,
     private val reporter: DocumentationIssueReporter,
 ) {
 
@@ -47,11 +49,13 @@ private constructor(
          * Parse [text] from [startInclusive] up to, but not including [endExclusive] as a javadoc
          * comment (optionally including the /** ... */).
          *
+         * @param context context that applies to [text].
          * @param text the String to be parsed.
          * @param startInclusive the index of the first character to parse.
          * @param endExclusive the index after the last character to parse.
          */
         fun parse(
+            context: DocCommentContext,
             text: String,
             startInclusive: Int,
             endExclusive: Int,
@@ -65,7 +69,7 @@ private constructor(
             val antlrParser = AntlrJavadocParser(tokenStream)
             antlrParser.removeErrorListeners()
             antlrParser.addErrorListener(errorListener)
-            val parser = JavadocParser(antlrParser, reporter)
+            val parser = JavadocParser(antlrParser, context, reporter)
             return parser.parse()
         }
 
@@ -91,7 +95,7 @@ private constructor(
 
     private fun parse(): JavadocContent? {
         val descriptionContext = antlrParser.description()
-        return JavadocContentBuilder.buildFrom(descriptionContext, reporter)
+        return JavadocContentBuilder.buildFrom(descriptionContext, context, reporter)
     }
 }
 
@@ -154,6 +158,7 @@ internal class JavadocErrorListener(
 
 /** Builds [JavadocContent] from [AntlrJavadocParser.DescriptionContext]. */
 private class JavadocContentBuilder(
+    private val context: DocCommentContext,
     private val reporter: DocumentationIssueReporter,
 ) : AntlrJavadocParserBaseVisitor<Unit>() {
     /**
@@ -404,7 +409,7 @@ private class JavadocContentBuilder(
                 }
             }
 
-        val tagData = tagContent?.extractTagDataForTagType(tagType)
+        val tagData = tagContent?.extractTagDataForTagType(context, tagType)
 
         // Add an inline tag to the content.
         appendContent(JavadocInlineTag(tagType, tagData, tagContent))
@@ -427,11 +432,12 @@ private class JavadocContentBuilder(
         /** Build a optional [JavadocContent] from [descriptionContext]. */
         fun buildFrom(
             descriptionContext: AntlrJavadocParser.DescriptionContext,
+            context: DocCommentContext,
             reporter: DocumentationIssueReporter,
         ): JavadocContent? {
             // Create a builder that will create [JavadocContent] by traversing the
             // [descriptionContext] structure.
-            val builder = JavadocContentBuilder(reporter)
+            val builder = JavadocContentBuilder(context, reporter)
 
             // Traverse the [descriptionContent] structure.
             descriptionContext.accept(builder)

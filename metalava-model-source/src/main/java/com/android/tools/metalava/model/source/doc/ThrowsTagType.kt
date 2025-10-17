@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 /** [TagType] for `@throws` block tag. */
 internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
-    override fun extractData(text: CharSequence): ThrowsTagData? {
+    override fun extractData(context: DocCommentContext, text: CharSequence): ThrowsTagData? {
         val throwsName = text.findLeadingIdentifier() ?: return null
         return ThrowsTagData(throwsName)
     }
