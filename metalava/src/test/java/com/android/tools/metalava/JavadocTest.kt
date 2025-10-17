@@ -119,7 +119,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
+                       * @throws RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -180,7 +180,7 @@ class JavadocTest : DriverTest() {
                      * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
                      *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                      * @throws java.io.IOException when blah blah blah
-                     * @throws {@link java.lang.RuntimeException RuntimeException} when blah blah blah
+                     * @throws java.lang.RuntimeException when blah blah blah
                      */
                     @Deprecated
                     public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
@@ -236,7 +236,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
+                       * @throws RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -329,7 +329,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws java.io.IOException when blah blah blah
-                       * @throws {@link java.lang.RuntimeException} when blah blah blah
+                       * @throws java.lang.RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -390,7 +390,7 @@ class JavadocTest : DriverTest() {
                  * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
                  *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                  * @throws java.io.IOException when blah blah blah
-                 * @throws {@link java.lang.RuntimeException} when blah blah blah
+                 * @throws java.lang.RuntimeException when blah blah blah
                  */
                 @Deprecated
                 public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
