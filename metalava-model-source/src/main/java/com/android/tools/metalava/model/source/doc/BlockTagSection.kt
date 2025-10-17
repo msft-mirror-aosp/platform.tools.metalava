@@ -40,6 +40,9 @@ internal interface BlockTagSection {
     val tagData: TagData?
 
     companion object {
+        /** Sort [TagData] so that `null` comes after non-`null`. */
+        private val tagDataComparator = nullsLast(naturalOrder<TagData>())
+
         /**
          * Comparator used to sort [BlockTagSection]s roughly according to the rules referenced in
          * [BlockTagOrder].
@@ -50,6 +53,8 @@ internal interface BlockTagSection {
                 // Then by tag type name for those tag types with the same ordinal, i.e. unknown tag
                 // types.
                 .thenBy { it.tagType.name }
+                // Then by tag specific order as determined by their custom tag data, if any.
+                .thenBy(tagDataComparator) { it.tagData }
     }
 }
 

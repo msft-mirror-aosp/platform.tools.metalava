@@ -427,9 +427,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @param p1
                      * @return something
                      * @attr ref xml-thing
-                     * @throws
-                     * @throws Throwable
                      * @throws Exception
+                     * @throws Throwable
+                     * @throws
                      * @see #field
                      * @see #Class()
                      * @since 1.4

@@ -21,7 +21,9 @@ package com.android.tools.metalava.model.source.doc
  *
  * Provides support for adding tag specific behavior that can access the tag data.
  */
-internal interface TagData
+internal interface TagData : Comparable<TagData> {
+    override fun compareTo(other: TagData) = 0
+}
 
 /** Provides tag type specific functionality for block and inline tags. */
 internal abstract class TagType<D : TagData>(
@@ -134,7 +136,7 @@ internal open class BaseTagTypes {
 
 /** Collection of all the block [TagType]s that have been created. */
 internal object BlockTagTypes : BaseTagTypes() {
-    val THROWS = tagTypeOf("throws")
+    val THROWS = register(ThrowsTagType())
 
     init {
         // @exception as an alias for @throws
