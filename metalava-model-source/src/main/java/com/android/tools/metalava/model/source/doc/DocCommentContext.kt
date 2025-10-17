@@ -30,4 +30,19 @@ internal interface DocCommentContext {
      * invoked when the [DocComment] is changed.
      */
     val mutationListener: DocCommentMutationListener
+
+    /**
+     * Compute the ordinal value for parameter [name] in the list of all `@param` tags.
+     *
+     * The `@param` tags can be used for type and callable parameters, sometimes in the same list.
+     * They should be in the following order:
+     * 1. `@param` tags for type parameters in type parameter list order.
+     * 2. `@param` tags for unknown type parameters.
+     * 3. `@param` tags for callable parameters in parameter list order.
+     * 4. `@param` tags for unknown callable parameters.
+     *
+     * @param name will be wrapped inside `<...>` if it is a type parameter, otherwise it is a
+     *   callable parameter.
+     */
+    fun ordinalInParamsList(name: String): Int
 }

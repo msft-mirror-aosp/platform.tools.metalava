@@ -422,9 +422,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @author me
                      * @author them
                      * @version current
-                     * @param
-                     * @param p2
                      * @param p1
+                     * @param p2
+                     * @param
                      * @return something
                      * @attr ref xml-thing
                      * @throws Exception

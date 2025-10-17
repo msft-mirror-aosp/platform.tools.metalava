@@ -134,8 +134,13 @@ internal open class BaseTagTypes {
     }
 }
 
-/** Collection of all the block [TagType]s that have been created. */
+/**
+ * Collection of all the block [TagType]s that have been created.
+ *
+ * Must be in the same order as [BlockTagOrder].
+ */
 internal object BlockTagTypes : BaseTagTypes() {
+    val PARAM = register(ParamTagType("param"))
     val THROWS = register(ThrowsTagType())
 
     init {

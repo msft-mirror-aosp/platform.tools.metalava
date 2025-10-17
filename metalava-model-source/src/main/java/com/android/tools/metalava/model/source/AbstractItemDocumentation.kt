@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
@@ -127,7 +129,6 @@ abstract class AbstractItemDocumentation(
             }
         }
 
-    /** Implements [DocCommentContext.mutationListener]. */
     override val mutationListener: DocCommentMutationListener
         get() = this
 
@@ -143,8 +144,48 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
+    /** Implements [DocCommentContext.ordinalOfCallableParameter]. */
     override val isHidden
         get() = hasBlockTagOfType("hide")
+
+    /**
+     * Return the ordinal for the first item that matches [predicate].
+     *
+     * If no item matches then return the length of the list, as if the unknown item was at the end.
+     */
+    inline fun <T> List<T>.ordinalInListUnknownAtEnd(predicate: (T) -> Boolean): Int {
+        val index = indexOfFirst(predicate)
+        return if (index == -1) size else index
+    }
+
+    override fun ordinalInParamsList(name: String): Int {
+        return if (item is TypeParameterListOwner) {
+            val typeParameterList = item.typeParameterList
+            val typeParameterCount = typeParameterList.size
+
+            if (name.startsWith("<") && name.endsWith(">")) {
+                val typeParameterName = name.substring(1, name.length - 1)
+                // Type parameters are always at the start of the `@param` list so just return the
+                // ordinal in the type parameter list with unknown at the end.
+                typeParameterList.ordinalInListUnknownAtEnd { it.name() == typeParameterName }
+            } else {
+                // Get the callable parameters list, if any.
+                val parametersList = (item as? CallableItem)?.parameters() ?: emptyList()
+
+                // Get the ordinal of the parameter in the callable parameters list.
+                val ordinalInParametersList =
+                    parametersList.ordinalInListUnknownAtEnd { it.name() == name }
+
+                // Callable parameters always start after type parameters, both known and unknown
+                // so offset their ordinal so they come after the
+                val parameterListStart = typeParameterCount + 1
+                parameterListStart + ordinalInParametersList
+            }
+        } else {
+            // Only TypeParameterListOwners have parameters or either type.
+            0
+        }
+    }
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")

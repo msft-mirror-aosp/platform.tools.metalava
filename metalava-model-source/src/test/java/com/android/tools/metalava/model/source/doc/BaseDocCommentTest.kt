@@ -74,4 +74,6 @@ class NoOpDocCommentContext : DocCommentContext, DocCommentMutationListener {
         get() = this
 
     override fun docCommentMutated() {}
+
+    override fun ordinalInParamsList(name: String) = 0
 }
