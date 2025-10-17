@@ -58,6 +58,19 @@ internal interface JavadocContentVisitor {
     fun visit(text: JavadocText) {}
 }
 
+/**
+ * Convert this [List] to an optional [JavadocContent].
+ *
+ * If this is empty then returns null, if there is a single [JavadocContent] then just return it,
+ * otherwise create a [JavadocContentList] wrapper around this.
+ */
+internal fun List<JavadocContent>.toOptionalJavadocContent() =
+    when (size) {
+        0 -> null
+        1 -> this[0]
+        else -> JavadocContentList(this)
+    }
+
 /** A [JavadocContent] that encapsulates a number of other [JavadocContent] instances. */
 internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocContent {
     /** A list of [JavadocContent] occupies multiple lines if any of them occupy multiple lines. */
