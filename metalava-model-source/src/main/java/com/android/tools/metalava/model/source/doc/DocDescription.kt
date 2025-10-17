@@ -75,10 +75,10 @@ internal class DefaultDocDescription(override val content: JavadocContent) : Doc
  * from [startInclusive] and ending at [endExclusive].
  */
 internal class LazyDocDescription(
+    private val reporter: DocumentationIssueReporter,
     private val text: String,
     private val startInclusive: Int = 0,
     private val endExclusive: Int = text.length,
-    private val reporter: DocumentationIssueReporter,
 ) : DocDescription, DocumentationIssueReporter {
     private lateinit var _content: Optional<JavadocContent>
 

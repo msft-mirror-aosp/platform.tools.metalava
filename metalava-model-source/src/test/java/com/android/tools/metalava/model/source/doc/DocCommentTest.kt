@@ -21,6 +21,11 @@ import kotlin.test.assertTrue
 import org.junit.Test
 
 class DocCommentTest : BaseDocCommentTest() {
+    /** Add a block tag section for [tagTypeName] containing [text]. */
+    private fun DocComment.addBlockTagSection(tagTypeName: String, text: String) {
+        addBlockTagSection(tagTypeName, LazyDocDescription(reporter, text))
+    }
+
     @Test
     fun `Test removeBlockTagSections`() {
         val docComment =
@@ -102,10 +107,7 @@ class DocCommentTest : BaseDocCommentTest() {
                 """
             )
 
-        docComment.addBlockTagSection(
-            "custom",
-            LazyDocDescription("a custom block tag", reporter = reporter)
-        )
+        docComment.addBlockTagSection("custom", "a custom block tag")
 
         checkPrintOutput(
             docComment,
@@ -119,10 +121,7 @@ class DocCommentTest : BaseDocCommentTest() {
             message = "after adding custom tag"
         )
 
-        docComment.addBlockTagSection(
-            "custom",
-            LazyDocDescription("another custom block tag", reporter = reporter)
-        )
+        docComment.addBlockTagSection("custom", "another custom block tag")
 
         checkPrintOutput(
             docComment,
