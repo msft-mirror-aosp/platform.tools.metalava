@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.doc.DefaultDocDescription
 import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.reporter.Issues
@@ -31,7 +32,7 @@ import java.util.regex.Pattern
  */
 abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
-) : ItemDocumentation, DocumentationIssueReporter {
+) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
 
     /**
      * Lazily initialized backing property for [text].
@@ -106,7 +107,12 @@ abstract class AbstractItemDocumentation(
         get() {
             val docComment = _docComment
             return if (docComment == null) {
-                val new = DocComment.createDocComment(text, this)
+                val new =
+                    DocComment.createDocComment(
+                        context = this,
+                        text,
+                        reporter = this,
+                    )
                 _docComment = new
                 new
             } else {
@@ -151,7 +157,12 @@ abstract class AbstractItemDocumentation(
             // create a new one from the fully qualified text.
             val fullyQualifiedComment =
                 if (fullyQualifiedText == originalText) docComment
-                else DocComment.createDocComment(fullyQualifiedText, this)
+                else
+                    DocComment.createDocComment(
+                        context = this,
+                        fullyQualifiedText,
+                        reporter = this,
+                    )
 
             // Print the docComment as Javadoc.
             fullyQualifiedComment.printAsJavadocComment(writer)

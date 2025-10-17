@@ -21,6 +21,7 @@ import kotlin.test.assertEquals
 
 abstract class BaseDocCommentTest {
     val reporter = CollatingDocumentationIssueReporter()
+    val context = NoOpDocCommentContext()
 
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
@@ -29,7 +30,12 @@ abstract class BaseDocCommentTest {
         input: String,
         expectedIssues: String = "",
     ): DocComment {
-        var docComment = DocCommentParser.parseText(input.trimIndent(), reporter)
+        var docComment =
+            DocCommentParser.parseText(
+                context,
+                input.trimIndent(),
+                reporter,
+            )
         assertEquals(expectedIssues.trimIndent(), reporter.toString().trim())
         return docComment
     }
@@ -61,3 +67,6 @@ class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
 
     override fun toString() = builder.toString()
 }
+
+/** A test [DocCommentContext] that provides basic no-op implementations. */
+class NoOpDocCommentContext : DocCommentContext

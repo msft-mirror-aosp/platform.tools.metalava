@@ -42,7 +42,11 @@ internal object DocCommentParser {
     /** The index of the group in [BLOCK_TAG_TYPE_GROUP_INDEX] that contains the block tag type. */
     private const val BLOCK_TAG_TYPE_GROUP_INDEX = 2
 
-    fun parseText(text: String, reporter: DocumentationIssueReporter): DocComment {
+    fun parseText(
+        context: DocCommentContext,
+        text: String,
+        reporter: DocumentationIssueReporter,
+    ): DocComment {
         val length = text.length
 
         // Trim any whitespace from the start as well as the start token `/**` (if any).

@@ -59,12 +59,15 @@ internal interface DocComment {
     }
 
     companion object {
-        /** Create a [DocComment] from [text], reporting any issues to [reporter]. */
+        /**
+         * Create a [DocComment] from [text], with [context], reporting any issues to [reporter].
+         */
         internal fun createDocComment(
+            context: DocCommentContext,
             text: String,
-            reporter: DocumentationIssueReporter
+            reporter: DocumentationIssueReporter,
         ): DocComment {
-            return DocCommentParser.parseText(text, reporter)
+            return DocCommentParser.parseText(context, text, reporter)
         }
     }
 }
