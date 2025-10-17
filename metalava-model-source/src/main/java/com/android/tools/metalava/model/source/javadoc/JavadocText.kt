@@ -16,8 +16,16 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
-/** A block of text in a Javadoc comment. */
+/**
+ * A block of text in a Javadoc comment.
+ *
+ * @param text a non-empty string.
+ */
 internal class JavadocText(val contents: String) : JavadocContent {
+    init {
+        require(contents.isNotEmpty()) { "contents must contain at least one character" }
+    }
+
     /** A block of text occupies multiple lines if it contains a newline. */
     override fun isMultiLine() = contents.contains('\n')
 

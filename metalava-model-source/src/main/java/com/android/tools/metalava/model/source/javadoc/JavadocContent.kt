@@ -71,8 +71,16 @@ internal fun List<JavadocContent>.toOptionalJavadocContent() =
         else -> JavadocContentList(this)
     }
 
-/** A [JavadocContent] that encapsulates a number of other [JavadocContent] instances. */
+/**
+ * A [JavadocContent] that encapsulates multiple [JavadocContent] instances.
+ *
+ * @param contents a list containing multiple [JavadocContent] instances.
+ */
 internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocContent {
+    init {
+        require(contents.size > 1) { "contents list must contain more than one item" }
+    }
+
     /** A list of [JavadocContent] occupies multiple lines if any of them occupy multiple lines. */
     override fun isMultiLine() = contents.any { it.isMultiLine() }
 
