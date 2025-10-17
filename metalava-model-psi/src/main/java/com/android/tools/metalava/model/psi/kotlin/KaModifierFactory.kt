@@ -37,7 +37,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.isTopLevel
 
 /** Creates modifiers for ka symbols. */
-internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
+internal class KaModifierFactory(private val processor: KaModuleProcessor) {
     /** Creates modifiers for the [propertySymbol]. */
     fun createForProperty(
         propertySymbol: KaPropertySymbol,
@@ -196,7 +196,7 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
                 KaSymbolVisibility.LOCAL,
                 KaSymbolVisibility.UNKNOWN -> VisibilityLevel.PRIVATE
             }
-        val annotations = symbol.annotations.mapNotNull { assembler.createAnnotation(it) }
+        val annotations = symbol.annotations.mapNotNull { processor.createAnnotation(it) }
         val modifiers = createMutableModifiers(visibility, annotations)
 
         // Set keyword modifiers if applicable
@@ -232,7 +232,7 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
 
     /** Creates modifiers for a parameter (just visibility and annotations). */
     private fun createForParameter(symbol: KaParameterSymbol): MutableModifierList {
-        val annotations = symbol.annotations.mapNotNull { assembler.createAnnotation(it) }
+        val annotations = symbol.annotations.mapNotNull { processor.createAnnotation(it) }
         val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
         if (annotations.any { it.qualifiedName == KOTLIN_DEPRECATED }) {
             modifiers.setDeprecated(true)
