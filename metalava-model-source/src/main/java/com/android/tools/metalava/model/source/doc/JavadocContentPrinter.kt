@@ -16,17 +16,19 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocContentList
 import com.android.tools.metalava.model.source.javadoc.JavadocContentVisitor
 import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import java.io.PrintWriter
+import kotlin.text.iterator
 
-/** Prints [DocDescription] instances to [writer]. */
-internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocContentVisitor {
-    /** Prints [description] as part of a Javadoc comment to [writer]. */
-    fun print(description: DocDescription) {
-        description.content?.accept(this)
+/** Prints [JavadocContent] instances to [writer]. */
+internal class JavadocContentPrinter(private val writer: PrintWriter) : JavadocContentVisitor {
+    /** Prints [content] as part of a Javadoc comment to [writer]. */
+    fun print(content: JavadocContent?) {
+        content?.accept(this)
     }
 
     override fun visit(list: JavadocContentList) {
@@ -40,7 +42,7 @@ internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocC
             if (!nestedContent.startsWithNewline()) {
                 writer.print(" ")
             }
-            nestedContent.accept(this)
+            print(nestedContent)
         }
         writer.print("}")
     }

@@ -142,8 +142,8 @@ internal class DefaultDocComment(
         val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
         val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
 
-        // Create a printer for [DocDescription]s.
-        val descriptionPrinter = DocDescriptionPrinter(writer)
+        // Create a printer for [JavadocContent].
+        val contentPrinter = JavadocContentPrinter(writer)
 
         // Check to see whether this is multi-line comment. If is then output it on multiple lines,
         // e.g.
@@ -168,7 +168,7 @@ internal class DefaultDocComment(
             }
             // Add leading space as all leading whitespace was removed from description.
             writer.print(" ")
-            descriptionPrinter.print(description)
+            contentPrinter.print(description.content)
             if (multiLine) {
                 writer.println()
             }
@@ -192,7 +192,7 @@ internal class DefaultDocComment(
                 val sectionDescription = section.description
                 if (sectionDescription.isNotEmpty()) {
                     writer.print(" ")
-                    descriptionPrinter.print(sectionDescription)
+                    contentPrinter.print(sectionDescription.content)
                 }
                 if (multiLine) {
                     writer.println()
