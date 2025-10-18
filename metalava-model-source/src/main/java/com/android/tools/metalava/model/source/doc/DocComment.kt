@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.requiredSpace
 import java.io.PrintWriter
 import java.io.StringWriter
 
@@ -130,6 +131,7 @@ internal class DefaultDocComment(
                 blockTagSections
                     .single()
                     .description
+                    .content
                     .requiredSpace()
                     .coerceAtLeast(RequiredSpace.SINGLE_LINE)
             // If the block tag section has multiple tags then it requires multiple lines.
@@ -138,7 +140,7 @@ internal class DefaultDocComment(
 
     override fun printAsJavadocComment(writer: PrintWriter) {
         // Compute require space for the main description and block tag sections.
-        val mainDescriptionRequiredSpace = description.requiredSpace()
+        val mainDescriptionRequiredSpace = description.content.requiredSpace()
         val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
         val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
 
@@ -189,10 +191,9 @@ internal class DefaultDocComment(
                     writer.print(" *")
                 }
                 writer.print(" @${section.tagType}")
-                val sectionDescription = section.description
-                if (sectionDescription.isNotEmpty()) {
+                section.description.content?.let { content ->
                     writer.print(" ")
-                    contentPrinter.print(sectionDescription.content)
+                    contentPrinter.print(content)
                 }
                 if (multiLine) {
                     writer.println()

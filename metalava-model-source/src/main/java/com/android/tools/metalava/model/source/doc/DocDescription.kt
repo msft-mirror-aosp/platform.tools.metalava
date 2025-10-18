@@ -32,20 +32,6 @@ internal interface DocDescription {
     /** The [JavadocContent], `null` if this is empty. */
     val content: JavadocContent?
 
-    /** Return `true` if this is empty, `false` otherwise. */
-    fun isEmpty(): Boolean = content == null
-
-    /** Return `true` if this is not empty, `false` otherwise. */
-    fun isNotEmpty() = !isEmpty()
-
-    /** Determines how much vertical space this [DocDescription] requires when printed. */
-    fun requiredSpace(): RequiredSpace =
-        when {
-            isEmpty() -> RequiredSpace.EMPTY
-            content?.isMultiLine() == true -> RequiredSpace.MULTI_LINE
-            else -> RequiredSpace.SINGLE_LINE
-        }
-
     companion object {
         /** An empty [DocDescription]. */
         val EMPTY: DocDescription = EmptyDocDescription()
@@ -55,10 +41,6 @@ internal interface DocDescription {
 internal class EmptyDocDescription : DocDescription {
     override val content
         get() = null
-
-    override fun isEmpty() = true
-
-    override fun requiredSpace() = RequiredSpace.EMPTY
 
     override fun toString() = "<<>>"
 }
