@@ -18,11 +18,16 @@ package com.android.tools.metalava.model.source.doc
 
 /** [TagType] for `@param` block tag. */
 internal class ParamTagType(name: String) : TagType<ParamTagData>(name) {
-    override fun extractData(context: DocCommentContext, text: CharSequence): ParamTagData? {
+    override fun extractData(
+        context: DocCommentContext,
+        text: CharSequence
+    ): ExtractDataResult<ParamTagData>? {
         val paramName = text.findLeadingIdentifier() ?: return null
 
         val ordinal = context.ordinalInParamsList(paramName)
-        return ParamTagData(paramName, ordinal)
+        return ExtractDataResult(
+            tagData = ParamTagData(paramName, ordinal),
+        )
     }
 }
 

@@ -409,7 +409,8 @@ private class JavadocContentBuilder(
                 }
             }
 
-        val tagData = tagContent?.extractTagDataForTagType(context, tagType)
+        val result = tagContent?.extractTagDataForTagType(context, tagType)
+        val tagData = result?.tagData
 
         // Add an inline tag to the content.
         appendContent(JavadocInlineTag(tagType, tagData, tagContent))

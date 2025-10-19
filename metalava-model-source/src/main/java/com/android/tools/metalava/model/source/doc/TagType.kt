@@ -50,9 +50,14 @@ internal abstract class TagType<D : TagData>(
      * If [text] does not match the expected structure for this tag type, e.g. an `@param` tag
      * without a parameter name then it also returns `null`.
      *
-     * Otherwise, return an instance of [D].
+     * Otherwise, return an instance of [ExtractDataResult] such that:
+     * * [ExtractDataResult.tagData] is set to the instance of [D] that this created.
+     * * [ExtractDataResult.consumedContent] is set to the character position with [text] where the
+     *   remainder of the content starts. If this is set to something greater than 0 then type [D]
+     *   must implement [TagData.printAfterTagType] to print the data that was removed from the
+     *   content.
      */
-    abstract fun extractData(context: DocCommentContext, text: CharSequence): D?
+    abstract fun extractData(context: DocCommentContext, text: CharSequence): ExtractDataResult<D>?
 
     /** This must be the [name] of the tag type. */
     override fun toString() = name
@@ -88,6 +93,20 @@ internal abstract class TagType<D : TagData>(
         return substring(0, endIndex)
     }
 }
+
+/** Result of a call to [TagType.extractData]. */
+internal data class ExtractDataResult<D : TagData>(
+    /** The [TagData] extracted. */
+    val tagData: D,
+
+    /**
+     * The number of characters of the content that was consumed when extracting the [tagData].
+     *
+     * If this is non-`0` then this many characters will be removed from the content from which this
+     * data was extracted.
+     */
+    val consumedContent: Int = 0,
+)
 
 /** The default [TagType] used for all tags that do not have special behavior. */
 internal class DefaultTagType(name: String) : TagType<TagData>(name) {

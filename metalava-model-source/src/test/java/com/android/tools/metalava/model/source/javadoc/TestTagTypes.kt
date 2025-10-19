@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.ExtractDataResult
 import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
@@ -32,9 +33,15 @@ internal object TestTagTypes {
 }
 
 internal class BarTagType : TagType<BarTagData>("bar") {
-    override fun extractData(context: DocCommentContext, text: CharSequence): BarTagData? {
+    override fun extractData(
+        context: DocCommentContext,
+        text: CharSequence
+    ): ExtractDataResult<BarTagData>? {
         val identifier = text.findLeadingIdentifier() ?: return null
-        return BarTagData(identifier)
+        return ExtractDataResult(
+            tagData = BarTagData(identifier),
+            consumedContent = identifier.length + 1,
+        )
     }
 }
 

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.source.javadoc.ExtractorResult
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
 
@@ -95,14 +96,17 @@ internal class DefaultBlockTagSection(
         }
 
     /**
-     * Override to extract [TagData] from [suppliedDescription] and delegate to the super method to
-     * store the [suppliedDescription].
+     * Override to extract [TagData] from [suppliedDescription] and store [ExtractorResult.tagData]
+     * in [_tagData] and then delegate to the super method to store [ExtractorResult.remainder] in
+     * [description].
      */
     override fun initializeDescription(suppliedDescription: JavadocContent?) {
-        _tagData = suppliedDescription?.extractTagDataForTagType(context, tagType)
+        val result: ExtractorResult? =
+            suppliedDescription?.extractTagDataForTagType(context, tagType)
+        _tagData = result?.tagData
 
-        // Delegate to the super method to store the description.
-        super.initializeDescription(suppliedDescription)
+        // Delegate to the super method to store the remainder in description.
+        super.initializeDescription(result?.remainder)
     }
 
     override fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D? {
