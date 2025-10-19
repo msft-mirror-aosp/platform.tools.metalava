@@ -40,12 +40,57 @@ internal abstract class TagType<D : TagData>(
      */
     val ordinal: Int = BlockTagOrder.ordinalForTagType(name)
 
+    /**
+     * Extract tag type specific data [D] from [text].
+     *
+     * If this tag type does not have any type specific data then it returns `null`.
+     *
+     * If [text] does not match the expected structure for this tag type, e.g. an `@param` tag
+     * without a parameter name then it also returns `null`.
+     *
+     * Otherwise, return an instance of [D].
+     */
+    abstract fun extractData(text: CharSequence): D?
+
     /** This must be the [name] of the tag type. */
     override fun toString() = name
+
+    /**
+     * Starting with the character at position [startInclusive] and searching forwards, return the
+     * position of the first whitespace character.
+     */
+    private fun CharSequence.skipForwardsOverNonWhitespace(startInclusive: Int): Int {
+        val length = this.length
+        var index = startInclusive
+        while (index < length && !this[index].isWhitespace()) {
+            index += 1
+        }
+        return index
+    }
+
+    /**
+     * Find the leading identifier, if any, in [this], returning `null` if it could not be found.
+     *
+     * [this] must have no leading whitespace. If it does then this will fail to find an identifier.
+     *
+     * For the purposes of this method an identifier is simply a series of non-whitespace
+     * characters.
+     */
+    internal fun CharSequence.findLeadingIdentifier(): String? {
+        // Find the end of the identifier by finding the first non-whitespace character.
+        val endIndex = skipForwardsOverNonWhitespace(0)
+
+        // No identifier found.
+        if (endIndex == 0) return null
+
+        return substring(0, endIndex)
+    }
 }
 
 /** The default [TagType] used for all tags that do not have special behavior. */
-internal class DefaultTagType(name: String) : TagType<TagData>(name)
+internal class DefaultTagType(name: String) : TagType<TagData>(name) {
+    override fun extractData(text: CharSequence) = null
+}
 
 /**
  * Collection of registered [TagType]s.
