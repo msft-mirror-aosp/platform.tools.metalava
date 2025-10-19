@@ -47,7 +47,7 @@ internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocC
 
     override fun visit(text: JavadocText) {
         var previousChar = '\u0000'
-        for (c in text.text) {
+        for (c in text.contents) {
             if (previousChar == '\n' && c != '/') {
                 writer.print(" *")
             }

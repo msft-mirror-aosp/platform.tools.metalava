@@ -79,7 +79,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                     override fun visit(text: JavadocText) {
                         appendPrefix()
                         append("text: '")
-                        append(text.text.replace("\n", "\\n"))
+                        append(text.contents.replace("\n", "\\n"))
                         append("'\n")
                     }
                 }
