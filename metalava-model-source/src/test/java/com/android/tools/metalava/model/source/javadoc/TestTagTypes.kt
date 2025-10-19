@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.source.doc.ExtractDataResult
 import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
+import java.io.PrintWriter
 
 internal object TestTagTypes {
     val BAR_TAG_TYPE =
@@ -45,4 +46,9 @@ internal class BarTagType : TagType<BarTagData>("bar") {
     }
 }
 
-internal data class BarTagData(val identifier: String) : TagData
+internal data class BarTagData(val identifier: String) : TagData {
+    override fun printAfterTagType(writer: PrintWriter) {
+        writer.print(" ")
+        writer.print(identifier)
+    }
+}

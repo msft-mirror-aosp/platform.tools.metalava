@@ -38,6 +38,7 @@ internal class JavadocContentPrinter(private val writer: PrintWriter) : JavadocC
     override fun visit(inlineTag: JavadocInlineTag) {
         writer.print("{@")
         writer.print(inlineTag.tagType)
+        inlineTag.tagData?.printAfterTagType(writer)
         inlineTag.content?.let { nestedContent ->
             if (!nestedContent.startsWithNewline()) {
                 writer.print(" ")

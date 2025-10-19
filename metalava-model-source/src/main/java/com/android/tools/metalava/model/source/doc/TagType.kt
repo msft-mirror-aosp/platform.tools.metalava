@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import java.io.PrintWriter
+
 /**
  * Base type of all tag specific data.
  *
@@ -23,6 +25,17 @@ package com.android.tools.metalava.model.source.doc
  */
 internal interface TagData : Comparable<TagData> {
     override fun compareTo(other: TagData) = 0
+
+    /**
+     * Called after the block or inline tag type has been written to [writer] to print any tag
+     * specific data.
+     *
+     * If it prints anything it must first print a space to separate it from the tag type.
+     *
+     * This must be implemented to print any content that was removed by setting
+     * [ExtractDataResult.consumedContent] to a non-`0` value in [TagType.extractData].
+     */
+    fun printAfterTagType(writer: PrintWriter) {}
 }
 
 /** Provides tag type specific functionality for block and inline tags. */

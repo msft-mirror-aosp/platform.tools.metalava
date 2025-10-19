@@ -195,6 +195,7 @@ internal class DefaultDocComment(
                     writer.print(" *")
                 }
                 writer.print(" @${section.tagType}")
+                section.tagData?.printAfterTagType(writer)
                 section.description?.let { content ->
                     writer.print(" ")
                     contentPrinter.print(content)

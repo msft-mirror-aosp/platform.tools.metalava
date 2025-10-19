@@ -595,10 +595,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     description: <<>>
                     @bar <<foo block after>>
                 """,
-            // TODO(b/450228132): `foo` is missing from the content.
             expectedPrintOutput =
                 """
-                    /** @bar block after */
+                    /** @bar foo block after */
                 """,
         ) {
             val barBlockTagSection = docComment.blockTagSections.single()
