@@ -1149,16 +1149,14 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.methods().single()
             val documentation = testMethod.documentation
 
-            // TODO(b/450228132): p1 should not be included in the description.
             assertDocContentOwnerToString(
                 documentation.paramTagDescriptionOwner("p1"),
-                """JavadocText("p1 param 1 documentation.")""",
+                """JavadocText("param 1 documentation.")""",
                 message = "@param p1 tag"
             )
-            // TODO(b/450228132): p2 should not be included in the description.
             assertDocContentOwnerToString(
                 documentation.paramTagDescriptionOwner("p2"),
-                """JavadocText("p2 param 2 documentation.")""",
+                """JavadocText("param 2 documentation.")""",
                 message = "@param p2 tag"
             )
             assertNull(documentation.paramTagDescriptionOwner("unknown"), message = "unknown param")
@@ -1327,15 +1325,9 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             documentation.paramTagDescriptionOwner("p")?.append("extra text")
 
-            // TODO(b/450228132): There should not be a `<br>` inserted because parameter is
-            //  supposed to be empty.
             val expectedOutputAfterMutation =
                 """
-                    /**
-                     * @param p
-                     * <br>
-                     * extra text
-                     */
+                    /** @param p extra text */
 
                 """
 

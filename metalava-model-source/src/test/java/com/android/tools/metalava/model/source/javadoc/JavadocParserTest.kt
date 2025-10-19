@@ -273,7 +273,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 // Error recovery ignores the */ and everything after it.
                 """
-                    text: 'p A block tag with'
+                    text: 'A block tag with'
                 """,
             expectedJavadocIssues =
                 """
