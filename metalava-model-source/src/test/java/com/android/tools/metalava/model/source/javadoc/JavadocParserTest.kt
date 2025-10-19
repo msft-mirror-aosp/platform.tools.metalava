@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
-import com.android.tools.metalava.model.source.doc.ContentSupplier
 import com.android.tools.metalava.model.source.doc.DocComment
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -26,17 +25,14 @@ class JavadocParserTest : BaseDocCommentTest() {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
     private fun checkParse(
         text: String,
-        descriptionGetter: (DocComment) -> ContentSupplier = { docComment ->
-            docComment.description
-        },
+        contentGetter: (DocComment) -> JavadocContent? = { docComment -> docComment.description },
         expectedStructure: String,
         expectedJavadocIssues: String = "",
     ) {
         val docComment = createTestDocComment(text)
 
         // Parse the main description
-        val description = descriptionGetter(docComment)
-        var content = description.content
+        var content = contentGetter(docComment)
 
         // Make sure that no unexpected JavadocParser issues were found.
         assertEquals(
@@ -312,7 +308,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * @param p A block tag with */ inside
                  */
             """,
-            descriptionGetter = { docComment -> docComment.blockTagSections.single().description },
+            contentGetter = { docComment -> docComment.blockTagSections.single().description },
             expectedStructure =
                 // Error recovery ignores the */ and everything after it.
                 """

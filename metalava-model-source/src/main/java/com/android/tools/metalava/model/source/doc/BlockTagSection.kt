@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
+
 /**
  * A block tag section of [DocComment.blockTagSections].
  *
@@ -29,17 +31,24 @@ internal interface BlockTagSection {
     val tagType: String
 
     /** The description of the block tag. */
-    val description: ContentSupplier
+    val description: JavadocContent?
 }
 
 internal class DefaultBlockTagSection(
     override val tagType: String,
-    override val description: ContentSupplier,
+    private val descriptionSupplier: ContentSupplier,
 ) : BlockTagSection {
+    override val description: JavadocContent?
+        get() = descriptionSupplier.content
+
     override fun toString() = buildString {
-        append("tag-type: ")
+        append("@")
         append(tagType)
-        append("\ndescription: ")
-        append(description)
+        append(" ")
+        // Use descriptionSupplier's toString not description's as accessing the latter changes the
+        // state of this which is not recommended in toString() methods that may be used for
+        // debugging as that can change the behavior. It also requires lots of work and could result
+        // in performance degradation while debugging which can also affect behavior.
+        append(descriptionSupplier)
     }
 }

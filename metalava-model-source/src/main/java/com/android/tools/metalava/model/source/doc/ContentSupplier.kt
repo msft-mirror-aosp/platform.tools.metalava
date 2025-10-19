@@ -46,9 +46,9 @@ internal class EmptyContentSupplier : ContentSupplier {
 }
 
 /** A simple [ContentSupplier] that encapsulates [content]. */
-internal class DefaultContentSupplier(override val content: JavadocContent) : ContentSupplier {
+internal class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
     override fun toString(): String {
-        return "<$content>"
+        return "<${content?: ""}>"
     }
 }
 

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.requiredSpace
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -27,7 +28,7 @@ import java.io.StringWriter
  */
 internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
-    val description: ContentSupplier
+    val description: JavadocContent?
 
     /**
      * The block tag sections, i.e. the parts that start `@<block-tag-type> ...`.
@@ -40,7 +41,7 @@ internal interface DocComment {
     fun hasBlockTagOfType(tagTypeName: String): Boolean
 
     /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
-    fun addBlockTagSection(tagTypeName: String, description: ContentSupplier)
+    fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)
 
     /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
     fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
@@ -89,18 +90,21 @@ interface DocCommentMutationListener {
 }
 
 internal class DefaultDocComment(
-    override val description: ContentSupplier,
+    private val descriptionSupplier: ContentSupplier,
     override var blockTagSections: List<BlockTagSection>,
     private val mutationListener: DocCommentMutationListener,
 ) : DocComment {
+    override val description: JavadocContent?
+        get() = descriptionSupplier.content
+
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType == tagTypeName }
 
-    override fun addBlockTagSection(tagTypeName: String, description: ContentSupplier) {
+    override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?) {
         val blockTagSection =
             DefaultBlockTagSection(
                 tagTypeName,
-                description,
+                DefaultContentSupplier(description),
             )
         blockTagSections = blockTagSections + blockTagSection
 
@@ -131,7 +135,6 @@ internal class DefaultDocComment(
                 blockTagSections
                     .single()
                     .description
-                    .content
                     .requiredSpace()
                     .coerceAtLeast(RequiredSpace.SINGLE_LINE)
             // If the block tag section has multiple tags then it requires multiple lines.
@@ -140,7 +143,7 @@ internal class DefaultDocComment(
 
     override fun printAsJavadocComment(writer: PrintWriter) {
         // Compute require space for the main description and block tag sections.
-        val mainDescriptionRequiredSpace = description.content.requiredSpace()
+        val mainDescriptionRequiredSpace = description.requiredSpace()
         val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
         val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
 
@@ -170,7 +173,7 @@ internal class DefaultDocComment(
             }
             // Add leading space as all leading whitespace was removed from description.
             writer.print(" ")
-            contentPrinter.print(description.content)
+            contentPrinter.print(description)
             if (multiLine) {
                 writer.println()
             }
@@ -191,7 +194,7 @@ internal class DefaultDocComment(
                     writer.print(" *")
                 }
                 writer.print(" @${section.tagType}")
-                section.description.content?.let { content ->
+                section.description?.let { content ->
                     writer.print(" ")
                     contentPrinter.print(content)
                 }
@@ -207,12 +210,16 @@ internal class DefaultDocComment(
 
     override fun toString() = buildString {
         append("description: ")
-        append(description)
+        // Use descriptionSupplier's toString not description's as accessing the latter changes the
+        // state of this which is not recommended in toString() methods that may be used for
+        // debugging as that can change the behavior. It also requires lots of work and could result
+        // in performance degradation while debugging which can also affect behavior.
+        append(descriptionSupplier)
         for (section in blockTagSections) {
-            append("\n@")
-            append(section.tagType)
-            append(" ")
-            append(section.description)
+            append("\n")
+            // Delegate to the BlockTagSection implementation's toString() for similar reasons to
+            // above.
+            append(section)
         }
     }
 }
