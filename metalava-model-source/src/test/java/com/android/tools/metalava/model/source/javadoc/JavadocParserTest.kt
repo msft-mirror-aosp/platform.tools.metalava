@@ -42,45 +42,7 @@ class JavadocParserTest : BaseDocCommentTest() {
         )
 
         // Generate a string representation of the model structure.
-        val actualStructure = buildString {
-            content?.accept(
-                object : JavadocContentVisitor {
-                    private var indent = ""
-
-                    private fun appendPrefix() {
-                        append(indent)
-                    }
-
-                    private inline fun indent(body: () -> Unit) {
-                        val oldIndent = indent
-                        indent += "  "
-                        body()
-                        indent = oldIndent
-                    }
-
-                    override fun visit(list: JavadocContentList) {
-                        list.visitContents(this)
-                    }
-
-                    override fun visit(inlineTag: JavadocInlineTag) {
-                        appendPrefix()
-                        append("inlineTag: ")
-                        append(inlineTag.tagType)
-                        append("\n")
-                        inlineTag.content?.let { nestedContent ->
-                            indent { nestedContent.accept(this) }
-                        }
-                    }
-
-                    override fun visit(text: JavadocText) {
-                        appendPrefix()
-                        append("text: '")
-                        append(text.contents.replace("\n", "\\n"))
-                        append("'\n")
-                    }
-                }
-            )
-        }
+        val actualStructure = content.dumpContentStructure()
         assertEquals(expectedStructure.trimIndent(), actualStructure.trimEnd())
     }
 
