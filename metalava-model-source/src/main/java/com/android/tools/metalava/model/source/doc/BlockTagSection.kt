@@ -29,12 +29,12 @@ internal interface BlockTagSection {
     val tagType: String
 
     /** The description of the block tag. */
-    val description: DocDescription
+    val description: ContentSupplier
 }
 
 internal class DefaultBlockTagSection(
     override val tagType: String,
-    override val description: DocDescription,
+    override val description: ContentSupplier,
 ) : BlockTagSection {
     override fun toString() = buildString {
         append("tag-type: ")

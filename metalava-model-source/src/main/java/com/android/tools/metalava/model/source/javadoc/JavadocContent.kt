@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
-import com.android.tools.metalava.model.source.doc.DocDescription
 import com.android.tools.metalava.model.source.doc.RequiredSpace
 
 /**
- * A component of a Javadoc [DocDescription].
+ * A component of a Javadoc comment.
  *
- * Currently, just a placeholder but will be expanded in the future.
+ * This represents a block of text and inline tags in a Javadoc comment. It can either be in the
+ * main description for the item or the description of a block tag in the item.
  */
 internal sealed interface JavadocContent {
     /**

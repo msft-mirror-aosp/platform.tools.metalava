@@ -23,45 +23,45 @@ import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
 /**
- * A [DocComment] description block.
+ * Supplies a [JavadocContent] description block.
  *
  * This represents a block of text and inline tags in a [DocComment]. It can either be the main
  * description for the item or the description of a block tag in the item.
  */
-internal interface DocDescription {
+internal interface ContentSupplier {
     /** The [JavadocContent], `null` if this is empty. */
     val content: JavadocContent?
 
     companion object {
-        /** An empty [DocDescription]. */
-        val EMPTY: DocDescription = EmptyDocDescription()
+        /** An empty [ContentSupplier]. */
+        val EMPTY: ContentSupplier = EmptyContentSupplier()
     }
 }
 
-internal class EmptyDocDescription : DocDescription {
+internal class EmptyContentSupplier : ContentSupplier {
     override val content
         get() = null
 
     override fun toString() = "<<>>"
 }
 
-/** A simple [DocDescription] that encapsulates [content]. */
-internal class DefaultDocDescription(override val content: JavadocContent) : DocDescription {
+/** A simple [ContentSupplier] that encapsulates [content]. */
+internal class DefaultContentSupplier(override val content: JavadocContent) : ContentSupplier {
     override fun toString(): String {
         return "<$content>"
     }
 }
 
 /**
- * A lazy [DocDescription] that creates [content] lazily by parsing a subsequence of [text] starting
- * from [startInclusive] and ending at [endExclusive].
+ * A lazy [ContentSupplier] that creates [content] lazily by parsing a subsequence of [text]
+ * starting from [startInclusive] and ending at [endExclusive].
  */
-internal class LazyDocDescription(
+internal class LazyContentSupplier(
     private val reporter: DocumentationIssueReporter,
     private val text: String,
     private val startInclusive: Int = 0,
     private val endExclusive: Int = text.length,
-) : DocDescription, DocumentationIssueReporter {
+) : ContentSupplier, DocumentationIssueReporter {
     private lateinit var _content: Optional<JavadocContent>
 
     override val content: JavadocContent?

@@ -27,7 +27,7 @@ import java.io.StringWriter
  */
 internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
-    val description: DocDescription
+    val description: ContentSupplier
 
     /**
      * The block tag sections, i.e. the parts that start `@<block-tag-type> ...`.
@@ -40,7 +40,7 @@ internal interface DocComment {
     fun hasBlockTagOfType(tagTypeName: String): Boolean
 
     /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
-    fun addBlockTagSection(tagTypeName: String, description: DocDescription)
+    fun addBlockTagSection(tagTypeName: String, description: ContentSupplier)
 
     /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
     fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
@@ -89,14 +89,14 @@ interface DocCommentMutationListener {
 }
 
 internal class DefaultDocComment(
-    override val description: DocDescription,
+    override val description: ContentSupplier,
     override var blockTagSections: List<BlockTagSection>,
     private val mutationListener: DocCommentMutationListener,
 ) : DocComment {
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType == tagTypeName }
 
-    override fun addBlockTagSection(tagTypeName: String, description: DocDescription) {
+    override fun addBlockTagSection(tagTypeName: String, description: ContentSupplier) {
         val blockTagSection =
             DefaultBlockTagSection(
                 tagTypeName,

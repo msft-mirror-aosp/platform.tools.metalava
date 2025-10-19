@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.source.doc.DefaultDocDescription
+import com.android.tools.metalava.model.source.doc.DefaultContentSupplier
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
@@ -217,7 +217,7 @@ abstract class AbstractItemDocumentation(
         docComment.removeBlockTagSections { it.tagType == tagTypeName }
 
         // Add a block tag section to the end.
-        docComment.addBlockTagSection(tagTypeName, DefaultDocDescription(JavadocText(text)))
+        docComment.addBlockTagSection(tagTypeName, DefaultContentSupplier(JavadocText(text)))
     }
 
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {

@@ -53,7 +53,7 @@ internal object DocCommentParser {
         val commentBodyStartInclusive = skipDocCommentStartToken(text)
         if (commentBodyStartInclusive == length) {
             return DefaultDocComment(
-                DocDescription.EMPTY,
+                ContentSupplier.EMPTY,
                 emptyList(),
                 context.mutationListener,
             )
@@ -111,7 +111,7 @@ internal object DocCommentParser {
             if (blockTagType != null) {
                 val blockTagDescriptionEndExclusive = matchStart
                 val blockTagDescription =
-                    LazyDocDescription(
+                    LazyContentSupplier(
                         reporter,
                         text,
                         blockTagDescriptionStartInclusive,
@@ -162,7 +162,7 @@ internal object DocCommentParser {
         // Create the description, from the start of the comment body to the start of the first
         // block tag, if present, or the end of the comment body, otherwise.
         val description =
-            LazyDocDescription(
+            LazyContentSupplier(
                 reporter,
                 text,
                 commentBodyStartInclusive,

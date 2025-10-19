@@ -22,7 +22,7 @@ import org.junit.Test
 class DocCommentTest : BaseDocCommentTest() {
     /** Add a block tag section for [tagTypeName] containing [text]. */
     private fun DocComment.addBlockTagSection(tagTypeName: String, text: String) {
-        addBlockTagSection(tagTypeName, LazyDocDescription(reporter, text))
+        addBlockTagSection(tagTypeName, LazyContentSupplier(reporter, text))
     }
 
     @Test

@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
+import com.android.tools.metalava.model.source.doc.ContentSupplier
 import com.android.tools.metalava.model.source.doc.DocComment
-import com.android.tools.metalava.model.source.doc.DocDescription
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -26,7 +26,7 @@ class JavadocParserTest : BaseDocCommentTest() {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
     private fun checkParse(
         text: String,
-        descriptionGetter: (DocComment) -> DocDescription = { docComment ->
+        descriptionGetter: (DocComment) -> ContentSupplier = { docComment ->
             docComment.description
         },
         expectedStructure: String,
