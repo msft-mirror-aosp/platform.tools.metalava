@@ -97,6 +97,12 @@ internal open class DescriptionOwner(
         updateDescription(description.append(other as JavadocContent))
     }
 
+    override fun append(text: String) {
+        val supplier = LazyContentSupplier(context, DocumentationIssueReporter.THROWING, text)
+        val content = supplier.content ?: return
+        updateDescription(description.append(content))
+    }
+
     /**
      * Append [other] to [this] optional [JavadocContent] and return the result.
      *

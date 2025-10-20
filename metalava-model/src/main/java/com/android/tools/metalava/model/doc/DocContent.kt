@@ -49,4 +49,14 @@ interface DocContentOwner {
      * result in [docContent].
      */
     fun append(other: DocContent)
+
+    /**
+     * Append [text] to [docContent].
+     *
+     * The [text] can contain text as well as inline tags. It will behave as if it was added to the
+     * original source. It must be well-formed, if it is not then this will throw an exception.
+     *
+     * // TODO(b/450228132): Make sure a fully qualified version of [text] is appended.
+     */
+    fun append(text: String)
 }

@@ -1219,4 +1219,137 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test append String to main description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                        public void method() {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            val testMethod = testClass.methods().single()
+            val methodDocumentation = testMethod.documentation
+
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = "",
+                message = "before mutation"
+            )
+
+            methodDocumentation.mainDescriptionOwner?.append("Text to {@code append}.")
+
+            val expectedOutputAfterMutation =
+                """
+                    /** Text to {@code append}. */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterMutation.trimIndent(),
+                methodDocumentation.text,
+                message = "text after mutation"
+            )
+
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = expectedOutputAfterMutation,
+                message = "after mutation"
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to block tag description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /** @deprecated */
+                    public class Test {
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val documentation = testClass.documentation
+
+            assertEquals("/** @deprecated */", documentation.text, message = "before mutation")
+
+            documentation.blockTagDescriptionOwner("deprecated")?.append("extra text")
+
+            val expectedOutputAfterMutation =
+                """
+                    /** @deprecated extra text */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterMutation.trimIndent(),
+                documentation.text,
+                message = "after mutation"
+            )
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput = expectedOutputAfterMutation,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to param tag description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                        /** @param p */
+                        public void method(int p) {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            val testMethod = testClass.methods().single()
+            val documentation = testMethod.documentation
+
+            assertEquals("/** @param p */", documentation.text, message = "before mutation")
+
+            documentation.paramTagDescriptionOwner("p")?.append("extra text")
+
+            // TODO(b/450228132): There should not be a `<br>` inserted because parameter is
+            //  supposed to be empty.
+            val expectedOutputAfterMutation =
+                """
+                    /**
+                     * @param p
+                     * <br>
+                     * extra text
+                     */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterMutation.trimIndent(),
+                documentation.text,
+                message = "after mutation"
+            )
+
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = expectedOutputAfterMutation,
+            )
+        }
+    }
 }

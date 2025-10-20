@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.source.javadoc.BarTagData
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
+import com.android.tools.metalava.model.source.javadoc.assertStructure
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -653,6 +654,80 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * appended
                      */
                 """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to empty`() {
+        checkDocComment(
+            input =
+                """
+                    /***/
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
+        ) {
+            docComment.append("some {@code text} to append")
+            checkPrintOutput(
+                docComment,
+                """
+                    /** some {@code text} to append */
+                """,
+            )
+            docComment.description.assertStructure(
+                """
+                    text: 'some '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' to append'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to existing`() {
+        checkDocComment(
+            input =
+                """
+                    /** existing */
+                """,
+            expectedString =
+                """
+                    description: << existing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** existing */
+                """,
+        ) {
+            docComment.append("some {@code text} to append")
+            checkPrintOutput(
+                docComment,
+                """
+                    /**
+                     * existing
+                     * <br>
+                     * some {@code text} to append
+                     */
+                """,
+            )
+            docComment.description.assertStructure(
+                """
+                    text: 'existing'
+                    text: '\n <br>\n '
+                    text: 'some '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' to append'
+                """
             )
         }
     }
