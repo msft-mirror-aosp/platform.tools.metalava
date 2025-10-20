@@ -77,10 +77,10 @@ internal interface BlockTagSection : DocContentOwner {
  * with as that only happens when processing documentation that will be part of the API.
  */
 internal class DefaultBlockTagSection(
-    private val context: DocCommentContext,
+    context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
-) : DescriptionOwner(descriptionSupplier), BlockTagSection {
+) : DescriptionOwner(context, descriptionSupplier), BlockTagSection {
 
     /**
      * Backing field for [tagData].

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.BarTagData
+import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -600,6 +601,59 @@ class DocCommentParserTest : BaseDocCommentTest() {
         ) {
             val barBlockTagSection = docComment.blockTagSections.single()
             assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
+        }
+    }
+
+    @Test
+    fun `Test append DocContent to empty`() {
+        checkDocComment(
+            input =
+                """
+                    /***/
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
+        ) {
+            val text = JavadocText("appended")
+            docComment.append(text)
+            checkPrintOutput(docComment, "/** appended */")
+        }
+    }
+
+    @Test
+    fun `Test append DocContent to existing`() {
+        checkDocComment(
+            input =
+                """
+                    /** existing */
+                """,
+            expectedString =
+                """
+                    description: << existing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** existing */
+                """,
+        ) {
+            val text = JavadocText("appended")
+            docComment.append(text)
+            checkPrintOutput(
+                docComment,
+                """
+                    /**
+                     * existing
+                     * <br>
+                     * appended
+                     */
+                """,
+            )
         }
     }
 }

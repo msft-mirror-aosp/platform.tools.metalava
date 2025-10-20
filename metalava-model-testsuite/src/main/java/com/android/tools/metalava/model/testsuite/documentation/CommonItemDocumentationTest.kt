@@ -473,12 +473,16 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
-    private fun checkItemDocumentationPrint(item: SelectableItem, expectedOutput: String) {
+    private fun checkItemDocumentationPrint(
+        item: SelectableItem,
+        expectedOutput: String,
+        message: String? = null
+    ) {
         val documentation = item.documentation
         val stringWriter = StringWriter()
         PrintWriter(stringWriter).use { documentation.print(it) }
         val actualOutput = stringWriter.toString()
-        assertEquals(expectedOutput.trimIndent(), actualOutput)
+        assertEquals(expectedOutput.trimIndent(), actualOutput, message)
     }
 
     @Test
@@ -1158,6 +1162,61 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 message = "@param p2 tag"
             )
             assertNull(documentation.paramTagDescriptionOwner("unknown"), message = "unknown param")
+        }
+    }
+
+    @Test
+    fun `Test append DocContent to main description`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.other;
+                        /** Text to {@code append} see {@link #method()}. */
+                        public class Other {
+                            public void method() {}
+                        }
+                     """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            public void method() {}
+                        }
+                     """
+                ),
+            ),
+        ) {
+            val otherClass = codebase.assertClass("test.other.Other")
+            val contentToAppend = otherClass.documentation.mainDescriptionOwner?.docContent!!
+
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val classDocumentation = testClass.documentation
+
+            checkItemDocumentationPrint(testClass, expectedOutput = "", message = "before mutation")
+
+            classDocumentation.mainDescriptionOwner?.append(contentToAppend)
+
+            // TODO(b/450228132): The '@link' should have been resolved to Other#method().
+            val expectedOutputAfterMutation =
+                """
+                    /** Text to {@code append} see {@link #method()}. */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterMutation.trimIndent(),
+                classDocumentation.text,
+                message = "text after mutation"
+            )
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput = expectedOutputAfterMutation,
+                message = "after mutation"
+            )
         }
     }
 }

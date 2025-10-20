@@ -36,8 +36,17 @@ interface DocContentOwner {
     /**
      * The optional [DocContent], returns `null` if the underlying content is empty, i.e. has no
      * significant non-whitespace content .
+     *
+     * // TODO(b/450228132): Make sure this returns fully qualified content.
      */
     val docContent: DocContent?
 
-    // TODO(b/450228132): Add support for mutating the [docContent].
+    /**
+     * Append [DocContent] to [docContent].
+     *
+     * If [docContent] is `null` then this will just set [docContent] to [other]. Otherwise, it will
+     * append a line break separator, i.e. `<br>` between [docContent] and [other] and store the
+     * result in [docContent].
+     */
+    fun append(other: DocContent)
 }
