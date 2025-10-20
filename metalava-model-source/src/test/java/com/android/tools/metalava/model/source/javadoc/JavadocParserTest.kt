@@ -41,9 +41,8 @@ class JavadocParserTest : BaseDocCommentTest() {
             message = "javadoc parser issues"
         )
 
-        // Generate a string representation of the model structure.
-        val actualStructure = content.dumpContentStructure()
-        assertEquals(expectedStructure.trimIndent(), actualStructure.trimEnd())
+        // Check the model structure.
+        content.assertStructure(expectedStructure.trimIndent())
     }
 
     @Test

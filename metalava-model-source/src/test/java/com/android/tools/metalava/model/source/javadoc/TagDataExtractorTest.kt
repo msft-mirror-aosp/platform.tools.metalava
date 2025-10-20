@@ -28,11 +28,7 @@ class TagDataExtractorTest : BaseDocCommentTest() {
     ) {
         val docComment = createTestDocComment("/** $input */")
         val content = docComment.description
-        assertEquals(
-            expectedInputStructure?.trimIndent(),
-            content?.dumpContentStructure()?.trim(),
-            message = "input structure"
-        )
+        content.assertStructure(expectedInputStructure, message = "input structure")
 
         val tagData = content?.extractTagDataForTagType(context, TestTagTypes.BAR_TAG_TYPE)
         assertEquals(expectedTagData, tagData, message = "tagData")
