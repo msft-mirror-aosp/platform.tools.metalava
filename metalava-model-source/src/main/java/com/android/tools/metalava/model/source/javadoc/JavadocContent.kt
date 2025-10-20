@@ -35,6 +35,11 @@ internal sealed interface JavadocContent {
     /** Check to see whether this starts with a newline character. */
     fun startsWithNewline(): Boolean
 
+    /** Add this to [list], flattening if this is a [JavadocContentList]. */
+    fun flattenTo(list: MutableList<JavadocContent>) {
+        list.add(this)
+    }
+
     /**
      * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
      */
@@ -95,6 +100,11 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
         contents.forEach { content -> content.accept(visitor) }
     }
 
+    /** Flatten this by adding all of [contents] to [list]. */
+    override fun flattenTo(list: MutableList<JavadocContent>) {
+        list.addAll(contents)
+    }
+
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }
@@ -117,4 +127,37 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
         contents.joinTo(this)
         append(")")
     }
+}
+
+/**
+ * A wrapper around [contents] that will ensure that any [JavadocContent] instances are flattened
+ * into the list.
+ */
+@JvmInline
+internal value class ConcatJavadocContent(private val contents: MutableList<JavadocContent>) {
+    /**
+     * Adds [content] to [contents], flattening if needed.
+     *
+     * If [content] is a [JavadocContentList] then it will not be added to [contents], instead each
+     * [JavadocContent] in its [JavadocContentList.contents] list will be added individually. This
+     * helps keep the [JavadocContent] hierarchy shallow and easier to understand.
+     */
+    fun add(content: JavadocContent) {
+        content.flattenTo(contents)
+    }
+}
+
+/**
+ * Builder of [JavadocContent] that concatenates a number of [JavadocContent].
+ *
+ * The result will be a [JavadocContent] instance, or null if none were added. If only a single
+ * [JavadocContent] was added then it will be returned directly. Otherwise, it will return a flat
+ * [JavadocContentList] (see [ConcatJavadocContent.add]).
+ */
+internal inline fun concatJavadocContent(
+    builderAction: ConcatJavadocContent.() -> Unit
+): JavadocContent? {
+    val contents = mutableListOf<JavadocContent>()
+    ConcatJavadocContent(contents).builderAction()
+    return contents.toOptionalJavadocContent()
 }
