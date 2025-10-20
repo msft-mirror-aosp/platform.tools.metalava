@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.source.doc.DefaultDocDescription
+import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.reporter.Issues
@@ -31,7 +33,13 @@ import java.util.regex.Pattern
  */
 abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
-) : ItemDocumentation, DocumentationIssueReporter {
+) :
+    ItemDocumentation,
+    DocumentationIssueReporter,
+    DocCommentContext,
+    // Implement this as a temporary measure while this needs to keep [text] and [docComment] in
+    // sync.
+    DocCommentMutationListener {
 
     /**
      * Lazily initialized backing property for [text].
@@ -106,13 +114,22 @@ abstract class AbstractItemDocumentation(
         get() {
             val docComment = _docComment
             return if (docComment == null) {
-                val new = DocComment.createDocComment(text, this)
+                val new =
+                    DocComment.createDocComment(
+                        context = this,
+                        text,
+                        reporter = this,
+                    )
                 _docComment = new
                 new
             } else {
                 docComment
             }
         }
+
+    /** Implements [DocCommentContext.mutationListener]. */
+    override val mutationListener: DocCommentMutationListener
+        get() = this
 
     /**
      * Called when [docComment] is mutated to discard [_text] so it will be regenerated from
@@ -122,7 +139,7 @@ abstract class AbstractItemDocumentation(
      * currently both [text] and [docComment] are modified directly. Longer term, changes will be
      * applied directly to [_docComment] and [text] will be dropped.
      */
-    private fun docCommentMutated() {
+    override fun docCommentMutated() {
         _text = null
     }
 
@@ -151,7 +168,12 @@ abstract class AbstractItemDocumentation(
             // create a new one from the fully qualified text.
             val fullyQualifiedComment =
                 if (fullyQualifiedText == originalText) docComment
-                else DocComment.createDocComment(fullyQualifiedText, this)
+                else
+                    DocComment.createDocComment(
+                        context = this,
+                        fullyQualifiedText,
+                        reporter = this,
+                    )
 
             // Print the docComment as Javadoc.
             fullyQualifiedComment.printAsJavadocComment(writer)
@@ -186,22 +208,16 @@ abstract class AbstractItemDocumentation(
     protected abstract fun mergeDocumentation(comment: String, tagSection: String?)
 
     override fun removeDeprecatedSection() {
-        // Try and remove all the `@deprecated` sections. If any were removed then report that the
-        // docComment was mutated.
-        val mutated = docComment.removeBlockTagSections { it.tagType == "deprecated" }
-        if (mutated) {
-            docCommentMutated()
-        }
+        // Try and remove all the `@deprecated` sections.
+        docComment.removeBlockTagSections { it.tagType == BlockTagTypes.DEPRECATED }
     }
 
-    override fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String) {
+    override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
         // Remove any existing sections of the specified type.
-        docComment.removeBlockTagSections { it.tagType == blockTagType }
+        docComment.removeBlockTagSections { it.tagType.name == tagTypeName }
 
         // Add a block tag section to the end.
-        docComment.addBlockTagSection(blockTagType, DefaultDocDescription(JavadocText(text)))
-
-        docCommentMutated()
+        docComment.addBlockTagSection(tagTypeName, JavadocText(text))
     }
 
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {

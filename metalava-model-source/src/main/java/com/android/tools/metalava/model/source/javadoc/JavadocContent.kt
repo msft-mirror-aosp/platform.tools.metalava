@@ -16,12 +16,13 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
-import com.android.tools.metalava.model.source.doc.DocDescription
+import com.android.tools.metalava.model.source.doc.RequiredSpace
 
 /**
- * A component of a Javadoc [DocDescription].
+ * A component of a Javadoc comment.
  *
- * Currently, just a placeholder but will be expanded in the future.
+ * This represents a block of text and inline tags in a Javadoc comment. It can either be in the
+ * main description for the item or the description of a block tag in the item.
  */
 internal sealed interface JavadocContent {
     /**
@@ -40,6 +41,14 @@ internal sealed interface JavadocContent {
     fun accept(visitor: JavadocContentVisitor)
 }
 
+/** Determines how much vertical space this [JavadocContent] requires when printed. */
+internal fun JavadocContent?.requiredSpace(): RequiredSpace =
+    when {
+        this == null -> RequiredSpace.EMPTY
+        isMultiLine() == true -> RequiredSpace.MULTI_LINE
+        else -> RequiredSpace.SINGLE_LINE
+    }
+
 /** Visitor of [JavadocContent] subclasses. */
 internal interface JavadocContentVisitor {
     fun visit(list: JavadocContentList) {}
@@ -49,8 +58,29 @@ internal interface JavadocContentVisitor {
     fun visit(text: JavadocText) {}
 }
 
-/** A [JavadocContent] that encapsulates a number of other [JavadocContent] instances. */
+/**
+ * Convert this [List] to an optional [JavadocContent].
+ *
+ * If this is empty then returns null, if there is a single [JavadocContent] then just return it,
+ * otherwise create a [JavadocContentList] wrapper around this.
+ */
+internal fun List<JavadocContent>.toOptionalJavadocContent() =
+    when (size) {
+        0 -> null
+        1 -> this[0]
+        else -> JavadocContentList(this)
+    }
+
+/**
+ * A [JavadocContent] that encapsulates multiple [JavadocContent] instances.
+ *
+ * @param contents a list containing multiple [JavadocContent] instances.
+ */
 internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocContent {
+    init {
+        require(contents.size > 1) { "contents list must contain more than one item" }
+    }
+
     /** A list of [JavadocContent] occupies multiple lines if any of them occupy multiple lines. */
     override fun isMultiLine() = contents.any { it.isMultiLine() }
 

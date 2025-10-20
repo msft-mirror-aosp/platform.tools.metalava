@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
+
 /**
  * A block tag section of [DocComment.blockTagSections].
  *
@@ -26,20 +28,38 @@ package com.android.tools.metalava.model.source.doc
  */
 internal interface BlockTagSection {
     /** The type of the block tag. */
-    val tagType: String
+    val tagType: TagType<*>
 
     /** The description of the block tag. */
-    val description: DocDescription
+    val description: JavadocContent?
+
+    companion object {
+        /**
+         * Comparator used to sort [BlockTagSection]s roughly according to the rules referenced in
+         * [BlockTagOrder].
+         */
+        val comparator: Comparator<BlockTagSection> =
+            // First, order by [BlockTagOrder].
+            compareBy<BlockTagSection> { it.tagType.ordinal }
+                // Then by tag type name for those tag types with the same ordinal, i.e. unknown tag
+                // types.
+                .thenBy { it.tagType.name }
+    }
 }
 
 internal class DefaultBlockTagSection(
-    override val tagType: String,
-    override val description: DocDescription,
-) : BlockTagSection {
+    override val tagType: TagType<*>,
+    descriptionSupplier: ContentSupplier,
+) : DescriptionOwner(descriptionSupplier), BlockTagSection {
+
     override fun toString() = buildString {
-        append("tag-type: ")
+        append("@")
         append(tagType)
-        append("\ndescription: ")
-        append(description)
+        append(" ")
+        // Use descriptionSupplier's toString not description's as accessing the latter changes the
+        // state of this which is not recommended in toString() methods that may be used for
+        // debugging as that can change the behavior. It also requires lots of work and could result
+        // in performance degradation while debugging which can also affect behavior.
+        append(descriptionSupplier)
     }
 }

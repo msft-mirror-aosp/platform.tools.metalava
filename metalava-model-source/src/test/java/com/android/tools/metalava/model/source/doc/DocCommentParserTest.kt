@@ -179,8 +179,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedPrintOutput =
                 """
                     /**
-                     * @hide
                      * @deprecated
+                     * @hide
                      */
                 """,
         )
@@ -343,6 +343,98 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedIssues =
                 """
                     4:5: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test ordering of block tags`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @serial some reason
+                     * @hide
+                     * @throws
+                     * @version current
+                     * @author me
+                     * @throws Throwable
+                     * @unknown
+                     * @param
+                     * @serialData some other reason
+                     * @inheritDoc
+                     * @sdkExtSince 7
+                     * @param p2
+                     * @serialField field name and type and explanation
+                     * @since 1.4
+                     * @return something
+                     * @deprecated
+                     * @attr ref xml-thing
+                     * @mysterious
+                     * @author them
+                     * @param p1
+                     * @apiSince 12
+                     * @exception Exception
+                     * @see #field
+                     * @see #Class()
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @serial <<some reason>>
+                    @hide <<>>
+                    @throws <<>>
+                    @version <<current>>
+                    @author <<me>>
+                    @throws <<Throwable>>
+                    @unknown <<>>
+                    @param <<>>
+                    @serialData <<some other reason>>
+                    @inheritDoc <<>>
+                    @sdkExtSince <<7>>
+                    @param <<p2>>
+                    @serialField <<field name and type and explanation>>
+                    @since <<1.4>>
+                    @return <<something>>
+                    @deprecated <<>>
+                    @attr <<ref xml-thing>>
+                    @mysterious <<>>
+                    @author <<them>>
+                    @param <<p1>>
+                    @apiSince <<12>>
+                    @throws <<Exception>>
+                    @see <<#field>>
+                    @see <<#Class()>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * @inheritDoc
+                     * @author me
+                     * @author them
+                     * @version current
+                     * @param
+                     * @param p2
+                     * @param p1
+                     * @return something
+                     * @attr ref xml-thing
+                     * @throws
+                     * @throws Throwable
+                     * @throws Exception
+                     * @see #field
+                     * @see #Class()
+                     * @since 1.4
+                     * @serial some reason
+                     * @serialData some other reason
+                     * @serialField field name and type and explanation
+                     * @deprecated
+                     * @hide
+                     * @apiSince 12
+                     * @sdkExtSince 7
+                     * @mysterious
+                     * @unknown
+                     */
                 """,
         )
     }
