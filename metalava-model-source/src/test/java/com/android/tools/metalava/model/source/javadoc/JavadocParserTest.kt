@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
 import com.android.tools.metalava.model.source.doc.DocComment
-import com.android.tools.metalava.model.source.doc.DocDescription
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -26,17 +25,14 @@ class JavadocParserTest : BaseDocCommentTest() {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
     private fun checkParse(
         text: String,
-        descriptionGetter: (DocComment) -> DocDescription = { docComment ->
-            docComment.description
-        },
+        contentGetter: (DocComment) -> JavadocContent? = { docComment -> docComment.description },
         expectedStructure: String,
         expectedJavadocIssues: String = "",
     ) {
         val docComment = createTestDocComment(text)
 
         // Parse the main description
-        val description = descriptionGetter(docComment)
-        var content = description.content
+        var content = contentGetter(docComment)
 
         // Make sure that no unexpected JavadocParser issues were found.
         assertEquals(
@@ -46,45 +42,7 @@ class JavadocParserTest : BaseDocCommentTest() {
         )
 
         // Generate a string representation of the model structure.
-        val actualStructure = buildString {
-            content?.accept(
-                object : JavadocContentVisitor {
-                    private var indent = ""
-
-                    private fun appendPrefix() {
-                        append(indent)
-                    }
-
-                    private inline fun indent(body: () -> Unit) {
-                        val oldIndent = indent
-                        indent += "  "
-                        body()
-                        indent = oldIndent
-                    }
-
-                    override fun visit(list: JavadocContentList) {
-                        list.visitContents(this)
-                    }
-
-                    override fun visit(inlineTag: JavadocInlineTag) {
-                        appendPrefix()
-                        append("inlineTag: ")
-                        append(inlineTag.tagType)
-                        append("\n")
-                        inlineTag.content?.let { nestedContent ->
-                            indent { nestedContent.accept(this) }
-                        }
-                    }
-
-                    override fun visit(text: JavadocText) {
-                        appendPrefix()
-                        append("text: '")
-                        append(text.text.replace("\n", "\\n"))
-                        append("'\n")
-                    }
-                }
-            )
-        }
+        val actualStructure = content.dumpContentStructure()
         assertEquals(expectedStructure.trimIndent(), actualStructure.trimEnd())
     }
 
@@ -312,7 +270,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * @param p A block tag with */ inside
                  */
             """,
-            descriptionGetter = { docComment -> docComment.blockTagSections.single().description },
+            contentGetter = { docComment -> docComment.blockTagSections.single().description },
             expectedStructure =
                 // Error recovery ignores the */ and everything after it.
                 """

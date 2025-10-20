@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
@@ -347,24 +348,18 @@ private class JavadocContentBuilder(
         // whitespace if required.
         flushText(trimTrailingWhitespace)
 
-        val contentList = _contentList
-        return if (contentList == null) {
-            null
-        } else {
-            // Discard the content list to force a new one to be created next time content is added.
-            // This will ensure correct behavior even if _contentList is wrapped in a
-            // [JavadocContentList].
-            _contentList = null
+        // Get the optional content from _contentList.
+        val content =
+            _contentList?.let { contentList ->
+                // Discard the content list to force a new one to be created next time content is
+                // added. This will ensure correct behavior even if _contentList is wrapped in a
+                // [JavadocContentList].
+                _contentList = null
 
-            val size = contentList.size
-            when (size) {
-                0 -> null
-                1 -> contentList[0]
-                else -> {
-                    JavadocContentList(contentList.toList())
-                }
+                contentList.toOptionalJavadocContent()
             }
-        }
+
+        return content
     }
 
     override fun visitDescriptionLineText(ctx: AntlrJavadocParser.DescriptionLineTextContext) {
@@ -379,7 +374,8 @@ private class JavadocContentBuilder(
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
-        val tagType = ctx.inlineTagName().NAME().text
+        val tagTypeName = ctx.inlineTagName().NAME().text
+        val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
 
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
         // report the issue.
@@ -391,7 +387,7 @@ private class JavadocContentBuilder(
             var lineOffset = startToken.line - 1
             reporter.report(
                 Issues.UNCLOSED_INLINE_TAG,
-                "unclosed inline '@${tagType}' tag",
+                "unclosed inline '@${tagTypeName}' tag",
                 lineOffset,
                 startToken.charPositionInLine,
             )
