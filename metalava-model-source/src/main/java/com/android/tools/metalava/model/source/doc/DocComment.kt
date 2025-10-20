@@ -90,12 +90,10 @@ interface DocCommentMutationListener {
 }
 
 internal class DefaultDocComment(
-    private val descriptionSupplier: ContentSupplier,
+    descriptionSupplier: ContentSupplier,
     override var blockTagSections: List<BlockTagSection>,
     private val mutationListener: DocCommentMutationListener,
-) : DocComment {
-    override val description: JavadocContent?
-        get() = descriptionSupplier.content
+) : DescriptionOwner(descriptionSupplier), DocComment {
 
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType == tagTypeName }

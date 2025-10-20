@@ -36,10 +36,8 @@ internal interface BlockTagSection {
 
 internal class DefaultBlockTagSection(
     override val tagType: String,
-    private val descriptionSupplier: ContentSupplier,
-) : BlockTagSection {
-    override val description: JavadocContent?
-        get() = descriptionSupplier.content
+    descriptionSupplier: ContentSupplier,
+) : DescriptionOwner(descriptionSupplier), BlockTagSection {
 
     override fun toString() = buildString {
         append("@")
