@@ -55,6 +55,7 @@ open class DefaultClassItem(
     final override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
+    override val isFileFacade: Boolean,
 ) :
     DefaultSelectableItem(
         codebase = codebase,

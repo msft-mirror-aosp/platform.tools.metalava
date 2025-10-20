@@ -158,7 +158,7 @@ class ApiAnalyzer(
         // compatibility annotations
         codebase.getTopLevelClassesFromSource().forEach { cls ->
             if (
-                cls.isFileFacade() &&
+                cls.isFileFacade &&
                     cls.modifiers.annotations().none { it.isSuppressCompatibilityAnnotation() } &&
                     cls.emit &&
                     allEmittableItemsHaveExperimentalAnnotations(cls.methods(), filterEmit) &&
@@ -434,7 +434,7 @@ class ApiAnalyzer(
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
             if (
-                cls.isFileFacade() &&
+                cls.isFileFacade &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if

@@ -419,7 +419,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         var parametersForOriginal = callableItem.parameters().dropLast(2)
         // For functions that aren't at the top level, the generated method has the class type as
         // the first parameter.
-        if (!isConstructor && !containingClassItem.isFileFacade()) {
+        if (!isConstructor && !containingClassItem.isFileFacade) {
             parametersForOriginal = parametersForOriginal.drop(1)
         }
 

@@ -119,6 +119,7 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
+            isFileFacade = false,
         )
 
     /** Create a [ConstructorItem]. */
