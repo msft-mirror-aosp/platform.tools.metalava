@@ -25,14 +25,10 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
-import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UastFacade
 
 internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
     ParameterDefaultValue {
@@ -75,16 +71,8 @@ internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
                         ktFunction.symbol
                     }
                 if (function !is KaFunctionSymbol) return false
-                val symbol = getKtParameterSymbol(function) ?: return false
-                if (symbol is KaValueParameterSymbol && symbol.hasDefaultValue) {
-                    val defaultValue = (symbol.psi as? KtParameter)?.defaultValue ?: return false
-                    if (defaultValue is KtConstantExpression) {
-                        return true
-                    }
-
-                    return UastFacade.convertElement(defaultValue, null, UExpression::class.java) is
-                        UExpression
-                }
+                val symbol = getKtParameterSymbol(function)
+                return symbol is KaValueParameterSymbol && symbol.hasDefaultValue
             }
         }
 
