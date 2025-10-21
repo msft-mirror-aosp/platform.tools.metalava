@@ -331,4 +331,24 @@ class JavadocParserTest : BaseDocCommentTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test inline tag data`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * outside before {@bar inline inside} outside after
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'outside before '
+                    inlineTag: bar BarTagData(identifier=inline)
+                      text: 'inline inside'
+                    text: ' outside after'
+                """,
+        )
+    }
 }

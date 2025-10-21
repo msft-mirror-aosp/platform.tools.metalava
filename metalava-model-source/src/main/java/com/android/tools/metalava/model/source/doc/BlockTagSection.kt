@@ -17,6 +17,9 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
+import java.util.Optional
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * A block tag section of [DocComment.blockTagSections].
@@ -33,7 +36,13 @@ internal interface BlockTagSection {
     /** The description of the block tag. */
     val description: JavadocContent?
 
+    /** The optional [tagType] specific data. */
+    val tagData: TagData?
+
     companion object {
+        /** Sort [TagData] so that `null` comes after non-`null`. */
+        private val tagDataComparator = nullsLast(naturalOrder<TagData>())
+
         /**
          * Comparator used to sort [BlockTagSection]s roughly according to the rules referenced in
          * [BlockTagOrder].
@@ -44,13 +53,43 @@ internal interface BlockTagSection {
                 // Then by tag type name for those tag types with the same ordinal, i.e. unknown tag
                 // types.
                 .thenBy { it.tagType.name }
+                // Then by tag specific order as determined by their custom tag data, if any.
+                .thenBy(tagDataComparator) { it.tagData }
     }
 }
 
+/**
+ * A [BlockTagSection] that is created for practically every block tag that appears in the sources,
+ * whether they end up as part of the API or not. Their creation is on the critical path of most of
+ * what Metalava does and as such they have to minimize the amount of work that they do on creation
+ * to avoid causing a huge performance degradation.
+ *
+ * As much work as possible should be deferred until after creation when this is actually interacted
+ * with as that only happens when processing documentation that will be part of the API.
+ */
 internal class DefaultBlockTagSection(
+    private val context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
 ) : DescriptionOwner(descriptionSupplier), BlockTagSection {
+
+    /**
+     * Backing field for [tagData].
+     *
+     * This is initialized lazily as it requires access to [descriptionSupplier]'s
+     * [ContentSupplier.content] which is likely to be lazily created as it is expensive to create.
+     */
+    private lateinit var _tagData: Optional<TagData>
+
+    override val tagData: TagData?
+        get() {
+            if (!::_tagData.isInitialized) {
+                val data = description?.extractTagDataForTagType(context, tagType)
+                _tagData = Optional.ofNullable(data)
+            }
+
+            return _tagData.getOrNull()
+        }
 
     override fun toString() = buildString {
         append("@")
@@ -61,5 +100,8 @@ internal class DefaultBlockTagSection(
         // debugging as that can change the behavior. It also requires lots of work and could result
         // in performance degradation while debugging which can also affect behavior.
         append(descriptionSupplier)
+        // This purposely does not include tagData as that can be expensive to create and while this
+        // should only be used for debugging it is bad practice to do lots of work in toString
+        // methods. Particularly, when that work could throw exceptions or degrade performance.
     }
 }

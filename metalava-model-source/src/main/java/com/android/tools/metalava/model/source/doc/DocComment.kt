@@ -90,6 +90,7 @@ interface DocCommentMutationListener {
 }
 
 internal class DefaultDocComment(
+    private val context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
     override var blockTagSections: List<BlockTagSection>,
     private val mutationListener: DocCommentMutationListener,
@@ -102,6 +103,7 @@ internal class DefaultDocComment(
         val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
         val blockTagSection =
             DefaultBlockTagSection(
+                context,
                 tagType,
                 DefaultContentSupplier(description),
             )

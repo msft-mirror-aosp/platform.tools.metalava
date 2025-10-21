@@ -39,6 +39,9 @@ internal sealed interface JavadocContent {
      * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
      */
     fun accept(visitor: JavadocContentVisitor)
+
+    /** Rewrite this [JavadocContent] into a different, possibly `null` [JavadocContent]. */
+    fun rewrite(rewriter: JavadocContentRewriter): JavadocContent?
 }
 
 /** Determines how much vertical space this [JavadocContent] requires when printed. */
@@ -95,6 +98,8 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }
+
+    override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

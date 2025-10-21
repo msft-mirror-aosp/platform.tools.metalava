@@ -15,6 +15,7 @@
  */
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
 
 /**
@@ -26,6 +27,7 @@ import com.android.tools.metalava.model.source.doc.TagType
  */
 internal class JavadocInlineTag(
     val tagType: TagType<*>,
+    val tagData: TagData?,
     val content: JavadocContent?,
 ) : JavadocContent {
     /**
@@ -40,6 +42,8 @@ internal class JavadocInlineTag(
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }
+
+    override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -36,6 +36,8 @@ internal class JavadocText(val contents: String) : JavadocContent {
         visitor.visit(this)
     }
 
+    override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

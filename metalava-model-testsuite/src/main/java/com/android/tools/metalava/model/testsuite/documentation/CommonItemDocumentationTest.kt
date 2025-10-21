@@ -855,6 +855,103 @@ class CommonItemDocumentationTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test sorting @param to match parameter list order`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     * @param unknown
+                     * @param mysterious
+                     * @param <D> unknown
+                     * @param <C> should be third
+                     * @param <B> should be first
+                     * @param <A> should be second
+                     */
+                    public class Test<B, A, C> {
+                        /**
+                         * @param unknown
+                         * @param mysterious
+                         * @param <D> unknown
+                         * @param <A> mysterious
+                         */
+                        public static final int FIELD = 1;
+
+                        /**
+                         * Type parameters should come before callable parameters.
+                         * @param <D> unknown
+                         * @param <Z> should be third
+                         * @param <Y> should be first
+                         * @param <X> should be second
+                         * @param unknown
+                         * @param mysterious
+                         * @param c should be third
+                         * @param b should be first
+                         * @param a should be second
+                         */
+                        public <Y, X, Z> void method(Y b, X a, Z c) {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * @param <B> should be first
+                         * @param <A> should be second
+                         * @param <C> should be third
+                         * @param <D> unknown
+                         * @param mysterious
+                         * @param unknown
+                         */
+
+                    """,
+            )
+
+            val testField = testClass.fields().single()
+            checkItemDocumentationPrint(
+                testField,
+                expectedOutput =
+                    """
+                        /**
+                         * @param <A> mysterious
+                         * @param <D> unknown
+                         * @param mysterious
+                         * @param unknown
+                         */
+
+                    """,
+            )
+
+            val testMethod = testClass.methods().single()
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput =
+                    """
+                        /**
+                         * Type parameters should come before callable parameters.
+                         *
+                         * @param <Y> should be first
+                         * @param <X> should be second
+                         * @param <Z> should be third
+                         * @param <D> unknown
+                         * @param b should be first
+                         * @param a should be second
+                         * @param c should be third
+                         * @param mysterious
+                         * @param unknown
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
     fun `Test fully qualifying links that wrap on multiple lines`() {
         runSourceCodebaseTest(
             inputSet(

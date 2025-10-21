@@ -57,6 +57,7 @@ internal class DefaultContentSupplier(override val content: JavadocContent?) : C
  * starting from [startInclusive] and ending at [endExclusive].
  */
 internal class LazyContentSupplier(
+    private val context: DocCommentContext,
     private val reporter: DocumentationIssueReporter,
     private val text: String,
     private val startInclusive: Int = 0,
@@ -74,6 +75,7 @@ internal class LazyContentSupplier(
                         null
                     } else {
                         JavadocParser.parse(
+                            context,
                             text,
                             startInclusive,
                             trimmedEnd,
