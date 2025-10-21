@@ -16,11 +16,13 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.requiredSpace
 import java.io.PrintWriter
 import java.io.StringWriter
+import kotlin.collections.plus
 
 /**
  * A Javadoc or KDoc comment associated with an API element.
@@ -43,6 +45,14 @@ internal interface DocComment : DocContentOwner {
 
     /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
     fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)
+
+    /**
+     * Prepare a [BlockTagSection] for adding, if it has any content added.
+     *
+     * Appending content to the returned [DocContentOwner] will cause a [BlockTagSection] for
+     * [tagTypeName] with the appended content to be added to this [DocComment].
+     */
+    fun pendingBlockTagSection(tagTypeName: String): DocContentOwner
 
     /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
     fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
@@ -120,6 +130,11 @@ internal class DefaultDocComment(
 
         // Notify any listener.
         context.mutationListener.docCommentMutated()
+    }
+
+    override fun pendingBlockTagSection(tagTypeName: String): DocContentOwner {
+        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        return PendingBlockTagSection(this, context, tagType)
     }
 
     override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
@@ -232,5 +247,55 @@ internal class DefaultDocComment(
             // above.
             append(section)
         }
+    }
+}
+
+/**
+ * A pending [BlockTagSection].
+ *
+ * Implements mutators in [DocContentOwner] to create and add a [blockTagSection] to [docComment]
+ * and then delegates those mutators to [blockTagSection].
+ */
+internal class PendingBlockTagSection(
+    private val docComment: DefaultDocComment,
+    private val context: DocCommentContext,
+    private val tagType: TagType<*>,
+) : DocContentOwner {
+    /**
+     * Backing field for [blockTagSection].
+     *
+     * Lazily initialized by [blockTagSection] getter.
+     */
+    private var _blockTagSection: BlockTagSection? = null
+
+    /**
+     * The [BlockTagSection] that was added to [docComment].
+     *
+     * On first access this will create a [BlockTagSection] and add it to [docComment].
+     */
+    private val blockTagSection
+        get() =
+            _blockTagSection
+                ?: run {
+                    val new = DefaultBlockTagSection(context, tagType, ContentSupplier.NULL)
+                    _blockTagSection = new
+                    docComment.addBlockTagSection(new)
+                    new
+                }
+
+    /**
+     * Delegate to [_blockTagSection].
+     *
+     * Accessing this does not create [blockTagSection].
+     */
+    override val docContent: DocContent?
+        get() = _blockTagSection?.description
+
+    override fun append(other: DocContent) {
+        blockTagSection.append(other)
+    }
+
+    override fun append(text: String) {
+        blockTagSection.append(text)
     }
 }

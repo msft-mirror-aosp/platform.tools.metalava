@@ -27,6 +27,7 @@ import kotlin.jvm.optionals.getOrNull
 /**
  * Base class for classes that own a [JavadocContent] description.
  *
+ * @param context Contextual information that can affect the behavior of documentation.
  * @param descriptionSupplier Supplies a [JavadocContent] instance when requested. May produce it
  *   lazily.
  */

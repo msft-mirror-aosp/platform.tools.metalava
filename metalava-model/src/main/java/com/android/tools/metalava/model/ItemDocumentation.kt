@@ -128,9 +128,12 @@ interface ItemDocumentation {
     /**
      * Get the owner of the description for the first block tag of [tagTypeName].
      *
-     * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
+     * If no such block tag exists then this will create a pending block tag that will be added if
+     * any content is appended to it through the returned [DocContentOwner]. In that case no
+     * reference is held internally to the returned [DocContentOwner] so there is no risk of a
+     * memory leak.
      */
-    fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner?
+    fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner
 
     /**
      * Get the description for the @param tag for [name]

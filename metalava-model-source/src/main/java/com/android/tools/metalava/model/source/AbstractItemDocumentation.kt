@@ -233,8 +233,12 @@ abstract class AbstractItemDocumentation(
     override fun blockTagDescription(tagTypeName: String): DocContent? =
         findBlockTagSection(tagTypeName)?.docContent
 
-    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? =
-        findBlockTagSection(tagTypeName)
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
+        return findBlockTagSection(tagTypeName)
+            ?: docComment.pendingBlockTagSection(
+                tagTypeName,
+            )
+    }
 
     /** Find the block tag section for [tagTypeName]. */
     private fun findBlockTagSection(tagTypeName: String): BlockTagSection? =
