@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.PrintWriter
@@ -111,8 +112,18 @@ interface ItemDocumentation {
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
 
-    /** Get the owner of the main description for the comment. */
+    /** Get the main description of the comment. */
+    val mainDescription: DocContent?
+
+    /** Get the owner of the main description of the comment. */
     val mainDescriptionOwner: DocContentOwner?
+
+    /**
+     * Get the description for the first block tag of [tagTypeName].
+     *
+     * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
+     */
+    fun blockTagDescription(tagTypeName: String): DocContent?
 
     /**
      * Get the owner of the description for the first block tag of [tagTypeName].
@@ -120,6 +131,14 @@ interface ItemDocumentation {
      * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
      */
     fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner?
+
+    /**
+     * Get the description for the @param tag for [name]
+     *
+     * Returns `null` if this has no Javadoc comment, or no such parameter, or the description is
+     * empty, i.e. has no significant non-whitespace content, or is invalid, e.g. no parameter name.
+     */
+    fun paramTagDescription(name: String): DocContent?
 
     /**
      * Get owner of the description for the @param tag for [name]
@@ -199,10 +218,21 @@ interface ItemDocumentation {
         // No documentation has nothing to print.
         override fun print(writer: PrintWriter) {}
 
+        override val mainDescription
+            get() = inaccessible()
+
         override val mainDescriptionOwner
             get() = inaccessible()
 
+        /**
+         * Returns `null` as this is the equivalent to [findTagDocumentation] which is called on
+         * this in some cases.
+         */
+        override fun blockTagDescription(tagTypeName: String) = null
+
         override fun blockTagDescriptionOwner(tagTypeName: String) = inaccessible()
+
+        override fun paramTagDescription(name: String) = inaccessible()
 
         override fun paramTagDescriptionOwner(name: String) = inaccessible()
 

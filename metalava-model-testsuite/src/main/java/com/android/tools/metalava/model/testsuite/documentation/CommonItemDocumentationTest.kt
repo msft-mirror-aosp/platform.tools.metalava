@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.java
@@ -1058,13 +1058,11 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
-    private fun assertDocContentOwnerToString(
-        owner: DocContentOwner?,
+    private fun assertDocContentToString(
+        content: DocContent?,
         expected: String?,
         message: String? = null
     ) {
-        assertNotNull(owner)
-        val content = owner.docContent
         if (expected == null) {
             assertNull(content)
         } else {
@@ -1074,7 +1072,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test DocContentOwner with main description`() {
+    fun `Test DocContent with main description`() {
         runSourceCodebaseTest(
             java(
                 """
@@ -1089,8 +1087,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.documentation
 
-            assertDocContentOwnerToString(
-                documentation.mainDescriptionOwner,
+            assertDocContentToString(
+                documentation.mainDescription,
                 """JavadocText("Main documentation.")"""
             )
         }
@@ -1112,25 +1110,22 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.documentation
 
-            assertDocContentOwnerToString(
-                documentation.mainDescriptionOwner,
+            assertDocContentToString(
+                documentation.mainDescription,
                 expected = null,
                 message = "mainDescription"
             )
-            assertDocContentOwnerToString(
-                documentation.blockTagDescriptionOwner("see"),
+            assertDocContentToString(
+                documentation.blockTagDescription("see"),
                 expected = """JavadocText("String block tag documentation.")""",
                 message = "@see block tag"
             )
-            assertNull(
-                documentation.blockTagDescriptionOwner("unknown"),
-                message = "@unknown block tag"
-            )
+            assertNull(documentation.blockTagDescription("unknown"), message = "@unknown block tag")
         }
     }
 
     @Test
-    fun `Test DocContentOwner for param description`() {
+    fun `Test DocContent for param description`() {
         runSourceCodebaseTest(
             java(
                 """
@@ -1149,17 +1144,17 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.methods().single()
             val documentation = testMethod.documentation
 
-            assertDocContentOwnerToString(
-                documentation.paramTagDescriptionOwner("p1"),
+            assertDocContentToString(
+                documentation.paramTagDescription("p1"),
                 """JavadocText("param 1 documentation.")""",
                 message = "@param p1 tag"
             )
-            assertDocContentOwnerToString(
-                documentation.paramTagDescriptionOwner("p2"),
+            assertDocContentToString(
+                documentation.paramTagDescription("p2"),
                 """JavadocText("param 2 documentation.")""",
                 message = "@param p2 tag"
             )
-            assertNull(documentation.paramTagDescriptionOwner("unknown"), message = "unknown param")
+            assertNull(documentation.paramTagDescription("unknown"), message = "unknown param")
         }
     }
 
@@ -1187,7 +1182,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val otherClass = codebase.assertClass("test.other.Other")
-            val contentToAppend = otherClass.documentation.mainDescriptionOwner?.docContent!!
+            val contentToAppend = otherClass.documentation.mainDescription!!
 
             val testClass = codebase.assertClass("test.pkg.Test")
             val classDocumentation = testClass.documentation

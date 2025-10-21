@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
@@ -222,13 +224,30 @@ abstract class AbstractItemDocumentation(
         }
     }
 
+    override val mainDescription: DocContent?
+        get() = docComment.description
+
     override val mainDescriptionOwner: DocContentOwner
         get() = docComment
 
+    override fun blockTagDescription(tagTypeName: String): DocContent? =
+        findBlockTagSection(tagTypeName)?.docContent
+
     override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? =
+        findBlockTagSection(tagTypeName)
+
+    /** Find the block tag section for [tagTypeName]. */
+    private fun findBlockTagSection(tagTypeName: String): BlockTagSection? =
         docComment.blockTagSections.find { it.tagType.name == tagTypeName }
 
+    override fun paramTagDescription(name: String): DocContent? =
+        findParamTagSection(name)?.docContent
+
     override fun paramTagDescriptionOwner(name: String): DocContentOwner? =
+        findParamTagSection(name)
+
+    /** Find the block tag section for `@param` of [name]. */
+    private fun findParamTagSection(name: String): BlockTagSection? =
         docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
