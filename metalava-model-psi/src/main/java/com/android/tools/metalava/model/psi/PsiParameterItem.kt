@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultParameterItem
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.item.ParameterDefaultValueFactory
 import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -108,8 +107,7 @@ internal constructor(
                     parameterIndex = parameterIndex,
                     type = type,
                     defaultValueFactory = {
-                        if (it.isKotlin()) PsiParameterDefaultValue(psiParameter, parameterIndex)
-                        else ParameterDefaultValue.NONE
+                        PsiParameterDefaultValue.compute(psiParameter, parameterIndex)
                     },
                 )
             return parameter

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
@@ -33,24 +32,14 @@ import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.getUastParentOfType
 
-internal class PsiParameterDefaultValue(
-    private val psiParameter: PsiParameter,
-    private val parameterIndex: Int,
-) : ParameterDefaultValue {
-
-    override fun duplicate(parameter: ParameterItem) =
-        PsiParameterDefaultValue(
-            (parameter as PsiParameterItem).psiParameter,
-            parameter.parameterIndex,
-        )
-
-    private var hasDefaultValue: Boolean? = null
-
-    override fun hasDefaultValue(): Boolean {
-        if (hasDefaultValue == null) {
-            hasDefaultValue = computeHasDefaultValue(psiParameter, parameterIndex)
+internal object PsiParameterDefaultValue {
+    /** Determines whether a [psiParameter] has a default value. */
+    fun compute(psiParameter: PsiParameter, parameterIndex: Int): ParameterDefaultValue {
+        return if (computeHasDefaultValue(psiParameter, parameterIndex)) {
+            ParameterDefaultValue.UNKNOWN
+        } else {
+            ParameterDefaultValue.NONE
         }
-        return hasDefaultValue!!
     }
 
     @OptIn(KaExperimentalApi::class)
