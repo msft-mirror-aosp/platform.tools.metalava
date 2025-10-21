@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
@@ -78,6 +80,20 @@ interface Item : Reportable {
      * qualified references to classes.
      */
     val documentation: ItemDocumentation
+
+    /**
+     * The, possibly empty, description of the [Item].
+     *
+     * For [SelectableItem]s this is the main description in [SelectableItem.documentation]. For
+     * [ParameterItem]s this is the description of the corresponding `@param` tag in the
+     * [ParameterItem.containingCallable]'s [CallableItem.documentation],
+     */
+    val description: DocContent?
+
+    /**
+     * The owner of this [Item]'s [description] that provides support for modifying [description].
+     */
+    val descriptionOwner: DocContentOwner
 
     /**
      * A rank used for sorting. This allows signature files etc to sort similar items by a natural
