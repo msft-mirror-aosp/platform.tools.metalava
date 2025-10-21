@@ -1189,7 +1189,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             checkItemDocumentationPrint(testClass, expectedOutput = "", message = "before mutation")
 
-            classDocumentation.mainDescriptionOwner?.append(contentToAppend)
+            classDocumentation.mainDescriptionOwner.append(contentToAppend)
 
             // TODO(b/450228132): The '@link' should have been resolved to Other#method().
             val expectedOutputAfterMutation =
@@ -1236,7 +1236,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 message = "before mutation"
             )
 
-            methodDocumentation.mainDescriptionOwner?.append("Text to {@code append}.")
+            methodDocumentation.mainDescriptionOwner.append("Text to {@code append}.")
 
             val expectedOutputAfterMutation =
                 """

@@ -116,7 +116,7 @@ interface ItemDocumentation {
     val mainDescription: DocContent?
 
     /** Get the owner of the main description of the comment. */
-    val mainDescriptionOwner: DocContentOwner?
+    val mainDescriptionOwner: DocContentOwner
 
     /**
      * Get the description for the first block tag of [tagTypeName].
