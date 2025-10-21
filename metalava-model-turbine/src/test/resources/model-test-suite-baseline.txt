@@ -5,10 +5,7 @@ com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTes
   Test duplicate classes
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
-  Test ItemDocumentation appendDocumentation
-  Test ItemDocumentation appendDocumentation on overriding method
   Test append DocContent to main description
-  Test appending to Javadoc with errors
   Test fully qualifying links that wrap on multiple lines
   Test javadoc error locations
   Test javadoc locations

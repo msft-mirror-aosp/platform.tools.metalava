@@ -76,19 +76,6 @@ interface ItemDocumentation {
     fun workAroundJavaDocSummaryTruncationIssue() {}
 
     /**
-     * Add the given text to the documentation.
-     *
-     * If the [tagSection] is null, add the comment to the initial text block of the description.
-     * Otherwise, if it is "@return", add the comment to the return value. Otherwise, the
-     * [tagSection] is taken to be the parameter name, and the comment added as parameter
-     * documentation for the given parameter.
-     *
-     * @param tagSection if specified and not a parameter name then it is expected to start with
-     *   `@`, e.g. `@deprecated`, not `deprecated`.
-     */
-    fun appendDocumentation(comment: String, tagSection: String?)
-
-    /**
      * Check to see whether this has a tag section of [blockTagType].
      *
      * @param blockTagType the type of the tag, e.g. `param` for `@param p ...`.
@@ -102,15 +89,6 @@ interface ItemDocumentation {
      * will, where possible, be fully qualified.
      */
     fun print(writer: PrintWriter)
-
-    /**
-     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
-     * provided value (e.g. parameter name).
-     */
-    fun findTagDocumentation(tag: String, value: String? = null): String?
-
-    /** Returns the main documentation for the method (the documentation before any tags). */
-    fun findMainDocumentation(): String
 
     /** Get the main description of the comment. */
     val mainDescription: DocContent?
@@ -233,27 +211,15 @@ interface ItemDocumentation {
         override val mainDescriptionOwner
             get() = inaccessible()
 
-        /**
-         * Returns `null` as this is the equivalent to [findTagDocumentation] which is called on
-         * this in some cases.
-         */
+        /** Returns `null` as this is sometimes called. */
         override fun blockTagDescription(tagTypeName: String, forAppending: Boolean) = null
 
         override fun blockTagDescriptionOwner(tagTypeName: String) = inaccessible()
 
-        /**
-         * Returns `null` as this is the equivalent to [findTagDocumentation] passing in the
-         * parameter name which is called on this in some cases.
-         */
+        /** Returns `null` as this is sometimes called. */
         override fun paramTagDescription(name: String) = null
 
         override fun paramTagDescriptionOwner(name: String) = inaccessible()
-
-        override fun findTagDocumentation(tag: String, value: String?) = null
-
-        override fun appendDocumentation(comment: String, tagSection: String?) = inaccessible()
-
-        override fun findMainDocumentation() = inaccessible()
 
         override fun removeDeprecatedSection() {
             // TODO(b/450228132): Temporarily allow this to be called as there is an issue where

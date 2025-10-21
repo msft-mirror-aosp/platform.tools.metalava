@@ -96,18 +96,6 @@ interface Item : Reportable {
      */
     val sortingRank: Int
 
-    /**
-     * Add the given text to the documentation.
-     *
-     * If the [tagSection] is null, add the comment to the initial text block of the description.
-     *
-     * If it is "@return", add the comment to the return value.
-     *
-     * Otherwise, the [tagSection] is taken to be the parameter name, and the comment added as
-     * parameter documentation for the given parameter.
-     */
-    fun appendDocumentation(comment: String, tagSection: String? = null)
-
     val isPublic: Boolean
     val isProtected: Boolean
     val isInternal: Boolean
