@@ -159,7 +159,7 @@ interface ItemDocumentation {
          * Used where there is no documentation possible, e.g. text model, type parameters,
          * parameters.
          */
-        val NONE: ItemDocumentation = EmptyItemDocumentation()
+        val NONE: ItemDocumentation = NoItemDocumentation()
 
         /**
          * A special [ItemDocumentationFactory] that returns [NONE] which contains no documentation.
@@ -170,8 +170,8 @@ interface ItemDocumentation {
         val NONE_FACTORY: ItemDocumentationFactory = { NONE }
     }
 
-    /** An empty [ItemDocumentation] that can never contain any text. */
-    private class EmptyItemDocumentation : ItemDocumentation {
+    /** An [ItemDocumentation] that can never contain any text. */
+    private class NoItemDocumentation : ItemDocumentation {
         override val text
             get() = ""
 
@@ -190,10 +190,10 @@ interface ItemDocumentation {
         // This is ok to use in a snapshot as it is immutable and model independent.
         override fun snapshot(item: SelectableItem) = this
 
-        // Empty documentation never has any tag sections.
+        // No documentation never has any tag sections.
         override fun hasBlockTagOfType(blockTagType: String) = false
 
-        // Empty documentation has nothing to print.
+        // No documentation has nothing to print.
         override fun print(writer: PrintWriter) {}
 
         override val mainDescriptionOwner: DocContentOwner?
