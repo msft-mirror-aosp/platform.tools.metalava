@@ -108,7 +108,7 @@ internal constructor(
                     parameterIndex = parameterIndex,
                     type = type,
                     defaultValueFactory = {
-                        if (it.isKotlin()) PsiParameterDefaultValue(it as PsiParameterItem)
+                        if (it.isKotlin()) PsiParameterDefaultValue(psiParameter, parameterIndex)
                         else ParameterDefaultValue.NONE
                     },
                 )
