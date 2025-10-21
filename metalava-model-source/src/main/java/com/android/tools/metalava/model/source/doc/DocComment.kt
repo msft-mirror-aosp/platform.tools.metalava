@@ -93,8 +93,11 @@ interface DocCommentMutationListener {
 internal class DefaultDocComment(
     context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
-    override var blockTagSections: List<BlockTagSection>,
+    blockTagSections: List<BlockTagSection>,
 ) : DescriptionOwner(context, descriptionSupplier), DocComment {
+    /** Allow [blockTagSections] to be modified but only within this class. */
+    override var blockTagSections = blockTagSections
+        private set
 
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType.name == tagTypeName }
@@ -107,6 +110,12 @@ internal class DefaultDocComment(
                 tagType,
                 DefaultContentSupplier(description),
             )
+
+        addBlockTagSection(blockTagSection)
+    }
+
+    /** Add [blockTagSection] to [blockTagSections] invoking the [DocCommentMutationListener]. */
+    internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
         blockTagSections = blockTagSections + blockTagSection
 
         // Notify any listener.
