@@ -80,6 +80,13 @@ internal fun List<JavadocContent>.toOptionalJavadocContent() =
     }
 
 /**
+ * Convert this [String] to an optional [JavadocContent].
+ *
+ * If this is empty then returns null, otherwise create a [JavadocText] wrapper around this.
+ */
+internal fun String.toOptionalJavadocContent() = if (isEmpty()) null else JavadocText(this)
+
+/**
  * A [JavadocContent] that encapsulates multiple [JavadocContent] instances.
  *
  * @param contents a list containing multiple [JavadocContent] instances.
