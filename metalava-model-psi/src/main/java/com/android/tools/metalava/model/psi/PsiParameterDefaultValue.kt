@@ -27,8 +27,10 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.getUastParentOfType
 
 internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
     ParameterDefaultValue {
@@ -48,21 +50,14 @@ internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
     @OptIn(KaExperimentalApi::class)
     private fun PsiParameterItem.computeHasDefaultValue(): Boolean {
         if (psiParameter.isKotlin()) {
-            val psiCallableItem = item.containingCallable() as PsiCallableItem
-            val sourcePsi = (psiCallableItem.psi() as? UMethod)?.sourcePsi
+            val containingUMethod = psiParameter.getUastParentOfType<UMethod>()
 
-            // The compiler-generated data class copy method has all optional parameters. The source
-            // psi in this case is the constructor for K2, the class for K1 (for a copy method
-            // defined in source, the psi would not be the source method).
-            if (
-                containingClass().modifiers.isData() &&
-                    psiCallableItem.name() == "copy" &&
-                    (sourcePsi is KtPrimaryConstructor || sourcePsi is KtClass)
-            ) {
+            // The compiler-generated data class copy method has all optional parameters.
+            if (isDataClassCopyMethod(containingUMethod)) {
                 return true
             }
 
-            val ktFunction = (sourcePsi as? KtFunction) ?: return false
+            val ktFunction = (containingUMethod?.sourcePsi as? KtFunction) ?: return false
             analyze(ktFunction) {
                 val function =
                     if (ktFunction.hasActualModifier()) {
@@ -77,6 +72,18 @@ internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
         }
 
         return false
+    }
+
+    /** Returns whether the [uMethod] is the generated copy function of a data class. */
+    private fun isDataClassCopyMethod(uMethod: UMethod?): Boolean {
+        if (uMethod?.name != "copy") return false
+        // The source psi for the generated copy function is the constructor for K2, the class for
+        // K1 (for a copy method defined in source, the psi would be the source method).
+        return when (val sourcePsi = uMethod.sourcePsi) {
+            is KtClass -> sourcePsi.isData()
+            is KtPrimaryConstructor -> sourcePsi.containingClass()?.isData() ?: false
+            else -> false
+        }
     }
 
     private fun PsiParameterItem.getKtParameterSymbol(
