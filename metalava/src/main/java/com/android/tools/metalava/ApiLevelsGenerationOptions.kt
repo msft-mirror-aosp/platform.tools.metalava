@@ -103,7 +103,7 @@ class ApiLevelsGenerationOptions(
         get() = listOf(earlyOptions)
 
     /** API level XML file to generate. */
-    val generateApiLevelXml: File? by
+    val generateApiLevelsXmlFile: File? by
         option(
                 ARG_GENERATE_API_LEVELS,
                 metavar = "<xmlfile>",
@@ -482,7 +482,7 @@ class ApiLevelsGenerationOptions(
         signatureFileLoader: SignatureFileLoader,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
-        generateApiLevelXml?.let { outputFile ->
+        generateApiLevelsXmlFile?.let { outputFile ->
             // Scan for all the files that could contribute to the API history.
             val currentDir = fileForPathInner(".")
             val (patterns, matchedFiles, versionedApiFactory) =
