@@ -273,16 +273,33 @@ class DocAnalyzer(
                     }
                 }
 
+                /**
+                 * Called for [item]s that are annotated with the Kotlin [Deprecated] annotation.
+                 *
+                 * Its purpose is to ensure that it has an `@deprecated` Javadoc tag, creating one
+                 * if possible and necessary. It does that just to prevent warning about missing
+                 *
+                 * @deprecated tags. The actual content is irrelevant as the documentation is not
+                 *   used to generate Kotlin stubs.
+                 */
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
+                    // Drop out if it already has a deprecated Javadoc tag.
+                    if (item.documentation.hasBlockTagOfType("deprecated")) {
+                        return
+                    }
+
+                    // Get the text from the annotation, returning if it could not be found or was
+                    // blank.
                     val text =
                         (annotation.findAttribute("message")
                                 ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
                             ?.value
                             ?.asString() ?: return
-                    if (text.isBlank() || item.documentation.text.contains(text)) {
+                    if (text.isBlank()) {
                         return
                     }
 
+                    // Append the documentation to the block tag, creating it in the process.
                     item.appendDocumentation(text, "@deprecated")
                 }
 

@@ -1542,11 +1542,7 @@ class DocAnalyzerTest : DriverTest() {
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
                      * My description
-                     *
                      * @deprecated Existing deprecation message.
-                     *
-                     * <br>
-                     * Blah blah blah 2
                      */
                     @Deprecated
                     public int hashCode() { throw new RuntimeException("Stub!"); }
