@@ -193,28 +193,28 @@ interface ItemDocumentation {
         // No documentation never has any tag sections.
         override fun hasBlockTagOfType(blockTagType: String) = false
 
+        private fun inaccessible(): Nothing =
+            error("cannot access documentation on an item that does not support documentation")
+
         // No documentation has nothing to print.
         override fun print(writer: PrintWriter) {}
 
-        override val mainDescriptionOwner: DocContentOwner?
-            get() = null
+        override val mainDescriptionOwner
+            get() = inaccessible()
 
-        override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? = null
+        override fun blockTagDescriptionOwner(tagTypeName: String) = inaccessible()
 
-        override fun paramTagDescriptionOwner(name: String): DocContentOwner? = null
+        override fun paramTagDescriptionOwner(name: String) = inaccessible()
 
-        override fun findTagDocumentation(tag: String, value: String?): String? = null
+        override fun findTagDocumentation(tag: String, value: String?) = null
 
-        override fun appendDocumentation(comment: String, tagSection: String?) {
-            error("cannot modify documentation on an item that does not support documentation")
-        }
+        override fun appendDocumentation(comment: String, tagSection: String?) = inaccessible()
 
-        override fun findMainDocumentation() = ""
+        override fun findMainDocumentation() = inaccessible()
 
-        override fun removeDeprecatedSection() {}
+        override fun removeDeprecatedSection() = inaccessible()
 
-        override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
-            error("cannot modify documentation on an item that does not support documentation")
-        }
+        override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) =
+            inaccessible()
     }
 }
