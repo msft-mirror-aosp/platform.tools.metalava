@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultParameterItem
-import com.android.tools.metalava.model.item.ParameterDefaultValueFactory
 import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiEllipsisType
@@ -39,7 +38,7 @@ internal constructor(
     containingCallable: PsiCallableItem,
     parameterIndex: Int,
     type: TypeItem,
-    defaultValueFactory: ParameterDefaultValueFactory,
+    hasDefaultValue: Boolean,
 ) :
     DefaultParameterItem(
         codebase = psiCodebase,
@@ -51,7 +50,7 @@ internal constructor(
         containingCallable = containingCallable,
         parameterIndex = parameterIndex,
         type = type,
-        defaultValueFactory = defaultValueFactory,
+        hasDefaultValue = hasDefaultValue,
     ),
     PsiItem {
 
@@ -74,7 +73,7 @@ internal constructor(
             containingCallable = containingCallable as PsiCallableItem,
             parameterIndex = parameterIndex,
             type = type().convertType(typeVariableMap) as PsiTypeItem,
-            defaultValueFactory = defaultValue::duplicate,
+            hasDefaultValue = hasDefaultValue(),
         )
 
     companion object {
@@ -106,9 +105,8 @@ internal constructor(
                     containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
                     type = type,
-                    defaultValueFactory = {
-                        PsiParameterDefaultValue.compute(psiParameter, parameterIndex)
-                    },
+                    hasDefaultValue =
+                        PsiParameterDefaultValue.compute(psiParameter, parameterIndex),
                 )
             return parameter
         }

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -34,16 +33,8 @@ import org.jetbrains.uast.getUastParentOfType
 
 internal object PsiParameterDefaultValue {
     /** Determines whether a [psiParameter] has a default value. */
-    fun compute(psiParameter: PsiParameter, parameterIndex: Int): ParameterDefaultValue {
-        return if (computeHasDefaultValue(psiParameter, parameterIndex)) {
-            ParameterDefaultValue.UNKNOWN
-        } else {
-            ParameterDefaultValue.NONE
-        }
-    }
-
     @OptIn(KaExperimentalApi::class)
-    private fun computeHasDefaultValue(psiParameter: PsiParameter, parameterIndex: Int): Boolean {
+    fun compute(psiParameter: PsiParameter, parameterIndex: Int): Boolean {
         if (psiParameter.isKotlin()) {
             val containingUMethod = psiParameter.getUastParentOfType<UMethod>()
 
