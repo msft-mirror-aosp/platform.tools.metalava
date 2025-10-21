@@ -16,13 +16,23 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import java.io.PrintWriter
+
 /** [TagType] for `@param` block tag. */
 internal class ParamTagType(name: String) : TagType<ParamTagData>(name) {
-    override fun extractData(context: DocCommentContext, text: CharSequence): ParamTagData? {
+    override fun extractData(
+        context: DocCommentContext,
+        text: CharSequence
+    ): ExtractDataResult<ParamTagData>? {
         val paramName = text.findLeadingIdentifier() ?: return null
 
         val ordinal = context.ordinalInParamsList(paramName)
-        return ParamTagData(paramName, ordinal)
+        return ExtractDataResult(
+            tagData = ParamTagData(paramName, ordinal),
+            // The parameter name and any following whitespace must be removed from the content as
+            // they are part of [ParamTagData].
+            consumedContent = text.skipForwardsOverLeadingWhitespace(paramName.length),
+        )
     }
 }
 
@@ -40,5 +50,13 @@ internal data class ParamTagData(
         other as ParamTagData
         (ordinal - other.ordinal).let { diff -> if (diff != 0) return diff }
         return name.compareTo(other.name)
+    }
+
+    /**
+     * Print the parameter [name] which was removed from the content by [ParamTagType.extractData].
+     */
+    override fun printAfterTagType(writer: PrintWriter) {
+        writer.print(" ")
+        writer.print(name)
     }
 }

@@ -25,17 +25,23 @@ class TagDataExtractorTest : BaseDocCommentTest() {
         input: String,
         expectedInputStructure: String?,
         expectedTagData: BarTagData?,
+        expectedRemainderStructure: String? = expectedInputStructure,
     ) {
         val docComment = createTestDocComment("/** $input */")
         val content = docComment.description
-        assertEquals(
-            expectedInputStructure?.trimIndent(),
-            content?.dumpContentStructure()?.trim(),
-            message = "input structure"
-        )
+        content.assertStructure(expectedInputStructure, message = "input structure")
 
-        val tagData = content?.extractTagDataForTagType(context, TestTagTypes.BAR_TAG_TYPE)
+        var result = content?.extractTagDataForTagType(context, TestTagTypes.BAR_TAG_TYPE)
+
+        val tagData = result?.tagData
         assertEquals(expectedTagData, tagData, message = "tagData")
+
+        val remainder = result?.remainder
+        assertEquals(
+            expectedRemainderStructure?.trimIndent(),
+            remainder?.dumpContentStructure()?.trim(),
+            message = "remainder structure"
+        )
     }
 
     @Test
@@ -69,6 +75,32 @@ class TagDataExtractorTest : BaseDocCommentTest() {
                     text: 'foo text after'
                 """,
             expectedTagData = BarTagData(identifier = "foo"),
+            expectedRemainderStructure =
+                """
+                    text: 'text after'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test extract data from list`() {
+        checkExtractedData(
+            input = "foo text after {@code inline} more text",
+            expectedInputStructure =
+                """
+                    text: 'foo text after '
+                    inlineTag: code
+                      text: 'inline'
+                    text: ' more text'
+                """,
+            expectedTagData = BarTagData(identifier = "foo"),
+            expectedRemainderStructure =
+                """
+                    text: 'text after '
+                    inlineTag: code
+                      text: 'inline'
+                    text: ' more text'
+                """,
         )
     }
 }

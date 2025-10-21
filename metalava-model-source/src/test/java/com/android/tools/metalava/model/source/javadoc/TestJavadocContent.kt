@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import kotlin.test.assertEquals
+
 /** Dump the internal structure of this [JavadocContent]. */
 internal fun JavadocContent?.dumpContentStructure(): String = buildString {
     this@dumpContentStructure?.accept(
@@ -57,4 +59,11 @@ internal fun JavadocContent?.dumpContentStructure(): String = buildString {
             }
         }
     )
+}
+
+/** Assert that the structure of [this] matches [expected]. */
+internal fun JavadocContent?.assertStructure(expected: String?, message: String? = null) {
+    // Generate a string representation of the model structure.
+    val actualStructure = this?.dumpContentStructure()
+    assertEquals(expected?.trimIndent(), actualStructure?.trimEnd(), message)
 }

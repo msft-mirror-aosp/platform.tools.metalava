@@ -31,7 +31,7 @@ import com.android.tools.metalava.model.source.doc.TagType
 internal class TagDataExtractor(
     private val context: DocCommentContext,
     private val tagType: TagType<*>,
-) : JavadocContentVisitor {
+) : JavadocContentRewriter {
 
     private var tagData: TagData? = null
 
@@ -41,21 +41,48 @@ internal class TagDataExtractor(
      * @return the [TagData] or `null` if it could not be found, e.g. because [TagType.extractData]
      *   returned `null` or [JavadocContent] did not start with [JavadocText].
      */
-    fun extractTagData(content: JavadocContent): TagData? {
-        content.accept(this)
-        return tagData
+    fun extractTagData(content: JavadocContent): ExtractorResult {
+        val remainder = content.rewrite(this)
+        return ExtractorResult(tagData, remainder)
     }
 
     /** Extract the data from the first item in the [JavadocContentList.contents]. */
-    override fun visit(list: JavadocContentList) {
+    override fun rewrite(list: JavadocContentList): JavadocContent? {
         // Can only extract data from the start of a list.
-        val first = list.contents[0]
-        first.accept(this)
+        var contents = list.contents
+        val first = contents[0]
+        val rewritten = first.rewrite(this)
+
+        return when {
+            rewritten === first -> list
+            rewritten == null -> {
+                when (contents.size) {
+                    1 -> null
+                    2 -> contents[1]
+                    else -> JavadocContentList(contents.drop(1))
+                }
+            }
+            else -> {
+                when (contents.size) {
+                    1 -> rewritten
+                    else ->
+                        JavadocContentList(
+                            buildList {
+                                add(rewritten)
+                                for (i in 1 until contents.size) {
+                                    add(contents[i])
+                                }
+                            }
+                        )
+                }
+            }
+        }
     }
 
     /** A [JavadocInlineTag] cannot have data extracted so do nothing. */
-    override fun visit(inlineTag: JavadocInlineTag) {
+    override fun rewrite(inlineTag: JavadocInlineTag): JavadocContent? {
         // Nothing to do as cannot extract data from an inline tag.
+        return inlineTag
     }
 
     /**
@@ -64,9 +91,17 @@ internal class TagDataExtractor(
      * This will only be called for a [JavadocText] that is at the start of the [JavadocContent]
      * passed into [extractTagData].
      */
-    override fun visit(text: JavadocText) {
+    override fun rewrite(text: JavadocText): JavadocContent? {
         val contents = text.contents
-        tagData = tagType.extractData(context, contents)
+        var result = tagType.extractData(context, contents)
+        tagData = result?.tagData
+
+        val consumedContent = result?.consumedContent ?: 0
+        return if (consumedContent == 0) {
+            text
+        } else {
+            contents.substring(consumedContent).toOptionalJavadocContent()
+        }
     }
 }
 
@@ -75,3 +110,15 @@ internal fun JavadocContent.extractTagDataForTagType(
     context: DocCommentContext,
     tagType: TagType<*>,
 ) = TagDataExtractor(context, tagType).extractTagData(this)
+
+/** The result of [TagDataExtractor.extractTagData]. */
+internal data class ExtractorResult(
+    /** The optional extracted [TagData]. */
+    val tagData: TagData?,
+
+    /**
+     * The remainder of the [JavadocContent] passed to [TagDataExtractor.extractTagData] that was
+     * not consumed by [tagData].
+     */
+    val remainder: JavadocContent?,
+)

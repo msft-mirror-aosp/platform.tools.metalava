@@ -20,12 +20,13 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
-import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 import java.util.regex.Pattern
@@ -221,6 +222,15 @@ abstract class AbstractItemDocumentation(
         }
     }
 
+    override val mainDescriptionOwner: DocContentOwner
+        get() = docComment
+
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? =
+        docComment.blockTagSections.find { it.tagType.name == tagTypeName }
+
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner? =
+        docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
+
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
         val firstDot = text.indexOf(".")
@@ -258,7 +268,7 @@ abstract class AbstractItemDocumentation(
         docComment.removeBlockTagSections { it.tagType.name == tagTypeName }
 
         // Add a block tag section to the end.
-        docComment.addBlockTagSection(tagTypeName, JavadocText(text))
+        docComment.addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
     }
 
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {

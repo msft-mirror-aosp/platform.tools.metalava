@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.source.javadoc.ExtractorResult
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
-import java.util.Optional
-import kotlin.jvm.optionals.getOrNull
 
 /**
  * A block tag section of [DocComment.blockTagSections].
@@ -29,7 +29,7 @@ import kotlin.jvm.optionals.getOrNull
  *     * @<tag-type> <description>
  * ```
  */
-internal interface BlockTagSection {
+internal interface BlockTagSection : DocContentOwner {
     /** The type of the block tag. */
     val tagType: TagType<*>
 
@@ -38,6 +38,14 @@ internal interface BlockTagSection {
 
     /** The optional [tagType] specific data. */
     val tagData: TagData?
+
+    /**
+     * Get the type safe tag specific data for [tagType].
+     *
+     * Returns `null` if [tagType] is not [BlockTagSection.tagType] or the [tagType] returned `null`
+     * from [TagType.extractData].
+     */
+    fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D?
 
     companion object {
         /** Sort [TagData] so that `null` comes after non-`null`. */
@@ -68,28 +76,44 @@ internal interface BlockTagSection {
  * with as that only happens when processing documentation that will be part of the API.
  */
 internal class DefaultBlockTagSection(
-    private val context: DocCommentContext,
+    context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
-) : DescriptionOwner(descriptionSupplier), BlockTagSection {
+) : DescriptionOwner(context, descriptionSupplier), BlockTagSection {
 
     /**
      * Backing field for [tagData].
      *
-     * This is initialized lazily as it requires access to [descriptionSupplier]'s
-     * [ContentSupplier.content] which is likely to be lazily created as it is expensive to create.
+     * This is initialized lazily in [initializeDescription] at the same time as [description].
      */
-    private lateinit var _tagData: Optional<TagData>
+    private var _tagData: TagData? = null
 
     override val tagData: TagData?
         get() {
-            if (!::_tagData.isInitialized) {
-                val data = description?.extractTagDataForTagType(context, tagType)
-                _tagData = Optional.ofNullable(data)
-            }
-
-            return _tagData.getOrNull()
+            // TagData is initialized at the same time as [description].
+            ensureDescriptionIsInitialized()
+            return _tagData
         }
+
+    /**
+     * Override to extract [TagData] from [suppliedDescription] and store [ExtractorResult.tagData]
+     * in [_tagData] and then delegate to the super method to store [ExtractorResult.remainder] in
+     * [description].
+     */
+    override fun initializeDescription(suppliedDescription: JavadocContent?) {
+        val result: ExtractorResult? =
+            suppliedDescription?.extractTagDataForTagType(context, tagType)
+        _tagData = result?.tagData
+
+        // Delegate to the super method to store the remainder in description.
+        super.initializeDescription(result?.remainder)
+    }
+
+    override fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D? {
+        if (this.tagType != tagType) return null
+        @Suppress("UNCHECKED_CAST") // Safe cast as tagData was created by tagType
+        return tagData as D?
+    }
 
     override fun toString() = buildString {
         append("@")
