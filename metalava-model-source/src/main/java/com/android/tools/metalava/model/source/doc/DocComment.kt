@@ -93,7 +93,6 @@ internal class DefaultDocComment(
     private val context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
     override var blockTagSections: List<BlockTagSection>,
-    private val mutationListener: DocCommentMutationListener,
 ) : DescriptionOwner(descriptionSupplier), DocComment {
 
     override fun hasBlockTagOfType(tagTypeName: String) =
@@ -110,7 +109,7 @@ internal class DefaultDocComment(
         blockTagSections = blockTagSections + blockTagSection
 
         // Notify any listener.
-        mutationListener.docCommentMutated()
+        context.mutationListener.docCommentMutated()
     }
 
     override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
@@ -120,7 +119,7 @@ internal class DefaultDocComment(
             blockTagSections = filtered
 
             // Notify any listener.
-            mutationListener.docCommentMutated()
+            context.mutationListener.docCommentMutated()
         }
     }
 

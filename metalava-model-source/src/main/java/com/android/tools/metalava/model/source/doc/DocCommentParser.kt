@@ -56,7 +56,6 @@ internal object DocCommentParser {
                 context,
                 ContentSupplier.EMPTY,
                 emptyList(),
-                context.mutationListener,
             )
         }
 
@@ -185,7 +184,6 @@ internal object DocCommentParser {
             context,
             description,
             blockTagSections.toList(),
-            context.mutationListener,
         )
     }
 
