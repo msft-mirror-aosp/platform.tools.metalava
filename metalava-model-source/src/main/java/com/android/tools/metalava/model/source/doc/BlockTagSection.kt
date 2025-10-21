@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
-import java.util.Optional
-import kotlin.jvm.optionals.getOrNull
 
 /**
  * A block tag section of [DocComment.blockTagSections].
@@ -85,20 +83,27 @@ internal class DefaultBlockTagSection(
     /**
      * Backing field for [tagData].
      *
-     * This is initialized lazily as it requires access to [descriptionSupplier]'s
-     * [ContentSupplier.content] which is likely to be lazily created as it is expensive to create.
+     * This is initialized lazily in [initializeDescription] at the same time as [description].
      */
-    private lateinit var _tagData: Optional<TagData>
+    private var _tagData: TagData? = null
 
     override val tagData: TagData?
         get() {
-            if (!::_tagData.isInitialized) {
-                val data = description?.extractTagDataForTagType(context, tagType)
-                _tagData = Optional.ofNullable(data)
-            }
-
-            return _tagData.getOrNull()
+            // TagData is initialized at the same time as [description].
+            ensureDescriptionIsInitialized()
+            return _tagData
         }
+
+    /**
+     * Override to extract [TagData] from [suppliedDescription] and delegate to the super method to
+     * store the [suppliedDescription].
+     */
+    override fun initializeDescription(suppliedDescription: JavadocContent?) {
+        _tagData = suppliedDescription?.extractTagDataForTagType(context, tagType)
+
+        // Delegate to the super method to store the description.
+        super.initializeDescription(suppliedDescription)
+    }
 
     override fun <D : TagData> typeSafeTagData(tagType: TagType<D>): D? {
         if (this.tagType != tagType) return null
