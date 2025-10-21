@@ -299,8 +299,8 @@ class DocAnalyzer(
                         return
                     }
 
-                    // Append the documentation to the block tag, creating it in the process.
-                    item.appendDocumentation(text, "@deprecated")
+                    // Create a deprecated block tag using the text from the Deprecated annotation.
+                    item.documentation.addUniqueBlockTagSectionWithSimpleText("deprecated", text)
                 }
 
                 /** Returns `true` if this contains the word `null`. */
