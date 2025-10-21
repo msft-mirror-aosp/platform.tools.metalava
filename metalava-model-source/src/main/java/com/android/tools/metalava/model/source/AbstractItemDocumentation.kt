@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
@@ -247,8 +248,14 @@ abstract class AbstractItemDocumentation(
     override fun paramTagDescription(name: String): DocContent? =
         findParamTagSection(name)?.docContent
 
-    override fun paramTagDescriptionOwner(name: String): DocContentOwner? =
-        findParamTagSection(name)
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner {
+        return findParamTagSection(name)
+            ?: docComment.pendingBlockTagSection(
+                "param",
+                // Pass the parameter name through the description.
+                description = JavadocText(name),
+            )
+    }
 
     /** Find the block tag section for `@param` of [name]. */
     private fun findParamTagSection(name: String): BlockTagSection? =

@@ -144,12 +144,14 @@ interface ItemDocumentation {
     fun paramTagDescription(name: String): DocContent?
 
     /**
-     * Get owner of the description for the @param tag for [name]
+     * Get owner of the description for the `@param` tag for [name]
      *
-     * Returns `null` if this has no Javadoc comment, or no such parameter, or the description is
-     * empty, i.e. has no significant non-whitespace content, or is invalid, e.g. no parameter name.
+     * If no such `@param` tag exists then this will create a pending `@param` tag that will be
+     * added if any content is appended to it through the returned [DocContentOwner]. In that case
+     * no reference is held internally to the returned [DocContentOwner] so there is no risk of a
+     * memory leak.
      */
-    fun paramTagDescriptionOwner(name: String): DocContentOwner?
+    fun paramTagDescriptionOwner(name: String): DocContentOwner
 
     /**
      * Returns the [text], but with fully qualified links (except for the same package, and when

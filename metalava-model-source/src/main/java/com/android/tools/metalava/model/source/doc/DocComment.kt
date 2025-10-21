@@ -52,7 +52,10 @@ internal interface DocComment : DocContentOwner {
      * Appending content to the returned [DocContentOwner] will cause a [BlockTagSection] for
      * [tagTypeName] with the appended content to be added to this [DocComment].
      */
-    fun pendingBlockTagSection(tagTypeName: String): DocContentOwner
+    fun pendingBlockTagSection(
+        tagTypeName: String,
+        description: JavadocContent? = null
+    ): DocContentOwner
 
     /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
     fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
@@ -132,9 +135,12 @@ internal class DefaultDocComment(
         context.mutationListener.docCommentMutated()
     }
 
-    override fun pendingBlockTagSection(tagTypeName: String): DocContentOwner {
+    override fun pendingBlockTagSection(
+        tagTypeName: String,
+        description: JavadocContent?
+    ): DocContentOwner {
         val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
-        return PendingBlockTagSection(this, context, tagType)
+        return PendingBlockTagSection(this, context, tagType, description.toSupplier())
     }
 
     override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
@@ -260,6 +266,7 @@ internal class PendingBlockTagSection(
     private val docComment: DefaultDocComment,
     private val context: DocCommentContext,
     private val tagType: TagType<*>,
+    private val description: ContentSupplier,
 ) : DocContentOwner {
     /**
      * Backing field for [blockTagSection].
@@ -277,7 +284,7 @@ internal class PendingBlockTagSection(
         get() =
             _blockTagSection
                 ?: run {
-                    val new = DefaultBlockTagSection(context, tagType, ContentSupplier.NULL)
+                    val new = DefaultBlockTagSection(context, tagType, description)
                     _blockTagSection = new
                     docComment.addBlockTagSection(new)
                     new

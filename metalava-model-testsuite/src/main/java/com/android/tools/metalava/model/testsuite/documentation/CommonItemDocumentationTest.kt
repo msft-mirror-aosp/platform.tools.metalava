@@ -1397,7 +1397,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             assertEquals("/** @param p */", documentation.text, message = "before mutation")
 
-            documentation.paramTagDescriptionOwner("p")?.append("extra text")
+            documentation.paramTagDescriptionOwner("p").append("extra text")
 
             val expectedOutputAfterMutation =
                 """
@@ -1415,6 +1415,87 @@ class CommonItemDocumentationTest : BaseModelTest() {
             checkItemDocumentationPrint(
                 testMethod,
                 expectedOutput = expectedOutputAfterMutation,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to non-existent param tag description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                        public void method(int p) {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.methods().single()
+            val documentation = testMethod.documentation
+
+            assertEquals("", documentation.text, message = "text before mutation")
+
+            // Get the description owner for the non-existent deprecated block tag.
+            val descriptionOwner = documentation.paramTagDescriptionOwner("p")
+
+            // Make sure that just getting the description owner did not change the doc comment.
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = "",
+                message = "model before mutation"
+            )
+
+            // Append the content, this should create the `@deprecated` block tag.
+            descriptionOwner.append("extra text")
+
+            val expectedOutputAfterFirstMutation =
+                """
+                    /** @param p extra text */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterFirstMutation.trimIndent(),
+                documentation.text,
+                message = "text after first mutation"
+            )
+
+            // Make sure that the model reflects the changes after mutation.
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = expectedOutputAfterFirstMutation,
+                message = "model after first mutation"
+            )
+
+            // Use the descriptionOwner to append some more content to make sure the block tag is
+            // not added twice.
+            descriptionOwner.append("Some more content")
+
+            val expectedOutputAfterSecondMutation =
+                """
+                    /**
+                     * @param p extra text
+                     * <br>
+                     * Some more content
+                     */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterSecondMutation.trimIndent(),
+                documentation.text,
+                message = "text after second mutation"
+            )
+
+            // Make sure that the model reflects the changes after mutation.
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = expectedOutputAfterSecondMutation,
+                message = "model after second mutation"
             )
         }
     }
