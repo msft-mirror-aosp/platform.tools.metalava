@@ -74,6 +74,160 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Annotate package as suppress compatibility when it contains just an experimental file facade class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+                        @Retention(AnnotationRetention.BINARY)
+                        annotation class Experimental
+
+                        @Experimental
+                        fun myFunA() {}
+
+                        @Experimental
+                        fun myFunB() {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                package @SuppressCompatibility test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
+                  }
+                  @SuppressCompatibility public final class ExperimentalKt {
+                    method @SuppressCompatibility @test.pkg.Experimental public static void myFunA();
+                    method @SuppressCompatibility @test.pkg.Experimental public static void myFunB();
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Annotate package as suppress compatibility when all classes in the API surface are marked as experimental, even if non-public classes are not marked experimental`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+                        @Retention(AnnotationRetention.BINARY)
+                        annotation class Experimental
+
+                        @Experimental
+                        class MyClassA {}
+
+                        @Experimental
+                        private class MyClassB {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                package @SuppressCompatibility test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
+                  }
+                  @SuppressCompatibility @test.pkg.Experimental public final class MyClassA {
+                    ctor public MyClassA();
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Annotate package as suppress compatibility when all members are experimental`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+                        @Retention(AnnotationRetention.BINARY)
+                        annotation class Experimental
+
+                        @Experimental
+                        class MyClassA {}
+
+                        @Experimental
+                        class MyClassB {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                package @SuppressCompatibility test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
+                  }
+                  @SuppressCompatibility @test.pkg.Experimental public final class MyClassA {
+                    ctor public MyClassA();
+                  }
+                  @SuppressCompatibility @test.pkg.Experimental public final class MyClassB {
+                    ctor public MyClassB();
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Don't annotate package as suppress compatibility when not all members are experimental`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+                        @Retention(AnnotationRetention.BINARY)
+                        annotation class Experimental
+
+                        class MyClassA {}
+
+                        @Experimental
+                        class MyClassB {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn(level=kotlin.RequiresOptIn.Level.ERROR) @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface Experimental {
+                  }
+                  public final class MyClassA {
+                    ctor public MyClassA();
+                  }
+                  @SuppressCompatibility @test.pkg.Experimental public final class MyClassB {
+                    ctor public MyClassB();
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Check that Metalava marks class as experimental if all top-level functions are experimental`() {
         check(
             format = FileFormat.V4,
@@ -4903,7 +5057,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 // Signature format: 4.0
-                package test.pkg {
+                package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
                   }
@@ -4979,7 +5133,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 // Signature format: 4.0
-                package test.pkg {
+                package @SuppressCompatibility test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
                   }
