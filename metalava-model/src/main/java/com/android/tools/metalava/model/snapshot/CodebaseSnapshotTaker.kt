@@ -597,7 +597,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     containingCallable = containingCallable,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
-                    defaultValueFactory = parameterItem.defaultValue::snapshot,
+                    hasDefaultValue = parameterItem.hasDefaultValue(),
                 )
             }
         }

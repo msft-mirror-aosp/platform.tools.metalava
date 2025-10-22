@@ -791,6 +791,8 @@ private fun ActionContext.loadFromSources(
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
     val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
+    analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
+
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
     // this before merging annotations or performing checks on the API to ensure that these methods
     // can have annotations added and are checked properly.

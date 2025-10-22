@@ -57,13 +57,58 @@ abstract class FileLocation {
     }
 
     /**
-     * Return a [FileLocation] for the line in the [path] that is [lineOffset] from this line.
+     * Return a [FileLocation] for the line in the [path] that is [lineOffset] from this line and
+     * [charOffset] from the beginning of that line.
      *
-     * If this is [FileLocation.UNKNOWN] or [lineOffset] is `0` then `this` is returned, otherwise a
-     * new [FileLocation] is created and returned.
+     * This will only adjust valid values in [FileLocation]. e.g. if [line] is less than 1 then it
+     * is invalid so [lineOffset] and [charOffset] will be ignored (as character position without a
+     * line does not make sense). Similarly, if [characterPosition] is less than 1 then it is
+     * invalid so [charOffset] will be ignored.
+     *
+     * If [lineOffset] and [charOffset] are both either ignored or set to '0' then they will have no
+     * effect so `this` [FileLocation] is returned to avoid creating any unnecessary
+     * [FileLocation]s.
      */
-    fun forLineOffset(lineOffset: Int): FileLocation =
-        if (lineOffset == 0 || line < 1) this else FixedFileLocation(path, line + lineOffset)
+    fun adjustForLineAndCharOffset(lineOffset: Int, charOffset: Int): FileLocation {
+        return if (line < 1) {
+            // No line numbers so just reuse this as the offsets cannot be applied.
+            this
+        } else {
+            if (characterPosition < 1) {
+                // No character position so ignore charOffset as it cannot be applied.
+                if (lineOffset == 0) {
+                    // Line is unchanged so reuse this.
+                    this
+                } else {
+                    // Just correct the line.
+                    FixedFileLocation(path, line + lineOffset)
+                }
+            } else {
+                // Character position and line are both included in this location.
+                if (lineOffset == 0 && charOffset == 0) {
+                    // Line and char position will be unchanged by applying their offsets so just
+                    // reuse this.
+                    this
+                } else {
+                    val correctedLine = line + lineOffset
+                    val correctedChar =
+                        if (lineOffset == 0) {
+                            // The [characterPosition] records the indentation of the first
+                            // character on the first line and [charOffset] is the offset from that
+                            // first character so the [characterPosition] needs incrementing by
+                            // [charOffset].
+                            characterPosition + charOffset
+                        } else {
+                            // The [characterPosition] has no effect on other lines so [charOffset]
+                            // is the offset from the first character in the line so is incremented
+                            // by `1`.
+                            charOffset + 1
+                        }
+                    FixedFileLocation(path, correctedLine, correctedChar)
+                }
+            }
+        }
+    }
 
     override fun toString() =
         when {
@@ -73,11 +118,15 @@ abstract class FileLocation {
         }
 
     /** A fixed location, known at construction time. */
-    private class FixedFileLocation(
+    private data class FixedFileLocation(
         override val path: Path?,
         override val line: Int = 0,
         override val characterPosition: Int = 0,
-    ) : FileLocation()
+    ) : FileLocation() {
+        // Delegate to the super class as otherwise this would be replaced with a version generated
+        // for the data class.
+        override fun toString() = super.toString()
+    }
 
     companion object {
         /** The unknown location. */

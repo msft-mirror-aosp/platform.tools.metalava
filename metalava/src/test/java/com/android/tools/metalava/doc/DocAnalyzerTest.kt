@@ -102,8 +102,8 @@ class DocAnalyzerTest : DriverTest() {
                     @androidx.annotation.Nullable
                     public java.lang.Double method3(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     /**
-                     * @param factor2 Don't pass null here please.
                      * @param factor1 This value must never be {@code null}.
+                     * @param factor2 Don't pass null here please.
                      * @return This value may be {@code null}.
                      */
                     @androidx.annotation.Nullable
@@ -579,7 +579,7 @@ class DocAnalyzerTest : DriverTest() {
                      * <br>
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
-                     * @apiSince 15
+                     * @apiSince 24
                      */
                     public int getCurrentContentInsetRight() { throw new RuntimeException("Stub!"); }
                     }
@@ -1171,7 +1171,7 @@ class DocAnalyzerTest : DriverTest() {
                         """
                     /**
                      * Some existing doc here.
-                     * @deprecated  <!-- comment -->
+                     * @deprecated <!-- comment -->
                      */
                     package android.pkg2;
                     """
@@ -1542,10 +1542,7 @@ class DocAnalyzerTest : DriverTest() {
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
                      * My description
-                     *
                      * @deprecated Existing deprecation message.
-                     *
-                     * Blah blah blah 2
                      */
                     @Deprecated
                     public int hashCode() { throw new RuntimeException("Stub!"); }

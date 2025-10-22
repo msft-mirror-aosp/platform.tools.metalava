@@ -16,28 +16,31 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.reporter.Issues
-import java.io.PrintWriter
-import java.io.StringWriter
+import com.android.tools.metalava.model.source.javadoc.BarTagData
+import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.TestTagTypes
+import com.android.tools.metalava.model.source.javadoc.assertStructure
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class DocCommentParserTest {
+class DocCommentParserTest : BaseDocCommentTest() {
+    /** Context object used for the optional lambda taken by [checkDocComment]. */
+    private data class DocCommentContext(val docComment: DocComment)
+
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
     private fun checkDocComment(
         input: String,
         expectedString: String,
         expectedPrintOutput: String,
         expectedIssues: String = "",
+        checker: DocCommentContext.() -> Unit = {},
     ) {
-        val reporter = CollatingDocumentationIssueReporter()
-        var docComment = DocCommentParser.parseText(input.trimIndent(), reporter)
+        var docComment = createTestDocComment(input, expectedIssues)
         assertEquals(expectedString.trimIndent(), docComment.toString())
-        assertEquals(expectedIssues.trimIndent(), reporter.toString().trim())
 
-        val writer = StringWriter()
-        PrintWriter(writer).use { printWriter -> docComment.printAsJavadocComment(printWriter) }
-        assertEquals(expectedPrintOutput.trimIndent(), writer.toString().trim())
+        checkPrintOutput(docComment, expectedPrintOutput)
+
+        DocCommentContext(docComment).checker()
     }
 
     @Test
@@ -59,7 +62,7 @@ class DocCommentParserTest {
             expectedString = "description: <<Description>>",
             expectedPrintOutput =
                 """
-                    /**Description */
+                    /** Description */
                 """,
         )
     }
@@ -71,7 +74,7 @@ class DocCommentParserTest {
             expectedString = "description: <<Description {@code something}>>",
             expectedPrintOutput =
                 """
-                    /**Description {@code something} */
+                    /** Description {@code something} */
                 """,
         )
     }
@@ -110,7 +113,7 @@ class DocCommentParserTest {
             expectedPrintOutput =
                 """
                     /**
-                     *Some text
+                     * Some text
                      *
                      * @see something
                      * @see other thing
@@ -186,8 +189,8 @@ class DocCommentParserTest {
             expectedPrintOutput =
                 """
                     /**
-                     * @hide
                      * @deprecated
+                     * @hide
                      */
                 """,
         )
@@ -264,7 +267,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    2:49: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -293,7 +296,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 3: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    3:33: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -317,7 +320,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    2:43: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -349,7 +352,99 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 4: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    4:5: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test ordering of block tags`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @serial some reason
+                     * @hide
+                     * @throws
+                     * @version current
+                     * @author me
+                     * @throws Throwable
+                     * @unknown
+                     * @param
+                     * @serialData some other reason
+                     * @inheritDoc
+                     * @sdkExtSince 7
+                     * @param p2
+                     * @serialField field name and type and explanation
+                     * @since 1.4
+                     * @return something
+                     * @deprecated
+                     * @attr ref xml-thing
+                     * @mysterious
+                     * @author them
+                     * @param p1
+                     * @apiSince 12
+                     * @exception Exception
+                     * @see #field
+                     * @see #Class()
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @serial <<some reason>>
+                    @hide <<>>
+                    @throws <<>>
+                    @version <<current>>
+                    @author <<me>>
+                    @throws <<Throwable>>
+                    @unknown <<>>
+                    @param <<>>
+                    @serialData <<some other reason>>
+                    @inheritDoc <<>>
+                    @sdkExtSince <<7>>
+                    @param <<p2>>
+                    @serialField <<field name and type and explanation>>
+                    @since <<1.4>>
+                    @return <<something>>
+                    @deprecated <<>>
+                    @attr <<ref xml-thing>>
+                    @mysterious <<>>
+                    @author <<them>>
+                    @param <<p1>>
+                    @apiSince <<12>>
+                    @throws <<Exception>>
+                    @see <<#field>>
+                    @see <<#Class()>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * @inheritDoc
+                     * @author me
+                     * @author them
+                     * @version current
+                     * @param p1
+                     * @param p2
+                     * @param
+                     * @return something
+                     * @attr ref xml-thing
+                     * @throws Exception
+                     * @throws Throwable
+                     * @throws
+                     * @see #field
+                     * @see #Class()
+                     * @since 1.4
+                     * @serial some reason
+                     * @serialData some other reason
+                     * @serialField field name and type and explanation
+                     * @deprecated
+                     * @hide
+                     * @apiSince 12
+                     * @sdkExtSince 7
+                     * @mysterious
+                     * @unknown
+                     */
                 """,
         )
     }
@@ -483,18 +578,157 @@ class DocCommentParserTest {
         val length = str.length
         assertEquals(str.lineOffsetFor(length + 1), 2)
     }
-}
 
-/**
- * A [DocumentationIssueReporter] that collates any issues reported and returns them from
- * [toString].
- */
-class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
-    private val builder = StringBuilder()
-
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int) {
-        builder.append("line ${lineOffset + 1}: $message [${issue.name}]\n")
+    @Test
+    fun `Test block tag data`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @bar foo block after
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @bar <<foo block after>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @bar foo block after */
+                """,
+        ) {
+            val barBlockTagSection = docComment.blockTagSections.single()
+            assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
+        }
     }
 
-    override fun toString() = builder.toString()
+    @Test
+    fun `Test append DocContent to empty`() {
+        checkDocComment(
+            input =
+                """
+                    /***/
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
+        ) {
+            val text = JavadocText("appended")
+            docComment.append(text)
+            checkPrintOutput(docComment, "/** appended */")
+        }
+    }
+
+    @Test
+    fun `Test append DocContent to existing`() {
+        checkDocComment(
+            input =
+                """
+                    /** existing */
+                """,
+            expectedString =
+                """
+                    description: << existing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** existing */
+                """,
+        ) {
+            val text = JavadocText("appended")
+            docComment.append(text)
+            checkPrintOutput(
+                docComment,
+                """
+                    /**
+                     * existing
+                     * <br>
+                     * appended
+                     */
+                """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to empty`() {
+        checkDocComment(
+            input =
+                """
+                    /***/
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
+        ) {
+            docComment.append("some {@code text} to append")
+            checkPrintOutput(
+                docComment,
+                """
+                    /** some {@code text} to append */
+                """,
+            )
+            docComment.description.assertStructure(
+                """
+                    text: 'some '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' to append'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to existing`() {
+        checkDocComment(
+            input =
+                """
+                    /** existing */
+                """,
+            expectedString =
+                """
+                    description: << existing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** existing */
+                """,
+        ) {
+            docComment.append("some {@code text} to append")
+            checkPrintOutput(
+                docComment,
+                """
+                    /**
+                     * existing
+                     * <br>
+                     * some {@code text} to append
+                     */
+                """,
+            )
+            docComment.description.assertStructure(
+                """
+                    text: 'existing'
+                    text: '\n <br>\n '
+                    text: 'some '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' to append'
+                """
+            )
+        }
+    }
 }

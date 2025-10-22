@@ -16,10 +16,11 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
-import com.android.tools.metalava.model.source.doc.characterOffsetFor
-import com.android.tools.metalava.model.source.doc.lineOffsetFor
+import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
+import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
 import java.nio.CharBuffer
 import org.antlr.v4.runtime.BaseErrorListener
@@ -36,32 +37,39 @@ import org.antlr.v4.runtime.TokenStream
  *
  * A wrapper around [antlrParser] which actually does the parsing.
  */
-internal class JavadocParser private constructor(private val antlrParser: AntlrJavadocParser) {
+internal class JavadocParser
+private constructor(
+    private val antlrParser: AntlrJavadocParser,
+    private val context: DocCommentContext,
+    private val reporter: DocumentationIssueReporter,
+) {
 
     companion object {
         /**
          * Parse [text] from [startInclusive] up to, but not including [endExclusive] as a javadoc
          * comment (optionally including the /** ... */).
          *
+         * @param context context that applies to [text].
          * @param text the String to be parsed.
          * @param startInclusive the index of the first character to parse.
          * @param endExclusive the index after the last character to parse.
          */
         fun parse(
+            context: DocCommentContext,
             text: String,
             startInclusive: Int,
             endExclusive: Int,
             reporter: DocumentationIssueReporter,
-        ): JavadocContent {
+        ): JavadocContent? {
             var fileName = "<unknown>"
-            val errorListener = JavadocErrorListener(text, startInclusive, reporter)
+            val errorListener = JavadocErrorListener(reporter)
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
             val lexer = AntlrJavadocLexer(charStream)
             val tokenStream = CommonTokenStream(lexer)
             val antlrParser = AntlrJavadocParser(tokenStream)
             antlrParser.removeErrorListeners()
             antlrParser.addErrorListener(errorListener)
-            val parser = JavadocParser(antlrParser)
+            val parser = JavadocParser(antlrParser, context, reporter)
             return parser.parse()
         }
 
@@ -85,16 +93,14 @@ internal class JavadocParser private constructor(private val antlrParser: AntlrJ
         }
     }
 
-    private fun parse(): JavadocContent {
+    private fun parse(): JavadocContent? {
         val descriptionContext = antlrParser.description()
-        return JavadocContentBuilder.buildFrom(descriptionContext) ?: JavadocContent.EMPTY
+        return JavadocContentBuilder.buildFrom(descriptionContext, context, reporter)
     }
 }
 
 /** A [BaseErrorListener] that throws an exception for syntax errors. */
 internal class JavadocErrorListener(
-    private val text: String,
-    private val startInclusive: Int,
     private val reporter: DocumentationIssueReporter,
 ) : BaseErrorListener() {
     override fun syntaxError(
@@ -139,30 +145,31 @@ internal class JavadocErrorListener(
                 }
             } ?: msg
         if (fullMsg != null) {
-            val lineOffset = text.lineOffsetFor(startInclusive)
-            val actualLine = line + lineOffset
-            val actualChar =
-                charPositionInLine +
-                    // If the issue was found on the first line then add the offset of the first
-                    // character that was parsed to the character position.
-                    if (line == 1) text.characterOffsetFor(startInclusive) else 0
-            reporter.report(Issues.INVALID_JAVADOC, "$actualChar:$fullMsg", actualLine - 1)
+            // line is 1-based but lineOffset is 0-based so subtract 1 from the former to create the
+            // latter.
+            val lineOffset = line - 1
+            // charPositionInLine is 0-based and so is charOffset so the former can be used as the
+            // latter directly.
+            val charOffset = charPositionInLine
+            reporter.report(Issues.INVALID_JAVADOC, fullMsg, lineOffset, charOffset)
         }
     }
 }
 
 /** Builds [JavadocContent] from [AntlrJavadocParser.DescriptionContext]. */
-private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
+private class JavadocContentBuilder(
+    private val context: DocCommentContext,
+    private val reporter: DocumentationIssueReporter,
+) : AntlrJavadocParserBaseVisitor<Unit>() {
     /**
-     * Determines whether newlines should be trimmed from the start of the content.
+     * Determines whether whitespace should be trimmed from the start of the content.
      *
      * Initialized to `true`, set to `false` as soon as any non-newline content is added.
      *
-     * This is needed because an extra newline is often added at the beginning of a multi-line
-     * comment to prettify the formatting. That newline needs to be removed to ensure consistent
-     * behavior.
+     * This is needed because extra whitespace is often added at the beginning of a block of text to
+     * prettify the formatting. That whitespace needs to be removed to ensure consistent behavior.
      */
-    private var trimLeadingNewlines = true
+    private var trimLeadingWhitespace = true
 
     /**
      * A [MutableList] of consecutive [JavadocContent] instances that have been created from the
@@ -204,7 +211,7 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
 
         // Some non-newline content has been added so any newlines left are significant and should
         // be kept.
-        trimLeadingNewlines = false
+        trimLeadingWhitespace = false
     }
 
     /** [StringBuilder] into which consecutive blocks of text from the Javadoc are accumulated. */
@@ -214,11 +221,10 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
     private fun appendText(text: String) {
         // If this could be the start of the whole description block then check to see if there are
         // any leading newlines that can be skipped.
-        if (trimLeadingNewlines) {
+        if (trimLeadingWhitespace) {
             // Find the first non-newline character in the text to be appended.
             val length = text.length
-            var start = 0
-            while (start < length && text[start] == '\n') start += 1
+            val start = text.skipForwardsOverLeadingWhitespace(0)
 
             // If the text only consists of a newline character then do nothing.
             if (start == length) return
@@ -228,7 +234,7 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
 
             // As a non-newline character was seen any newline characters found from now onwards
             // cannot be a leading newline.
-            trimLeadingNewlines = false
+            trimLeadingWhitespace = false
         } else {
             textBuffer.append(text)
         }
@@ -347,24 +353,18 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
         // whitespace if required.
         flushText(trimTrailingWhitespace)
 
-        val contentList = _contentList
-        return if (contentList == null) {
-            null
-        } else {
-            // Discard the content list to force a new one to be created next time content is added.
-            // This will ensure correct behavior even if _contentList is wrapped in a
-            // [JavadocContentList].
-            _contentList = null
+        // Get the optional content from _contentList.
+        val content =
+            _contentList?.let { contentList ->
+                // Discard the content list to force a new one to be created next time content is
+                // added. This will ensure correct behavior even if _contentList is wrapped in a
+                // [JavadocContentList].
+                _contentList = null
 
-            val size = contentList.size
-            when (size) {
-                0 -> null
-                1 -> contentList[0]
-                else -> {
-                    JavadocContentList(contentList.toList())
-                }
+                contentList.toOptionalJavadocContent()
             }
-        }
+
+        return content
     }
 
     override fun visitDescriptionLineText(ctx: AntlrJavadocParser.DescriptionLineTextContext) {
@@ -379,7 +379,24 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
-        val tagType = ctx.inlineTagName().NAME().text
+        val tagTypeName = ctx.inlineTagName().NAME().text
+        val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
+
+        // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
+        // report the issue.
+        if (ctx.BRACE_CLOSE() == null) {
+            var startToken = ctx.INLINE_TAG_START().symbol
+            // The token's `line` property is 1-based but lineOffset is 0-based so convert the
+            // former to the latter. No such conversion is needed for the token's charPositionInLine
+            // as that is already 0-based like charOffset.
+            var lineOffset = startToken.line - 1
+            reporter.report(
+                Issues.UNCLOSED_INLINE_TAG,
+                "unclosed inline '@${tagTypeName}' tag",
+                lineOffset,
+                startToken.charPositionInLine,
+            )
+        }
 
         // Get the nested content, if any.
         val inlineTagContentContext = ctx.inlineTagContent()
@@ -392,8 +409,11 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
                 }
             }
 
+        val result = tagContent?.extractTagDataForTagType(context, tagType)
+        val tagData = result?.tagData
+
         // Add an inline tag to the content.
-        appendContent(JavadocInlineTag(tagType, tagContent))
+        appendContent(JavadocInlineTag(tagType, tagData, tagContent))
     }
 
     override fun visitBraceExpression(ctx: AntlrJavadocParser.BraceExpressionContext) {
@@ -411,10 +431,14 @@ private class JavadocContentBuilder : AntlrJavadocParserBaseVisitor<Unit>() {
 
     companion object {
         /** Build a optional [JavadocContent] from [descriptionContext]. */
-        fun buildFrom(descriptionContext: AntlrJavadocParser.DescriptionContext): JavadocContent? {
+        fun buildFrom(
+            descriptionContext: AntlrJavadocParser.DescriptionContext,
+            context: DocCommentContext,
+            reporter: DocumentationIssueReporter,
+        ): JavadocContent? {
             // Create a builder that will create [JavadocContent] by traversing the
             // [descriptionContext] structure.
-            val builder = JavadocContentBuilder()
+            val builder = JavadocContentBuilder(context, reporter)
 
             // Traverse the [descriptionContent] structure.
             descriptionContext.accept(builder)

@@ -16,12 +16,20 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.requiredSpace
 import java.io.PrintWriter
+import java.io.StringWriter
 
-/** A Javadoc or KDoc comment associated with an API element. */
-interface DocComment {
+/**
+ * A Javadoc or KDoc comment associated with an API element.
+ *
+ * Implementations of these are mutable.
+ */
+internal interface DocComment : DocContentOwner {
     /** The main description, i.e. the part before any block tags. */
-    val description: DocDescription
+    val description: JavadocContent?
 
     /**
      * The block tag sections, i.e. the parts that start `@<block-tag-type> ...`.
@@ -30,19 +38,35 @@ interface DocComment {
      */
     val blockTagSections: List<BlockTagSection>
 
-    /** Check to see whether there are any block tags of type [blockTagType]. */
-    fun hasBlockTagOfType(blockTagType: String): Boolean
+    /** Check to see whether there are any block tags of type [tagTypeName]. */
+    fun hasBlockTagOfType(tagTypeName: String): Boolean
+
+    /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
+    fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)
+
+    /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
+    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
 
     /** Print this as a Javadoc comment to [writer]. */
     fun printAsJavadocComment(writer: PrintWriter)
 
+    /** Get the output of [printAsJavadocComment] as a [String]. */
+    fun asJavadocCommentString(): String {
+        val writer = StringWriter()
+        PrintWriter(writer).use { printWriter -> printAsJavadocComment(printWriter) }
+        return writer.toString()
+    }
+
     companion object {
-        /** Create a [DocComment] from [text], reporting any issues to [reporter]. */
+        /**
+         * Create a [DocComment] from [text], with [context], reporting any issues to [reporter].
+         */
         internal fun createDocComment(
+            context: DocCommentContext,
             text: String,
-            reporter: DocumentationIssueReporter
+            reporter: DocumentationIssueReporter,
         ): DocComment {
-            return DocCommentParser.parseText(text, reporter)
+            return DocCommentParser.parseText(context, text, reporter)
         }
     }
 }
@@ -58,12 +82,56 @@ enum class RequiredSpace {
     }
 }
 
+/**
+ * Interface that must be implemented by classes that need to respond to changes in a [DocComment].
+ */
+interface DocCommentMutationListener {
+    /** Invoked when [DocComment] is mutated. */
+    fun docCommentMutated()
+}
+
 internal class DefaultDocComment(
-    override val description: DocDescription,
-    override val blockTagSections: List<BlockTagSection>
-) : DocComment {
-    override fun hasBlockTagOfType(blockTagType: String) =
-        blockTagSections.any { it.tagType == blockTagType }
+    context: DocCommentContext,
+    descriptionSupplier: ContentSupplier,
+    blockTagSections: List<BlockTagSection>,
+) : DescriptionOwner(context, descriptionSupplier), DocComment {
+    /** Allow [blockTagSections] to be modified but only within this class. */
+    override var blockTagSections = blockTagSections
+        private set
+
+    override fun hasBlockTagOfType(tagTypeName: String) =
+        blockTagSections.any { it.tagType.name == tagTypeName }
+
+    override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?) {
+        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        val blockTagSection =
+            DefaultBlockTagSection(
+                context,
+                tagType,
+                description.toSupplier(),
+            )
+
+        addBlockTagSection(blockTagSection)
+    }
+
+    /** Add [blockTagSection] to [blockTagSections] invoking the [DocCommentMutationListener]. */
+    internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
+        blockTagSections = blockTagSections + blockTagSection
+
+        // Notify any listener.
+        context.mutationListener.docCommentMutated()
+    }
+
+    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
+        val filtered = blockTagSections.filter { !predicate(it) }
+        if (filtered.size != blockTagSections.size) {
+            // Something was removed.
+            blockTagSections = filtered
+
+            // Notify any listener.
+            context.mutationListener.docCommentMutated()
+        }
+    }
 
     /** Get the [RequiredSpace] for the block tag sections. */
     private fun requiredSpaceForBlockTagSections(): RequiredSpace =
@@ -89,6 +157,9 @@ internal class DefaultDocComment(
         val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
         val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
 
+        // Create a printer for [JavadocContent].
+        val contentPrinter = JavadocContentPrinter(writer)
+
         // Check to see whether this is multi-line comment. If is then output it on multiple lines,
         // e.g.
         // ```
@@ -110,7 +181,9 @@ internal class DefaultDocComment(
             if (multiLine) {
                 writer.print(" *")
             }
-            description.printAsJavadocComment(writer)
+            // Add leading space as all leading whitespace was removed from description.
+            writer.print(" ")
+            contentPrinter.print(description)
             if (multiLine) {
                 writer.println()
             }
@@ -126,15 +199,15 @@ internal class DefaultDocComment(
             ) {
                 writer.println(" *")
             }
-            for (section in blockTagSections) {
+            for (section in blockTagSections.sortedWith(BlockTagSection.comparator)) {
                 if (multiLine) {
                     writer.print(" *")
                 }
                 writer.print(" @${section.tagType}")
-                val sectionDescription = section.description
-                if (sectionDescription.isNotEmpty()) {
+                section.tagData?.printAfterTagType(writer)
+                section.description?.let { content ->
                     writer.print(" ")
-                    sectionDescription.printAsJavadocComment(writer)
+                    contentPrinter.print(content)
                 }
                 if (multiLine) {
                     writer.println()
@@ -148,12 +221,16 @@ internal class DefaultDocComment(
 
     override fun toString() = buildString {
         append("description: ")
-        append(description)
+        // Use descriptionSupplier's toString not description's as accessing the latter changes the
+        // state of this which is not recommended in toString() methods that may be used for
+        // debugging as that can change the behavior. It also requires lots of work and could result
+        // in performance degradation while debugging which can also affect behavior.
+        append(descriptionSupplier)
         for (section in blockTagSections) {
-            append("\n@")
-            append(section.tagType)
-            append(" ")
-            append(section.description)
+            append("\n")
+            // Delegate to the BlockTagSection implementation's toString() for similar reasons to
+            // above.
+            append(section)
         }
     }
 }
