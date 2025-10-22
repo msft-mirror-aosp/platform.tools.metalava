@@ -1409,7 +1409,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val otherClass = codebase.assertClass("test.other.Other")
-            val contentToAppend = otherClass.documentation.blockTagDescription("memberDoc")!!
+            val contentToAppend =
+                otherClass.documentation.blockTagDescription("memberDoc", forAppending = true)!!
 
             val testClass = codebase.assertClass("test.pkg.Test")
             val classDocumentation = testClass.documentation
@@ -1419,14 +1420,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
             classDocumentation.mainDescriptionOwner.append(contentToAppend)
 
             // TODO(b/450228132): The first '@link' should have been resolved to
-            //  `test.other.Other#method()`, the second to `test.another.Another` and the leading
-            //   whitespace should have been removed.
+            //  `test.other.Other#method()`.
             val expectedOutputAfterMutation =
                 """
                     /**
                      * Text to {@code append} see {@link #method()}. This is spread
-                     *        across multiple lines with leading whitespace and a link to
-                     *        {@link Another} class.
+                     * across multiple lines with leading whitespace and a link to
+                     * {@link test.another.Another Another} class.
                      */
 
                 """

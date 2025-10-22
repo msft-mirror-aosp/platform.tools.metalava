@@ -197,6 +197,9 @@ abstract class AbstractItemDocumentation(
         // Purposely does not cache this as superMethods() is already cached.
         item is MethodItem && item.superMethods().isNotEmpty()
 
+    /** Implements [DocCommentContext.fullyQualifyComment]. */
+    override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
+
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")
 
@@ -237,8 +240,10 @@ abstract class AbstractItemDocumentation(
     override val mainDescriptionOwner: DocContentOwner
         get() = docComment
 
-    override fun blockTagDescription(tagTypeName: String): DocContent? =
-        findBlockTagSection(tagTypeName)?.docContent
+    override fun blockTagDescription(tagTypeName: String, forAppending: Boolean): DocContent? =
+        findBlockTagSection(tagTypeName)?.let { blockTagSection ->
+            if (forAppending) blockTagSection.docContentForAppending else blockTagSection.docContent
+        }
 
     override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
         return findBlockTagSection(tagTypeName)

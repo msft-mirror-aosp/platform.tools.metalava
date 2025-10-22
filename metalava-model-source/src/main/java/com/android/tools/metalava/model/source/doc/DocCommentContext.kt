@@ -57,4 +57,7 @@ internal interface DocCommentContext {
      *   [MethodItem.superMethods].
      */
     fun isOverridingMethod(): Boolean
+
+    /** Fully qualify the Javadoc [comment]. */
+    fun fullyQualifyComment(comment: String): String
 }
