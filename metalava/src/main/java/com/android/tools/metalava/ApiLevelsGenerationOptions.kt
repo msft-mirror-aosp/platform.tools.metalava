@@ -514,34 +514,7 @@ class ApiLevelsGenerationOptions(
             val versionedHistoricalApis =
                 constructVersionedApisForHistoricalFiles(primaryApiFiles, versionedApiFactory)
 
-            val currentSdkVersion = currentApiVersion
-            if (currentSdkVersion.major <= 26) {
-                cliError("Suspicious $ARG_CURRENT_VERSION $currentSdkVersion, expected at least 27")
-            }
-
-            // b/447588979 In future the version to use will be passed on the command line so
-            // Metalava does not need to deduce it. A placeholder is used temporarily.
-            val nextSdkVersion = ApiVersion.fromString("10000")
-            val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
-
-            // Compute the version to use for the current codebase, or null if the current codebase
-            // should not be added to the API history. If a non-null version is selected it will
-            // always be after the last historical version.
-            val codebaseSdkVersion =
-                when {
-                    // The current codebase is a developer preview so use the next, in the
-                    // process of being finalized version.
-                    isDeveloperPreviewBuild -> nextSdkVersion
-
-                    // If no finalized versions were provided or the last finalized version is less
-                    // than the current version then use the current version as the version of the
-                    // codebase.
-                    lastFinalizedVersion == null || lastFinalizedVersion < currentSdkVersion ->
-                        currentSdkVersion
-
-                    // Else do not include the current codebase.
-                    else -> null
-                }
+            val codebaseSdkVersion = computeCodebaseSdkVersion(versionedHistoricalApis)
 
             // Get the optional SDK extension arguments.
             val sdkExtensionsArguments =
@@ -552,9 +525,11 @@ class ApiLevelsGenerationOptions(
                     //
                     // If the latter then that is either:
                     // 1. The version used for the current codebase.
-                    // 2. Or the next version, i.e. --current-version + 1.
+                    // 2. Or the next version, i.e. 10,00 placeholder value
                     val notFinalizedSdkVersion =
-                        apiVersionForSdkExtension ?: codebaseSdkVersion ?: nextSdkVersion
+                        apiVersionForSdkExtension
+                            ?: codebaseSdkVersion
+                            ?: ApiVersion.fromString("10000")
                     ApiGenerator.SdkExtensionsArguments(
                         sdkInfoFile!!,
                         notFinalizedSdkVersion,
@@ -801,5 +776,38 @@ class ApiLevelsGenerationOptions(
         }
 
         return sourceVersion to matchedFiles
+    }
+
+    /**
+     * Compute the version to use for the current codebase, or null if the current codebase should
+     * not be added to the API history. If a non-null version is selected it will always be after
+     * the last historical version.
+     */
+    private fun computeCodebaseSdkVersion(
+        versionedHistoricalApis: List<VersionedApi>
+    ): ApiVersion? {
+        if (currentApiVersion.major <= 26) {
+            cliError("Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27")
+        }
+
+        // b/447588979 In future the version to use will be passed on the command line so
+        // Metalava does not need to deduce it. A placeholder is used temporarily.
+        val nextSdkVersion = ApiVersion.fromString("10000")
+        val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
+
+        return when {
+            // The current codebase is a developer preview so use the next, in the
+            // process of being finalized version.
+            isDeveloperPreviewBuild -> nextSdkVersion
+
+            // If no finalized versions were provided or the last finalized version is less
+            // than the current version then use the current version as the version of the
+            // codebase.
+            lastFinalizedVersion == null || lastFinalizedVersion < currentApiVersion ->
+                currentApiVersion
+
+            // Else do not include the current codebase.
+            else -> null
+        }
     }
 }
