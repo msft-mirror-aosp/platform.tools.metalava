@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.reporter.FileLocation
+import java.io.PrintWriter
 
 /** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
 typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
@@ -93,6 +95,14 @@ interface ItemDocumentation {
     fun hasBlockTagOfType(blockTagType: String): Boolean
 
     /**
+     * Print the documentation to [writer].
+     *
+     * The printed documentation will be suitable for use in a stub source file, i.e. references
+     * will, where possible, be fully qualified.
+     */
+    fun print(writer: PrintWriter)
+
+    /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
      * provided value (e.g. parameter name).
      */
@@ -100,6 +110,24 @@ interface ItemDocumentation {
 
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
+
+    /** Get the owner of the main description for the comment. */
+    val mainDescriptionOwner: DocContentOwner?
+
+    /**
+     * Get the owner of the description for the first block tag of [tagTypeName].
+     *
+     * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
+     */
+    fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner?
+
+    /**
+     * Get owner of the description for the @param tag for [name]
+     *
+     * Returns `null` if this has no Javadoc comment, or no such parameter, or the description is
+     * empty, i.e. has no significant non-whitespace content, or is invalid, e.g. no parameter name.
+     */
+    fun paramTagDescriptionOwner(name: String): DocContentOwner?
 
     /**
      * Returns the [text], but with fully qualified links (except for the same package, and when
@@ -115,6 +143,15 @@ interface ItemDocumentation {
     /** Remove the `@deprecated` section, if any. */
     fun removeDeprecatedSection()
 
+    /**
+     * Adds a unique block tag section of [tagTypeName] with some simple [text], i.e. no inline
+     * tags.
+     *
+     * @param tagTypeName the type of the tag, e.g. `apiSince` for `@apiSince 27`.
+     * @param text the text description.
+     */
+    fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String)
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -122,7 +159,7 @@ interface ItemDocumentation {
          * Used where there is no documentation possible, e.g. text model, type parameters,
          * parameters.
          */
-        val NONE: ItemDocumentation = EmptyItemDocumentation()
+        val NONE: ItemDocumentation = NoItemDocumentation()
 
         /**
          * A special [ItemDocumentationFactory] that returns [NONE] which contains no documentation.
@@ -133,8 +170,8 @@ interface ItemDocumentation {
         val NONE_FACTORY: ItemDocumentationFactory = { NONE }
     }
 
-    /** An empty [ItemDocumentation] that can never contain any text. */
-    private class EmptyItemDocumentation : ItemDocumentation {
+    /** An [ItemDocumentation] that can never contain any text. */
+    private class NoItemDocumentation : ItemDocumentation {
         override val text
             get() = ""
 
@@ -153,17 +190,31 @@ interface ItemDocumentation {
         // This is ok to use in a snapshot as it is immutable and model independent.
         override fun snapshot(item: SelectableItem) = this
 
-        // Empty documentation never has any tag sections.
+        // No documentation never has any tag sections.
         override fun hasBlockTagOfType(blockTagType: String) = false
 
-        override fun findTagDocumentation(tag: String, value: String?): String? = null
+        private fun inaccessible(): Nothing =
+            error("cannot access documentation on an item that does not support documentation")
 
-        override fun appendDocumentation(comment: String, tagSection: String?) {
-            error("cannot modify documentation on an item that does not support documentation")
-        }
+        // No documentation has nothing to print.
+        override fun print(writer: PrintWriter) {}
 
-        override fun findMainDocumentation() = ""
+        override val mainDescriptionOwner
+            get() = inaccessible()
 
-        override fun removeDeprecatedSection() {}
+        override fun blockTagDescriptionOwner(tagTypeName: String) = inaccessible()
+
+        override fun paramTagDescriptionOwner(name: String) = inaccessible()
+
+        override fun findTagDocumentation(tag: String, value: String?) = null
+
+        override fun appendDocumentation(comment: String, tagSection: String?) = inaccessible()
+
+        override fun findMainDocumentation() = inaccessible()
+
+        override fun removeDeprecatedSection() = inaccessible()
+
+        override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) =
+            inaccessible()
     }
 }

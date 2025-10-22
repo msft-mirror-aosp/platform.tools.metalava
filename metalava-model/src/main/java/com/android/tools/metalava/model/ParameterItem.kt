@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.ParameterDefaultValue
-
 @MetalavaApi
 interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
@@ -58,9 +56,6 @@ interface ParameterItem : ClassContentItem, Item {
      * default value.
      */
     fun hasDefaultValue(): Boolean
-
-    /** The default value of this [ParameterItem]. */
-    val defaultValue: ParameterDefaultValue
 
     /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean = modifiers.isVarArg()

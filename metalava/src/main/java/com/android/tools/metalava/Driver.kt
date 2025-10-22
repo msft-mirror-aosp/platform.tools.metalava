@@ -43,6 +43,7 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
+import com.android.tools.metalava.lint.FlaggedApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -228,6 +229,9 @@ internal fun processFlags(
         options,
         codebase,
         progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        reporter
     )
 
     options.proguard?.let { proguard ->
@@ -290,27 +294,70 @@ internal fun processFlags(
     )
 }
 
+private fun runApiChecksFromOptions(
+    options: Options,
+    progressTracker: ProgressTracker,
+    signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
+    codebase: Codebase,
+    reporter: Reporter,
+    apiCheckMethod: (Codebase, Codebase?, Reporter, Options) -> Unit
+) {
+    options.apiLintOptions.let { apiLintOptions ->
+        if (!apiLintOptions.apiLintEnabled) return@let
+
+        progressTracker.progress("API Lint: ")
+        val localTimer = Stopwatch.createStarted()
+
+        // See if we should provide a previous codebase to provide a delta from?
+        val previouslyReleasedCodebase by lazy {
+            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+            }
+        }
+        apiCheckMethod(codebase, previouslyReleasedCodebase, reporter, options)
+        progressTracker.progress(
+            "$PROGRAM_NAME ran api api-lint in ${localTimer.elapsed(SECONDS)} seconds"
+        )
+    }
+}
+
 /** write api signature to files specified by option flags (e.g. current.txt) */
 private fun createApiSignatureFilesFromOptions(
     options: Options,
     codebase: Codebase,
     progressTracker: ProgressTracker,
+    signatureFileCache: SignatureFileCache,
+    classResolverProvider: ClassResolverProvider,
+    reporter: Reporter,
 ) {
     val fileFormat = options.signatureFileFormat
+    val codebaseFragment =
+        createCodeFragmentForSignatureFile(codebase) { delegate ->
+            createFilteringVisitorForSignatures(
+                delegate = delegate,
+                fileFormat = fileFormat,
+                apiType = ApiType.PUBLIC_API,
+                preFiltered = codebase.preFiltered,
+                showUnannotated = options.showUnannotated,
+                apiPredicateConfig = options.apiPredicateConfig,
+            )
+        }
+
+    runApiChecksFromOptions(
+        options,
+        progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        codebase,
+        reporter
+    ) { _, previouslyReleasedCodebase, reporter, options ->
+        val flaggedApiLintVisitor =
+            FlaggedApiLint(previouslyReleasedCodebase, reporter, options.apiPredicateConfig)
+        codebaseFragment.accept(flaggedApiLintVisitor)
+    }
 
     options.apiSignatureFile?.let { apiSignatureFile ->
-        val codebaseFragment =
-            createCodeFragmentForSignatureFile(codebase) { delegate ->
-                createFilteringVisitorForSignatures(
-                    delegate = delegate,
-                    fileFormat = fileFormat,
-                    apiType = ApiType.PUBLIC_API,
-                    preFiltered = codebase.preFiltered,
-                    showUnannotated = options.showUnannotated,
-                    apiPredicateConfig = options.apiPredicateConfig,
-                )
-            }
-
         createOutputFileFromCodebaseFragment(
             progressTracker,
             codebaseFragment,
@@ -325,7 +372,7 @@ private fun createApiSignatureFilesFromOptions(
     }
 
     options.removedApiSignatureFile?.let { apiSignatureFile ->
-        val codebaseFragment =
+        val removedApiCodebaseFragment =
             createCodeFragmentForSignatureFile(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -339,7 +386,7 @@ private fun createApiSignatureFilesFromOptions(
 
         createOutputFileFromCodebaseFragment(
             progressTracker,
-            codebaseFragment,
+            removedApiCodebaseFragment,
             apiSignatureFile,
             "removed API",
             options.deleteEmptyRemovedSignatures
@@ -744,6 +791,8 @@ private fun ActionContext.loadFromSources(
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
     val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
+    analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
+
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
     // this before merging annotations or performing checks on the API to ensure that these methods
     // can have annotations added and are checked properly.
@@ -765,18 +814,14 @@ private fun ActionContext.loadFromSources(
     // General API checks for Android APIs
     AndroidApiChecks(reporterApiLint).check(codebase)
 
-    options.apiLintOptions.let { apiLintOptions ->
-        if (!apiLintOptions.apiLintEnabled) return@let
-
-        progressTracker.progress("API Lint: ")
-        val localTimer = Stopwatch.createStarted()
-
-        // See if we should provide a previous codebase to provide a delta from?
-        val previouslyReleasedCodebase =
-            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-            }
-
+    runApiChecksFromOptions(
+        options,
+        progressTracker,
+        signatureFileCache,
+        classResolverProvider,
+        codebase,
+        reporter
+    ) { codebase, previouslyReleasedCodebase, reporter, options ->
         ApiLint.check(
             codebase,
             previouslyReleasedCodebase,
@@ -784,9 +829,6 @@ private fun ActionContext.loadFromSources(
             options.manifest,
             options.apiPredicateConfig,
             options.apiLintOptions.allowedAcronyms,
-        )
-        progressTracker.progress(
-            "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
         )
     }
 
