@@ -39,11 +39,15 @@ internal interface ContentSupplier {
 }
 
 /** A simple [ContentSupplier] that encapsulates [content]. */
-internal class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
+private class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
     override fun toString(): String {
         return "<<${content?: ""}>>"
     }
 }
+
+/** Wrap [this] optional [JavadocContent] in a [ContentSupplier]. */
+internal fun JavadocContent?.toSupplier(): ContentSupplier =
+    this?.let { DefaultContentSupplier(it) } ?: ContentSupplier.NULL
 
 /**
  * A lazy [ContentSupplier] that creates [content] lazily by parsing a subsequence of [text]

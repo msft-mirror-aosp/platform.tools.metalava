@@ -108,7 +108,7 @@ internal class DefaultDocComment(
             DefaultBlockTagSection(
                 context,
                 tagType,
-                DefaultContentSupplier(description),
+                description.toSupplier(),
             )
 
         addBlockTagSection(blockTagSection)
