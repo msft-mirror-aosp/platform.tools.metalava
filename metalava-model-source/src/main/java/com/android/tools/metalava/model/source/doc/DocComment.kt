@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.requiredSpace
 import java.io.PrintWriter
@@ -26,7 +27,7 @@ import java.io.StringWriter
  *
  * Implementations of these are mutable.
  */
-internal interface DocComment {
+internal interface DocComment : DocContentOwner {
     /** The main description, i.e. the part before any block tags. */
     val description: JavadocContent?
 
@@ -90,10 +91,13 @@ interface DocCommentMutationListener {
 }
 
 internal class DefaultDocComment(
+    context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
-    override var blockTagSections: List<BlockTagSection>,
-    private val mutationListener: DocCommentMutationListener,
-) : DescriptionOwner(descriptionSupplier), DocComment {
+    blockTagSections: List<BlockTagSection>,
+) : DescriptionOwner(context, descriptionSupplier), DocComment {
+    /** Allow [blockTagSections] to be modified but only within this class. */
+    override var blockTagSections = blockTagSections
+        private set
 
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType.name == tagTypeName }
@@ -102,13 +106,20 @@ internal class DefaultDocComment(
         val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
         val blockTagSection =
             DefaultBlockTagSection(
+                context,
                 tagType,
-                DefaultContentSupplier(description),
+                description.toSupplier(),
             )
+
+        addBlockTagSection(blockTagSection)
+    }
+
+    /** Add [blockTagSection] to [blockTagSections] invoking the [DocCommentMutationListener]. */
+    internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
         blockTagSections = blockTagSections + blockTagSection
 
         // Notify any listener.
-        mutationListener.docCommentMutated()
+        context.mutationListener.docCommentMutated()
     }
 
     override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
@@ -118,7 +129,7 @@ internal class DefaultDocComment(
             blockTagSections = filtered
 
             // Notify any listener.
-            mutationListener.docCommentMutated()
+            context.mutationListener.docCommentMutated()
         }
     }
 
@@ -193,6 +204,7 @@ internal class DefaultDocComment(
                     writer.print(" *")
                 }
                 writer.print(" @${section.tagType}")
+                section.tagData?.printAfterTagType(writer)
                 section.description?.let { content ->
                     writer.print(" ")
                     contentPrinter.print(content)

@@ -16,12 +16,27 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import java.io.PrintWriter
+
 /**
  * Base type of all tag specific data.
  *
  * Provides support for adding tag specific behavior that can access the tag data.
  */
-internal interface TagData
+internal interface TagData : Comparable<TagData> {
+    override fun compareTo(other: TagData) = 0
+
+    /**
+     * Called after the block or inline tag type has been written to [writer] to print any tag
+     * specific data.
+     *
+     * If it prints anything it must first print a space to separate it from the tag type.
+     *
+     * This must be implemented to print any content that was removed by setting
+     * [ExtractDataResult.consumedContent] to a non-`0` value in [TagType.extractData].
+     */
+    fun printAfterTagType(writer: PrintWriter) {}
+}
 
 /** Provides tag type specific functionality for block and inline tags. */
 internal abstract class TagType<D : TagData>(
@@ -40,12 +55,76 @@ internal abstract class TagType<D : TagData>(
      */
     val ordinal: Int = BlockTagOrder.ordinalForTagType(name)
 
+    /**
+     * Extract tag type specific data [D] from [text] using [context] where necessary.
+     *
+     * If this tag type does not have any type specific data then it returns `null`.
+     *
+     * If [text] does not match the expected structure for this tag type, e.g. an `@param` tag
+     * without a parameter name then it also returns `null`.
+     *
+     * Otherwise, return an instance of [ExtractDataResult] such that:
+     * * [ExtractDataResult.tagData] is set to the instance of [D] that this created.
+     * * [ExtractDataResult.consumedContent] is set to the character position with [text] where the
+     *   remainder of the content starts. If this is set to something greater than 0 then type [D]
+     *   must implement [TagData.printAfterTagType] to print the data that was removed from the
+     *   content.
+     */
+    abstract fun extractData(context: DocCommentContext, text: CharSequence): ExtractDataResult<D>?
+
     /** This must be the [name] of the tag type. */
     override fun toString() = name
+
+    /**
+     * Starting with the character at position [startInclusive] and searching forwards, return the
+     * position of the first whitespace character.
+     */
+    private fun CharSequence.skipForwardsOverNonWhitespace(startInclusive: Int): Int {
+        val length = this.length
+        var index = startInclusive
+        while (index < length && !this[index].isWhitespace()) {
+            index += 1
+        }
+        return index
+    }
+
+    /**
+     * Find the leading identifier, if any, in [this], returning `null` if it could not be found.
+     *
+     * [this] must have no leading whitespace. If it does then this will fail to find an identifier.
+     *
+     * For the purposes of this method an identifier is simply a series of non-whitespace
+     * characters.
+     */
+    internal fun CharSequence.findLeadingIdentifier(): String? {
+        // Find the end of the identifier by finding the first non-whitespace character.
+        val endIndex = skipForwardsOverNonWhitespace(0)
+
+        // No identifier found.
+        if (endIndex == 0) return null
+
+        return substring(0, endIndex)
+    }
 }
 
+/** Result of a call to [TagType.extractData]. */
+internal data class ExtractDataResult<D : TagData>(
+    /** The [TagData] extracted. */
+    val tagData: D,
+
+    /**
+     * The number of characters of the content that was consumed when extracting the [tagData].
+     *
+     * If this is non-`0` then this many characters will be removed from the content from which this
+     * data was extracted.
+     */
+    val consumedContent: Int = 0,
+)
+
 /** The default [TagType] used for all tags that do not have special behavior. */
-internal class DefaultTagType(name: String) : TagType<TagData>(name)
+internal class DefaultTagType(name: String) : TagType<TagData>(name) {
+    override fun extractData(context: DocCommentContext, text: CharSequence) = null
+}
 
 /**
  * Collection of registered [TagType]s.
@@ -87,9 +166,14 @@ internal open class BaseTagTypes {
     }
 }
 
-/** Collection of all the block [TagType]s that have been created. */
+/**
+ * Collection of all the block [TagType]s that have been created.
+ *
+ * Must be in the same order as [BlockTagOrder].
+ */
 internal object BlockTagTypes : BaseTagTypes() {
-    val THROWS = tagTypeOf("throws")
+    val PARAM = register(ParamTagType("param"))
+    val THROWS = register(ThrowsTagType())
 
     init {
         // @exception as an alias for @throws

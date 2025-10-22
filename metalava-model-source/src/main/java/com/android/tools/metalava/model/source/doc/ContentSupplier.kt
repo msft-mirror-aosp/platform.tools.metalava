@@ -33,30 +33,28 @@ internal interface ContentSupplier {
     val content: JavadocContent?
 
     companion object {
-        /** An empty [ContentSupplier]. */
-        val EMPTY: ContentSupplier = EmptyContentSupplier()
+        /** A null [ContentSupplier]. */
+        val NULL: ContentSupplier = DefaultContentSupplier(null)
     }
-}
-
-internal class EmptyContentSupplier : ContentSupplier {
-    override val content
-        get() = null
-
-    override fun toString() = "<<>>"
 }
 
 /** A simple [ContentSupplier] that encapsulates [content]. */
-internal class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
+private class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
     override fun toString(): String {
-        return "<${content?: ""}>"
+        return "<<${content?: ""}>>"
     }
 }
+
+/** Wrap [this] optional [JavadocContent] in a [ContentSupplier]. */
+internal fun JavadocContent?.toSupplier(): ContentSupplier =
+    this?.let { DefaultContentSupplier(it) } ?: ContentSupplier.NULL
 
 /**
  * A lazy [ContentSupplier] that creates [content] lazily by parsing a subsequence of [text]
  * starting from [startInclusive] and ending at [endExclusive].
  */
 internal class LazyContentSupplier(
+    private val context: DocCommentContext,
     private val reporter: DocumentationIssueReporter,
     private val text: String,
     private val startInclusive: Int = 0,
@@ -74,6 +72,7 @@ internal class LazyContentSupplier(
                         null
                     } else {
                         JavadocParser.parse(
+                            context,
                             text,
                             startInclusive,
                             trimmedEnd,

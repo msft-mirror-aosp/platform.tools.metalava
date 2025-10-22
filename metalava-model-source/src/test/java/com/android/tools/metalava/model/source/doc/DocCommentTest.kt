@@ -16,14 +16,14 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import kotlin.test.assertEquals
 import org.junit.Test
 
 class DocCommentTest : BaseDocCommentTest() {
     /** Add a block tag section for [tagTypeName] containing [text]. */
     private fun DocComment.addBlockTagSection(tagTypeName: String, text: String) {
-        addBlockTagSection(tagTypeName, JavadocText(text))
+        addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
     }
 
     @Test

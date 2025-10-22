@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.source.doc.RequiredSpace
 
 /**
@@ -24,7 +25,7 @@ import com.android.tools.metalava.model.source.doc.RequiredSpace
  * This represents a block of text and inline tags in a Javadoc comment. It can either be in the
  * main description for the item or the description of a block tag in the item.
  */
-internal sealed interface JavadocContent {
+internal sealed interface JavadocContent : DocContent {
     /**
      * Checks to see whether the content will occupy multiple lines.
      *
@@ -34,6 +35,11 @@ internal sealed interface JavadocContent {
 
     /** Check to see whether this starts with a newline character. */
     fun startsWithNewline(): Boolean
+
+    /** Add this to [list], flattening if this is a [JavadocContentList]. */
+    fun flattenTo(list: MutableList<JavadocContent>) {
+        list.add(this)
+    }
 
     /**
      * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
@@ -75,6 +81,13 @@ internal fun List<JavadocContent>.toOptionalJavadocContent() =
     }
 
 /**
+ * Convert this [String] to an optional [JavadocContent].
+ *
+ * If this is empty then returns null, otherwise create a [JavadocText] wrapper around this.
+ */
+internal fun String.toOptionalJavadocContent() = if (isEmpty()) null else JavadocText(this)
+
+/**
  * A [JavadocContent] that encapsulates multiple [JavadocContent] instances.
  *
  * @param contents a list containing multiple [JavadocContent] instances.
@@ -93,6 +106,11 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
     /** Visit the contents of this in turn. */
     fun visitContents(visitor: JavadocContentVisitor) {
         contents.forEach { content -> content.accept(visitor) }
+    }
+
+    /** Flatten this by adding all of [contents] to [list]. */
+    override fun flattenTo(list: MutableList<JavadocContent>) {
+        list.addAll(contents)
     }
 
     override fun accept(visitor: JavadocContentVisitor) {
@@ -117,4 +135,37 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
         contents.joinTo(this)
         append(")")
     }
+}
+
+/**
+ * A wrapper around [contents] that will ensure that any [JavadocContent] instances are flattened
+ * into the list.
+ */
+@JvmInline
+internal value class ConcatJavadocContent(private val contents: MutableList<JavadocContent>) {
+    /**
+     * Adds [content] to [contents], flattening if needed.
+     *
+     * If [content] is a [JavadocContentList] then it will not be added to [contents], instead each
+     * [JavadocContent] in its [JavadocContentList.contents] list will be added individually. This
+     * helps keep the [JavadocContent] hierarchy shallow and easier to understand.
+     */
+    fun add(content: JavadocContent) {
+        content.flattenTo(contents)
+    }
+}
+
+/**
+ * Builder of [JavadocContent] that concatenates a number of [JavadocContent].
+ *
+ * The result will be a [JavadocContent] instance, or null if none were added. If only a single
+ * [JavadocContent] was added then it will be returned directly. Otherwise, it will return a flat
+ * [JavadocContentList] (see [ConcatJavadocContent.add]).
+ */
+internal inline fun concatJavadocContent(
+    builderAction: ConcatJavadocContent.() -> Unit
+): JavadocContent? {
+    val contents = mutableListOf<JavadocContent>()
+    ConcatJavadocContent(contents).builderAction()
+    return contents.toOptionalJavadocContent()
 }

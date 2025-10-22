@@ -41,9 +41,8 @@ class JavadocParserTest : BaseDocCommentTest() {
             message = "javadoc parser issues"
         )
 
-        // Generate a string representation of the model structure.
-        val actualStructure = content.dumpContentStructure()
-        assertEquals(expectedStructure.trimIndent(), actualStructure.trimEnd())
+        // Check the model structure.
+        content.assertStructure(expectedStructure.trimIndent())
     }
 
     @Test
@@ -274,7 +273,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 // Error recovery ignores the */ and everything after it.
                 """
-                    text: 'p A block tag with'
+                    text: 'A block tag with'
                 """,
             expectedJavadocIssues =
                 """
@@ -328,6 +327,26 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag data`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * outside before {@bar inline inside} outside after
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'outside before '
+                    inlineTag: bar BarTagData(identifier=inline)
+                      text: 'inline inside'
+                    text: ' outside after'
                 """,
         )
     }
