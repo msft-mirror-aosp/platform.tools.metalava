@@ -212,7 +212,11 @@ interface ItemDocumentation {
 
         override fun findMainDocumentation() = inaccessible()
 
-        override fun removeDeprecatedSection() = inaccessible()
+        override fun removeDeprecatedSection() {
+            // TODO(b/450228132): Temporarily allow this to be called as there is an issue where
+            //   default constructors of deprecated classes that are flagged call this even though
+            //   the constructor has no documentation.
+        }
 
         override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) =
             inaccessible()
