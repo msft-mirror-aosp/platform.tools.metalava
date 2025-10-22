@@ -507,8 +507,8 @@ class ApiLevelsGenerationOptions(
                 }
             val matchedApiFiles = findHistoricalApiFiles(currentDir, apiFilePatterns)
 
-            // Split the files into extension api files and primary api files.
-            val (extensionApiFiles, primaryApiFiles) = matchedApiFiles.partition { it.extension }
+            // Split the files into primary api files and extension api files.
+            val (primaryApiFiles, extensionApiFiles) = matchedApiFiles.partition { !it.extension }
 
             // Get a VersionedApi for each of the released API files.
             val versionedHistoricalApis =
