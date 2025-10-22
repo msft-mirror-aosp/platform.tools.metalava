@@ -27,10 +27,12 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterListAndFactory
@@ -43,7 +45,6 @@ import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeAliasItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
@@ -74,7 +75,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.psi
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
@@ -342,6 +342,9 @@ internal class KaCodebaseAssembler(
         if (functionSymbol.annotations.any { it.classId?.asFqNameString() == ANDROIDX_COMPOSABLE })
             return true
 
+        // Generate functions annotated with JvmName.
+        if (functionSymbol.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) return true
+
         // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
         // only, but with K1 value class types weren't handled differently from other types so there
         // might be a UElement for a constructor using a value class type even though it should be
@@ -444,6 +447,29 @@ internal class KaCodebaseAssembler(
                 defaultValueProvider = null,
                 isExtensionMethod = functionSymbol.receiverParameter != null,
             )
+
+        // It is possible that a method using JvmName has the same signature in Java and Kotlin, so
+        // check that there isn't already a method with a matching signature. If there is, make sure
+        // it is marked as usable from Kotlin, and don't add the duplicate method.
+        val jvmName = methodItem.findJvmNameFromAnnotation()
+        if (jvmName != null) {
+            val existingMethod =
+                methodItem.containingClass().methods().firstOrNull {
+                    it.name() == methodItem.name() &&
+                        it.name() == jvmName &&
+                        it.returnType().toErasedTypeString() ==
+                            methodItem.returnType().toErasedTypeString() &&
+                        it.parameters().size == methodItem.parameters().size &&
+                        it.parameters().zip(methodItem.parameters()).all { (p1, p2) ->
+                            p1.type().toErasedTypeString() == p2.type().toErasedTypeString()
+                        }
+                }
+            if (existingMethod != null) {
+                existingMethod.targetLanguages += TargetLanguage.KOTLIN
+                return
+            }
+        }
+
         containingClass.addMethod(methodItem)
     }
 
@@ -634,7 +660,7 @@ internal class KaCodebaseAssembler(
                     containingCallable = containingCallable,
                     parameterIndex = 0,
                     type = type,
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                    hasDefaultValue = false,
                 )
             }
         val regularParameters =
@@ -661,13 +687,7 @@ internal class KaCodebaseAssembler(
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,
-                    defaultValueFactory = {
-                        if (parameterSymbol.hasDefaultValue) {
-                            ParameterDefaultValue.UNKNOWN
-                        } else {
-                            ParameterDefaultValue.NONE
-                        }
-                    },
+                    hasDefaultValue = parameterSymbol.hasDefaultValue,
                 )
             }
 
@@ -686,7 +706,7 @@ internal class KaCodebaseAssembler(
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = enclosingTypeItemFactory.createContinuationType(returnType),
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                    hasDefaultValue = false,
                 )
             } else {
                 null

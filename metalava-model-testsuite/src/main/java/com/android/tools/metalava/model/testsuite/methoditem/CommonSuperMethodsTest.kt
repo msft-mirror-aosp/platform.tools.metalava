@@ -984,4 +984,99 @@ class CommonSuperMethodsTest : BaseModelTest() {
             assertEquals(differentTargetLanguagesWithOverlap.superMethods().size, 1)
         }
     }
+
+    @Test
+    fun `Test super method for kotlin only methods with the same erased types`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method @KotlinOnly public void foo(java.util.List<java.lang.String> arg);
+                    method @KotlinOnly public void foo(java.util.List<java.lang.Integer> arg);
+                  }
+                  public class ParentClass {
+                    method @KotlinOnly public void foo(java.util.List<java.lang.String> arg);
+                    method @KotlinOnly public void foo(java.util.List<java.lang.Integer> arg);
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // Check that super methods only finds the exact type match for Kotlin-only methods.
+            val fooWithStrings =
+                fooClass.assertMethod("foo", listOf("java.util.List<java.lang.String>"))
+            val fooWithStringsSuper = fooWithStrings.superMethods()
+            assertEquals(fooWithStringsSuper.size, 1)
+            assertEquals(
+                fooWithStringsSuper.single().parameters().single().type().toTypeString(),
+                "java.util.List<java.lang.String>"
+            )
+
+            val fooWithInts =
+                fooClass.assertMethod("foo", listOf("java.util.List<java.lang.Integer>"))
+            val fooWithIntsSuper = fooWithInts.superMethods()
+            assertEquals(fooWithIntsSuper.size, 1)
+            assertEquals(
+                fooWithIntsSuper.single().parameters().single().type().toTypeString(),
+                "java.util.List<java.lang.Integer>"
+            )
+        }
+    }
+
+    @Test
+    fun `Test super method for kotlin only methods with differing wildcards`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method @KotlinOnly public void fooWithStrings(java.util.List<java.lang.String> arg);
+                    method @KotlinOnly public void fooWithInts(java.util.List<java.lang.Integer> arg);
+                    method @KotlinOnly public void fooWithMismatch(java.util.List<java.lang.Integer> arg);
+                  }
+                  public class ParentClass {
+                    method @KotlinOnly public void fooWithStrings(java.util.List<? extends java.lang.String> arg);
+                    method @KotlinOnly public void fooWithInts(java.util.List<? super java.lang.Integer> arg);
+                    method @KotlinOnly public void fooWithMismatch(java.util.List<? extends java.lang.String> arg);
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // Check that super methods only finds the exact type match for Kotlin-only methods.
+            val fooWithStrings =
+                fooClass.assertMethod("fooWithStrings", listOf("java.util.List<java.lang.String>"))
+            val fooWithStringsSuper = fooWithStrings.superMethods()
+            assertEquals(fooWithStringsSuper.size, 1)
+            assertEquals(
+                fooWithStringsSuper.single().parameters().single().type().toTypeString(),
+                "java.util.List<? extends java.lang.String>"
+            )
+
+            val fooWithInts =
+                fooClass.assertMethod("fooWithInts", listOf("java.util.List<java.lang.Integer>"))
+            val fooWithIntsSuper = fooWithInts.superMethods()
+            assertEquals(fooWithIntsSuper.size, 1)
+            assertEquals(
+                fooWithIntsSuper.single().parameters().single().type().toTypeString(),
+                "java.util.List<? super java.lang.Integer>"
+            )
+
+            // The ParentClass.fooWithMismatch uses a String instead of an Integer, so it is not the
+            // super method.
+            val fooWithMismatch =
+                fooClass.assertMethod(
+                    "fooWithMismatch",
+                    listOf("java.util.List<java.lang.Integer>")
+                )
+            assertTrue(fooWithMismatch.superMethods().isEmpty())
+        }
+    }
 }
