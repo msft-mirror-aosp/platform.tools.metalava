@@ -33,22 +33,15 @@ internal interface ContentSupplier {
     val content: JavadocContent?
 
     companion object {
-        /** An empty [ContentSupplier]. */
-        val EMPTY: ContentSupplier = EmptyContentSupplier()
+        /** A null [ContentSupplier]. */
+        val NULL: ContentSupplier = DefaultContentSupplier(null)
     }
-}
-
-internal class EmptyContentSupplier : ContentSupplier {
-    override val content
-        get() = null
-
-    override fun toString() = "<<>>"
 }
 
 /** A simple [ContentSupplier] that encapsulates [content]. */
 internal class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
     override fun toString(): String {
-        return "<${content?: ""}>"
+        return "<<${content?: ""}>>"
     }
 }
 

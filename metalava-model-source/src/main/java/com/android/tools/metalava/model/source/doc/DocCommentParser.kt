@@ -54,7 +54,7 @@ internal object DocCommentParser {
         if (commentBodyStartInclusive == length) {
             return DefaultDocComment(
                 context,
-                ContentSupplier.EMPTY,
+                ContentSupplier.NULL,
                 emptyList(),
             )
         }
