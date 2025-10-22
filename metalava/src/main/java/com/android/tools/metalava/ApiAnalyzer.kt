@@ -1050,7 +1050,7 @@ private fun SelectableItem.isApiCandidate(): Boolean {
  * Whether documentation for the [Item] has the `@deprecated` tag -- for inherited methods, this
  * also looks at any inherited documentation.
  */
-private fun Item.documentationContainsDeprecated(): Boolean {
+private fun SelectableItem.documentationContainsDeprecated(): Boolean {
     if (documentation.hasBlockTagOfType("deprecated")) return true
     if (this !is MethodItem) return false
     val text = documentation.text

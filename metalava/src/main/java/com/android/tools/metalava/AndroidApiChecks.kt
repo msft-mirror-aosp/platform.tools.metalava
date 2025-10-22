@@ -121,6 +121,9 @@ class AndroidApiChecks(val reporter: Reporter) {
             return findDocumentation(item.containingCallable(), item.name())
         }
 
+        // All Items are either SelectableItem or ParameterItem so as ParameterItem is handled above
+        // the remainder must all be SelectableItems.
+        item as SelectableItem
         val doc = item.documentation.text
         if (doc.isBlank()) {
             return ""
@@ -193,7 +196,7 @@ class AndroidApiChecks(val reporter: Reporter) {
         return doc.substring(begin, end)
     }
 
-    private fun checkTodos(item: Item) {
+    private fun checkTodos(item: SelectableItem) {
         if (
             item.documentation.text.contains("TODO:") || item.documentation.text.contains("TODO(")
         ) {

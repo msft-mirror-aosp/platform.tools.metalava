@@ -283,6 +283,9 @@ class DocAnalyzer(
                  *   used to generate Kotlin stubs.
                  */
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
+                    // Ignore Items without documentation.
+                    item as? SelectableItem ?: return
+
                     // Drop out if it already has a deprecated Javadoc tag.
                     if (item.documentation.hasBlockTagOfType("deprecated")) {
                         return
@@ -307,7 +310,6 @@ class DocAnalyzer(
                 private fun String?.containsNullWord() = this != null && containsWord("null")
 
                 private fun documentationContainsNullWord(item: Item): Boolean {
-                    val documentation = item.documentation
                     return when (item) {
                         is ParameterItem -> {
                             item
@@ -317,13 +319,16 @@ class DocAnalyzer(
                                 .containsNullWord()
                         }
                         is CallableItem -> {
+                            val documentation = item.documentation
                             // Don't inspect param docs (and other tags) for this purpose.
                             documentation.findMainDocumentation().containsNullWord() ||
                                 documentation.findTagDocumentation("return").containsNullWord()
                         }
-                        else -> {
+                        is SelectableItem -> {
+                            val documentation = item.documentation
                             documentation.text.containsNullWord()
                         }
+                        else -> false
                     }
                 }
 
