@@ -416,7 +416,10 @@ class ApiLevelsGenerationOptions(
      * @param dir the directory to scan.
      * @param patterns the patterns that determine the files that will be found.
      */
-    private fun findHistoricalFiles(dir: File, patterns: List<String>): List<MatchedPatternFile> {
+    private fun findHistoricalApiFiles(
+        dir: File,
+        patterns: List<String>
+    ): List<MatchedPatternFile> {
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val versionRange = apiVersionRange ?: firstApiVersion.rangeTo(lastApiVersion)
@@ -483,34 +486,29 @@ class ApiLevelsGenerationOptions(
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelsXmlFile?.let { outputFile ->
+            fun createVersionedSignatureApi(
+                updater: ApiHistoryUpdater,
+                files: List<MatchedPatternFile>,
+            ) = VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
+
+            if (androidJarPatterns.isNotEmpty() && signaturePatterns.isNotEmpty()) {
+                cliError(
+                    "Cannot combine $ARG_API_VERSION_SIGNATURE_PATTERN with $ARG_ANDROID_JAR_PATTERN"
+                )
+            }
+
             // Scan for all the files that could contribute to the API history.
             val currentDir = fileForPathInner(".")
-            val (patterns, matchedFiles, versionedApiFactory) =
+            val (apiFilePatterns, versionedApiFactory) =
                 if (signaturePatterns.isEmpty()) {
-                    Triple(
-                        androidJarPatterns,
-                        findHistoricalFiles(currentDir, androidJarPatterns),
-                        ::createVersionedJarApi,
-                    )
-                } else if (androidJarPatterns.isNotEmpty()) {
-                    cliError(
-                        "Cannot combine $ARG_API_VERSION_SIGNATURE_PATTERN with $ARG_ANDROID_JAR_PATTERN"
-                    )
+                    Pair(androidJarPatterns, ::createVersionedJarApi)
                 } else {
-                    fun createVersionedSignatureApi(
-                        updater: ApiHistoryUpdater,
-                        files: List<MatchedPatternFile>,
-                    ) = VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
-
-                    Triple(
-                        signaturePatterns,
-                        findHistoricalFiles(currentDir, signaturePatterns),
-                        ::createVersionedSignatureApi,
-                    )
+                    Pair(signaturePatterns, ::createVersionedSignatureApi)
                 }
+            val matchedApiFiles = findHistoricalApiFiles(currentDir, apiFilePatterns)
 
             // Split the files into extension api files and primary api files.
-            val (extensionApiFiles, primaryApiFiles) = matchedFiles.partition { it.extension }
+            val (extensionApiFiles, primaryApiFiles) = matchedApiFiles.partition { it.extension }
 
             // Get a VersionedApi for each of the released API files.
             val versionedHistoricalApis =
@@ -584,7 +582,7 @@ class ApiLevelsGenerationOptions(
                 // defined in an SDK version.
                 if (sdkExtensionsArguments != null) {
                     require(extensionApiFiles.isNotEmpty()) {
-                        "no extension api files found by ${patterns.joinToString()}"
+                        "no extension api files found by ${apiFilePatterns.joinToString()}"
                     }
 
                     // Get the potentially future API version that new SDK extension APIs will
