@@ -29,7 +29,7 @@ import org.junit.Test
 class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
 
     @Test
-    fun `Correct API Level for non-release`() {
+    fun `Correct API Level for non-release using current version arg`() {
         check(
             extraArguments =
                 arrayOf(
@@ -63,5 +63,35 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
         assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Throw error when current version is less than 27`() {
+        val currentApiVersion = 27 - 1
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "ZZZ", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    currentApiVersion.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                ),
+            expectedFail =
+                "Aborting: Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27"
+        )
     }
 }
