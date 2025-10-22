@@ -789,13 +789,15 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 ->
                 // Add to main description first.
                 methodItem.documentation.mainDescriptionOwner.append("Appended to main.")
-                // TODO(b/450228132): Appending to overriding method with no documentation should
-                //  add {@inheritDoc} first.
                 checkItemDocumentationPrint(
                     methodItem,
                     expectedOutput =
                         """
-                            /** Appended to main. */
+                            /**
+                             * {@inheritDoc}
+                             *
+                             * Appended to main.
+                             */
 
                         """,
                 )
@@ -809,6 +811,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     expectedOutput =
                         """
                             /**
+                             * {@inheritDoc}
+                             *
                              * Appended to main.
                              * @deprecated Appended to deprecated.
                              */
@@ -822,17 +826,23 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 methodItem.documentation
                     .blockTagDescriptionOwner("deprecated")
                     .append("Appended to deprecated.")
-                // TODO(b/450228132): Appending deprecated section to overriding method with no
-                //  documentation should add {@inheritDoc} in the main description to match the
-                //  current behavior of [ItemDocumentation.appendDocumentation].
                 checkItemDocumentationPrint(
                     methodItem,
                     expectedOutput =
                         """
-                            /** @deprecated Appended to deprecated. */
+                            /**
+                             * {@inheritDoc}
+                             * @deprecated Appended to deprecated.
+                             */
 
                         """,
                 )
+
+                // TODO(b/454257440): The main description and the block tag descriptions are
+                //  intended to be separate and modifying one should not affect the other. So, the
+                //  order in which they are done should not matter but this shows that when the
+                //  deprecated is added first it behaves differently (extra `<br>` inserted) to when
+                //  the main description is added first.
 
                 // Add to main second.
                 methodItem.documentation.mainDescriptionOwner.append("Appended to main.")
@@ -841,6 +851,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     expectedOutput =
                         """
                             /**
+                             * {@inheritDoc}
+                             * <br>
                              * Appended to main.
                              * @deprecated Appended to deprecated.
                              */

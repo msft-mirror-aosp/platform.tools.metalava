@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.concatJavadocContent
 import java.util.Optional
@@ -30,10 +31,12 @@ import kotlin.jvm.optionals.getOrNull
  * @param context Contextual information that can affect the behavior of documentation.
  * @param descriptionSupplier Supplies a [JavadocContent] instance when requested. May produce it
  *   lazily.
+ * @param noComment `true` if there was no comment in the sources.
  */
 internal open class DescriptionOwner(
     val context: DocCommentContext,
     protected val descriptionSupplier: ContentSupplier,
+    private val noComment: Boolean,
 ) : DocContentOwner {
     /**
      * A mutable and optional [JavadocContent] that is initialized lazily from [descriptionSupplier]
@@ -104,9 +107,39 @@ internal open class DescriptionOwner(
         append(content)
     }
 
+    /** Check whether this needs to insert `{@inheritDoc}` tags when appending to [description]. */
+    private fun requiresInheritDoc(): Boolean =
+        noComment && description == null && context.isOverridingMethod()
+
+    /**
+     * Append `{@inheritDoc}` if needed.
+     *
+     * @return `true` if `{@inheritDoc}` was appended which would have also notified the
+     *   [DocComment] owner that it changed.
+     */
+    protected fun appendInheritDocIfNeeded(): Boolean {
+        if (!requiresInheritDoc()) return false
+        updateDescription(INHERIT_DOC_CONTENT)
+        return true
+    }
+
     /** Append [other] to [description]. */
     private fun append(other: JavadocContent) {
-        updateDescription(description.append(other))
+        val result =
+            if (requiresInheritDoc()) {
+                // Prepend `{@inheritDoc}` before the content to add.
+                concatJavadocContent {
+                    add(INHERIT_DOC_CONTENT)
+                    // TODO(b/454257440): This was only added to maintain consistency with the
+                    //   appendDocumentation method. Investigate whether it can be removed without
+                    //   affecting the HTML formatting.
+                    add(BLANK_LINE)
+                    add(other)
+                }
+            } else {
+                description.append(other)
+            }
+        updateDescription(result)
     }
 
     /**
@@ -125,6 +158,18 @@ internal open class DescriptionOwner(
         } ?: other
 
     companion object {
+        /**
+         * `{@inheritDoc}` inline tag to insert when modifying a comment that does not exist in the
+         * sources and is attached to an overriding method.
+         */
+        private val INHERIT_DOC_CONTENT = JavadocInlineTag(InlineTagTypes.INHERIT_DOC, null, null)
+
+        /**
+         * Blank line to add between [INHERIT_DOC_CONTENT] and the content being added to maintain
+         * compatibility with the `appendDocumentation(...)` method.
+         */
+        private val BLANK_LINE = JavadocText("\n\n ")
+
         /**
          * The `<br>` separator inserted between existing content and the appended content in
          * [append].

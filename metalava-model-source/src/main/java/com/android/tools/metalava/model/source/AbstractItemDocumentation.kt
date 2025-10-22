@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.doc.DocContent
@@ -148,7 +149,6 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
-    /** Implements [DocCommentContext.ordinalOfCallableParameter]. */
     override val isHidden
         get() = hasBlockTagOfType("hide")
 
@@ -162,6 +162,7 @@ abstract class AbstractItemDocumentation(
         return if (index == -1) size else index
     }
 
+    /** Implements [DocCommentContext.ordinalInParamsList]. */
     override fun ordinalInParamsList(name: String): Int {
         return if (item is TypeParameterListOwner) {
             val typeParameterList = item.typeParameterList
@@ -190,6 +191,11 @@ abstract class AbstractItemDocumentation(
             0
         }
     }
+
+    /** Implements [DocCommentContext.isOverridingMethod]. */
+    override fun isOverridingMethod() =
+        // Purposely does not cache this as superMethods() is already cached.
+        item is MethodItem && item.superMethods().isNotEmpty()
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")

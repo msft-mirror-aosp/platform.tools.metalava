@@ -79,7 +79,14 @@ internal class DefaultBlockTagSection(
     context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
-) : DescriptionOwner(context, descriptionSupplier), BlockTagSection {
+    mutationListener: DocCommentMutationListener? = null,
+) :
+    DescriptionOwner(
+        context,
+        descriptionSupplier,
+        noComment = false,
+    ),
+    BlockTagSection {
 
     /**
      * Backing field for [tagData].

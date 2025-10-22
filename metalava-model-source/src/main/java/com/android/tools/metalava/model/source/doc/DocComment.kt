@@ -107,7 +107,14 @@ internal class DefaultDocComment(
     context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
     blockTagSections: List<BlockTagSection>,
-) : DescriptionOwner(context, descriptionSupplier), DocComment {
+    noComment: Boolean,
+) :
+    DescriptionOwner(
+        context,
+        descriptionSupplier,
+        noComment,
+    ),
+    DocComment {
     /** Allow [blockTagSections] to be modified but only within this class. */
     override var blockTagSections = blockTagSections
         private set
@@ -130,6 +137,15 @@ internal class DefaultDocComment(
     /** Add [blockTagSection] to [blockTagSections] invoking the [DocCommentMutationListener]. */
     internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
         blockTagSections = blockTagSections + blockTagSection
+
+        // If this call added the first block tag section, then append`{@inheritDoc}` if necessary.
+        // If it was appended then return as it will already have notified the listener that this
+        // has changed.
+        // TODO(b/454257440): Investigate whether adding `{@inheritDoc}` to the main description of
+        //  a comment in this case is necessary.
+        if (blockTagSections.size == 1 && appendInheritDocIfNeeded()) {
+            return
+        }
 
         // Notify any listener.
         context.mutationListener.docCommentMutated()
