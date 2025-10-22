@@ -74,14 +74,6 @@ interface Item : Reportable {
     fun mutateModifiers(mutator: MutableModifierList.() -> Unit)
 
     /**
-     * The javadoc/KDoc comment for this code element, if any. This is the original content of the
-     * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
-     * qualified references to classes.
-     */
-    val documentation: ItemDocumentation
-
-    /**
      * The, possibly empty, description of the [Item].
      *
      * For [SelectableItem]s this is the main description in [SelectableItem.documentation]. For
@@ -405,29 +397,7 @@ abstract class DefaultItem(
     final override val fileLocation: FileLocation,
     final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
 ) : Item {
-
-    /**
-     * Create a [ItemDocumentation] appropriate for this [Item].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     *
-     * If this is private then it cannot be included in an API so its documentation is irrelevant.
-     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
-     * instead. The latter is immutable and attempting to change it will throw an error but that is
-     * safe as only documentation for API [Item]s is modified.
-     *
-     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
-     * [ParameterItem] as they do not have documentation.
-     *
-     * TODO: Move this to [com.android.tools.metalava.model.item.DefaultSelectableItem],
-     */
-    final override val documentation =
-        if (modifiers.isPrivate() || this !is SelectableItem) ItemDocumentation.NONE
-        else @Suppress("LeakingThis") documentationFactory(this)
-
     /**
      * The immutable [modifiers].
      *
@@ -439,12 +409,6 @@ abstract class DefaultItem(
      */
     final override var modifiers: ModifierList = modifiers.toImmutable()
         private set
-
-    init {
-        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
-            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
-        }
-    }
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 

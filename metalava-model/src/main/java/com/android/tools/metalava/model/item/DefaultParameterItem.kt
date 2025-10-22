@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -46,7 +45,6 @@ open class DefaultParameterItem(
         fileLocation = fileLocation,
         sourceLanguage = sourceLanguage,
         modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
     ),
     ParameterItem {
 
