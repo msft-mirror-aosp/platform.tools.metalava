@@ -53,6 +53,7 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
+  Test ItemDocumentation appendDocumentation on overriding method[turbine]
   Test ItemDocumentation appendDocumentation[turbine]
   Test appending to Javadoc with errors[turbine]
   Test fully qualifying links that wrap on multiple lines[turbine]
