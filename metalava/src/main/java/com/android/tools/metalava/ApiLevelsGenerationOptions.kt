@@ -808,6 +808,11 @@ class ApiLevelsGenerationOptions(
 
         val nextSdkVersion = apiVersionForSources
         val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
+        if (lastFinalizedVersion != null && apiVersionForSources <= lastFinalizedVersion) {
+            cliError(
+                "Suspicious $ARG_API_VERSION_FOR_SOURCES $apiVersionForSources, expected a version greater than $lastFinalizedVersion"
+            )
+        }
 
         return when {
             // The current codebase is a developer preview so use the next, in the

@@ -131,4 +131,64 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
                 "Aborting: Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27"
         )
     }
+
+    @Test
+    fun `Throw error when api version for sources is less than or equal to last finalized version`() {
+        val lastFinalizedVersion = 35
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "ZZZ", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    MAGIC_VERSION_STR, // not real api level
+                    ARG_API_VERSION_FOR_SOURCES,
+                    lastFinalizedVersion.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                ),
+            expectedFail =
+                "Aborting: Suspicious --api-version-for-sources $lastFinalizedVersion, expected a version greater than $lastFinalizedVersion"
+        )
+
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "ZZZ", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    MAGIC_VERSION_STR, // not real api level
+                    ARG_API_VERSION_FOR_SOURCES,
+                    (lastFinalizedVersion - 1).toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                ),
+            expectedFail =
+                "Aborting: Suspicious --api-version-for-sources ${lastFinalizedVersion-1}, expected a version greater than $lastFinalizedVersion"
+        )
+    }
 }
