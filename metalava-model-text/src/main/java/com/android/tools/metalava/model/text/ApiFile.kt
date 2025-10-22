@@ -59,7 +59,6 @@ import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
@@ -1859,21 +1858,12 @@ private constructor(
                 }
             }
 
-            // Select the DefaultValue for the parameter.
-            val defaultValue =
-                if (hasOptionalKeyword) {
-                    // It has an optional keyword, so it has a default value but the actual value is
-                    // not known.
-                    ParameterDefaultValue.UNKNOWN
-                } else {
-                    // It does not have an optional keyword so it has no default value.
-                    ParameterDefaultValue.NONE
-                }
             parameters.add(
                 ParameterInfo(
                     name,
                     publicName,
-                    defaultValue,
+                    // The optional keyword indicates whether a parameter has a default value
+                    hasDefaultValue = hasOptionalKeyword,
                     typeString,
                     modifiers,
                     tokenizer.fileLocation(),
@@ -1893,7 +1883,7 @@ private constructor(
     private inner class ParameterInfo(
         val name: String,
         val publicName: String?,
-        val defaultValue: ParameterDefaultValue,
+        val hasDefaultValue: Boolean,
         val typeString: String,
         val modifiers: MutableModifierList,
         val location: FileLocation,
@@ -1924,7 +1914,7 @@ private constructor(
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,
-                    defaultValueFactory = { defaultValue },
+                    hasDefaultValue = hasDefaultValue,
                 )
 
             return parameter
