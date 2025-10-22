@@ -16,21 +16,31 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.model.source.javadoc.BarTagData
+import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.TestTagTypes
+import com.android.tools.metalava.model.source.javadoc.assertStructure
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class DocCommentParserTest {
+class DocCommentParserTest : BaseDocCommentTest() {
+    /** Context object used for the optional lambda taken by [checkDocComment]. */
+    private data class DocCommentContext(val docComment: DocComment)
+
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
     private fun checkDocComment(
         input: String,
         expectedString: String,
+        expectedPrintOutput: String,
         expectedIssues: String = "",
+        checker: DocCommentContext.() -> Unit = {},
     ) {
-        val reporter = CollatingDocumentationIssueReporter()
-        var docComment = DocCommentParser.parseText(input.trimIndent(), reporter)
+        var docComment = createTestDocComment(input, expectedIssues)
         assertEquals(expectedString.trimIndent(), docComment.toString())
-        assertEquals(expectedIssues.trimIndent(), reporter.toString().trim())
+
+        checkPrintOutput(docComment, expectedPrintOutput)
+
+        DocCommentContext(docComment).checker()
     }
 
     @Test
@@ -38,6 +48,10 @@ class DocCommentParserTest {
         checkDocComment(
             input = "",
             expectedString = "description: <<>>",
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
         )
     }
 
@@ -46,6 +60,10 @@ class DocCommentParserTest {
         checkDocComment(
             input = "Description",
             expectedString = "description: <<Description>>",
+            expectedPrintOutput =
+                """
+                    /** Description */
+                """,
         )
     }
 
@@ -54,6 +72,10 @@ class DocCommentParserTest {
         checkDocComment(
             input = "Description {@code something}",
             expectedString = "description: <<Description {@code something}>>",
+            expectedPrintOutput =
+                """
+                    /** Description {@code something} */
+                """,
         )
     }
 
@@ -65,6 +87,10 @@ class DocCommentParserTest {
                 """
                     description: <<>>
                     @see <<something>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @see something */
                 """,
         )
     }
@@ -83,6 +109,15 @@ class DocCommentParserTest {
                     description: <<Some text>>
                     @see <<something>>
                     @see <<other thing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Some text
+                     *
+                     * @see something
+                     * @see other thing
+                     */
                 """,
         )
     }
@@ -104,6 +139,15 @@ class DocCommentParserTest {
                     @see <<something>>
                     @see <<other thing>>
                 """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Some text
+                     *
+                     * @see something
+                     * @see other thing
+                     */
+                """,
         )
     }
 
@@ -118,6 +162,10 @@ class DocCommentParserTest {
                 """
                     description: <<>>
                     @hide <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @hide */
                 """,
         )
     }
@@ -138,6 +186,13 @@ class DocCommentParserTest {
                     @hide <<>>
                     @deprecated <<>>
                 """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * @deprecated
+                     * @hide
+                     */
+                """,
         )
     }
 
@@ -156,6 +211,13 @@ class DocCommentParserTest {
                 """
                     description: <<\n * A block @hide tag.\n *>>
                     @hide <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * A block @hide tag.
+                     * @hide
+                     */
                 """,
         )
     }
@@ -176,6 +238,13 @@ class DocCommentParserTest {
                     description: <<\n * An unbalanced open {\n *>>
                     @hide <<>>
                 """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * An unbalanced open {
+                     * @hide
+                     */
+                """,
         )
     }
 
@@ -191,11 +260,14 @@ class DocCommentParserTest {
             expectedString =
                 """
                     description: <<\n * An invalid block tag at the end of the text. @hide>>
-                    @hide <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** An invalid block tag at the end of the text. @hide */
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                    2:49: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -214,11 +286,17 @@ class DocCommentParserTest {
                 """
                     description: <<\n * An invalid block tag at the end of the text.>>
                     @deprecated <<for some reason. @hide>>
-                    @hide <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * An invalid block tag at the end of the text.
+                     * @deprecated for some reason. @hide
+                     */
                 """,
             expectedIssues =
                 """
-                    line 3: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                    3:33: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -235,11 +313,14 @@ class DocCommentParserTest {
             expectedString =
                 """
                     description: <<\n * An inline tag at the end of some text {@hide reason why hidden}>>
-                    @hide <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** An inline tag at the end of some text {@hide reason why hidden} */
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                    2:43: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -259,26 +340,395 @@ class DocCommentParserTest {
                 """
                     description: <<\n * An inline tag.>>
                     @see <<Something\n * {@hide}>>
-                    @hide <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * An inline tag.
+                     *
+                     * @see Something
+                     * {@hide}
+                     */
                 """,
             expectedIssues =
                 """
-                    line 4: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                    4:5: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
-}
 
-/**
- * A [DocumentationIssueReporter] that collates any issues reported and returns them from
- * [toString].
- */
-class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
-    private val builder = StringBuilder()
-
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int) {
-        builder.append("line ${lineOffset + 1}: $message [${issue.name}]\n")
+    @Test
+    fun `Test ordering of block tags`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @serial some reason
+                     * @hide
+                     * @throws
+                     * @version current
+                     * @author me
+                     * @throws Throwable
+                     * @unknown
+                     * @param
+                     * @serialData some other reason
+                     * @inheritDoc
+                     * @sdkExtSince 7
+                     * @param p2
+                     * @serialField field name and type and explanation
+                     * @since 1.4
+                     * @return something
+                     * @deprecated
+                     * @attr ref xml-thing
+                     * @mysterious
+                     * @author them
+                     * @param p1
+                     * @apiSince 12
+                     * @exception Exception
+                     * @see #field
+                     * @see #Class()
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @serial <<some reason>>
+                    @hide <<>>
+                    @throws <<>>
+                    @version <<current>>
+                    @author <<me>>
+                    @throws <<Throwable>>
+                    @unknown <<>>
+                    @param <<>>
+                    @serialData <<some other reason>>
+                    @inheritDoc <<>>
+                    @sdkExtSince <<7>>
+                    @param <<p2>>
+                    @serialField <<field name and type and explanation>>
+                    @since <<1.4>>
+                    @return <<something>>
+                    @deprecated <<>>
+                    @attr <<ref xml-thing>>
+                    @mysterious <<>>
+                    @author <<them>>
+                    @param <<p1>>
+                    @apiSince <<12>>
+                    @throws <<Exception>>
+                    @see <<#field>>
+                    @see <<#Class()>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * @inheritDoc
+                     * @author me
+                     * @author them
+                     * @version current
+                     * @param p1
+                     * @param p2
+                     * @param
+                     * @return something
+                     * @attr ref xml-thing
+                     * @throws Exception
+                     * @throws Throwable
+                     * @throws
+                     * @see #field
+                     * @see #Class()
+                     * @since 1.4
+                     * @serial some reason
+                     * @serialData some other reason
+                     * @serialField field name and type and explanation
+                     * @deprecated
+                     * @hide
+                     * @apiSince 12
+                     * @sdkExtSince 7
+                     * @mysterious
+                     * @unknown
+                     */
+                """,
+        )
     }
 
-    override fun toString() = builder.toString()
+    @Test
+    fun `Test a comment that has a line that starts with forward slash`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     * <pre>
+                    // Java line comment
+                    someSampleCode()
+                     * </pre>
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * Summary.\n * <pre>\n// Java line comment\nsomeSampleCode()\n * </pre>>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * <pre>
+                    // Java line comment
+                     *someSampleCode()
+                     * </pre>
+                     */
+                """,
+        )
+    }
+
+    @Test
+    fun `Test an inline tag split across multiple lines`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     * <pre>{@code
+                     * someSampleCode()
+                     * }</pre>
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * Summary.\n * <pre>{@code\n * someSampleCode()\n * }</pre>>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * <pre>{@code
+                     * someSampleCode()
+                     * }</pre>
+                     */
+                """,
+        )
+    }
+
+    @Test
+    fun `Test multiple blank lines`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Summary line.
+                     *
+                     * <pre>
+                     * Text before multiple blank lines.
+                     *
+                     *
+                     * Text after multiple blank lines.
+                     * </pre>
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<\n * Summary line.\n *\n * <pre>\n * Text before multiple blank lines.\n *\n *\n * Text after multiple blank lines.\n * </pre>>>
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary line.
+                     *
+                     * <pre>
+                     * Text before multiple blank lines.
+                     *
+                     *
+                     * Text after multiple blank lines.
+                     * </pre>
+                     */
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unclosed inline tag`() {
+        checkDocComment(
+            // This purposely indents the second and third lines so they no longer align with the
+            // first so that there is some extra indentation on the last line with the */ token to
+            // test the handling of that newline.
+            input =
+                """
+                    /**
+                       * {@code unclosed
+                        */
+                """,
+            expectedString =
+                """
+                    description: <<\n   * {@code unclosed>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** {@code unclosed} */
+                """,
+        )
+    }
+
+    @Test
+    fun `Test lineOffsetFor with out of bounds index`() {
+        val str =
+            """
+            multi
+            line
+            string
+            """
+                .trimIndent()
+        val length = str.length
+        assertEquals(str.lineOffsetFor(length + 1), 2)
+    }
+
+    @Test
+    fun `Test block tag data`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @bar foo block after
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @bar <<foo block after>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @bar foo block after */
+                """,
+        ) {
+            val barBlockTagSection = docComment.blockTagSections.single()
+            assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
+        }
+    }
+
+    @Test
+    fun `Test append DocContent to empty`() {
+        checkDocComment(
+            input =
+                """
+                    /***/
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
+        ) {
+            val text = JavadocText("appended")
+            docComment.append(text)
+            checkPrintOutput(docComment, "/** appended */")
+        }
+    }
+
+    @Test
+    fun `Test append DocContent to existing`() {
+        checkDocComment(
+            input =
+                """
+                    /** existing */
+                """,
+            expectedString =
+                """
+                    description: << existing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** existing */
+                """,
+        ) {
+            val text = JavadocText("appended")
+            docComment.append(text)
+            checkPrintOutput(
+                docComment,
+                """
+                    /**
+                     * existing
+                     * <br>
+                     * appended
+                     */
+                """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to empty`() {
+        checkDocComment(
+            input =
+                """
+                    /***/
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** */
+                """,
+        ) {
+            docComment.append("some {@code text} to append")
+            checkPrintOutput(
+                docComment,
+                """
+                    /** some {@code text} to append */
+                """,
+            )
+            docComment.description.assertStructure(
+                """
+                    text: 'some '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' to append'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to existing`() {
+        checkDocComment(
+            input =
+                """
+                    /** existing */
+                """,
+            expectedString =
+                """
+                    description: << existing>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** existing */
+                """,
+        ) {
+            docComment.append("some {@code text} to append")
+            checkPrintOutput(
+                docComment,
+                """
+                    /**
+                     * existing
+                     * <br>
+                     * some {@code text} to append
+                     */
+                """,
+            )
+            docComment.description.assertStructure(
+                """
+                    text: 'existing'
+                    text: '\n <br>\n '
+                    text: 'some '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' to append'
+                """
+            )
+        }
+    }
 }

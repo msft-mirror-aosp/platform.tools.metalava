@@ -17,10 +17,16 @@
 package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.Test
 
 class CommonItemDocumentationTest : BaseModelTest() {
@@ -320,13 +326,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3")
+            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3:1")
 
             val constructorItem = testClass.assertConstructor(emptyList())
-            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5")
+            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5:5")
 
             val fieldItem = testClass.assertField("field")
-            checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11")
+            checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11:5")
 
             // Check location of javadoc that is not specified.
             val methodItem = testClass.assertMethod("noComment", emptyList())
@@ -361,17 +367,981 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3")
+            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3:1")
 
             val constructorItem = testClass.assertConstructor(emptyList())
-            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5")
+            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5:5")
 
             val propertyItem = testClass.assertProperty("property")
-            checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11")
+            checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11:5")
 
             // Check location of javadoc that is not specified.
             val methodItem = testClass.assertMethod("noComment", emptyList())
             checkItemDocumentationLocation(methodItem, "null")
+        }
+    }
+
+    @Test
+    fun `Test javadoc error locations`() {
+        val reporter = RecordingReporter()
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** {@code unterminated tag on class */
+                    public class Test {
+                        /** {@code unterminated tag on constructor */
+                        public Test() {}
+
+                        /**
+                         * Multi-line comment containing
+                         * {@code unterminated tag on field
+                         */
+                        public int field = 0;
+
+                        /**
+                         * Blah first; {@code unterminated tag on method
+                         */
+                        fun commented() {}
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    reporter = reporter,
+                ),
+        ) {
+            // Make sure that no issues are found before parsing the Javadoc description blocks.
+            // This ensures that no parsing is done unless required.
+            val issuesBeforeParsing = removeTestSpecificDirectories(reporter.issues)
+            assertEquals("", issuesBeforeParsing)
+
+            // Then, check the printed form of the comment. That is needed to ensure that the
+            // comment is parsed and any issues found.
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                """
+                    /** {@code unterminated tag on class} */
+
+                """,
+            )
+
+            val constructorItem = testClass.assertConstructor(emptyList())
+            checkItemDocumentationPrint(
+                constructorItem,
+                """
+                    /** {@code unterminated tag on constructor} */
+
+                """,
+            )
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationPrint(
+                fieldItem,
+                """
+                    /**
+                     * Multi-line comment containing
+                     * {@code unterminated tag on field}
+                     */
+
+                """,
+            )
+
+            val methodItem = testClass.assertMethod("commented", emptyList())
+            checkItemDocumentationPrint(
+                methodItem,
+                """
+                    /** Blah first; {@code unterminated tag on method} */
+
+                """,
+            )
+
+            // Finally, check to see what issues have been reported.
+            val issuesAfterParsing = removeTestSpecificDirectories(reporter.issues)
+            assertEquals(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:3:5: error: unclosed inline '@code' tag [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:5:9: error: unclosed inline '@code' tag [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:10:8: error: unclosed inline '@code' tag [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:15:20: error: unclosed inline '@code' tag [UnclosedInlineTag]
+                """
+                    .trimIndent(),
+                issuesAfterParsing
+            )
+        }
+    }
+
+    private fun checkItemDocumentationPrint(
+        item: SelectableItem,
+        expectedOutput: String,
+        message: String? = null
+    ) {
+        val documentation = item.documentation
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals(expectedOutput.trimIndent(), actualOutput, message)
+    }
+
+    @Test
+    fun `Test ItemDocumentation print`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** Single line comment. */
+                    public class Test {
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+                        public Test() {}
+
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+                        public int field = 0;
+
+                        public void noComment() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /** Single line comment. */
+
+                    """,
+            )
+
+            val constructorItem = testClass.assertConstructor(emptyList())
+            checkItemDocumentationPrint(
+                constructorItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+
+                     """,
+            )
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationPrint(
+                fieldItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+
+                     """,
+            )
+
+            val methodItem = testClass.assertMethod("noComment", emptyList())
+            checkItemDocumentationPrint(
+                methodItem,
+                expectedOutput = "",
+            )
+        }
+    }
+
+    private fun checkItemDocumentationAppend(item: SelectableItem, expectedOutput: String) {
+        val documentation = item.documentation
+        documentation.appendDocumentation("Appended.", null)
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals(expectedOutput.trimIndent(), actualOutput)
+    }
+
+    @Test
+    fun `Test ItemDocumentation appendDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** Single line comment. */
+                    public class Test {
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+                        public Test() {}
+
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+                        public int field = 0;
+
+                        public void noComment() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationAppend(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Single line comment.
+                         * <br>
+                         * Appended.
+                         */
+
+                    """,
+            )
+
+            val constructorItem = testClass.assertConstructor(emptyList())
+            checkItemDocumentationAppend(
+                constructorItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Multi-line
+                         * comment.
+                         *
+                         * <br>
+                         * Appended.
+                         */
+
+                     """,
+            )
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationAppend(
+                fieldItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         *
+                         * <br>
+                         * Appended.
+                         */
+
+                     """,
+            )
+
+            val methodItem = testClass.assertMethod("noComment", emptyList())
+            checkItemDocumentationAppend(
+                methodItem,
+                expectedOutput =
+                    """
+                        /** Appended. */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test mixture of indentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * Summary line.
+                    No leading asterisks
+                        No leading asterisks but leading whitespace
+                    ****** Multiple leading asterisks
+                         **  **  ** Mixture of leading asterisks and whitespace
+                    // Leading forwards slash
+                     // Leading whitespace then forwards slash
+                     */
+                    public class Test {
+                        /**
+                         * Summary line.
+                        No leading asterisks
+                            No leading asterisks but leading whitespace
+                        ****** Multiple leading asterisks
+                             **  **  ** Mixture of leading asterisks and whitespace
+                        // Leading forwards slash
+                         // Leading whitespace then forwards slash
+                         */
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         *No leading asterisks
+                         *    No leading asterisks but leading whitespace
+                         * Multiple leading asterisks
+                         *  **  ** Mixture of leading asterisks and whitespace
+                        // Leading forwards slash
+                         * // Leading whitespace then forwards slash
+                         */
+
+                    """,
+            )
+
+            val testMethod = testClass.methods().single()
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         *    No leading asterisks
+                         *        No leading asterisks but leading whitespace
+                         * Multiple leading asterisks
+                         *  **  ** Mixture of leading asterisks and whitespace
+                         *    // Leading forwards slash
+                         *     // Leading whitespace then forwards slash
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test addUniqueBlockTagSectionWithSimpleText`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * Summary line.
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /** Summary line. */
+
+                    """,
+            )
+
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("unique", "1")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * @unique 1
+                         */
+
+                    """,
+            )
+
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("unique", "2")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * @unique 2
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test appending to Javadoc with errors`() {
+        val reporter = RecordingReporter()
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /** Unclosed {@code inline tag */
+                    public class Test {}
+                 """
+            ),
+            testFixture =
+                TestFixture(
+                    reporter = reporter,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // Add a block tag to the `DocComment`. This will create a DocComment from `text`, by
+            // splitting it into a main `DocDescription` and an empty set of `BlockTagSection`s. It
+            // does not parse the `DocDescription` content so does not detect the unclosed `code`
+            // tag. After creating the `DocComment` it mutates it by adding a `BlockTagSection`
+            // which again does not detect the unclosed `code` tag. It then sets `text` to `null` to
+            // force it to be regenerated from the `DocComment` next time it is accessed.
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("custom", "text")
+
+            // Append the documentation. This forces the `text` field to be generated from the
+            // `DocComment`. That first has to parse the `DocDescription` and create the
+            // `JavadocContent` model. During that process the unclosed `code` tag is detected and
+            // reported. Reporting requires accessing `ItemDocumentation.fileLocation` and in the
+            // `PsiItemDocumentation` implementation that requires the `psiComment` field to have
+            // been initialized. That is initialized at the same time as `text` was first
+            // initialized so the implementation checks to see whether `text` has been initialized
+            // before trying to initialize it to avoid re-entering the code to generate `text` from
+            // the `DocComment` which would cause a `StackOverflowError`.
+            testClass.documentation.appendDocumentation("Blah", null)
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Unclosed {@code inline tag}
+                         * <br>
+                         * Blah
+                         * @custom text
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test leading whitespace in descriptions`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     *    Summary line with leading whitespace.
+                     * @see   "With leading whitespace"
+                     * @deprecated
+                     *     Block tag with leading whitespace on separate line.
+                     */
+                    public class Test {}
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            checkItemDocumentationPrint(
+                testClass,
+                // The whitespace at the start of the summary line and at the start of each block
+                // tag is removed.
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line with leading whitespace.
+                         *
+                         * @see "With leading whitespace"
+                         * @deprecated Block tag with leading whitespace on separate line.
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test sorting @param to match parameter list order`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     * @param unknown
+                     * @param mysterious
+                     * @param <D> unknown
+                     * @param <C> should be third
+                     * @param <B> should be first
+                     * @param <A> should be second
+                     */
+                    public class Test<B, A, C> {
+                        /**
+                         * @param unknown
+                         * @param mysterious
+                         * @param <D> unknown
+                         * @param <A> mysterious
+                         */
+                        public static final int FIELD = 1;
+
+                        /**
+                         * Type parameters should come before callable parameters.
+                         * @param <D> unknown
+                         * @param <Z> should be third
+                         * @param <Y> should be first
+                         * @param <X> should be second
+                         * @param unknown
+                         * @param mysterious
+                         * @param c should be third
+                         * @param b should be first
+                         * @param a should be second
+                         */
+                        public <Y, X, Z> void method(Y b, X a, Z c) {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * @param <B> should be first
+                         * @param <A> should be second
+                         * @param <C> should be third
+                         * @param <D> unknown
+                         * @param mysterious
+                         * @param unknown
+                         */
+
+                    """,
+            )
+
+            val testField = testClass.fields().single()
+            checkItemDocumentationPrint(
+                testField,
+                expectedOutput =
+                    """
+                        /**
+                         * @param <A> mysterious
+                         * @param <D> unknown
+                         * @param mysterious
+                         * @param unknown
+                         */
+
+                    """,
+            )
+
+            val testMethod = testClass.methods().single()
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput =
+                    """
+                        /**
+                         * Type parameters should come before callable parameters.
+                         *
+                         * @param <Y> should be first
+                         * @param <X> should be second
+                         * @param <Z> should be third
+                         * @param <D> unknown
+                         * @param b should be first
+                         * @param a should be second
+                         * @param c should be third
+                         * @param mysterious
+                         * @param unknown
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test fully qualifying links that wrap on multiple lines`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Other;
+                        /**
+                         * {@link
+                         * Other}
+                         * {@link
+                         * Other#Other}
+                         * {@link
+                         * Other#field}
+                         * {@link
+                         * Other#method}
+                         * <br>
+                         * {@link Other
+                         * other class}
+                         * {@link Other#method
+                         * custom text}
+                         */
+                        public class Test {
+                            /**
+                             * Method.
+                             * @param p Parameter
+                             *     {@link
+                             *     Other}
+                             *     {@link
+                             *     Other#Other}
+                             *     {@link
+                             *     Other#field}
+                             *     {@link
+                             *     Other#method}
+                             *     <br>
+                             *     {@link Other
+                             *     other class}
+                             *     {@link Other#method
+                             *     custom text}
+                             */
+                            public void method(int p) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package other.pkg;
+
+                        public class Other {
+                            public Other() {}
+                            public int field;
+                            public void method() {}
+                        }
+                    """
+                )
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * {@link other.pkg.Other Other}
+                         * {@link other.pkg.Other#Other Other.Other}
+                         * {@link other.pkg.Other#field Other.field}
+                         * {@link other.pkg.Other#method Other.method}
+                         * <br>
+                         * {@link other.pkg.Other other class}
+                         * {@link other.pkg.Other#method custom text}
+                         */
+
+                    """,
+            )
+
+            val testMethod = testClass.methods().single()
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput =
+                    """
+                        /**
+                         * Method.
+                         *
+                         * @param p Parameter
+                         *     {@link other.pkg.Other Other}
+                         *     {@link other.pkg.Other#Other Other.Other}
+                         *     {@link other.pkg.Other#field Other.field}
+                         *     {@link other.pkg.Other#method Other.method}
+                         *     <br>
+                         *     {@link other.pkg.Other other class}
+                         *     {@link other.pkg.Other#method custom text}
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    private fun assertDocContentOwnerToString(
+        owner: DocContentOwner?,
+        expected: String?,
+        message: String? = null
+    ) {
+        assertNotNull(owner)
+        val content = owner.docContent
+        if (expected == null) {
+            assertNull(content)
+        } else {
+            assertNotNull(content)
+            assertEquals(expected, content.toString(), message)
+        }
+    }
+
+    @Test
+    fun `Test DocContentOwner with main description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     * Main documentation.
+                     */
+                    public class Test {}
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val documentation = testClass.documentation
+
+            assertDocContentOwnerToString(
+                documentation.mainDescriptionOwner,
+                """JavadocText("Main documentation.")"""
+            )
+        }
+    }
+
+    @Test
+    fun `Test DocContentOwner without main description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     * @see String block tag documentation.
+                     */
+                    public class Test {}
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val documentation = testClass.documentation
+
+            assertDocContentOwnerToString(
+                documentation.mainDescriptionOwner,
+                expected = null,
+                message = "mainDescription"
+            )
+            assertDocContentOwnerToString(
+                documentation.blockTagDescriptionOwner("see"),
+                expected = """JavadocText("String block tag documentation.")""",
+                message = "@see block tag"
+            )
+            assertNull(
+                documentation.blockTagDescriptionOwner("unknown"),
+                message = "@unknown block tag"
+            )
+        }
+    }
+
+    @Test
+    fun `Test DocContentOwner for param description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                        /**
+                         * @param p1 param 1 documentation.
+                         * @param p2 param 2 documentation.
+                         */
+                        public void method(String p1, int p2) {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.methods().single()
+            val documentation = testMethod.documentation
+
+            assertDocContentOwnerToString(
+                documentation.paramTagDescriptionOwner("p1"),
+                """JavadocText("param 1 documentation.")""",
+                message = "@param p1 tag"
+            )
+            assertDocContentOwnerToString(
+                documentation.paramTagDescriptionOwner("p2"),
+                """JavadocText("param 2 documentation.")""",
+                message = "@param p2 tag"
+            )
+            assertNull(documentation.paramTagDescriptionOwner("unknown"), message = "unknown param")
+        }
+    }
+
+    @Test
+    fun `Test append DocContent to main description`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.other;
+                        /** Text to {@code append} see {@link #method()}. */
+                        public class Other {
+                            public void method() {}
+                        }
+                     """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            public void method() {}
+                        }
+                     """
+                ),
+            ),
+        ) {
+            val otherClass = codebase.assertClass("test.other.Other")
+            val contentToAppend = otherClass.documentation.mainDescriptionOwner?.docContent!!
+
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val classDocumentation = testClass.documentation
+
+            checkItemDocumentationPrint(testClass, expectedOutput = "", message = "before mutation")
+
+            classDocumentation.mainDescriptionOwner?.append(contentToAppend)
+
+            // TODO(b/450228132): The '@link' should have been resolved to Other#method().
+            val expectedOutputAfterMutation =
+                """
+                    /** Text to {@code append} see {@link #method()}. */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterMutation.trimIndent(),
+                classDocumentation.text,
+                message = "text after mutation"
+            )
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput = expectedOutputAfterMutation,
+                message = "after mutation"
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to main description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                        public void method() {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            val testMethod = testClass.methods().single()
+            val methodDocumentation = testMethod.documentation
+
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = "",
+                message = "before mutation"
+            )
+
+            methodDocumentation.mainDescriptionOwner?.append("Text to {@code append}.")
+
+            val expectedOutputAfterMutation =
+                """
+                    /** Text to {@code append}. */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterMutation.trimIndent(),
+                methodDocumentation.text,
+                message = "text after mutation"
+            )
+
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = expectedOutputAfterMutation,
+                message = "after mutation"
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to block tag description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /** @deprecated */
+                    public class Test {
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val documentation = testClass.documentation
+
+            assertEquals("/** @deprecated */", documentation.text, message = "before mutation")
+
+            documentation.blockTagDescriptionOwner("deprecated")?.append("extra text")
+
+            val expectedOutputAfterMutation =
+                """
+                    /** @deprecated extra text */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterMutation.trimIndent(),
+                documentation.text,
+                message = "after mutation"
+            )
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput = expectedOutputAfterMutation,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to param tag description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                        /** @param p */
+                        public void method(int p) {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            val testMethod = testClass.methods().single()
+            val documentation = testMethod.documentation
+
+            assertEquals("/** @param p */", documentation.text, message = "before mutation")
+
+            documentation.paramTagDescriptionOwner("p")?.append("extra text")
+
+            val expectedOutputAfterMutation =
+                """
+                    /** @param p extra text */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterMutation.trimIndent(),
+                documentation.text,
+                message = "after mutation"
+            )
+
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = expectedOutputAfterMutation,
+            )
         }
     }
 }

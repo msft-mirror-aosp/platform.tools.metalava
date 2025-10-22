@@ -42,6 +42,34 @@ import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
     @Test
+    fun `Should not raise issue when experimental package is added`() {
+        check(
+            expectedIssues = "",
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                package test.sub.pkgA {
+                    public final class MyClass {
+                    }
+                }
+                """,
+            signatureSource =
+                """
+                package @SuppressCompatibility test.sub.pkgB {
+                    public final class MyClass2 {
+                    }
+                }
+                package test.sub.pkgA {
+                    public final class MyClass {
+                    }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations =
+                arrayOf("androidx.annotation.SuppressCompatibility")
+        )
+    }
+
+    @Test
     fun `Change between class and interface`() {
         check(
             expectedIssues =
@@ -150,6 +178,50 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Incompatible changes should be allowed when previous version is marked as experimental`() {
+        // Making sure that removal of field, changing field type, removal of method,
+        // changing of method return type (all incompatible changes) do not generate errors
+        // when the previous class version is marked as experimental in the signature file
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    method public void myFunToBeRemoved();
+                    method public void myFunWithChangedParameters(String a);
+                    method public String myFunWithChangedReturnType();
+                    method public void myFunWithNullabilityChanged(String a);
+                    property public static String MY_CONST_WITH_CHANGED_TYPE;
+                    property public static int MY_REMOVED_CONST;
+                    field public final String MY_CONST_WITH_CHANGED_TYPE;
+                    field public final int MY_REMOVED_CONST;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    method public void myFunWithChangedParameters(int a);
+                    method public int myFunWithChangedReturnType();
+                    method public void myFunWithNullabilityChanged(String a);
+                    property public static int MY_CONST_WITH_CHANGED_TYPE;
+                    field public final int MY_CONST_WITH_CHANGED_TYPE;
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
         )
     }
 
