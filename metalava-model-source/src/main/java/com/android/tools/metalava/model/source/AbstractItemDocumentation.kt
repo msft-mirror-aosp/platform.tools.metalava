@@ -276,6 +276,9 @@ abstract class AbstractItemDocumentation(
     override fun check(predicate: DocContentPredicate) =
         docComment.check(predicate as JavadocContentPredicate)
 
+    /** Check to see if this requires a source comment. */
+    override fun requiresSourceComment() = docComment.requiresSourceComment()
+
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
         val firstDot = text.indexOf(".")

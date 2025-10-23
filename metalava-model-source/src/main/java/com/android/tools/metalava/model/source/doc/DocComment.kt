@@ -67,6 +67,15 @@ internal interface DocComment : DocContentOwner {
      */
     fun check(predicate: JavadocContentPredicate): Boolean
 
+    /**
+     * Check to see if this requires a source comment.
+     *
+     * This returns `true` if it would need to be written as a comment if this was generated in the
+     * sources. That can either be because it was created from a comment in the original sources, or
+     * it has been mutated since creation.
+     */
+    fun requiresSourceComment(): Boolean
+
     /** Print this as a Javadoc comment to [writer]. */
     fun printAsJavadocComment(writer: PrintWriter)
 
@@ -216,6 +225,13 @@ internal class DefaultDocComment(
             // If the block tag section has multiple tags then it requires multiple lines.
             else -> RequiredSpace.MULTI_LINE
         }
+
+    /**
+     * Requires a source comment if there was a source comment, there is a non-null main
+     * description, at least one block tag.
+     */
+    override fun requiresSourceComment() =
+        !noComment || description != null || blockTagSections.isNotEmpty()
 
     override fun printAsJavadocComment(writer: PrintWriter) {
         // Compute require space for the main description and block tag sections.
