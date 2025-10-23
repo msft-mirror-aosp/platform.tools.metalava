@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.collections.plus
@@ -93,6 +94,16 @@ private enum class RequiredSpace {
         return entries[(ordinal + other.ordinal).coerceAtMost(MULTI_LINE.ordinal)]
     }
 }
+
+/**
+ * Checks to see whether the content will occupy multiple lines.
+ *
+ * @return `true` if it does, `false` otherwise.
+ */
+private fun JavadocContent.isMultiLine() = matches(MULTI_LINE_CHECKER)
+
+/** Visitor that will search the content to see if it contains any newline characters. */
+internal val MULTI_LINE_CHECKER = TextContainsAnyVisitor { string -> string.contains('\n') }
 
 /** Determines how much vertical space this [JavadocContent] requires when printed. */
 private fun JavadocContent?.requiredSpace(): RequiredSpace =

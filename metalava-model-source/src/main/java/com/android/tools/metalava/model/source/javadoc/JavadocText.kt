@@ -26,9 +26,6 @@ internal class JavadocText(val contents: String) : JavadocContent {
         require(contents.isNotEmpty()) { "contents must contain at least one character" }
     }
 
-    /** A block of text occupies multiple lines if it contains a newline. */
-    override fun isMultiLine() = contents.contains('\n')
-
     /** A block of text starts with a newline if the first character is a newline. */
     override fun startsWithNewline() = contents[0] == '\n'
 
