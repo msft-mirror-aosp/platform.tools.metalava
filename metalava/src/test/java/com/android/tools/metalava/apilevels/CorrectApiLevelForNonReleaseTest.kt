@@ -23,6 +23,7 @@ import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -190,5 +191,39 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
             expectedFail =
                 "Aborting: Suspicious --api-version-for-sources ${lastFinalizedVersion-1}, expected a version greater than $lastFinalizedVersion"
         )
+    }
+
+    @Test
+    fun `Do not include sources for release (REL) with current version arg less than last finalized version`() {
+        val lastFinalizedVersion = 35
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "REL", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    lastFinalizedVersion.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                )
+        )
+
+        assertTrue(output.isFile)
+        val xml = output.readText(Charsets.UTF_8)
+        assertFalse(xml.contains("<class name=\"android/pkg/MyTest\""))
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION") assertEquals(-1, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 }
