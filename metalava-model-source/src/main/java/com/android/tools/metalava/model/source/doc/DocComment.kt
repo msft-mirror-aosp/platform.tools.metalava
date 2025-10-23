@@ -16,11 +16,12 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
-import com.android.tools.metalava.model.source.javadoc.requiredSpace
 import java.io.PrintWriter
 import java.io.StringWriter
+import kotlin.collections.plus
 
 /**
  * A Javadoc or KDoc comment associated with an API element.
@@ -43,6 +44,17 @@ internal interface DocComment : DocContentOwner {
 
     /** Add a [BlockTagSection] of [tagTypeName] with [description] to the list. */
     fun addBlockTagSection(tagTypeName: String, description: JavadocContent?)
+
+    /**
+     * Prepare a [BlockTagSection] for adding, if it has any content added.
+     *
+     * Appending content to the returned [DocContentOwner] will cause a [BlockTagSection] for
+     * [tagTypeName] with the appended content to be added to this [DocComment].
+     */
+    fun pendingBlockTagSection(
+        tagTypeName: String,
+        description: JavadocContent? = null
+    ): DocContentOwner
 
     /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
     fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
@@ -71,7 +83,7 @@ internal interface DocComment : DocContentOwner {
     }
 }
 
-enum class RequiredSpace {
+private enum class RequiredSpace {
     EMPTY,
     SINGLE_LINE,
     MULTI_LINE,
@@ -81,6 +93,14 @@ enum class RequiredSpace {
         return entries[(ordinal + other.ordinal).coerceAtMost(MULTI_LINE.ordinal)]
     }
 }
+
+/** Determines how much vertical space this [JavadocContent] requires when printed. */
+private fun JavadocContent?.requiredSpace(): RequiredSpace =
+    when {
+        this == null -> RequiredSpace.EMPTY
+        isMultiLine() -> RequiredSpace.MULTI_LINE
+        else -> RequiredSpace.SINGLE_LINE
+    }
 
 /**
  * Interface that must be implemented by classes that need to respond to changes in a [DocComment].
@@ -94,7 +114,14 @@ internal class DefaultDocComment(
     context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
     blockTagSections: List<BlockTagSection>,
-) : DescriptionOwner(context, descriptionSupplier), DocComment {
+    noComment: Boolean,
+) :
+    DescriptionOwner(
+        context,
+        descriptionSupplier,
+        noComment,
+    ),
+    DocComment {
     /** Allow [blockTagSections] to be modified but only within this class. */
     override var blockTagSections = blockTagSections
         private set
@@ -118,8 +145,25 @@ internal class DefaultDocComment(
     internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
         blockTagSections = blockTagSections + blockTagSection
 
+        // If this call added the first block tag section, then append`{@inheritDoc}` if necessary.
+        // If it was appended then return as it will already have notified the listener that this
+        // has changed.
+        // TODO(b/454257440): Investigate whether adding `{@inheritDoc}` to the main description of
+        //  a comment in this case is necessary.
+        if (blockTagSections.size == 1 && appendInheritDocIfNeeded()) {
+            return
+        }
+
         // Notify any listener.
         context.mutationListener.docCommentMutated()
+    }
+
+    override fun pendingBlockTagSection(
+        tagTypeName: String,
+        description: JavadocContent?
+    ): DocContentOwner {
+        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        return PendingBlockTagSection(this, context, tagType, description.toSupplier())
     }
 
     override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean) {
@@ -232,5 +276,56 @@ internal class DefaultDocComment(
             // above.
             append(section)
         }
+    }
+}
+
+/**
+ * A pending [BlockTagSection].
+ *
+ * Implements mutators in [DocContentOwner] to create and add a [blockTagSection] to [docComment]
+ * and then delegates those mutators to [blockTagSection].
+ */
+internal class PendingBlockTagSection(
+    private val docComment: DefaultDocComment,
+    private val context: DocCommentContext,
+    private val tagType: TagType<*>,
+    private val description: ContentSupplier,
+) : DocContentOwner {
+    /**
+     * Backing field for [blockTagSection].
+     *
+     * Lazily initialized by [blockTagSection] getter.
+     */
+    private var _blockTagSection: BlockTagSection? = null
+
+    /**
+     * The [BlockTagSection] that was added to [docComment].
+     *
+     * On first access this will create a [BlockTagSection] and add it to [docComment].
+     */
+    private val blockTagSection
+        get() =
+            _blockTagSection
+                ?: run {
+                    val new = DefaultBlockTagSection(context, tagType, description)
+                    _blockTagSection = new
+                    docComment.addBlockTagSection(new)
+                    new
+                }
+
+    /**
+     * Delegate to [_blockTagSection].
+     *
+     * Accessing this does not create [blockTagSection].
+     */
+    override val docContent: DocContent?
+        get() = _blockTagSection?.description
+
+    override fun append(other: DocContent) {
+        blockTagSection.append(other)
+    }
+
+    override fun append(text: String) {
+        blockTagSection.append(text)
     }
 }

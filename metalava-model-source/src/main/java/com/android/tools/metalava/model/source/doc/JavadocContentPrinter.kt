@@ -25,7 +25,8 @@ import java.io.PrintWriter
 import kotlin.text.iterator
 
 /** Prints [JavadocContent] instances to [writer]. */
-internal class JavadocContentPrinter(private val writer: PrintWriter) : JavadocContentVisitor {
+internal class JavadocContentPrinter(private val writer: PrintWriter) :
+    JavadocContentVisitor<Unit> {
     /** Prints [content] as part of a Javadoc comment to [writer]. */
     fun print(content: JavadocContent?) {
         content?.accept(this)

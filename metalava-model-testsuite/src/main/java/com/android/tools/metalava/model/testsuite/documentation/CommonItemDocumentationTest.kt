@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.java
@@ -649,6 +649,221 @@ class CommonItemDocumentationTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test ItemDocumentation appendDocumentation on overriding method`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Base {
+                            public void noCommentAppendToMainDescription() {}
+
+                            public void noCommentAppendDeprecated() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test extends Base {
+                            @Override
+                            public void noCommentAppendToMainDescription() {}
+
+                            @Override
+                            public void noCommentAppendDeprecated() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertMethod("noCommentAppendToMainDescription", emptyList()).let { methodItem
+                ->
+                // Add to main description first.
+                methodItem.appendDocumentation("Appended to main.")
+                checkItemDocumentationPrint(
+                    methodItem,
+                    expectedOutput =
+                        """
+                            /**
+                             * {@inheritDoc}
+                             *
+                             * Appended to main.
+                             */
+
+                        """,
+                )
+
+                // Add to deprecated second.
+                methodItem.appendDocumentation("Appended to deprecated.", "@deprecated")
+                checkItemDocumentationPrint(
+                    methodItem,
+                    expectedOutput =
+                        """
+                            /**
+                             * {@inheritDoc}
+                             *
+                             * Appended to main.
+                             * @deprecated Appended to deprecated.
+                             */
+
+                        """,
+                )
+            }
+
+            testClass.assertMethod("noCommentAppendDeprecated", emptyList()).let { methodItem ->
+                // Add to deprecated first.
+                methodItem.appendDocumentation("Appended to deprecated.", "@deprecated")
+                checkItemDocumentationPrint(
+                    methodItem,
+                    expectedOutput =
+                        """
+                            /**
+                             * {@inheritDoc}
+                             * @deprecated Appended to deprecated.
+                             */
+
+                        """,
+                )
+
+                // TODO(b/454257440): The main description and the block tag descriptions are
+                //  intended to be separate and modifying one should not affect the other. So, the
+                //  order in which they are done should not matter but this shows that when the
+                //  deprecated is added first it behaves differently (extra `<br>` inserted) to when
+                //  the main description is added first.
+
+                // Add to main second.
+                methodItem.appendDocumentation("Appended to main.")
+                checkItemDocumentationPrint(
+                    methodItem,
+                    expectedOutput =
+                        """
+                            /**
+                             * {@inheritDoc}
+                             *
+                             * <br>
+                             * Appended to main.
+                             * @deprecated Appended to deprecated.
+                             */
+
+                        """,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test DocContentOwner append String on overriding method`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Base {
+                            public void noCommentAppendToMainDescription() {}
+
+                            public void noCommentAppendDeprecated() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test extends Base {
+                            @Override
+                            public void noCommentAppendToMainDescription() {}
+
+                            @Override
+                            public void noCommentAppendDeprecated() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertMethod("noCommentAppendToMainDescription", emptyList()).let { methodItem
+                ->
+                // Add to main description first.
+                methodItem.documentation.mainDescriptionOwner.append("Appended to main.")
+                checkItemDocumentationPrint(
+                    methodItem,
+                    expectedOutput =
+                        """
+                            /**
+                             * {@inheritDoc}
+                             *
+                             * Appended to main.
+                             */
+
+                        """,
+                )
+
+                // Add to deprecated second.
+                methodItem.documentation
+                    .blockTagDescriptionOwner("deprecated")
+                    .append("Appended to deprecated.")
+                checkItemDocumentationPrint(
+                    methodItem,
+                    expectedOutput =
+                        """
+                            /**
+                             * {@inheritDoc}
+                             *
+                             * Appended to main.
+                             * @deprecated Appended to deprecated.
+                             */
+
+                        """,
+                )
+            }
+
+            testClass.assertMethod("noCommentAppendDeprecated", emptyList()).let { methodItem ->
+                // Add to deprecated first.
+                methodItem.documentation
+                    .blockTagDescriptionOwner("deprecated")
+                    .append("Appended to deprecated.")
+                checkItemDocumentationPrint(
+                    methodItem,
+                    expectedOutput =
+                        """
+                            /**
+                             * {@inheritDoc}
+                             * @deprecated Appended to deprecated.
+                             */
+
+                        """,
+                )
+
+                // TODO(b/454257440): The main description and the block tag descriptions are
+                //  intended to be separate and modifying one should not affect the other. So, the
+                //  order in which they are done should not matter but this shows that when the
+                //  deprecated is added first it behaves differently (extra `<br>` inserted) to when
+                //  the main description is added first.
+
+                // Add to main second.
+                methodItem.documentation.mainDescriptionOwner.append("Appended to main.")
+                checkItemDocumentationPrint(
+                    methodItem,
+                    expectedOutput =
+                        """
+                            /**
+                             * {@inheritDoc}
+                             * <br>
+                             * Appended to main.
+                             * @deprecated Appended to deprecated.
+                             */
+
+                        """,
+                )
+            }
+        }
+    }
+
+    @Test
     fun `Test mixture of indentation`() {
         runSourceCodebaseTest(
             java(
@@ -1058,13 +1273,11 @@ class CommonItemDocumentationTest : BaseModelTest() {
         }
     }
 
-    private fun assertDocContentOwnerToString(
-        owner: DocContentOwner?,
+    private fun assertDocContentToString(
+        content: DocContent?,
         expected: String?,
         message: String? = null
     ) {
-        assertNotNull(owner)
-        val content = owner.docContent
         if (expected == null) {
             assertNull(content)
         } else {
@@ -1074,7 +1287,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test DocContentOwner with main description`() {
+    fun `Test DocContent with main description`() {
         runSourceCodebaseTest(
             java(
                 """
@@ -1089,8 +1302,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.documentation
 
-            assertDocContentOwnerToString(
-                documentation.mainDescriptionOwner,
+            assertDocContentToString(
+                documentation.mainDescription,
                 """JavadocText("Main documentation.")"""
             )
         }
@@ -1112,25 +1325,22 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.documentation
 
-            assertDocContentOwnerToString(
-                documentation.mainDescriptionOwner,
+            assertDocContentToString(
+                documentation.mainDescription,
                 expected = null,
                 message = "mainDescription"
             )
-            assertDocContentOwnerToString(
-                documentation.blockTagDescriptionOwner("see"),
+            assertDocContentToString(
+                documentation.blockTagDescription("see"),
                 expected = """JavadocText("String block tag documentation.")""",
                 message = "@see block tag"
             )
-            assertNull(
-                documentation.blockTagDescriptionOwner("unknown"),
-                message = "@unknown block tag"
-            )
+            assertNull(documentation.blockTagDescription("unknown"), message = "@unknown block tag")
         }
     }
 
     @Test
-    fun `Test DocContentOwner for param description`() {
+    fun `Test DocContent for param description`() {
         runSourceCodebaseTest(
             java(
                 """
@@ -1149,17 +1359,17 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.methods().single()
             val documentation = testMethod.documentation
 
-            assertDocContentOwnerToString(
-                documentation.paramTagDescriptionOwner("p1"),
+            assertDocContentToString(
+                documentation.paramTagDescription("p1"),
                 """JavadocText("param 1 documentation.")""",
                 message = "@param p1 tag"
             )
-            assertDocContentOwnerToString(
-                documentation.paramTagDescriptionOwner("p2"),
+            assertDocContentToString(
+                documentation.paramTagDescription("p2"),
                 """JavadocText("param 2 documentation.")""",
                 message = "@param p2 tag"
             )
-            assertNull(documentation.paramTagDescriptionOwner("unknown"), message = "unknown param")
+            assertNull(documentation.paramTagDescription("unknown"), message = "unknown param")
         }
     }
 
@@ -1187,14 +1397,14 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val otherClass = codebase.assertClass("test.other.Other")
-            val contentToAppend = otherClass.documentation.mainDescriptionOwner?.docContent!!
+            val contentToAppend = otherClass.documentation.mainDescription!!
 
             val testClass = codebase.assertClass("test.pkg.Test")
             val classDocumentation = testClass.documentation
 
             checkItemDocumentationPrint(testClass, expectedOutput = "", message = "before mutation")
 
-            classDocumentation.mainDescriptionOwner?.append(contentToAppend)
+            classDocumentation.mainDescriptionOwner.append(contentToAppend)
 
             // TODO(b/450228132): The '@link' should have been resolved to Other#method().
             val expectedOutputAfterMutation =
@@ -1241,7 +1451,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 message = "before mutation"
             )
 
-            methodDocumentation.mainDescriptionOwner?.append("Text to {@code append}.")
+            methodDocumentation.mainDescriptionOwner.append("Text to {@code append}.")
 
             val expectedOutputAfterMutation =
                 """
@@ -1281,7 +1491,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             assertEquals("/** @deprecated */", documentation.text, message = "before mutation")
 
-            documentation.blockTagDescriptionOwner("deprecated")?.append("extra text")
+            documentation.blockTagDescriptionOwner("deprecated").append("extra text")
 
             val expectedOutputAfterMutation =
                 """
@@ -1299,6 +1509,85 @@ class CommonItemDocumentationTest : BaseModelTest() {
             checkItemDocumentationPrint(
                 testClass,
                 expectedOutput = expectedOutputAfterMutation,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to non-existent block tag description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val documentation = testClass.documentation
+
+            assertEquals("", documentation.text, message = "text before mutation")
+
+            // Get the description owner for the non-existent deprecated block tag.
+            val descriptionOwner = documentation.blockTagDescriptionOwner("deprecated")
+
+            // Make sure that just getting the description owner did not change the doc comment.
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput = "",
+                message = "model before mutation"
+            )
+
+            // Append the content, this should create the `@deprecated` block tag.
+            descriptionOwner.append("extra text")
+
+            val expectedOutputAfterFirstMutation =
+                """
+                    /** @deprecated extra text */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterFirstMutation.trimIndent(),
+                documentation.text,
+                message = "text after first mutation"
+            )
+
+            // Make sure that the model reflects the changes after mutation.
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput = expectedOutputAfterFirstMutation,
+                message = "model after first mutation"
+            )
+
+            // Use the descriptionOwner to append some more content to make sure the block tag is
+            // not added twice.
+            descriptionOwner.append("Some more content")
+
+            val expectedOutputAfterSecondMutation =
+                """
+                    /**
+                     * @deprecated extra text
+                     * <br>
+                     * Some more content
+                     */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterSecondMutation.trimIndent(),
+                documentation.text,
+                message = "text after second mutation"
+            )
+
+            // Make sure that the model reflects the changes after mutation.
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput = expectedOutputAfterSecondMutation,
+                message = "model after second mutation"
             )
         }
     }
@@ -1323,7 +1612,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             assertEquals("/** @param p */", documentation.text, message = "before mutation")
 
-            documentation.paramTagDescriptionOwner("p")?.append("extra text")
+            documentation.paramTagDescriptionOwner("p").append("extra text")
 
             val expectedOutputAfterMutation =
                 """
@@ -1341,6 +1630,87 @@ class CommonItemDocumentationTest : BaseModelTest() {
             checkItemDocumentationPrint(
                 testMethod,
                 expectedOutput = expectedOutputAfterMutation,
+            )
+        }
+    }
+
+    @Test
+    fun `Test append String to non-existent param tag description`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {
+                        public void method(int p) {}
+                    }
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.methods().single()
+            val documentation = testMethod.documentation
+
+            assertEquals("", documentation.text, message = "text before mutation")
+
+            // Get the description owner for the non-existent deprecated block tag.
+            val descriptionOwner = documentation.paramTagDescriptionOwner("p")
+
+            // Make sure that just getting the description owner did not change the doc comment.
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = "",
+                message = "model before mutation"
+            )
+
+            // Append the content, this should create the `@deprecated` block tag.
+            descriptionOwner.append("extra text")
+
+            val expectedOutputAfterFirstMutation =
+                """
+                    /** @param p extra text */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterFirstMutation.trimIndent(),
+                documentation.text,
+                message = "text after first mutation"
+            )
+
+            // Make sure that the model reflects the changes after mutation.
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = expectedOutputAfterFirstMutation,
+                message = "model after first mutation"
+            )
+
+            // Use the descriptionOwner to append some more content to make sure the block tag is
+            // not added twice.
+            descriptionOwner.append("Some more content")
+
+            val expectedOutputAfterSecondMutation =
+                """
+                    /**
+                     * @param p extra text
+                     * <br>
+                     * Some more content
+                     */
+
+                """
+
+            // Make sure that the text reflects the changes after mutation.
+            assertEquals(
+                expectedOutputAfterSecondMutation.trimIndent(),
+                documentation.text,
+                message = "text after second mutation"
+            )
+
+            // Make sure that the model reflects the changes after mutation.
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput = expectedOutputAfterSecondMutation,
+                message = "model after second mutation"
             )
         }
     }

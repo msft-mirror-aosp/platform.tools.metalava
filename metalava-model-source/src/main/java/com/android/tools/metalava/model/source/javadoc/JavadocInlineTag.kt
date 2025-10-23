@@ -39,9 +39,7 @@ internal class JavadocInlineTag(
     /** An inline tag does not start with a newline. */
     override fun startsWithNewline() = false
 
-    override fun accept(visitor: JavadocContentVisitor) {
-        visitor.visit(this)
-    }
+    override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
 

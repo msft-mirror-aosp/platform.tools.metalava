@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.doc.DocContent
-import com.android.tools.metalava.model.source.doc.RequiredSpace
 
 /**
  * A component of a Javadoc comment.
@@ -44,27 +43,19 @@ internal sealed interface JavadocContent : DocContent {
     /**
      * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
      */
-    fun accept(visitor: JavadocContentVisitor)
+    fun <R> accept(visitor: JavadocContentVisitor<R>): R
 
     /** Rewrite this [JavadocContent] into a different, possibly `null` [JavadocContent]. */
     fun rewrite(rewriter: JavadocContentRewriter): JavadocContent?
 }
 
-/** Determines how much vertical space this [JavadocContent] requires when printed. */
-internal fun JavadocContent?.requiredSpace(): RequiredSpace =
-    when {
-        this == null -> RequiredSpace.EMPTY
-        isMultiLine() == true -> RequiredSpace.MULTI_LINE
-        else -> RequiredSpace.SINGLE_LINE
-    }
-
 /** Visitor of [JavadocContent] subclasses. */
-internal interface JavadocContentVisitor {
-    fun visit(list: JavadocContentList) {}
+internal interface JavadocContentVisitor<R> {
+    fun visit(list: JavadocContentList): R
 
-    fun visit(inlineTag: JavadocInlineTag) {}
+    fun visit(inlineTag: JavadocInlineTag): R
 
-    fun visit(text: JavadocText) {}
+    fun visit(text: JavadocText): R
 }
 
 /**
@@ -104,7 +95,7 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
     override fun startsWithNewline() = contents.first().startsWithNewline()
 
     /** Visit the contents of this in turn. */
-    fun visitContents(visitor: JavadocContentVisitor) {
+    fun <R> visitContents(visitor: JavadocContentVisitor<R>) {
         contents.forEach { content -> content.accept(visitor) }
     }
 
@@ -113,9 +104,7 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
         list.addAll(contents)
     }
 
-    override fun accept(visitor: JavadocContentVisitor) {
-        visitor.visit(this)
-    }
+    override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
 

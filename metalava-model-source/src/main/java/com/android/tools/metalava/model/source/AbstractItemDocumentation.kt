@@ -18,14 +18,18 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
@@ -145,7 +149,6 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
-    /** Implements [DocCommentContext.ordinalOfCallableParameter]. */
     override val isHidden
         get() = hasBlockTagOfType("hide")
 
@@ -159,6 +162,7 @@ abstract class AbstractItemDocumentation(
         return if (index == -1) size else index
     }
 
+    /** Implements [DocCommentContext.ordinalInParamsList]. */
     override fun ordinalInParamsList(name: String): Int {
         return if (item is TypeParameterListOwner) {
             val typeParameterList = item.typeParameterList
@@ -187,6 +191,11 @@ abstract class AbstractItemDocumentation(
             0
         }
     }
+
+    /** Implements [DocCommentContext.isOverridingMethod]. */
+    override fun isOverridingMethod() =
+        // Purposely does not cache this as superMethods() is already cached.
+        item is MethodItem && item.superMethods().isNotEmpty()
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")
@@ -222,13 +231,40 @@ abstract class AbstractItemDocumentation(
         }
     }
 
+    override val mainDescription: DocContent?
+        get() = docComment.description
+
     override val mainDescriptionOwner: DocContentOwner
         get() = docComment
 
-    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? =
+    override fun blockTagDescription(tagTypeName: String): DocContent? =
+        findBlockTagSection(tagTypeName)?.docContent
+
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
+        return findBlockTagSection(tagTypeName)
+            ?: docComment.pendingBlockTagSection(
+                tagTypeName,
+            )
+    }
+
+    /** Find the block tag section for [tagTypeName]. */
+    private fun findBlockTagSection(tagTypeName: String): BlockTagSection? =
         docComment.blockTagSections.find { it.tagType.name == tagTypeName }
 
-    override fun paramTagDescriptionOwner(name: String): DocContentOwner? =
+    override fun paramTagDescription(name: String): DocContent? =
+        findParamTagSection(name)?.docContent
+
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner {
+        return findParamTagSection(name)
+            ?: docComment.pendingBlockTagSection(
+                "param",
+                // Pass the parameter name through the description.
+                description = JavadocText(name),
+            )
+    }
+
+    /** Find the block tag section for `@param` of [name]. */
+    private fun findParamTagSection(name: String): BlockTagSection? =
         docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
 
     override fun workAroundJavaDocSummaryTruncationIssue() {

@@ -32,9 +32,7 @@ internal class JavadocText(val contents: String) : JavadocContent {
     /** A block of text starts with a newline if the first character is a newline. */
     override fun startsWithNewline() = contents[0] == '\n'
 
-    override fun accept(visitor: JavadocContentVisitor) {
-        visitor.visit(this)
-    }
+    override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
 
