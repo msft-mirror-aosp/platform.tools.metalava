@@ -117,7 +117,6 @@ class AndroidApiChecks(val reporter: Reporter) {
 
     private fun checkRequiresPermission(callable: CallableItem) {
         val documentation = callable.documentation
-        val text = documentation.text
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
@@ -127,7 +126,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             for (item in permissions) {
                 val perm = item.substringAfterLast('.')
                 // Search for the permission name as a whole word.
-                val mentioned = text.containsWord(perm)
+                val mentioned = documentation.containsWord(perm)
                 if (mentioned && !conditional) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,
@@ -146,9 +145,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                     )
                 }
             }
-        } else if (
-            text.contains("android.Manifest.permission") || text.contains("android.permission.")
-        ) {
+        } else if (documentation.check(CONTAINS_PERMISSION_NAME_OR_FIELD_PREDICATE)) {
             reporter.report(
                 Issues.REQUIRES_PERMISSION,
                 callable,
@@ -297,5 +294,14 @@ class AndroidApiChecks(val reporter: Reporter) {
          */
         private val CONTAINS_ACTIVITY_ACTION_PREDICATE =
             DocContentPredicates.textContainsAny { text -> text.contains("Activity Action:") }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of permission names or fields in
+         * the documentation.
+         */
+        private val CONTAINS_PERMISSION_NAME_OR_FIELD_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("android.Manifest.permission") || text.contains("android.permission.")
+            }
     }
 }
