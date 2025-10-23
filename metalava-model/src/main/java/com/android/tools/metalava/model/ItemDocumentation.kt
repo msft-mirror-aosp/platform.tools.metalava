@@ -159,7 +159,7 @@ interface ItemDocumentation {
          * Used where there is no documentation possible, e.g. text model, type parameters,
          * parameters.
          */
-        val NONE: ItemDocumentation = EmptyItemDocumentation()
+        val NONE: ItemDocumentation = NoItemDocumentation()
 
         /**
          * A special [ItemDocumentationFactory] that returns [NONE] which contains no documentation.
@@ -170,8 +170,8 @@ interface ItemDocumentation {
         val NONE_FACTORY: ItemDocumentationFactory = { NONE }
     }
 
-    /** An empty [ItemDocumentation] that can never contain any text. */
-    private class EmptyItemDocumentation : ItemDocumentation {
+    /** An [ItemDocumentation] that can never contain any text. */
+    private class NoItemDocumentation : ItemDocumentation {
         override val text
             get() = ""
 
@@ -190,31 +190,35 @@ interface ItemDocumentation {
         // This is ok to use in a snapshot as it is immutable and model independent.
         override fun snapshot(item: SelectableItem) = this
 
-        // Empty documentation never has any tag sections.
+        // No documentation never has any tag sections.
         override fun hasBlockTagOfType(blockTagType: String) = false
 
-        // Empty documentation has nothing to print.
+        private fun inaccessible(): Nothing =
+            error("cannot access documentation on an item that does not support documentation")
+
+        // No documentation has nothing to print.
         override fun print(writer: PrintWriter) {}
 
-        override val mainDescriptionOwner: DocContentOwner?
-            get() = null
+        override val mainDescriptionOwner
+            get() = inaccessible()
 
-        override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? = null
+        override fun blockTagDescriptionOwner(tagTypeName: String) = inaccessible()
 
-        override fun paramTagDescriptionOwner(name: String): DocContentOwner? = null
+        override fun paramTagDescriptionOwner(name: String) = inaccessible()
 
-        override fun findTagDocumentation(tag: String, value: String?): String? = null
+        override fun findTagDocumentation(tag: String, value: String?) = null
 
-        override fun appendDocumentation(comment: String, tagSection: String?) {
-            error("cannot modify documentation on an item that does not support documentation")
+        override fun appendDocumentation(comment: String, tagSection: String?) = inaccessible()
+
+        override fun findMainDocumentation() = inaccessible()
+
+        override fun removeDeprecatedSection() {
+            // TODO(b/450228132): Temporarily allow this to be called as there is an issue where
+            //   default constructors of deprecated classes that are flagged call this even though
+            //   the constructor has no documentation.
         }
 
-        override fun findMainDocumentation() = ""
-
-        override fun removeDeprecatedSection() {}
-
-        override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
-            error("cannot modify documentation on an item that does not support documentation")
-        }
+        override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) =
+            inaccessible()
     }
 }

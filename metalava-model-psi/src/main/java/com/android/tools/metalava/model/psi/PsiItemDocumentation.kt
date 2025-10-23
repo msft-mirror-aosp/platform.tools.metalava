@@ -173,8 +173,9 @@ internal class PsiItemDocumentation(
     override fun findMainDocumentation(): String {
         if (text == "") return text
         val comment = codebase.psiAssembler.getComment(text)
-        val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
-        return comment.text.substring(0, end)
+        val commentText = comment.text
+        val end = findFirstTag(comment)?.textRange?.startOffset ?: commentText.length
+        return commentText.substring(0, end)
     }
 
     override fun fullyQualifiedDocumentation(documentation: String): String {

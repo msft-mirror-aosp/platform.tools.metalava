@@ -39,7 +39,7 @@ open class DefaultParameterItem(
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    defaultValueFactory: ParameterDefaultValueFactory,
+    private val hasDefaultValue: Boolean,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -55,12 +55,6 @@ open class DefaultParameterItem(
         type.let { if (it is ArrayTypeItem && it.isVarargs) mutateModifiers { setVarArg(true) } }
     }
 
-    /**
-     * Create the [ParameterDefaultValue] during initialization of this parameter to allow it to
-     * contain an immutable reference to this object.
-     */
-    final override val defaultValue = defaultValueFactory(this)
-
     final override fun name(): String = name
 
     final override fun publicName(): String? = publicNameProvider(this)
@@ -73,7 +67,7 @@ open class DefaultParameterItem(
         this.type = type
     }
 
-    final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
+    final override fun hasDefaultValue(): Boolean = hasDefaultValue
 
     override var property: PropertyItem? = null
 
@@ -99,6 +93,6 @@ open class DefaultParameterItem(
             containingCallable,
             parameterIndex,
             type().convertType(typeVariableMap),
-            defaultValue::duplicate,
+            hasDefaultValue(),
         )
 }
