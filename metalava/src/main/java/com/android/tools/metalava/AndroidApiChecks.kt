@@ -323,8 +323,8 @@ class AndroidApiChecks(val reporter: Reporter) {
         }
 
         if (
-            nullPattern.matcher(getDocumentation(item, tag)).find() &&
-                item.type()?.modifiers?.isPlatformNullability == true
+            item.type()?.modifiers?.isPlatformNullability == true &&
+                getDocumentation(item, tag).containsWord("null")
         ) {
             reporter.report(
                 Issues.NULLABLE,
@@ -336,7 +336,5 @@ class AndroidApiChecks(val reporter: Reporter) {
 
     companion object {
         val constantPattern: Pattern = Pattern.compile("[A-Z]{3,}_([A-Z]{3,}|\\*)")
-        @Suppress("SpellCheckingInspection")
-        val nullPattern: Pattern = Pattern.compile("\\bnull\\b")
     }
 }
