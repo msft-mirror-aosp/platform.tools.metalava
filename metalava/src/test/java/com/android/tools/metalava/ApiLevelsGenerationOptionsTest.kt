@@ -43,7 +43,6 @@ Api Levels Generation:
                                              supports a single integer level, `major.minor`, `major.minor.patch` and
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
                                              all non-negative integers and `quality` is an alphanumeric string.
-                                             (default: 10000)
   --remove-missing-class-references-in-api-levels
                                              Removes references to missing classes when generating the API levels XML
                                              file. This can happen when generating the XML file for the non-updatable

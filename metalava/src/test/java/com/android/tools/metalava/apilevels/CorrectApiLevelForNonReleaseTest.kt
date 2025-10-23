@@ -97,6 +97,8 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
 
         assertTrue(output.isFile)
         val xml = output.readText(Charsets.UTF_8)
+        // Sources will always be included with the api level of --api-for-sources when
+        // --api-for-sources is set with a valid value regardless of the codename
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
@@ -266,7 +268,7 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
     }
 
     @Test
-    fun `Disregard --api-version-for-sources for release (REL)`() {
+    fun `Correct API Level for release (REL) using api version for sources arg`() {
         val apiVersionForSources = 40
         check(
             extraArguments =
@@ -295,15 +297,15 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         )
 
         assertTrue(output.isFile)
-
         val xml = output.readText(Charsets.UTF_8)
-        // --api-version-for-sources is never used when codename = REL
+
+        // Sources will always be included with the api level of --api-for-sources when
+        // --api-for-sources is set with a valid value regardless of the codename
         assertTrue(
-            xml.contains("<class name=\"android/pkg/MyTest\" since=\"$MAGIC_VERSION_STR\"")
+            xml.contains("<class name=\"android/pkg/MyTest\" since=\"$apiVersionForSources\"")
         )
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
-        assertEquals(MAGIC_VERSION_INT, apiLookup.getClassVersion("android.pkg.MyTest"))
+        assertEquals(apiVersionForSources, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 }
-
