@@ -110,9 +110,7 @@ class AndroidApiChecks(val reporter: Reporter) {
     }
 
     private fun checkTodos(item: SelectableItem) {
-        if (
-            item.documentation.text.contains("TODO:") || item.documentation.text.contains("TODO(")
-        ) {
+        if (item.documentation.check(CONTAINS_TODO_PREDICATE)) {
             reporter.report(Issues.TODO, item, "Documentation mentions 'TODO'")
         }
     }
@@ -276,6 +274,15 @@ class AndroidApiChecks(val reporter: Reporter) {
                 // Applying a pattern has a small overhead so it is worth avoiding that on short
                 // strings that could never match.
                 text.length >= 5 && constantPattern.matcher(text).find()
+            }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `TO-DO`s in the
+         * documentation.
+         */
+        private val CONTAINS_TODO_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("TODO:") || text.contains("TODO(")
             }
     }
 }
