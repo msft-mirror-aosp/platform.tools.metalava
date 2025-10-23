@@ -206,7 +206,7 @@ interface ItemDocumentation {
         override fun print(writer: PrintWriter) {}
 
         override val mainDescription
-            get() = inaccessible()
+            get() = null
 
         override val mainDescriptionOwner
             get() = inaccessible()
