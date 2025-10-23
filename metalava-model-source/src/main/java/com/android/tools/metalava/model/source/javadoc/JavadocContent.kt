@@ -38,9 +38,6 @@ internal sealed interface JavadocContent : DocContent {
      */
     fun <R> accept(visitor: JavadocContentVisitor<R>): R
 
-    /** Rewrite this [JavadocContent] into a different, possibly `null` [JavadocContent]. */
-    fun rewrite(rewriter: JavadocContentRewriter): JavadocContent?
-
     /** A specialized [accept] for handling [JavadocContentVisitor]s that return a [Boolean]. */
     fun matches(predicate: JavadocContentVisitor<Boolean>): Boolean = accept(predicate)
 }
@@ -98,8 +95,6 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
     }
 
     override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
-
-    override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
