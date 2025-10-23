@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.source.doc.containsWord
@@ -297,11 +298,22 @@ class AndroidApiChecks(val reporter: Reporter) {
         }
     }
 
+    /**
+     * Check to see if this [TypeItem] is a [PrimitiveTypeItem] of [PrimitiveTypeItem.Primitive.INT]
+     * kind.
+     */
+    private fun TypeItem.isIntType() =
+        this is PrimitiveTypeItem && kind == PrimitiveTypeItem.Primitive.INT
+
+    /**
+     * Checks to make sure that the documentation and type are consistent with respect to use of
+     * `null` annotations and `@IntDef` annotations.
+     */
     private fun checkVariable(item: Item, tag: String?, ident: String, type: TypeItem?) {
         type ?: return
-        if (
-            type.toString() == "int" && constantPattern.matcher(getDocumentation(item, tag)).find()
-        ) {
+
+        // Check to see if it mentions a constant name that could/should be an IntDef.
+        if (type.isIntType() && constantPattern.matcher(getDocumentation(item, tag)).find()) {
             var foundTypeDef = false
             for (annotation in item.modifiers.annotations()) {
                 val cls = annotation.resolve() ?: continue
@@ -325,8 +337,10 @@ class AndroidApiChecks(val reporter: Reporter) {
             }
         }
 
+        // Check to make sure that if the documentation mentions `null` that it also uses the
+        // correct nullability annotations.
         if (
-            item.type()?.modifiers?.isPlatformNullability == true &&
+            type.modifiers.isPlatformNullability == true &&
                 getDocumentation(item, tag).containsWord("null")
         ) {
             reporter.report(
@@ -338,6 +352,7 @@ class AndroidApiChecks(val reporter: Reporter) {
     }
 
     companion object {
-        val constantPattern: Pattern = Pattern.compile("[A-Z]{3,}_([A-Z]{3,}|\\*)")
+        /** Pattern that looks for constants of the form `BAR_FOO` or wildcards like `BAR_*`. */
+        private val constantPattern = Pattern.compile("[A-Z]{3,}_([A-Z]{3,}|\\*)")
     }
 }
