@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentPredicate
 
 /**
  * A component of a Javadoc comment.
@@ -37,6 +38,10 @@ internal sealed interface JavadocContent : DocContent {
 
     /** A specialized [accept] for handling [JavadocContentVisitor]s that return a [Boolean]. */
     fun matches(predicate: JavadocContentVisitor<Boolean>): Boolean = accept(predicate)
+
+    /** Implements [DocContent.check]. */
+    override fun check(predicate: DocContentPredicate) =
+        matches(predicate as JavadocContentPredicate)
 }
 
 /** Visitor of [JavadocContent] subclasses. */
@@ -47,6 +52,9 @@ internal interface JavadocContentVisitor<R> {
 
     fun visit(text: JavadocText): R
 }
+
+/** A specialised [JavadocContentVisitor] that can be treated as a predicate on [JavadocContent]. */
+internal interface JavadocContentPredicate : JavadocContentVisitor<Boolean>, DocContentPredicate
 
 /**
  * Convert this [List] to an optional [JavadocContent].

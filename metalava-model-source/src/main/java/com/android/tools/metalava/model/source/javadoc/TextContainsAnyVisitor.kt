@@ -21,7 +21,7 @@ package com.android.tools.metalava.model.source.javadoc
  * [predicate].
  */
 internal class TextContainsAnyVisitor(private val predicate: (String) -> Boolean) :
-    JavadocContentVisitor<Boolean> {
+    JavadocContentPredicate {
     /**
      * Checks to see whether [predicate] returns `true` for any text in [content].
      *

@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.source.javadoc
+package com.android.tools.metalava
 
-internal class TextStartsWithVisitor(private val predicate: (String) -> Boolean) :
-    JavadocContentPredicate {
-    override fun visit(list: JavadocContentList) = list.contents[0].accept(this)
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.source.doc.DocContentPredicates
+import com.android.tools.metalava.model.source.doc.containsWord
 
-    override fun visit(inlineTag: JavadocInlineTag) = false
+/** Returns `true` if [DocContent] contains the word `null`. */
+val NULL_WORD_PREDICATE = DocContentPredicates.textContainsAny { it.containsWord("null") }
 
-    override fun visit(text: JavadocText) = predicate(text.contents)
-}
+/** Returns `true` if this contains the word `null`. */
+fun DocContent?.containsNullWord() = this?.check(NULL_WORD_PREDICATE) == true

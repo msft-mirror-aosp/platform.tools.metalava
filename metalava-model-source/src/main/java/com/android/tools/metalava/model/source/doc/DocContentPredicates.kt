@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.source.javadoc
+package com.android.tools.metalava.model.source.doc
 
-internal class TextStartsWithVisitor(private val predicate: (String) -> Boolean) :
-    JavadocContentPredicate {
-    override fun visit(list: JavadocContentList) = list.contents[0].accept(this)
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 
-    override fun visit(inlineTag: JavadocInlineTag) = false
-
-    override fun visit(text: JavadocText) = predicate(text.contents)
+/** Marker interface that represents a predicate that can be applied to [DocContent]. */
+object DocContentPredicates {
+    /** Check if the textual parts of [DocContent] match [predicate]. */
+    fun textContainsAny(predicate: (String) -> Boolean): DocContentPredicate =
+        TextContainsAnyVisitor(predicate)
 }
