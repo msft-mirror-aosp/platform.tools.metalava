@@ -171,12 +171,8 @@ class AndroidApiChecks(val reporter: Reporter) {
             field.modifiers.findAnnotation("android.annotation.SdkConstant") != null
 
         val documentation = field.documentation
-        val text = documentation.text
 
-        if (
-            text.contains("Broadcast Action:") ||
-                text.contains("protected intent") && text.contains("system")
-        ) {
+        if (documentation.check(CONTAINS_BROADCAST_ACTION_OR_SYSTEM_PREDICATE)) {
             if (!hasBehavior) {
                 reporter.report(
                     Issues.BROADCAST_BEHAVIOR,
@@ -195,7 +191,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             }
         }
 
-        if (text.contains("Activity Action:")) {
+        if (documentation.check(CONTAINS_ACTIVITY_ACTION_PREDICATE)) {
             if (!hasSdkConstant) {
                 reporter.report(
                     Issues.SDK_CONSTANT,
@@ -284,5 +280,22 @@ class AndroidApiChecks(val reporter: Reporter) {
             DocContentPredicates.textContainsAny { text ->
                 text.contains("TODO:") || text.contains("TODO(")
             }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `Broadcast Action:` or
+         * `protected intent` and `system` in the documentation.
+         */
+        private val CONTAINS_BROADCAST_ACTION_OR_SYSTEM_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("Broadcast Action:") ||
+                    (text.contains("protected intent") && text.contains("system"))
+            }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `Activity Action:` in the
+         * documentation.
+         */
+        private val CONTAINS_ACTIVITY_ACTION_PREDICATE =
+            DocContentPredicates.textContainsAny { text -> text.contains("Activity Action:") }
     }
 }
