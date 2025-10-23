@@ -226,4 +226,42 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION") assertEquals(-1, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
+
+    @Test
+    fun `Correct API Level for release (REL) with current version arg greater than last finalized version`() {
+        val lastFinalizedVersion = 35
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "REL", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    (lastFinalizedVersion + 1).toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                )
+        )
+
+        assertTrue(output.isFile)
+
+        val xml = output.readText(Charsets.UTF_8)
+        assertTrue(
+            xml.contains("<class name=\"android/pkg/MyTest\" since=\"${lastFinalizedVersion + 1}\"")
+        )
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION")
+        assertEquals(lastFinalizedVersion + 1, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
 }
