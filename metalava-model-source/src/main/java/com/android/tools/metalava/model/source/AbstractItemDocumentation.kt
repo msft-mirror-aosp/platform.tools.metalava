@@ -23,12 +23,14 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.javadoc.JavadocContentPredicate
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
@@ -270,6 +272,9 @@ abstract class AbstractItemDocumentation(
     /** Find the block tag section for `@param` of [name]. */
     private fun findParamTagSection(name: String): BlockTagSection? =
         docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
+
+    override fun check(predicate: DocContentPredicate) =
+        docComment.check(predicate as JavadocContentPredicate)
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".

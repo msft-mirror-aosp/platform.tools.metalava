@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.PrintWriter
 
@@ -136,6 +137,12 @@ interface ItemDocumentation {
     fun paramTagDescriptionOwner(name: String): DocContentOwner
 
     /**
+     * Check if [predicate] matches this documentation, checks [mainDescription] and all the block
+     * tag descriptions, including the `@param` tags.
+     */
+    fun check(predicate: DocContentPredicate): Boolean
+
+    /**
      * Returns the [text], but with fully qualified links (except for the same package, and when
      * turning a relative reference into a fully qualified reference, use the javadoc syntax for
      * continuing to display the relative text, e.g. instead of {@link java.util.List}, use {@link
@@ -220,6 +227,9 @@ interface ItemDocumentation {
         override fun paramTagDescription(name: String) = null
 
         override fun paramTagDescriptionOwner(name: String) = inaccessible()
+
+        /** Returns `false` as this is sometimes called. */
+        override fun check(predicate: DocContentPredicate) = false
 
         override fun removeDeprecatedSection() {
             // TODO(b/450228132): Temporarily allow this to be called as there is an issue where

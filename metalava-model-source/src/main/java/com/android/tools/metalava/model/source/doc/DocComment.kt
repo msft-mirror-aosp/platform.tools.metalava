@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.JavadocContentPredicate
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -59,6 +60,12 @@ internal interface DocComment : DocContentOwner {
 
     /** Removes any [BlockTagSection] for which [predicate] returns `true`. */
     fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean)
+
+    /**
+     * Check if [predicate] matches this documentation, checks [description] and all the
+     * [blockTagSections] descriptions.
+     */
+    fun check(predicate: JavadocContentPredicate): Boolean
 
     /** Print this as a Javadoc comment to [writer]. */
     fun printAsJavadocComment(writer: PrintWriter)
@@ -187,6 +194,10 @@ internal class DefaultDocComment(
             context.mutationListener.docCommentMutated()
         }
     }
+
+    override fun check(predicate: JavadocContentPredicate) =
+        description?.check(predicate) == true ||
+            blockTagSections.any { it.description?.check(predicate) == true }
 
     /** Get the [RequiredSpace] for the block tag sections. */
     private fun requiredSpaceForBlockTagSections(): RequiredSpace =
