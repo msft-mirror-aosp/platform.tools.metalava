@@ -445,10 +445,10 @@ private fun enhanceCodebaseDocumentationFromOptions(
             options.apiPredicateConfig,
         )
     docAnalyzer.enhance()
-    val applyApiLevelsXml = options.applyApiLevelsXml
-    if (applyApiLevelsXml != null) {
+    val applyApiLevelsXmlFile = options.applyApiLevelsXmlFile
+    if (applyApiLevelsXmlFile != null) {
         progressTracker.progress("Applying API levels")
-        docAnalyzer.applyApiVersions(applyApiLevelsXml)
+        docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)
     }
 }
 
