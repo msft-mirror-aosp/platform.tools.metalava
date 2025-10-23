@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.doc.DocContent
-import com.android.tools.metalava.model.source.doc.RequiredSpace
 
 /**
  * A component of a Javadoc comment.
@@ -49,14 +48,6 @@ internal sealed interface JavadocContent : DocContent {
     /** Rewrite this [JavadocContent] into a different, possibly `null` [JavadocContent]. */
     fun rewrite(rewriter: JavadocContentRewriter): JavadocContent?
 }
-
-/** Determines how much vertical space this [JavadocContent] requires when printed. */
-internal fun JavadocContent?.requiredSpace(): RequiredSpace =
-    when {
-        this == null -> RequiredSpace.EMPTY
-        isMultiLine() == true -> RequiredSpace.MULTI_LINE
-        else -> RequiredSpace.SINGLE_LINE
-    }
 
 /** Visitor of [JavadocContent] subclasses. */
 internal interface JavadocContentVisitor<R> {

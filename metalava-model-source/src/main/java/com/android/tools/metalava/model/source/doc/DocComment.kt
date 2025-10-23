@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
-import com.android.tools.metalava.model.source.javadoc.requiredSpace
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.collections.plus
@@ -84,7 +83,7 @@ internal interface DocComment : DocContentOwner {
     }
 }
 
-enum class RequiredSpace {
+private enum class RequiredSpace {
     EMPTY,
     SINGLE_LINE,
     MULTI_LINE,
@@ -94,6 +93,14 @@ enum class RequiredSpace {
         return entries[(ordinal + other.ordinal).coerceAtMost(MULTI_LINE.ordinal)]
     }
 }
+
+/** Determines how much vertical space this [JavadocContent] requires when printed. */
+private fun JavadocContent?.requiredSpace(): RequiredSpace =
+    when {
+        this == null -> RequiredSpace.EMPTY
+        isMultiLine() -> RequiredSpace.MULTI_LINE
+        else -> RequiredSpace.SINGLE_LINE
+    }
 
 /**
  * Interface that must be implemented by classes that need to respond to changes in a [DocComment].
