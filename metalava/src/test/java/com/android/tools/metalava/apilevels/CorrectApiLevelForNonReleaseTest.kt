@@ -264,4 +264,46 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         @Suppress("DEPRECATION")
         assertEquals(lastFinalizedVersion + 1, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
+
+    @Test
+    fun `Disregard --api-version-for-sources for release (REL)`() {
+        val apiVersionForSources = 40
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "REL", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    MAGIC_VERSION_STR, // not real api level,
+                    ARG_API_VERSION_FOR_SOURCES,
+                    apiVersionForSources.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                )
+        )
+
+        assertTrue(output.isFile)
+
+        val xml = output.readText(Charsets.UTF_8)
+        // --api-version-for-sources is never used when codename = REL
+        assertTrue(
+            xml.contains("<class name=\"android/pkg/MyTest\" since=\"$MAGIC_VERSION_STR\"")
+        )
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION")
+        assertEquals(MAGIC_VERSION_INT, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
 }
+
