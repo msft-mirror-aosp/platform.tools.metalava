@@ -241,7 +241,11 @@ interface ItemDocumentation {
 
         override fun blockTagDescriptionOwner(tagTypeName: String) = inaccessible()
 
-        override fun paramTagDescription(name: String) = inaccessible()
+        /**
+         * Returns `null` as this is the equivalent to [findTagDocumentation] passing in the
+         * parameter name which is called on this in some cases.
+         */
+        override fun paramTagDescription(name: String) = null
 
         override fun paramTagDescriptionOwner(name: String) = inaccessible()
 
