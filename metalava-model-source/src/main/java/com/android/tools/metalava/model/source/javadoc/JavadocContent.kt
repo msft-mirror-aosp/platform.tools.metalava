@@ -25,9 +25,6 @@ import com.android.tools.metalava.model.doc.DocContent
  * main description for the item or the description of a block tag in the item.
  */
 internal sealed interface JavadocContent : DocContent {
-    /** Check to see whether this starts with a newline character. */
-    fun startsWithNewline(): Boolean
-
     /** Add this to [list], flattening if this is a [JavadocContentList]. */
     fun flattenTo(list: MutableList<JavadocContent>) {
         list.add(this)
@@ -80,9 +77,6 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
     init {
         require(contents.size > 1) { "contents list must contain more than one item" }
     }
-
-    /** A list of [JavadocContent] starts with newline if the first item starts with newline. */
-    override fun startsWithNewline() = contents.first().startsWithNewline()
 
     /** Visit the contents of this in turn. */
     fun <R> visitContents(visitor: JavadocContentVisitor<R>) {

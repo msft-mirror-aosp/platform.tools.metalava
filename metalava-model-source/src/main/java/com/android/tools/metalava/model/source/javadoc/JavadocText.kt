@@ -26,9 +26,6 @@ internal class JavadocText(val contents: String) : JavadocContent {
         require(contents.isNotEmpty()) { "contents must contain at least one character" }
     }
 
-    /** A block of text starts with a newline if the first character is a newline. */
-    override fun startsWithNewline() = contents[0] == '\n'
-
     override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun equals(other: Any?): Boolean {

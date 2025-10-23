@@ -30,9 +30,6 @@ internal class JavadocInlineTag(
     val tagData: TagData?,
     val content: JavadocContent?,
 ) : JavadocContent {
-    /** An inline tag does not start with a newline. */
-    override fun startsWithNewline() = false
-
     override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun equals(other: Any?): Boolean {
