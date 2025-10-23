@@ -90,8 +90,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class)
                 """,
         )
     }
@@ -107,8 +106,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link '
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class)
                     text: ' and some text after.'
                 """,
         )
@@ -127,8 +125,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link\n '
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class)
                     text: '\n and some text after.'
                 """,
         )

@@ -159,8 +159,7 @@ class JavadocTest : DriverTest() {
                     /**
                      * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
-                     *   boolean)}.
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
@@ -369,8 +368,7 @@ class JavadocTest : DriverTest() {
                 /**
                  * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
-                 *   boolean)}.
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
                  *  And relative method reference {@link #baz()}.
                  *  And relative field reference {@link #importance}.
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
@@ -998,8 +996,7 @@ class JavadocTest : DriverTest() {
                 /**
                  * Blah blah
                  * <blockquote><pre>
-                 * {@link #wrap(java.nio.ByteBuffer[],int,int,java.nio.ByteBuffer)
-                 *     engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
+                 * {@link #wrap(java.nio.ByteBuffer[],int,int,java.nio.ByteBuffer) engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
                  * </pre></blockquote>
                  */
                 public void test() { throw new RuntimeException("Stub!"); }
