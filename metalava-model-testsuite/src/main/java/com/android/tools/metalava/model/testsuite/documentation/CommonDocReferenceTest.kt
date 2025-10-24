@@ -79,7 +79,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                          * @throws java.io.IOException because reason 5.
                          * @throws java.lang.IllegalArgumentException because reason 4.
                          * @throws java.util.ConcurrentModificationException because reason 6.
-                         * @throws test.pkg.Test.TestException    because reason 3.
+                         * @throws test.pkg.Test.TestException because reason 3.
                          */
 
                     """,
