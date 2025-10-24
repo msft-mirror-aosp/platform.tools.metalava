@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.sourcefile
 
 import com.android.tools.metalava.model.JavaImport
+import com.android.tools.metalava.model.imports.ImportResolver
+import com.android.tools.metalava.model.imports.ResolvedImport
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -46,6 +48,7 @@ class CommonParameterizedImportTest : BaseModelTest() {
         val name: String,
         val imports: String = "import $name;\n",
         val expectedJavaImports: List<JavaImport>,
+        val expectedResolvedImports: Map<String, ResolvedImport?> = emptyMap(),
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -64,7 +67,11 @@ class CommonParameterizedImportTest : BaseModelTest() {
                 TestParams(
                     name = "implicit String",
                     imports = "",
-                    expectedJavaImports = emptyList()
+                    expectedJavaImports = emptyList(),
+                    expectedResolvedImports =
+                        mapOf(
+                            "String" to ResolvedImport("java.lang.String"),
+                        )
                 ),
                 TestParams(
                     name = "java.util.Map.Entry",
@@ -75,6 +82,11 @@ class CommonParameterizedImportTest : BaseModelTest() {
                                 onDemand = false,
                                 static = false,
                             ),
+                        ),
+                    expectedResolvedImports =
+                        mapOf(
+                            "Entry" to ResolvedImport("java.util.Map.Entry"),
+                            "Map" to null,
                         )
                 ),
                 TestParams(
@@ -86,6 +98,11 @@ class CommonParameterizedImportTest : BaseModelTest() {
                                 onDemand = false,
                                 static = true,
                             ),
+                        ),
+                    expectedResolvedImports =
+                        mapOf(
+                            "Entry" to ResolvedImport("java.util.Map", "Entry"),
+                            "Map" to null,
                         )
                 ),
                 TestParams(
@@ -97,6 +114,11 @@ class CommonParameterizedImportTest : BaseModelTest() {
                                 onDemand = true,
                                 static = false,
                             ),
+                        ),
+                    expectedResolvedImports =
+                        mapOf(
+                            "Entry" to ResolvedImport("java.util.Map.Entry"),
+                            "Map" to null,
                         )
                 ),
                 TestParams(
@@ -108,6 +130,11 @@ class CommonParameterizedImportTest : BaseModelTest() {
                                 onDemand = true,
                                 static = true,
                             ),
+                        ),
+                    expectedResolvedImports =
+                        mapOf(
+                            "Entry" to ResolvedImport("java.util.Map", "Entry"),
+                            "Map" to null,
                         )
                 ),
                 TestParams(
@@ -119,6 +146,10 @@ class CommonParameterizedImportTest : BaseModelTest() {
                                 onDemand = true,
                                 static = false,
                             ),
+                        ),
+                    expectedResolvedImports =
+                        mapOf(
+                            "IOException" to ResolvedImport("java.io.IOException"),
                         )
                 ),
                 TestParams(
@@ -130,6 +161,10 @@ class CommonParameterizedImportTest : BaseModelTest() {
                                 onDemand = true,
                                 static = true,
                             ),
+                        ),
+                    expectedResolvedImports =
+                        mapOf(
+                            "isAlphabetic" to ResolvedImport("java.lang.Character", "isAlphabetic"),
                         )
                 ),
                 TestParams(
@@ -141,11 +176,51 @@ class CommonParameterizedImportTest : BaseModelTest() {
                                 onDemand = false,
                                 static = true,
                             ),
+                        ),
+                    expectedResolvedImports =
+                        mapOf(
+                            "err" to ResolvedImport("java.lang.System", "err"),
+                        )
+                ),
+                // Make sure that on demand imports are processed after explicit imports.
+                TestParams(
+                    name = "on demand after explicit",
+                    imports =
+                        """
+                            import java.sql.*;
+                            import java.util.Date;
+                        """,
+                    expectedJavaImports =
+                        listOf(
+                            JavaImport(
+                                qualifiedName = "java.sql",
+                                onDemand = true,
+                                static = false,
+                            ),
+                            JavaImport(
+                                qualifiedName = "java.util.Date",
+                                onDemand = false,
+                                static = false,
+                            ),
+                        ),
+                    expectedResolvedImports =
+                        mapOf(
+                            "Date" to ResolvedImport("java.util.Date"),
+                            "SQLException" to ResolvedImport("java.sql.SQLException"),
                         )
                 ),
             )
 
         @JvmStatic @Parameterized.Parameters fun params() = params
+    }
+
+    /** Check that [simpleName] resolves to [expectedResult] for this [ImportResolver]. */
+    private fun ImportResolver.assertResolvedImport(
+        simpleName: String,
+        expectedResult: ResolvedImport?
+    ) {
+        val actualResult = resolveImport(simpleName)
+        assertEquals(expectedResult, actualResult, message = "$simpleName -> $expectedResult")
     }
 
     @RequiresCapabilities(Capability.JAVA)
@@ -165,6 +240,11 @@ class CommonParameterizedImportTest : BaseModelTest() {
 
             var allJavaImports = sourceFile.allJavaImports()
             assertEquals(params.expectedJavaImports, allJavaImports, message = "allJavaImports")
+
+            val importResolver = ImportResolver(codebase, allJavaImports)
+            for ((simpleName, expectedResolvedImport) in params.expectedResolvedImports) {
+                importResolver.assertResolvedImport(simpleName, expectedResolvedImport)
+            }
         }
     }
 }
