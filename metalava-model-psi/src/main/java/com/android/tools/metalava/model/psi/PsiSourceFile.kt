@@ -19,11 +19,13 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
+import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.source.AbstractSourceFile
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiImportStaticStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
@@ -49,6 +51,21 @@ internal class PsiSourceFile(
         }
 
         return super.getHeaderComments()
+    }
+
+    override fun allJavaImports(): List<JavaImport> {
+        file as? PsiJavaFile ?: return emptyList()
+
+        val importList = file.importList ?: return emptyList()
+        return importList.allImportStatements.mapNotNull { importStatement ->
+            importStatement.importReference?.qualifiedName?.let { qualifiedName ->
+                JavaImport(
+                    qualifiedName = qualifiedName,
+                    onDemand = importStatement.isOnDemand,
+                    static = importStatement is PsiImportStaticStatement,
+                )
+            }
+        }
     }
 
     override fun getImports(predicate: FilterPredicate): Collection<Import> {

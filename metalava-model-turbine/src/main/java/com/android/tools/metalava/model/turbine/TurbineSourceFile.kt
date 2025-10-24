@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
+import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.AbstractSourceFile
 import com.google.turbine.diag.LineMap
@@ -47,6 +48,15 @@ internal class TurbineSourceFile(
     override fun hashCode(): Int {
         return compUnit.hashCode()
     }
+
+    override fun allJavaImports() =
+        compUnit.imports().map { import ->
+            JavaImport(
+                qualifiedName = import.type().dotSeparatedName,
+                onDemand = import.wild(),
+                static = import.stat(),
+            )
+        }
 
     override fun getImports(predicate: FilterPredicate): Collection<Import> {
         val imports = TreeSet<Import>(compareBy { it.pattern })
