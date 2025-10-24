@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentPredicate
 
 /**
  * A component of a Javadoc comment.
@@ -25,16 +26,6 @@ import com.android.tools.metalava.model.doc.DocContent
  * main description for the item or the description of a block tag in the item.
  */
 internal sealed interface JavadocContent : DocContent {
-    /**
-     * Checks to see whether the content will occupy multiple lines.
-     *
-     * @return `true` if it does, `false` otherwise.
-     */
-    fun isMultiLine(): Boolean
-
-    /** Check to see whether this starts with a newline character. */
-    fun startsWithNewline(): Boolean
-
     /** Add this to [list], flattening if this is a [JavadocContentList]. */
     fun flattenTo(list: MutableList<JavadocContent>) {
         list.add(this)
@@ -45,8 +36,12 @@ internal sealed interface JavadocContent : DocContent {
      */
     fun <R> accept(visitor: JavadocContentVisitor<R>): R
 
-    /** Rewrite this [JavadocContent] into a different, possibly `null` [JavadocContent]. */
-    fun rewrite(rewriter: JavadocContentRewriter): JavadocContent?
+    /** A specialized [accept] for handling [JavadocContentVisitor]s that return a [Boolean]. */
+    fun matches(predicate: JavadocContentVisitor<Boolean>): Boolean = accept(predicate)
+
+    /** Implements [DocContent.check]. */
+    override fun check(predicate: DocContentPredicate) =
+        matches(predicate as JavadocContentPredicate)
 }
 
 /** Visitor of [JavadocContent] subclasses. */
@@ -57,6 +52,9 @@ internal interface JavadocContentVisitor<R> {
 
     fun visit(text: JavadocText): R
 }
+
+/** A specialised [JavadocContentVisitor] that can be treated as a predicate on [JavadocContent]. */
+internal interface JavadocContentPredicate : JavadocContentVisitor<Boolean>, DocContentPredicate
 
 /**
  * Convert this [List] to an optional [JavadocContent].
@@ -88,12 +86,6 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
         require(contents.size > 1) { "contents list must contain more than one item" }
     }
 
-    /** A list of [JavadocContent] occupies multiple lines if any of them occupy multiple lines. */
-    override fun isMultiLine() = contents.any { it.isMultiLine() }
-
-    /** A list of [JavadocContent] starts with newline if the first item starts with newline. */
-    override fun startsWithNewline() = contents.first().startsWithNewline()
-
     /** Visit the contents of this in turn. */
     fun <R> visitContents(visitor: JavadocContentVisitor<R>) {
         contents.forEach { content -> content.accept(visitor) }
@@ -105,8 +97,6 @@ internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocC
     }
 
     override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
-
-    override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

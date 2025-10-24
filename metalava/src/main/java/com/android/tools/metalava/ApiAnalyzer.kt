@@ -123,31 +123,47 @@ class ApiAnalyzer(
         // should also be marked as experimental. For more information, see b/408977387
         addExperimentalAnnotationsToGeneratedClassesIfAllTopLevelItemsExperimental(filterEmit)
 
-        // Mark package as compatibility suppressed if all member classes are experimental. This
-        // is a fix for b/404795417
-        suppressPackageIfAllClassesAreExperimental(filterEmit)
+        // Mark package as compatibility suppressed if all member classes and child packages
+        // are experimental. This is a fix for b/404795417
+        suppressPackageIfAllChildrenAreExperimental(filterEmit)
     }
 
-    private fun suppressPackageIfAllClassesAreExperimental(filterEmit: FilterPredicate) {
-        packages.packages.forEach { pkg ->
-            if (packageContainsOnlyExperimentalItems(pkg, filterEmit)) {
-                val newSuppressCompatibilityAnnotation =
-                    AnnotationItem.createMarkerAnnotation(
-                        codebase,
-                        SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED,
-                    )
-                pkg.mutateModifiers { this.addAnnotation(newSuppressCompatibilityAnnotation) }
+    private fun suppressPackageIfAllChildrenAreExperimental(filterEmit: FilterPredicate) {
+        // Sorting the packages in descending order by name length ensures that child
+        // packages are processed first, which allows processing packages from bottom-up
+        // and prevents the need for recursion and more complicated logic
+        packages.packages
+            .sortedByDescending { it.qualifiedName().length }
+            .forEach { pkg ->
+                if (packageContainsOnlyExperimentalItems(pkg, filterEmit)) {
+                    val newSuppressCompatibilityAnnotation =
+                        AnnotationItem.createMarkerAnnotation(
+                            codebase,
+                            SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED,
+                        )
+                    pkg.mutateModifiers { this.addAnnotation(newSuppressCompatibilityAnnotation) }
+                }
             }
-        }
     }
 
+    /**
+     * Mark a package as compatibility suppressed if all contained classes and packages are also
+     * compatibility suppressed.
+     */
     private fun packageContainsOnlyExperimentalItems(
         pkg: PackageItem,
-        filterEmit: FilterPredicate
+        filterEmit: FilterPredicate,
     ): Boolean {
         val classesToExamine = pkg.topLevelClasses().filter { filterEmit.test(it) }
-        return classesToExamine.isNotEmpty() &&
+        val areAllClassesExperimental =
             classesToExamine.all { topLevelClass -> topLevelClass.isCompatibilitySuppressed() }
+
+        val packagesToExamine = pkg.childPackages().filter { filterEmit.test(it) }
+        val areAllSubPackagesExperimental =
+            packagesToExamine.all { childPackage -> childPackage.isCompatibilitySuppressed() }
+
+        return (areAllClassesExperimental && areAllSubPackagesExperimental) &&
+            !(classesToExamine.isEmpty() && packagesToExamine.isEmpty())
     }
 
     private fun addExperimentalAnnotationsToGeneratedClassesIfAllTopLevelItemsExperimental(
@@ -158,7 +174,7 @@ class ApiAnalyzer(
         // compatibility annotations
         codebase.getTopLevelClassesFromSource().forEach { cls ->
             if (
-                cls.isFileFacade() &&
+                cls.isFileFacade &&
                     cls.modifiers.annotations().none { it.isSuppressCompatibilityAnnotation() } &&
                     cls.emit &&
                     allEmittableItemsHaveExperimentalAnnotations(cls.methods(), filterEmit) &&
@@ -434,7 +450,7 @@ class ApiAnalyzer(
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
             if (
-                cls.isFileFacade() &&
+                cls.isFileFacade &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
@@ -1050,7 +1066,7 @@ private fun SelectableItem.isApiCandidate(): Boolean {
  * Whether documentation for the [Item] has the `@deprecated` tag -- for inherited methods, this
  * also looks at any inherited documentation.
  */
-private fun Item.documentationContainsDeprecated(): Boolean {
+private fun SelectableItem.documentationContainsDeprecated(): Boolean {
     if (documentation.hasBlockTagOfType("deprecated")) return true
     if (this !is MethodItem) return false
     val text = documentation.text

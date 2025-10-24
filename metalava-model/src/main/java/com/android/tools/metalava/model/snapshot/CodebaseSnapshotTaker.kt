@@ -114,6 +114,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
+                isMultiplatform = codebase.isMultiplatform,
             )
 
         this.snapshotCodebase = newCodebase

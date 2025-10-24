@@ -76,19 +76,6 @@ interface ItemDocumentation {
     fun workAroundJavaDocSummaryTruncationIssue() {}
 
     /**
-     * Add the given text to the documentation.
-     *
-     * If the [tagSection] is null, add the comment to the initial text block of the description.
-     * Otherwise, if it is "@return", add the comment to the return value. Otherwise, the
-     * [tagSection] is taken to be the parameter name, and the comment added as parameter
-     * documentation for the given parameter.
-     *
-     * @param tagSection if specified and not a parameter name then it is expected to start with
-     *   `@`, e.g. `@deprecated`, not `deprecated`.
-     */
-    fun appendDocumentation(comment: String, tagSection: String?)
-
-    /**
      * Check to see whether this has a tag section of [blockTagType].
      *
      * @param blockTagType the type of the tag, e.g. `param` for `@param p ...`.
@@ -103,15 +90,6 @@ interface ItemDocumentation {
      */
     fun print(writer: PrintWriter)
 
-    /**
-     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
-     * provided value (e.g. parameter name).
-     */
-    fun findTagDocumentation(tag: String, value: String? = null): String?
-
-    /** Returns the main documentation for the method (the documentation before any tags). */
-    fun findMainDocumentation(): String
-
     /** Get the main description of the comment. */
     val mainDescription: DocContent?
 
@@ -122,8 +100,12 @@ interface ItemDocumentation {
      * Get the description for the first block tag of [tagTypeName].
      *
      * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
+     *
+     * @param forAppending if `true` then the returned [DocContent], if any, will be prepared for
+     *   appending into another [Item]'s documentation. That will involve removing leading
+     *   whitespaces and fully qualifying any `{@link}` and `{@linkplain}` references.
      */
-    fun blockTagDescription(tagTypeName: String): DocContent?
+    fun blockTagDescription(tagTypeName: String, forAppending: Boolean = false): DocContent?
 
     /**
      * Get the owner of the description for the first block tag of [tagTypeName].
@@ -224,28 +206,20 @@ interface ItemDocumentation {
         override fun print(writer: PrintWriter) {}
 
         override val mainDescription
-            get() = inaccessible()
+            get() = null
 
         override val mainDescriptionOwner
             get() = inaccessible()
 
-        /**
-         * Returns `null` as this is the equivalent to [findTagDocumentation] which is called on
-         * this in some cases.
-         */
-        override fun blockTagDescription(tagTypeName: String) = null
+        /** Returns `null` as this is sometimes called. */
+        override fun blockTagDescription(tagTypeName: String, forAppending: Boolean) = null
 
         override fun blockTagDescriptionOwner(tagTypeName: String) = inaccessible()
 
-        override fun paramTagDescription(name: String) = inaccessible()
+        /** Returns `null` as this is sometimes called. */
+        override fun paramTagDescription(name: String) = null
 
         override fun paramTagDescriptionOwner(name: String) = inaccessible()
-
-        override fun findTagDocumentation(tag: String, value: String?) = null
-
-        override fun appendDocumentation(comment: String, tagSection: String?) = inaccessible()
-
-        override fun findMainDocumentation() = inaccessible()
 
         override fun removeDeprecatedSection() {
             // TODO(b/450228132): Temporarily allow this to be called as there is an issue where
