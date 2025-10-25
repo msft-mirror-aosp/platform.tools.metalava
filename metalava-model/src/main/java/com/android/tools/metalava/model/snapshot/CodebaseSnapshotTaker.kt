@@ -472,6 +472,11 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         newTypeAlias.copySelectedApiVariants(typeAliasToSnapshot)
     }
 
+    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
+        val originalPackage = originalCodebase.resolvePackage(qualifiedName) ?: return null
+        return originalPackage.getSnapshotPackage()
+    }
+
     /** Take a snapshot of [qualifiedName]. */
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
         // Resolve the class in the original codebase, if possible.
