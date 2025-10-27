@@ -231,6 +231,86 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                         codebase.assertClass("test.pkg.Test.Nested").assertTypeParameter("S")
                     }
                 ),
+
+                // ConstructorItem related tests.
+                TestParams(
+                    name = "ConstructorItem - resolve nested class",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").constructors().single() },
+                    referencableName = "Nested",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test.Nested") }
+                ),
+                TestParams(
+                    name = "ConstructorItem - access TypeParameter - C",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").constructors().single() },
+                    referencableName = "C",
+                    expectedItemGetter = {
+                        codebase
+                            .assertClass("test.pkg.Test")
+                            .constructors()
+                            .single()
+                            .assertTypeParameter("C")
+                    }
+                ),
+                TestParams(
+                    name = "ConstructorItem - access outer class TypeParameter - O",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").constructors().single() },
+                    referencableName = "O",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertTypeParameter("O")
+                    }
+                ),
+                TestParams(
+                    name = "ConstructorItem - access shadowing TypeParameter - S",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").constructors().single() },
+                    referencableName = "S",
+                    expectedItemGetter = {
+                        codebase
+                            .assertClass("test.pkg.Test")
+                            .constructors()
+                            .single()
+                            .assertTypeParameter("S")
+                    }
+                ),
+
+                // MethodItem related tests.
+                TestParams(
+                    name = "MethodItem - resolve nested class",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").methods().single() },
+                    referencableName = "Nested",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test.Nested") }
+                ),
+                TestParams(
+                    name = "MethodItem - access TypeParameter - M",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").methods().single() },
+                    referencableName = "M",
+                    expectedItemGetter = {
+                        codebase
+                            .assertClass("test.pkg.Test")
+                            .methods()
+                            .single()
+                            .assertTypeParameter("M")
+                    }
+                ),
+                TestParams(
+                    name = "MethodItem - access outer class TypeParameter - O",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").methods().single() },
+                    referencableName = "O",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertTypeParameter("O")
+                    }
+                ),
+                TestParams(
+                    name = "MethodItem - access shadowing TypeParameter - S",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").methods().single() },
+                    referencableName = "S",
+                    expectedItemGetter = {
+                        codebase
+                            .assertClass("test.pkg.Test")
+                            .methods()
+                            .single()
+                            .assertTypeParameter("S")
+                    }
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters fun params() = params
@@ -248,6 +328,10 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                         public class Test<O,S> {
                             public class Nested<N,S> {
                             }
+
+                            public <C, S> Test(C m, S s) {}
+
+                            public <M, S> void method(M m, S s) {}
                         }
 
                         public class Hidden {}
