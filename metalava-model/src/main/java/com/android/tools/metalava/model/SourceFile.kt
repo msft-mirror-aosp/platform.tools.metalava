@@ -20,6 +20,12 @@ import java.util.TreeSet
 
 /** Represents a Kotlin/Java source file */
 interface SourceFile {
+    /** The [Codebase] to which this [SourceFile] belongs. */
+    val codebase: Codebase
+
+    /** The [PackageItem] to which this [SourceFile] belongs. */
+    val containingPackage: PackageItem
+
     /** Top level classes contained in this file */
     fun classes(): Sequence<ClassItem>
 

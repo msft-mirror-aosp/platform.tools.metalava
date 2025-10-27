@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.AbstractSourceFile
 import com.google.turbine.diag.LineMap
@@ -27,9 +28,20 @@ import com.google.turbine.tree.Tree.CompUnit
 import java.util.TreeSet
 
 internal class TurbineSourceFile(
-    val codebase: DefaultCodebase,
+    override val codebase: DefaultCodebase,
     val compUnit: CompUnit,
 ) : AbstractSourceFile() {
+
+    private lateinit var _containingPackage: PackageItem
+
+    override val containingPackage: PackageItem
+        get() {
+            if (!::_containingPackage.isInitialized) {
+                val packageName = getPackageName(compUnit)
+                _containingPackage = codebase.packageTracker.findOrCreatePackage(packageName)
+            }
+            return _containingPackage
+        }
 
     override fun getHeaderComments() = compUnit.getHeaderComments()
 

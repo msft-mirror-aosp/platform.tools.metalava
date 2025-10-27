@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Common tests for implementations of [SourceFile]. */
@@ -275,6 +276,29 @@ class CommonSourceFileTest : BaseModelTest() {
             val sourceFile = classItem.sourceFile()!!
 
             assertEquals(listOf(classItem, outerClassItem), sourceFile.classes().toList())
+        }
+    }
+
+    @Test
+    fun `Test codebase and containingPackage`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertSame(classItem.codebase, sourceFile.codebase, message = "codebase")
+            assertSame(
+                classItem.containingPackage(),
+                sourceFile.containingPackage,
+                message = "containingPackage"
+            )
         }
     }
 }

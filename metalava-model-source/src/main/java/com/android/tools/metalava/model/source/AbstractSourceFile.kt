@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TraversingVisitor
@@ -27,7 +28,7 @@ import com.android.tools.metalava.model.source.doc.containsWord
 import java.util.TreeSet
 
 /** Base class for model implementations of [SourceFile]. */
-abstract class AbstractSourceFile : SourceFile {
+abstract class AbstractSourceFile() : SourceFile {
     override fun filterImports(
         imports: TreeSet<Import>,
         predicate: FilterPredicate
@@ -99,6 +100,7 @@ abstract class AbstractSourceFile : SourceFile {
     override fun snapshot(targetCodebase: Codebase): SourceFile {
         return SourceFileSnapshot(
             targetCodebase,
+            targetCodebase.resolvePackage(containingPackage.qualifiedName())!!,
             originalSourceFile = this,
         )
     }
@@ -110,7 +112,8 @@ abstract class AbstractSourceFile : SourceFile {
  * This delegates a number of methods to the [originalSourceFile].
  */
 private class SourceFileSnapshot(
-    val codebase: Codebase,
+    override val codebase: Codebase,
+    override val containingPackage: PackageItem,
     private val originalSourceFile: AbstractSourceFile
 ) : AbstractSourceFile() {
 

@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.source.AbstractSourceFile
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
@@ -37,9 +38,15 @@ import org.jetbrains.kotlin.psi.psiUtil.startOffset
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
 internal class PsiSourceFile(
-    val codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     val file: PsiFile,
 ) : AbstractSourceFile() {
+
+    override val containingPackage: PackageItem = run {
+        val packageName = (file as PsiClassOwner).packageName
+        codebase.resolvePackage(packageName)!!
+    }
+
     override fun getHeaderComments(): String? {
         // https://youtrack.jetbrains.com/issue/KT-22135
         if (file is PsiJavaFile) {
