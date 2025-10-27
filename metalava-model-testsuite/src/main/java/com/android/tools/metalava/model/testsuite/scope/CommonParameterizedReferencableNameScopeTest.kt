@@ -136,6 +136,60 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "Other",
                     expectedItemGetter = { codebase.assertClass("test.pkg.Other") }
                 ),
+                // ClassItem related tests.
+                TestParams(
+                    name = "ClassItem - absolute class",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "java.io.IOException",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
+                ),
+                TestParams(
+                    name = "ClassItem - resolve imported",
+                    imports =
+                        """
+                            import java.io.IOException;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "IOException",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
+                ),
+                TestParams(
+                    name = "ClassItem - resolve class in same package",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Other",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Other") }
+                ),
+                TestParams(
+                    name = "ClassItem - resolve self",
+                    scopeGetter = { codebase.assertResolvedClass("java.util.Map") },
+                    referencableName = "Map",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.util.Map") }
+                ),
+                // ClassItem - Nested classes
+                TestParams(
+                    name = "ClassItem - resolve nested class",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Nested",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test.Nested") }
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified nested class",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.Nested",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test.Nested") }
+                ),
+                TestParams(
+                    name = "ClassItem - nested class resolve outer",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test.Nested") },
+                    referencableName = "Test",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test") }
+                ),
+                TestParams(
+                    name = "ClassItem - nested class resolve absolute class",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test.Nested") },
+                    referencableName = "java.io.IOException",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters fun params() = params
@@ -151,6 +205,8 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                         package test.pkg;
                         ${params.imports.trimIndent()}
                         public class Test {
+                            public class Nested {
+                            }
                         }
 
                         public class Hidden {}
