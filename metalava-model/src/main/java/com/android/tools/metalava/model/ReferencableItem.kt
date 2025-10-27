@@ -22,5 +22,6 @@ package com.android.tools.metalava.model
  * Currently, the union contains:
  * * [PackageItem]
  * * [ClassItem]
+ * * [TypeParameterItem]
  */
 sealed interface ReferencableItem

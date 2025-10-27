@@ -190,6 +190,47 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "java.io.IOException",
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
+                // ClassItem - TypeParameters
+                TestParams(
+                    name = "ClassItem - TypeParameter - O",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "O",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertTypeParameter("O")
+                    }
+                ),
+                TestParams(
+                    name = "ClassItem - TypeParameter - S",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "S",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertTypeParameter("S")
+                    }
+                ),
+                TestParams(
+                    name = "ClassItem - nested access own TypeParameter - N",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test.Nested") },
+                    referencableName = "N",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test.Nested").assertTypeParameter("N")
+                    }
+                ),
+                TestParams(
+                    name = "ClassItem - nested access outer class TypeParameter - O",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test.Nested") },
+                    referencableName = "O",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertTypeParameter("O")
+                    }
+                ),
+                TestParams(
+                    name = "ClassItem - nested access shadowing TypeParameter - S",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test.Nested") },
+                    referencableName = "S",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test.Nested").assertTypeParameter("S")
+                    }
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters fun params() = params
@@ -204,8 +245,8 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     """
                         package test.pkg;
                         ${params.imports.trimIndent()}
-                        public class Test {
-                            public class Nested {
+                        public class Test<O,S> {
+                            public class Nested<N,S> {
                             }
                         }
 

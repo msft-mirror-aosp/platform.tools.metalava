@@ -232,6 +232,17 @@ interface Assertions {
         )
     }
 
+    /** Make sure that [this] contains a [TypeParameterItem] called [name], returning it. */
+    fun TypeParameterListOwner.assertTypeParameter(name: String): TypeParameterItem {
+        val found = typeParameterList.find { it.name() == name }
+        assertNotNull(
+            found,
+            message =
+                "Expected $this to have type parameter $name but had ${typeParameterList.joinToString()}"
+        )
+        return found
+    }
+
     /**
      * Create a Kotlin like method description. It uses Kotlin structure for a method and Kotlin
      * style nulls but not Kotlin types.

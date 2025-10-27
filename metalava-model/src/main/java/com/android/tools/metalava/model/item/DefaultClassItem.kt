@@ -288,8 +288,8 @@ open class DefaultClassItem(
         // First, check to see if it matches this class and if it does then return it.
         if (simpleName == simpleName()) this
         else
-        // TODO(b/447588621): Check for type parameters
-        null
+        // Then check to see type parameters.
+        typeParameterList.find { it.name() == simpleName }
                 // Then, check to see if it matches a nested class and if it does then return that.
                 ?: mutableNestedClasses.find { it.simpleName() == simpleName }
 
