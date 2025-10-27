@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
@@ -43,7 +44,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.annotation.AnnotationFilter
+import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -1069,12 +1072,28 @@ private fun SelectableItem.isApiCandidate(): Boolean {
 private fun SelectableItem.documentationContainsDeprecated(): Boolean {
     if (documentation.hasBlockTagOfType("deprecated")) return true
     if (this !is MethodItem) return false
-    val text = documentation.text
-    if (text == "" || text.contains("@inheritDoc")) {
+    if (!documentation.requiresSourceComment() || documentation.containsInheritDocTag()) {
         return superMethods().any { it.documentationContainsDeprecated() }
     }
     return false
 }
+
+/**
+ * Check for an `inheritDoc`.
+ *
+ * Strictly speaking it should not check for a block `inheritDoc` but the previous code would match
+ * that and there is some code downstream which uses that.
+ *
+ * TODO(b/450228132): Remove check for block tag.
+ */
+private fun ItemDocumentation.containsInheritDocTag(): Boolean =
+    hasBlockTagOfType("inheritDoc") || check(CONTAINS_INHERIT_DOC_TAG_PREDICATE)
+
+/**
+ * A [DocContentPredicate] that will check for the presence of `{@inheritDoc}` in the documentation.
+ */
+private val CONTAINS_INHERIT_DOC_TAG_PREDICATE =
+    DocContentPredicates.containsInlineTag("inheritDoc")
 
 /**
  * A set of [MethodItem]s.

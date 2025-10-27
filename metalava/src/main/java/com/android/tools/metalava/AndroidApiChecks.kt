@@ -110,16 +110,13 @@ class AndroidApiChecks(val reporter: Reporter) {
     }
 
     private fun checkTodos(item: SelectableItem) {
-        if (
-            item.documentation.text.contains("TODO:") || item.documentation.text.contains("TODO(")
-        ) {
+        if (item.documentation.check(CONTAINS_TODO_PREDICATE)) {
             reporter.report(Issues.TODO, item, "Documentation mentions 'TODO'")
         }
     }
 
     private fun checkRequiresPermission(callable: CallableItem) {
         val documentation = callable.documentation
-        val text = documentation.text
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
@@ -129,7 +126,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             for (item in permissions) {
                 val perm = item.substringAfterLast('.')
                 // Search for the permission name as a whole word.
-                val mentioned = text.containsWord(perm)
+                val mentioned = documentation.containsWord(perm)
                 if (mentioned && !conditional) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,
@@ -148,9 +145,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                     )
                 }
             }
-        } else if (
-            text.contains("android.Manifest.permission") || text.contains("android.permission.")
-        ) {
+        } else if (documentation.check(CONTAINS_PERMISSION_NAME_OR_FIELD_PREDICATE)) {
             reporter.report(
                 Issues.REQUIRES_PERMISSION,
                 callable,
@@ -173,12 +168,8 @@ class AndroidApiChecks(val reporter: Reporter) {
             field.modifiers.findAnnotation("android.annotation.SdkConstant") != null
 
         val documentation = field.documentation
-        val text = documentation.text
 
-        if (
-            text.contains("Broadcast Action:") ||
-                text.contains("protected intent") && text.contains("system")
-        ) {
+        if (documentation.check(CONTAINS_BROADCAST_ACTION_OR_SYSTEM_PREDICATE)) {
             if (!hasBehavior) {
                 reporter.report(
                     Issues.BROADCAST_BEHAVIOR,
@@ -197,7 +188,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             }
         }
 
-        if (text.contains("Activity Action:")) {
+        if (documentation.check(CONTAINS_ACTIVITY_ACTION_PREDICATE)) {
             if (!hasSdkConstant) {
                 reporter.report(
                     Issues.SDK_CONSTANT,
@@ -276,6 +267,41 @@ class AndroidApiChecks(val reporter: Reporter) {
                 // Applying a pattern has a small overhead so it is worth avoiding that on short
                 // strings that could never match.
                 text.length >= 5 && constantPattern.matcher(text).find()
+            }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `TO-DO`s in the
+         * documentation.
+         */
+        private val CONTAINS_TODO_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("TODO:") || text.contains("TODO(")
+            }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `Broadcast Action:` or
+         * `protected intent` and `system` in the documentation.
+         */
+        private val CONTAINS_BROADCAST_ACTION_OR_SYSTEM_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("Broadcast Action:") ||
+                    (text.contains("protected intent") && text.contains("system"))
+            }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `Activity Action:` in the
+         * documentation.
+         */
+        private val CONTAINS_ACTIVITY_ACTION_PREDICATE =
+            DocContentPredicates.textContainsAny { text -> text.contains("Activity Action:") }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of permission names or fields in
+         * the documentation.
+         */
+        private val CONTAINS_PERMISSION_NAME_OR_FIELD_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("android.Manifest.permission") || text.contains("android.permission.")
             }
     }
 }

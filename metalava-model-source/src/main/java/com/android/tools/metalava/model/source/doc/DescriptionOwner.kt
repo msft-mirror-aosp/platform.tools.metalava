@@ -38,7 +38,7 @@ import kotlin.jvm.optionals.getOrNull
 internal open class DescriptionOwner(
     val context: DocCommentContext,
     protected val descriptionSupplier: ContentSupplier,
-    private val noComment: Boolean,
+    protected val noComment: Boolean,
 ) : DocContentOwner {
     /**
      * A mutable and optional [JavadocContent] that is initialized lazily from [descriptionSupplier]
