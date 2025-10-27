@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
@@ -24,6 +25,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TraversingVisitor
+import com.android.tools.metalava.model.imports.ImportResolver
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.containsWord
 import java.util.TreeSet
 
@@ -104,6 +107,45 @@ abstract class AbstractSourceFile() : SourceFile {
             originalSourceFile = this,
         )
     }
+
+    /** Backing field of [importResolver]. */
+    private lateinit var _importResolver: ImportResolver
+
+    /**
+     * [ImportResolver] that can be used to resolve simple names to fully qualified names using the
+     * imports.
+     */
+    private val importResolver: ImportResolver
+        get() {
+            if (!::_importResolver.isInitialized) {
+                _importResolver = ImportResolver(codebase, allJavaImports())
+            }
+            return _importResolver
+        }
+
+    /** Resolve [simpleName] to a [ClassItem] using [importResolver]. */
+    private fun importedClassItem(simpleName: String): ClassItem? {
+        // Resolve the import, if possible.
+        val resolvedImport = importResolver.resolveImport(simpleName) ?: return null
+
+        // Assume that the resolved import was for a qualified class name.
+        val qualifiedClassName = resolvedImport.treatAsQualifiedClassName()
+
+        // Resolve the class.
+        return codebase.resolveClass(qualifiedClassName)
+    }
+
+    override val containingScope: ReferencableNameScope?
+        get() = containingPackage
+
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        isFirstSimpleName: Boolean
+    ) =
+        // First, check for other top level classes in the same file.
+        classes().find { it.simpleName() == simpleName }
+            // Then check for imports.
+            ?: importedClassItem(simpleName)
 }
 
 /**

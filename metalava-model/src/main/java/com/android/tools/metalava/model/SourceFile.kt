@@ -16,10 +16,11 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import java.util.TreeSet
 
 /** Represents a Kotlin/Java source file */
-interface SourceFile {
+interface SourceFile : ReferencableNameScope {
     /** The [Codebase] to which this [SourceFile] belongs. */
     val codebase: Codebase
 

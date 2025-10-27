@@ -47,6 +47,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
     @EntryPoint
     constructor(
         val name: String,
+        val imports: String = "",
         /** Getter for the [ReferencableNameScope] from which the name will be resolved. */
         val scopeGetter: CodebaseContext.() -> ReferencableNameScope,
         /** The name to resolve. */
@@ -96,6 +97,45 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "java.util",
                     expectedItemGetter = { codebase.assertResolvedPackage("java.util") }
                 ),
+                // SourceFile related tests.
+                TestParams(
+                    name = "SourceFile - absolute class",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "java.io.IOException",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
+                ),
+                TestParams(
+                    name = "SourceFile - resolve imported",
+                    imports =
+                        """
+                            import java.io.IOException;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "IOException",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
+                ),
+                TestParams(
+                    name = "SourceFile - resolve static imported",
+                    imports =
+                        """
+                            import static java.util.Map.Entry;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "Entry",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.util.Map.Entry") }
+                ),
+                TestParams(
+                    name = "SourceFile - resolve class in same file",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "Hidden",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Hidden") }
+                ),
+                TestParams(
+                    name = "SourceFile - resolve class in same package",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "Other",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Other") }
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters fun params() = params
@@ -109,8 +149,17 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
+                        ${params.imports.trimIndent()}
                         public class Test {
                         }
+
+                        public class Hidden {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Other {}
                     """
                 ),
             ),
