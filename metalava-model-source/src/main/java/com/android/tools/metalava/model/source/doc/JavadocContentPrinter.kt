@@ -16,17 +16,21 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocContentList
 import com.android.tools.metalava.model.source.javadoc.JavadocContentVisitor
 import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.TextStartsWithVisitor
 import java.io.PrintWriter
+import kotlin.text.iterator
 
-/** Prints [DocDescription] instances to [writer]. */
-internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocContentVisitor {
-    /** Prints [description] as part of a Javadoc comment to [writer]. */
-    fun print(description: DocDescription) {
-        description.content?.accept(this)
+/** Prints [JavadocContent] instances to [writer]. */
+internal class JavadocContentPrinter(private val writer: PrintWriter) :
+    JavadocContentVisitor<Unit> {
+    /** Prints [content] as part of a Javadoc comment to [writer]. */
+    fun print(content: JavadocContent?) {
+        content?.accept(this)
     }
 
     override fun visit(list: JavadocContentList) {
@@ -36,18 +40,19 @@ internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocC
     override fun visit(inlineTag: JavadocInlineTag) {
         writer.print("{@")
         writer.print(inlineTag.tagType)
+        inlineTag.tagData?.printAfterTagType(writer)
         inlineTag.content?.let { nestedContent ->
-            if (!nestedContent.startsWithNewline()) {
+            if (!nestedContent.matches(STARTS_WITH_NEWLINE_CHECKER)) {
                 writer.print(" ")
             }
-            nestedContent.accept(this)
+            print(nestedContent)
         }
         writer.print("}")
     }
 
     override fun visit(text: JavadocText) {
         var previousChar = '\u0000'
-        for (c in text.text) {
+        for (c in text.contents) {
             if (previousChar == '\n' && c != '/') {
                 writer.print(" *")
             }
@@ -57,6 +62,13 @@ internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocC
 
         if (previousChar == '\n') {
             writer.print(" *")
+        }
+    }
+
+    companion object {
+        /** Check to see whether [JavadocContent] starts with a newline character. */
+        private val STARTS_WITH_NEWLINE_CHECKER = TextStartsWithVisitor { string ->
+            string[0] == '\n'
         }
     }
 }

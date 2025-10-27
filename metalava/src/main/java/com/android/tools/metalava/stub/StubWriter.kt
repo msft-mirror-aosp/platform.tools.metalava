@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -292,7 +293,11 @@ fun createFilteringVisitorForStubs(
     )
 }
 
-internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
+internal fun appendDocumentation(
+    item: SelectableItem,
+    writer: PrintWriter,
+    config: StubWriterConfig
+) {
     if (config.includeDocumentationInStubs) {
         val documentation = item.documentation
         documentation.print(writer)

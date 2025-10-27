@@ -61,6 +61,8 @@ const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 
+const val ARG_API_VERSION_FOR_SOURCES = "--api-version-for-sources"
+
 const val ARG_API_VERSION_RANGE = "--api-version-range"
 const val ARG_API_VERSION_LABEL = "--api-version-label"
 
@@ -103,7 +105,7 @@ class ApiLevelsGenerationOptions(
         get() = listOf(earlyOptions)
 
     /** API level XML file to generate. */
-    val generateApiLevelXml: File? by
+    val generateApiLevelsXmlFile: File? by
         option(
                 ARG_GENERATE_API_LEVELS,
                 metavar = "<xmlfile>",
@@ -116,6 +118,22 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .newFile()
+
+    private val apiVersionForSources: ApiVersion by
+        option(
+                ARG_API_VERSION_FOR_SOURCES,
+                metavar = "<api-version>",
+                help =
+                    """
+                        Sets the API version of unfinalized apis in the current source code. This supports a
+                        single integer level, `major.minor`, `major.minor.patch` and
+                        `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
+                        all non-negative integers and `quality` is an alphanumeric string.
+                    """
+                        .trimIndent(),
+            )
+            .apiVersion()
+            .default(ApiVersion.fromLevel(10000))
 
     /** Whether references to missing classes should be removed from the api levels file. */
     private val removeMissingClassReferencesInApiLevels: Boolean by
@@ -178,9 +196,9 @@ class ApiLevelsGenerationOptions(
                         `<api-version>`s.
 
                         If unspecified then this currently falls back to a range from
-                        `--first-api-version` to `--current-version` (or `--current-version + 1` if
-                        `--current-codename` is set to any value other than `REL`). However, in
-                        future it will default to allowing every historical version.
+                        `--first-api-version` to `--current-version` (or `--api-version-for-sources`
+                        if `--current-codename` is set to any value other than `REL`). However,
+                        in future it will default to allowing every historical version.
                     """
                         .trimIndent()
             )
@@ -416,7 +434,10 @@ class ApiLevelsGenerationOptions(
      * @param dir the directory to scan.
      * @param patterns the patterns that determine the files that will be found.
      */
-    private fun findHistoricalFiles(dir: File, patterns: List<String>): List<MatchedPatternFile> {
+    private fun findHistoricalApiFiles(
+        dir: File,
+        patterns: List<String>
+    ): List<MatchedPatternFile> {
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val versionRange = apiVersionRange ?: firstApiVersion.rangeTo(lastApiVersion)
@@ -482,68 +503,36 @@ class ApiLevelsGenerationOptions(
         signatureFileLoader: SignatureFileLoader,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
-        generateApiLevelXml?.let { outputFile ->
+        generateApiLevelsXmlFile?.let { outputFile ->
+            fun createVersionedSignatureApi(
+                updater: ApiHistoryUpdater,
+                files: List<MatchedPatternFile>,
+            ) = VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
+
+            if (androidJarPatterns.isNotEmpty() && signaturePatterns.isNotEmpty()) {
+                cliError(
+                    "Cannot combine $ARG_API_VERSION_SIGNATURE_PATTERN with $ARG_ANDROID_JAR_PATTERN"
+                )
+            }
+
             // Scan for all the files that could contribute to the API history.
             val currentDir = fileForPathInner(".")
-            val (patterns, matchedFiles, versionedApiFactory) =
+            val (apiFilePatterns, versionedApiFactory) =
                 if (signaturePatterns.isEmpty()) {
-                    Triple(
-                        androidJarPatterns,
-                        findHistoricalFiles(currentDir, androidJarPatterns),
-                        ::createVersionedJarApi,
-                    )
-                } else if (androidJarPatterns.isNotEmpty()) {
-                    cliError(
-                        "Cannot combine $ARG_API_VERSION_SIGNATURE_PATTERN with $ARG_ANDROID_JAR_PATTERN"
-                    )
+                    Pair(androidJarPatterns, ::createVersionedJarApi)
                 } else {
-                    fun createVersionedSignatureApi(
-                        updater: ApiHistoryUpdater,
-                        files: List<MatchedPatternFile>,
-                    ) = VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
-
-                    Triple(
-                        signaturePatterns,
-                        findHistoricalFiles(currentDir, signaturePatterns),
-                        ::createVersionedSignatureApi,
-                    )
+                    Pair(signaturePatterns, ::createVersionedSignatureApi)
                 }
+            val matchedApiFiles = findHistoricalApiFiles(currentDir, apiFilePatterns)
 
-            // Split the files into extension api files and primary api files.
-            val (extensionApiFiles, primaryApiFiles) = matchedFiles.partition { it.extension }
+            // Split the files into primary api files and extension api files.
+            val (primaryApiFiles, extensionApiFiles) = matchedApiFiles.partition { !it.extension }
 
             // Get a VersionedApi for each of the released API files.
             val versionedHistoricalApis =
                 constructVersionedApisForHistoricalFiles(primaryApiFiles, versionedApiFactory)
 
-            val currentSdkVersion = currentApiVersion
-            if (currentSdkVersion.major <= 26) {
-                cliError("Suspicious $ARG_CURRENT_VERSION $currentSdkVersion, expected at least 27")
-            }
-
-            // b/447588979 In future the version to use will be passed on the command line so
-            // Metalava does not need to deduce it. A placeholder is used temporarily.
-            val nextSdkVersion = ApiVersion.fromString("10000")
-            val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
-
-            // Compute the version to use for the current codebase, or null if the current codebase
-            // should not be added to the API history. If a non-null version is selected it will
-            // always be after the last historical version.
-            val codebaseSdkVersion =
-                when {
-                    // The current codebase is a developer preview so use the next, in the
-                    // process of being finalized version.
-                    isDeveloperPreviewBuild -> nextSdkVersion
-
-                    // If no finalized versions were provided or the last finalized version is less
-                    // than the current version then use the current version as the version of the
-                    // codebase.
-                    lastFinalizedVersion == null || lastFinalizedVersion < currentSdkVersion ->
-                        currentSdkVersion
-
-                    // Else do not include the current codebase.
-                    else -> null
-                }
+            val codebaseSdkVersion = computeCodebaseSdkVersion(versionedHistoricalApis)
 
             // Get the optional SDK extension arguments.
             val sdkExtensionsArguments =
@@ -554,9 +543,9 @@ class ApiLevelsGenerationOptions(
                     //
                     // If the latter then that is either:
                     // 1. The version used for the current codebase.
-                    // 2. Or the next version, i.e. --current-version + 1.
+                    // 2. Or the next version, i.e. --api-version-for-sources.
                     val notFinalizedSdkVersion =
-                        apiVersionForSdkExtension ?: codebaseSdkVersion ?: nextSdkVersion
+                        apiVersionForSdkExtension ?: codebaseSdkVersion ?: apiVersionForSources
                     ApiGenerator.SdkExtensionsArguments(
                         sdkInfoFile!!,
                         notFinalizedSdkVersion,
@@ -584,7 +573,7 @@ class ApiLevelsGenerationOptions(
                 // defined in an SDK version.
                 if (sdkExtensionsArguments != null) {
                     require(extensionApiFiles.isNotEmpty()) {
-                        "no extension api files found by ${patterns.joinToString()}"
+                        "no extension api files found by ${apiFilePatterns.joinToString()}"
                     }
 
                     // Get the potentially future API version that new SDK extension APIs will
@@ -803,5 +792,41 @@ class ApiLevelsGenerationOptions(
         }
 
         return sourceVersion to matchedFiles
+    }
+
+    /**
+     * Compute the version to use for the current codebase, or null if the current codebase should
+     * not be added to the API history. If a non-null version is selected it will always be after
+     * the last historical version.
+     */
+    private fun computeCodebaseSdkVersion(
+        versionedHistoricalApis: List<VersionedApi>
+    ): ApiVersion? {
+        if (currentApiVersion.major <= 26) {
+            cliError("Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27")
+        }
+
+        val nextSdkVersion = apiVersionForSources
+        val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
+        if (lastFinalizedVersion != null && apiVersionForSources <= lastFinalizedVersion) {
+            cliError(
+                "Suspicious $ARG_API_VERSION_FOR_SOURCES $apiVersionForSources, expected a version greater than $lastFinalizedVersion"
+            )
+        }
+
+        return when {
+            // The current codebase is a developer preview so use the next, in the
+            // process of being finalized version.
+            isDeveloperPreviewBuild -> nextSdkVersion
+
+            // If no finalized versions were provided or the last finalized version is less
+            // than the current version then use the current version as the version of the
+            // codebase.
+            lastFinalizedVersion == null || lastFinalizedVersion < currentApiVersion ->
+                currentApiVersion
+
+            // Else do not include the current codebase.
+            else -> null
+        }
     }
 }

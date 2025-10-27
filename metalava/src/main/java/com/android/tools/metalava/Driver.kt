@@ -445,10 +445,10 @@ private fun enhanceCodebaseDocumentationFromOptions(
             options.apiPredicateConfig,
         )
     docAnalyzer.enhance()
-    val applyApiLevelsXml = options.applyApiLevelsXml
-    if (applyApiLevelsXml != null) {
+    val applyApiLevelsXmlFile = options.applyApiLevelsXmlFile
+    if (applyApiLevelsXmlFile != null) {
         progressTracker.progress("Applying API levels")
-        docAnalyzer.applyApiVersions(applyApiLevelsXml)
+        docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)
     }
 }
 
@@ -790,6 +790,8 @@ private fun ActionContext.loadFromSources(
 
     val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
     val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
+
+    analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
 
     // Copy methods from soon-to-be-hidden parents into descendant classes, when necessary. Do
     // this before merging annotations or performing checks on the API to ensure that these methods
