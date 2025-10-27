@@ -89,6 +89,10 @@ interface Codebase : ClassResolver, AnnotationContext {
      */
     override fun resolveClass(erasedName: String): ClassItem?
 
+    /** The root [PackageItem]. */
+    val rootPackage
+        get() = resolvePackage("")
+
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
 

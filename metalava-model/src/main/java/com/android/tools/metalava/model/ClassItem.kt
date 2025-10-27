@@ -25,7 +25,7 @@ import com.android.tools.metalava.model.annotation.AnnotationClass
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
+interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner, ReferencableItem {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
