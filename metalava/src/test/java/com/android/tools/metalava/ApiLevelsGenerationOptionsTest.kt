@@ -61,6 +61,13 @@ Api Levels Generation:
                                              `--api-version-for-sources` if `--current-codename` is set to any value
                                              other than `REL`). However, in future it will default to allowing every
                                              historical version.
+  --sdk-extension-version-range <api-version>:<api-version>
+                                             The optional range of historical sdk extensions versions that can be
+                                             included in the API version history. The `from` and `to` parts of the range
+                                             are separated by a `:` and are both inclusive. See
+                                             --api-version-for-sources for acceptable `<api-version>`s.
+
+                                             If unspecified then allow every historical version.
   --current-version <api-version>            Sets the current API version of the current source code. This supports a
                                              single integer level, `major.minor`, `major.minor.patch` and
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
@@ -513,6 +520,56 @@ class ApiLevelsGenerationOptionsTest :
                         VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
                         VersionedSignatureApi(files=TESTROOT/1.1/public/api.txt, updater=ApiVersionUpdater(version=1.1))
                         VersionedSourceApi(version=30)
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
+    fun `Test --sdk-extension-version-range in forAndroidConfig`() {
+        val root = buildFileStructure {
+            dir("28") { dir("public") { emptyFile("api.txt") } }
+            dir("29") { dir("public") { emptyFile("api.txt") } }
+
+            dir("extensions") {
+                dir("1") { dir("public") { emptyFile("foo.txt") } }
+                dir("2") { dir("public") { emptyFile("foo.txt") } }
+                dir("3") { dir("public") { emptyFile("foo.txt") } }
+            }
+        }
+
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+
+        val apiSurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        runTest(
+            ARG_SDK_EXTENSION_VERSION_RANGE,
+            "1:2",
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:major.minor?}/{surface}/api.txt",
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/extensions/{version:extension}/{surface}/{module}.txt",
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+        ) {
+            val apiHistoryConfig = options.testForAndroidConfig()
+            assertThat(apiHistoryConfig).isNotNull()
+
+            // Compute the list of versioned files.
+            assertThat(apiHistoryConfig!!.versionedApis.dump())
+                .isEqualTo(
+                    """
+                        VersionedSignatureApi(files=TESTROOT/28/public/api.txt, updater=ApiVersionUpdater(version=28))
+                        VersionedSignatureApi(files=TESTROOT/29/public/api.txt, updater=ApiVersionUpdater(version=29))
+                        VersionedSourceApi(version=30)
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/2/public/foo.txt, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=30))
                     """
                         .trimIndent()
                 )

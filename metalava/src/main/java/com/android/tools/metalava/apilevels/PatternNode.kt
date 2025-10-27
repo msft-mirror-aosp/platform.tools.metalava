@@ -170,6 +170,13 @@ sealed class PatternNode {
          */
         val apiVersionFilter: ((ApiVersion) -> Boolean)? = null,
 
+        /**
+         * An optional filter which, if specified, will limit the sdk extension versions that will
+         * be returned. This is provided when scanning, instead of just filtering afterward, to save
+         * time when scanning by ignoring version directories that are not accepted by the filter.
+         */
+        val sdkExtensionVersionFilter: ((ApiVersion) -> Boolean)? = null,
+
         /** Provides access to [File]s. */
         val fileProvider: FileProvider = WholeFileSystemProvider(),
 
@@ -430,13 +437,10 @@ sealed class PatternNode {
                 val isExtension = placeholder == Placeholder.VERSION_EXTENSION
 
                 // Make sure that it is accepted by the filter (if one was specified). If it is not
-                // then ignore this file and all its contents by returning an empty sequence. The
-                // filter does not apply to extension versions, all extension versions are used.
-                if (!isExtension) {
-                    config.apiVersionFilter?.let { apiVersionFilter ->
-                        if (!apiVersionFilter(version)) return null
-                    }
-                }
+                // then ignore this file and all its contents by returning an empty sequence.
+                val versionFilter =
+                    if (isExtension) config.sdkExtensionVersionFilter else config.apiVersionFilter
+                versionFilter?.let { versionFilter -> if (!versionFilter(version)) return null }
 
                 return state.copy(version = version, isExtension = isExtension)
             }

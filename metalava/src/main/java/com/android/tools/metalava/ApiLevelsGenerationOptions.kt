@@ -67,6 +67,7 @@ const val ARG_API_VERSION_RANGE = "--api-version-range"
 const val ARG_API_VERSION_LABEL = "--api-version-label"
 
 const val ARG_API_VERSION_FOR_SDK_EXTENSION = "--api-version-for-sdk-extension"
+const val ARG_SDK_EXTENSION_VERSION_RANGE = "--sdk-extension-version-range"
 
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
@@ -198,6 +199,27 @@ class ApiLevelsGenerationOptions(
                         `--first-api-version` to `--current-version` (or `--api-version-for-sources`
                         if `--current-codename` is set to any value other than `REL`). However,
                         in future it will default to allowing every historical version.
+                    """
+                        .trimIndent()
+            )
+            .apiVersionRange()
+
+    /**
+     * The range of historical SDK Extension API versions that can be included in the API version
+     * history.
+     */
+    private val sdkExtensionVersionRange: ClosedRange<ApiVersion>? by
+        option(
+                ARG_SDK_EXTENSION_VERSION_RANGE,
+                metavar = "<api-version>:<api-version>",
+                help =
+                    """
+                        The optional range of historical sdk extensions versions that can be included in the API
+                        version history. The `from` and `to` parts of the range are separated by a
+                        `:` and are both inclusive. See $ARG_API_VERSION_FOR_SOURCES for acceptable
+                        `<api-version>`s.
+
+                        If unspecified then allow every historical version.
                     """
                         .trimIndent()
             )
@@ -440,11 +462,15 @@ class ApiLevelsGenerationOptions(
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val versionRange = apiVersionRange ?: firstApiVersion.rangeTo(lastApiVersion)
+        val sdkExtensionVersionRange =
+            sdkExtensionVersionRange
+                ?: ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(Int.MAX_VALUE))
         val apiSurfaceByName = apiSurfacesProvider()?.byName
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = dir,
                 apiVersionFilter = versionRange::contains,
+                sdkExtensionVersionFilter = sdkExtensionVersionRange::contains,
                 apiSurfaceByName = apiSurfaceByName,
             )
         return patternNode.scan(scanConfig)
