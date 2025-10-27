@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
+import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
@@ -68,7 +69,7 @@ open class DefaultClassItem(
     ),
     ClassItem {
 
-    private val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+    private val simpleName = qualifiedName.extractSimpleName()
 
     private val fullName: String
 
