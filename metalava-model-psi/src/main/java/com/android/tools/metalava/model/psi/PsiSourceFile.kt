@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.source.AbstractSourceFile
+import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.source.filterImports
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner

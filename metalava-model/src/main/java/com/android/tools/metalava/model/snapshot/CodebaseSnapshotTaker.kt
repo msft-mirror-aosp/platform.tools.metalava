@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
@@ -40,6 +41,7 @@ import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -646,4 +648,34 @@ internal class SnapshotSourceFileCache(
             originalSourceFile.snapshot(targetCodebase)
         }
     }
+}
+
+/**
+ * A snapshot of a [SourceFile].
+ *
+ * This delegates a number of methods to the [originalSourceFile].
+ */
+internal class SourceFileSnapshot(
+    override val codebase: Codebase,
+    override val containingPackage: PackageItem,
+    private val originalSourceFile: AbstractSourceFile
+) : AbstractSourceFile() {
+
+    override fun classes() =
+        originalSourceFile.classes().mapNotNull { codebase.resolveClass(it.qualifiedName()) }
+
+    /** Delegate to [originalSourceFile] as they are not changed by snapshotting. */
+    override fun getHeaderComments(): String? = originalSourceFile.getHeaderComments()
+
+    /**
+     * Delegate to [originalSourceFile] as while they could contain references to classes which are
+     * not part of the snapshot they will be filtered by [predicate] when this is called.
+     */
+    override fun getImports(predicate: FilterPredicate) = originalSourceFile.getImports(predicate)
+
+    /**
+     * Delegate to [originalSourceFile] as while they could contain references to classes which are
+     * not part of the snapshot they will be ignored as they will not appear in [codebase].
+     */
+    override fun allJavaImports() = originalSourceFile.allJavaImports()
 }

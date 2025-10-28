@@ -21,8 +21,8 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.source.AbstractSourceFile
 import com.android.tools.metalava.model.source.filterImports
 import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit

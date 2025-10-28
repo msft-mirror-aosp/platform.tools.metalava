@@ -17,98 +17,13 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TraversingVisitor
-import com.android.tools.metalava.model.imports.ImportResolver
-import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.containsWord
 import java.util.TreeSet
-
-/** Base class for model implementations of [SourceFile]. */
-abstract class AbstractSourceFile() : SourceFile {
-    override fun snapshot(targetCodebase: Codebase): SourceFile {
-        return SourceFileSnapshot(
-            targetCodebase,
-            targetCodebase.resolvePackage(containingPackage.qualifiedName())!!,
-            originalSourceFile = this,
-        )
-    }
-
-    /** Backing field of [importResolver]. */
-    private lateinit var _importResolver: ImportResolver
-
-    /**
-     * [ImportResolver] that can be used to resolve simple names to fully qualified names using the
-     * imports.
-     */
-    private val importResolver: ImportResolver
-        get() {
-            if (!::_importResolver.isInitialized) {
-                _importResolver = ImportResolver(codebase, allJavaImports())
-            }
-            return _importResolver
-        }
-
-    /** Resolve [simpleName] to a [ClassItem] using [importResolver]. */
-    private fun importedClassItem(simpleName: String): ClassItem? {
-        // Resolve the import, if possible.
-        val resolvedImport = importResolver.resolveImport(simpleName) ?: return null
-
-        // Assume that the resolved import was for a qualified class name.
-        val qualifiedClassName = resolvedImport.treatAsQualifiedClassName()
-
-        // Resolve the class.
-        return codebase.resolveClass(qualifiedClassName)
-    }
-
-    override val containingScope: ReferencableNameScope?
-        get() = containingPackage
-
-    override fun resolveReferencableItemBySimpleName(
-        simpleName: String,
-        isFirstSimpleName: Boolean
-    ) =
-        // First, check for other top level classes in the same file.
-        classes().find { it.simpleName() == simpleName }
-            // Then check for imports.
-            ?: importedClassItem(simpleName)
-}
-
-/**
- * A snapshot of a [SourceFile].
- *
- * This delegates a number of methods to the [originalSourceFile].
- */
-private class SourceFileSnapshot(
-    override val codebase: Codebase,
-    override val containingPackage: PackageItem,
-    private val originalSourceFile: AbstractSourceFile
-) : AbstractSourceFile() {
-
-    override fun classes() =
-        originalSourceFile.classes().mapNotNull { codebase.resolveClass(it.qualifiedName()) }
-
-    /** Delegate to [originalSourceFile] as they are not changed by snapshotting. */
-    override fun getHeaderComments(): String? = originalSourceFile.getHeaderComments()
-
-    /**
-     * Delegate to [originalSourceFile] as while they could contain references to classes which are
-     * not part of the snapshot they will be filtered by [predicate] when this is called.
-     */
-    override fun getImports(predicate: FilterPredicate) = originalSourceFile.getImports(predicate)
-
-    /**
-     * Delegate to [originalSourceFile] as while they could contain references to classes which are
-     * not part of the snapshot they will be ignored as they will not appear in [codebase].
-     */
-    override fun allJavaImports() = originalSourceFile.allJavaImports()
-}
 
 /**
  * Compute set of import statements that are actually referenced from the documentation (we do
