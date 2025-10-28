@@ -46,6 +46,8 @@ interface SourceFile {
      * it shows up in fewer places, but we need to handle it when it does -- such as in ojluni.
      */
     fun filterImports(imports: TreeSet<Import>, predicate: FilterPredicate): TreeSet<Import>
+
+    fun snapshot(targetCodebase: Codebase): SourceFile
 }
 
 /** Encapsulates information about the imports used in a [SourceFile]. */

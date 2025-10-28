@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
@@ -50,6 +51,7 @@ import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.Value
+import java.util.IdentityHashMap
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
 class CodebaseSnapshotTaker
@@ -102,6 +104,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
     override val requiresClassNesting: Boolean
         get() = false
 
+    private lateinit var sourceFileCache: SnapshotSourceFileCache
+
     override fun visitCodebase(codebase: Codebase) {
         this.originalCodebase = codebase
         val newCodebase =
@@ -118,6 +122,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             )
 
         this.snapshotCodebase = newCodebase
+        this.sourceFileCache = SnapshotSourceFileCache(newCodebase)
     }
 
     /**
@@ -266,7 +271,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 targetLanguages = classToSnapshot.targetLanguages,
                 modifiers = classToSnapshot.modifiers.snapshot(),
                 documentationFactory = snapshotDocumentation(classToSnapshot, cls),
-                source = cls.sourceFile(),
+                source = sourceFileCache.snapshotSourceFile(cls.sourceFile()),
                 classKind = classToSnapshot.classKind,
                 containingClass = containingClass,
                 containingPackage = containingPackage,
@@ -622,3 +627,23 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
  */
 private val <reified T : SelectableItem> T.actualItemToSnapshot: T
     inline get() = (showability.revertItem ?: this) as T
+
+/**
+ * Creates [SourceFile] snapshots on demand for a [SourceFile] and caches the result for reuse.
+ *
+ * @param targetCodebase the [DefaultCodebase] of which any created [SourceFile]s are part.
+ */
+internal class SnapshotSourceFileCache(
+    private val targetCodebase: DefaultCodebase,
+) {
+    /** Map from original [SourceFile] to the snapshot [SourceFile]. */
+    private val snapshotSourceFiles = IdentityHashMap<SourceFile, SourceFile>()
+
+    /** Get the snapshot [SourceFile] for a [SourceFile]. */
+    internal fun snapshotSourceFile(sourceFile: SourceFile?): SourceFile? {
+        sourceFile ?: return null
+        return snapshotSourceFiles.computeIfAbsent(sourceFile) { originalSourceFile ->
+            originalSourceFile.snapshot(targetCodebase)
+        }
+    }
+}

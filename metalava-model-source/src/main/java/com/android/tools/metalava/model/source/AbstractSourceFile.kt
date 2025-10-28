@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
@@ -94,4 +95,40 @@ abstract class AbstractSourceFile : SourceFile {
         }
         return result
     }
+
+    override fun snapshot(targetCodebase: Codebase): SourceFile {
+        return SourceFileSnapshot(
+            targetCodebase,
+            originalSourceFile = this,
+        )
+    }
+}
+
+/**
+ * A snapshot of a [SourceFile].
+ *
+ * This delegates a number of methods to the [originalSourceFile].
+ */
+private class SourceFileSnapshot(
+    val codebase: Codebase,
+    private val originalSourceFile: AbstractSourceFile
+) : AbstractSourceFile() {
+
+    override fun classes() =
+        originalSourceFile.classes().mapNotNull { codebase.resolveClass(it.qualifiedName()) }
+
+    /** Delegate to [originalSourceFile] as they are not changed by snapshotting. */
+    override fun getHeaderComments(): String? = originalSourceFile.getHeaderComments()
+
+    /**
+     * Delegate to [originalSourceFile] as while they could contain references to classes which are
+     * not part of the snapshot they will be filtered by [predicate] when this is called.
+     */
+    override fun getImports(predicate: FilterPredicate) = originalSourceFile.getImports(predicate)
+
+    /**
+     * Delegate to [originalSourceFile] as while they could contain references to classes which are
+     * not part of the snapshot they will be ignored as they will not appear in [codebase].
+     */
+    override fun allJavaImports() = originalSourceFile.allJavaImports()
 }
