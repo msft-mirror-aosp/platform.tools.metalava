@@ -118,8 +118,7 @@ class SnapshotTest : DriverTest() {
 
             val fooClass = snapshot.assertClass("test.pkg.Foo")
             val imports = fooClass.sourceFile()?.getImports()?.mapNotNull { it.pattern }
-            // TODO(b/447588621): SdkConstant should have been filtered out from getImports()
-            assertEquals(listOf("android.annotation.SdkConstant"), imports)
+            assertEquals(emptyList(), imports)
         }
     }
 }

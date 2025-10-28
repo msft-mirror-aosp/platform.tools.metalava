@@ -674,6 +674,12 @@ internal class SourceFileSnapshot(
 
     /**
      * Delegate to [originalSourceFile] as while they could contain references to classes which are
+     * not part of the snapshot they will be filtered when this is called.
+     */
+    override fun getImports() = originalSourceFile.getImports()
+
+    /**
+     * Delegate to [originalSourceFile] as while they could contain references to classes which are
      * not part of the snapshot they will be filtered by [predicate] when this is called.
      */
     override fun getImports(predicate: FilterPredicate) = originalSourceFile.getImports(predicate)
