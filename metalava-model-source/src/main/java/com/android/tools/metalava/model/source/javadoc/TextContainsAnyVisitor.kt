@@ -34,10 +34,14 @@ internal class TextContainsAnyVisitor(private val predicate: (String) -> Boolean
 
     override fun visit(list: JavadocContentList) = list.contents.any { it.accept(this) }
 
-    override fun visit(inlineTag: JavadocInlineTag) = inlineTag.content?.accept(this) ?: false
+    override fun visit(inlineTag: JavadocInlineTag) = inlineTag.contentMatches()
 
     override fun visit(text: JavadocText) = predicate(text.contents)
 
-    override fun visit(blockTagSection: BlockTagSection) =
-        blockTagSection.description?.accept(this) == true
+    override fun visit(blockTagSection: BlockTagSection) = blockTagSection.contentMatches()
+
+    /** Check to see if the content matches [predicate]. */
+    private fun DocTag.contentMatches() =
+        // Use this visitor to check the content, if any.
+        content?.accept(this@TextContainsAnyVisitor) == true
 }
