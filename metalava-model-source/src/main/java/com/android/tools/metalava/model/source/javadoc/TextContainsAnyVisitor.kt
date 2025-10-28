@@ -42,6 +42,8 @@ internal class TextContainsAnyVisitor(private val predicate: (String) -> Boolean
 
     /** Check to see if the content matches [predicate]. */
     private fun DocTag.contentMatches() =
-        // Use this visitor to check the content, if any.
-        content?.accept(this@TextContainsAnyVisitor) == true
+        // First, use the predicate to check the tag data, if any.
+        content?.accept(this@TextContainsAnyVisitor) == true ||
+            // Then, use this visitor to check the content, if any.
+            tagData?.textMatches(predicate) == true
 }

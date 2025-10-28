@@ -25,7 +25,7 @@ import com.android.tools.metalava.testing.java
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for references from within documentation comments. */
@@ -89,10 +89,9 @@ class CommonDocReferenceTest : BaseModelTest() {
                     """,
             )
 
-            // TODO(b/447588621): Searching does not look at @throws throwable type.
             val containsIOException =
                 DocContentPredicates.textContainsAny { it.contains("IOException") }
-            assertFalse(
+            assertTrue(
                 testMethod.documentation.check(containsIOException),
                 message = "contains IOException"
             )
