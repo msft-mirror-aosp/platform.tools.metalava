@@ -22,16 +22,12 @@ import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.source.AbstractSourceFile
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
-import com.intellij.psi.PsiComment
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiWhiteSpace
 import java.util.TreeSet
-import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 
@@ -48,23 +44,8 @@ internal class PsiSourceFile(
             val pkg = file.packageStatement ?: return null
             return file.text.substring(0, pkg.startOffset)
         } else if (file is KtFile) {
-            var curr: PsiElement? = file.firstChild
-            var comment: String? = null
-            while (curr != null) {
-                if (curr is PsiComment || curr is KDoc) {
-                    val text = curr.text
-                    comment =
-                        if (comment != null) {
-                            comment + "\n" + text
-                        } else {
-                            text
-                        }
-                } else if (curr !is PsiWhiteSpace) {
-                    break
-                }
-                curr = curr.nextSibling
-            }
-            return comment
+            val pkg = file.packageDirective ?: return null
+            return file.text.substring(0, pkg.startOffset)
         }
 
         return super.getHeaderComments()
