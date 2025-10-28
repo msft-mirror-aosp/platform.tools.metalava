@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import java.util.TreeSet
 
 /** Represents a Kotlin/Java source file */
 interface SourceFile : ReferencableNameScope {
@@ -45,14 +44,6 @@ interface SourceFile : ReferencableNameScope {
 
     /** Get only those imports that reference [Item]s for which [predicate] returns `true`. */
     fun getImports(predicate: FilterPredicate): Collection<Import> = emptyList()
-
-    /**
-     * Compute set of import statements that are actually referenced from the documentation (we do
-     * inexact matching here; we don't need to have an exact set of imports since it's okay to have
-     * some extras). This isn't a big problem since our code style forbids/discourages wildcards, so
-     * it shows up in fewer places, but we need to handle it when it does -- such as in ojluni.
-     */
-    fun filterImports(imports: TreeSet<Import>, predicate: FilterPredicate): TreeSet<Import>
 
     fun snapshot(targetCodebase: Codebase): SourceFile
 }

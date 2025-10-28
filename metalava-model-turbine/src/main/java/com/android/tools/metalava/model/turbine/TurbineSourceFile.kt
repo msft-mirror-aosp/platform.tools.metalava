@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.AbstractSourceFile
+import com.android.tools.metalava.model.source.filterImports
 import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
 import java.util.TreeSet
@@ -100,7 +101,7 @@ internal class TurbineSourceFile(
         // Next only keep those that are present in any docs; those are the only ones
         // we need to import
         if (imports.isNotEmpty()) {
-            return filterImports(imports, predicate)
+            return filterImports(imports, classes(), predicate)
         }
 
         return emptyList()

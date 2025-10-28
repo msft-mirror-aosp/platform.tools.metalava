@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.source.AbstractSourceFile
+import com.android.tools.metalava.model.source.filterImports
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiField
@@ -137,7 +138,7 @@ internal class PsiSourceFile(
         if (imports.isNotEmpty()) {
             @Suppress("ConstantConditionIf")
             return if (ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS) {
-                filterImports(imports, predicate)
+                filterImports(imports, classes(), predicate)
             } else {
                 imports
             }
