@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -28,6 +29,87 @@ import org.junit.Test
 class CommonSourceFileTest : BaseModelTest() {
     internal class FilterHidden : FilterPredicate {
         override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
+    }
+
+    @Test
+    fun `Test header comments`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    // Inline comment before package
+
+                    package test.pkg;
+
+                    // Inline comment before class
+
+                    /*
+                     * Multi-line comment
+                     * before class.
+                     */
+
+                    /**
+                     * Main class comment.
+                     */
+                    public class Test {}
+
+                    // Inline comment after class
+
+                    /*
+                     * Multi-line comment
+                     * after class.
+                     */
+                """
+            ),
+            kotlin(
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    // Inline comment before package
+
+                    package test.pkg
+
+                    // Inline comment before class
+
+                    /*
+                     * Multi-line comment
+                     * before class.
+                     */
+
+                    /**
+                     * Main class comment.
+                     */
+                    class Test {}
+
+                    // Inline comment after class
+
+                    /*
+                     * Multi-line comment
+                     * after class.
+                     */
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    // Inline comment before package
+                """
+                    .trimIndent(),
+                sourceFile.getHeaderComments()?.trimEnd()
+            )
+        }
     }
 
     @Test
