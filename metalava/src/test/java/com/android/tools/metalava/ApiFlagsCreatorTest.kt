@@ -37,26 +37,30 @@ class ApiFlagsCreatorTest {
                         ApiFlagConfig(
                             pkg = "test.pkg",
                             name = "flag1",
+                            isExported = true,
                             mutability = MUTABLE,
-                            status = DISABLED
+                            status = DISABLED,
                         ),
                         ApiFlagConfig(
                             pkg = "test.pkg",
                             name = "flag2",
+                            isExported = true,
                             mutability = IMMUTABLE,
-                            status = DISABLED
+                            status = DISABLED,
                         ),
                         ApiFlagConfig(
                             pkg = "test.pkg",
                             name = "flag3",
+                            isExported = true,
                             mutability = MUTABLE,
-                            status = ENABLED
+                            status = ENABLED,
                         ),
                         ApiFlagConfig(
                             pkg = "test.pkg",
                             name = "flag4",
+                            isExported = false,
                             mutability = IMMUTABLE,
-                            status = ENABLED
+                            status = ENABLED,
                         ),
                     ),
             )
