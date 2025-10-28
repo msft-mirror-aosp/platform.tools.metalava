@@ -239,10 +239,9 @@ internal class TurbineCodebaseInitialiser(
                 packageNameFilter = { true },
                 packageInfoList
             ) { (unit, packageName, sourceTypeBoundClass) ->
-                val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
-                val comment = getHeaderComments(source).toItemDocumentationFactory()
+                val comment = unit.getHeaderComments().toItemDocumentationFactory()
 
                 val annotations =
                     annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())

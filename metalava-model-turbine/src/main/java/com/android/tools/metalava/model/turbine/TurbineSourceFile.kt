@@ -30,7 +30,7 @@ internal class TurbineSourceFile(
     val compUnit: CompUnit,
 ) : AbstractSourceFile() {
 
-    override fun getHeaderComments() = getHeaderComments(compUnit.source().source())
+    override fun getHeaderComments() = compUnit.getHeaderComments()
 
     override fun classes(): Sequence<ClassItem> {
         val pkgName = getPackageName(compUnit)

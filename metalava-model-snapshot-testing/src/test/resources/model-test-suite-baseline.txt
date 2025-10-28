@@ -85,7 +85,6 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
 com.android.tools.metalava.model.testsuite.sourcefile.CommonSourceFileTest
   Test header comments[psi,kotlin,k1]
   Test header comments[psi,kotlin,k2]
-  Test header comments[turbine]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]
