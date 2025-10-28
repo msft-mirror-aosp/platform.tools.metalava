@@ -91,7 +91,7 @@ internal constructor(
             return null
         }
 
-        return PsiSourceFile(psiCodebase, containingFile)
+        return psiCodebase.sourceFileCache.psiSourceFile(containingFile)
     }
 
     /** Creates a constructor in this class */

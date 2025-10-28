@@ -130,12 +130,5 @@ internal class PsiSourceFile(
             .orEmpty()
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        return other is PsiSourceFile && file == other.file
-    }
-
-    override fun hashCode(): Int = file.hashCode()
-
     override fun toString(): String = "file ${file.virtualFile?.path}"
 }
