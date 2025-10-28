@@ -24,18 +24,15 @@ import org.junit.Test
 
 class ExperimentalCompatibilityCheckTest : DriverTest() {
 
-    // TODO: this test should be called "Should raise error when experimental method is removed from
-    // extensible class"
     @Test
     fun `Don't raise error when experimental method is removed from extensible class or interface`() {
         check(
-            /*
-             * TODO: there should be the following issues here:
-             *  - removed experimental method from MyNonExperimentalAbstractClass
-             *  - remoted experimental method from MyNonExperimentalInterface
-             * The others shouldn't trigger (because either they are not extensible classes or methods, or because a method override is optional and would require opting in).
-             */
-            expectedIssues = "",
+            expectedIssues =
+                """
+                released-api.txt:7: error: Binary breaking change: Removed method test.pkg.MyNonExperimentalAbstractClass.myExperimentalAbstractFun() [RemovedMethod]
+                released-api.txt:18: error: Binary breaking change: Removed method test.pkg.MyNonExperimentalInterface.myExperimentalAbstractMethod() [RemovedMethod]
+            """
+                    .trimIndent(),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
