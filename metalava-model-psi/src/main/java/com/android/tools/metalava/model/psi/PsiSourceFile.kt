@@ -34,7 +34,6 @@ import java.util.TreeSet
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
-import org.jetbrains.uast.UFile
 
 /** Whether we should limit import statements to symbols found in class docs */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
@@ -42,23 +41,8 @@ private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 internal class PsiSourceFile(
     val codebase: PsiBasedCodebase,
     val file: PsiFile,
-    val uFile: UFile? = null
 ) : AbstractSourceFile() {
     override fun getHeaderComments(): String? {
-        if (uFile != null) {
-            var comment: String? = null
-            for (uComment in uFile.allCommentsInFile) {
-                val text = uComment.text
-                comment =
-                    if (comment != null) {
-                        comment + "\n" + text
-                    } else {
-                        text
-                    }
-            }
-            return comment
-        }
-
         // https://youtrack.jetbrains.com/issue/KT-22135
         if (file is PsiJavaFile) {
             val pkg = file.packageStatement ?: return null
