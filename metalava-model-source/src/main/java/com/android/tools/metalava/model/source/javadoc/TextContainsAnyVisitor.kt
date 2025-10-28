@@ -16,12 +16,15 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.BlockTagSection
+import com.android.tools.metalava.model.source.doc.DocCommentPredicate
+
 /**
  * A [JavadocContentVisitor] that will search [JavadocContent] for any text that satisfies
  * [predicate].
  */
 internal class TextContainsAnyVisitor(private val predicate: (String) -> Boolean) :
-    JavadocContentPredicate {
+    DocCommentPredicate {
     /**
      * Checks to see whether [predicate] returns `true` for any text in [content].
      *
@@ -34,4 +37,7 @@ internal class TextContainsAnyVisitor(private val predicate: (String) -> Boolean
     override fun visit(inlineTag: JavadocInlineTag) = inlineTag.content?.accept(this) ?: false
 
     override fun visit(text: JavadocText) = predicate(text.contents)
+
+    override fun visit(blockTagSection: BlockTagSection) =
+        blockTagSection.description?.accept(this) == true
 }
