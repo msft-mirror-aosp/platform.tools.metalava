@@ -24,20 +24,17 @@ import org.junit.Test
 
 class ExperimentalCompatibilityCheckTest : DriverTest() {
 
-    /**
-     * TODO: this should be called "Should raise compatibility error on added final to method in abstract class"
-     */
     @Test
-    fun `Don't raise compatibility error on added final to method in abstract class`() {
+    fun `Should raise compatibility error on added final to method in abstract class`() {
         check(
             /*
-             * TODO: there should be just one compatibility issue raised here, which is adding
-             *  'final' to myExperimentalFun in MyAbstractClass
              * Adding 'final' to the experimental method in MyClass shouldn't have a compatibility
-             * error raised because overriding the method is optional and must be opted into
+             * error raised because overriding the method is optional and must be opted into.
+             * Same for myNonAbstractExperimentalFun in MyAbstractClass.
              */
             expectedIssues =
                 """
+                    load-api.txt:7: error: Binary breaking change: Method test.pkg.MyAbstractClass.myAbstractExperimentalFun has added 'final' qualifier [AddedFinal]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -46,12 +43,13 @@ class ExperimentalCompatibilityCheckTest : DriverTest() {
                   }
                   public abstract class MyAbstractClass {
                     ctor public MyAbstractClass();
-                    method @test.pkg.ExperimentalAnnotation public abstract void myExperimentalFun();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public abstract void myAbstractExperimentalFun();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public void myNonAbstractExperimentalFun();
                     method public abstract void myNonExperimentalFun();
                   }
                   public class MyClass {
                     ctor public MyClass();
-                    method @test.pkg.ExperimentalAnnotation public void myFun();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public void myFun();
                     method public final void myNonExperimentalFun();
                   }
                 }
@@ -63,12 +61,13 @@ class ExperimentalCompatibilityCheckTest : DriverTest() {
                   }
                   public abstract class MyAbstractClass {
                     ctor public MyAbstractClass();
-                    method @test.pkg.ExperimentalAnnotation public final void myExperimentalFun();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public final void myAbstractExperimentalFun();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public final void myNonAbstractExperimentalFun();
                     method public abstract void myNonExperimentalFun();
                   }
                   public class MyClass {
                     ctor public MyClass();
-                    method @test.pkg.ExperimentalAnnotation public final void myFun();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public final void myFun();
                     method public final void myNonExperimentalFun();
                   }
                 }
