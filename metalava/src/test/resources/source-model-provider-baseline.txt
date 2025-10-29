@@ -86,9 +86,6 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   No issues using the same classpath class twice[turbine]
   Removed method from classpath[turbine]
 
-com.android.tools.metalava.doc.DocAnalyzerRangeTest
-  Typedefs combined with ranges[turbine]
-
 com.android.tools.metalava.doc.DocAnalyzerTest
   @sdkExtSince (finalized, no codename)[turbine]
   @sdkExtSince (not finalized)[turbine]
