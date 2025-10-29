@@ -90,7 +90,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                 """,
         )
     }
@@ -106,7 +106,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link '
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                     text: ' and some text after.'
                 """,
         )
@@ -125,7 +125,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link\n '
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                     text: '\n and some text after.'
                 """,
         )
@@ -214,7 +214,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link LinkTagData(sourceReference=String)
+                    inlineTag: link LinkTagData(sourceReference=String, resolvedReference=null)
                       text: 'cannot contain inline {@bar\n tag}'
                     text: '.'
                 """,
@@ -233,7 +233,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: linkplain LinkTagData(sourceReference=String)
+                    inlineTag: linkplain LinkTagData(sourceReference=String, resolvedReference=null)
                       text: 'cannot contain inline {@bar tag}'
                     text: '.'
                 """,
