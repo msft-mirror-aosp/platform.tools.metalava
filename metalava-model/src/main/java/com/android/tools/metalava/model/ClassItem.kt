@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
@@ -25,7 +26,12 @@ import com.android.tools.metalava.model.annotation.AnnotationClass
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
+interface ClassItem :
+    ClassContentItem,
+    SelectableItem,
+    TypeParameterListOwner,
+    ReferencableItem,
+    ReferencableNameScope {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.

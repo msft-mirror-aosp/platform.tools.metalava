@@ -17,19 +17,25 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
+import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.TypeParameterReference
+import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.JavadocContentPredicate
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
@@ -200,6 +206,16 @@ abstract class AbstractItemDocumentation(
 
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
+
+    override fun resolveThrowableType(typeName: String): TypeReference? {
+        val scope = item as? ReferencableNameScope ?: return null
+        val resolved = scope.resolveReferencableItem(typeName)
+        return when (resolved) {
+            is ClassItem -> ClassReference(resolved.qualifiedName())
+            is TypeParameterItem -> TypeParameterReference(resolved.name())
+            else -> null
+        }
+    }
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")

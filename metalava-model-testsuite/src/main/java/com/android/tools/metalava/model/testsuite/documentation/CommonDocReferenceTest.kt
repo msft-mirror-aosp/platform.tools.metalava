@@ -58,6 +58,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * @throws IllegalArgumentException because reason 4.
                              * @throws java.io.IOException because reason 5.
                              * @throws ConcurrentModificationException because reason 6.
+                             * @throws UnknownException because reason 7.
                              */
                             public <Y extends Throwable> void method() throws X, Y, java.io.IOException {}
 
@@ -74,6 +75,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                 expectedOutput =
                     """
                         /**
+                         * @throws UnknownException because reason 7.
                          * @throws X because reason 1.
                          * @throws Y because reason 2.
                          * @throws java.io.IOException because reason 5.
