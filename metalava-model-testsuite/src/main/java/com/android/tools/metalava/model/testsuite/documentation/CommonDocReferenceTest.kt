@@ -16,32 +16,16 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
-import java.io.PrintWriter
-import java.io.StringWriter
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for references from within documentation comments. */
 class CommonDocReferenceTest : BaseModelTest() {
-    private fun checkItemDocumentationPrint(
-        item: SelectableItem,
-        expectedOutput: String,
-        message: String? = null
-    ) {
-        val documentation = item.documentation
-        val stringWriter = StringWriter()
-        PrintWriter(stringWriter).use { documentation.print(it) }
-        val actualOutput = stringWriter.toString()
-        assertEquals(expectedOutput.trimIndent(), actualOutput, message)
-    }
-
     @RequiresCapabilities(Capability.JAVA)
     @Test
     @Suppress("RedundantThrows")
@@ -72,8 +56,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testMethod = testClass.methods().single()
-            checkItemDocumentationPrint(
-                testMethod,
+            testMethod.assertPrintedDocumentation(
                 expectedOutput =
                     """
                         /**
