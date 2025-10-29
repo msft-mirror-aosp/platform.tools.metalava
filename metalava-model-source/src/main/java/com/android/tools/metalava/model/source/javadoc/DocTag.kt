@@ -38,10 +38,9 @@ internal interface DocTag {
      * The contents come from [tagData] and/or [content].
      */
     fun printTagContents(contentPrinter: JavadocContentPrinter) {
-        // If there is no data or content then there is nothing to do.
-        if (tagData == null && content == null) return
-        val writer = contentPrinter.writer
-        tagData?.printAfterTagType(writer)
-        content?.let { content -> contentPrinter.print(content, addLeadingSpaceIfNeeded = true) }
+        // If there is tag data then get it to print the tag contents, else if there is content then
+        // print that, else there is nothing to do.
+        tagData?.printTagContents(contentPrinter, content)
+            ?: contentPrinter.print(content, addLeadingSpaceIfNeeded = true)
     }
 }
