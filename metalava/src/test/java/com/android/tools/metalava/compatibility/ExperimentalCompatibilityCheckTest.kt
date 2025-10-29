@@ -24,8 +24,61 @@ import org.junit.Test
 
 class ExperimentalCompatibilityCheckTest : DriverTest() {
 
+    /**
+     * TODO: this should be called "Should raise compatibility error on added final to method in abstract class"
+     */
     @Test
-    fun `Don't raise error when experimental method is removed from extensible class or interface`() {
+    fun `Don't raise compatibility error on added final to method in abstract class`() {
+        check(
+            /*
+             * TODO: there should be just one compatibility issue raised here, which is adding
+             *  'final' to myExperimentalFun in MyAbstractClass
+             * Adding 'final' to the experimental method in MyClass shouldn't have a compatibility
+             * error raised because overriding the method is optional and must be opted into
+             */
+            expectedIssues =
+                """
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public abstract class MyAbstractClass {
+                    ctor public MyAbstractClass();
+                    method @test.pkg.ExperimentalAnnotation public abstract void myExperimentalFun();
+                    method public abstract void myNonExperimentalFun();
+                  }
+                  public class MyClass {
+                    ctor public MyClass();
+                    method @test.pkg.ExperimentalAnnotation public void myFun();
+                    method public final void myNonExperimentalFun();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public abstract class MyAbstractClass {
+                    ctor public MyAbstractClass();
+                    method @test.pkg.ExperimentalAnnotation public final void myExperimentalFun();
+                    method public abstract void myNonExperimentalFun();
+                  }
+                  public class MyClass {
+                    ctor public MyClass();
+                    method @test.pkg.ExperimentalAnnotation public final void myFun();
+                    method public final void myNonExperimentalFun();
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalAnnotation")
+        )
+    }
+
+    @Test
+    fun `Should raise error when experimental method is removed from extensible class`() {
         check(
             expectedIssues =
                 """
