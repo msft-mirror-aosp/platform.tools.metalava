@@ -68,7 +68,17 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class TypedefTest {
                             public TypedefTest() { throw new RuntimeException("Stub!"); }
-                            /** @param flags Value is either <code>0</code> or a combination of {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, {@link test.pkg.TypedefTest#STYLE_NO_INPUT}, 2, and 4 */
+                            /**
+                             * @param flags Value is either <code>0</code> or a combination of the following:
+                             * <ul>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_INPUT}</li>
+                             *   <li>2</li>
+                             *   <li>4</li>
+                             * <ul>
+                             */
                             public void setFlags(java.lang.Object first, int flags) { throw new RuntimeException("Stub!"); }
                             public static final int STYLE_NORMAL = 0;
                             public static final int STYLE_NO_FRAME = 2;
@@ -125,7 +135,15 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class TypedefTest {
                             public TypedefTest() { throw new RuntimeException("Stub!"); }
-                            /** @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or {@link test.pkg.TypedefTest#STYLE_NO_INPUT} */
+                            /**
+                             * @param style Value is one of the following:
+                             * <ul>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_INPUT}</li>
+                             * <ul>
+                             */
                             public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
                             public static final int STYLE_NORMAL = 0;
                             public static final int STYLE_NO_FRAME = 2;
@@ -186,7 +204,15 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class TypedefTest {
                             public TypedefTest() { throw new RuntimeException("Stub!"); }
-                            /** @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or test.pkg.TypedefTest.STYLE_NO_INPUT */
+                            /**
+                             * @param style Value is one of the following:
+                             * <ul>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
+                             *   <li>test.pkg.TypedefTest.STYLE_NO_INPUT</li>
+                             * <ul>
+                             */
                             public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
                             public static final int STYLE_NORMAL = 0;
                             public static final int STYLE_NO_FRAME = 2;
@@ -243,7 +269,12 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             public class TypedefTest {
                             public TypedefTest() { throw new RuntimeException("Stub!"); }
                             /**
-                             * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, or {@link test.pkg.TypedefTest#STYLE_NO_FRAME}
+                             * @param style Value is one of the following:
+                             * <ul>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
+                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
+                             * <ul>.
                              * <br>
                              * Value is 20 or greater
                              */

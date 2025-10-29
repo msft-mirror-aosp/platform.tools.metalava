@@ -457,32 +457,21 @@ class DocAnalyzer(
                     if (flag) {
                         sb.append("either <code>0</code> or ")
                         if (values.size > 1) {
-                            sb.append("a combination of ")
+                            sb.append("a combination of the following:")
                         }
+                    } else {
+                        sb.append("one of the following:")
                     }
 
-                    values.forEachIndexed { index, value ->
-                        sb.append(
-                            when (index) {
-                                0 -> {
-                                    ""
-                                }
-                                values.size - 1 -> {
-                                    if (flag) {
-                                        ", and "
-                                    } else {
-                                        ", or "
-                                    }
-                                }
-                                else -> {
-                                    ", "
-                                }
-                            }
-                        )
-
-                        val valueString = convertTypeDefValueToJavadoc(item, value)
-                        sb.append(valueString)
+                    sb.append("\n <ul>")
+                    for (value in values) {
+                        val valueAsJavadoc = convertTypeDefValueToJavadoc(item, value)
+                        sb.append("\n   <li>")
+                        sb.append(valueAsJavadoc)
+                        sb.append("</li>")
                     }
+                    sb.append("\n <ul>")
+
                     appendDocumentation(sb.toString(), item, true)
                 }
 
