@@ -515,6 +515,29 @@ class DocCommentParserTest : BaseDocCommentTest() {
     }
 
     @Test
+    fun `Test a block tag split across multiple lines`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see
+                     *
+                     * "Me"
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<\n *\n * "Me">>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @see "Me" */
+                """,
+        )
+    }
+
+    @Test
     fun `Test multiple blank lines`() {
         checkDocComment(
             input =
