@@ -26,7 +26,7 @@ import java.io.PrintWriter
 import kotlin.text.iterator
 
 /** Prints [JavadocContent] instances to [writer]. */
-internal class JavadocContentPrinter(private val writer: PrintWriter) :
+internal class JavadocContentPrinter(internal val writer: PrintWriter) :
     JavadocContentVisitor<Unit> {
     /**
      * Prints [content] as part of a Javadoc comment to [writer].
@@ -55,10 +55,7 @@ internal class JavadocContentPrinter(private val writer: PrintWriter) :
     override fun visit(inlineTag: JavadocInlineTag) {
         writer.print("{@")
         writer.print(inlineTag.tagType)
-        inlineTag.tagData?.printAfterTagType(writer)
-        inlineTag.content?.let { nestedContent ->
-            print(nestedContent, addLeadingSpaceIfNeeded = true)
-        }
+        inlineTag.printTagContents(this)
         writer.print("}")
     }
 

@@ -284,10 +284,7 @@ internal class DefaultDocComment(
                     writer.print(" *")
                 }
                 writer.print(" @${section.tagType}")
-                section.tagData?.printAfterTagType(writer)
-                section.description?.let { content ->
-                    contentPrinter.print(content, addLeadingSpaceIfNeeded = true)
-                }
+                section.printTagContents(contentPrinter)
                 if (multiLine) {
                     writer.println()
                 }
