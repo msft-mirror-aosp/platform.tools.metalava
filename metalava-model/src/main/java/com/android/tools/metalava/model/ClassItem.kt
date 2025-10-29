@@ -773,5 +773,8 @@ interface ClassItem :
     fun isExtensible() =
         !modifiers.isFinal() &&
             !modifiers.isSealed() &&
-            constructors().any { it.isPublic || it.isProtected }
+            // There are no constructors for an interface but that doesn't mean that it's not
+            // extensible. If the interface is public or protected it is extensible.
+            (isInterface() && (isPublic || isProtected) ||
+                constructors().any { it.isPublic || it.isProtected })
 }
