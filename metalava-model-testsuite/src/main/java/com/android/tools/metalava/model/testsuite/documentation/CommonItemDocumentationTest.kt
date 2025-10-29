@@ -421,7 +421,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
             testClass.assertPrintedDocumentation(
                 """
                     /** {@code unterminated tag on class} */
-
                 """,
             )
 
@@ -429,7 +428,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
             constructorItem.assertPrintedDocumentation(
                 """
                     /** {@code unterminated tag on constructor} */
-
                 """,
             )
 
@@ -440,7 +438,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                      * Multi-line comment containing
                      * {@code unterminated tag on field}
                      */
-
                 """,
             )
 
@@ -448,7 +445,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
             methodItem.assertPrintedDocumentation(
                 """
                     /** Blah first; {@code unterminated tag on method} */
-
                 """,
             )
 
@@ -498,7 +494,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 expectedOutput =
                     """
                         /** Single line comment. */
-
                     """,
             )
 
@@ -510,7 +505,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * Multi-line
                          * comment.
                          */
-
                      """,
             )
 
@@ -522,7 +516,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * Comment with start comment token
                          * /**.
                          */
-
                      """,
             )
 
@@ -576,7 +569,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                              *
                              * Appended to main.
                              */
-
                         """,
                 )
 
@@ -593,7 +585,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                              * Appended to main.
                              * @deprecated Appended to deprecated.
                              */
-
                         """,
                 )
             }
@@ -610,7 +601,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                              * {@inheritDoc}
                              * @deprecated Appended to deprecated.
                              */
-
                         """,
                 )
 
@@ -631,7 +621,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                              * Appended to main.
                              * @deprecated Appended to deprecated.
                              */
-
                         """,
                 )
             }
@@ -682,7 +671,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                         // Leading forwards slash
                          * // Leading whitespace then forwards slash
                          */
-
                     """,
             )
 
@@ -699,7 +687,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          *    // Leading forwards slash
                          *     // Leading whitespace then forwards slash
                          */
-
                     """,
             )
         }
@@ -725,7 +712,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 expectedOutput =
                     """
                         /** Summary line. */
-
                     """,
             )
 
@@ -738,7 +724,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * Summary line.
                          * @unique 1
                          */
-
                     """,
             )
 
@@ -751,7 +736,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * Summary line.
                          * @unique 2
                          */
-
                     """,
             )
         }
@@ -786,7 +770,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * @see "With leading whitespace"
                          * @deprecated Block tag with leading whitespace on separate line.
                          */
-
                     """,
             )
         }
@@ -845,7 +828,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * @param mysterious
                          * @param unknown
                          */
-
                     """,
             )
 
@@ -859,7 +841,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * @param mysterious
                          * @param unknown
                          */
-
                     """,
             )
 
@@ -880,7 +861,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * @param mysterious
                          * @param unknown
                          */
-
                     """,
             )
         }
@@ -958,7 +938,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          * {@link other.pkg.Other other class}
                          * {@link other.pkg.Other#method custom text}
                          */
-
                     """,
             )
 
@@ -978,7 +957,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                          *     {@link other.pkg.Other other class}
                          *     {@link other.pkg.Other#method custom text}
                          */
-
                     """,
             )
         }
@@ -1139,13 +1117,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
                      * across multiple lines with leading whitespace and a link to
                      * {@link test.another.Another Another} class.
                      */
-
                 """
 
             // Make sure that the text reflects the changes after mutation.
             assertEquals(
                 expectedOutputAfterMutation.trimIndent(),
-                classDocumentation.text,
+                classDocumentation.text.trimEnd(),
                 message = "text after mutation"
             )
 
@@ -1180,13 +1157,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val expectedOutputAfterMutation =
                 """
                     /** Text to {@code append}. */
-
                 """
 
             // Make sure that the text reflects the changes after mutation.
             assertEquals(
                 expectedOutputAfterMutation.trimIndent(),
-                methodDocumentation.text,
+                methodDocumentation.text.trimEnd(),
                 message = "text after mutation"
             )
 
@@ -1219,13 +1195,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val expectedOutputAfterMutation =
                 """
                     /** @deprecated extra text */
-
                 """
 
             // Make sure that the text reflects the changes after mutation.
             assertEquals(
                 expectedOutputAfterMutation.trimIndent(),
-                documentation.text,
+                documentation.text.trimEnd(),
                 message = "after mutation"
             )
 
@@ -1266,13 +1241,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val expectedOutputAfterFirstMutation =
                 """
                     /** @deprecated extra text */
-
                 """
 
             // Make sure that the text reflects the changes after mutation.
             assertEquals(
                 expectedOutputAfterFirstMutation.trimIndent(),
-                documentation.text,
+                documentation.text.trimEnd(),
                 message = "text after first mutation"
             )
 
@@ -1293,13 +1267,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
                      * <br>
                      * Some more content
                      */
-
                 """
 
             // Make sure that the text reflects the changes after mutation.
             assertEquals(
                 expectedOutputAfterSecondMutation.trimIndent(),
-                documentation.text,
+                documentation.text.trimEnd(),
                 message = "text after second mutation"
             )
 
@@ -1336,13 +1309,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val expectedOutputAfterMutation =
                 """
                     /** @param p extra text */
-
                 """
 
             // Make sure that the text reflects the changes after mutation.
             assertEquals(
                 expectedOutputAfterMutation.trimIndent(),
-                documentation.text,
+                documentation.text.trimEnd(),
                 message = "after mutation"
             )
 
@@ -1385,13 +1357,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val expectedOutputAfterFirstMutation =
                 """
                     /** @param p extra text */
-
                 """
 
             // Make sure that the text reflects the changes after mutation.
             assertEquals(
                 expectedOutputAfterFirstMutation.trimIndent(),
-                documentation.text,
+                documentation.text.trimEnd(),
                 message = "text after first mutation"
             )
 
@@ -1412,13 +1383,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
                      * <br>
                      * Some more content
                      */
-
                 """
 
             // Make sure that the text reflects the changes after mutation.
             assertEquals(
                 expectedOutputAfterSecondMutation.trimIndent(),
-                documentation.text,
+                documentation.text.trimEnd(),
                 message = "text after second mutation"
             )
 

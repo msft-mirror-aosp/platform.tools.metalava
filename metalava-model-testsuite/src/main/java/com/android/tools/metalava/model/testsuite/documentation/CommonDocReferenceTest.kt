@@ -68,7 +68,6 @@ class CommonDocReferenceTest : BaseModelTest() {
                          * @throws java.util.ConcurrentModificationException because reason 6.
                          * @throws test.pkg.Test.TestException because reason 3.
                          */
-
                     """,
             )
 

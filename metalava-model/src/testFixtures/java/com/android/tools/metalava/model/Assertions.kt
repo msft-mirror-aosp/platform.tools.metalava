@@ -251,7 +251,7 @@ interface Assertions {
         val stringWriter = StringWriter()
         PrintWriter(stringWriter).use { documentation.print(it) }
         val actualOutput = stringWriter.toString()
-        assertEquals(expectedOutput.trimIndent(), actualOutput, message)
+        assertEquals("$expectedOutput\n".trimIndent(), actualOutput, message)
     }
 
     /**
