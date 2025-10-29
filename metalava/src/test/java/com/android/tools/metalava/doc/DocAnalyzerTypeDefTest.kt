@@ -210,7 +210,6 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                              *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
                              *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
                              *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
-                             *   <li>test.pkg.TypedefTest.STYLE_NO_INPUT</li>
                              * <ul>
                              */
                             public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }

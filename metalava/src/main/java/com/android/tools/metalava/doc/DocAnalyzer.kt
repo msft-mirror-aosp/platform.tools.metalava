@@ -465,7 +465,7 @@ class DocAnalyzer(
 
                     sb.append("\n <ul>")
                     for (value in values) {
-                        val valueAsJavadoc = convertTypeDefValueToJavadoc(item, value)
+                        val valueAsJavadoc = convertTypeDefValueToJavadoc(item, value) ?: continue
                         sb.append("\n   <li>")
                         sb.append(valueAsJavadoc)
                         sb.append("</li>")
@@ -486,7 +486,7 @@ class DocAnalyzer(
                 private fun convertTypeDefValueToJavadoc(
                     item: Item,
                     value: ArrayElementValue
-                ): String {
+                ): String? {
                     val field = (value as? FieldReferenceValue)?.resolve()
                     return if (field is FieldItem) {
                         if (filterReference.test(field)) {
@@ -500,7 +500,8 @@ class DocAnalyzer(
                                 "Typedef references constant which isn't part of the API, skipping in documentation: " +
                                     "${field.containingClass().qualifiedName()}#${field.name()}"
                             )
-                            field.containingClass().qualifiedName() + "." + field.name()
+                            // Do not include the field in the documentation
+                            null
                         }
                     } else {
                         value.toValueString()
