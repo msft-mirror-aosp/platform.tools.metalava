@@ -191,7 +191,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public class TypedefTest {
                     public TypedefTest() { throw new RuntimeException("Stub!"); }
                     /**
-                     * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or STYLE_NO_INPUT
+                     * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or STYLE_NO_INPUT.
                      * <br>
                      * Value is 20 or greater
                      */
@@ -370,7 +370,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                      * This is the existing documentation.
                      *
                      * @param parameter1 docs for parameter1
-                     * @param parameter2 docs for parameter2
+                     * @param parameter2 docs for parameter2.
                      * <br>
                      * Value is 10 or greater
                      * @param parameter3 docs for parameter2
@@ -454,7 +454,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      *
-                     * @return return value documented here
+                     * @return return value documented here.
                      * <br>
                      * Value is 10 or greater
                      */

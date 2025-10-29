@@ -57,4 +57,6 @@ internal data class ThrowsTagData(
         writer.print(" ")
         writer.print(throwableType.displayName)
     }
+
+    override fun textMatches(predicate: (String) -> Boolean) = predicate(throwableType.displayName)
 }

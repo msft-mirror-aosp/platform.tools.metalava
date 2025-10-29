@@ -33,10 +33,10 @@ import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
+import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
-import com.android.tools.metalava.model.source.javadoc.JavadocContentPredicate
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
@@ -290,7 +290,7 @@ abstract class AbstractItemDocumentation(
         docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
 
     override fun check(predicate: DocContentPredicate) =
-        docComment.check(predicate as JavadocContentPredicate)
+        docComment.check(predicate as DocCommentPredicate)
 
     /** Check to see if this requires a source comment. */
     override fun requiresSourceComment() = docComment.requiresSourceComment()
