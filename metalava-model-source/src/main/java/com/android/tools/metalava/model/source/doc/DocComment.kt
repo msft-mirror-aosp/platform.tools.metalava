@@ -286,8 +286,7 @@ internal class DefaultDocComment(
                 writer.print(" @${section.tagType}")
                 section.tagData?.printAfterTagType(writer)
                 section.description?.let { content ->
-                    writer.print(" ")
-                    contentPrinter.print(content)
+                    contentPrinter.print(content, addLeadingSpaceIfNeeded = true)
                 }
                 if (multiLine) {
                     writer.println()
