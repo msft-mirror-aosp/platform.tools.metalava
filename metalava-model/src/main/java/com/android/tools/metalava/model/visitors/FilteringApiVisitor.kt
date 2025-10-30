@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
@@ -31,6 +32,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
@@ -80,6 +83,7 @@ class FilteringApiVisitor(
     private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
     private val ignoreEmit: Boolean = false,
+    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
@@ -90,6 +94,7 @@ class FilteringApiVisitor(
         callableComparator = callableComparator,
         apiFilters = apiFilters,
         showUnannotated = showUnannotated,
+        targetLanguages = targetLanguages,
     ),
     ItemVisitor {
 
@@ -182,6 +187,9 @@ class FilteringApiVisitor(
     private inner class FilteringSourceFile(val delegate: SourceFile) : SourceFile by delegate {
 
         override fun getImports() = delegate.getImports(filterReference)
+
+        override fun getImports(predicate: FilterPredicate) =
+            delegate.getImports(predicate.and(filterReference))
     }
 
     /**

@@ -25,9 +25,9 @@ import com.android.tools.metalava.SdkExtension
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.containsNullWord
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -36,22 +36,29 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.getAttributeValue
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
-import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.value.ArrayElementValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.FloatingPointValue
+import com.android.tools.metalava.model.value.IntegralValue
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.asBoolean
+import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.nio.file.Files
-import java.util.regex.Pattern
 import javax.xml.parsers.SAXParserFactory
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
@@ -106,7 +113,30 @@ class DocAnalyzer(
         // insertMissingDocFromHiddenSuperclasses()
     }
 
-    val mentionsNull: Pattern = Pattern.compile("\\bnull\\b")
+    /** Format this [Value] for use in handling `IntRange` and `FloatRange` annotations. */
+    private fun Value.forRange(): String =
+        when (this) {
+            is IntegralValue<*> -> {
+                // Format as an int if it will fit, otherwise a long.
+                val asLong = underlyingValue.toLong()
+                if (asLong >= Int.MIN_VALUE && asLong <= Int.MAX_VALUE) asLong.toString()
+                else "${asLong}L"
+            }
+            is FloatingPointValue<*> -> {
+                // Format as a float if it will fit, otherwise a double.
+                val asDouble = underlyingValue.toDouble()
+                if (asDouble >= -Float.MAX_VALUE && asDouble <= Float.MAX_VALUE) "${asDouble}f"
+                else asDouble.toString()
+            }
+            is FieldReferenceValue -> {
+                // Format as a link to the field.
+                "{@link ${qualifiedClassName}#$fieldName}"
+            }
+            else -> {
+                // Use default source formatting.
+                toValueString()
+            }
+        }
 
     private fun documentsFromAnnotations() {
         // Note: Doclava1 inserts its own javadoc parameters into the documentation,
@@ -220,7 +250,7 @@ class DocAnalyzer(
                             // i.e. not ParameterItems, so ignore it on them.
                             if (item is SelectableItem) handleRequiresApi(annotation, item)
                         "android.provider.Column" -> handleColumn(annotation, item)
-                        "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
+                        KOTLIN_DEPRECATED -> handleKotlinDeprecation(annotation, item)
                         "androidx.annotation.RestrictedForEnvironment" ->
                             handleRestrictedForEnvironment(annotation, item)
                     }
@@ -235,7 +265,7 @@ class DocAnalyzer(
                     annotation.resolve()?.modifiers?.annotations()?.forEach { nested ->
                         if (depth == 20) { // Temp debugging
                             throw StackOverflowError(
-                                "Unbounded recursion, processing annotation ${annotation.toSource()} " +
+                                "Unbounded recursion, processing annotation $annotation " +
                                     "in $item at ${annotation.fileLocation} "
                             )
                         } else if (nested.qualifiedName !in visitedClasses) {
@@ -244,62 +274,81 @@ class DocAnalyzer(
                     }
                 }
 
+                /**
+                 * Called for [item]s that are annotated with the Kotlin [Deprecated] annotation.
+                 *
+                 * Its purpose is to ensure that it has an `@deprecated` Javadoc tag, creating one
+                 * if possible and necessary. It does that just to prevent warning about missing
+                 *
+                 * @deprecated tags. The actual content is irrelevant as the documentation is not
+                 *   used to generate Kotlin stubs.
+                 */
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
-                    val text =
-                        (annotation.findAttribute("message")
-                                ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
-                            ?.legacyValue
-                            ?.value()
-                            ?.toString() ?: return
-                    if (text.isBlank() || item.documentation.contains(text)) {
+                    // Ignore Items without documentation.
+                    item as? SelectableItem ?: return
+
+                    // Drop out if it already has a deprecated Javadoc tag.
+                    if (item.documentation.hasBlockTagOfType("deprecated")) {
                         return
                     }
 
-                    item.appendDocumentation(text, "@deprecated")
+                    // Get the text from the annotation, returning if it could not be found or was
+                    // blank.
+                    val text =
+                        (annotation.findAttribute("message")
+                                ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
+                            ?.value
+                            ?.asString() ?: return
+                    if (text.isBlank()) {
+                        return
+                    }
+
+                    // Create a deprecated block tag using the text from the Deprecated annotation.
+                    item.documentation.addUniqueBlockTagSectionWithSimpleText("deprecated", text)
+                }
+
+                private fun documentationContainsNullWord(item: Item): Boolean {
+                    return when (item) {
+                        is ParameterItem -> {
+                            item.description.containsNullWord()
+                        }
+                        is CallableItem -> {
+                            val documentation = item.documentation
+                            // Don't inspect param docs (and other tags) for this purpose.
+                            documentation.mainDescription.containsNullWord() ||
+                                documentation.blockTagDescription("return").containsNullWord()
+                        }
+                        is SelectableItem -> {
+                            val documentation = item.documentation
+                            documentation.mainDescription.containsNullWord()
+                        }
+                        else -> false
+                    }
                 }
 
                 private fun handleInliningDocs(annotation: AnnotationItem, item: Item) {
                     if (annotation.isNullable() || annotation.isNonNull()) {
                         // Some docs already specifically talk about null policy; in that case,
                         // don't include the docs (since it may conflict with more specific
-                        // conditions
-                        // outlined in the docs).
-                        val documentation = item.documentation
-                        val doc =
-                            when (item) {
-                                is ParameterItem -> {
-                                    item
-                                        .containingCallable()
-                                        .documentation
-                                        .findTagDocumentation("param", item.name()) ?: ""
-                                }
-                                is CallableItem -> {
-                                    // Don't inspect param docs (and other tags) for this purpose.
-                                    documentation.findMainDocumentation() +
-                                        (documentation.findTagDocumentation("return") ?: "")
-                                }
-                                else -> {
-                                    documentation
-                                }
-                            }
-                        if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
-                            return
-                        }
+                        // conditions outlined in the docs).
+                        if (documentationContainsNullWord(item)) return
                     }
 
                     when (item) {
                         is FieldItem -> {
-                            addDoc(annotation, "memberDoc", item)
+                            addDoc(annotation, "memberDoc", item.descriptionOwner)
                         }
                         is CallableItem -> {
-                            addDoc(annotation, "memberDoc", item)
-                            addDoc(annotation, "returnDoc", item)
-                        }
-                        is ParameterItem -> {
-                            addDoc(annotation, "paramDoc", item)
+                            addDoc(annotation, "memberDoc", item.descriptionOwner)
+                            var returnDescriptionOwner =
+                                item.documentation.blockTagDescriptionOwner("return")
+                            addDoc(annotation, "returnDoc", returnDescriptionOwner)
                         }
                         is ClassItem -> {
-                            addDoc(annotation, "classDoc", item)
+                            addDoc(annotation, "classDoc", item.descriptionOwner)
+                        }
+                        is ParameterItem -> {
+                            addDoc(annotation, "paramDoc", item.descriptionOwner)
                         }
                     }
                 }
@@ -308,26 +357,10 @@ class DocAnalyzer(
                     if (item !is MemberItem) {
                         return
                     }
-                    var values: List<AnnotationAttributeValue>? = null
-                    var any = false
-                    var conditional = false
-                    for (attribute in annotation.attributes) {
-                        when (attribute.name) {
-                            "value",
-                            "allOf" -> {
-                                values = attribute.leafValues()
-                            }
-                            "anyOf" -> {
-                                any = true
-                                values = attribute.leafValues()
-                            }
-                            "conditional" -> {
-                                conditional = attribute.legacyValue.value() == true
-                            }
-                        }
-                    }
 
-                    if (!values.isNullOrEmpty() && !conditional) {
+                    val requiresPermissionInfo = annotation.getRequiresPermissionInfo() ?: return
+                    val (values, any, conditional) = requiresPermissionInfo
+                    if (values.isNotEmpty() && !conditional) {
                         // Look at macros_override.cs for the usage of these
                         // tags. In particular, search for def:dump_permission
 
@@ -341,23 +374,25 @@ class DocAnalyzer(
                                 else -> sb.append(" and ")
                             }
 
-                            val resolved = value.resolve()
+                            val resolvedField = (value as? FieldReferenceValue)?.resolve()
                             val field =
-                                if (resolved is FieldItem) resolved
-                                else {
-                                    val v: Any = value.value() ?: value.toSource()
+                                if (resolvedField == null) {
+                                    val v = value.asString() ?: value.toValueString()
                                     if (v == CARRIER_PRIVILEGES_MARKER) {
                                         // TODO: Warn if using allOf with carrier
                                         sb.append(
                                             "{@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges}"
                                         )
                                         continue
+                                    } else {
+                                        findPermissionField(codebase, v)
                                     }
-                                    findPermissionField(codebase, v)
-                                }
+                                } else resolvedField
                             if (field == null) {
-                                val v = value.value()?.toString() ?: value.toSource()
-                                if (editDistance(CARRIER_PRIVILEGES_MARKER, v, 3) < 3) {
+                                val v = value.asString()
+                                if (
+                                    v != null && editDistance(CARRIER_PRIVILEGES_MARKER, v, 3) < 3
+                                ) {
                                     reporter.report(
                                         Issues.MISSING_PERMISSION,
                                         item,
@@ -367,10 +402,10 @@ class DocAnalyzer(
                                     reporter.report(
                                         Issues.MISSING_PERMISSION,
                                         item,
-                                        "Cannot find permission field for $value required by $item (may be hidden or removed)"
+                                        "Cannot find permission field for ${value.toValueString()} required by $item (may be hidden or removed)"
                                     )
                                 }
-                                sb.append(value.toSource())
+                                sb.append(value.toValueString())
                             } else {
                                 if (filterReference.test(field)) {
                                     sb.append(
@@ -394,14 +429,10 @@ class DocAnalyzer(
                 }
 
                 private fun handleRange(annotation: AnnotationItem, item: Item) {
-                    val from: String? = annotation.findAttribute("from")?.legacyValue?.toSource()
-                    val to: String? = annotation.findAttribute("to")?.legacyValue?.toSource()
+                    val from = annotation.findAttribute("from")?.value?.forRange()
+                    val to = annotation.findAttribute("to")?.value?.forRange()
                     // TODO: inclusive/exclusive attributes on FloatRange!
                     if (from != null || to != null) {
-                        val args = HashMap<String, String>()
-                        if (from != null) args["from"] = from
-                        if (from != null) args["from"] = from
-                        if (to != null) args["to"] = to
                         val doc =
                             if (from != null && to != null) {
                                 "Value is between $from and $to inclusive"
@@ -415,8 +446,8 @@ class DocAnalyzer(
                 }
 
                 private fun handleTypeDef(annotation: AnnotationItem, item: Item) {
-                    val values = annotation.findAttribute("value")?.leafValues() ?: return
-                    val flag = annotation.findAttribute("flag")?.legacyValue?.toSource() == "true"
+                    val values = annotation.findAttribute("value")?.value?.asFlatList() ?: return
+                    val flag = annotation.findAttribute("flag")?.value?.asBoolean() == true
 
                     // Look at macros_override.cs for the usage of these
                     // tags. In particular, search for def:dump_int_def
@@ -426,69 +457,68 @@ class DocAnalyzer(
                     if (flag) {
                         sb.append("either <code>0</code> or ")
                         if (values.size > 1) {
-                            sb.append("a combination of ")
+                            sb.append("a combination of the following:")
                         }
+                    } else {
+                        sb.append("one of the following:")
                     }
 
-                    values.forEachIndexed { index, value ->
-                        sb.append(
-                            when (index) {
-                                0 -> {
-                                    ""
-                                }
-                                values.size - 1 -> {
-                                    if (flag) {
-                                        ", and "
-                                    } else {
-                                        ", or "
-                                    }
-                                }
-                                else -> {
-                                    ", "
-                                }
-                            }
-                        )
-
-                        val field = value.resolve()
-                        if (field is FieldItem)
-                            if (filterReference.test(field)) {
-                                sb.append(
-                                    "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
-                                )
-                            } else {
-                                // Typedef annotation references field which isn't part of the API:
-                                // don't
-                                // try to link to it.
-                                reporter.report(
-                                    Issues.HIDDEN_TYPEDEF_CONSTANT,
-                                    item,
-                                    "Typedef references constant which isn't part of the API, skipping in documentation: " +
-                                        "${field.containingClass().qualifiedName()}#${field.name()}"
-                                )
-                                sb.append(
-                                    field.containingClass().qualifiedName() + "." + field.name()
-                                )
-                            }
-                        else {
-                            sb.append(value.toSource())
-                        }
+                    sb.append("\n <ul>")
+                    for (value in values) {
+                        val valueAsJavadoc = convertTypeDefValueToJavadoc(item, value) ?: continue
+                        sb.append("\n   <li>")
+                        sb.append(valueAsJavadoc)
+                        sb.append("</li>")
                     }
+                    sb.append("\n <ul>")
+
                     appendDocumentation(sb.toString(), item, true)
                 }
 
+                /**
+                 * Convert [value] into Javadoc.
+                 *
+                 * If [value] is a reference to a field that is not part of the API then report an
+                 * issue and do not wrap in a `{@link ...}`. If it is a reference to a field that is
+                 * part of the API then wrap it in a `{@link ...}. Otherwise, just use its string
+                 * representation.
+                 */
+                private fun convertTypeDefValueToJavadoc(
+                    item: Item,
+                    value: ArrayElementValue
+                ): String? {
+                    val field = (value as? FieldReferenceValue)?.resolve()
+                    return if (field is FieldItem) {
+                        if (filterReference.test(field)) {
+                            "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
+                        } else {
+                            // Typedef annotation references field which isn't part of the API:
+                            // don't try to link to it.
+                            reporter.report(
+                                Issues.HIDDEN_TYPEDEF_CONSTANT,
+                                item,
+                                "Typedef references constant which isn't part of the API, skipping in documentation: " +
+                                    "${field.containingClass().qualifiedName()}#${field.name()}"
+                            )
+                            // Do not include the field in the documentation
+                            null
+                        }
+                    } else {
+                        value.toValueString()
+                    }
+                }
+
                 private fun handleRequiresFeature(annotation: AnnotationItem, item: Item) {
-                    val value =
-                        annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                    val resolved = value.resolve()
-                    val field = resolved as? FieldItem
+                    val value = annotation.findAttribute("value")?.value ?: return
+                    val field = (value as? FieldReferenceValue)?.resolve()
                     val featureField =
                         if (field == null) {
                             reporter.report(
                                 Issues.MISSING_PERMISSION,
                                 item,
-                                "Cannot find feature field for $value required by $item (may be hidden or removed)"
+                                "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                             )
-                            "{@link ${value.toSource()}}"
+                            "{@link ${value.toValueString()}}"
                         } else {
                             if (filterReference.test(field)) {
                                 "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}}"
@@ -496,14 +526,15 @@ class DocAnalyzer(
                                 reporter.report(
                                     Issues.MISSING_PERMISSION,
                                     item,
-                                    "Feature field $value required by $item is hidden or removed"
+                                    "Feature field ${value.toValueString()} required by $item is hidden or removed"
                                 )
                                 "${field.containingClass().simpleName()}#${field.name()}"
                             }
                         }
 
                     val enforcement =
-                        annotation.getAttributeValue("enforcement") ?: DEFAULT_ENFORCEMENT
+                        annotation.findAttribute("enforcement")?.value?.asString()
+                            ?: DEFAULT_ENFORCEMENT
 
                     // Compute the link uri and text from the enforcement setting.
                     val regexp = """(?:.*\.)?([^.#]+)#(.*)""".toRegex()
@@ -534,31 +565,31 @@ class DocAnalyzer(
                  * constructors, fields and/or properties, i.e. not parameters.
                  */
                 private fun handleRequiresApi(annotation: AnnotationItem, item: SelectableItem) {
-                    val level = run {
-                        val api =
-                            annotation.findAttribute("api")?.leafValues()?.firstOrNull()?.value()
+                    val possibleFullVersionCode = run {
+                        val api = annotation.findAttribute("api")?.value?.asInt()
                         if (api == null || api == 1) {
-                            annotation.findAttribute("value")?.leafValues()?.firstOrNull()?.value()
-                                ?: return
+                            annotation.findAttribute("value")?.value?.asInt() ?: return
                         } else {
                             api
                         }
                     }
 
-                    if (level is Int) {
-                        addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
-                    }
+                    val apiVersion = decodePossibleFullVersionCode(possibleFullVersionCode)
+                    addApiVersionDocumentation(apiVersion, item)
                 }
 
                 private fun handleRestrictedForEnvironment(
                     annotationItem: AnnotationItem,
                     item: Item
                 ) {
-                    val environmentsValue: String? =
-                        annotationItem.findAttribute("environments")?.legacyValue?.value()
-                            as String?
-                    val fromValue: String? =
-                        annotationItem.findAttribute("from")?.legacyValue?.toSource()
+                    val environmentsValue =
+                        annotationItem
+                            .findAttribute("environments")
+                            ?.value
+                            ?.asFlatList()
+                            ?.firstOrNull()
+                            ?.asString()
+                    val fromValue = annotationItem.findAttribute("from")?.value?.asInt()
 
                     if (environmentsValue == null) {
                         reporter.report(
@@ -586,17 +617,10 @@ class DocAnalyzer(
                 }
 
                 private fun handleColumn(annotation: AnnotationItem, item: Item) {
-                    val value =
-                        annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                    val readOnly =
-                        annotation
-                            .findAttribute("readOnly")
-                            ?.leafValues()
-                            ?.firstOrNull()
-                            ?.value() == true
+                    val value = annotation.findAttribute("value")?.value ?: return
+                    val readOnly = annotation.findAttribute("readOnly")?.value?.asBoolean() == true
                     val sb = StringBuilder(100)
-                    val resolved = value.resolve()
-                    val field = resolved as? FieldItem
+                    val field = (value as? FieldReferenceValue)?.resolve()
                     sb.append("This constant represents a column name that can be used with a ")
                     sb.append("{@link android.content.ContentProvider}")
                     sb.append(" through a ")
@@ -609,9 +633,9 @@ class DocAnalyzer(
                         reporter.report(
                             Issues.MISSING_COLUMN,
                             item,
-                            "Cannot find feature field for $value required by $item (may be hidden or removed)"
+                            "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                         )
-                        sb.append("{@link ${value.toSource()}}")
+                        sb.append("{@link ${value.toValueString()}}")
                     } else {
                         if (filterReference.test(field)) {
                             sb.append(
@@ -621,7 +645,7 @@ class DocAnalyzer(
                             reporter.report(
                                 Issues.MISSING_COLUMN,
                                 item,
-                                "Feature field $value required by $item is hidden or removed"
+                                "Feature field ${value.toValueString()} required by $item is hidden or removed"
                             )
                             sb.append("${field.containingClass().simpleName()}#${field.name()} ")
                         }
@@ -638,27 +662,39 @@ class DocAnalyzer(
     }
 
     /**
-     * Appends the given documentation to the given item. If it's documentation on a parameter, it
-     * is redirected to the surrounding method's documentation.
+     * Appends the given documentation to the given [item]'s description.
      *
-     * If the [returnValue] flag is true, the documentation is added to the description text of the
-     * method, otherwise, it is added to the return tag. This lets for example a threading
+     * If [Item] is a [ParameterItem] then it appends it to the corresponding `@param` tag in the
+     * containing [CallableItem]'s documentation.
+     *
+     * If the [returnValue] flag is `false`, the documentation is added to the description text of
+     * the method, otherwise, it is added to the `@return` tag. This lets for example a threading
      * annotation requirement be listed as part of a method description's text, and a range
      * annotation be listed as part of the return value description.
      */
-    private fun appendDocumentation(doc: String?, item: Item, returnValue: Boolean) {
-        doc ?: return
+    private fun appendDocumentation(doc: String, item: Item, returnValue: Boolean) {
+        val descriptionOwner =
+            when (item) {
+                is ParameterItem -> item.descriptionOwner
+                is MethodItem ->
+                    // Document as part of return annotation, not member doc
+                    if (returnValue) item.documentation.blockTagDescriptionOwner("return")
+                    else item.descriptionOwner
+                else -> item.descriptionOwner
+            }
 
-        when (item) {
-            is ParameterItem -> item.containingCallable().appendDocumentation(doc, item.name())
-            is MethodItem ->
-                // Document as part of return annotation, not member doc
-                item.appendDocumentation(doc, if (returnValue) "@return" else null)
-            else -> item.appendDocumentation(doc)
-        }
+        descriptionOwner.append(doc)
     }
 
-    private fun addDoc(annotation: AnnotationItem, tag: String, item: Item) {
+    /**
+     * Gets documentation from the [annotation]'s block tag [tag] (if any) and appends it to
+     * [descriptionOwner].
+     */
+    private fun addDoc(
+        annotation: AnnotationItem,
+        tag: String,
+        descriptionOwner: DocContentOwner,
+    ) {
         // Resolve the annotation class, returning immediately if it could not be found.
         val cls = annotation.resolve() ?: return
 
@@ -668,32 +704,10 @@ class DocAnalyzer(
 
         // Get the text for the supplied tag as that is what needs to be copied into the use site.
         // If there is no such text then return immediately.
-        val taggedText = annotationDocumentation.findTagDocumentation(tag) ?: return
+        val tagDescription =
+            annotationDocumentation.blockTagDescription(tag, forAppending = true) ?: return
 
-        assert(taggedText.startsWith("@$tag")) { taggedText }
-        val section =
-            when {
-                taggedText.startsWith("@returnDoc") -> "@return"
-                taggedText.startsWith("@paramDoc") -> "@param"
-                taggedText.startsWith("@memberDoc") -> null
-                else -> null
-            }
-
-        val insert = stripLeadingAsterisks(stripMetaTags(taggedText.substring(tag.length + 2)))
-        val qualified =
-            if (containsLinkTags(insert)) {
-                val original = "/** $insert */"
-                val qualified = annotationDocumentation.fullyQualifiedDocumentation(original)
-                if (original != qualified) {
-                    qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
-                } else {
-                    insert
-                }
-            } else {
-                insert
-            }
-
-        item.appendDocumentation(qualified, section) // 2: @ and space after tag
+        descriptionOwner.append(tagDescription)
     }
 
     private fun stripLeadingAsterisks(s: String): String {
@@ -718,16 +732,6 @@ class DocAnalyzer(
         }
 
         return s
-    }
-
-    private fun stripMetaTags(string: String): String {
-        // Get rid of @hide and @remove tags etc. that are part of documentation snippets
-        // we pull in, such that we don't accidentally start applying this to the
-        // item that is pulling in the documentation.
-        if (string.contains("@hide") || string.contains("@remove")) {
-            return string.replace("@hide", "").replace("@remove", "")
-        }
-        return string
     }
 
     private fun tweakGrammar() {
@@ -823,6 +827,34 @@ class DocAnalyzer(
     }
 
     /**
+     * Add [blockTagType] with [content] to the [item]'s [Item.documentation].
+     *
+     * If there is an existing [blockTagType] then an [Issues.FORBIDDEN_TAG] error will be reported,
+     * and it will be removed. Irrespective of that a new [blockTagType] will be added with some
+     * simple textual content.
+     */
+    private fun addUniqueVersionBlockTag(
+        item: SelectableItem,
+        blockTagType: String,
+        content: String,
+    ) {
+        val documentation = item.documentation
+
+        // Report an issue if [blockTagType] is present in the sources.
+        if (documentation.hasBlockTagOfType(blockTagType)) {
+            reporter.report(
+                Issues.FORBIDDEN_TAG,
+                item,
+                "Documentation should not specify @$blockTagType " +
+                    "manually; it's computed and injected at build time by $PROGRAM_NAME"
+            )
+        }
+
+        // Always set @[blockTagType], overriding any existing value.
+        documentation.addUniqueBlockTagSectionWithSimpleText(blockTagType, content)
+    }
+
+    /**
      * Add API version documentation to the [item].
      *
      * This only applies to classes and class members, i.e. not parameters.
@@ -834,22 +866,9 @@ class DocAnalyzer(
                 return
             }
 
+            // Always set @apiSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(apiVersion)
-
-            // Also add @since tag, unless already manually entered.
-            // TODO: Override it everywhere in case the existing doc is wrong (we know
-            // better), and at least for OpenJDK sources we *should* since the since tags
-            // are talking about language levels rather than API versions!
-            if (!item.documentation.contains("@apiSince")) {
-                item.appendDocumentation(apiVersionLabel, "@apiSince")
-            } else {
-                reporter.report(
-                    Issues.FORBIDDEN_TAG,
-                    item,
-                    "Documentation should not specify @apiSince " +
-                        "manually; it's computed and injected at build time by $PROGRAM_NAME"
-                )
-            }
+            addUniqueVersionBlockTag(item, "apiSince", apiVersionLabel)
         }
     }
 
@@ -862,16 +881,9 @@ class DocAnalyzer(
      *   [item].
      */
     private fun addApiExtensionsDocumentation(sdkExtSince: SdkAndVersion, item: SelectableItem) {
-        if (item.documentation.contains("@sdkExtSince")) {
-            reporter.report(
-                Issues.FORBIDDEN_TAG,
-                item,
-                "Documentation should not specify @sdkExtSince " +
-                    "manually; it's computed and injected at build time by $PROGRAM_NAME"
-            )
-        }
-
-        item.appendDocumentation("${sdkExtSince.name} ${sdkExtSince.version}", "@sdkExtSince")
+        // Always set @sdkExtSince, overriding any existing value.
+        val sdkExtVersion = "${sdkExtSince.name} ${sdkExtSince.version}"
+        addUniqueVersionBlockTag(item, "sdkExtSince", sdkExtVersion)
     }
 
     /**
@@ -886,19 +898,32 @@ class DocAnalyzer(
                 // accurate historical data
                 return
             }
-            val apiVersionLabel = apiVersionLabelProvider(version)
 
-            if (!item.documentation.contains("@deprecatedSince")) {
-                item.appendDocumentation(apiVersionLabel, "@deprecatedSince")
-            } else {
-                reporter.report(
-                    Issues.FORBIDDEN_TAG,
-                    item,
-                    "Documentation should not specify @deprecatedSince " +
-                        "manually; it's computed and injected at build time by $PROGRAM_NAME"
-                )
-            }
+            // Always set @deprecatedSince, overriding any existing value.
+            val apiVersionLabel = apiVersionLabelProvider(version)
+            addUniqueVersionBlockTag(item, "deprecatedSince", apiVersionLabel)
         }
+    }
+
+    companion object {
+        /**
+         * Major value used in android.os.Build.VERSION_CODES_FULL to encode a major/minor version
+         * into a single int. That encoding is used in `@RequiresApi(api=....)`.
+         */
+        const val SDK_INT_MULTIPLIER = 100000
+
+        /**
+         * Decode a version number that could either be a major version on its own, or a full
+         * version code that encodes a major and minor number.
+         */
+        private fun decodePossibleFullVersionCode(possibleFullVersionCode: Int) =
+            if (possibleFullVersionCode > SDK_INT_MULTIPLIER) {
+                val major = possibleFullVersionCode / SDK_INT_MULTIPLIER
+                val minor = possibleFullVersionCode % SDK_INT_MULTIPLIER
+                ApiVersion.fromMajorMinor(major, minor)
+            } else {
+                ApiVersion.fromLevel(possibleFullVersionCode)
+            }
     }
 }
 

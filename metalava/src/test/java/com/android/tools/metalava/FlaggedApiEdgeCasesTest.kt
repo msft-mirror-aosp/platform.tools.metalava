@@ -38,51 +38,21 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                 ),
             sourceFiles =
                 arrayOf(
-                    // A class that will be ignored during the initial codebase creation. However,
-                    // as it is referenced from test.pkg.Test class below it will be loaded in later
-                    // and that will result in it having an origin of ClassOrigin.SOURCE_PATH
-                    // instead of ClassOrigin.COMMAND_LINE like test.pkg.Test.
-                    java(
-                        """
-                            package other.pkg;
-                            import $ANDROID_FLAGGED_API;
-
-                            public abstract class Other {
-                                @$ANDROID_FLAGGED_API("flag.name")
-                                public abstract void method();
-                            }
-                        """
-                    ),
                     java(
                         """
                             package test.pkg;
+                            import $ANDROID_FLAGGED_API;
 
-                            public final class Test extends other.pkg.Other {
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            public final class Test {
                                 private Test() {}
-                                // Overrides the flagged method in other.pkg.Other. The flagged
-                                // status of the overridden method should be ignored because the
-                                // containing class is not contributing to this API and there is no
-                                // previously released API provided so reverting will result in this
-                                // method being removed.
-                                @Override public void method() {}
                             }
                         """
                     ),
                     flaggedApiSource
                 ),
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public final class Test extends other.pkg.Other {
-                            Test() { throw new RuntimeException("Stub!"); }
-                            public void method() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    )
-                ),
+            expectedFail =
+                "Aborting: Inconsistent options: API flags are provided in a --config-file but no previously released API is provided via --check-compatibility:api:released or --check-compatibility:removed:released",
         )
     }
 
@@ -190,6 +160,53 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                              * Javadoc for Test
                              * @apiSince 31
                              */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unresolvable flag field`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @$ANDROID_FLAGGED_API(UnresolvableFlag.FLAG_NAME)
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
                             Test() { throw new RuntimeException("Stub!"); }

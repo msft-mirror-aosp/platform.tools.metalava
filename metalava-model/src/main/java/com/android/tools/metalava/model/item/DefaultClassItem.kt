@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
@@ -35,7 +34,10 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
+import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
@@ -55,6 +57,7 @@ open class DefaultClassItem(
     final override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
+    override val isFileFacade: Boolean,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -67,7 +70,7 @@ open class DefaultClassItem(
     ),
     ClassItem {
 
-    private val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+    private val simpleName = qualifiedName.extractSimpleName()
 
     private val fullName: String
 
@@ -201,17 +204,7 @@ open class DefaultClassItem(
     fun addConstructor(constructor: ConstructorItem) {
         ensureNotFrozen()
         mutableConstructors += constructor
-
-        // Keep track of whether any implicit constructors were added.
-        if (constructor.isImplicitConstructor()) {
-            hasImplicitDefaultConstructor = true
-        }
     }
-
-    /** Tracks whether the class has an implicit default constructor. */
-    private var hasImplicitDefaultConstructor = false
-
-    final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
@@ -284,19 +277,35 @@ open class DefaultClassItem(
         mutableNestedClasses.add(classItem)
     }
 
-    /** Cache result of [getRetention]. */
-    private var cacheRetention: AnnotationRetention? = null
+    override val containingScope: ReferencableNameScope?
+        get() = containingClass() ?: sourceFile()
 
-    final override fun getRetention(): AnnotationRetention {
-        cacheRetention?.let {
-            return it
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        isFirstSimpleName: Boolean
+    ) =
+        // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
+        // First, check to see if it matches this class and if it does then return it.
+        if (simpleName == simpleName()) this
+        else
+        // Then check to see type parameters.
+        typeParameterList.find { it.name() == simpleName }
+                // Then, check to see if it matches a nested class and if it does then return that.
+                ?: mutableNestedClasses.find { it.simpleName() == simpleName }
+
+    /** Cache value of [annotationClass]. */
+    private lateinit var cachedAnnotationClass: AnnotationClass
+
+    override val annotationClass: AnnotationClass
+        get() {
+            if (classKind != ClassKind.ANNOTATION_TYPE) {
+                error("annotationClass can only be accessed on annotation classes")
+            }
+
+            if (!::cachedAnnotationClass.isInitialized) {
+                cachedAnnotationClass = DefaultAnnotationClass(this)
+            }
+
+            return cachedAnnotationClass
         }
-
-        if (!isAnnotationType()) {
-            error("getRetention() should only be called on annotation classes")
-        }
-
-        cacheRetention = ClassItem.findRetention(this)
-        return cacheRetention!!
-    }
 }

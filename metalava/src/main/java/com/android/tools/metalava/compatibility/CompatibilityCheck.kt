@@ -20,13 +20,12 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.cliError
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -38,8 +37,13 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.options
@@ -55,11 +59,11 @@ import com.android.tools.metalava.reporter.Severity
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
 class CompatibilityCheck(
-    val filterReference: FilterPredicate,
-    private val apiType: ApiType,
+    private val filterReference: FilterPredicate,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
     private val apiCompatAnnotations: Set<String>,
+    private val apiName: String?,
 ) : ComparisonVisitor() {
 
     var foundProblems = false
@@ -113,6 +117,7 @@ class CompatibilityCheck(
                             new,
                             allowNonNullToNullable,
                             allowNullableToNonNull,
+                            old
                         )
                     }
                 },
@@ -126,6 +131,7 @@ class CompatibilityCheck(
         context: Item,
         allowNonNullToNullable: Boolean,
         allowNullableToNonNull: Boolean,
+        oldContext: Item,
     ) {
         // Should not remove nullness information
         // Can't change information incompatibly
@@ -139,7 +145,8 @@ class CompatibilityCheck(
             report(
                 Issues.INVALID_NULL_CONVERSION,
                 context,
-                "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}"
+                "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}",
+                oldItem = oldContext
             )
         } else if (oldNullability != newNullability) {
             if (
@@ -166,6 +173,7 @@ class CompatibilityCheck(
                     context,
                     "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context)}",
                     maximumSeverity = maximumSeverity,
+                    oldItem = oldContext,
                 )
             }
         }
@@ -178,7 +186,8 @@ class CompatibilityCheck(
             report(
                 Issues.OPERATOR_REMOVAL,
                 new,
-                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change"
+                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change",
+                oldItem = old,
             )
         }
 
@@ -186,7 +195,8 @@ class CompatibilityCheck(
             report(
                 Issues.INFIX_REMOVAL,
                 new,
-                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
+                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change",
+                oldItem = old,
             )
         }
 
@@ -194,7 +204,7 @@ class CompatibilityCheck(
             report(
                 Issues.BECAME_UNCHECKED,
                 old,
-                "Removed ${describe(old)} from compatibility checked API surface"
+                "Removed ${describe(old)} from compatibility checked API surface",
             )
         }
 
@@ -206,6 +216,7 @@ class CompatibilityCheck(
                     Issues.REMOVED_ANNOTATION,
                     new,
                     "Cannot remove @$annotation annotation from ${describe(old)}: Incompatible change",
+                    oldItem = old,
                 )
             } else if (!isOldAnnotated && newAnnotation != null) {
                 report(
@@ -213,11 +224,163 @@ class CompatibilityCheck(
                     new,
                     "Cannot add @$annotation annotation to ${describe(old)}: Incompatible change",
                     newAnnotation.fileLocation,
+                    oldItem = old,
                 )
             }
         }
 
         compareItemNullability(old, new)
+    }
+
+    override fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {
+        // Adding target languages is allowed, removing is not
+        val removedTargetLanguages = old.targetLanguages.minus(new.targetLanguages)
+        val item = describe(new)
+        // Report issues on the old version of the item. If they were reported on the new version,
+        // they wouldn't end up reported, since removing from bytecode is only binary breaking and
+        // wouldn't be reported for the new item which only targets source (similarly for removing
+        // a source target language).
+        for (removedTargetLanguage in removedTargetLanguages) {
+            when (removedTargetLanguage) {
+                TargetLanguage.BYTECODE -> {
+                    // Check if there's still a version of this method with the same erased
+                    // signature which can be used from bytecode.
+                    if (old is MethodItem) {
+                        if (findCompatibleBytecodeOverload(old, new.containingClass()) != null)
+                            continue
+                    }
+                    report(
+                        Issues.REMOVED_FROM_BYTECODE,
+                        old,
+                        "$item has been removed from bytecode",
+                    )
+                }
+                TargetLanguage.KOTLIN -> {
+                    if (old is CallableItem) {
+                        // If the callable appears to be removed from kotlin, check that there isn't
+                        // another callable which isn't an exact signature match but could replace
+                        // all calls to the old callable.
+                        if (findCompatibleKotlinOverload(old, new.containingClass()) != null)
+                            continue
+                    }
+
+                    report(
+                        Issues.REMOVED_FROM_KOTLIN,
+                        old,
+                        "$item can no longer be resolved from Kotlin source",
+                    )
+                }
+                TargetLanguage.JAVA -> {
+                    // Check if there's still a version of this method with the same erased
+                    // signature which can be used from Java.
+                    if (old is MethodItem) {
+                        val newCompatibleOverload =
+                            findCompatibleBytecodeOverload(old, new.containingClass())
+                        if (
+                            newCompatibleOverload != null &&
+                                newCompatibleOverload.targetLanguages.contains(TargetLanguage.JAVA)
+                        )
+                            continue
+                    }
+                    report(
+                        Issues.REMOVED_FROM_JAVA,
+                        old,
+                        "$item can no longer be resolved from Java source",
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if there is an erased-signature match for the [original] in the [newContainingClass].
+     */
+    private fun findCompatibleBytecodeOverload(
+        original: MethodItem,
+        newContainingClass: ClassItem?,
+    ): MethodItem? {
+        val erasedSignature =
+            original.parameters().joinToString(",") { it.type().toErasedTypeString() }
+        return newContainingClass?.findBytecodeMethod(original.name(), erasedSignature)
+    }
+
+    /**
+     * Check if there is a callable in [newContainingClass] which could replace all calls in Kotlin
+     * source to [original]. See [isCompatibleKotlinOverload].
+     */
+    private fun findCompatibleKotlinOverload(
+        original: CallableItem,
+        newContainingClass: ClassItem?,
+    ): CallableItem? {
+        return when (original) {
+            is MethodItem ->
+                newContainingClass
+                    ?.filteredMethods(
+                        { candidate ->
+                            isCompatibleKotlinOverload(
+                                original = original,
+                                candidate = candidate as CallableItem,
+                            )
+                        },
+                        includeSuperClassMethods = true
+                    )
+                    ?.firstOrNull()
+            is ConstructorItem ->
+                newContainingClass?.constructors()?.firstOrNull {
+                    isCompatibleKotlinOverload(original = original, candidate = it)
+                }
+            else -> error("Unknown callable $original")
+        }
+    }
+
+    /**
+     * Check if all calls in Kotlin source to the [original] item could instead resolve to the
+     * [candidate] item. This is for when [original] can no longer be resolved from Kotlin source,
+     * such as when it is deprecated with [DeprecationLevel.HIDDEN].
+     */
+    private fun isCompatibleKotlinOverload(
+        original: CallableItem,
+        candidate: CallableItem,
+    ): Boolean {
+        // Item must be usable from kotlin.
+        if (TargetLanguage.KOTLIN !in candidate.targetLanguages) return false
+        // Items must have the same name.
+        if (candidate.name() != original.name()) return false
+        // The new item can't be less visible than the old.
+        if (candidate.modifiers.getVisibilityLevel() < original.modifiers.getVisibilityLevel())
+            return false
+        // While it might be possible to switch to a method with a different return type in some
+        // cases, in general this is not a safe source compatible change.
+        if (candidate.returnType() != original.returnType()) return false
+        // The nullability of the return type also can't change from non-null to nullable, because
+        // usages of the return are currently expecting it to be non-null.
+        if (
+            original.returnType().modifiers.isNonNull && candidate.returnType().modifiers.isNullable
+        )
+            return false
+        // All parameters from the original need to be present on the candidate, initial check to
+        // make sure there are at least as many parameters (check for if they match is below).
+        if (candidate.parameters().size < original.parameters().size) return false
+        // All new parameters on the candidate need to be optional for calls to the original to
+        // still work since they won't be providing these new parameters.
+        val additionalParameters =
+            candidate.parameters().subList(original.parameters().size, candidate.parameters().size)
+        if (additionalParameters.any { !it.hasDefaultValue() }) return false
+        // Verify that all parameters from the original are present.
+        return candidate.parameters().zip(original.parameters()).all {
+            (candidateParameter, oldParameter) ->
+            // Since the item could be called using named parameters, the name can't change.
+            candidateParameter.name() == oldParameter.name() &&
+                // Parameter types must be the same.
+                candidateParameter.type() == oldParameter.type() &&
+                // The nullability can't change from nullable to non-null, because that would mean
+                // that usages that pass in a nullable value would no longer work.
+                (oldParameter.type().modifiers.isNonNull ||
+                    candidateParameter.type().modifiers.isNullable) &&
+                // If there was a default value, an existing caller might not be providing the
+                // parameter, so the parameters needs to still be optional.
+                (!oldParameter.hasDefaultValue() || candidateParameter.hasDefaultValue())
+        }
     }
 
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
@@ -228,23 +391,35 @@ class CompatibilityCheck(
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to remove parameter name from ${describe(new)}"
+                    "Attempted to remove parameter name from ${describe(new)}",
+                    oldItem = old,
                 )
             } else if (newName != prevName) {
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingCallable())}"
+                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingCallable())}",
+                    oldItem = old,
                 )
             }
         }
 
         if (old.hasDefaultValue() && !new.hasDefaultValue()) {
-            report(
-                Issues.DEFAULT_VALUE_CHANGE,
-                new,
-                "Attempted to remove default value from ${describe(new)}"
-            )
+            // Default values only matter for Kotlin clients. Check if there is another Kotlin
+            // function which could replace all calls to the old function with the default value.
+            // This could happen if the default value were removed from the old function to avoid
+            // a signature clash with a new function with additional optional parameters to the
+            // old function.
+            val compatibleOverload =
+                findCompatibleKotlinOverload(old.containingCallable(), new.containingClass())
+            if (compatibleOverload == null) {
+                report(
+                    Issues.DEFAULT_VALUE_CHANGE,
+                    new,
+                    "Attempted to remove default value from ${describe(new)}",
+                    oldItem = old
+                )
+            }
         }
 
         if (old.isVarArgs() && !new.isVarArgs()) {
@@ -260,7 +435,8 @@ class CompatibilityCheck(
                     new,
                     includeParameterTypes = true,
                     includeParameterNames = true
-                )}"
+                )}",
+                oldItem = old,
             )
         }
     }
@@ -277,7 +453,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_CLASS,
                 new,
-                "${describe(new, capitalize = true)} changed class/interface declaration"
+                "${describe(new, capitalize = true)} changed class/interface declaration",
+                oldItem = old,
             )
             return // Avoid further warnings like "has changed abstract qualifier" which is implicit
             // in this change
@@ -289,7 +466,8 @@ class CompatibilityCheck(
                 report(
                     Issues.REMOVED_INTERFACE,
                     new,
-                    "${describe(old, capitalize = true)} no longer implements $iface"
+                    "${describe(old, capitalize = true)} no longer implements $iface",
+                    oldItem = old,
                 )
             }
         }
@@ -300,7 +478,8 @@ class CompatibilityCheck(
                 report(
                     Issues.ADDED_INTERFACE,
                     new,
-                    "Added interface $iface to class ${describe(old)}"
+                    "Added interface $iface to class ${describe(old)}",
+                    oldItem = old,
                 )
             }
         }
@@ -309,13 +488,15 @@ class CompatibilityCheck(
             report(
                 Issues.ADD_SEALED,
                 new,
-                "Cannot add 'sealed' modifier to ${describe(new)}: Incompatible change"
+                "Cannot add 'sealed' modifier to ${describe(new)}: Incompatible change",
+                oldItem = old,
             )
         } else if (old.isClass() && !oldModifiers.isAbstract() && newModifiers.isAbstract()) {
             report(
                 Issues.CHANGED_ABSTRACT,
                 new,
-                "${describe(new, capitalize = true)} changed 'abstract' qualifier"
+                "${describe(new, capitalize = true)} changed 'abstract' qualifier",
+                oldItem = old,
             )
         }
 
@@ -323,7 +504,8 @@ class CompatibilityCheck(
             report(
                 Issues.FUN_REMOVAL,
                 new,
-                "Cannot remove 'fun' modifier from ${describe(new)}: source incompatible change"
+                "Cannot remove 'fun' modifier from ${describe(new)}: source incompatible change",
+                oldItem = old,
             )
         }
 
@@ -343,13 +525,15 @@ class CompatibilityCheck(
                                 new,
                                 capitalize = true
                             )
-                        } added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed"
+                        } added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed",
+                        oldItem = old,
                     )
                 } else {
                     report(
                         Issues.ADDED_FINAL,
                         new,
-                        "${describe(new, capitalize = true)} added 'final' qualifier"
+                        "${describe(new, capitalize = true)} added 'final' qualifier",
+                        oldItem = old,
                     )
                 }
             }
@@ -360,7 +544,8 @@ class CompatibilityCheck(
                     report(
                         Issues.CHANGED_STATIC,
                         new,
-                        "${describe(new, capitalize = true)} changed 'static' qualifier"
+                        "${describe(new, capitalize = true)} changed 'static' qualifier",
+                        oldItem = old,
                     )
                 }
             }
@@ -378,7 +563,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_SCOPE,
                 new,
-                "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
+                "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
+                oldItem = old,
             )
         }
 
@@ -389,7 +575,8 @@ class CompatibilityCheck(
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                oldItem = old,
             )
         }
 
@@ -402,7 +589,8 @@ class CompatibilityCheck(
                     "${describe(
                         new,
                         capitalize = true
-                    )} superclass changed from $oldSuperClassName to ${new.superClass()?.qualifiedName()}"
+                    )} superclass changed from $oldSuperClassName to ${new.superClass()?.qualifiedName()}",
+                    oldItem = old,
                 )
             }
         }
@@ -419,7 +607,8 @@ class CompatibilityCheck(
                             old,
                             capitalize = true
                         )
-                    } changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
+                    } changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount",
+                    oldItem = old,
                 )
             }
         }
@@ -432,7 +621,28 @@ class CompatibilityCheck(
                 Issues.REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY,
                 new,
                 "Cannot remove @$JVM_DEFAULT_WITH_COMPATIBILITY annotation from " +
-                    "${describe(new)}: Incompatible change"
+                    "${describe(new)}: Incompatible change",
+                oldItem = old,
+            )
+        }
+    }
+
+    override fun compareTypeAliasItems(old: TypeAliasItem, new: TypeAliasItem) {
+        if (old.type() != new.type()) {
+            val typeStringConfiguration =
+                TypeStringConfiguration(
+                    annotations = true,
+                    kotlinStyleNulls = true,
+                    spaceBetweenTypeArguments = true,
+                    stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS
+                )
+            val oldTypeString = old.type().toTypeString(typeStringConfiguration)
+            val newTypeString = new.type().toTypeString(typeStringConfiguration)
+            report(
+                Issues.CHANGED_TYPE,
+                new,
+                "${describe(new, capitalize = true)} has changed type from $oldTypeString to $newTypeString",
+                oldItem = old,
             )
         }
     }
@@ -492,7 +702,8 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_SCOPE,
                     new,
-                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
+                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
+                    oldItem = old,
                 )
             }
         }
@@ -504,7 +715,8 @@ class CompatibilityCheck(
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                oldItem = old,
             )
         }
 
@@ -519,7 +731,8 @@ class CompatibilityCheck(
                     report(
                         Issues.CHANGED_THROWS,
                         new,
-                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
+                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}",
+                        oldItem = old,
                     )
                 }
             }
@@ -535,7 +748,7 @@ class CompatibilityCheck(
                 if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
                     val message =
                         "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
-                    report(Issues.CHANGED_THROWS, new, message)
+                    report(Issues.CHANGED_THROWS, new, message, oldItem = old)
                 }
             }
         }
@@ -554,7 +767,7 @@ class CompatibilityCheck(
             val newTypeString = describeBounds(newReturnType)
             val message =
                 "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
-            report(Issues.CHANGED_TYPE, new, message)
+            report(Issues.CHANGED_TYPE, new, message, oldItem = old)
         }
 
         // Annotation methods
@@ -589,7 +802,7 @@ class CompatibilityCheck(
                 new.containingClass().isAnnotationType() && old.legacyDefaultValue().isEmpty()
 
             if (!annotationMethodAddingDefaultValue) {
-                report(Issues.CHANGED_VALUE, new, message)
+                report(Issues.CHANGED_VALUE, new, message, oldItem = old)
             }
         }
 
@@ -600,7 +813,8 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_ABSTRACT,
                     new,
-                    "${describe(new, capitalize = true)} has changed 'abstract' qualifier"
+                    "${describe(new, capitalize = true)} has changed 'abstract' qualifier",
+                    oldItem = old,
                 )
             }
         }
@@ -610,7 +824,8 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_DEFAULT,
                     new,
-                    "${describe(new, capitalize = true)} has changed 'default' qualifier"
+                    "${describe(new, capitalize = true)} has changed 'default' qualifier",
+                    oldItem = old,
                 )
             }
         }
@@ -619,7 +834,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_NATIVE,
                 new,
-                "${describe(new, capitalize = true)} has changed 'native' qualifier"
+                "${describe(new, capitalize = true)} has changed 'native' qualifier",
+                oldItem = old,
             )
         }
 
@@ -641,13 +857,15 @@ class CompatibilityCheck(
                                 new,
                                 capitalize = true
                             )
-                        } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed"
+                        } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed",
+                        oldItem = old,
                     )
                 } else {
                     report(
                         Issues.ADDED_FINAL,
                         new,
-                        "${describe(new, capitalize = true)} has added 'final' qualifier"
+                        "${describe(new, capitalize = true)} has added 'final' qualifier",
+                        oldItem = old,
                     )
                 }
             } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
@@ -658,7 +876,8 @@ class CompatibilityCheck(
                 report(
                     Issues.REMOVED_FINAL_STRICT,
                     new,
-                    "${describe(new, capitalize = true)} has removed 'final' qualifier"
+                    "${describe(new, capitalize = true)} has removed 'final' qualifier",
+                    oldItem = old,
                 )
             }
         }
@@ -667,7 +886,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_STATIC,
                 new,
-                "${describe(new, capitalize = true)} has changed 'static' qualifier"
+                "${describe(new, capitalize = true)} has changed 'static' qualifier",
+                oldItem = old,
             )
         }
 
@@ -686,7 +906,7 @@ class CompatibilityCheck(
                                 capitalize = true
                             )
                         } made type variable ${newTypes[i].name()} reified: incompatible change"
-                    report(Issues.ADDED_REIFIED, new, message)
+                    report(Issues.ADDED_REIFIED, new, message, oldItem = old)
                 }
             }
         }
@@ -723,7 +943,7 @@ class CompatibilityCheck(
             if (oldType != newType) {
                 val message =
                     "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
-                report(Issues.CHANGED_TYPE, new, message)
+                report(Issues.CHANGED_TYPE, new, message, oldItem = old)
             } else if (!old.hasSameConstantValue(new)) {
                 val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
                 val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
@@ -735,7 +955,7 @@ class CompatibilityCheck(
                         )
                     } has changed value from $oldString to $newString"
 
-                report(Issues.CHANGED_VALUE, new, message)
+                report(Issues.CHANGED_VALUE, new, message, oldItem = old)
             }
         }
 
@@ -752,7 +972,8 @@ class CompatibilityCheck(
                         new,
                         capitalize = true
                     )
-                    } changed visibility from $oldVisibility to $newVisibility"
+                    } changed visibility from $oldVisibility to $newVisibility",
+                    oldItem = old,
                 )
             }
         }
@@ -761,7 +982,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_STATIC,
                 new,
-                "${describe(new, capitalize = true)} has changed 'static' qualifier"
+                "${describe(new, capitalize = true)} has changed 'static' qualifier",
+                oldItem = old,
             )
         }
 
@@ -769,7 +991,8 @@ class CompatibilityCheck(
             report(
                 Issues.ADDED_FINAL,
                 new,
-                "${describe(new, capitalize = true)} has added 'final' qualifier"
+                "${describe(new, capitalize = true)} has added 'final' qualifier",
+                oldItem = old,
             )
         } else if (
             // Final can't be removed if field is static with compile-time constant
@@ -781,7 +1004,8 @@ class CompatibilityCheck(
             report(
                 Issues.REMOVED_FINAL,
                 new,
-                "${describe(new, capitalize = true)} has removed 'final' qualifier"
+                "${describe(new, capitalize = true)} has removed 'final' qualifier",
+                oldItem = old,
             )
         }
 
@@ -789,7 +1013,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_VOLATILE,
                 new,
-                "${describe(new, capitalize = true)} has changed 'volatile' qualifier"
+                "${describe(new, capitalize = true)} has changed 'volatile' qualifier",
+                oldItem = old,
             )
         }
 
@@ -800,12 +1025,12 @@ class CompatibilityCheck(
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                oldItem = old,
             )
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: SelectableItem) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -819,16 +1044,13 @@ class CompatibilityCheck(
             return
         }
 
-        var message = "Added ${describe(item)}"
-
-        // Clarify error message for removed API to make it less ambiguous
-        if (apiType == ApiType.REMOVED) {
-            message += " to the removed API"
-        } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesAnnotationName(ANDROID_SYSTEM_API)) {
-                message += " to the system API"
-            } else if (options.allShowAnnotations.matchesAnnotationName(ANDROID_TEST_API)) {
-                message += " to the test API"
+        val message = buildString {
+            append("Added ")
+            append(describe(item))
+            if (apiName != null) {
+                append(" to the ")
+                append(apiName)
+                append(" API")
             }
         }
 
@@ -949,44 +1171,19 @@ class CompatibilityCheck(
     }
 
     override fun removedCallableItem(old: CallableItem, from: ClassItem) {
-        // See if there's a member from inherited class
-        val inherited =
-            if (old is MethodItem) {
-                // This can also return self, specially handled below
-                from
-                    .findMethod(
-                        old,
-                        includeSuperClasses = true,
-                        includeInterfaces = from.isInterface()
-                    )
-                    ?.let {
-                        // If it was inherited but should still be treated as if it was removed then
-                        // pretend that it was not inherited.
-                        if (it.treatAsRemoved(old)) null else it
-                    }
-            } else null
-
-        if (inherited == null) {
-            val error =
-                if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
-                else Issues.REMOVED_METHOD
-            handleRemoved(error, old)
+        // If the callable could only be used from Kotlin, check that there isn't another callable
+        // which isn't an exact signature match but could replace all calls to the old callable.
+        if (old.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) {
+            if (findCompatibleKotlinOverload(old, from) != null) return
         }
-    }
 
-    /**
-     * Check the [Item] to see whether it should be treated as if it was removed.
-     *
-     * If an [Item] is an unstable API that will be reverted then it will not be treated as if it
-     * was removed. That is because reverting it will replace it with the old item against which it
-     * is being compared in this compatibility check. So, while this specific item will not appear
-     * in the API the old item will and so it has not been removed.
-     *
-     * Otherwise, an [Item] will be treated as it was removed it if it is hidden/removed or the
-     * [possibleMatch] does not match.
-     */
-    private fun MethodItem.treatAsRemoved(possibleMatch: MethodItem) =
-        !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
+        // At this point, ComparisonVisitor.dispatchToRemovedOrCompareIfItemWasMoved has already
+        // looked for an accessible super method matching the old one.
+        val error =
+            if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
+            else Issues.REMOVED_METHOD
+        handleRemoved(error, old)
+    }
 
     override fun removedFieldItem(old: FieldItem, from: ClassItem) {
         val inherited =
@@ -1003,20 +1200,123 @@ class CompatibilityCheck(
         }
     }
 
+    override fun removedTypeAliasItem(old: TypeAliasItem, from: PackageItem) {
+        handleRemoved(Issues.REMOVED_TYPE_ALIAS, old)
+    }
+
+    /**
+     * There are cases where compatibility issues need to be raised even for items marked as
+     * experimental. This happens when experimental items are modified, added, or removed and then
+     * create breaking changes for consumers of non-experimental APIs. This function determines if a
+     * change to an experimentally marked item can result in such problems, and if an issue needs to
+     * be raised. For a more detailed explanation and examples, see
+     * go/metalava-experimental-compatibility.
+     */
+    private fun shouldIssueApplyToExperimentalItem(
+        issue: Issue,
+        newItem: Item,
+        oldItem: Item?
+    ): Boolean {
+        when (issue) {
+            Issues.ADDED_ABSTRACT_METHOD -> {
+                val parentClass = newItem.containingClass()
+                // We need to raise an error here because adding an experimental abstract method
+                // to a non-experimental class is a breaking change, see b/454020293
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false && parentClass.isExtensible()
+                ) {
+                    return true
+                }
+            }
+            Issues.REMOVED_METHOD -> {
+                val parentClass = newItem.containingClass()
+                val methodItem = newItem as? CallableItem
+                // Any of these cases indicates that a method was removed from a class that, if
+                // a client decided to implement, the client would have been forced to implement
+                // the removed method, and as such removal of the method will break the client.
+                // Therefore, we should return an error
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        (parentClass.modifiers.isAbstract() || parentClass.isInterface()) &&
+                        parentClass.isExtensible() &&
+                        methodItem?.modifiers?.isAbstract() == true
+                ) {
+                    return true
+                }
+            }
+            Issues.ADDED_FINAL -> {
+                val parentClass = newItem.containingClass()
+                // If a method within an abstract class has 'final' added to it, and the old version
+                // was abstract, that means the client was forced to implement it (even though
+                // it is experimental), and will now break, so we should raise an error.
+                if (
+                    newItem is CallableItem &&
+                        (oldItem as? CallableItem)?.modifiers?.isAbstract() == true &&
+                        parentClass?.isCompatibilitySuppressed() == false &&
+                        parentClass.isExtensible() &&
+                        parentClass.modifiers.isAbstract()
+                ) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     private fun report(
         issue: Issue,
         item: Item,
         message: String,
         location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
+        oldItem: Item? = null,
     ) {
-        if (item.isCompatibilitySuppressed()) {
+        // If an item is currently compatibility suppressed, we don't want to raise compatibility
+        // issues. In addition, if the old version of the item being compared against is
+        // compatibility suppressed, we don't want to raise compatibility issues because
+        // incompatible changes should still be allowed from that version. See b/391848485
+        if (
+            (item.isCompatibilitySuppressed() || oldItem?.isCompatibilitySuppressed() == true) &&
+                !shouldIssueApplyToExperimentalItem(issue, item, oldItem)
+        ) {
             // Long-term, we should consider allowing meta-annotations to specify a different
             // `configuration` so it can use a separate set of severities. For now, though, we'll
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (reporter.report(issue, item, message, location, maximumSeverity = maximumSeverity)) {
+
+        val targetLanguages =
+            (item as? SelectableItem)?.targetLanguages ?: (item.parent())?.targetLanguages
+        val existsInBytecode = targetLanguages?.contains(TargetLanguage.BYTECODE) != false
+        // Add detail about the kind of compatibility issue this is, and skip the issue if it does
+        // not apply to the given target languages.
+        val newMessage =
+            when (issue.category) {
+                Issues.Category.BINARY_AND_SOURCE_COMPATIBILITY -> {
+                    // This issue matters for both binary and source compatibility. Binary compat is
+                    // more important, so if the item exists in bytecode, describe the issue as
+                    // binary breaking. If the item only exists in source, describe the issue as
+                    // source breaking.
+                    if (existsInBytecode) {
+                        "Binary breaking change: $message"
+                    } else {
+                        "Source breaking change: $message"
+                    }
+                }
+                Issues.Category.BINARY_COMPATIBILITY_ONLY -> {
+                    // The item doesn't exist in bytecode, don't report binary compatibility issues.
+                    if (!existsInBytecode) return
+                    "Binary breaking change: $message"
+                }
+                Issues.Category.SOURCE_COMPATIBILITY_ONLY -> {
+                    // The item can't be used from source, don't report source compatibility issues.
+                    if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) return
+                    "Source breaking change: $message"
+                }
+                else -> message
+            }
+
+        if (reporter.report(issue, item, newMessage, location, maximumSeverity = maximumSeverity)) {
             // If the issue was reported and was an error then remember that this found some
             // problems so that the process can be aborted after finishing the checks.
             val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))
@@ -1035,6 +1335,7 @@ class CompatibilityCheck(
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
+            apiName: String?,
         ) {
             val filter =
                 apiType
@@ -1046,10 +1347,10 @@ class CompatibilityCheck(
             val checker =
                 CompatibilityCheck(
                     filter,
-                    apiType,
                     reporter,
                     issueConfiguration,
                     apiCompatAnnotations,
+                    apiName,
                 )
 
             val oldFullCodebase =
