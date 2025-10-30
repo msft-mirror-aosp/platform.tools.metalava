@@ -20,9 +20,9 @@ import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.ExtractDataResult
 import com.android.tools.metalava.model.source.doc.InlineTagTypes
+import com.android.tools.metalava.model.source.doc.JavadocContentPrinter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
-import java.io.PrintWriter
 
 internal object TestTagTypes {
     val BAR_TAG_TYPE =
@@ -47,8 +47,13 @@ internal class BarTagType : TagType<BarTagData>("bar") {
 }
 
 internal data class BarTagData(val identifier: String) : TagData {
-    override fun printAfterTagType(writer: PrintWriter) {
+    override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
+        val writer = contentPrinter.writer
         writer.print(" ")
         writer.print(identifier)
+
+        // Print the remaining content. Always preceded by a space as any leading whitespace has
+        // been trimmed from it.
+        content?.printWithLeadingSpaceTo(contentPrinter)
     }
 }

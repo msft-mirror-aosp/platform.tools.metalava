@@ -1212,14 +1212,49 @@ class CompatibilityCheck(
      * be raised. For a more detailed explanation and examples, see
      * go/metalava-experimental-compatibility.
      */
-    private fun shouldIssueApplyToExperimentalItem(issue: Issue, item: Item): Boolean {
+    private fun shouldIssueApplyToExperimentalItem(
+        issue: Issue,
+        newItem: Item,
+        oldItem: Item?
+    ): Boolean {
         when (issue) {
             Issues.ADDED_ABSTRACT_METHOD -> {
-                val parentClass = item.containingClass()
+                val parentClass = newItem.containingClass()
                 // We need to raise an error here because adding an experimental abstract method
                 // to a non-experimental class is a breaking change, see b/454020293
                 if (
                     parentClass?.isCompatibilitySuppressed() == false && parentClass.isExtensible()
+                ) {
+                    return true
+                }
+            }
+            Issues.REMOVED_METHOD -> {
+                val parentClass = newItem.containingClass()
+                val methodItem = newItem as? CallableItem
+                // Any of these cases indicates that a method was removed from a class that, if
+                // a client decided to implement, the client would have been forced to implement
+                // the removed method, and as such removal of the method will break the client.
+                // Therefore, we should return an error
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        (parentClass.modifiers.isAbstract() || parentClass.isInterface()) &&
+                        parentClass.isExtensible() &&
+                        methodItem?.modifiers?.isAbstract() == true
+                ) {
+                    return true
+                }
+            }
+            Issues.ADDED_FINAL -> {
+                val parentClass = newItem.containingClass()
+                // If a method within an abstract class has 'final' added to it, and the old version
+                // was abstract, that means the client was forced to implement it (even though
+                // it is experimental), and will now break, so we should raise an error.
+                if (
+                    newItem is CallableItem &&
+                        (oldItem as? CallableItem)?.modifiers?.isAbstract() == true &&
+                        parentClass?.isCompatibilitySuppressed() == false &&
+                        parentClass.isExtensible() &&
+                        parentClass.modifiers.isAbstract()
                 ) {
                     return true
                 }
@@ -1242,7 +1277,7 @@ class CompatibilityCheck(
         // incompatible changes should still be allowed from that version. See b/391848485
         if (
             (item.isCompatibilitySuppressed() || oldItem?.isCompatibilitySuppressed() == true) &&
-                !shouldIssueApplyToExperimentalItem(issue, item)
+                !shouldIssueApplyToExperimentalItem(issue, item, oldItem)
         ) {
             // Long-term, we should consider allowing meta-annotations to specify a different
             // `configuration` so it can use a separate set of severities. For now, though, we'll

@@ -19,8 +19,11 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.source.javadoc.BarTagData
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
+import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import com.android.tools.metalava.model.source.javadoc.assertStructure
+import junit.framework.TestCase.assertFalse
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Test
 
 class DocCommentParserTest : BaseDocCommentTest() {
@@ -30,15 +33,19 @@ class DocCommentParserTest : BaseDocCommentTest() {
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
     private fun checkDocComment(
         input: String,
-        expectedString: String,
-        expectedPrintOutput: String,
+        expectedString: String? = null,
+        expectedPrintOutput: String? = null,
         expectedIssues: String = "",
         checker: DocCommentContext.() -> Unit = {},
     ) {
         var docComment = createTestDocComment(input, expectedIssues)
-        assertEquals(expectedString.trimIndent(), docComment.toString())
+        if (expectedString != null) {
+            assertEquals(expectedString.trimIndent(), docComment.toString())
+        }
 
-        checkPrintOutput(docComment, expectedPrintOutput)
+        if (expectedPrintOutput != null) {
+            checkPrintOutput(docComment, expectedPrintOutput)
+        }
 
         DocCommentContext(docComment).checker()
     }
@@ -508,6 +515,29 @@ class DocCommentParserTest : BaseDocCommentTest() {
     }
 
     @Test
+    fun `Test a block tag split across multiple lines`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see
+                     *
+                     * "Me"
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<\n *\n * "Me">>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @see "Me" */
+                """,
+        )
+    }
+
+    @Test
     fun `Test multiple blank lines`() {
         checkDocComment(
             input =
@@ -649,7 +679,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 docComment,
                 """
                     /**
-                     * existing
+                     * existing.
                      * <br>
                      * appended
                      */
@@ -713,7 +743,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 docComment,
                 """
                     /**
-                     * existing
+                     * existing.
                      * <br>
                      * some {@code text} to append
                      */
@@ -722,6 +752,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
             docComment.description.assertStructure(
                 """
                     text: 'existing'
+                    text: '.'
                     text: '\n <br>\n '
                     text: 'some '
                     inlineTag: code
@@ -729,6 +760,53 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     text: ' to append'
                 """
             )
+        }
+    }
+
+    /** Checks if "Wally" is in the text. */
+    private val wallyPredicate = TextContainsAnyVisitor { it.containsWord("Wally") }
+
+    @Test
+    fun `Test check predicate in main description`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Wally is here.
+                     */
+                """,
+        ) {
+            assertTrue(docComment.check(wallyPredicate))
+        }
+    }
+
+    @Test
+    fun `Test check predicate in block tag description`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Not here.
+                     * @deprecated Wally is deprecated.
+                     */
+                """,
+        ) {
+            assertTrue(docComment.check(wallyPredicate))
+        }
+    }
+
+    @Test
+    fun `Test check predicate fails`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * Not here.
+                     * @deprecated Or here.
+                     */
+                """,
+        ) {
+            assertFalse(docComment.check(wallyPredicate))
         }
     }
 }
