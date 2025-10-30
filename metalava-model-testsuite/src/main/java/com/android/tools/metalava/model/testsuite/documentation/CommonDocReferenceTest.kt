@@ -79,4 +79,40 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test link tag spread across multiple lines`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.List;
+                    /**
+                     * {@link java.util.List a list
+                     * class}
+                     * {@link List a list
+                     * class}
+                     * {@link List
+                     * a list class}
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                // TODO(b/447588621): Label for List should be "a list class".
+                expectedOutput =
+                    """
+                        /**
+                         * {@link java.util.List a list
+                         * class}
+                         * {@link java.util.List class}
+                         * {@link java.util.List a list class}
+                         */
+                    """,
+            )
+        }
+    }
 }
