@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.runNullabilityTest
+import com.android.tools.metalava.model.value.asFloat
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -499,13 +500,13 @@ class CommonFieldItemTest : BaseModelTest() {
             val fields = testClass.fields()
             assertEquals(3, fields.size, message = "field count")
             for (field in fields) {
-                val value = field.legacyInitialValue(true) as Float
+                val value = field.constantValue?.asFloat()!!
                 val valueBits = value.toBits()
                 assertEquals(
                     minNormalBits,
                     valueBits,
                     message =
-                        "field ${field.name()} - expected ${Integer.toHexString(minNormalBits)}, found ${Integer.toHexString(valueBits)}"
+                        "field ${field.name()} - constantValue - expected ${Integer.toHexString(minNormalBits)}, found ${Integer.toHexString(valueBits)}"
                 )
 
                 val written =
@@ -517,6 +518,29 @@ class CommonFieldItemTest : BaseModelTest() {
 
                 assertEquals(" = 1.17549435E-38f;", written, message = "field ${field.name()}")
             }
+        }
+    }
+
+    @Test
+    fun `Test private const in interface companion`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                interface Foo {
+                    companion object {
+                        const val PUBLIC_CONST = "CONST"
+                        private const val PRIVATE_CONST = "CONST"
+                    }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val publicConst = fooClass.assertField("PUBLIC_CONST")
+            assertEquals(publicConst.modifiers.getVisibilityModifiers(), "public")
+            val privateConst = fooClass.assertField("PRIVATE_CONST")
+            assertEquals(privateConst.modifiers.getVisibilityModifiers(), "private")
         }
     }
 }

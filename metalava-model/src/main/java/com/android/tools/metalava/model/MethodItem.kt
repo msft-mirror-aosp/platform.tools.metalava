@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.LegacyValueFormatter
+import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
 
 @MetalavaApi
@@ -236,7 +238,10 @@ interface MethodItem : CallableItem, InheritableItem {
      * that exposes implementation details. It will be replaced by a properly modelled value
      * representation.
      */
-    fun legacyDefaultValue(): String
+    fun legacyDefaultValue() =
+        defaultValue?.let { value ->
+            LegacyValueFormatter.ATTRIBUTE_DEFAULT_FORMATTER.format(value, this)
+        } ?: ""
 
     /**
      * The optional default value of the method.
@@ -375,5 +380,12 @@ interface MethodItem : CallableItem, InheritableItem {
             // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
             (containingClass().isInterface() &&
                 superMethods().count { it.modifiers.isAbstract() || it.modifiers.isDefault() } > 1)
+    }
+
+    /** If this method is annotated with [JvmName], returns the jvm name from the annotation. */
+    fun findJvmNameFromAnnotation(): String? {
+        val jvmNameAnnotation =
+            modifiers.annotations().firstOrNull { it.qualifiedName == JVM_NAME } ?: return null
+        return (jvmNameAnnotation.attributes.singleOrNull()?.value as? StringValue)?.underlyingValue
     }
 }
