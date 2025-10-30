@@ -24,20 +24,10 @@ import org.junit.Test
 
 class ExperimentalCompatibilityCheckTest : DriverTest() {
 
-    /**
-     * TODO: this test should be renamed to "Should raise compatibility error on changed method
-     *   return type in abstract class or interface"
-     */
     @Test
-    fun `Don't raise compatibility error on changed method return type in abstract class or interface`() {
+    fun `Should raise compatibility error on changed method return type in abstract class or interface`() {
         check(
             /*
-             * TODO:
-             * The changed types from String to int in the abstract methods of MyAbstractClass and
-             * MyInterface should raise compatibility errors because, even though the methods are
-             * experimental, a client using the non-experimental containing abstract
-             * class/interface are forced to implement them.
-             *
              * The changed return type in the experimental method in MyClass should not trigger
              * a compatibility error because overriding or using that method is not required
              * and needs to be opted into. Also, the changed return types in the non-abstract and
@@ -46,6 +36,8 @@ class ExperimentalCompatibilityCheckTest : DriverTest() {
              */
             expectedIssues =
                 """
+                    load-api.txt:7: error: Binary breaking change: Method test.pkg.MyAbstractClass.myExperimentalAbstractFun has changed return type from java.lang.String to int [ChangedType]
+                    load-api.txt:18: error: Binary breaking change: Method test.pkg.MyInterface.myExperimentalAbstractFun has changed return type from java.lang.String to int [ChangedType]
                 """,
             checkCompatibilityApiReleased =
                 """
