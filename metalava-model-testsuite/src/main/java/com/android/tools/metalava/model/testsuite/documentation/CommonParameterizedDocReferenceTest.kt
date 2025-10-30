@@ -111,6 +111,25 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = null,
                 ),
 
+                // Package references
+                TestParams(
+                    name = "java.lang",
+                    expectedResolvedReference = "java.lang",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "test.pkg",
+                    expectedResolvedReference = "test.pkg",
+                    expectedLinkLabel = null,
+                ),
+
+                // Type parameter reference
+                TestParams(
+                    name = "T",
+                    expectedResolvedReference = "T",
+                    expectedLinkLabel = null,
+                ),
+
                 // Reference a member of the current class.
                 //
                 // They look as though they are not changed at all. However, they are resolved to
@@ -336,7 +355,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                         package test.pkg;
                         import another.pkg.Imported;
                         ${comment}
-                        public class Test {
+                        public class Test<T> {
                             public int field;
                             public Test() {}
                             public Test(int p) {}
