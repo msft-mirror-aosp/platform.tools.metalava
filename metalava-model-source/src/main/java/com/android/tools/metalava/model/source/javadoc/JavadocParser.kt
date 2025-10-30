@@ -411,9 +411,10 @@ private class JavadocContentBuilder(
 
         val result = tagContent?.extractTagDataForTagType(context, tagType)
         val tagData = result?.tagData
+        val remainder = result?.remainder
 
         // Add an inline tag to the content.
-        appendContent(JavadocInlineTag(tagType, tagData, tagContent))
+        appendContent(JavadocInlineTag(tagType, tagData, remainder))
     }
 
     override fun visitBraceExpression(ctx: AntlrJavadocParser.BraceExpressionContext) {

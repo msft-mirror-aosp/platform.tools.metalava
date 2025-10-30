@@ -345,7 +345,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                 """
                     text: 'outside before '
                     inlineTag: bar BarTagData(identifier=inline)
-                      text: 'inline inside'
+                      text: 'inside'
                     text: ' outside after'
                 """,
         )
