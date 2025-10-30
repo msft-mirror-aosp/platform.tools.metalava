@@ -333,7 +333,6 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    import android.Manifest;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PermissionTest {
                     public PermissionTest() { throw new RuntimeException("Stub!"); }

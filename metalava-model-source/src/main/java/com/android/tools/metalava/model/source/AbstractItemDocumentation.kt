@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
@@ -37,6 +39,7 @@ import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.FieldReference
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
 import com.android.tools.metalava.model.source.doc.PackageReference
 import com.android.tools.metalava.model.source.doc.ResolvedReference
@@ -220,6 +223,9 @@ abstract class AbstractItemDocumentation(
 
     private fun TypeParameterItem.toResolvedReference() = TypeParameterReference(name())
 
+    private fun FieldItem.toResolvedReference() =
+        FieldReference(containingClass().qualifiedName(), name())
+
     override fun resolveThrowableType(
         reporter: LocationSpecificReporter,
         typeName: String
@@ -243,9 +249,24 @@ abstract class AbstractItemDocumentation(
     }
 
     override fun resolveReference(sourceReference: String): ResolvedReference? {
-        // Ignore references to members for now.
+        // Check to see if this is a member reference.
         val hashIndex = sourceReference.indexOf('#')
-        if (hashIndex != -1) return null
+        if (hashIndex != -1) {
+            // The reference is to a class member so first resolve the class.
+            val classItem =
+                if (hashIndex == 0) {
+                    // Use this documentation's containing class.
+                    containingClassItem
+                } else {
+                    // Else resolve the class reference.
+                    val classReference = sourceReference.substring(0, hashIndex)
+                    item.resolveReferencableItem(classReference) as? ClassItem
+                }
+            classItem ?: return null
+
+            var memberReference = sourceReference.substring(hashIndex + 1)
+            return resolveMember(classItem, memberReference)
+        }
 
         // Resolve the reference.
         val resolved = item.resolveReferencableItem(sourceReference)
@@ -256,6 +277,31 @@ abstract class AbstractItemDocumentation(
             else -> null
         }
     }
+
+    private fun resolveMember(classItem: ClassItem, memberReference: String): ResolvedReference? {
+        val openParenthesisIndex = memberReference.indexOf('(')
+
+        // Ignore methods and constructors for now.
+        if (openParenthesisIndex != -1) return null
+
+        return classItem.findField(memberReference)?.toResolvedReference()
+    }
+
+    /**
+     * The optional [ClassItem] that contains this documentation.
+     *
+     * The value returned depends on the [SelectableItem] this documents:
+     * * For a [PackageItem] this will return `null`.
+     * * For a [ClassItem] this will just return the [ClassItem] itself.
+     * * For a [MemberItem] this will return [MemberItem.containingClass].
+     */
+    val containingClassItem: ClassItem?
+        get() =
+            when (item) {
+                is ClassItem -> item
+                is MemberItem -> item.containingClass()
+                else -> null
+            }
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")

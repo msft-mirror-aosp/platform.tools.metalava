@@ -212,8 +212,26 @@ internal data class LabeledRefTagData(
         }
 
         // Use the source reference as the label.
+        val sourceReferenceAsLabel = sourceReference.referenceAsLabel()
         writer.print(" ")
-        writer.print(sourceReference)
+        writer.print(sourceReferenceAsLabel)
+    }
+
+    /**
+     * Convert a doc reference of the form `<type>?#<name>?(...)?` to a label.
+     *
+     * That involves:
+     * * If it does not contain a `#` then just use the reference directly.
+     * * If it starts with a `#` then remove it.
+     * * Otherwise, replace the first '#' with a `.`.
+     */
+    fun String.referenceAsLabel(): String {
+        val hashIndex = indexOf('#')
+        return when (hashIndex) {
+            -1 -> this
+            0 -> substring(1)
+            else -> "${substring(0, hashIndex)}.${substring(hashIndex + 1)}"
+        }
     }
 
     /**
