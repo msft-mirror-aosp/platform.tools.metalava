@@ -134,6 +134,7 @@ abstract class AbstractItemDocumentation(
                         text,
                         reporter = this,
                     )
+                _text = null
                 _docComment = new
                 new
             } else {

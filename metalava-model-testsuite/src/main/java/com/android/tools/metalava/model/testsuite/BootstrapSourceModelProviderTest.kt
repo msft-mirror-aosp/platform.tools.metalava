@@ -941,10 +941,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val methodComment =
                 """
                     /**
-                         * Method documentation
-                         * Multiple
-                         * Lines
-                         */
+                     * Method documentation
+                     * Multiple
+                     * Lines
+                     */
                 """
                     .trimIndent()
             assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")

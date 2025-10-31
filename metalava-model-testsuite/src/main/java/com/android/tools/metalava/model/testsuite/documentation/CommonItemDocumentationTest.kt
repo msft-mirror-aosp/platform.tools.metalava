@@ -73,24 +73,11 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(
-                expectedOutput =
-                    """
-                        /**
-                         * Doc
-                         */
-                    """,
-                message = "class"
-            )
+            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
             testMethod.assertDocumentationText(
-                expectedOutput =
-                    """
-                        /**
-                             * Method Doc
-                             */
-                    """,
+                expectedOutput = "/** Method Doc */",
                 message = "method"
             )
         }
@@ -145,24 +132,11 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(
-                expectedOutput =
-                    """
-                        /**
-                         * Doc
-                         */
-                    """,
-                message = "class"
-            )
+            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
             testMethod.assertDocumentationText(
-                expectedOutput =
-                    """
-                        /**
-                             * Method Doc
-                             */
-                    """,
+                expectedOutput = "/** Method Doc */",
                 message = "method"
             )
         }
@@ -217,24 +191,11 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(
-                expectedOutput =
-                    """
-                        /**
-                         * Doc
-                         */
-                    """,
-                message = "class"
-            )
+            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
             testMethod.assertDocumentationText(
-                expectedOutput =
-                    """
-                        /**
-                             * Method Doc
-                             */
-                    """,
+                expectedOutput = "/** Method Doc */",
                 message = "method"
             )
         }

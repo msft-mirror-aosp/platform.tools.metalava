@@ -336,14 +336,7 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
 
-            packageItem.assertDocumentationText(
-                expectedOutput =
-                    """
-                        /**
-                         * Some text.
-                         */
-                    """,
-            )
+            packageItem.assertDocumentationText(expectedOutput = "/** Some text. */")
         }
     }
 
@@ -469,14 +462,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test")
-            packageItem.assertDocumentationText(
-                expectedOutput =
-                    """
-                        /**
-                         * Some documentation.
-                         */
-                    """,
-            )
+            packageItem.assertDocumentationText(expectedOutput = "/** Some documentation. */")
         }
     }
 }
