@@ -102,13 +102,13 @@ class CommonDocReferenceTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             testClass.assertPrintedDocumentation(
-                // TODO(b/447588621): Label for List should be "a list class".
                 expectedOutput =
                     """
                         /**
                          * {@link java.util.List a list
                          * class}
-                         * {@link java.util.List class}
+                         * {@link java.util.List a list
+                         * class}
                          * {@link java.util.List a list class}
                          */
                     """,
