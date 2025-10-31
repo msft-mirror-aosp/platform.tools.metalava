@@ -83,14 +83,15 @@ abstract class AbstractItemDocumentation(
     }
 
     /**
-     * The mutable text contents of the documentation.
+     * The immutable text contents of the documentation.
      *
-     * It uses [_text] as its backing field and setting this will invoke [textChanged].
+     * Although it is not possible to modify this property the backing field will be kept in sync
+     * with [docComment] so the value returned from this will change if [docComment] is mutated.
      *
      * If [_docComment] is null then this needs initializing from the model, otherwise this is set
      * from [_docComment].
      */
-    override var text: String
+    override val text: String
         get() {
             if (_text == null) {
                 val docComment = _docComment
@@ -104,24 +105,8 @@ abstract class AbstractItemDocumentation(
             }
             return _text!!
         }
-        set(value) {
-            _text = value
-            textChanged()
-        }
 
-    /**
-     * Called when [text] changes to discard [_docComment] so it will be regenerated the next time
-     * [docComment] is accessed.
-     *
-     * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
-     * currently both [text] and [docComment] are modified directly. Longer term, changes will be
-     * applied directly to [_docComment] and [text] will be dropped.
-     */
-    private fun textChanged() {
-        _docComment = null
-    }
-
-    /** Lazily initialized from [text]. Is cleared by [textChanged] if [text] is modified. */
+    /** Lazily initialized from [text]. */
     private var _docComment: DocComment? = null
 
     private val docComment: DocComment
