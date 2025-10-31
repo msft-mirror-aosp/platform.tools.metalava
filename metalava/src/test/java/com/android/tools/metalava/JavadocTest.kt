@@ -1336,15 +1336,8 @@ class JavadocTest : DriverTest() {
                     KnownSourceFiles.nullableSource,
                 ),
             expectedIssues =
-                // TODO(b/447588621): Only one issue should be reported. The second one has the
-                //   wrong line number. That is because the Nullable causes the comment to be
-                //   modified causing it to switch from a single line comment to a multi-line
-                //   comment which causes @hide to move to another line. When that is re-parsed
-                //   after the {@link Nullable} was fully qualified it detects the issue again and
-                //   reports the same issue on the wrong line.
                 """
                     src/test/pkg/Foo.java:6: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:7: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
                 """,
             docStubs = true,
             stubFiles =

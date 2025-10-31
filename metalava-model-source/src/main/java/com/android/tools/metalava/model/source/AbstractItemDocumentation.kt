@@ -243,7 +243,10 @@ abstract class AbstractItemDocumentation(
                     DocComment.createDocComment(
                         context = this,
                         fullyQualifiedText,
-                        reporter = this,
+                        // Ignore any errors that are found while parsing the fully qualified test
+                        // as they will duplicate issues found when first creating and the line
+                        // numbers may not match the original source.
+                        reporter = DocumentationIssueReporter.NULL,
                     )
 
             // Print the docComment as Javadoc.
