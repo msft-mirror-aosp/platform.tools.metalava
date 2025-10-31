@@ -304,9 +304,11 @@ abstract class AbstractItemDocumentation(
     /** Work around javadoc cutting off the summary line after the first ". ". */
     protected fun workAroundJavaDocSummaryTruncationIssue(text: String): String {
         // Work around javadoc cutting off the summary line after the first ". ".
-        val firstDot = text.indexOf(".")
-        return if (firstDot > 0 && text.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
-            text.substring(0, firstDot) + ".g.&nbsp;" + text.substring(firstDot + 4)
+        val firstDotSpace = text.indexOf(". ")
+        return if (
+            firstDotSpace > 0 && text.regionMatches(firstDotSpace - 3, "e.g. ", 0, 5, false)
+        ) {
+            text.substring(0, firstDotSpace + 1) + "&nbsp;" + text.substring(firstDotSpace + 2)
         } else {
             text
         }

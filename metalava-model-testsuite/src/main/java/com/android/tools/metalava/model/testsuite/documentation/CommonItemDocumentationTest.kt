@@ -1415,9 +1415,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             testClass.assertPrintedDocumentation(
                 expectedOutput =
-                    // TODO(b/450228132): The workaround is not applied.
                     """
-                        /** A {@link java.util.List list} contains things, e.g. names. */
+                        /** A {@link java.util.List list} contains things, e.g.&nbsp;names. */
                     """,
             )
         }
