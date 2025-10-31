@@ -55,11 +55,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
         checkDocComment(
             input = "",
             expectedString = "description: <<>>",
-            // TODO(b/447588621): This should be an empty string.
-            expectedPrintOutput =
-                """
-                    /** */
-                """,
+            expectedPrintOutput = "",
         )
     }
 

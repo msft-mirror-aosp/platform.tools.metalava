@@ -237,6 +237,10 @@ internal class DefaultDocComment(
         val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
         val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
 
+        // If there is no content in the comment and there was no comment in the source then do not
+        // print a comment at all.
+        if (overallRequiredSpace == RequiredSpace.EMPTY && noComment) return
+
         // Create a printer for [JavadocContent].
         val contentPrinter = JavadocContentPrinter(writer)
 
