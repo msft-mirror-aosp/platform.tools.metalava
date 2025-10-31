@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultParameterItem
-import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem.Companion.isKotlinProperty
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiEllipsisType
@@ -36,7 +35,7 @@ internal constructor(
     internal val psiParameter: PsiParameter,
     modifiers: BaseModifierList,
     name: String,
-    publicNameProvider: PublicNameProvider,
+    publicName: String?,
     containingCallable: PsiCallableItem,
     parameterIndex: Int,
     type: TypeItem,
@@ -48,7 +47,7 @@ internal constructor(
         sourceLanguage = psiParameter.sourceLanguage,
         modifiers = modifiers,
         name = name,
-        publicNameProvider = publicNameProvider,
+        publicName = publicName,
         containingCallable = containingCallable,
         parameterIndex = parameterIndex,
         type = type,
@@ -67,7 +66,7 @@ internal constructor(
             psiParameter = psiParameter,
             modifiers = modifiers,
             name = name(),
-            publicNameProvider = publicNameProvider,
+            publicName = publicName,
             containingCallable = containingCallable as PsiCallableItem,
             parameterIndex = parameterIndex,
             type = type().convertType(typeVariableMap) as PsiTypeItem,
@@ -101,15 +100,14 @@ internal constructor(
                     psiParameter = psiParameter,
                     modifiers = modifiers,
                     name = name,
-                    publicNameProvider = {
+                    publicName =
                         getPublicName(
                             psiParameter,
                             parameterIndex,
                             fingerprint.parameterCount,
                             psiMethod,
                             containingCallableModifiers,
-                        )
-                    },
+                        ),
                     containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
                     type = type,
