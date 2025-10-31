@@ -79,16 +79,13 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
      * @param simpleName the simple name of the colliding classes.
      * @param import the import statement to use, if any.
      * @param expectedUnderlyingClass the expected fully qualified name of the underlying model's
-     *   resolution of [simpleName].
-     * @param expectedResolvedClass the expected fully qualified name of the class to which the
-     *   [ReferencableNameScope] mechanism has resolved [simpleName]. Should be the same as
-     *   [expectedUnderlyingClass].
+     *   resolution of [simpleName] and the class to which the [ReferencableNameScope] mechanism has
+     *   resolved [simpleName].
      */
     private fun checkImportAndPackageClassCollision(
         simpleName: String,
         import: String,
         expectedUnderlyingClass: String,
-        expectedResolvedClass: String = expectedUnderlyingClass,
     ) {
         runCodebaseTest(
             inputSet(
@@ -111,13 +108,11 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
             ),
         ) {
             // Check that [simpleName] within "test.pkg.Test" refers to [expectedUnderlyingClass]
-            // when referenced from the field and [expectedResolvedClass] when resolving using
-            // [ReferencableNameScope].
+            // when referenced from the field and when resolving using [ReferencableNameScope].
             checkReferencableNameScopeAgainstUnderlyingModel(
                 "test.pkg.Test",
                 simpleName,
                 expectedUnderlyingClass,
-                expectedResolvedClass,
             )
         }
     }
@@ -139,8 +134,6 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
             simpleName = "String",
             import = "import java.lang.*;",
             expectedUnderlyingClass = "test.pkg.String",
-            // TODO(b/447588621): Should be the same as expectedQualifiedClass.
-            expectedResolvedClass = "java.lang.String",
         )
     }
 
@@ -151,8 +144,6 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
             simpleName = "String",
             import = "",
             expectedUnderlyingClass = "test.pkg.String",
-            // TODO(b/447588621): Should be the same as expectedQualifiedClass.
-            expectedResolvedClass = "java.lang.String",
         )
     }
 
@@ -173,8 +164,6 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
             simpleName = "List",
             import = "import java.util.*;",
             expectedUnderlyingClass = "test.pkg.List",
-            // TODO(b/447588621): Should be the same as expectedQualifiedClass.
-            expectedResolvedClass = "java.util.List",
         )
     }
 }
