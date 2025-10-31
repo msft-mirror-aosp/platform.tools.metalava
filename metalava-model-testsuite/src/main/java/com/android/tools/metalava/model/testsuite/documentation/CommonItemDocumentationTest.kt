@@ -1421,4 +1421,72 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test first sentence handling - eg not in summary sentence`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import static java.lang.annotation.ElementType.*;
+                    import static java.lang.annotation.RetentionPolicy.CLASS;
+                    import java.lang.annotation.*;
+
+                    /**
+                     * A simple summary sentence.
+                     *
+                     * <p>A paragraph with some stuff, e.g. words</p>
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                // TODO(b/447588621): This does not need the workaround as e.g. is not in the
+                //  summary sentence.
+                expectedOutput =
+                    """
+                        /**
+                         * A simple summary sentence.
+                         *
+                         * <p>A paragraph with some stuff, e.g.&nbsp;words</p>
+                         */
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test first sentence handling - eg inside inline tag`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import static java.lang.annotation.ElementType.*;
+                    import static java.lang.annotation.RetentionPolicy.CLASS;
+                    import java.lang.annotation.*;
+
+                    /**
+                     * A simple summary sentence with an inline tag {@code e.g. this}.
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                // TODO(b/447588621): This does not need the workaround as e.g. is inside an inline
+                //  tag.
+                expectedOutput =
+                    """
+                        /** A simple summary sentence with an inline tag {@code e.g.&nbsp;this}. */
+                    """,
+            )
+        }
+    }
 }
