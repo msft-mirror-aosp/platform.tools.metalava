@@ -147,9 +147,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
             )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val documentation = testClass.documentation
-
-            assertEquals(params.expectedText, documentation.text)
+            testClass.assertDocumentationText(expectedOutput = params.expectedText)
         }
     }
 
