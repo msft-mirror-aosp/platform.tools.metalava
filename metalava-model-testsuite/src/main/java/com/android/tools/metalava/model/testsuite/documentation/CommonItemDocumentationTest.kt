@@ -1382,10 +1382,9 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             testClass.assertPrintedDocumentation(
                 expectedOutput =
-                    // TODO(b/450228132): The workaround is not applied.
                     """
                         /**
-                         * A summary line that uses e.g. to test whether the workaround for a Javadoc
+                         * A summary line that uses e.g.&nbsp;to test whether the workaround for a Javadoc
                          * problem that ends the summary line at the first `.` is applied when
                          * printing.
                          */
