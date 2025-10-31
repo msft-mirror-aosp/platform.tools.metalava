@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -1307,6 +1308,59 @@ class JavadocTest : DriverTest() {
                             public void quux() { throw new RuntimeException("Stub!"); }
                             /** {@hide} */
                             public void qux() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test non-block @hide tag and appending content`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Nullable;
+                            @UiThread
+                            public class Foo {
+                                private Foo() {}
+                                /** Does not use @hide correctly; {@link Nullable}. */
+                                @Nullable
+                                public String method() {return null;}
+                            }
+                        """
+                    ),
+                    KnownSourceFiles.nullableSource,
+                ),
+            expectedIssues =
+                // TODO(b/447588621): Only one issue should be reported. The second one has the
+                //   wrong line number. That is because the Nullable causes the comment to be
+                //   modified causing it to switch from a single line comment to a multi-line
+                //   comment which causes @hide to move to another line. When that is re-parsed
+                //   after the {@link Nullable} was fully qualified it detects the issue again and
+                //   reports the same issue on the wrong line.
+                """
+                    src/test/pkg/Foo.java:6: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:7: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                """,
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Does not use @hide correctly; {@link android.annotation.Nullable Nullable}.
+                             * @return This value may be {@code null}.
+                             */
+                            @androidx.annotation.Nullable
+                            public java.lang.String method() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
