@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
 import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.JavadocText
@@ -215,11 +216,9 @@ abstract class AbstractItemDocumentation(
     override fun print(writer: PrintWriter) {
         val originalText = text
 
-        val tweaked = workAroundJavaDocSummaryTruncationIssue(originalText)
-
         // Before printing fully qualify the comment. This expects a whole comment and will fix up
         // @link and @see tags.
-        val fullyQualifiedText = fullyQualifiedDocumentation(tweaked)
+        val fullyQualifiedText = fullyQualifiedDocumentation(originalText)
 
         // Only print the comment if it is not blank.
         if (fullyQualifiedText.isNotBlank()) {
@@ -238,7 +237,11 @@ abstract class AbstractItemDocumentation(
                     )
 
             // Print the docComment as Javadoc.
-            fullyQualifiedComment.printAsJavadocComment(writer)
+            fullyQualifiedComment.printAsJavadocComment(
+                writer,
+                // Apply the [JavaSummaryTruncationWorkaround] to the main description.
+                mainDescriptionRewriter = JavaSummaryTruncationWorkaround()
+            )
         }
     }
 
@@ -285,19 +288,6 @@ abstract class AbstractItemDocumentation(
 
     /** Check to see if this requires a source comment. */
     override fun requiresSourceComment() = docComment.requiresSourceComment()
-
-    /** Work around javadoc cutting off the summary line after the first ". ". */
-    protected fun workAroundJavaDocSummaryTruncationIssue(text: String): String {
-        // Work around javadoc cutting off the summary line after the first ". ".
-        val firstDotSpace = text.indexOf(". ")
-        return if (
-            firstDotSpace > 0 && text.regionMatches(firstDotSpace - 3, "e.g. ", 0, 5, false)
-        ) {
-            text.substring(0, firstDotSpace + 1) + "&nbsp;" + text.substring(firstDotSpace + 2)
-        } else {
-            text
-        }
-    }
 
     override fun removeDeprecatedSection() {
         // Try and remove all the `@deprecated` sections.

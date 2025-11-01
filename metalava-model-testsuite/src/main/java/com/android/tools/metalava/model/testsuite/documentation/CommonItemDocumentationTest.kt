@@ -1445,14 +1445,12 @@ class CommonItemDocumentationTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             testClass.assertPrintedDocumentation(
-                // TODO(b/447588621): This does not need the workaround as e.g. is not in the
-                //  summary sentence.
                 expectedOutput =
                     """
                         /**
                          * A simple summary sentence.
                          *
-                         * <p>A paragraph with some stuff, e.g.&nbsp;words</p>
+                         * <p>A paragraph with some stuff, e.g. words</p>
                          */
                     """,
             )
@@ -1480,11 +1478,9 @@ class CommonItemDocumentationTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             testClass.assertPrintedDocumentation(
-                // TODO(b/447588621): This does not need the workaround as e.g. is inside an inline
-                //  tag.
                 expectedOutput =
                     """
-                        /** A simple summary sentence with an inline tag {@code e.g.&nbsp;this}. */
+                        /** A simple summary sentence with an inline tag {@code e.g. this}. */
                     """,
             )
         }
