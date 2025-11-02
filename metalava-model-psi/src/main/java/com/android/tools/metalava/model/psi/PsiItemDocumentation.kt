@@ -268,10 +268,9 @@ internal class PsiItemDocumentation(
 
     private fun handleTag(element: PsiInlineDocTag, sb: StringBuilder): Boolean {
         val name = element.name
-        if (name == "code" || name == "literal") {
-            // @code: don't attempt to rewrite this
-            sb.append(element.text)
-            return true
+        if (name == "code" || name == "literal" || name == "throws") {
+            // Don't attempt to rewrite this
+            return false
         }
 
         val reference = extractReference(element)
