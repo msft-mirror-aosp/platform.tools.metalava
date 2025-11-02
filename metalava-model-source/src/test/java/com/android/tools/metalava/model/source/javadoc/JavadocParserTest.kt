@@ -350,4 +350,73 @@ class JavadocParserTest : BaseDocCommentTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test inline tag split across lines - nested content starts with text`() {
+        checkParse(
+            """
+                /**
+                 * {@code some
+                 * text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'some\n text'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - nested content starts with whitespace`() {
+        checkParse(
+            """
+                /**
+                 * {@code
+                 * some text}
+                 * {@code
+                 * some text}
+                 */
+            """,
+            // TODO(b/447588621): Leading whitespace has been removed incorrectly from the first
+            //  tag. The different results for identical tags shows that this is only an issue at
+            //  the beginning of the description.
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'some text'
+                    text: '\n '
+                    inlineTag: code
+                      text: '\n some text'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - tag with data`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@bar some
+                 * text}
+                 * {@bar
+                 * some text}
+                 */
+            """,
+            // TODO(b/447588621): The BarTagData should have been created for the second {@bar} tag
+            //  but was not because of the leading whitespace breaking an assumption made by the
+            //  extractTagData method and how leading whitespace is handled.
+            expectedStructure =
+                """
+                    inlineTag: bar BarTagData(identifier=some)
+                      text: ' text'
+                    text: '\n '
+                    inlineTag: bar
+                      text: '\n some text'
+                """,
+        )
+    }
 }
