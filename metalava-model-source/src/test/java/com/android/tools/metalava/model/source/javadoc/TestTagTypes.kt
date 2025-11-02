@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.JavadocContentPrinter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
+import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 
 internal object TestTagTypes {
     val BAR_TAG_TYPE =
@@ -38,10 +39,14 @@ internal class BarTagType : TagType<BarTagData>("bar") {
         context: DocCommentContext,
         text: CharSequence
     ): ExtractDataResult<BarTagData>? {
-        val identifier = text.findLeadingIdentifier() ?: return null
+        val identifierStart = text.skipForwardsOverLeadingWhitespace(0)
+        val identifier = text.findLeadingIdentifier(identifierStart) ?: return null
         return ExtractDataResult(
             tagData = BarTagData(identifier),
-            consumedContent = identifier.length + 1,
+            // The identifier and any following whitespace must be removed from the content as they
+            // are part of [BarTagData].
+            consumedContent =
+                text.skipForwardsOverLeadingWhitespace(identifierStart + identifier.length),
         )
     }
 }

@@ -403,16 +403,13 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * some text}
                  */
             """,
-            // TODO(b/447588621): The BarTagData should have been created for the second {@bar} tag
-            //  but was not because of the leading whitespace breaking an assumption made by the
-            //  extractTagData method and how leading whitespace is handled.
             expectedStructure =
                 """
                     inlineTag: bar BarTagData(identifier=some)
-                      text: ' text'
+                      text: 'text'
                     text: '\n '
-                    inlineTag: bar
-                      text: '\n some text'
+                    inlineTag: bar BarTagData(identifier=some)
+                      text: 'text'
                 """,
         )
     }
