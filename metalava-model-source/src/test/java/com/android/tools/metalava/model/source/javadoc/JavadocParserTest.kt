@@ -379,13 +379,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * some text}
                  */
             """,
-            // TODO(b/447588621): Leading whitespace has been removed incorrectly from the first
-            //  tag. The different results for identical tags shows that this is only an issue at
-            //  the beginning of the description.
             expectedStructure =
                 """
                     inlineTag: code
-                      text: 'some text'
+                      text: '\n some text'
                     text: '\n '
                     inlineTag: code
                       text: '\n some text'

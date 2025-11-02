@@ -379,6 +379,10 @@ private class JavadocContentBuilder(
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
+        // The inline tag is the end of any leading whitespace so prevent any from being removed
+        // from the start of the inline tag content.
+        trimLeadingWhitespace = false
+
         val tagTypeName = ctx.inlineTagName().NAME().text
         val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
 
