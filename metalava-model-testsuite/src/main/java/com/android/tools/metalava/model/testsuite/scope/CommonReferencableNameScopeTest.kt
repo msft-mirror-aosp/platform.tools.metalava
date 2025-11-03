@@ -196,8 +196,6 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 scopeClass = "test.pkg.Derived",
                 simpleName = "Foo",
                 expectedUnderlyingClass = "other.pkg.Base.Foo",
-                // TODO(b/447588621): Should resolve to Base.Foo.
-                expectedResolvedClass = null,
             )
         }
     }
@@ -231,8 +229,6 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 "test.pkg.Derived",
                 "Foo",
                 expectedUnderlyingClass = "other.pkg.Base.Foo",
-                // TODO(b/447588621): Should resolve to Base.Foo.
-                expectedResolvedClass = null,
             )
         }
     }
@@ -382,8 +378,6 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 "test.pkg.Derived.Nested",
                 "Foo",
                 expectedUnderlyingClass = "other.pkg.Base.BaseNested.Foo",
-                // TODO(b/447588621): Should resolve to BaseNested.Foo.
-                expectedResolvedClass = "test.pkg.Derived.Foo",
             )
         }
     }
