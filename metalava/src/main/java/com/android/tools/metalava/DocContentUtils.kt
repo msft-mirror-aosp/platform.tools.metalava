@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.source.doc.containsWord
@@ -25,3 +26,9 @@ val NULL_WORD_PREDICATE = DocContentPredicates.textContainsAny { it.containsWord
 
 /** Returns `true` if this contains the word `null`. */
 fun DocContent?.containsNullWord() = this?.check(NULL_WORD_PREDICATE) == true
+
+/** Returns true if the textual parts of the documentation contain [word]. */
+fun ItemDocumentation.containsWord(word: String): Boolean {
+    val predicate = DocContentPredicates.textContainsAny { it.containsWord(word) }
+    return check(predicate)
+}

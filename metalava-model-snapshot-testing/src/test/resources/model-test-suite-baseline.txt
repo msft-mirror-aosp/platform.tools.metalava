@@ -79,6 +79,11 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package info processed last[psi,java,k2]
   Test @hide in package info processed last[turbine]
 
+com.android.tools.metalava.model.testsuite.sourcefile.CommonParameterizedImportTest
+  Test imports[psi,java,k1,static java.util.Map.*]
+  Test imports[psi,java,k2,static java.util.Map.*]
+  Test imports[turbine,static java.util.Map.*]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]
   Test assignability without unboxing[psi,java,k1,number to boxedInt]

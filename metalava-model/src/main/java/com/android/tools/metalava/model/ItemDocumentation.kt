@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.PrintWriter
 
@@ -136,6 +137,21 @@ interface ItemDocumentation {
     fun paramTagDescriptionOwner(name: String): DocContentOwner
 
     /**
+     * Check if [predicate] matches this documentation, checks [mainDescription] and all the block
+     * tag descriptions, including the `@param` tags.
+     */
+    fun check(predicate: DocContentPredicate): Boolean
+
+    /**
+     * Check to see if this requires a source comment.
+     *
+     * This returns `true` if it would need to be written as a comment if this was generated in the
+     * sources. That can either be because it was created from a comment in the original sources, or
+     * it has been mutated since creation.
+     */
+    fun requiresSourceComment(): Boolean
+
+    /**
      * Returns the [text], but with fully qualified links (except for the same package, and when
      * turning a relative reference into a fully qualified reference, use the javadoc syntax for
      * continuing to display the relative text, e.g. instead of {@link java.util.List}, use {@link
@@ -220,6 +236,15 @@ interface ItemDocumentation {
         override fun paramTagDescription(name: String) = null
 
         override fun paramTagDescriptionOwner(name: String) = inaccessible()
+
+        /** Returns `false` as this is sometimes called. */
+        override fun check(predicate: DocContentPredicate) = false
+
+        /**
+         * Returns `false` as this is called for [PackageItem]s which do not have a
+         * `package-info.java` or `package.html`.
+         */
+        override fun requiresSourceComment() = false
 
         override fun removeDeprecatedSection() {
             // TODO(b/450228132): Temporarily allow this to be called as there is an issue where

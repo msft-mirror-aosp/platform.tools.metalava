@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.source.javadoc.ContainsInlineTagVisitor
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 
 /** Marker interface that represents a predicate that can be applied to [DocContent]. */
@@ -25,4 +26,8 @@ object DocContentPredicates {
     /** Check if the textual parts of [DocContent] match [predicate]. */
     fun textContainsAny(predicate: (String) -> Boolean): DocContentPredicate =
         TextContainsAnyVisitor(predicate)
+
+    /** Check if the [DocContent] contains an inline tag of type [tagTypeName]. */
+    fun containsInlineTag(tagTypeName: String): DocContentPredicate =
+        ContainsInlineTagVisitor(tagTypeName)
 }

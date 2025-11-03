@@ -67,6 +67,7 @@ const val ARG_API_VERSION_RANGE = "--api-version-range"
 const val ARG_API_VERSION_LABEL = "--api-version-label"
 
 const val ARG_API_VERSION_FOR_SDK_EXTENSION = "--api-version-for-sdk-extension"
+const val ARG_SDK_EXTENSION_VERSION_RANGE = "--sdk-extension-version-range"
 
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
@@ -119,7 +120,7 @@ class ApiLevelsGenerationOptions(
             )
             .newFile()
 
-    private val apiVersionForSources: ApiVersion by
+    private val apiVersionForSources: ApiVersion? by
         option(
                 ARG_API_VERSION_FOR_SOURCES,
                 metavar = "<api-version>",
@@ -133,7 +134,6 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .apiVersion()
-            .default(ApiVersion.fromLevel(10000))
 
     /** Whether references to missing classes should be removed from the api levels file. */
     private val removeMissingClassReferencesInApiLevels: Boolean by
@@ -205,15 +205,41 @@ class ApiLevelsGenerationOptions(
             .apiVersionRange()
 
     /**
+     * The range of historical SDK Extension API versions that can be included in the API version
+     * history.
+     */
+    private val sdkExtensionVersionRange: ClosedRange<ApiVersion>? by
+        option(
+                ARG_SDK_EXTENSION_VERSION_RANGE,
+                metavar = "<api-version>:<api-version>",
+                help =
+                    """
+                        The optional range of historical sdk extensions versions that can be included in the API
+                        version history. The `from` and `to` parts of the range are separated by a
+                        `:` and are both inclusive. See $ARG_API_VERSION_FOR_SOURCES for acceptable
+                        `<api-version>`s.
+
+                        If unspecified then allow every historical version.
+                    """
+                        .trimIndent()
+            )
+            .apiVersionRange()
+
+    /**
      * The last api level.
      *
-     * This is one more than [currentApiVersion] if this is a developer preview build.
+     * This is one more than [optionalCurrentApiVersion] if this is a developer preview build.
      */
     private val lastApiVersion
-        get() = currentApiVersion + if (isDeveloperPreviewBuild) 1 else 0
+        get() =
+            (optionalCurrentApiVersion ?: ApiVersion.fromLevel(10_000)) +
+                if (isDeveloperPreviewBuild) 1 else 0
 
-    /** The [ApiVersion] of the codebase, or null if not known/specified */
-    private val optionalCurrentApiVersion: ApiVersion? by
+    /**
+     * The [ApiVersion] of the codebase, or null if not known/specified (TODO: b/454050901 avoid
+     * using as it will be removed)
+     */
+    internal val optionalCurrentApiVersion: ApiVersion? by
         option(
                 ARG_CURRENT_VERSION,
                 metavar = "<api-version>",
@@ -227,17 +253,6 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .apiVersion()
-
-    /**
-     * Get the current API version.
-     *
-     * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
-     * specified.
-     */
-    internal val currentApiVersion: ApiVersion
-        get() =
-            optionalCurrentApiVersion
-                ?: cliError("$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION")
 
     /**
      * The codename of the codebase: non-null string if this is a developer preview build, null if
@@ -293,7 +308,7 @@ class ApiLevelsGenerationOptions(
      * True if [currentCodeName] is specified, false otherwise.
      *
      * If this is `true` then the API defined in the sources will be added to the API levels file
-     * with an API level of [currentApiVersion]` - 1`.
+     * with an API level of [optionalCurrentApiVersion]` - 1`.
      */
     private val isDeveloperPreviewBuild
         get() = currentCodeName != null
@@ -416,8 +431,8 @@ class ApiLevelsGenerationOptions(
      * not going to be published outside Android, so it is safe to include all [ApiVersion]s,
      * including the next one.
      *
-     * If no [currentApiVersion] has been provided then allow any [ApiVersion] level as there is no
-     * way to determine whether the [ApiVersion] is a future API or not.
+     * If no [optionalCurrentApiVersion] has been provided then allow any [ApiVersion] level as
+     * there is no way to determine whether the [ApiVersion] is a future API or not.
      *
      * Otherwise, it is a release build so ignore any [ApiVersion]s after the current one.
      */
@@ -441,11 +456,15 @@ class ApiLevelsGenerationOptions(
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val versionRange = apiVersionRange ?: firstApiVersion.rangeTo(lastApiVersion)
+        val sdkExtensionVersionRange =
+            sdkExtensionVersionRange
+                ?: ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(Int.MAX_VALUE))
         val apiSurfaceByName = apiSurfacesProvider()?.byName
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = dir,
                 apiVersionFilter = versionRange::contains,
+                sdkExtensionVersionFilter = sdkExtensionVersionRange::contains,
                 apiSurfaceByName = apiSurfaceByName,
             )
         return patternNode.scan(scanConfig)
@@ -526,7 +545,7 @@ class ApiLevelsGenerationOptions(
             val matchedApiFiles = findHistoricalApiFiles(currentDir, apiFilePatterns)
 
             // Split the files into primary api files and extension api files.
-            val (primaryApiFiles, extensionApiFiles) = matchedApiFiles.partition { !it.extension }
+            val (primaryApiFiles, extensionApiFiles) = matchedApiFiles.partition { !it.isExtension }
 
             // Get a VersionedApi for each of the released API files.
             val versionedHistoricalApis =
@@ -543,9 +562,11 @@ class ApiLevelsGenerationOptions(
                     //
                     // If the latter then that is either:
                     // 1. The version used for the current codebase.
-                    // 2. Or the next version, i.e. --api-version-for-sources.
+                    // 2. Or the next version, i.e. b/454053322 placeholder value
                     val notFinalizedSdkVersion =
-                        apiVersionForSdkExtension ?: codebaseSdkVersion ?: apiVersionForSources
+                        apiVersionForSdkExtension
+                            ?: codebaseSdkVersion
+                            ?: ApiVersion.fromString("10000")
                     ApiGenerator.SdkExtensionsArguments(
                         sdkInfoFile!!,
                         notFinalizedSdkVersion,
@@ -802,28 +823,37 @@ class ApiLevelsGenerationOptions(
     private fun computeCodebaseSdkVersion(
         versionedHistoricalApis: List<VersionedApi>
     ): ApiVersion? {
-        if (currentApiVersion.major <= 26) {
-            cliError("Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27")
+        val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
+        if (apiVersionForSources != null) {
+            if (lastFinalizedVersion != null && apiVersionForSources!! <= lastFinalizedVersion) {
+                cliError(
+                    "Suspicious $ARG_API_VERSION_FOR_SOURCES $apiVersionForSources, expected a version greater than $lastFinalizedVersion"
+                )
+            }
+
+            return apiVersionForSources
         }
 
-        val nextSdkVersion = apiVersionForSources
-        val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
-        if (lastFinalizedVersion != null && apiVersionForSources <= lastFinalizedVersion) {
-            cliError(
-                "Suspicious $ARG_API_VERSION_FOR_SOURCES $apiVersionForSources, expected a version greater than $lastFinalizedVersion"
-            )
+        optionalCurrentApiVersion?.let { currentApiVersion ->
+            if (currentApiVersion.major <= 26) {
+                cliError("Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27")
+            }
         }
 
         return when {
             // The current codebase is a developer preview so use the next, in the
             // process of being finalized version.
-            isDeveloperPreviewBuild -> nextSdkVersion
+            // b/454053322 --current-version will eventually be deprecated,
+            // --api-version-for-sources should be used instead. Placeholder value has been added in
+            // the meantime
+            isDeveloperPreviewBuild -> ApiVersion.fromString("10000")
 
             // If no finalized versions were provided or the last finalized version is less
             // than the current version then use the current version as the version of the
             // codebase.
-            lastFinalizedVersion == null || lastFinalizedVersion < currentApiVersion ->
-                currentApiVersion
+            lastFinalizedVersion == null ||
+                optionalCurrentApiVersion?.let { lastFinalizedVersion < it } == true ->
+                optionalCurrentApiVersion
 
             // Else do not include the current codebase.
             else -> null
