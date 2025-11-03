@@ -155,14 +155,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * {@code some {@code nested} inline tags}
                  */
             """,
-            // TODO(b/447588621): {@code nested} should be literal text, not an inline tag.
             expectedStructure =
                 """
                     inlineTag: code
-                      text: 'some '
-                      inlineTag: code
-                        text: 'nested'
-                      text: ' inline tags'
+                      text: 'some {@code nested} inline tags'
                 """,
         )
     }
@@ -177,12 +173,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * {@code cannot contain inline {@bar tag}}.
                  */
             """,
-            // TODO(b/447588621): {@bar tag} should be literal text, not an inline tag.
             expectedStructure =
                 """
                     inlineTag: code
-                      text: 'cannot contain inline '
-                      inlineTag: bar BarTagData(identifier=tag)
+                      text: 'cannot contain inline {@bar tag}'
                     text: '.'
                 """,
         )
@@ -198,12 +192,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * {@literal cannot contain inline {@bar tag}}.
                  */
             """,
-            // TODO(b/447588621): {@bar tag} should be literal text, not an inline tag.
             expectedStructure =
                 """
                     inlineTag: literal
-                      text: 'cannot contain inline '
-                      inlineTag: bar BarTagData(identifier=tag)
+                      text: 'cannot contain inline {@bar tag}'
                     text: '.'
                 """,
         )
@@ -220,12 +212,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * tag}}.
                  */
             """,
-            // TODO(b/447588621): {@bar tag} should be literal text, not an inline tag.
             expectedStructure =
                 """
                     inlineTag: link LinkTagData(sourceReference=String)
-                      text: 'cannot contain inline '
-                      inlineTag: bar BarTagData(identifier=tag)
+                      text: 'cannot contain inline {@bar\n tag}'
                     text: '.'
                 """,
         )
@@ -241,12 +231,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * {@linkplain String cannot contain inline {@bar tag}}.
                  */
             """,
-            // TODO(b/447588621): {@bar tag} should be literal text, not an inline tag.
             expectedStructure =
                 """
                     inlineTag: linkplain LinkTagData(sourceReference=String)
-                      text: 'cannot contain inline '
-                      inlineTag: bar BarTagData(identifier=tag)
+                      text: 'cannot contain inline {@bar tag}'
                     text: '.'
                 """,
         )

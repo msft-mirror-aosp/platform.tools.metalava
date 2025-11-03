@@ -20,6 +20,10 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
 
 /** [TagType] for `@link` and `@linkplain` inline tags. */
 internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
+    /** Link tags can only contain */
+    override val containsTextOnly: Boolean
+        get() = true
+
     /** Override to extract the source reference from the tag content. */
     override fun extractData(
         context: DocCommentContext,
