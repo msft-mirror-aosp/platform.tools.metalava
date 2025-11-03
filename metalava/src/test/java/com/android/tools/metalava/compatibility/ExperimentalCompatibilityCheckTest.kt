@@ -24,34 +24,32 @@ import org.junit.Test
 
 class ExperimentalCompatibilityCheckTest : DriverTest() {
 
-    /**
-     * TODO: change this to "Should raise compatibility error on changed default on method in interface"
-     */
     @Test
-    fun `Don't raise compatibility error on changed default on method in interface`() {
+    fun `Should raise compatibility error on changed default on method in interface`() {
         check(
             expectedIssues =
                 """
+                    load-api.txt:6: error: Binary breaking change: Method test.pkg.MyInterface.myFun has changed 'default' qualifier [ChangedDefault]
                 """,
             checkCompatibilityApiReleased =
                 """
-package test.pkg {
-  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
-  }
-  public interface MyInterface {
-    method @test.pkg.ExperimentalAnnotation public default void myFun();
-  }
-}
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public interface MyInterface {
+                    method @test.pkg.ExperimentalAnnotation public default void myFun();
+                  }
+                }
                 """,
             signatureSource =
                 """
-package test.pkg {
-  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
-  }
-  public interface MyInterface {
-    method @test.pkg.ExperimentalAnnotation public void myFun();
-  }
-}
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public interface MyInterface {
+                    method @test.pkg.ExperimentalAnnotation public void myFun();
+                  }
+                }
                 """,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalAnnotation")
         )
