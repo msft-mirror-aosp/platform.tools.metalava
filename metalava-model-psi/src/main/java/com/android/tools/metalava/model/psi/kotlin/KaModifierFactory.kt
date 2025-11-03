@@ -106,18 +106,25 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         // Note that the AndroidX experimental lint check will not recognize usages of the
         // accessors by Java clients as experimental. Because of this AndroidX bans defining
         // public experimental properties in projects that target Java clients.
+
+        // Also handle propagating showability annotations (show and hide annotations, e.g.
+        // @PublishedApi). These annotations which update API visibility should impact the API
+        // visibility of accessors when applied to properties.
         for (annotationItem in modifiers.annotations()) {
-            if (annotationItem.isSuppressCompatibilityAnnotation()) {
-                // Manually setting a RequiresOptIn annotation on a getter causes a
-                // compiler warning, but this can be suppressed with
-                // @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET"). Safely handle
-                // such cases by only adding the annotation if it wasn't explicitly added.
+            // Manually setting a RequiresOptIn annotation on a getter causes a
+            // compiler warning, but this can be suppressed with
+            // @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET"). Safely handle
+            // such cases by only adding the annotation if it wasn't explicitly added.
+            // Explicit RequiresOptIn annotations on setters are supported by the
+            // compiler, so we should only add this annotation implicitly if it is not
+            // already explicitly provided.
+            if (
+                annotationItem.isSuppressCompatibilityAnnotation() ||
+                    annotationItem.isShowabilityAnnotation()
+            ) {
                 if (getter != null && annotationItem !in getter.modifiers.annotations()) {
                     getter.mutateModifiers { addAnnotation(annotationItem) }
                 }
-                // Explicit RequiresOptIn annotations on setters are supported by the
-                // compiler, so we should only add this annotation implicitly if it is not
-                // already explicitly provided.
                 if (setter != null && annotationItem !in setter.modifiers.annotations()) {
                     setter.mutateModifiers { addAnnotation(annotationItem) }
                 }

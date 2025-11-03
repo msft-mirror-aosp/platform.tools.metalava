@@ -735,11 +735,13 @@ class ShowAnnotationTest : DriverTest() {
                     "UnhiddenSystemApi",
                     ARG_SHOW_UNANNOTATED
                 ),
-            // TODO: for regularProperty, the accessors should be tracked instead of the field
+            // TODO: for regularProperty, the field should not be tracked
             api =
                 """
                 package test.pkg {
                   public final class Foo {
+                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal int getRegularProperty();
+                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal void setRegularProperty(int);
                     property @kotlin.PublishedApi internal static int CONST;
                     property @kotlin.PublishedApi internal int jvmField;
                     property @kotlin.PublishedApi internal int regularProperty;
