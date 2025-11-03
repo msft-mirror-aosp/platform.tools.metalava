@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.psi.kotlin
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.JVM_FIELD
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
@@ -77,8 +79,8 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
     }
 
     /**
-     * Update the modifiers of [getter] and [setter] as needed based on the [modifiers] of the
-     * associated property.
+     * Update the modifiers of [getter], [setter], and [backingField] as needed based on the
+     * [modifiers] of the associated property.
      *
      * Additionally, adds annotations from the [getter] to the [modifiers] because historically
      * metalava has included all getter annotations on properties.
@@ -87,6 +89,7 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         modifiers: MutableModifierList,
         getter: MethodItem?,
         setter: MethodItem?,
+        backingField: FieldItem?,
     ) {
         // Correct visibility of accessors (work around K2 bugs with value class type properties)
         // https://youtrack.jetbrains.com/issue/KT-74205
@@ -99,6 +102,11 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         if (setter != null && setter.modifiers.getVisibilityLevel() > propertyVisibility) {
             setter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
         }
+
+        // Whether the backing field is used instead of accessors in the API surface.
+        val backingFieldIsApi =
+            modifiers.isConst() ||
+                backingField?.modifiers?.hasAnnotation { it.qualifiedName == JVM_FIELD } == true
 
         // Special case for RequiresOptIn-annotated annotations: when these are applied
         // to a property, they are implicitly propagated to the getter and setter
@@ -127,6 +135,13 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
                 }
                 if (setter != null && annotationItem !in setter.modifiers.annotations()) {
                     setter.mutateModifiers { addAnnotation(annotationItem) }
+                }
+                if (
+                    backingFieldIsApi &&
+                        backingField != null &&
+                        annotationItem !in backingField.modifiers.annotations()
+                ) {
+                    backingField.mutateModifiers { addAnnotation(annotationItem) }
                 }
             }
         }

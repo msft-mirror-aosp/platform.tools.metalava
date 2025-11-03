@@ -735,7 +735,6 @@ class ShowAnnotationTest : DriverTest() {
                     "UnhiddenSystemApi",
                     ARG_SHOW_UNANNOTATED
                 ),
-            // TODO: for regularProperty, the field should not be tracked
             api =
                 """
                 package test.pkg {
@@ -748,7 +747,6 @@ class ShowAnnotationTest : DriverTest() {
                     field @kotlin.PublishedApi internal static final int CONST = 0; // 0x0
                     field public static final test.pkg.Foo INSTANCE;
                     field @kotlin.PublishedApi internal static int jvmField;
-                    field @kotlin.PublishedApi internal static int regularProperty;
                   }
                 }
                 """

@@ -626,7 +626,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
                 propertySymbol,
                 containingClass,
             )
-        kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter)
+        kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter, backingField)
         val propertyItem =
             DefaultPropertyItem(
                 codebase = codebase,
