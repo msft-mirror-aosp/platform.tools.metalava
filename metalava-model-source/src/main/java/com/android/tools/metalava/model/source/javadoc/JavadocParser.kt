@@ -417,18 +417,20 @@ private class JavadocContentBuilder(
             }
         }
 
-        // Get the nested content, if any.
-        val inlineTagContentContext = ctx.inlineTagContent()
-        val tagContent =
-            inlineTagContentContext?.let { inlineCtx ->
+        // Split the nested content, if any, into separate data and remaining content.
+        val result =
+            ctx.inlineTagContent()?.let { inlineCtx ->
                 // Construct a nested JavadocContent object from the content of the inline tag.
-                nestedContent(tagType.containsTextOnly) {
-                    // Visit the inline tag content.
-                    inlineCtx.accept(this)
-                }
+                val nestedTagContent =
+                    nestedContent(tagType.containsTextOnly) {
+                        // Visit the inline tag content.
+                        inlineCtx.accept(this)
+                    }
+
+                // Extract data from the nested content.
+                nestedTagContent?.extractTagDataForTagType(context, tagType)
             }
 
-        val result = tagContent?.extractTagDataForTagType(context, tagType)
         val tagData = result?.tagData
         val remainder = result?.remainder
 
