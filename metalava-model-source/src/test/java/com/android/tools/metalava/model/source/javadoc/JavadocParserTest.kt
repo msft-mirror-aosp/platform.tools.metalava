@@ -465,7 +465,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                 /**
                  * {@bar some
                  * text}
-                 * {@bar
+                    * {@bar
                  * some text}
                  */
             """,

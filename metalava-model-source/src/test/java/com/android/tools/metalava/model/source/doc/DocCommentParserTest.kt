@@ -641,6 +641,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
         ) {
             val barBlockTagSection = docComment.blockTagSections.single()
             assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
+
+            reporter.assertJavadocParserIssues("")
         }
     }
 
