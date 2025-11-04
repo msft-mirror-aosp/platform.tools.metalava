@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocParser
-import com.android.tools.metalava.reporter.Issues
 import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
@@ -55,11 +54,11 @@ internal fun JavadocContent?.toSupplier(): ContentSupplier =
  */
 internal class LazyContentSupplier(
     private val context: DocCommentContext,
-    private val reporter: DocumentationIssueReporter,
+    reporter: DocumentationIssueReporter,
     private val text: String,
     private val startInclusive: Int = 0,
     private val endExclusive: Int = text.length,
-) : ContentSupplier, DocumentationIssueReporter {
+) : ContentSupplier, DocumentationFragmentIssueReporter(reporter) {
     private lateinit var _content: Optional<JavadocContent>
 
     override val content: JavadocContent?
@@ -106,23 +105,11 @@ internal class LazyContentSupplier(
         append(">>")
     }
 
-    /**
-     * Provide an implementation of [DocumentationIssueReporter] that corrects the line and char
-     * offsets based on the [startInclusive] position within [text].
-     */
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
-        val lineOffsetCorrection = text.lineOffsetFor(startInclusive)
+    /** Get the line offset of [startInclusive] within [text]. */
+    override val lineOffsetFromContainer: Int
+        get() = text.lineOffsetFor(startInclusive)
 
-        // If this issue is being reported on the first line then make sure to compensate for any
-        // possible indentation of that first line before [startInclusive].
-        val charOffsetCorrection =
-            if (lineOffset == 0) text.characterOffsetFor(startInclusive) else 0
-
-        reporter.report(
-            issue,
-            message,
-            lineOffset + lineOffsetCorrection,
-            charOffset + charOffsetCorrection
-        )
-    }
+    /** Get the character offset of [startInclusive] within [text]. */
+    override val firstLineCharacterOffset: Int
+        get() = text.characterOffsetFor(startInclusive)
 }
