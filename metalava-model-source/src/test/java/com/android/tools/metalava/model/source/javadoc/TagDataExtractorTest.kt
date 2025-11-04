@@ -82,6 +82,10 @@ class TagDataExtractorTest : BaseDocCommentTest() {
                 """
                     text: 'foo text after'
                 """,
+            expectedJavadocIssues =
+                """
+                    1:1: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                """,
             expectedTagData = BarTagData(identifier = "foo"),
             expectedRemainderStructure =
                 """
@@ -100,6 +104,10 @@ class TagDataExtractorTest : BaseDocCommentTest() {
                     inlineTag: code
                       text: 'inline'
                     text: ' more text'
+                """,
+            expectedJavadocIssues =
+                """
+                    1:1: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
                 """,
             expectedTagData = BarTagData(identifier = "foo"),
             expectedRemainderStructure =

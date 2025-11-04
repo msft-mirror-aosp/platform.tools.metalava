@@ -27,6 +27,7 @@ internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
     /** Override to extract the source reference from the tag content. */
     override fun extractData(
         context: DocCommentContext,
+        reporter: TagTypeIssueReporter,
         text: CharSequence
     ): ExtractDataResult<LinkTagData>? {
         val referenceStart = text.skipForwardsOverLeadingWhitespace(0)

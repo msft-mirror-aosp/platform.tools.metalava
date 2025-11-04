@@ -414,6 +414,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                       text: 'inside'
                     text: ' outside after'
                 """,
+            expectedJavadocIssues =
+                """
+                    2:25: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                """,
         )
     }
 
@@ -476,6 +480,11 @@ class JavadocParserTest : BaseDocCommentTest() {
                     text: '\n '
                     inlineTag: bar BarTagData(identifier=some)
                       text: 'text'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:10: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                    4:12: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
                 """,
         )
     }
