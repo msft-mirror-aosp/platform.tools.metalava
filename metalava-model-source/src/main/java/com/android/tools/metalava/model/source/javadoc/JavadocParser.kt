@@ -427,8 +427,11 @@ private class JavadocContentBuilder(
                         inlineCtx.accept(this)
                     }
 
-                // Extract data from the nested content.
-                nestedTagContent?.extractTagDataForTagType(context, tagType)
+                nestedTagContent?.let { tagContent ->
+                    tokenIssueReporter.reportAtToken(inlineCtx.start) {
+                        tagContent.extractTagDataForTagType(context, tagType, tokenIssueReporter)
+                    }
+                }
             }
 
         val tagData = result?.tagData

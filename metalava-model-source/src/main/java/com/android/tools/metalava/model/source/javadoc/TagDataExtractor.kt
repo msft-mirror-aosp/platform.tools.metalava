@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
 
@@ -31,6 +32,7 @@ import com.android.tools.metalava.model.source.doc.TagType
 internal class TagDataExtractor(
     private val context: DocCommentContext,
     private val tagType: TagType<*>,
+    @Suppress("unused") private val reporter: DocumentationIssueReporter,
 ) : JavadocContentRewriter {
 
     private var tagData: TagData? = null
@@ -109,7 +111,8 @@ internal class TagDataExtractor(
 internal fun JavadocContent.extractTagDataForTagType(
     context: DocCommentContext,
     tagType: TagType<*>,
-) = TagDataExtractor(context, tagType).extractTagData(this)
+    reporter: DocumentationIssueReporter,
+) = TagDataExtractor(context, tagType, reporter).extractTagData(this)
 
 /** The result of [TagDataExtractor.extractTagData]. */
 internal data class ExtractorResult(

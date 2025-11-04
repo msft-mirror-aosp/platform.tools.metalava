@@ -31,6 +31,9 @@ internal interface ContentSupplier {
     /** The [JavadocContent], `null` if this is empty. */
     val content: JavadocContent?
 
+    /** Get the [DocumentationIssueReporter] to use to report issues with [content]. */
+    val reporter: DocumentationIssueReporter
+
     companion object {
         /** A null [ContentSupplier]. */
         val NULL: ContentSupplier = DefaultContentSupplier(null)
@@ -39,6 +42,9 @@ internal interface ContentSupplier {
 
 /** A simple [ContentSupplier] that encapsulates [content]. */
 private class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
+    override val reporter: DocumentationIssueReporter
+        get() = DocumentationIssueReporter.NULL
+
     override fun toString(): String {
         return "<<${content?: ""}>>"
     }
@@ -69,6 +75,9 @@ internal class LazyContentSupplier(
             }
             return _content.getOrNull()
         }
+
+    override val reporter: DocumentationIssueReporter
+        get() = this
 
     /**
      * Parse [text] from [startInclusive] to [endExclusive] producing a [JavadocContent], if

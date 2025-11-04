@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -31,7 +32,12 @@ class TagDataExtractorTest : BaseDocCommentTest() {
         val content = docComment.description
         content.assertStructure(expectedInputStructure, message = "input structure")
 
-        var result = content?.extractTagDataForTagType(context, TestTagTypes.BAR_TAG_TYPE)
+        var result =
+            content?.extractTagDataForTagType(
+                context,
+                TestTagTypes.BAR_TAG_TYPE,
+                reporter = DocumentationIssueReporter.THROWING,
+            )
 
         val tagData = result?.tagData
         assertEquals(expectedTagData, tagData, message = "tagData")
