@@ -1607,11 +1607,13 @@ private fun restrictedForEnvironmentClass(packageName: String): TestFile =
             """
             package $packageName;
             import java.lang.annotation.*;
+            import android.annotation.StringDef;
             import static java.lang.annotation.ElementType.*;
             import static java.lang.annotation.RetentionPolicy;
             /** @hide */
-            @Retention(RetentionPolicy.RUNTIME)
             @Target({TYPE})
+            @Retention(RetentionPolicy.RUNTIME)
+            @Repeatable(RestrictedForEnvironment.Container.class)
             public @interface RestrictedForEnvironment {
               @Environment String[] environments();
               int from();

@@ -89,9 +89,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   Test Column annotation[turbine]
   memberDoc crash[turbine]
 
-com.android.tools.metalava.doc.RestrictedForEnvironmentTest
-  Check RestrictedForEnvironment handling for multiple annotations - androidx[turbine]
-
 com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
   Test jar loader does not freeze codebase[turbine]
   Test jar loader freezes codebase[turbine]
