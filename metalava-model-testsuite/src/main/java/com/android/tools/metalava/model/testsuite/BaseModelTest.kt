@@ -174,6 +174,14 @@ abstract class BaseModelTest() :
          * responsibility to check the returned value.
          */
         @get:CheckReturnValue val reportedIssues: String
+
+        /**
+         * Assert that the reported issues match [expectedIssues] and remove them from the list of
+         * reported issues.
+         */
+        fun assertAndRemoveReportedIssues(expectedIssues: String, message: String? = null) {
+            assertEquals(expectedIssues.trimIndent(), reportedIssues, message)
+        }
     }
 
     inner class DefaultCodebaseContext(
@@ -268,9 +276,8 @@ abstract class BaseModelTest() :
                 context.test()
 
                 // Make sure that any unchecked issues will cause the test to fail.
-                assertEquals(
-                    "",
-                    context.reportedIssues,
+                context.assertAndRemoveReportedIssues(
+                    expectedIssues = "",
                     message = "Unexpected issues were reported"
                 )
             }

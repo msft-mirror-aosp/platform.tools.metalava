@@ -363,7 +363,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         ) {
             // Make sure that no issues are found before parsing the Javadoc description blocks.
             // This ensures that no parsing is done unless required.
-            assertEquals("", reportedIssues)
+            assertAndRemoveReportedIssues("")
 
             // Then, check the printed form of the comment. That is needed to ensure that the
             // comment is parsed and any issues found.
@@ -399,15 +399,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
 
             // Finally, check to see what issues have been reported.
-            assertEquals(
+            assertAndRemoveReportedIssues(
                 """
                     MAIN_SRC/src/test/pkg/Test.java:3:5: error: unclosed inline '@code' tag [UnclosedInlineTag]
                     MAIN_SRC/src/test/pkg/Test.java:5:9: error: unclosed inline '@code' tag [UnclosedInlineTag]
                     MAIN_SRC/src/test/pkg/Test.java:10:8: error: unclosed inline '@code' tag [UnclosedInlineTag]
                     MAIN_SRC/src/test/pkg/Test.java:15:20: error: unclosed inline '@code' tag [UnclosedInlineTag]
                 """
-                    .trimIndent(),
-                reportedIssues
             )
         }
     }

@@ -48,9 +48,8 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
         ) {
             test()
 
-            assertEquals(
-                "MAIN_SRC/src2/test/pkg/Foo.java:3: warning: Attempted to register test.pkg.Foo twice; once from MAIN_SRC/src/test/pkg/Foo.java and this one from MAIN_SRC/src2/test/pkg/Foo.java [DuplicateSourceClass]",
-                reportedIssues
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/src2/test/pkg/Foo.java:3: warning: Attempted to register test.pkg.Foo twice; once from MAIN_SRC/src/test/pkg/Foo.java and this one from MAIN_SRC/src2/test/pkg/Foo.java [DuplicateSourceClass]"
             )
         }
     }
