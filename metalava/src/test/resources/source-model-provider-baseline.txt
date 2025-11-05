@@ -61,9 +61,6 @@ com.android.tools.metalava.RequiresFeatureTest
 com.android.tools.metalava.ShowAnnotationTest
   Testing parsing an annotation whose attribute references the annotated class[turbine]
 
-com.android.tools.metalava.SyntaxErrorTest
-  Invalid syntax[turbine]
-
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
 
