@@ -17,12 +17,13 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /** [TagType] for `@throws` block tag. */
 internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
     override fun extractData(
         context: DocCommentContext,
-        reporter: TagTypeIssueReporter,
+        reporter: LocationSpecificReporter,
         text: CharSequence
     ): ExtractDataResult<ThrowsTagData>? {
         val throwsName = text.findLeadingIdentifier() ?: return null
