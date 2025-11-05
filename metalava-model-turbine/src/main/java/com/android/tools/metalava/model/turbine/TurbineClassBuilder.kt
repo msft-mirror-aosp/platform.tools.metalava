@@ -51,7 +51,6 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
-import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
@@ -188,7 +187,7 @@ internal class TurbineClassBuilder(
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
-                documentationFactory = itemDocumentationFactoryForDecl(decl),
+                documentationFactory = itemDocumentationFactoryForDecl(sourceFile, decl),
                 source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -422,7 +421,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = fieldModifierItem,
-                    documentationFactory = itemDocumentationFactoryForDecl(decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
@@ -482,7 +481,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodModifierItem,
-                    documentationFactory = itemDocumentationFactoryForDecl(decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
@@ -584,7 +583,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = constructorModifierItem,
-                    documentationFactory = itemDocumentationFactoryForDecl(decl),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -616,8 +615,15 @@ internal class TurbineClassBuilder(
         return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
     }
 
-    /** Get an [ItemDocumentationFactory] for [decl]. */
-    private fun itemDocumentationFactoryForDecl(decl: Tree?): ItemDocumentationFactory {
+    /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
+    private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
+        itemDocumentationFactoryForDecl(classItem.sourceFile() as? TurbineSourceFile, decl)
+
+    /** Get an [ItemDocumentationFactory] for [decl] in [sourceFile]. */
+    private fun itemDocumentationFactoryForDecl(
+        sourceFile: TurbineSourceFile?,
+        decl: Tree?
+    ): ItemDocumentationFactory {
         if (!allowReadingComments) return ItemDocumentation.NONE_FACTORY
 
         val doc: String? =
@@ -631,7 +637,7 @@ internal class TurbineClassBuilder(
 
         if (doc == null || doc == "") return NO_SOURCE_COMMENT_FACTORY
 
-        return "/**$doc*/".toItemDocumentationFactory()
+        return { item -> TurbineItemDocumentation(item, sourceFile, doc, decl?.position() ?: -1) }
     }
 
     /**
