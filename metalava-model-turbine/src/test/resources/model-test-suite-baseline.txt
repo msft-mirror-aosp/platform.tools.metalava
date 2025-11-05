@@ -1,4 +1,5 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation repeated inside container
   annotation with unknown field
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest

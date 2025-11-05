@@ -1426,4 +1426,57 @@ class CommonAnnotationItemTest : BaseModelTest() {
             codebase.assertResolvedClass("test.pkg.Baz")
         }
     }
+
+    @Test
+    fun `annotation repeated inside container`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        import static java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.RUNTIME)
+                        @Target({TYPE})
+                        @Repeatable(Repeated.Container.class)
+                        public @interface Repeated {
+                          String value();
+
+                          @Retention(RetentionPolicy.RUNTIME)
+                          @Target(TYPE)
+                          @interface Container {
+                              Repeated[] value();
+                          }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @Repeated("1")
+                        @Repeated("2")
+                        public class Test {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annos = testClass.modifiers.annotations()
+
+            val expectedAnnos =
+                listOf(
+                    annotationItem(
+                        "test.pkg.Repeated",
+                        "value" to literalValue("1"),
+                    ),
+                    annotationItem(
+                        "test.pkg.Repeated",
+                        "value" to literalValue("2"),
+                    ),
+                )
+            assertEquals(expectedAnnos, annos)
+        }
+    }
 }
