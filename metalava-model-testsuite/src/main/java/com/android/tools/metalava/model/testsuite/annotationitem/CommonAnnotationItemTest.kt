@@ -39,13 +39,13 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.fail
 import org.junit.Test
 
 /** Annotation that is added on a line before the item being annotated. */
@@ -888,7 +888,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
     @Test
     fun `annotation with unknown field`() {
-        val reporter = RecordingReporter()
         runCodebaseTest(
             signature(
                 """
@@ -947,10 +946,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-            testFixture =
-                TestFixture(
-                    reporter = reporter,
-                )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
@@ -969,6 +964,15 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     fieldReferenceValue("", "UNKNOWN"),
                 )
             )
+
+            // Kotlin does not report an unresolved import for some reason.
+            val unresolvedImportIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.TestEnum` [UnresolvedImport]"
+            reportedIssues.let { actualIssues ->
+                if (actualIssues != "" && actualIssues != unresolvedImportIssues) {
+                    fail("Unexpected issues:\n${actualIssues.prependIndent("    ")}")
+                }
+            }
         }
     }
 

@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.testsuite.classitem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
@@ -28,7 +27,6 @@ import org.junit.Test
 class CommonDuplicateClassItemTest : BaseModelTest() {
 
     private fun runDuplicateTest(test: CodebaseContext.() -> Unit) {
-        val recordingReporter = RecordingReporter()
         runCodebaseTest(
             inputSet(
                 java(
@@ -47,14 +45,12 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
                     """
                 )
             ),
-            testFixture = TestFixture(reporter = recordingReporter),
         ) {
             test()
 
-            val issues = removeTestSpecificDirectories(recordingReporter.issues)
             assertEquals(
                 "MAIN_SRC/src2/test/pkg/Foo.java:3: warning: Attempted to register test.pkg.Foo twice; once from MAIN_SRC/src/test/pkg/Foo.java and this one from MAIN_SRC/src2/test/pkg/Foo.java [DuplicateSourceClass]",
-                issues
+                reportedIssues
             )
         }
     }

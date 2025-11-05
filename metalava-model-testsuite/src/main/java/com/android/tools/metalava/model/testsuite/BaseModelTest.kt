@@ -27,10 +27,13 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
+import javax.annotation.CheckReturnValue
+import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -163,16 +166,29 @@ abstract class BaseModelTest() :
 
         /** Replace any test run specific directories in [string] with a placeholder string. */
         fun removeTestSpecificDirectories(string: String): String
+
+        /**
+         * The reported issues, with any test specific directories replaced with fixed symbols.
+         *
+         * Accessing this will remove any issues that were reported, but it is the caller's
+         * responsibility to check the returned value.
+         */
+        @get:CheckReturnValue val reportedIssues: String
     }
 
     inner class DefaultCodebaseContext(
         override val codebase: Codebase,
         override val inputFormat: InputFormat,
         private val fileToSymbol: Map<File, String>,
+        private val recordingReporter: RecordingReporter,
     ) : CodebaseContext {
+
         override fun removeTestSpecificDirectories(string: String): String {
             return replaceFileWithSymbol(string, fileToSymbol)
         }
+
+        override val reportedIssues: String
+            get() = removeTestSpecificDirectories(recordingReporter.removeIssues())
     }
 
     /** Additional properties that affect the behavior of the test. */
@@ -190,7 +206,7 @@ abstract class BaseModelTest() :
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
 
         /** The [Reporter] to use for issues found creating the [Codebase]. */
-        val reporter: Reporter = ThrowingReporter.INSTANCE,
+        val reporter: Reporter? = null,
 
         /** Additional jar files to add to the class path. */
         val additionalClassPath: List<File> = emptyList(),
@@ -200,7 +216,7 @@ abstract class BaseModelTest() :
             Codebase.Config(
                 annotationManager = annotationManager,
                 apiSurfaces = apiSurfaces,
-                reporter = reporter,
+                reporter = reporter ?: ThrowingReporter.INSTANCE,
             )
     }
 
@@ -222,13 +238,19 @@ abstract class BaseModelTest() :
 
             val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
 
+            val recordingReporter = RecordingReporter()
+            if (testFixture.reporter != null) {
+                error("Cannot set reporter in test")
+            }
+            val updatedTestFixture = testFixture.copy(reporter = recordingReporter)
+
             val inputs =
                 ModelSuiteRunner.TestInputs(
                     inputFormat = inputSet.inputFormat,
                     modelOptions = codebaseCreatorConfig.modelOptions,
                     mainSourceDir = mainSourceDir,
                     additionalMainSourceDir = additionalSourceDir,
-                    testFixture = testFixture,
+                    testFixture = updatedTestFixture,
                     projectDescription = projectDescriptionFile,
                     compiledSourceJar = compiledSourceJar,
                 )
@@ -240,9 +262,17 @@ abstract class BaseModelTest() :
                         buildMap {
                             this[mainSourceDir.dir] = "MAIN_SRC"
                             additionalSourceDir?.dir?.let { dir -> this[dir] = "ADDITIONAL_SRC" }
-                        }
+                        },
+                        recordingReporter,
                     )
                 context.test()
+
+                // Make sure that any unchecked issues will cause the test to fail.
+                assertEquals(
+                    "",
+                    context.reportedIssues,
+                    message = "Unexpected issues were reported"
+                )
             }
         }
     }
