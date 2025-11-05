@@ -19,11 +19,13 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.reporter.FileLocation
 
 /** A default [com.android.tools.metalava.model.ItemDocumentation] containing JavaDoc/KDoc. */
 internal class DefaultItemDocumentation(
     item: SelectableItem,
     text: String,
+    override val fileLocation: FileLocation = FileLocation.UNKNOWN,
 ) : AbstractItemDocumentation(item) {
 
     init {
@@ -35,10 +37,6 @@ internal class DefaultItemDocumentation(
     override fun initializeTextBackingField() {
         error("Internal Error: _text backing field is uninitialized")
     }
-
-    override fun duplicate(item: SelectableItem) = DefaultItemDocumentation(item, text)
-
-    override fun snapshot(item: SelectableItem) = text.toItemDocumentation(item)
 }
 
 /** Wrap a [String] in an [ItemDocumentationFactory]. */
