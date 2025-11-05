@@ -31,7 +31,7 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
         // Resolve the class name to a fully qualified class reference or type parameter. If it
         // could not be found then fake one.
         val throwableReference =
-            context.resolveThrowableType(throwsName) ?: ClassReference(throwsName)
+            context.resolveThrowableType(reporter, throwsName) ?: ClassReference(throwsName)
 
         return ExtractDataResult(
             tagData =

@@ -77,6 +77,10 @@ class CommonDocReferenceTest : BaseModelTest() {
                 testMethod.documentation.check(containsIOException),
                 message = "contains IOException"
             )
+
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/src/test/pkg/Test.java:11:16: warning: Could not resolve UnknownException (ErrorWhenNew) [UnresolvedLink]"
+            )
         }
     }
 
