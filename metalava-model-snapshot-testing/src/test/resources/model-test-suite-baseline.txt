@@ -39,7 +39,6 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
   Test function in value class[psi,kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation repeated inside container[turbine]
   annotation with unknown field[turbine]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
