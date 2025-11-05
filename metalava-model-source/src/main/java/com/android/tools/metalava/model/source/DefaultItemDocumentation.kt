@@ -47,3 +47,6 @@ fun String.toItemDocumentationFactory(): ItemDocumentationFactory = { toItemDocu
 /** Wrap a [String] in an [ItemDocumentation] instance. */
 private fun String.toItemDocumentation(item: SelectableItem): ItemDocumentation =
     DefaultItemDocumentation(item, this)
+
+/** Creates a [DefaultItemDocumentation] for an item without any source comment. */
+val NO_SOURCE_COMMENT_FACTORY = "".toItemDocumentationFactory()
