@@ -90,11 +90,7 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   memberDoc crash[turbine]
 
 com.android.tools.metalava.doc.RestrictedForEnvironmentTest
-  Check RestrictedForEnvironment handling for SDK_SANDBOX env - android[turbine]
-  Check RestrictedForEnvironment handling for SDK_SANDBOX env - androidx[turbine]
-  Check RestrictedForEnvironment handling for fully nested SDK_SANDBOX env - androidx[turbine]
   Check RestrictedForEnvironment handling for multiple annotations - androidx[turbine]
-  Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env - androidx[turbine]
 
 com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
   Test jar loader does not freeze codebase[turbine]
