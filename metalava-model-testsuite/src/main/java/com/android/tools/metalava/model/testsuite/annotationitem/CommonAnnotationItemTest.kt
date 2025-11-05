@@ -791,7 +791,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `annotation with constant literal values`() {
+    fun `annotation with constant literal value in int attribute`() {
         runCodebaseTest(
             signature(
                 """
@@ -833,6 +833,54 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 annotationItem(
                     "test.pkg.Test.Anno",
                     "value" to fieldReferenceValue("test.pkg.Test", "FIELD"),
+                )
+            assertEquals(expectedAnno, anno)
+        }
+    }
+
+    @Test
+    fun `annotation with constant literal value in int array attribute`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno({test.pkg.Test.FIELD})
+                      public class Test {
+                        ctor public Test();
+                        field public static final int FIELD = 5;
+                      }
+
+                      public @interface Test.Anno {
+                         method public int[] values();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    @Test.Anno(Test.FIELD)
+                    public class Test {
+                        public Test() {}
+
+                        public static final int FIELD = 5;
+
+                        public @interface Anno {
+                          int[] value();
+                        }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to arrayValue(fieldReferenceValue("test.pkg.Test", "FIELD")),
                 )
             assertEquals(expectedAnno, anno)
         }

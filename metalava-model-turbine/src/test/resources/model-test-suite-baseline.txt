@@ -1,4 +1,5 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation with constant literal value in int array attribute
   annotation with unknown field
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
