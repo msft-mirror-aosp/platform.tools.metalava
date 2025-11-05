@@ -42,6 +42,34 @@ import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
     @Test
+    fun `Should not raise issue when experimental package is added`() {
+        check(
+            expectedIssues = "",
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                package test.sub.pkgA {
+                    public final class MyClass {
+                    }
+                }
+                """,
+            signatureSource =
+                """
+                package @SuppressCompatibility test.sub.pkgB {
+                    public final class MyClass2 {
+                    }
+                }
+                package test.sub.pkgA {
+                    public final class MyClass {
+                    }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations =
+                arrayOf("androidx.annotation.SuppressCompatibility")
+        )
+    }
+
+    @Test
     fun `Change between class and interface`() {
         check(
             expectedIssues =
@@ -147,6 +175,88 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   public class MyTest1 {
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Incompatible changes should be allowed when previous version is marked as experimental`() {
+        // Making sure that removal of field, changing field type, removal of method,
+        // changing of method return type (all incompatible changes) do not generate errors
+        // when the previous class version is marked as experimental in the signature file
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalFeature public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    method public void myFunToBeRemoved();
+                    method public void myFunWithChangedParameters(String a);
+                    method public String myFunWithChangedReturnType();
+                    method public void myFunWithNullabilityChanged(String a);
+                    property public static String MY_CONST_WITH_CHANGED_TYPE;
+                    property public static int MY_REMOVED_CONST;
+                    field public final String MY_CONST_WITH_CHANGED_TYPE;
+                    field public final int MY_REMOVED_CONST;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalFeature {
+                  }
+                  public final class MyOuterClass {
+                    ctor public MyOuterClass();
+                    method public void myFunWithChangedParameters(int a);
+                    method public int myFunWithChangedReturnType();
+                    method public void myFunWithNullabilityChanged(String a);
+                    property public static int MY_CONST_WITH_CHANGED_TYPE;
+                    field public final int MY_CONST_WITH_CHANGED_TYPE;
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @Test
+    fun `Switching method from public to private is seen as removal`() {
+        check(
+            expectedIssues =
+                "released-api.txt:5: error: Binary breaking change: Removed method com.example.Foo.foo() [RemovedMethod]",
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package com.example {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void foo();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package com.example;
+                        public class Foo {
+                          private void foo() {}
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package com.example {
+                  public class Foo {
+                    ctor public Foo();
                   }
                 }
                 """
@@ -852,46 +962,6 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                     package test.pkg
                     sealed class Foo
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Remove default parameter`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
-                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo(optional String? s1);
-                    method public final void method1(boolean b, String? s1);
-                    method public final void method2(boolean b, String? s1);
-                    method public final void method3(boolean b, optional String? s1);
-                    method public final void method4(boolean b, optional String? s1);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    class Foo(s1: String?) {
-                        fun method1(b: Boolean, s1: String?) { }         // No change
-                        fun method2(b: Boolean, s1: String? = null) { }  // Adding: OK
-                        fun method3(b: Boolean, s1: String? = null) { }  // No change
-                        fun method4(b: Boolean, s1: String?) { }         // Removed
-                    }
                     """
                     )
                 )
@@ -2288,7 +2358,7 @@ class CompatibilityCheckTest : DriverTest() {
                 // Signature format: 5.0
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
-                    method public abstract androidx.annotation.RestrictTo.Scope[] value();
+                    method @InaccessibleFromKotlin public abstract androidx.annotation.RestrictTo.Scope[] value();
                   }
 
                   public enum RestrictTo.Scope {
@@ -2426,8 +2496,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/test.kt:5: error: Binary breaking change: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
-                src/test/pkg/test.kt:8: error: Binary breaking change: Method test.pkg.TestKt.two made type variable S reified: incompatible change [AddedReified]
+                released-api.txt:4: error: Binary breaking change: method test.pkg.TestKt.add(T) has been removed from bytecode [RemovedFromBytecode]
+                released-api.txt:4: error: Source breaking change: method test.pkg.TestKt.add(T) can no longer be resolved from Java source [RemovedFromJava]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2435,9 +2505,9 @@ class CompatibilityCheckTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void add(T t);
-                    method public static inline <reified T> void remove(T t);
-                    method public static inline <reified T> void unchanged(T t);
-                    method public static inline <S, reified T> void two(S s, T t);
+                    method @KotlinOnly public static inline <reified T> void remove(T t);
+                    method @KotlinOnly public static inline <reified T> void unchanged(T t);
+                    method @KotlinOnly public static inline <S, reified T> void two(S s, T t);
                   }
                 }
                 """,
@@ -2529,9 +2599,9 @@ class CompatibilityCheckTest : DriverTest() {
                      */
                     @android.annotation.SystemApi
                     public class MmTelFeature {
-                        public static class Capabilities extends ParentCapabilities {
+                        public static class Capabilities extends Parent.ParentCapabilities {
                             @Override
-                            boolean isCapable(int argument) { return true; }
+                            public boolean isCapable(int argument) { return true; }
                         }
                     }
                     """
@@ -2786,7 +2856,7 @@ class CompatibilityCheckTest : DriverTest() {
 
                     public class LightsRequest {
                         public static final class Builder {
-                            void clearLight() { }
+                            public void clearLight() { }
                         }
                     }
                     """
@@ -4654,6 +4724,115 @@ class CompatibilityCheckTest : DriverTest() {
                       }
                     }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Removal of default value when compatible overload exists`() {
+        // A default parameter value can be removed if there exists an overload which could replace
+        // all calls to the old function for kotlin clients.
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional [DefaultValueChange]
+                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload [DefaultValueChange]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void hasCompatibleOverload(int p0, optional boolean p1);
+                    method public void noCompatibleOverloadNewParamNotOptional(int p0, optional boolean p1);
+                    method public void noCompatibleOverloadNoDefaultOnOverload(int p0, optional boolean p1);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            @Deprecated
+                            fun hasCompatibleOverload(p0: Int, p1: Boolean) = Unit
+                            fun hasCompatibleOverload(p0: Int, p1: Boolean = false, p2: String = "") = Unit
+                            @Deprecated
+                            fun noCompatibleOverloadNewParamNotOptional(p0: Int, p1: Boolean) = Unit
+                            fun noCompatibleOverloadNewParamNotOptional(p0: Int, p1: Boolean = false, p2: String) = Unit
+                            @Deprecated
+                            fun noCompatibleOverloadNoDefaultOnOverload(p0: Int, p1: Boolean) = Unit
+                            fun noCompatibleOverloadNoDefaultOnOverload(p0: Int, p1: Boolean, p2: String = "") = Unit
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method @Deprecated public void hasCompatibleOverload(int p0, boolean p1);
+                    method public void hasCompatibleOverload(int p0, optional boolean p1, optional String p2);
+                    method @Deprecated public void noCompatibleOverloadNewParamNotOptional(int p0, boolean p1);
+                    method public void noCompatibleOverloadNewParamNotOptional(int p0, optional boolean p1, String p2);
+                    method @Deprecated public void noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1);
+                    method public void noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1, optional String p2);
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Changing interface implementation to use delegation is not breaking`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        interface Base { fun foo(): Int }
+                        class BaseImpl : A {
+                            fun foo(): Int = 0
+                        }
+                        class Foo : Base by BaseImpl()
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public interface Base {
+                    method public int foo();
+                  }
+                  public final class Foo implements test.pkg.Base {
+                    ctor public Foo();
+                    method public int foo();
+                  }
+                }
+                """,
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public interface Base {
+                    method public int foo();
+                  }
+                  public final class BaseImpl {
+                    ctor public BaseImpl();
+                    method public int foo();
+                  }
+                  public final class Foo implements test.pkg.Base {
+                    ctor public Foo();
+                    method public int foo();
+                  }
+                }
+                """,
         )
     }
 

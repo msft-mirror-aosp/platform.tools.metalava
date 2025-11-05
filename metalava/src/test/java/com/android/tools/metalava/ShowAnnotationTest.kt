@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -686,8 +687,8 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     package test.pkg
                     /**
-                    * @suppress
-                    */
+                     * @hide
+                     */
                     @PublishedApi
                     internal class WeAreSoCool()
                     """
@@ -701,6 +702,51 @@ class ShowAnnotationTest : DriverTest() {
                 package test.pkg {
                   @kotlin.PublishedApi internal final class WeAreSoCool {
                     ctor public WeAreSoCool();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check @PublishedApi handling on properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        object Foo {
+                            @PublishedApi internal const val CONST = 0
+
+                            @PublishedApi @JvmField internal var jvmField = 0
+
+                            @PublishedApi internal var regularProperty = 0
+                        }
+                        """
+                    )
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "kotlin.PublishedApi",
+                    ARG_HIDE,
+                    "UnhiddenSystemApi",
+                    ARG_SHOW_UNANNOTATED
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Foo {
+                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal int getRegularProperty();
+                    method @InaccessibleFromKotlin @kotlin.PublishedApi internal void setRegularProperty(int);
+                    property @kotlin.PublishedApi internal static int CONST;
+                    property @kotlin.PublishedApi internal int jvmField;
+                    property @kotlin.PublishedApi internal int regularProperty;
+                    field @kotlin.PublishedApi internal static final int CONST = 0; // 0x0
+                    field public static final test.pkg.Foo INSTANCE;
+                    field @kotlin.PublishedApi internal static int jvmField;
                   }
                 }
                 """
@@ -870,13 +916,9 @@ class ShowAnnotationTest : DriverTest() {
                   @SuppressWarnings({"unchecked", "deprecation", "all"})
                   public class Foo {
                   public Foo() { throw new RuntimeException("Stub!"); }
-                  /**
-                   * @hide
-                   */
+                  /** @hide */
                   public void method1() { throw new RuntimeException("Stub!"); }
-                  /**
-                   * @hide
-                   */
+                  /** @hide */
                   public void method2() { throw new RuntimeException("Stub!"); }
                   }
               """

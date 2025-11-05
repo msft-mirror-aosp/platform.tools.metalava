@@ -40,6 +40,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -47,11 +48,10 @@ import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
-import org.jetbrains.uast.toUElement
+import org.jetbrains.uast.toUElementOfType
 
 internal class PsiMethodItem(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
@@ -69,7 +69,7 @@ internal class PsiMethodItem(
     isExtensionMethod: Boolean,
 ) :
     DefaultMethodItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = fileLocation,
         sourceLanguage = psiMethod.sourceLanguage,
         targetLanguages = targetLanguages,
@@ -91,11 +91,7 @@ internal class PsiMethodItem(
     override var property: PropertyItem? = null
 
     override fun isKotlinProperty(): Boolean {
-        return psiMethod is UMethod &&
-            (psiMethod.sourcePsi is KtProperty ||
-                psiMethod.sourcePsi is KtPropertyAccessor ||
-                psiMethod.sourcePsi is KtParameter &&
-                    (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+        return isKotlinProperty(psiMethod)
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
@@ -112,7 +108,7 @@ internal class PsiMethodItem(
             else emptyMap()
 
         return PsiMethodItem(
-                codebase,
+                psiCodebase,
                 psiMethod,
                 fileLocation,
                 targetContainingClass,
@@ -166,25 +162,16 @@ internal class PsiMethodItem(
             targetLanguages: Set<TargetLanguage> = containingClass.targetLanguages,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
-            // UAST workaround: @JvmName for UMethod with fake LC PSI
-            // TODO: https://youtrack.jetbrains.com/issue/KTIJ-25133
+            // TODO(b/457844210): work around a UAST issue where the accessor methods of internal
+            //  PublishedApi properties have mangled names even though the compiler does not mangle
+            //  their names.
             val name =
-                if (psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) {
-                    psiMethod.sourcePsi
-                        ?.annotationEntries
-                        ?.find { annoEntry ->
-                            val text = annoEntry.typeReference?.text ?: return@find false
-                            JvmName::class.qualifiedName?.contains(text) == true
-                        }
-                        ?.toUElement(UAnnotation::class.java)
-                        ?.takeIf {
-                            // Above `find` deliberately avoids resolution and uses verbatim text.
-                            // Below, we need annotation value anyway, but just double-check
-                            // if the converted annotation is indeed the resolved @JvmName
-                            it.qualifiedName == JvmName::class.qualifiedName
-                        }
-                        ?.findAttributeValue("name")
-                        ?.evaluate() as? String ?: psiMethod.name
+                if (
+                    psiMethod.name.contains("$") &&
+                        isKotlinProperty(psiMethod) &&
+                        sourcePropertyOrParameter(psiMethod)?.hasPublishedApiAnnotation() == true
+                ) {
+                    psiMethod.name.substringBefore("$")
                 } else {
                     psiMethod.name
                 }
@@ -234,7 +221,7 @@ internal class PsiMethodItem(
 
             val method =
                 PsiMethodItem(
-                    codebase = codebase,
+                    psiCodebase = codebase,
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
@@ -247,6 +234,7 @@ internal class PsiMethodItem(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             methodTypeItemFactory,
+                            modifiers,
                             psiParameters,
                         )
                     },
@@ -258,6 +246,34 @@ internal class PsiMethodItem(
                 )
 
             return method
+        }
+
+        fun isKotlinProperty(psiMethod: PsiMethod): Boolean {
+            return psiMethod is UMethod &&
+                (psiMethod.sourcePsi is KtProperty ||
+                    psiMethod.sourcePsi is KtPropertyAccessor ||
+                    psiMethod.sourcePsi is KtParameter &&
+                        (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+        }
+
+        /**
+         * For property accessor [psiMethod], returns the [KtProperty] or [KtParameter] which is the
+         * source of the method.
+         */
+        private fun sourcePropertyOrParameter(psiMethod: PsiMethod): KtAnnotated? {
+            return when (val sourcePsi = (psiMethod as? UMethod)?.sourcePsi) {
+                is KtProperty -> sourcePsi
+                is KtParameter -> sourcePsi
+                is KtPropertyAccessor -> sourcePsi.property
+                else -> null
+            }
+        }
+
+        /** Returns whether the element is annotated with @PublishedApi. */
+        private fun KtAnnotated.hasPublishedApiAnnotation(): Boolean {
+            return annotationEntries.any {
+                it.toUElementOfType<UAnnotation>()?.qualifiedName == "kotlin.PublishedApi"
+            }
         }
     }
 }

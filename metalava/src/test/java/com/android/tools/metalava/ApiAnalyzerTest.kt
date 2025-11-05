@@ -95,7 +95,10 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                             package test.pkg;
                             import android.annotation.SystemApi;
-                            /** This class is OK because it is all hidden @hide */
+                            /**
+                             * This class is OK because it is all hidden
+                             * @hide
+                             */
                             public abstract class HiddenClass {
                                 public abstract boolean goodAbstractHiddenMethod() { return true; }
                             }
@@ -404,10 +407,10 @@ class ApiAnalyzerTest : DriverTest() {
                     package test.pkg {
                       @Deprecated public final class Foo {
                         ctor @Deprecated public Foo(@Deprecated int i, @Deprecated boolean b);
-                        method @Deprecated public boolean getB();
-                        method @Deprecated public int getI();
-                        method @Deprecated public void setB(boolean);
-                        method @Deprecated public void setI(int);
+                        method @InaccessibleFromKotlin @Deprecated public boolean getB();
+                        method @InaccessibleFromKotlin @Deprecated public int getI();
+                        method @InaccessibleFromKotlin @Deprecated public void setB(boolean);
+                        method @InaccessibleFromKotlin @Deprecated public void setI(int);
                         property @Deprecated public boolean b;
                         property @Deprecated public int i;
                       }
@@ -522,7 +525,7 @@ class ApiAnalyzerTest : DriverTest() {
                     kotlin(
                         """
                             package test.pkg
-                            /** @suppress */
+                            /** @hide */
                             interface HiddenInterface
                             class PublicClass {
                                 fun returnsHiddenInterface(): HiddenInterface = TODO()
@@ -877,9 +880,9 @@ class ApiAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(int) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
+                src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
                 src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
-                src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(int) [ReferencesHidden]
+                src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) [ReferencesHidden]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =

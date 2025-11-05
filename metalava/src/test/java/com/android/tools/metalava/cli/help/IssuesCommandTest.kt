@@ -93,6 +93,7 @@ Available Issues                             |  Category                        
   ExecutorRegistration                       |  api_lint                             |   warning
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
+  FacadeClassJvmName                         |  api_lint                             |   hidden
   FlaggedApiLiteral                          |  api_lint                             |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                             |   error
   ForbiddenTag                               |  documentation                        |   error
@@ -120,6 +121,8 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
+  InvalidHideDocTag                          |  documentation                        |   warning_error_when_new
+  InvalidJavadoc                             |  documentation                        |   warning_error_when_new
   InvalidNullConversion                      |  source_compatibility_only            |   error
   InvalidNullabilityAnnotation               |  unknown                              |   error
   InvalidNullabilityAnnotationWarning        |  unknown                              |   warning
@@ -132,6 +135,7 @@ Available Issues                             |  Category                        
   KotlinOperator                             |  api_lint                             |   info
   ListenerInterface                          |  api_lint                             |   error
   ListenerLast                               |  api_lint                             |   warning
+  MalformedDocReference                      |  documentation                        |   warning_error_when_new
   ManagerConstructor                         |  api_lint                             |   error
   ManagerLookup                              |  api_lint                             |   error
   MentionsGoogle                             |  api_lint                             |   error
@@ -190,6 +194,7 @@ Available Issues                             |  Category                        
   RemovedJvmDefaultWithCompatibility         |  binary_compatibility_only            |   error
   RemovedMethod                              |  binary_and_source_compatibility      |   error
   RemovedPackage                             |  binary_and_source_compatibility      |   error
+  RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error
   ResourceStyleFieldName                     |  api_lint                             |   error
@@ -213,8 +218,10 @@ Available Issues                             |  Category                        
   SuperfluousPrefix                          |  unknown                              |   warning
   Todo                                       |  documentation                        |   error
   TopLevelBuilder                            |  api_lint                             |   warning
+  TypeParameterName                          |  api_lint                             |   warning_error_when_new
   TypeParseError                             |  unknown                              |   error
   UnavailableSymbol                          |  documentation                        |   warning
+  UnclosedInlineTag                          |  documentation                        |   error
   UnflaggedApi                               |  api_lint                             |   hidden
   UnhiddenSystemApi                          |  api_lint                             |   error
   UniqueKotlinOperator                       |  api_lint                             |   error

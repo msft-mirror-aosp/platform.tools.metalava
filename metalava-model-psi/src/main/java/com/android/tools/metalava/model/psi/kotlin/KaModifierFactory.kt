@@ -17,100 +17,36 @@
 package com.android.tools.metalava.model.psi.kotlin
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.JVM_FIELD
 import com.android.tools.metalava.model.JVM_STATIC
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
-import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaReceiverParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolModality
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
+import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.isTopLevel
 
 /** Creates modifiers for ka symbols. */
-internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
+internal class KaModifierFactory(private val processor: KaModuleProcessor) {
     /** Creates modifiers for the [propertySymbol]. */
     fun createForProperty(
         propertySymbol: KaPropertySymbol,
         containingClass: ClassItem,
-        getter: MethodItem?,
-        setter: MethodItem?
     ): MutableModifierList {
-        val modifiers = createForDeclaration(propertySymbol, containingClass)
-
-        // Maintaining legacy behavior: if an annotation was supposed to apply to a backing field or
-        // constructor parameter but didn't specify a use-site target, metalava would apply it to
-        // the property when creating properties through psi.
-        val parameterAnnotations =
-            if (propertySymbol.isFromPrimaryConstructor) {
-                analyze(assembler.kaModule) {
-                    val scope =
-                        (propertySymbol.containingSymbol as? KaNamedClassSymbol)
-                            ?.combinedDeclaredMemberScope
-                    scope
-                        ?.constructors
-                        ?.firstOrNull { it.isPrimary }
-                        ?.valueParameters
-                        ?.firstOrNull { it.name == propertySymbol.name }
-                        ?.annotations ?: emptyList()
-                }
-            } else {
-                emptyList()
-            }
-        val fieldAnnotations = propertySymbol.backingFieldSymbol?.annotations ?: emptyList()
-        for (annotationItem in
-            (parameterAnnotations + fieldAnnotations)
-                .filter { it.useSiteTarget == null }
-                .mapNotNull { assembler.createAnnotation(it) }) {
-            modifiers.addAnnotation(annotationItem)
-        }
-
-        // Correct visibility of accessors (work around K2 bugs with value class type properties)
-        // https://youtrack.jetbrains.com/issue/KT-74205
-        // The getter must have the same visibility as the property
-        val propertyVisibility = modifiers.getVisibilityLevel()
-        if (getter != null && getter.modifiers.getVisibilityLevel() != propertyVisibility) {
-            getter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
-        }
-        // The setter cannot be more visible than the property
-        if (setter != null && setter.modifiers.getVisibilityLevel() > propertyVisibility) {
-            setter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
-        }
-
-        // Special case for RequiresOptIn-annotated annotations: when these are applied
-        // to a property, they are implicitly propagated to the getter and setter
-        // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
-        // Note that the AndroidX experimental lint check will not recognize usages of the
-        // accessors by Java clients as experimental. Because of this AndroidX bans defining
-        // public experimental properties in projects that target Java clients.
-        for (annotationItem in modifiers.annotations()) {
-            if (annotationItem.isSuppressCompatibilityAnnotation()) {
-                // Manually setting a RequiresOptIn annotation on a getter causes a
-                // compiler warning, but this can be suppressed with
-                // @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET"). Safely handle
-                // such cases by only adding the annotation if it wasn't explicitly added.
-                if (getter != null && annotationItem !in getter.modifiers.annotations()) {
-                    getter.mutateModifiers { addAnnotation(annotationItem) }
-                }
-                // Explicit RequiresOptIn annotations on setters are supported by the
-                // compiler, so we should only add this annotation implicitly if it is not
-                // already explicitly provided.
-                if (setter != null && annotationItem !in setter.modifiers.annotations()) {
-                    setter.mutateModifiers { addAnnotation(annotationItem) }
-                }
-            }
-        }
-
-        for (annotationItem in getter?.modifiers?.annotations() ?: emptyList()) {
-            if (annotationItem !in modifiers.annotations()) {
-                modifiers.addAnnotation(annotationItem)
-            }
-        }
+        val modifiers = createForDeclaration(propertySymbol)
+        modifiers.updateForCallable(propertySymbol, containingClass)
 
         // Const vals have the static and const modifiers
         if ((propertySymbol as? KaKotlinPropertySymbol)?.isConst == true) {
@@ -127,14 +63,155 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
             modifiers.setInline(true)
         }
 
+        // Propagate deprecation from the getter if it hasn't already been propagated. This could
+        // happen in the getter has deprecation level hidden, because in that case there will be no
+        // method item for the getter.
+        if (
+            !modifiers.isDeprecated() &&
+                propertySymbol.getter?.annotations?.any {
+                    it.classId?.asFqNameString() == KOTLIN_DEPRECATED
+                } == true
+        ) {
+            modifiers.setDeprecated(true)
+        }
+
         return modifiers
     }
 
-    /** Create modifiers for any declaration. */
-    fun createForDeclaration(
-        symbol: KaDeclarationSymbol,
-        containingClass: ClassItem? = null
+    /**
+     * Update the modifiers of [getter], [setter], and [backingField] as needed based on the
+     * [modifiers] of the associated property.
+     *
+     * Additionally, adds annotations from the [getter] to the [modifiers] because historically
+     * metalava has included all getter annotations on properties.
+     */
+    fun updatePropertyAccessors(
+        modifiers: MutableModifierList,
+        getter: MethodItem?,
+        setter: MethodItem?,
+        backingField: FieldItem?,
+    ) {
+        // Correct visibility of accessors (work around K2 bugs with value class type properties)
+        // https://youtrack.jetbrains.com/issue/KT-74205
+        // The getter must have the same visibility as the property
+        val propertyVisibility = modifiers.getVisibilityLevel()
+        if (getter != null && getter.modifiers.getVisibilityLevel() != propertyVisibility) {
+            getter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
+        }
+        // The setter cannot be more visible than the property
+        if (setter != null && setter.modifiers.getVisibilityLevel() > propertyVisibility) {
+            setter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
+        }
+
+        // Whether the backing field is used instead of accessors in the API surface.
+        val backingFieldIsApi =
+            modifiers.isConst() ||
+                backingField?.modifiers?.hasAnnotation { it.qualifiedName == JVM_FIELD } == true
+
+        // Special case for RequiresOptIn-annotated annotations: when these are applied
+        // to a property, they are implicitly propagated to the getter and setter
+        // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
+        // Note that the AndroidX experimental lint check will not recognize usages of the
+        // accessors by Java clients as experimental. Because of this AndroidX bans defining
+        // public experimental properties in projects that target Java clients.
+
+        // Also handle propagating showability annotations (show and hide annotations, e.g.
+        // @PublishedApi). These annotations which update API visibility should impact the API
+        // visibility of accessors when applied to properties.
+        for (annotationItem in modifiers.annotations()) {
+            // Manually setting a RequiresOptIn annotation on a getter causes a
+            // compiler warning, but this can be suppressed with
+            // @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET"). Safely handle
+            // such cases by only adding the annotation if it wasn't explicitly added.
+            // Explicit RequiresOptIn annotations on setters are supported by the
+            // compiler, so we should only add this annotation implicitly if it is not
+            // already explicitly provided.
+            if (
+                annotationItem.isSuppressCompatibilityAnnotation() ||
+                    annotationItem.isShowabilityAnnotation()
+            ) {
+                if (getter != null && annotationItem !in getter.modifiers.annotations()) {
+                    getter.mutateModifiers { addAnnotation(annotationItem) }
+                }
+                if (setter != null && annotationItem !in setter.modifiers.annotations()) {
+                    setter.mutateModifiers { addAnnotation(annotationItem) }
+                }
+                if (
+                    backingFieldIsApi &&
+                        backingField != null &&
+                        annotationItem !in backingField.modifiers.annotations()
+                ) {
+                    backingField.mutateModifiers { addAnnotation(annotationItem) }
+                }
+            }
+        }
+
+        for (annotationItem in getter?.modifiers?.annotations() ?: emptyList()) {
+            if (annotationItem !in modifiers.annotations()) {
+                modifiers.addAnnotation(annotationItem)
+            }
+        }
+    }
+
+    /** Creates modifiers for the [functionSymbol]. */
+    fun createForFunction(
+        functionSymbol: KaNamedFunctionSymbol,
+        containingClass: ClassItem,
     ): MutableModifierList {
+        val modifiers = createForDeclaration(functionSymbol)
+        modifiers.updateForCallable(functionSymbol, containingClass)
+        if (functionSymbol.isInline) {
+            modifiers.setInline(true)
+        }
+        if (functionSymbol.isInfix) {
+            modifiers.setInfix(true)
+        }
+        if (functionSymbol.isOperator) {
+            modifiers.setOperator(true)
+        }
+        if (functionSymbol.isStatic) {
+            modifiers.setStatic(true)
+        }
+        if (functionSymbol.isSuspend) {
+            modifiers.setSuspend(true)
+        }
+        return modifiers
+    }
+
+    /** Sets modifiers applicable to callable symbols (properties and functions). */
+    private fun MutableModifierList.updateForCallable(
+        symbol: KaCallableSymbol,
+        containingClass: ClassItem,
+    ) {
+        // Top level functions correspond to static definitions in file facade classes
+        if (symbol.isTopLevel) {
+            setStatic(true)
+        }
+        when (symbol.modality) {
+            KaSymbolModality.FINAL -> setFinal(true)
+            KaSymbolModality.SEALED -> setSealed(true)
+            KaSymbolModality.OPEN -> setFinal(false)
+            KaSymbolModality.ABSTRACT -> setAbstract(true)
+        }
+
+        // Since properties and methods in final classes must be final, the modifiers aren't marked
+        // as final to avoid printing it redundantly
+        if (containingClass.modifiers.isFinal()) {
+            setFinal(false)
+        } else if (containingClass.isAnnotationType()) {
+            // Annotation class properties and functions are non-final and abstract
+            setFinal(false)
+            setAbstract(true)
+        }
+
+        // If a property or function in an interface isn't abstract, it has a default implementation
+        if (containingClass.isInterface() && !isAbstract()) {
+            setDefault(true)
+        }
+    }
+
+    /** Create modifiers for any declaration. */
+    fun createForDeclaration(symbol: KaDeclarationSymbol): MutableModifierList {
         val visibility =
             when (symbol.visibility) {
                 KaSymbolVisibility.PUBLIC -> VisibilityLevel.PUBLIC
@@ -151,7 +228,7 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
                 KaSymbolVisibility.LOCAL,
                 KaSymbolVisibility.UNKNOWN -> VisibilityLevel.PRIVATE
             }
-        val annotations = symbol.annotations.mapNotNull { assembler.createAnnotation(it) }
+        val annotations = symbol.annotations.mapNotNull { processor.createAnnotation(it) }
         val modifiers = createMutableModifiers(visibility, annotations)
 
         // Set keyword modifiers if applicable
@@ -161,36 +238,37 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
         if (symbol.isExpect) {
             modifiers.setExpect(true)
         }
-        // Top level functions correspond to static definitions in file facade classes
-        if (symbol.isTopLevel) {
-            modifiers.setStatic(true)
-        }
-        when (symbol.modality) {
-            KaSymbolModality.FINAL -> modifiers.setFinal(true)
-            KaSymbolModality.SEALED -> modifiers.setSealed(true)
-            KaSymbolModality.OPEN -> modifiers.setFinal(false)
-            KaSymbolModality.ABSTRACT -> modifiers.setAbstract(true)
-        }
 
-        // Since properties and methods in final classes must be final, the modifiers aren't marked
-        // as final to avoid printing it redundantly
-        if (containingClass?.modifiers?.isFinal() == true) {
-            modifiers.setFinal(false)
-        } else if (containingClass?.isAnnotationType() == true) {
-            // Annotation class properties and functions are non-final and abstract
-            modifiers.setFinal(false)
-            modifiers.setAbstract(true)
-        }
-
-        // If a property or function in an interface isn't abstract, it has a default implementation
-        if (containingClass?.isInterface() == true && !modifiers.isAbstract()) {
-            modifiers.setDefault(true)
-        }
-
-        if (annotations.any { it.qualifiedName == "kotlin.Deprecated" }) {
+        if (annotations.any { it.qualifiedName == KOTLIN_DEPRECATED }) {
             modifiers.setDeprecated(true)
         }
 
+        return modifiers
+    }
+
+    /** Creates modifiers for a value parameter (visibility, annotations, and varargs). */
+    fun createForValueParameter(symbol: KaValueParameterSymbol): MutableModifierList {
+        val modifiers = createForParameter(symbol)
+
+        if (symbol.isVararg) {
+            modifiers.setVarArg(true)
+        }
+
+        return modifiers
+    }
+
+    /** Creates modifiers for a receiver parameter (just visibility and annotations). */
+    fun createForReceiverParameter(symbol: KaReceiverParameterSymbol): MutableModifierList {
+        return createForParameter(symbol)
+    }
+
+    /** Creates modifiers for a parameter (just visibility and annotations). */
+    private fun createForParameter(symbol: KaParameterSymbol): MutableModifierList {
+        val annotations = symbol.annotations.mapNotNull { processor.createAnnotation(it) }
+        val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
+        if (annotations.any { it.qualifiedName == KOTLIN_DEPRECATED }) {
+            modifiers.setDeprecated(true)
+        }
         return modifiers
     }
 }
