@@ -42,12 +42,52 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
     fun createForProperty(
         propertySymbol: KaPropertySymbol,
         containingClass: ClassItem,
-        getter: MethodItem?,
-        setter: MethodItem?
     ): MutableModifierList {
         val modifiers = createForDeclaration(propertySymbol)
         modifiers.updateForCallable(propertySymbol, containingClass)
 
+        // Const vals have the static and const modifiers
+        if ((propertySymbol as? KaKotlinPropertySymbol)?.isConst == true) {
+            modifiers.setStatic(true)
+            modifiers.setConst(true)
+        }
+
+        if (propertySymbol.isStatic || modifiers.hasAnnotation { it.qualifiedName == JVM_STATIC }) {
+            modifiers.setStatic(true)
+        }
+
+        // If a property is declared as inline, find that through the getter.
+        if (propertySymbol.getter?.isInline == true) {
+            modifiers.setInline(true)
+        }
+
+        // Propagate deprecation from the getter if it hasn't already been propagated. This could
+        // happen in the getter has deprecation level hidden, because in that case there will be no
+        // method item for the getter.
+        if (
+            !modifiers.isDeprecated() &&
+                propertySymbol.getter?.annotations?.any {
+                    it.classId?.asFqNameString() == KOTLIN_DEPRECATED
+                } == true
+        ) {
+            modifiers.setDeprecated(true)
+        }
+
+        return modifiers
+    }
+
+    /**
+     * Update the modifiers of [getter] and [setter] as needed based on the [modifiers] of the
+     * associated property.
+     *
+     * Additionally, adds annotations from the [getter] to the [modifiers] because historically
+     * metalava has included all getter annotations on properties.
+     */
+    fun updatePropertyAccessors(
+        modifiers: MutableModifierList,
+        getter: MethodItem?,
+        setter: MethodItem?,
+    ) {
         // Correct visibility of accessors (work around K2 bugs with value class type properties)
         // https://youtrack.jetbrains.com/issue/KT-74205
         // The getter must have the same visibility as the property
@@ -89,36 +129,6 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
                 modifiers.addAnnotation(annotationItem)
             }
         }
-
-        // Const vals have the static and const modifiers
-        if ((propertySymbol as? KaKotlinPropertySymbol)?.isConst == true) {
-            modifiers.setStatic(true)
-            modifiers.setConst(true)
-        }
-
-        if (propertySymbol.isStatic || modifiers.hasAnnotation { it.qualifiedName == JVM_STATIC }) {
-            modifiers.setStatic(true)
-        }
-
-        // If a property is declared as inline, find that through the getter.
-        if (propertySymbol.getter?.isInline == true) {
-            modifiers.setInline(true)
-        }
-
-        // Propagate deprecation from the getter if it hasn't already been propagated. This could
-        // happen in the getter has deprecation level hidden, because in that case there will be no
-        // method item for the getter.
-        if (
-            !modifiers.isDeprecated() &&
-                getter == null &&
-                propertySymbol.getter?.annotations?.any {
-                    it.classId?.asFqNameString() == KOTLIN_DEPRECATED
-                } == true
-        ) {
-            modifiers.setDeprecated(true)
-        }
-
-        return modifiers
     }
 
     /** Creates modifiers for the [functionSymbol]. */
