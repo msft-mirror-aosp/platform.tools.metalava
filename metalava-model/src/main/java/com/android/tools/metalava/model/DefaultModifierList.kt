@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.DATA
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEPRECATED
 import com.android.tools.metalava.model.ModifierFlags.Companion.EQUIVALENCE_MASK
+import com.android.tools.metalava.model.ModifierFlags.Companion.EXHAUSTIVE
 import com.android.tools.metalava.model.ModifierFlags.Companion.EXPECT
 import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.FUN
@@ -149,6 +150,10 @@ constructor(
 
     override fun isSealed(): Boolean {
         return isSet(SEALED)
+    }
+
+    override fun isExhaustive(): Boolean {
+        return isSet(EXHAUSTIVE)
     }
 
     override fun isFunctional(): Boolean {
@@ -320,6 +325,7 @@ interface ModifierFlags {
         const val VALUE = 1 shl 23
         const val EXPECT = 1 shl 24
         const val ACTUAL = 1 shl 25
+        const val EXHAUSTIVE = 1 shl 26
 
         /**
          * Modifiers considered significant to include signature files (and similarly to consider
@@ -399,6 +405,10 @@ internal class DefaultMutableModifierList(
 
     override fun setSealed(sealed: Boolean) {
         set(SEALED, sealed)
+    }
+
+    override fun setExhaustive(exhaustive: Boolean) {
+        set(EXHAUSTIVE, exhaustive)
     }
 
     override fun setFunctional(functional: Boolean) {

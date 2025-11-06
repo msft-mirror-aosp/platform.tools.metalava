@@ -1849,4 +1849,103 @@ class CommonClassItemTest : BaseModelTest() {
             codebase.assertResolvedClass("test.excluded.pkg.Excluded")
         }
     }
+
+    /**
+     * This test is to make sure that older signature files without any exhaustivity modifiers are
+     * read as non-exhaustive.
+     */
+    @Test
+    fun `modifiers show nonexhaustive when no exhaustivity modifier is present in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed class SealedClass {
+                      }
+                      public sealed interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+                    public sealed interface SealedInterface {}
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(false, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show exhaustive when class or interface is marked as exhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed exhaustive class SealedClass {
+                      }
+                      public sealed exhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    public sealed interface SealedInterface {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(true, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(true, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show nonexhaustive when class or interface is marked as nonexhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed nonexhaustive class SealedClass {
+                      }
+                      public sealed nonexhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+
+                    public sealed interface SealedInterface
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+        }
+    }
 }
