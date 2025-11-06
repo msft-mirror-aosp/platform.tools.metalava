@@ -201,8 +201,8 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in property Foo.foo [InvalidNullConversion]
-                load-api.txt:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in property Foo.bar [InvalidNullConversion]
+                load-api.txt:4: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in property Foo#foo [InvalidNullConversion]
+                load-api.txt:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in property Foo#bar [InvalidNullConversion]
                 """,
         )
     }

@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import java.util.Objects
+
 interface PropertyItem : MemberItem, TypeParameterListOwner {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
@@ -62,7 +64,11 @@ interface PropertyItem : MemberItem, TypeParameterListOwner {
             it.name() == name()
         }
 
-    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+    private fun receiverString(): String =
+        receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." } ?: ""
+
+    override fun baselineElementId() =
+        containingClass().qualifiedName() + "#" + receiverString() + name()
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
@@ -72,14 +78,19 @@ interface PropertyItem : MemberItem, TypeParameterListOwner {
         if (this === other) return true
         if (other !is PropertyItem) return false
 
-        return name() == other.name() && containingClass() == other.containingClass()
+        return name() == other.name() &&
+            containingClass() == other.containingClass() &&
+            // Nullability is important for property receivers because kotlin allows defining
+            // properties which differ only in receiver nullability.
+            return receiver?.equalToType(other.receiver, true) ?: (other.receiver == null)
     }
 
     override fun hashCodeForItem(): Int {
-        return name().hashCode()
+        return Objects.hash(name(), receiver)
     }
 
-    override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
+    override fun toStringForItem(): String =
+        "property ${containingClass().fullName()}#${receiverString()}${name()}"
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
