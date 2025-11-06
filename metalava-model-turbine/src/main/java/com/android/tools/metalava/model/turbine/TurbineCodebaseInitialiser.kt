@@ -376,10 +376,9 @@ internal class TurbineCodebaseInitialiser(
 
     /**
      * Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find it
-     * then look in the class path. It is guaranteed to be found in one of those places as otherwise
-     * there would be no `ClassSymbol`.
+     * then look in the class path.
      */
-    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)!!
+    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)
 
     /**
      * Convert this qualified name consisting of a list of identifiers separated by '.' into a list
@@ -498,7 +497,9 @@ internal class TurbineCodebaseInitialiser(
             codebase.findClass(topClassName)
                 ?: let {
                     // Get the origin of the class.
-                    val typeBoundClass = typeBoundClassForSymbol(topClassSym)
+                    val typeBoundClass =
+                        typeBoundClassForSymbol(topClassSym)
+                            ?: error("Cannot find type bound class for top class $topClassSym")
                     val origin =
                         when (typeBoundClass) {
                             is SourceTypeBoundClass -> ClassOrigin.SOURCE_PATH

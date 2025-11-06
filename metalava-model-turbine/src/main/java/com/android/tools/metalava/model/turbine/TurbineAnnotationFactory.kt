@@ -82,9 +82,8 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
         val possibleContainerSym = sym()
         val possibleContainerClass =
             possibleContainerSym?.let { sym -> typeBoundClassForSymbol(sym) }
-                ?:
                 // Cannot find the class so assume it is not a container.
-                return false
+                ?: return false
 
         // Container class must have a "value" method...
         val valueMethod =

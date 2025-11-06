@@ -364,7 +364,9 @@ internal class TurbineClassBuilder(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         for (nestedClassSymbol in nestedClasses) {
-            val nestedTypeBoundClass = typeBoundClassForSymbol(nestedClassSymbol)
+            val nestedTypeBoundClass =
+                typeBoundClassForSymbol(nestedClassSymbol)
+                    ?: error("Cannot find type bound class for nested class $nestedClassSymbol")
             val nestedClassBuilder =
                 TurbineClassBuilder(
                     globalContext = globalContext,

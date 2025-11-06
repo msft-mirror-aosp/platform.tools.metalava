@@ -56,7 +56,7 @@ internal interface TurbineGlobalContext {
         get() = codebase.config.allowReadingComments
 
     /** Find the [TypeBoundClass] for the `ClassSymbol`. */
-    fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass
+    fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass?
 
     /**
      * Create a [FieldResolver] for resolving fields from within [classSymbol]/[typeBoundClass].
