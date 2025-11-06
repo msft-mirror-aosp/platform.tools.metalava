@@ -168,19 +168,19 @@ abstract class BaseModelTest() :
         fun removeTestSpecificDirectories(string: String): String
 
         /**
-         * The reported issues, with any test specific directories replaced with fixed symbols.
+         * Remove any reported issues and returns them with any test specific directories replaced
+         * with fixed symbols.
          *
-         * Accessing this will remove any issues that were reported, but it is the caller's
-         * responsibility to check the returned value.
+         * It is the caller's responsibility to check the returned value.
          */
-        @get:CheckReturnValue val reportedIssues: String
+        @CheckReturnValue fun removeReportedIssues(): String
 
         /**
          * Assert that the reported issues match [expectedIssues] and remove them from the list of
          * reported issues.
          */
         fun assertAndRemoveReportedIssues(expectedIssues: String, message: String? = null) {
-            assertEquals(expectedIssues.trimIndent(), reportedIssues, message)
+            assertEquals(expectedIssues.trimIndent(), removeReportedIssues(), message)
         }
     }
 
@@ -191,12 +191,11 @@ abstract class BaseModelTest() :
         private val recordingReporter: RecordingReporter,
     ) : CodebaseContext {
 
-        override fun removeTestSpecificDirectories(string: String): String {
-            return replaceFileWithSymbol(string, fileToSymbol)
-        }
+        override fun removeTestSpecificDirectories(string: String) =
+            replaceFileWithSymbol(string, fileToSymbol)
 
-        override val reportedIssues: String
-            get() = removeTestSpecificDirectories(recordingReporter.removeIssues())
+        override fun removeReportedIssues() =
+            removeTestSpecificDirectories(recordingReporter.removeIssues())
     }
 
     /** Additional properties that affect the behavior of the test. */

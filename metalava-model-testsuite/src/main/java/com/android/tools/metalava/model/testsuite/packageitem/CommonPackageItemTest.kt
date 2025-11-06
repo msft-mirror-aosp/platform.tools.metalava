@@ -431,7 +431,7 @@ class CommonPackageItemTest : BaseModelTest() {
                     MAIN_SRC/src/test/other/Foo.java:3: error: Could not find package test.pkg for class test.pkg.Foo. This is most likely due to a mismatch between the package statement and the directory MAIN_SRC/src/test/other [InvalidPackage]
                 """
                     .trimIndent(),
-                reportedIssues
+                removeReportedIssues()
             )
         }
     }

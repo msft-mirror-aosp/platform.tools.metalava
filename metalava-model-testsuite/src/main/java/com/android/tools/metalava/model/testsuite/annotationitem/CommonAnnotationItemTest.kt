@@ -968,7 +968,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
             // Kotlin does not report an unresolved import for some reason.
             val unresolvedImportIssues =
                 "MAIN_SRC/src/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.TestEnum` [UnresolvedImport]"
-            reportedIssues.let { actualIssues ->
+            removeReportedIssues().let { actualIssues ->
                 if (actualIssues != "" && actualIssues != unresolvedImportIssues) {
                     fail("Unexpected issues:\n${actualIssues.prependIndent("    ")}")
                 }
