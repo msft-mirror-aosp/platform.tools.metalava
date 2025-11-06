@@ -504,24 +504,21 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     package androidx.room;
 
-                    import androidx.annotation.IntDef;
+                    import android.annotation.IntDef;
 
                     @IntDef(OnConflictStrategy.REPLACE)
                     public @interface OnConflictStrategy {
                         int REPLACE = 1;
                     }
                     """
-                    )
+                    ),
+                    intDefAnnotationSource,
                 ),
-            expectedIssues =
-                """
-                src/androidx/room/OnConflictStrategy.java:3: info: Unresolved import: `androidx.annotation.IntDef` [UnresolvedImport]
-                """,
             api =
                 """
                 // Signature format: 4.0
                 package androidx.room {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
+                  @IntDef(androidx.room.OnConflictStrategy.REPLACE) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
                     field public static final int REPLACE = 1; // 0x1
                   }
                 }

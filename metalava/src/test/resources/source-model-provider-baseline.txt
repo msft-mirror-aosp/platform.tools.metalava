@@ -58,9 +58,6 @@ com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling - invalid enforcement[turbine]
   Check RequiresFeature handling - missing feature[turbine]
 
-com.android.tools.metalava.ShowAnnotationTest
-  Testing parsing an annotation whose attribute references the annotated class[turbine]
-
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
 
