@@ -1112,6 +1112,62 @@ class CompatibilityCheck(
         }
     }
 
+    override fun comparePropertyItems(old: PropertyItem, new: PropertyItem) {
+        val oldModifiers = old.modifiers
+        val newModifiers = new.modifiers
+
+        if (oldModifiers.getVisibilityLevel() != newModifiers.getVisibilityLevel()) {
+            report(
+                Issues.CHANGED_SCOPE,
+                new,
+                "${new.describe(capitalize = true)} changed visibility from ${oldModifiers.getVisibilityLevel()} to ${newModifiers.getVisibilityLevel()}"
+            )
+        }
+
+        // Report changes to abstract modifier for non-interfaces, changes to abstract status in an
+        // interface will be reported as a change to the default modifier below.
+        if (!new.containingClass().isInterface()) {
+            if (!oldModifiers.isAbstract() && newModifiers.isAbstract()) {
+                report(
+                    Issues.CHANGED_ABSTRACT,
+                    new,
+                    "${new.describe(capitalize = true)} has changed 'abstract' qualifier",
+                    oldItem = old,
+                )
+            }
+        } else {
+            if (oldModifiers.isDefault() && newModifiers.isAbstract()) {
+                report(
+                    Issues.CHANGED_DEFAULT,
+                    new,
+                    "${new.describe(capitalize = true)} has changed 'default' qualifier",
+                    oldItem = old,
+                )
+            }
+        }
+
+        // Only report an issue if the new property is actually final, not if it is effectively
+        // final, because a change in effectively final will be reported as an error on the
+        // containing class changing modifiers.
+        if (!old.isEffectivelyFinal() && newModifiers.isFinal()) {
+            report(
+                Issues.ADDED_FINAL,
+                new,
+                "${new.describe(capitalize = true)} has added 'final' qualifier",
+                oldItem = old,
+            )
+        }
+
+        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
+            report(
+                Issues.CHANGED_DEPRECATED,
+                new,
+                "${new.describe(capitalize = true)} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                oldItem = old,
+            )
+        }
+    }
+
     private fun handleAdded(issue: Issue, item: SelectableItem) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from

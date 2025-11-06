@@ -439,7 +439,6 @@ class PropertyCompatibilityTest : DriverTest() {
 
     @Test
     fun `Change property visibility`() {
-        // TODO(b/300126192): this should fail
         check(
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
@@ -462,13 +461,16 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToProtected changed visibility from PUBLIC to PROTECTED [ChangedScope]
+                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToPublic changed visibility from PROTECTED to PUBLIC [ChangedScope]
+                """,
         )
     }
 
     @Test
     fun `Change property between open and final`() {
-        // TODO(b/300126192): this should fail
         check(
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
@@ -491,13 +493,13 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                "load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]",
         )
     }
 
     @Test
     fun `Change property between final and abstract`() {
-        // TODO(b/300126192): this should fail
         check(
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
@@ -520,13 +522,16 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToAbstract has changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]
+                """,
         )
     }
 
     @Test
     fun `Change property between default and abstract`() {
-        // TODO(b/300126192): this should fail
         check(
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
@@ -549,7 +554,40 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                "load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToAbstract has changed 'default' qualifier [ChangedDefault]",
+        )
+    }
+
+    @Test
+    fun `Change property deprecation`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int changeToDeprecated;
+                    property @Deprecated public int changeToNotDeprecated;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property @Deprecated public int changeToDeprecated;
+                    property public int changeToNotDeprecated;
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToDeprecated has changed deprecation state false --> true [ChangedDeprecated]
+                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToNotDeprecated has changed deprecation state true --> false [ChangedDeprecated]
+                """,
         )
     }
 }
