@@ -969,6 +969,9 @@ internal class PsiCodebaseAssembler(
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
+            // Check for syntax errors across the whole file.
+            checkForSyntaxErrors(psiFile)
+
             checkForUnresolvedImports(psiFile)
 
             val classes = getPsiClassesFromPsiFile(psiFile)
@@ -979,10 +982,7 @@ internal class PsiCodebaseAssembler(
                     }
                 }
                 else -> {
-                    for (psiClass in classes) {
-                        checkForSyntaxErrors(psiClass)
-                        psiClasses.add(psiClass)
-                    }
+                    psiClasses.addAll(classes)
                 }
             }
         }
@@ -1048,9 +1048,9 @@ internal class PsiCodebaseAssembler(
         return null
     }
 
-    /** Check the [psiClass] for any syntax errors. */
-    private fun checkForSyntaxErrors(psiClass: PsiClass) {
-        psiClass.accept(
+    /** Check the [psiFile] for any syntax errors. */
+    private fun checkForSyntaxErrors(psiFile: PsiFile) {
+        psiFile.accept(
             object : JavaRecursiveElementVisitor() {
                 override fun visitErrorElement(element: PsiErrorElement) {
                     super.visitErrorElement(element)
