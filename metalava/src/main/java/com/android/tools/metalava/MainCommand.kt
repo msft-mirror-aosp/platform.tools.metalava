@@ -233,7 +233,14 @@ class MainCommand(
         try {
             sourceModelProvider
                 .createEnvironmentManager(executionEnvironment.disableStderrDumping())
-                .use { processFlags(executionEnvironment, it, progressTracker) }
+                .use {
+                    processFlags(
+                        executionEnvironment,
+                        it,
+                        progressTracker,
+                        optionGroup,
+                    )
+                }
         } finally {
             // Write all saved reports. Do this even if the previous code threw an exception.
             optionGroup.allReporters.forEach { it.writeSavedReports() }

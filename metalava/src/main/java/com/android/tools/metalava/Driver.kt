@@ -142,11 +142,11 @@ fun run(
     return exitCode
 }
 
-@Suppress("DEPRECATION")
 internal fun processFlags(
     executionEnvironment: ExecutionEnvironment,
     environmentManager: EnvironmentManager,
-    progressTracker: ProgressTracker
+    progressTracker: ProgressTracker,
+    options: Options,
 ) {
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
@@ -208,10 +208,11 @@ internal fun processFlags(
     )
 
     // Generate the documentation stubs *before* we migrate nullness information.
-    options.docStubsDir?.let {
+    options.docStubsDir?.let { stubDir ->
         createStubFiles(
             progressTracker,
-            it,
+            options,
+            stubDir,
             codebase,
             docStubs = true,
         )
@@ -260,7 +261,13 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
+        actionContext.checkCompatibility(
+            options,
+            signatureFileCache,
+            classResolverProvider,
+            codebase,
+            check,
+        )
     }
 
     convertToWarningNullabilityAnnotations(
@@ -271,16 +278,24 @@ internal fun processFlags(
     )
 
     // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
-    options.stubsDir?.let {
+    options.stubsDir?.let { stubDir ->
         createStubFiles(
             progressTracker,
-            it,
+            options,
+            stubDir,
             codebase,
             docStubs = false,
         )
     }
 
-    options.externalAnnotations?.let { extractAnnotations(progressTracker, codebase, it) }
+    options.externalAnnotations?.let { file ->
+        extractAnnotations(
+            progressTracker,
+            options,
+            codebase,
+            file,
+        )
+    }
 
     val packageCount = codebase.size()
     progressTracker.progress(
@@ -487,9 +502,9 @@ private fun createCodebaseFromOptions(
             classResolverProvider.classResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-        return actionContext.loadFromJarFile(sources[0])
+        return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(signatureFileCache, classResolverProvider)
+        return actionContext.loadFromSources(options, signatureFileCache, classResolverProvider)
     }
 
     return null
@@ -578,8 +593,8 @@ private fun generateApiHistoryFromOptions(
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
-@Suppress("DEPRECATION")
 private fun ActionContext.checkCompatibility(
+    options: Options,
     signatureFileCache: SignatureFileCache,
     classResolverProvider: ClassResolverProvider,
     newCodebase: Codebase,
@@ -711,8 +726,8 @@ private fun convertToWarningNullabilityAnnotations(
     }
 }
 
-@Suppress("DEPRECATION")
 private fun ActionContext.loadFromSources(
+    options: Options,
     signatureFileCache: SignatureFileCache,
     classResolverProvider: ClassResolverProvider,
 ): Codebase? {
@@ -818,7 +833,7 @@ private class ClassResolverProvider(
 
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    apiAnalyzerConfig: ApiAnalyzer.Config = @Suppress("DEPRECATION") options.apiAnalyzerConfig,
+    apiAnalyzerConfig: ApiAnalyzer.Config,
 ): Codebase {
     val jarCodebaseLoader =
         JarCodebaseLoader.createForSourceParser(
@@ -829,8 +844,12 @@ fun ActionContext.loadFromJarFile(
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
-@Suppress("DEPRECATION")
-private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codebase, file: File) {
+private fun extractAnnotations(
+    progressTracker: ProgressTracker,
+    options: Options,
+    codebase: Codebase,
+    file: File,
+) {
     val localTimer = Stopwatch.createStarted()
 
     options.externalAnnotations?.let { outputFile ->
@@ -843,9 +862,9 @@ private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codeb
     }
 }
 
-@Suppress("DEPRECATION")
 private fun createStubFiles(
     progressTracker: ProgressTracker,
+    options: Options,
     stubDir: File,
     codebase: Codebase,
     docStubs: Boolean,
