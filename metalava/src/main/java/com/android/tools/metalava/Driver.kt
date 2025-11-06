@@ -715,7 +715,7 @@ private fun convertToWarningNullabilityAnnotations(
 private fun ActionContext.loadFromSources(
     signatureFileCache: SignatureFileCache,
     classResolverProvider: ClassResolverProvider,
-): Codebase {
+): Codebase? {
     progressTracker.progress("Processing sources: ")
 
     val sourceSet =
@@ -739,7 +739,7 @@ private fun ActionContext.loadFromSources(
             apiPackages = options.apiPackages,
             projectDescription = options.projectDescription,
             compiledSourceJar = options.compiledSourceJar
-        )
+        ) ?: return null
 
     progressTracker.progress("Analyzing API: ")
 

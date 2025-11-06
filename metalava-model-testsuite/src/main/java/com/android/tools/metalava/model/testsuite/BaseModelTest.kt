@@ -158,8 +158,22 @@ abstract class BaseModelTest() :
      * Context within which the main body of tests that check the state of the [Codebase] will run.
      */
     interface CodebaseContext {
-        /** The newly created [Codebase]. */
+        /**
+         * The newly created [Codebase].
+         *
+         * If the [Codebase] could not be created then accessing this will throw an error.
+         *
+         * @see optionalCodebase
+         */
         val codebase: Codebase
+            get() = optionalCodebase ?: error("Codebase was not created")
+
+        /**
+         * The optionally created [Codebase].
+         *
+         * Will be `null` if the [Codebase] could not be created
+         */
+        val optionalCodebase: Codebase?
 
         /** The [InputFormat] from which [codebase] was created. */
         val inputFormat: InputFormat
@@ -185,7 +199,7 @@ abstract class BaseModelTest() :
     }
 
     inner class DefaultCodebaseContext(
-        override val codebase: Codebase,
+        override val optionalCodebase: Codebase?,
         override val inputFormat: InputFormat,
         private val fileToSymbol: Map<File, String>,
         private val recordingReporter: RecordingReporter,
