@@ -20,7 +20,6 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.util.Disposer
@@ -125,7 +124,7 @@ internal class PsiEnvironmentManager(
         modelOptions: ModelOptions,
         allowReadingComments: Boolean,
         jdkHome: File?,
-    ): SourceParser {
+    ): PsiSourceParser {
         return PsiSourceParser(
             psiEnvironmentManager = this,
             codebaseConfig = codebaseConfig,
