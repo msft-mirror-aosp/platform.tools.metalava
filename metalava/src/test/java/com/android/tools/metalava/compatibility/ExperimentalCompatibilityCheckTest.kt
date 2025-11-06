@@ -28,18 +28,19 @@ class ExperimentalCompatibilityCheckTest : DriverTest() {
     fun `Should raise compatibility error on added abstract to experimental method in non-experimental class`() {
         check(
             /*
-             * TODO: There should be a compatibility error raised on finalFunToBeAbstract because
-             *  it is changing from a closed non-abstract method which clients can't override to
-             *  an abstract method, which is a breaking change for clients implementing the class.
+             * There is a compatibility error raised on finalFunToBeAbstract because
+             * it is changing from a closed non-abstract method which clients can't override to
+             * an abstract method, which is a breaking change for clients implementing the class.
              *
-             * TODO: There should also be a compatibility error raised on openFunToBeAbstract because
-             *  it is changing from an open non-abstract method which clients aren't forced to
-             *  override to an abstract method, which can be a breaking change if clients aren't
-             *  already overriding it.
+             * There also is a compatibility error raised on openFunToBeAbstract because
+             * it is changing from an open non-abstract method which clients aren't forced to
+             * override to an abstract method, which can be a breaking change if clients aren't
+             * already overriding it.
              */
             expectedIssues =
                 """
-
+                    load-api.txt:5: error: Binary breaking change: Method test.pkg.AbstractClass.finalFunToBeAbstract has changed 'abstract' qualifier [ChangedAbstract]
+                    load-api.txt:6: error: Binary breaking change: Method test.pkg.AbstractClass.openFunToBeAbstract has changed 'abstract' qualifier [ChangedAbstract]
                 """,
             checkCompatibilityApiReleased =
                 """
