@@ -373,8 +373,6 @@ abstract class DriverTest :
         @Language("TEXT") api: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
-        /** The subtract api signature content (corresponds to --subtract-api) */
-        @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         stubFiles: Array<TestFile> = emptyArray(),
         /** Expected paths of stub files created */
@@ -884,16 +882,6 @@ abstract class DriverTest :
         val apiFile: File = getOrCreateFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
 
-        val subtractApiFile: File?
-        val subtractApiArgs =
-            if (subtractApi != null) {
-                subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
-                subtractApiFile.writeSignatureText(subtractApi)
-                arrayOf(ARG_SUBTRACT_API, subtractApiFile.path)
-            } else {
-                emptyArray()
-            }
-
         var stubsDir: File? = null
         val stubsArgs =
             if (stubFiles.isNotEmpty() || stubPaths != null) {
@@ -1046,7 +1034,6 @@ abstract class DriverTest :
                 *configFileArgs,
                 *removedArgs,
                 *apiArgs,
-                *subtractApiArgs,
                 *stubsArgs,
                 *quiet,
                 *mergeAnnotationsArgs,
