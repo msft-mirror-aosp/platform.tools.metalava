@@ -105,27 +105,51 @@ class CompatibilityCheck(
             new is ParameterItem && !new.containingCallable().canBeExternallyOverridden()
         // In a final method, you can change a method return from nullable to nonnull
         val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
-
-        old.type()
-            ?.accept(
-                object : MultipleTypeVisitor() {
-                    override fun visitType(type: TypeItem, other: List<TypeItem>) {
-                        val newType = other.singleOrNull() ?: return
-                        compareTypeNullability(
-                            type,
-                            newType,
-                            new,
-                            allowNonNullToNullable,
-                            allowNullableToNonNull,
-                            old
-                        )
-                    }
-                },
-                listOfNotNull(new.type())
-            )
+        compareTypeNullability(
+            old = old.type(),
+            new = new.type(),
+            oldContext = old,
+            newContext = new,
+            allowNonNullToNullable,
+            allowNullableToNonNull
+        )
     }
 
+    /**
+     * Recursively compares the nullability of the [old] and [new] types, and all the component
+     * types of these types (e.g. array components, class argument types).
+     */
     private fun compareTypeNullability(
+        old: TypeItem?,
+        new: TypeItem?,
+        oldContext: Item,
+        newContext: Item,
+        allowNonNullToNullable: Boolean,
+        allowNullableToNonNull: Boolean,
+    ) {
+        old?.accept(
+            object : MultipleTypeVisitor() {
+                override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                    val newType = other.singleOrNull() ?: return
+                    compareTypeNullabilityNonRecursive(
+                        type,
+                        newType,
+                        newContext,
+                        allowNonNullToNullable,
+                        allowNullableToNonNull,
+                        oldContext,
+                    )
+                }
+            },
+            listOfNotNull(new)
+        )
+    }
+
+    /**
+     * Compares the nullability of the [old] and [new] types. This only looks at the nullability of
+     * the types directly, not the nullability of component types.
+     */
+    private fun compareTypeNullabilityNonRecursive(
         old: TypeItem,
         new: TypeItem,
         context: Item,
