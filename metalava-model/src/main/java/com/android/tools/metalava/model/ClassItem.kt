@@ -454,6 +454,14 @@ interface ClassItem :
     val annotationClass: AnnotationClass
 
     /**
+     * For a typealias, the underlying type for which this typealias is an alternative name
+     *
+     * This must only be called when [classKind] is [ClassKind.TYPEALIAS], and will throw an error
+     * otherwise.
+     */
+    val aliasedType: TypeItem
+
+    /**
      * Return superclass matching the given predicate. When a superclass doesn't match, we'll keep
      * crawling up the tree until we find someone who matches.
      */

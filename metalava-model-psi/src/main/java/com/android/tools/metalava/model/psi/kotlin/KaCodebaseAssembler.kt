@@ -43,7 +43,6 @@ import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
-import com.android.tools.metalava.model.item.DefaultTypeAliasItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
@@ -228,7 +227,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
                 typeAlias.typeParameters,
             )
 
-        DefaultTypeAliasItem(
+        DefaultClassItem.createTypeAlias(
             codebase = codebase,
             fileLocation = PsiFileLocation.fromPsiElement(typeAlias.psi),
             modifiers = kaModifierFactory.createForDeclaration(typeAlias),

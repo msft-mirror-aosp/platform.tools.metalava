@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -40,7 +41,6 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -466,6 +466,13 @@ class CompatibilityCheck(
     }
 
     override fun compareClassItems(old: ClassItem, new: ClassItem) {
+        // Perform different comparisons for typealiases.
+        // TODO(b/458733676): add error for converting from class to typealias or vice versa.
+        if (old.classKind == ClassKind.TYPEALIAS && new.classKind == ClassKind.TYPEALIAS) {
+            compareTypeAliasItems(old, new)
+            return
+        }
+
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -651,8 +658,8 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compareTypeAliasItems(old: TypeAliasItem, new: TypeAliasItem) {
-        if (old.type() != new.type()) {
+    fun compareTypeAliasItems(old: ClassItem, new: ClassItem) {
+        if (old.aliasedType != new.aliasedType) {
             val typeStringConfiguration =
                 TypeStringConfiguration(
                     annotations = true,
@@ -660,8 +667,8 @@ class CompatibilityCheck(
                     spaceBetweenTypeArguments = true,
                     stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS
                 )
-            val oldTypeString = old.type().toTypeString(typeStringConfiguration)
-            val newTypeString = new.type().toTypeString(typeStringConfiguration)
+            val oldTypeString = old.aliasedType.toTypeString(typeStringConfiguration)
+            val newTypeString = new.aliasedType.toTypeString(typeStringConfiguration)
             report(
                 Issues.CHANGED_TYPE,
                 new,
@@ -669,6 +676,14 @@ class CompatibilityCheck(
                 oldItem = old,
             )
         }
+        compareTypeNullability(
+            old = old.aliasedType,
+            new = new.aliasedType,
+            oldContext = old,
+            newContext = new,
+            allowNonNullToNullable = false,
+            allowNullableToNonNull = false,
+        )
     }
 
     /**
@@ -1186,6 +1201,7 @@ class CompatibilityCheck(
     override fun removedClassItem(old: ClassItem, from: SelectableItem) {
         val error =
             when {
+                old.classKind == ClassKind.TYPEALIAS -> Issues.REMOVED_TYPE_ALIAS
                 old.isInterface() -> Issues.REMOVED_INTERFACE
                 old.effectivelyDeprecated -> Issues.REMOVED_DEPRECATED_CLASS
                 else -> Issues.REMOVED_CLASS
@@ -1222,10 +1238,6 @@ class CompatibilityCheck(
                 else Issues.REMOVED_FIELD
             handleRemoved(error, old)
         }
-    }
-
-    override fun removedTypeAliasItem(old: TypeAliasItem, from: PackageItem) {
-        handleRemoved(Issues.REMOVED_TYPE_ALIAS, old)
     }
 
     /**

@@ -176,7 +176,9 @@ internal class TurbineClassBuilder(
                     }
                 // Interfaces and annotations (which are a form of interface) do not.
                 ClassKind.INTERFACE,
-                ClassKind.ANNOTATION_TYPE -> null
+                ClassKind.ANNOTATION_TYPE,
+                // Turbine does not support typealiases (which only exist in kotlin).
+                ClassKind.TYPEALIAS, -> null
             }
 
         // Set interface types

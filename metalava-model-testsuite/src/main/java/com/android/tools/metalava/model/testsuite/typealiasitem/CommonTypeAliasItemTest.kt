@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.typealiasitem
 
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
@@ -67,7 +68,11 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             ),
         ) {
             val pkg = codebase.assertPackage("test.pkg")
-            assertThat(pkg.typeAliases()).hasSize(1)
+
+            val typeAlias = pkg.topLevelClasses().single { it.simpleName() == "Foo" }
+            assertThat(typeAlias.classKind).isEqualTo(ClassKind.TYPEALIAS)
+
+            assertThat(pkg.allClasses().toList()).contains(typeAlias)
         }
     }
 
@@ -90,8 +95,8 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             ),
         ) {
             val typeAlias = codebase.assertTypeAlias("test.pkg.Foo")
-            assertThat(typeAlias.qualifiedName).isEqualTo("test.pkg.Foo")
-            assertThat(typeAlias.simpleName).isEqualTo("Foo")
+            assertThat(typeAlias.qualifiedName()).isEqualTo("test.pkg.Foo")
+            assertThat(typeAlias.simpleName()).isEqualTo("Foo")
         }
     }
 

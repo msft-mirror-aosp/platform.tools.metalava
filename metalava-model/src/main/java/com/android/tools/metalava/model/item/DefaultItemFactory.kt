@@ -39,7 +39,6 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -80,7 +79,7 @@ class DefaultItemFactory(
         )
     }
 
-    /** Create a [ConstructorItem]. */
+    /** Create a [ClassItem]. */
     fun createClassItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
@@ -96,6 +95,7 @@ class DefaultItemFactory(
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
+        optionalAliasedType: TypeItem? = null,
     ) =
         DefaultClassItem(
             codebase,
@@ -115,6 +115,7 @@ class DefaultItemFactory(
             superClassType,
             interfaceTypes,
             isFileFacade = false,
+            optionalAliasedType = optionalAliasedType,
         )
 
     /** Create a [ConstructorItem]. */
@@ -276,7 +277,7 @@ class DefaultItemFactory(
             typeParameterList,
         )
 
-    /** Create a [TypeAliasItem]. */
+    /** Create a [ClassItem] which is a typealias. */
     fun createTypeAliasItem(
         fileLocation: FileLocation,
         modifiers: BaseModifierList,
@@ -285,8 +286,8 @@ class DefaultItemFactory(
         aliasedType: TypeItem,
         typeParameterList: TypeParameterList,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
-    ): TypeAliasItem =
-        DefaultTypeAliasItem(
+    ): ClassItem =
+        DefaultClassItem.createTypeAlias(
             codebase,
             fileLocation,
             modifiers,
