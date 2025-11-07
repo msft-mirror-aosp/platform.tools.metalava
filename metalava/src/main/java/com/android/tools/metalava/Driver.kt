@@ -289,12 +289,12 @@ internal fun processFlags(
         )
     }
 
-    options.externalAnnotations?.let { file ->
+    options.externalAnnotations?.let { outputFile ->
         extractAnnotations(
             progressTracker,
+            outputFile,
             options,
             codebase,
-            file,
         )
     }
 
@@ -847,19 +847,17 @@ fun ActionContext.loadFromJarFile(
 
 private fun extractAnnotations(
     progressTracker: ProgressTracker,
+    outputFile: File,
     options: Options,
-    codebase: Codebase,
-    file: File,
+    codebase: Codebase
 ) {
     val localTimer = Stopwatch.createStarted()
 
-    options.externalAnnotations?.let { outputFile ->
-        ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
-        if (options.verbose) {
-            progressTracker.progress(
-                "$PROGRAM_NAME extracted annotations into $file in ${localTimer.elapsed(SECONDS)} seconds\n"
-            )
-        }
+    ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
+    if (options.verbose) {
+        progressTracker.progress(
+            "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
+        )
     }
 }
 
