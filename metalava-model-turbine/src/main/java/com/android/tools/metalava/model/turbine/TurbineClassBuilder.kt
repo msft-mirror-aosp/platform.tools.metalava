@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
@@ -521,39 +522,46 @@ internal class TurbineClassBuilder(
         // implicit parameters are always at the beginning so the offset from the declared parameter
         // in [parameterDecls] to the corresponding parameter in [parameters] is simply the number
         // of the implicit parameters.
-        val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
-        return parameters.mapIndexed { idx, parameter ->
-            val parameterModifierItem =
-                createModifiers(parameter.access(), parameter.annotations()).toImmutable()
-            val type =
-                typeItemFactory.getMethodParameterType(
-                    underlyingParameterType = parameter.type(),
-                    itemAnnotations = parameterModifierItem.annotations(),
-                    fingerprint = fingerprint,
-                    parameterIndex = idx,
-                    isVarArg = parameterModifierItem.isVarArg(),
-                )
-            // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
-            val decl =
-                if (parameterDecls != null && idx >= declaredParameterOffset)
-                    parameterDecls.get(idx - declaredParameterOffset)
-                else null
+        val ignoreSynthetic = containingCallable is ConstructorItem
+        return buildList {
+            var parameterIndex = 0
+            for (parameter in parameters) {
+                if (ignoreSynthetic && parameter.synthetic()) continue
+                val parameterModifierItem =
+                    createModifiers(parameter.access(), parameter.annotations()).toImmutable()
+                val type =
+                    typeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameter.type(),
+                        itemAnnotations = parameterModifierItem.annotations(),
+                        fingerprint = fingerprint,
+                        parameterIndex = parameterIndex,
+                        isVarArg = parameterModifierItem.isVarArg(),
+                    )
+                // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
+                // [parameterDecls] will be null for a binary class. It will be empty for a
+                // record class.
+                val decl =
+                    if (parameterDecls != null && parameterIndex < parameterDecls.size)
+                        parameterDecls.get(parameterIndex)
+                    else null
 
-            val fileLocation =
-                TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
-            val parameterItem =
-                itemFactory.createParameterItem(
-                    fileLocation = fileLocation,
-                    modifiers = parameterModifierItem,
-                    name = parameter.name(),
-                    publicName = null,
-                    containingCallable = containingCallable,
-                    parameterIndex = idx,
-                    type = type,
-                    // Java parameters can't have default values
-                    hasDefaultValue = false,
-                )
-            parameterItem
+                val fileLocation =
+                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
+                val parameterItem =
+                    itemFactory.createParameterItem(
+                        fileLocation = fileLocation,
+                        modifiers = parameterModifierItem,
+                        name = parameter.name(),
+                        publicName = null,
+                        containingCallable = containingCallable,
+                        parameterIndex = parameterIndex,
+                        type = type,
+                        // Java parameters can't have default values
+                        hasDefaultValue = false,
+                    )
+                add(parameterItem)
+                parameterIndex += 1
+            }
         }
     }
 
