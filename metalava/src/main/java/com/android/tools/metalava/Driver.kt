@@ -218,8 +218,9 @@ internal fun processFlags(
         )
     }
 
-    // Based on the input flags, generates various output files such as signature files and/or stubs
-    // files
+    // Generate signature files based on provided input flags (i.e. if api file locations were
+    // provided).
+    // Also run API lint checks on current codebase
     createApiSignatureFilesFromOptions(
         options,
         codebase,
