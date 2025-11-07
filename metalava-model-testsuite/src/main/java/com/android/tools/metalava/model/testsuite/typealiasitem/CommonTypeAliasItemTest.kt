@@ -17,7 +17,10 @@
 package com.android.tools.metalava.model.testsuite.typealiasitem
 
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -392,6 +395,36 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         ) {
             val pkg = codebase.assertPackage("test.pkg")
             assertThat(pkg.emit).isTrue()
+        }
+    }
+
+    @Test
+    // K1 does not have full typealias support.
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
+    fun `Origin for typealias`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    // The kotlin package is used here to make it so built-in kotlin typealiases are
+                    // also processed.
+                    """
+                    package kotlin
+                    """
+                ),
+                kotlin(
+                    """
+                    package test.pkg
+                    typealias Foo = String
+                    """
+                )
+            )
+        ) {
+            val fooAlias = codebase.assertTypeAlias("test.pkg.Foo")
+            assertThat(fooAlias.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
+
+            // TODO(b/458735166): this typealias is from the classpath.
+            val errorAlias = codebase.assertTypeAlias("kotlin.Error")
+            assertThat(errorAlias.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
         }
     }
 }

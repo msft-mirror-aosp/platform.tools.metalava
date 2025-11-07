@@ -23,6 +23,8 @@ import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
@@ -33,6 +35,7 @@ import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.source
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -6566,6 +6569,58 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    // K1 does not have full typealias support.
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
+    @Test
+    fun `Test typealiases from classpath are not listed`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        // The kotlin package is used here to make it so built-in kotlin typealiases
+                        // are also processed.
+                        """
+                        package kotlin
+                        """,
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    ),
+                ),
+            // TODO(b/458735166): typealiases from the classpath should not be listed
+            api =
+                """
+                // Signature format: 5.0
+                package kotlin {
+                  @kotlin.SinceKotlin(version="1.3") public typealias ArithmeticException = ArithmeticException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias AssertionError = AssertionError;
+                  @kotlin.SinceKotlin(version="2.0") public typealias AutoCloseable = AutoCloseable;
+                  @kotlin.SinceKotlin(version="1.1") public typealias ClassCastException = ClassCastException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias Comparator<T> = java.util.Comparator<T>;
+                  @kotlin.SinceKotlin(version="1.3") public typealias ConcurrentModificationException = java.util.ConcurrentModificationException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias Error = Error;
+                  @kotlin.SinceKotlin(version="1.1") public typealias Exception = Exception;
+                  @kotlin.SinceKotlin(version="1.1") public typealias IllegalArgumentException = IllegalArgumentException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias IllegalStateException = IllegalStateException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias IndexOutOfBoundsException = IndexOutOfBoundsException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias NoSuchElementException = java.util.NoSuchElementException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias NullPointerException = NullPointerException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias NumberFormatException = NumberFormatException;
+                  @kotlin.SinceKotlin(version="1.1") public typealias RuntimeException = RuntimeException;
+                  @kotlin.SinceKotlin(version="1.4") public typealias Throws = kotlin.jvm.Throws;
+                  @kotlin.SinceKotlin(version="1.1") public typealias UnsupportedOperationException = UnsupportedOperationException;
+                }
+                package test.pkg {
+                  public typealias Foo = String;
+                }
+                """,
         )
     }
 }
