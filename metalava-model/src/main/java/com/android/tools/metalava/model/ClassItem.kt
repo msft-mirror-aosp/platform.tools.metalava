@@ -99,6 +99,13 @@ interface ClassItem :
      */
     fun superClassType(): ClassTypeItem?
 
+    /**
+     * This stores only the direct classes that inherit from this class, and not any indirect
+     * classes. This stores subclasses for both regular classes and interfaces (for interfaces, it
+     * stores all the classes that implement that interface)
+     */
+    fun subClasses(): List<ClassItem>
+
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
         if (qualifiedName() == qualifiedName) {
