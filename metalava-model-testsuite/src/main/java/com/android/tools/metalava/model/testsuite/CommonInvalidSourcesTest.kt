@@ -46,6 +46,14 @@ class CommonInvalidSourcesTest : BaseModelTest() {
                     """
                 ),
             ),
-        ) {}
+        ) {
+            val expectedIssues =
+                when (codebaseCreatorConfig.providerName) {
+                    "turbine" ->
+                        "MAIN_SRC/src/test/pkg/Foo.java:2:26: error: unexpected interface type: test.pkg.Interface [InvalidSyntax]"
+                    else -> ""
+                }
+            assertAndRemoveReportedIssues(expectedIssues)
+        }
     }
 }

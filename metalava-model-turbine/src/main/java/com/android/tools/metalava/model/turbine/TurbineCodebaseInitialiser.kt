@@ -54,6 +54,7 @@ import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.diag.SourceFile
+import com.google.turbine.diag.TurbineDiagnostic
 import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
 import com.google.turbine.model.TurbineFlag
@@ -190,8 +191,29 @@ internal class TurbineCodebaseInitialiser(
                     ClassPathBinder.bindClasspath(listOf()),
                     Optional.empty()
                 )!!
-        } catch (e: Throwable) {
-            throw e
+        } catch (e: TurbineError) {
+            // Catch the [TurbineError] and extract its diagnostics. An exception will be rethrown
+            // below after reporting the diagnostics because [bindingResult] will not have been set.
+            e.logAllDiagnostics(log)
+        }
+
+        // Report all the diagnostics, filtering those that relate to missing references.
+        log.reportTo(codebase.reporter) { diagnostic ->
+            // Ignore missing references.
+            var errorKind = diagnostic.kind()
+            when (errorKind) {
+                TurbineError.ErrorKind.CANNOT_RESOLVE,
+                TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
+                    false
+                }
+                else -> true
+            }
+        }
+
+        // Check to make sure that the binding was not aborted, if it was then abort this
+        // processing.
+        if (!::bindingResult.isInitialized) {
+            throw TurbineError(ImmutableList.of())
         }
 
         // Get the top level index needed for creating TurbineElements.
@@ -298,8 +320,12 @@ internal class TurbineCodebaseInitialiser(
     /** Report all the diagnostics in this [TurbineLog], if any, to [reporter]. */
     private fun TurbineLog.reportTo(
         reporter: Reporter,
+        predicate: (TurbineDiagnostic) -> Boolean = { true }
     ) {
         for (diagnostic in diagnostics()) {
+            // Ignore any that do not match the predicate.
+            if (!predicate(diagnostic)) continue
+
             val path = diagnostic.path()
             val location =
                 FileLocation.createLocation(
