@@ -6,9 +6,6 @@ com.android.tools.metalava.ApiFileTest
   Check skipping implicit final or deprecated override[turbine]
   Kotlin expect-actual with JvmOverloads constructors[psi,k2]
 
-com.android.tools.metalava.CoreApiTest
-  Hidden with --hide-annotation[turbine]
-
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
@@ -88,9 +85,6 @@ com.android.tools.metalava.stub.StubsAnnotationTest
 com.android.tools.metalava.stub.StubsConstructorTest
   Picking Constructors[turbine]
   Varargs constructor parameter requiring cast[turbine]
-
-com.android.tools.metalava.stub.StubsPackageInfoTest
-  Check writing package info file[turbine]
 
 com.android.tools.metalava.stub.StubsTest
   Compilable stubs are not generated when inheriting class exists in jar passed via classpath[turbine]
