@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
@@ -51,7 +50,6 @@ import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
@@ -73,7 +71,6 @@ import com.google.turbine.tree.Tree.AnnoExpr
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.tree.Tree.MethDecl
-import com.google.turbine.tree.Tree.TyDecl
 import com.google.turbine.tree.Tree.VarDecl
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -628,27 +625,6 @@ internal class TurbineClassBuilder(
     /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
     private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
         itemDocumentationFactoryForDecl(classItem.sourceFile() as? TurbineSourceFile, decl)
-
-    /** Get an [ItemDocumentationFactory] for [decl] in [sourceFile]. */
-    private fun itemDocumentationFactoryForDecl(
-        sourceFile: TurbineSourceFile?,
-        decl: Tree?
-    ): ItemDocumentationFactory {
-        if (!allowReadingComments) return ItemDocumentation.NONE_FACTORY
-
-        val doc: String? =
-            when (decl) {
-                is TyDecl -> decl.javadoc()
-                is MethDecl -> decl.javadoc()
-                is VarDecl -> decl.javadoc()
-                null -> null
-                else -> error("Should never be called")
-            }
-
-        if (doc == null || doc == "") return NO_SOURCE_COMMENT_FACTORY
-
-        return { item -> TurbineItemDocumentation(item, sourceFile, doc, decl?.position() ?: -1) }
-    }
 
     /**
      * Check to see whether the initial value for [field] is non-null.

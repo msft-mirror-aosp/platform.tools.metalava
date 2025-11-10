@@ -16,14 +16,21 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
+import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
+import com.google.turbine.tree.Tree.MethDecl
+import com.google.turbine.tree.Tree.TyDecl
+import com.google.turbine.tree.Tree.VarDecl
 import kotlin.jvm.optionals.getOrNull
 
 /**
@@ -71,6 +78,27 @@ internal fun CompUnit.getHeaderComments(): String {
     val packageKeywordStart = source.lastIndexOf("package", packageNamePosition)
     // Return the content before the `package` keyword to match Java.
     return source.substring(0, packageKeywordStart)
+}
+
+/** Get an [ItemDocumentationFactory] for [decl] in [sourceFile]. */
+internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
+    sourceFile: TurbineSourceFile?,
+    decl: Tree?
+): ItemDocumentationFactory {
+    if (!allowReadingComments) return ItemDocumentation.NONE_FACTORY
+
+    val doc: String? =
+        when (decl) {
+            is TyDecl -> decl.javadoc()
+            is MethDecl -> decl.javadoc()
+            is VarDecl -> decl.javadoc()
+            null -> null
+            else -> error("Should never be called")
+        }
+
+    if (doc == null || doc == "") return NO_SOURCE_COMMENT_FACTORY
+
+    return { item -> TurbineItemDocumentation(item, sourceFile, doc, decl?.position() ?: -1) }
 }
 
 /**
