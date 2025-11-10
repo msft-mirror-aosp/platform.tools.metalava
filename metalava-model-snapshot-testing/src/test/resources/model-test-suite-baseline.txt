@@ -49,6 +49,9 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
 
+com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorItemTest
+  Test constructor of inner class has no implicit parameter[turbine]
+
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test fully qualifying links that wrap on multiple lines[turbine]
 
