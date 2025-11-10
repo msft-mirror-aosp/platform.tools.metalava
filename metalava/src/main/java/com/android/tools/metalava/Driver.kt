@@ -289,7 +289,7 @@ internal fun processFlags(
         )
     }
 
-    options.externalAnnotations?.let { outputFile ->
+    options.externalAnnotationsFile?.let { outputFile ->
         extractAnnotations(
             progressTracker,
             outputFile,
