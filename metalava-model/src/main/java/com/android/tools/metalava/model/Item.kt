@@ -369,7 +369,21 @@ interface Item : Reportable {
         }
 
         private fun describe(item: ClassItem, capitalize: Boolean = false): String {
-            return "${if (capitalize) "Class" else "class"} ${item.qualifiedName()}"
+            val descriptor =
+                if (item.classKind == ClassKind.TYPEALIAS) {
+                    if (capitalize) {
+                        "Typealias"
+                    } else {
+                        "typealias"
+                    }
+                } else {
+                    if (capitalize) {
+                        "Class"
+                    } else {
+                        "class"
+                    }
+                }
+            return "$descriptor ${item.qualifiedName()}"
         }
 
         private fun describe(item: PackageItem, capitalize: Boolean = false): String {

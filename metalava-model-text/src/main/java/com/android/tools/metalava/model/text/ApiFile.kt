@@ -636,6 +636,8 @@ private constructor(
             containingPackage = pkg,
             aliasedType = type,
             typeParameterList = typeParameterList,
+            // All signature files have to be explicitly specified.
+            origin = ClassOrigin.COMMAND_LINE,
         )
     }
 

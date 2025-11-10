@@ -23,6 +23,8 @@ import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
@@ -33,6 +35,7 @@ import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.source
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -6566,6 +6569,38 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    // K1 does not have full typealias support.
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
+    @Test
+    fun `Test typealiases from classpath are not listed`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        // The kotlin package is used here to make it so built-in kotlin typealiases
+                        // are also processed.
+                        """
+                        package kotlin
+                        """,
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public typealias Foo = String;
+                }
+                """,
         )
     }
 }
