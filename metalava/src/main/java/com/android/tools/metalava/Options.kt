@@ -180,6 +180,7 @@ const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
+const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
@@ -222,7 +223,7 @@ class Options(
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
 
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
-    var subtractApi: File? = null
+    var subtractApiFile: File? = null
 
     /**
      * Backing property for [nullabilityAnnotationsValidator]
@@ -369,15 +370,17 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                previouslyReleasedCodebaseProvider = {
+                    previouslyReleasedApi?.load { signatureFileCache.load(it) }
+                },
                 apiFlags = ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags),
             )
         )
     }
 
     /** Make this available for testing purposes. */
-    internal val previouslyReleasedCodebase
-        get() = compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
+    internal val previouslyReleasedApi
+        get() = compatibilityCheckOptions.previouslyReleasedApi
 
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {
@@ -474,8 +477,8 @@ class Options(
     /** Proguard Keep list file to write */
     var proguard: File? = null
 
-    val apiFile by signatureFileOptions::apiFile
-    val removedApiFile by signatureFileOptions::removedApiFile
+    val apiSignatureFile by signatureFileOptions::apiFile
+    val removedApiSignatureFile by signatureFileOptions::removedApiFile
     val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Path to directory to write SDK values to */
@@ -552,7 +555,7 @@ class Options(
         apiLevelsGenerationOptions::includeApiVersionInDocumentation
 
     /** Reads API XML file to apply into documentation */
-    var applyApiLevelsXml: File? = null
+    var applyApiLevelsXmlFile: File? = null
 
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
@@ -618,7 +621,17 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
+    /**
+     * Whether to use the K2 compiler, controlled by [ARG_USE_K2_UAST] and [ARG_USE_K1_UAST]. If
+     * neither option is provided, the default is K1.
+     */
     var useK2Uast: Boolean? = null
+        set(value) {
+            if (field != null && field != value) {
+                cliError("Cannot specify both $ARG_USE_K1_UAST and $ARG_USE_K2_UAST")
+            }
+            field = value
+        }
 
     val sourceModelProvider by
         option(
@@ -648,10 +661,10 @@ class Options(
                     }
                 }
                 ARG_SUBTRACT_API -> {
-                    if (subtractApi != null) {
+                    if (subtractApiFile != null) {
                         cliError("Only one $ARG_SUBTRACT_API can be supplied")
                     }
-                    subtractApi = stringToExistingFile(getValue(args, ++index))
+                    subtractApiFile = stringToExistingFile(getValue(args, ++index))
                 }
 
                 // TODO: Remove the legacy --merge-annotations flag once it's no longer used to
@@ -700,8 +713,8 @@ class Options(
 
                 // Extracting API levels
                 ARG_APPLY_API_LEVELS -> {
-                    applyApiLevelsXml =
-                        if (apiLevelsGenerationOptions.generateApiLevelXml != null) {
+                    applyApiLevelsXmlFile =
+                        if (apiLevelsGenerationOptions.generateApiLevelsXmlFile != null) {
                             // If generating the API file at the same time, it doesn't have
                             // to already exist
                             stringToNewFile(getValue(args, ++index))
@@ -727,6 +740,7 @@ class Options(
                     compileSdkVersion = getValue(args, ++index)
                 }
                 ARG_USE_K2_UAST -> useK2Uast = true
+                ARG_USE_K1_UAST -> useK2Uast = false
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
                 }
@@ -971,6 +985,10 @@ object OptionsHelp {
                 "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
                 "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
+                ARG_USE_K1_UAST,
+                "Specifies that the K1 compiler should be used (K1 is the default).",
+                ARG_USE_K2_UAST,
+                "Specifies that the K2 compiler should be used (K1 is the default).",
                 "$ARG_SDK_HOME <dir>",
                 "If set, locate the `android.jar` file from the given Android SDK",
                 "$ARG_COMPILE_SDK_VERSION <api>",

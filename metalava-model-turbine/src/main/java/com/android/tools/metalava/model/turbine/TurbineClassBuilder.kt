@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
@@ -50,7 +49,7 @@ import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.ParameterDefaultValue
+import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
@@ -499,6 +498,7 @@ internal class TurbineClassBuilder(
                     },
                     throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
                     defaultValueProvider = defaultValueProvider,
+                    isExtensionMethod = false, // Java does not support extension methods
                 )
 
             // Ignore enum synthetic methods.
@@ -546,11 +546,12 @@ internal class TurbineClassBuilder(
                     fileLocation = fileLocation,
                     modifiers = parameterModifierItem,
                     name = parameter.name(),
-                    publicNameProvider = { null },
+                    publicName = null,
                     containingCallable = containingCallable,
                     parameterIndex = idx,
                     type = type,
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                    // Java parameters can't have default values
+                    hasDefaultValue = false,
                 )
             parameterItem
         }
@@ -681,7 +682,7 @@ internal class TurbineClassBuilder(
      * the method does not have a default value, returns null.
      */
     private fun getAnnotationDefaultExpression(method: MethodInfo) =
-        method.decl()?.defaultValue()?.orElse(null)?.let { defaultTree ->
+        method.decl()?.defaultValue()?.getOrNull()?.let { defaultTree ->
 
             // Turbine stores the default value as a Tree not an Expression so that it can use an
             // Anno class (which is not an Expression). It could wrap the Anno in an AnnoExpr but

@@ -23,9 +23,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationAttributeValue
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -63,26 +60,6 @@ class ValueParser(
         text: String,
         valueUseSite: ValueUseSite,
     ): CombinedValueProvider = CachingValueProvider(this, typeItem, text, valueUseSite)
-
-    /**
-     * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
-     * [attributeName] of [annotationItem] from [text].
-     *
-     * @param annotationItem the containing [AnnotationItem].
-     * @param attributeName the name of the attribute whose value it will provide.
-     * @param text the String value to be parsed.
-     */
-    fun providerForAnnotationValue(
-        annotationItem: AnnotationItem,
-        attributeName: String,
-        text: String
-    ): CombinedValueProvider =
-        CachingAnnotationValueProvider(
-            this,
-            annotationItem,
-            attributeName,
-            text,
-        )
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -206,6 +183,16 @@ class ValueParser(
             val className = matchResult.groups[CLASS_NAME_GROUP_INDEX]?.value ?: ""
             val fieldName = matchResult.groups[FIELD_NAME_GROUP_INDEX]!!.value
 
+            // If there was an explicit conversion function call on the field reference then make
+            // sure to track that.
+            val explicitConversionTo =
+                matchResult.groups[OPTIONAL_CONVERSION_FUNCTION_NAME_GROUP_INDEX]?.value?.let {
+                    conversionFunctionName ->
+                    PrimitiveTypeItem.Primitive.forKotlinNumericConversionFunctionName(
+                        conversionFunctionName
+                    )
+                }
+
             // Parse the class name to a type.
             val classTypeItem =
                 typeItemParser.obtainTypeFromString(
@@ -220,6 +207,7 @@ class ValueParser(
                 qualifiedClassName,
                 fieldName,
                 optionalTypeItem,
+                explicitConversionTo = explicitConversionTo,
             )
         }
 
@@ -303,7 +291,13 @@ class ValueParser(
                     } else {
                         text.toDouble()
                     }
-                return createLiteralValue(optionalTypeItem, number)
+                return createLiteralValue(
+                    optionalTypeItem,
+                    number,
+                    // Hexadecimal floating point numbers can only be present in the signature file
+                    // if they were present in the source.
+                    nonLiteralInSource = false,
+                )
             }
 
             // Remove the leading "0x"
@@ -316,11 +310,19 @@ class ValueParser(
             // larger than the largest positive int. They will become negative numbers. However,
             // that is what the original number was so it is ok.
             val int = withoutLeading0x.toLong(16).toInt()
-            return createLiteralValue(optionalTypeItem, int)
+            return createLiteralValue(
+                optionalTypeItem,
+                int,
+                // AnnotationItem.toSource() will use format ints obtained from literals as decimals
+                // and ints obtained from complex expressions as decimals so treat hexadecimals as
+                // if they are not literals. That should allow signature files to be read and then
+                // written out again without changing the formatting.
+                nonLiteralInSource = true
+            )
         }
 
         // Check the last character to see if it indicated the type of the number.
-        when (text.last()) {
+        when (val suffix = text.last()) {
             'L',
             'l' -> {
                 val long = text.substring(0, text.length - 1).toLong()
@@ -329,7 +331,10 @@ class ValueParser(
             'F',
             'f' -> {
                 val float = text.substring(0, text.length - 1).toFloat()
-                return createLiteralValue(optionalTypeItem, float)
+                // AnnotationItem.toSource() uses 'F' as the suffix for floats obtained from
+                // expressions and 'f' for those obtained from literals.
+                val nonLiteralInSource = suffix == 'F'
+                return createLiteralValue(optionalTypeItem, float, nonLiteralInSource)
             }
         }
 
@@ -410,11 +415,11 @@ class ValueParser(
                 else -> emptyList()
             }
 
-        return DefaultAnnotationItem.createAttributesLazily(
+        return AnnotationItem.createWithAttributes(
             annotationContext,
             FileLocation.UNKNOWN,
             annotationClassName,
-            { attributes }
+            attributes
         )
     }
 
@@ -425,7 +430,7 @@ class ValueParser(
      * On entry [tokenizer]'s [Tokenizer.current] must be `(`. On exit, it will be the matching `)`.
      */
     private fun parseAnnotationAttributes(
-        @Suppress("UNUSED_PARAMETER") annotationClassName: String,
+        annotationClassName: String,
         tokenizer: Tokenizer
     ): List<AnnotationAttribute> {
         require(tokenizer.current == "(") { "Expected '(' but found ${tokenizer.current}" }
@@ -515,11 +520,9 @@ class ValueParser(
 
                 // Add the attribute to the list.
                 add(
-                    DefaultAnnotationAttribute(
+                    AnnotationAttribute.createLazyAttribute(
                         attributeName,
                         valueProvider,
-                        // Create legacy attribute value.
-                        DefaultAnnotationAttributeValue.create(valueText),
                     )
                 )
             } while (true)
@@ -623,15 +626,22 @@ class ValueParser(
         /**
          * Pattern to match a field, including a class literal of the form `<class>.class` and an
          * unqualified field of the form `FIELD`.
+         *
+         * This also matches an optional call to a numeric conversion function, e.g. `Int.toLong()`.
          */
         internal val fieldReferencePattern =
-            Regex("""(?:([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.)?([a-zA-Z0-9_]+)""")
+            Regex(
+                """(?:([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.)?([a-zA-Z0-9_]+)(?:\.(to(?:Byte|Double|Float|Int|Long|Short))\(\))?"""
+            )
 
         /** Index of class name group in [fieldReferencePattern]. */
         private const val CLASS_NAME_GROUP_INDEX = 1
 
         /** Index of field name group in [fieldReferencePattern]. */
         private const val FIELD_NAME_GROUP_INDEX = 2
+
+        /** Index of optional conversion function name group in [fieldReferencePattern]. */
+        private const val OPTIONAL_CONVERSION_FUNCTION_NAME_GROUP_INDEX = 3
 
         /**
          * Pattern to match a Kotlin style annotation value which looks like a constructor call for

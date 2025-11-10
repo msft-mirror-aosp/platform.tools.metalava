@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -40,7 +39,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
@@ -49,7 +47,6 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.model.value.asDouble
 import com.android.tools.metalava.model.value.asLong
-import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -457,11 +454,7 @@ class ExtractAnnotations(
                         if (name == "from" || name == "to") {
                             attribute.value.asLong()?.let { long ->
                                 val intValue = Value.createLiteralValue(null, long.toInt())
-                                DefaultAnnotationAttribute(
-                                    name,
-                                    intValue.provider(),
-                                    intValue.asAnnotationAttributeValue()
-                                )
+                                AnnotationAttribute.createAttribute(name, intValue)
                             }
                         } else attribute
                     }
@@ -481,11 +474,7 @@ class ExtractAnnotations(
                         if (name == "from" || name == "to") {
                             attribute.value.asDouble()?.let { double ->
                                 val floatValue = Value.createLiteralValue(null, double.toFloat())
-                                DefaultAnnotationAttribute(
-                                    name,
-                                    floatValue.provider(),
-                                    floatValue.asAnnotationAttributeValue()
-                                )
+                                AnnotationAttribute.createAttribute(name, floatValue)
                             }
                         } else attribute
                     }

@@ -765,13 +765,13 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should be `<Foo>Activity`, was `MyClass1` [ContextNameSuffix]
+                src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass1` [ContextNameSuffix]
                 src/android/pkg/MyClass1.java:3: error: MyClass1 should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyClass1.java:6: warning: Methods implemented by developers should follow the on<Something> style, was `badlyNamedAbstractMethod` [OnNameExpected]
                 src/android/pkg/MyClass1.java:7: warning: If implemented by developer, should follow the on<Something> style; otherwise consider marking final [OnNameExpected]
-                src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should be `<Foo>Provider`, was `MyClass2` [ContextNameSuffix]
-                src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should be `<Foo>Service`, was `MyClass3` [ContextNameSuffix]
-                src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should be `<Foo>Receiver`, was `MyClass4` [ContextNameSuffix]
+                src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass2` [ContextNameSuffix]
+                src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass3` [ContextNameSuffix]
+                src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass4` [ContextNameSuffix]
                 src/android/pkg/MyOkActivity.java:3: error: MyOkActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 """,
             expectedFail = DefaultLintErrorMessage,
@@ -825,6 +825,171 @@ class ApiLintTest : DriverTest() {
                     public class MyOkActivity extends android.app.Activity {
                     }
                     """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Make sure helper classes that end with the appropriate Compat suffix are not flagged`() {
+        check(
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ForbiddenSuperClass"),
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass1ActivityCompat: android.app.Activity {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass2ActivityCompat extends android.app.Activity {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass3ContentProviderCompat: android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass4ContentProviderCompat extends android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass5ServiceCompat : android.app.Service {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass6ServiceCompat extends android.app.Service {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass7ReceiverCompat : android.content.BroadcastReceiver {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass8ReceiverCompat extends android.content.BroadcastReceiver {
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Make sure helper classes that end with a just Compat suffix are flagged`() {
+        check(
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ForbiddenSuperClass"),
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/android/pkg/MyClass1Compat.kt:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass1Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass2Compat.java:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass2Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass3Compat.kt:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass3Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass4Compat.java:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass4Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass5Compat.kt:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass5Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass6Compat.java:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass6Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass7Compat.kt:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass7Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass8Compat.java:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass8Compat` [ContextNameSuffix]
+            """
+                    .trimIndent(),
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass1Compat: android.app.Activity {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass2Compat extends android.app.Activity {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass3Compat: android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass4Compat extends android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass5Compat : android.app.Service {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass6Compat extends android.app.Service {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass7Compat : android.content.BroadcastReceiver {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass8Compat extends android.content.BroadcastReceiver {
+                        }
+                        """
                     )
                 )
         )
@@ -1176,12 +1341,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            // missing errors for `isVisibleSetterBad`,
+            // missing errors for `isVisibleSetterBad`, `transientStateBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
@@ -1264,18 +1428,18 @@ class ApiLintTest : DriverTest() {
 
                     public class OverlappingFlags {
                         private OverlappingFlags() { }
-                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128; // 0x80
-                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1; // 0x1
-                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2; // 0x2
-                        public static final int DRAG_FLAG_OPAQUE = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4; // 0x4
-                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2; // 0x2
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048; // 0x800
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096; // 0x1000
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024; // 0x400
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256; // 0x100
-                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16; // 0x10
+                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128;
+                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1;
+                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2;
+                        public static final int DRAG_FLAG_OPAQUE = 512;
+                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4;
+                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256;
+                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16;
 
                         public static final int TEST1_FLAG_FIRST = 1;
                         public static final int TEST1_FLAG_SECOND = 3;
@@ -1497,6 +1661,35 @@ class ApiLintTest : DriverTest() {
                     """
                     ),
                     androidxNullableSource
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check context first for suspend fun`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
+                src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package android.pkg
+                    import android.content.Context
+
+                    suspend fun okCall(context: Context, value: Int) {}
+                    suspend fun badCall(value: Int, context: Context) {}
+
+                    suspend fun String.okCallExtension(context: Context, value: Int) {}
+                    suspend fun String.badCallExtension(value: Int, context: Context) {}
+                    """
+                    ),
                 )
         )
     }
@@ -2220,6 +2413,43 @@ class ApiLintTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Allow arrays for kotlin only APIs`() {
+        check(
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                src/test/pkg/ConstructorCanBeUsedFromJava.kt:2: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
+                src/test/pkg/IntValue.kt:2: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val value: Int)
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        class ConstructorCanBeUsedFromJava(i: Int, arr: Array<Number>)
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        // IntValue is a value class type, which can't be used from Java
+                        // Arrays can be used for Kotlin only APIs, so this usage is okay
+                        class ConstructorCannotBeUsedFromJava(iv: IntValue, arr: Array<Number>)
+                        """
+                    ),
                 )
         )
     }
