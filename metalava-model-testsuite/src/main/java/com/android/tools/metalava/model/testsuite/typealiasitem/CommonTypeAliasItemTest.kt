@@ -422,9 +422,9 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             val fooAlias = codebase.assertTypeAlias("test.pkg.Foo")
             assertThat(fooAlias.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
 
-            // TODO(b/458735166): this typealias is from the classpath.
-            val errorAlias = codebase.assertTypeAlias("kotlin.Error")
-            assertThat(errorAlias.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
+            val errorAlias = codebase.assertResolvedClass("kotlin.Error", expectedEmit = false)
+            assertThat(errorAlias.classKind).isEqualTo(ClassKind.TYPEALIAS)
+            assertThat(errorAlias.origin).isEqualTo(ClassOrigin.CLASS_PATH)
         }
     }
 }

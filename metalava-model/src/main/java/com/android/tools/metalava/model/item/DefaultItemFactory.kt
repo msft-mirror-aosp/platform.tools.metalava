@@ -285,6 +285,7 @@ class DefaultItemFactory(
         containingPackage: DefaultPackageItem,
         aliasedType: TypeItem,
         typeParameterList: TypeParameterList,
+        origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
     ): ClassItem =
         DefaultClassItem.createTypeAlias(
@@ -296,7 +297,8 @@ class DefaultItemFactory(
             aliasedType,
             qualifiedName,
             typeParameterList,
-            containingPackage
+            containingPackage,
+            origin,
         )
 
     /**

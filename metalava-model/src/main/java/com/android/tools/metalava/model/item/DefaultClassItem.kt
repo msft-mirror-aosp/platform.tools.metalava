@@ -342,6 +342,7 @@ open class DefaultClassItem(
             qualifiedName: String,
             typeParameterList: TypeParameterList,
             containingPackage: DefaultPackageItem,
+            origin: ClassOrigin,
         ): DefaultClassItem {
             return DefaultClassItem(
                 codebase = codebase,
@@ -360,8 +361,7 @@ open class DefaultClassItem(
                 containingPackage = containingPackage,
                 qualifiedName = qualifiedName,
                 typeParameterList = typeParameterList,
-                // TODO: updated in followup -- allow specifying an origin.
-                origin = ClassOrigin.COMMAND_LINE,
+                origin = origin,
                 // Typealiases don't have a superclass or interface types, since they are not
                 // normal classes.
                 superClassType = null,

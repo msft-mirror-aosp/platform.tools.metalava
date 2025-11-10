@@ -6594,29 +6594,9 @@ class ApiFileTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/458735166): typealiases from the classpath should not be listed
             api =
                 """
                 // Signature format: 5.0
-                package kotlin {
-                  @kotlin.SinceKotlin(version="1.3") public typealias ArithmeticException = ArithmeticException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias AssertionError = AssertionError;
-                  @kotlin.SinceKotlin(version="2.0") public typealias AutoCloseable = AutoCloseable;
-                  @kotlin.SinceKotlin(version="1.1") public typealias ClassCastException = ClassCastException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias Comparator<T> = java.util.Comparator<T>;
-                  @kotlin.SinceKotlin(version="1.3") public typealias ConcurrentModificationException = java.util.ConcurrentModificationException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias Error = Error;
-                  @kotlin.SinceKotlin(version="1.1") public typealias Exception = Exception;
-                  @kotlin.SinceKotlin(version="1.1") public typealias IllegalArgumentException = IllegalArgumentException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias IllegalStateException = IllegalStateException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias IndexOutOfBoundsException = IndexOutOfBoundsException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias NoSuchElementException = java.util.NoSuchElementException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias NullPointerException = NullPointerException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias NumberFormatException = NumberFormatException;
-                  @kotlin.SinceKotlin(version="1.1") public typealias RuntimeException = RuntimeException;
-                  @kotlin.SinceKotlin(version="1.4") public typealias Throws = kotlin.jvm.Throws;
-                  @kotlin.SinceKotlin(version="1.1") public typealias UnsupportedOperationException = UnsupportedOperationException;
-                }
                 package test.pkg {
                   public typealias Foo = String;
                 }
