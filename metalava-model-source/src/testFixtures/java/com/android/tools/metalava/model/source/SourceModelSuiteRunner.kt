@@ -83,6 +83,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         val sourceParser =
             environmentManager.createSourceParser(
                 codebaseConfig = testFixture.codebaseConfig,
+                javaLanguageLevel = testFixture.javaLanguageLevel,
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(

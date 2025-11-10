@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.reporter.RecordingReporter
@@ -231,6 +232,9 @@ abstract class BaseModelTest() :
 
         /** Additional jar files to add to the class path. */
         val additionalClassPath: List<File> = emptyList(),
+
+        /** The Java language level. */
+        val javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
     ) {
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig =
