@@ -46,13 +46,7 @@ enum class ItemKind(
             ),
     ),
     CONSTRUCTOR(
-        javaFlags =
-            flagBits(
-                // TODO(b/479907812): These are not actually allowed but are added here temporarily
-                //  to avoid changing any behavior.
-                TRANSIENT,
-                VARARG,
-            ),
+        javaFlags = flagBits(),
     ),
     FIELD(
         javaFlags =
@@ -60,9 +54,6 @@ enum class ItemKind(
                 FINAL,
                 STATIC,
                 TRANSIENT,
-                // TODO(b/479907812): This is not actually allowed but is added here temporarily to
-                //  avoid changing any behavior.
-                VARARG,
                 VOLATILE,
             ),
     ),
@@ -75,10 +66,6 @@ enum class ItemKind(
                 NATIVE,
                 STATIC,
                 SYNCHRONIZED,
-                // TODO(b/479907812): These are not actually allowed but are added here temporarily
-                //  to avoid changing any behavior.
-                TRANSIENT,
-                VARARG,
             ),
     ),
     PACKAGE(
@@ -88,9 +75,6 @@ enum class ItemKind(
         javaFlags =
             flagBits(
                 VARARG,
-                // TODO(b/479907812): This is not actually allowed but is added here temporarily to
-                //  avoid changing any behavior.
-                TRANSIENT,
             ),
     ),
     PROPERTY(
