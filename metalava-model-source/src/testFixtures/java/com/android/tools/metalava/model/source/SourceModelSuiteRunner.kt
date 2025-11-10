@@ -43,7 +43,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
 
     override fun createCodebaseAndRun(
         inputs: ModelSuiteRunner.TestInputs,
-        test: (Codebase) -> Unit
+        test: (Codebase?) -> Unit
     ) {
         // Skip tests that require using compiled sources if the provider does not support it
         if (
@@ -68,7 +68,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                 )
 
             // If available, transform the codebase for testing, otherwise use the one provided.
-            val transformedCodebase = CodebaseTransformer.transformIfAvailable(codebase)
+            val transformedCodebase = codebase?.let { CodebaseTransformer.transformIfAvailable(it) }
 
             test(transformedCodebase)
         }
@@ -78,7 +78,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         environmentManager: EnvironmentManager,
         inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
-    ): Codebase {
+    ): Codebase? {
         val testFixture = inputs.testFixture
         val sourceParser =
             environmentManager.createSourceParser(

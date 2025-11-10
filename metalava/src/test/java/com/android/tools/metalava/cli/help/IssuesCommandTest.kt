@@ -222,6 +222,7 @@ Available Issues                             |  Category                        
   TypeParseError                             |  unknown                              |   error
   UnavailableSymbol                          |  documentation                        |   warning
   UnclosedInlineTag                          |  documentation                        |   error
+  UnexportedFlaggedApi                       |  api_lint                             |   warning_error_when_new
   UnflaggedApi                               |  api_lint                             |   hidden
   UnhiddenSystemApi                          |  api_lint                             |   error
   UniqueKotlinOperator                       |  api_lint                             |   error
