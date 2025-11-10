@@ -1,5 +1,4 @@
 com.android.tools.metalava.ApiFileTest
-  Check skipping implicit final or deprecated override[turbine]
   Kotlin expect-actual with JvmOverloads constructors[psi,k2]
 
 com.android.tools.metalava.DuplicateClassTest

@@ -1,14 +1,8 @@
-com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
-  modifiers public explicitly final method in final class
-
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with unknown field
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
-
-com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
-  Test final method in final class
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals

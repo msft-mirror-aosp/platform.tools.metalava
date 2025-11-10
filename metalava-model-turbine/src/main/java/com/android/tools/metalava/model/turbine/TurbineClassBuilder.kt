@@ -465,6 +465,12 @@ internal class TurbineClassBuilder(
                     method.access(),
                     method.annotations(),
                 )
+
+            // Final modifier is superfluous on a method in a final class.
+            if (methodModifierItem.isFinal() && classItem.modifiers.isFinal()) {
+                methodModifierItem.setFinal(false)
+            }
+
             val name = method.name()
             val (typeParams, methodTypeItemFactory) =
                 createTypeParameters(

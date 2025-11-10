@@ -7,7 +7,6 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
 
 com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[text]
-  modifiers public explicitly final method in final class[turbine]
 
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
   Test function in value class[psi,kotlin,k1]
@@ -34,7 +33,6 @@ com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]
-  Test final method in final class[turbine]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
