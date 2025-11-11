@@ -656,6 +656,42 @@ class CompatibilityCheck(
                 oldItem = old,
             )
         }
+
+        if (
+            oldModifiers.isSealed() &&
+                oldModifiers.isExhaustive() &&
+                newModifiers.isSealed() &&
+                !newModifiers.isExhaustive()
+        ) {
+            reporter.report(
+                Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED,
+                new,
+                "Sealed ${if (new.isInterface()) "interface" else "class"} can no longer be exhaustively matched because an inaccessible subclass was added.",
+                new.fileLocation,
+            )
+        }
+
+        if (
+            oldModifiers.isExhaustive() &&
+                newModifiers.isExhaustive() &&
+                // If the number of subclasses of a sealed class stays the same but the classes
+                // change
+                // in some way (e.g. renamed a class), there would be an issue with sealed class
+                // exhaustivity but we don't have to explicitly check for it here because it will be
+                // caught as another issue (e.g. removed class). The one case where no issue would
+                // be raised is if the removed class is experimental, and in that case the client
+                // would have had to opt in to the usage in the first place. Thus, we only need to
+                // check for cases where the number of subclasses increased
+                new.subClasses().size > old.subClasses().size
+        ) {
+            val addedSubclasses = new.subClasses().toSet() - old.subClasses().toSet()
+            reporter.report(
+                Issues.ADDED_SUBCLASS_TO_SEALED_CLASS,
+                new,
+                "Added a subclass to a sealed ${if (new.isInterface()) "interface" else "class"} that can be exhaustively matched",
+                addedSubclasses.first().fileLocation,
+            )
+        }
     }
 
     fun compareTypeAliasItems(old: ClassItem, new: ClassItem) {
@@ -1122,6 +1158,7 @@ class CompatibilityCheck(
             } else {
                 Issues.ADDED_CLASS
             }
+
         handleAdded(error, new)
     }
 

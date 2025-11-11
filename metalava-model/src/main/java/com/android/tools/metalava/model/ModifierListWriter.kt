@@ -176,6 +176,12 @@ private constructor(
 
         if (list.isSealed()) {
             writer.write("sealed ")
+
+            if (list.isExhaustive()) {
+                writer.write("exhaustive ")
+            } else {
+                writer.write("nonexhaustive ")
+            }
         }
 
         if (list.isSuspend()) {

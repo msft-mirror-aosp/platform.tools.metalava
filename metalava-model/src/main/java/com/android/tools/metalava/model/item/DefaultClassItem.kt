@@ -117,6 +117,23 @@ open class DefaultClassItem(
 
     final override fun containingClass() = containingClass
 
+    private lateinit var subClassList: MutableList<ClassItem>
+
+    final override fun subClasses(): List<ClassItem> {
+        if (!::subClassList.isInitialized) {
+            subClassList =
+                codebase
+                    .getAllClassesByName()
+                    .values
+                    .filter { cls ->
+                        cls.superClassType()?.qualifiedName == this.qualifiedName ||
+                            cls.interfaceTypes().any { it.qualifiedName == this.qualifiedName }
+                    }
+                    .toMutableList()
+        }
+        return subClassList.toList()
+    }
+
     final override fun qualifiedName() = qualifiedName
 
     final override fun simpleName() = simpleName
