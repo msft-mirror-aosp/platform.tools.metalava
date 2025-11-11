@@ -172,7 +172,7 @@ interface Item : Reportable {
      * Produces a user visible description of this item, including a label such as "class" or
      * "field"
      */
-    fun describe(capitalize: Boolean = false) = describe(this, capitalize)
+    fun describe(capitalize: Boolean = false) = describeItem(this, capitalize)
 
     /** Returns the package that contains this item. */
     fun containingPackage(): PackageItem?
@@ -262,20 +262,20 @@ interface Item : Reportable {
     val targetLanguages: Set<TargetLanguage>
 
     companion object {
-        private fun describe(item: Item, capitalize: Boolean = false): String {
+        private fun describeItem(item: Item, capitalize: Boolean = false): String {
             return when (item) {
-                is PackageItem -> describe(item, capitalize = capitalize)
-                is ClassItem -> describe(item, capitalize = capitalize)
-                is FieldItem -> describe(item, capitalize = capitalize)
+                is PackageItem -> describePackageItem(item, capitalize = capitalize)
+                is ClassItem -> describeClassItem(item, capitalize = capitalize)
+                is FieldItem -> describeFieldItem(item, capitalize = capitalize)
                 is CallableItem ->
-                    describe(
+                    describeCallableItem(
                         item,
                         includeParameterNames = false,
                         includeParameterTypes = true,
                         capitalize = capitalize
                     )
                 is ParameterItem ->
-                    describe(
+                    describeParameterItem(
                         item,
                         includeParameterNames = true,
                         includeParameterTypes = true,
@@ -286,7 +286,7 @@ interface Item : Reportable {
             }
         }
 
-        fun describe(
+        fun describeCallableItem(
             item: CallableItem,
             includeParameterNames: Boolean = false,
             includeParameterTypes: Boolean = false,
@@ -308,7 +308,7 @@ interface Item : Reportable {
             return builder.toString()
         }
 
-        fun describe(
+        fun describeParameterItem(
             item: ParameterItem,
             includeParameterNames: Boolean = false,
             includeParameterTypes: Boolean = false,
@@ -361,7 +361,7 @@ interface Item : Reportable {
             }
         }
 
-        private fun describe(item: FieldItem, capitalize: Boolean = false): String {
+        private fun describeFieldItem(item: FieldItem, capitalize: Boolean = false): String {
             return if (item.isEnumConstant()) {
                 "${if (capitalize) "Enum" else "enum"} constant ${item.containingClass().qualifiedName()}.${item.name()}"
             } else {
@@ -369,7 +369,7 @@ interface Item : Reportable {
             }
         }
 
-        private fun describe(item: ClassItem, capitalize: Boolean = false): String {
+        private fun describeClassItem(item: ClassItem, capitalize: Boolean = false): String {
             val descriptor =
                 if (item.classKind == ClassKind.TYPEALIAS) {
                     if (capitalize) {
@@ -387,7 +387,7 @@ interface Item : Reportable {
             return "$descriptor ${item.qualifiedName()}"
         }
 
-        private fun describe(item: PackageItem, capitalize: Boolean = false): String {
+        private fun describePackageItem(item: PackageItem, capitalize: Boolean = false): String {
             val suffix = item.qualifiedName().let { if (it.isEmpty()) "<root>" else it }
             return "${if (capitalize) "Package" else "package"} $suffix"
         }

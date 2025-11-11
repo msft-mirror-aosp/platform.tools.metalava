@@ -30,7 +30,8 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Item.Companion.describe
+import com.android.tools.metalava.model.Item.Companion.describeCallableItem
+import com.android.tools.metalava.model.Item.Companion.describeParameterItem
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -415,14 +416,14 @@ class CompatibilityCheck(
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to remove parameter name from ${describe(new)}",
+                    "Attempted to remove parameter name from ${describeParameterItem(new)}",
                     oldItem = old,
                 )
             } else if (newName != prevName) {
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingCallable())}",
+                    "Attempted to change parameter name from $prevName to $newName in ${describeCallableItem(new.containingCallable())}",
                     oldItem = old,
                 )
             }
@@ -440,7 +441,7 @@ class CompatibilityCheck(
                 report(
                     Issues.DEFAULT_VALUE_CHANGE,
                     new,
-                    "Attempted to remove default value from ${describe(new)}",
+                    "Attempted to remove default value from ${describeParameterItem(new)}",
                     oldItem = old
                 )
             }
@@ -455,7 +456,7 @@ class CompatibilityCheck(
             report(
                 Issues.VARARG_REMOVAL,
                 new,
-                "Changing from varargs to array is an incompatible change: ${describe(
+                "Changing from varargs to array is an incompatible change: ${describeParameterItem(
                     new,
                     includeParameterTypes = true,
                     includeParameterNames = true
@@ -777,7 +778,7 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_SCOPE,
                     new,
-                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
+                    "${describeCallableItem(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
                     oldItem = old,
                 )
             }
@@ -787,10 +788,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
-                "${describe(
-                    new,
-                    capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                "${describeCallableItem(new, capitalize = true)} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
                 oldItem = old,
             )
         }
@@ -806,7 +804,7 @@ class CompatibilityCheck(
                     report(
                         Issues.CHANGED_THROWS,
                         new,
-                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}",
+                        "${describeCallableItem(new, capitalize = true)} no longer throws exception ${throwType.description()}",
                         oldItem = old,
                     )
                 }
@@ -822,7 +820,7 @@ class CompatibilityCheck(
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
                     val message =
-                        "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
+                        "${describeCallableItem(new, capitalize = true)} added thrown exception ${throwType.description()}"
                     report(Issues.CHANGED_THROWS, new, message, oldItem = old)
                 }
             }
@@ -841,7 +839,7 @@ class CompatibilityCheck(
             val oldTypeString = describeBounds(oldReturnType)
             val newTypeString = describeBounds(newReturnType)
             val message =
-                "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
+                "${describeCallableItem(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
             report(Issues.CHANGED_TYPE, new, message, oldItem = old)
         }
 
@@ -867,10 +865,7 @@ class CompatibilityCheck(
                     newValue
                 }
             val message =
-                "${describe(
-                new,
-                capitalize = true
-            )} has changed value from $prevString to $newString"
+                "${describeCallableItem(new, capitalize = true)} has changed value from $prevString to $newString"
 
             // Adding a default value to an annotation method is safe
             val annotationMethodAddingDefaultValue =
@@ -888,7 +883,7 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_ABSTRACT,
                     new,
-                    "${describe(new, capitalize = true)} has changed 'abstract' qualifier",
+                    "${describeCallableItem(new, capitalize = true)} has changed 'abstract' qualifier",
                     oldItem = old,
                 )
             }
@@ -899,7 +894,7 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_DEFAULT,
                     new,
-                    "${describe(new, capitalize = true)} has changed 'default' qualifier",
+                    "${describeCallableItem(new, capitalize = true)} has changed 'default' qualifier",
                     oldItem = old,
                 )
             }
@@ -909,7 +904,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_NATIVE,
                 new,
-                "${describe(new, capitalize = true)} has changed 'native' qualifier",
+                "${describeCallableItem(new, capitalize = true)} has changed 'native' qualifier",
                 oldItem = old,
             )
         }
@@ -927,19 +922,14 @@ class CompatibilityCheck(
                     report(
                         Issues.ADDED_FINAL_UNINSTANTIABLE,
                         new,
-                        "${
-                            describe(
-                                new,
-                                capitalize = true
-                            )
-                        } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed",
+                        "${describeCallableItem(new, capitalize = true)} added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed",
                         oldItem = old,
                     )
                 } else {
                     report(
                         Issues.ADDED_FINAL,
                         new,
-                        "${describe(new, capitalize = true)} has added 'final' qualifier",
+                        "${describeCallableItem(new, capitalize = true)} has added 'final' qualifier",
                         oldItem = old,
                     )
                 }
@@ -951,7 +941,7 @@ class CompatibilityCheck(
                 report(
                     Issues.REMOVED_FINAL_STRICT,
                     new,
-                    "${describe(new, capitalize = true)} has removed 'final' qualifier",
+                    "${describeCallableItem(new, capitalize = true)} has removed 'final' qualifier",
                     oldItem = old,
                 )
             }
@@ -961,7 +951,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_STATIC,
                 new,
-                "${describe(new, capitalize = true)} has changed 'static' qualifier",
+                "${describeCallableItem(new, capitalize = true)} has changed 'static' qualifier",
                 oldItem = old,
             )
         }
@@ -975,12 +965,7 @@ class CompatibilityCheck(
                 }
                 if (newTypes[i].isReified() && !oldTypes[i].isReified()) {
                     val message =
-                        "${
-                            describe(
-                                new,
-                                capitalize = true
-                            )
-                        } made type variable ${newTypes[i].name()} reified: incompatible change"
+                        "${describeCallableItem(new, capitalize = true)} made type variable ${newTypes[i].name()} reified: incompatible change"
                     report(Issues.ADDED_REIFIED, new, message, oldItem = old)
                 }
             }
