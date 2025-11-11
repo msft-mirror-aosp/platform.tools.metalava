@@ -172,7 +172,7 @@ interface Item : Reportable {
      * Produces a user visible description of this item, including a label such as "class" or
      * "field"
      */
-    fun describe(capitalize: Boolean = false) = describeItem(this, capitalize)
+    fun describe(capitalize: Boolean = false): String
 
     /** Returns the package that contains this item. */
     fun containingPackage(): PackageItem?
@@ -260,68 +260,6 @@ interface Item : Reportable {
 
     /** The languages from which this [Item] can be used. */
     val targetLanguages: Set<TargetLanguage>
-
-    companion object {
-        private fun describeItem(item: Item, capitalize: Boolean = false): String {
-            return when (item) {
-                is PackageItem -> describePackageItem(item, capitalize = capitalize)
-                is ClassItem -> describeClassItem(item, capitalize = capitalize)
-                is FieldItem -> describeFieldItem(item, capitalize = capitalize)
-                is ParameterItem -> describeParameterItem(item, capitalize = capitalize)
-                is PropertyItem -> item.toString()
-                else -> error("Unknown item: $item")
-            }
-        }
-
-        private fun describeParameterItem(
-            item: ParameterItem,
-            capitalize: Boolean = false
-        ): String {
-            val builder = StringBuilder()
-            builder.append(if (capitalize) "Parameter" else "parameter")
-            builder.append(' ')
-            builder.append(item.name())
-            builder.append(" in ")
-            val callable = item.containingCallable()
-            callable.appendCallableSignature(
-                builder,
-                includeParameterNames = true,
-                includeParameterTypes = true,
-            )
-            return builder.toString()
-        }
-
-        private fun describeFieldItem(item: FieldItem, capitalize: Boolean = false): String {
-            return if (item.isEnumConstant()) {
-                "${if (capitalize) "Enum" else "enum"} constant ${item.containingClass().qualifiedName()}.${item.name()}"
-            } else {
-                "${if (capitalize) "Field" else "field"} ${item.containingClass().qualifiedName()}.${item.name()}"
-            }
-        }
-
-        private fun describeClassItem(item: ClassItem, capitalize: Boolean = false): String {
-            val descriptor =
-                if (item.classKind == ClassKind.TYPEALIAS) {
-                    if (capitalize) {
-                        "Typealias"
-                    } else {
-                        "typealias"
-                    }
-                } else {
-                    if (capitalize) {
-                        "Class"
-                    } else {
-                        "class"
-                    }
-                }
-            return "$descriptor ${item.qualifiedName()}"
-        }
-
-        private fun describePackageItem(item: PackageItem, capitalize: Boolean = false): String {
-            val suffix = item.qualifiedName().let { if (it.isEmpty()) "<root>" else it }
-            return "${if (capitalize) "Package" else "package"} $suffix"
-        }
-    }
 }
 
 /** Base [Item] implementation that is common to all models. */
