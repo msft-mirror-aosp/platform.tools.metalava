@@ -268,12 +268,7 @@ interface Item : Reportable {
                 is ClassItem -> describeClassItem(item, capitalize = capitalize)
                 is FieldItem -> describeFieldItem(item, capitalize = capitalize)
                 is CallableItem ->
-                    describeCallableItem(
-                        item,
-                        includeParameterNames = false,
-                        includeParameterTypes = true,
-                        capitalize = capitalize
-                    )
+                    item.describeCallableItem(includeParameterTypes = true, capitalize = capitalize)
                 is ParameterItem ->
                     describeParameterItem(
                         item,
@@ -286,25 +281,24 @@ interface Item : Reportable {
             }
         }
 
-        fun describeCallableItem(
-            item: CallableItem,
+        fun CallableItem.describeCallableItem(
             includeParameterNames: Boolean = false,
             includeParameterTypes: Boolean = false,
             includeReturnValue: Boolean = false,
             capitalize: Boolean = false
         ): String {
             val builder = StringBuilder()
-            if (item.isConstructor()) {
+            if (isConstructor()) {
                 builder.append(if (capitalize) "Constructor" else "constructor")
             } else {
                 builder.append(if (capitalize) "Method" else "method")
             }
             builder.append(' ')
-            if (includeReturnValue && !item.isConstructor()) {
-                builder.append(item.returnType().toSimpleType())
+            if (includeReturnValue && !isConstructor()) {
+                builder.append(returnType().toSimpleType())
                 builder.append(' ')
             }
-            appendCallableSignature(builder, item, includeParameterNames, includeParameterTypes)
+            appendCallableSignature(builder, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
@@ -320,25 +314,24 @@ interface Item : Reportable {
             builder.append(item.name())
             builder.append(" in ")
             val callable = item.containingCallable()
-            appendCallableSignature(builder, callable, includeParameterNames, includeParameterTypes)
+            callable.appendCallableSignature(builder, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
-        private fun appendCallableSignature(
+        private fun CallableItem.appendCallableSignature(
             builder: StringBuilder,
-            item: CallableItem,
             includeParameterNames: Boolean,
             includeParameterTypes: Boolean
         ) {
-            builder.append(item.containingClass().qualifiedName())
-            if (!item.isConstructor()) {
+            builder.append(containingClass().qualifiedName())
+            if (!isConstructor()) {
                 builder.append('.')
-                builder.append(item.name())
+                builder.append(name())
             }
             if (includeParameterNames || includeParameterTypes) {
                 builder.append('(')
                 var first = true
-                for (parameter in item.parameters()) {
+                for (parameter in parameters()) {
                     if (first) {
                         first = false
                     } else {

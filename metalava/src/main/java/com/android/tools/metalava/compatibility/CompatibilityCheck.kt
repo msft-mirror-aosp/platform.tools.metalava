@@ -422,7 +422,7 @@ class CompatibilityCheck(
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to change parameter name from $prevName to $newName in ${describeCallableItem(new.containingCallable())}",
+                    "Attempted to change parameter name from $prevName to $newName in ${new.containingCallable().describeCallableItem()}",
                     oldItem = old,
                 )
             }
@@ -777,7 +777,7 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_SCOPE,
                     new,
-                    "${describeCallableItem(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
+                    "${new.describeCallableItem(capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
                     oldItem = old,
                 )
             }
@@ -787,7 +787,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
-                "${describeCallableItem(new, capitalize = true)} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                "${new.describeCallableItem(capitalize = true)} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
                 oldItem = old,
             )
         }
@@ -803,7 +803,7 @@ class CompatibilityCheck(
                     report(
                         Issues.CHANGED_THROWS,
                         new,
-                        "${describeCallableItem(new, capitalize = true)} no longer throws exception ${throwType.description()}",
+                        "${new.describeCallableItem(capitalize = true)} no longer throws exception ${throwType.description()}",
                         oldItem = old,
                     )
                 }
@@ -819,7 +819,7 @@ class CompatibilityCheck(
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
                     val message =
-                        "${describeCallableItem(new, capitalize = true)} added thrown exception ${throwType.description()}"
+                        "${new.describeCallableItem(capitalize = true)} added thrown exception ${throwType.description()}"
                     report(Issues.CHANGED_THROWS, new, message, oldItem = old)
                 }
             }
@@ -838,7 +838,7 @@ class CompatibilityCheck(
             val oldTypeString = describeBounds(oldReturnType)
             val newTypeString = describeBounds(newReturnType)
             val message =
-                "${describeCallableItem(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
+                "${new.describeCallableItem(capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
             report(Issues.CHANGED_TYPE, new, message, oldItem = old)
         }
 
@@ -864,7 +864,7 @@ class CompatibilityCheck(
                     newValue
                 }
             val message =
-                "${describeCallableItem(new, capitalize = true)} has changed value from $prevString to $newString"
+                "${new.describeCallableItem(capitalize = true)} has changed value from $prevString to $newString"
 
             // Adding a default value to an annotation method is safe
             val annotationMethodAddingDefaultValue =
@@ -882,7 +882,7 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_ABSTRACT,
                     new,
-                    "${describeCallableItem(new, capitalize = true)} has changed 'abstract' qualifier",
+                    "${new.describeCallableItem(capitalize = true)} has changed 'abstract' qualifier",
                     oldItem = old,
                 )
             }
@@ -893,7 +893,7 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_DEFAULT,
                     new,
-                    "${describeCallableItem(new, capitalize = true)} has changed 'default' qualifier",
+                    "${new.describeCallableItem(capitalize = true)} has changed 'default' qualifier",
                     oldItem = old,
                 )
             }
@@ -903,7 +903,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_NATIVE,
                 new,
-                "${describeCallableItem(new, capitalize = true)} has changed 'native' qualifier",
+                "${new.describeCallableItem(capitalize = true)} has changed 'native' qualifier",
                 oldItem = old,
             )
         }
@@ -921,14 +921,14 @@ class CompatibilityCheck(
                     report(
                         Issues.ADDED_FINAL_UNINSTANTIABLE,
                         new,
-                        "${describeCallableItem(new, capitalize = true)} added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed",
+                        "${new.describeCallableItem(capitalize = true)} added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed",
                         oldItem = old,
                     )
                 } else {
                     report(
                         Issues.ADDED_FINAL,
                         new,
-                        "${describeCallableItem(new, capitalize = true)} has added 'final' qualifier",
+                        "${new.describeCallableItem(capitalize = true)} has added 'final' qualifier",
                         oldItem = old,
                     )
                 }
@@ -940,7 +940,7 @@ class CompatibilityCheck(
                 report(
                     Issues.REMOVED_FINAL_STRICT,
                     new,
-                    "${describeCallableItem(new, capitalize = true)} has removed 'final' qualifier",
+                    "${new.describeCallableItem(capitalize = true)} has removed 'final' qualifier",
                     oldItem = old,
                 )
             }
@@ -950,7 +950,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_STATIC,
                 new,
-                "${describeCallableItem(new, capitalize = true)} has changed 'static' qualifier",
+                "${new.describeCallableItem(capitalize = true)} has changed 'static' qualifier",
                 oldItem = old,
             )
         }
@@ -964,7 +964,7 @@ class CompatibilityCheck(
                 }
                 if (newTypes[i].isReified() && !oldTypes[i].isReified()) {
                     val message =
-                        "${describeCallableItem(new, capitalize = true)} made type variable ${newTypes[i].name()} reified: incompatible change"
+                        "${new.describeCallableItem(capitalize = true)} made type variable ${newTypes[i].name()} reified: incompatible change"
                     report(Issues.ADDED_REIFIED, new, message, oldItem = old)
                 }
             }
