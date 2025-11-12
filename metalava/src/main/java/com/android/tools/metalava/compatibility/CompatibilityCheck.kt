@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Item.Companion.describeParameterItem
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -414,7 +413,7 @@ class CompatibilityCheck(
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to remove parameter name from ${describeParameterItem(new)}",
+                    "Attempted to remove parameter name from ${new.describe()}",
                     oldItem = old,
                 )
             } else if (newName != prevName) {
@@ -439,7 +438,7 @@ class CompatibilityCheck(
                 report(
                     Issues.DEFAULT_VALUE_CHANGE,
                     new,
-                    "Attempted to remove default value from ${describeParameterItem(new)}",
+                    "Attempted to remove default value from ${new.describe()}",
                     oldItem = old
                 )
             }

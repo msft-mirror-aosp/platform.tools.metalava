@@ -267,22 +267,14 @@ interface Item : Reportable {
                 is PackageItem -> describePackageItem(item, capitalize = capitalize)
                 is ClassItem -> describeClassItem(item, capitalize = capitalize)
                 is FieldItem -> describeFieldItem(item, capitalize = capitalize)
-                is ParameterItem ->
-                    describeParameterItem(
-                        item,
-                        includeParameterNames = true,
-                        includeParameterTypes = true,
-                        capitalize = capitalize
-                    )
+                is ParameterItem -> describeParameterItem(item, capitalize = capitalize)
                 is PropertyItem -> item.toString()
                 else -> error("Unknown item: $item")
             }
         }
 
-        fun describeParameterItem(
+        private fun describeParameterItem(
             item: ParameterItem,
-            includeParameterNames: Boolean = false,
-            includeParameterTypes: Boolean = false,
             capitalize: Boolean = false
         ): String {
             val builder = StringBuilder()
@@ -291,7 +283,11 @@ interface Item : Reportable {
             builder.append(item.name())
             builder.append(" in ")
             val callable = item.containingCallable()
-            callable.appendCallableSignature(builder, includeParameterNames, includeParameterTypes)
+            callable.appendCallableSignature(
+                builder,
+                includeParameterNames = true,
+                includeParameterTypes = true,
+            )
             return builder.toString()
         }
 
