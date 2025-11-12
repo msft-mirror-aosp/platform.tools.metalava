@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -35,7 +34,7 @@ open class DefaultParameterItem(
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     private val name: String,
-    protected val publicNameProvider: PublicNameProvider,
+    protected val publicName: String?,
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
@@ -46,7 +45,6 @@ open class DefaultParameterItem(
         fileLocation = fileLocation,
         sourceLanguage = sourceLanguage,
         modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
     ),
     ParameterItem {
 
@@ -57,7 +55,7 @@ open class DefaultParameterItem(
 
     final override fun name(): String = name
 
-    final override fun publicName(): String? = publicNameProvider(this)
+    final override fun publicName(): String? = publicName
 
     final override fun containingCallable(): CallableItem = containingCallable
 
@@ -71,14 +69,6 @@ open class DefaultParameterItem(
 
     override var property: PropertyItem? = null
 
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        // For parameters, the documentation goes into the surrounding method's documentation!
-        // Find the right parameter location!
-        val parameterName = name()
-        val target = containingCallable()
-        target.appendDocumentation(comment, parameterName)
-    }
-
     override fun duplicate(
         containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings,
@@ -89,7 +79,7 @@ open class DefaultParameterItem(
             sourceLanguage,
             modifiers,
             name(),
-            publicNameProvider,
+            publicName,
             containingCallable,
             parameterIndex,
             type().convertType(typeVariableMap),

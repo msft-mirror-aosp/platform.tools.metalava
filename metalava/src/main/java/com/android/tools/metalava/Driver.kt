@@ -44,7 +44,6 @@ import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
@@ -143,11 +142,11 @@ fun run(
     return exitCode
 }
 
-@Suppress("DEPRECATION")
 internal fun processFlags(
     executionEnvironment: ExecutionEnvironment,
     environmentManager: EnvironmentManager,
-    progressTracker: ProgressTracker
+    progressTracker: ProgressTracker,
+    options: Options,
 ) {
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
@@ -198,11 +197,6 @@ internal fun processFlags(
         "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
 
-    options.subtractApiFile?.let {
-        progressTracker.progress("Subtracting API: ")
-        actionContext.subtractApiFromCodebase(signatureFileCache, codebase, it)
-    }
-
     generateApiHistoryFromOptions(options, codebase, progressTracker)
 
     enhanceCodebaseDocumentationFromOptions(
@@ -214,17 +208,19 @@ internal fun processFlags(
     )
 
     // Generate the documentation stubs *before* we migrate nullness information.
-    options.docStubsDir?.let {
+    options.docStubsDir?.let { stubDir ->
         createStubFiles(
             progressTracker,
-            it,
+            options,
+            stubDir,
             codebase,
             docStubs = true,
         )
     }
 
-    // Based on the input flags, generates various output files such as signature files and/or stubs
-    // files
+    // Generate signature files based on provided input flags (i.e. if api file locations were
+    // provided).
+    // Also run API lint checks on current codebase
     createApiSignatureFilesFromOptions(
         options,
         codebase,
@@ -266,7 +262,13 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
+        actionContext.checkCompatibility(
+            options,
+            signatureFileCache,
+            classResolverProvider,
+            codebase,
+            check,
+        )
     }
 
     convertToWarningNullabilityAnnotations(
@@ -277,16 +279,24 @@ internal fun processFlags(
     )
 
     // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
-    options.stubsDir?.let {
+    options.stubsDir?.let { stubDir ->
         createStubFiles(
             progressTracker,
-            it,
+            options,
+            stubDir,
             codebase,
             docStubs = false,
         )
     }
 
-    options.externalAnnotations?.let { extractAnnotations(progressTracker, codebase, it) }
+    options.externalAnnotationsFile?.let { outputFile ->
+        extractAnnotations(
+            progressTracker,
+            outputFile,
+            options,
+            codebase,
+        )
+    }
 
     val packageCount = codebase.size()
     progressTracker.progress(
@@ -445,10 +455,10 @@ private fun enhanceCodebaseDocumentationFromOptions(
             options.apiPredicateConfig,
         )
     docAnalyzer.enhance()
-    val applyApiLevelsXml = options.applyApiLevelsXml
-    if (applyApiLevelsXml != null) {
+    val applyApiLevelsXmlFile = options.applyApiLevelsXmlFile
+    if (applyApiLevelsXmlFile != null) {
         progressTracker.progress("Applying API levels")
-        docAnalyzer.applyApiVersions(applyApiLevelsXml)
+        docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)
     }
 }
 
@@ -493,9 +503,9 @@ private fun createCodebaseFromOptions(
             classResolverProvider.classResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-        return actionContext.loadFromJarFile(sources[0])
+        return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(signatureFileCache, classResolverProvider)
+        return actionContext.loadFromSources(options, signatureFileCache, classResolverProvider)
     }
 
     return null
@@ -583,43 +593,9 @@ private fun generateApiHistoryFromOptions(
         }
 }
 
-private fun ActionContext.subtractApiFromCodebase(
-    signatureFileCache: SignatureFileCache,
-    codebase: Codebase,
-    subtractApiFile: File,
-) {
-    val path = subtractApiFile.path
-    val codebaseToSubtract =
-        when {
-            path.endsWith(DOT_TXT) ->
-                signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
-            path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
-            else ->
-                cliError(
-                    "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
-                )
-        }
-
-    // Iterate over the top level classes in the codebase and if they are present in the codebase
-    // being subtracted then do not emit the class or any of its nested classes.
-    for (classItem in codebase.getTopLevelClassesFromSource()) {
-        if (codebaseToSubtract.findClass(classItem.qualifiedName()) != null) {
-            stopEmittingClassAndContents(classItem)
-        }
-    }
-}
-
-/** Stop emitting [classItem] and any of its nested classes. */
-private fun stopEmittingClassAndContents(classItem: ClassItem) {
-    classItem.emit = false
-    for (nestedClass in classItem.nestedClasses()) {
-        stopEmittingClassAndContents(nestedClass)
-    }
-}
-
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
-@Suppress("DEPRECATION")
 private fun ActionContext.checkCompatibility(
+    options: Options,
     signatureFileCache: SignatureFileCache,
     classResolverProvider: ClassResolverProvider,
     newCodebase: Codebase,
@@ -751,11 +727,11 @@ private fun convertToWarningNullabilityAnnotations(
     }
 }
 
-@Suppress("DEPRECATION")
 private fun ActionContext.loadFromSources(
+    options: Options,
     signatureFileCache: SignatureFileCache,
     classResolverProvider: ClassResolverProvider,
-): Codebase {
+): Codebase? {
     progressTracker.progress("Processing sources: ")
 
     val sourceSet =
@@ -779,7 +755,7 @@ private fun ActionContext.loadFromSources(
             apiPackages = options.apiPackages,
             projectDescription = options.projectDescription,
             compiledSourceJar = options.compiledSourceJar
-        )
+        ) ?: return null
 
     progressTracker.progress("Analyzing API: ")
 
@@ -858,7 +834,7 @@ private class ClassResolverProvider(
 
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    apiAnalyzerConfig: ApiAnalyzer.Config = @Suppress("DEPRECATION") options.apiAnalyzerConfig,
+    apiAnalyzerConfig: ApiAnalyzer.Config,
 ): Codebase {
     val jarCodebaseLoader =
         JarCodebaseLoader.createForSourceParser(
@@ -869,23 +845,25 @@ fun ActionContext.loadFromJarFile(
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
-@Suppress("DEPRECATION")
-private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codebase, file: File) {
+private fun extractAnnotations(
+    progressTracker: ProgressTracker,
+    outputFile: File,
+    options: Options,
+    codebase: Codebase
+) {
     val localTimer = Stopwatch.createStarted()
 
-    options.externalAnnotations?.let { outputFile ->
-        ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
-        if (options.verbose) {
-            progressTracker.progress(
-                "$PROGRAM_NAME extracted annotations into $file in ${localTimer.elapsed(SECONDS)} seconds\n"
-            )
-        }
+    ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
+    if (options.verbose) {
+        progressTracker.progress(
+            "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
+        )
     }
 }
 
-@Suppress("DEPRECATION")
 private fun createStubFiles(
     progressTracker: ProgressTracker,
+    options: Options,
     stubDir: File,
     codebase: Codebase,
     docStubs: Boolean,

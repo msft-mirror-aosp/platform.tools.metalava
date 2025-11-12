@@ -39,16 +39,10 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
-
-/**
- * A lambda that when passed the [Item] will return the public name, or null if there is not one.
- */
-typealias PublicNameProvider = (Item) -> String?
 
 /** A factory for creating [Item] instances suitable for use by many models. */
 class DefaultItemFactory(
@@ -85,7 +79,7 @@ class DefaultItemFactory(
         )
     }
 
-    /** Create a [ConstructorItem]. */
+    /** Create a [ClassItem]. */
     fun createClassItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
@@ -101,6 +95,7 @@ class DefaultItemFactory(
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
+        optionalAliasedType: TypeItem? = null,
     ) =
         DefaultClassItem(
             codebase,
@@ -119,6 +114,8 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
+            isFileFacade = false,
+            optionalAliasedType = optionalAliasedType,
         )
 
     /** Create a [ConstructorItem]. */
@@ -227,7 +224,7 @@ class DefaultItemFactory(
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         modifiers: BaseModifierList,
         name: String,
-        publicNameProvider: PublicNameProvider,
+        publicName: String?,
         containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
@@ -239,7 +236,7 @@ class DefaultItemFactory(
             sourceLanguage,
             modifiers,
             name,
-            publicNameProvider,
+            publicName,
             containingCallable,
             parameterIndex,
             type,
@@ -280,7 +277,7 @@ class DefaultItemFactory(
             typeParameterList,
         )
 
-    /** Create a [TypeAliasItem]. */
+    /** Create a [ClassItem] which is a typealias. */
     fun createTypeAliasItem(
         fileLocation: FileLocation,
         modifiers: BaseModifierList,
@@ -288,9 +285,10 @@ class DefaultItemFactory(
         containingPackage: DefaultPackageItem,
         aliasedType: TypeItem,
         typeParameterList: TypeParameterList,
+        origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
-    ): TypeAliasItem =
-        DefaultTypeAliasItem(
+    ): ClassItem =
+        DefaultClassItem.createTypeAlias(
             codebase,
             fileLocation,
             modifiers,
@@ -299,7 +297,8 @@ class DefaultItemFactory(
             aliasedType,
             qualifiedName,
             typeParameterList,
-            containingPackage
+            containingPackage,
+            origin,
         )
 
     /**

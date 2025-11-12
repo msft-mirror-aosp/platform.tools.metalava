@@ -55,6 +55,15 @@ interface BaseModifierList {
     // Kotlin
     fun isSealed(): Boolean = false
 
+    /**
+     * A sealed class is exhaustive if all classes that inherit from it are publicly accessible, and
+     * a client can do an exhaustive match on an instance of that sealed class without the need for
+     * an else branch. This is being tracked because adding a new subclass to an exhaustive class
+     * can create breaking changes for clients, so we want to raise a compatibility issue if that is
+     * detected. For more information see b/447143803
+     */
+    fun isExhaustive(): Boolean = false
+
     fun isFunctional(): Boolean = false
 
     fun isCompanion(): Boolean = false
