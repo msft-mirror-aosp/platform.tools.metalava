@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
@@ -25,7 +26,12 @@ import com.android.tools.metalava.model.annotation.AnnotationClass
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
+interface ClassItem :
+    ClassContentItem,
+    SelectableItem,
+    TypeParameterListOwner,
+    ReferencableItem,
+    ReferencableNameScope {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
@@ -93,6 +99,13 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      */
     fun superClassType(): ClassTypeItem?
 
+    /**
+     * This stores only the direct classes that inherit from this class, and not any indirect
+     * classes. This stores subclasses for both regular classes and interfaces (for interfaces, it
+     * stores all the classes that implement that interface)
+     */
+    fun subClasses(): List<ClassItem>
+
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
         if (qualifiedName() == qualifiedName) {
@@ -151,9 +164,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     /** The constructors in this class */
     @MetalavaApi fun constructors(): List<ConstructorItem>
 
-    /** Whether this class has an implicit default constructor */
-    fun hasImplicitDefaultConstructor(): Boolean
-
     /** The non-constructor methods in this class */
     @MetalavaApi fun methods(): List<MethodItem>
 
@@ -186,7 +196,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * Whether this class is a File Facade class, i.e. a `*Kt` class that contains declarations
      * which do not belong to a Kotlin class, e.g. top-level functions, properties, etc.
      */
-    fun isFileFacade() = false
+    val isFileFacade: Boolean
 
     /**
      * Whether this class is a multi-file facade class, generated from Kotlin files annotated with
@@ -449,6 +459,14 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * This must only be called when [ClassItem.classKind] is [ClassKind.ANNOTATION_TYPE].
      */
     val annotationClass: AnnotationClass
+
+    /**
+     * For a typealias, the underlying type for which this typealias is an alternative name
+     *
+     * This must only be called when [classKind] is [ClassKind.TYPEALIAS], and will throw an error
+     * otherwise.
+     */
+    val aliasedType: TypeItem
 
     /**
      * Return superclass matching the given predicate. When a superclass doesn't match, we'll keep
@@ -770,5 +788,8 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     fun isExtensible() =
         !modifiers.isFinal() &&
             !modifiers.isSealed() &&
-            constructors().any { it.isPublic || it.isProtected }
+            // There are no constructors for an interface but that doesn't mean that it's not
+            // extensible. If the interface is public or protected it is extensible.
+            (isInterface() && (isPublic || isProtected) ||
+                constructors().any { it.isPublic || it.isProtected })
 }

@@ -18,6 +18,8 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -67,10 +69,22 @@ interface Assertions {
         return packageItem
     }
 
+    /** Resolve the package from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertResolvedPackage(pkgName: String): PackageItem {
+        val packageItem = resolvePackage(pkgName)
+        assertNotNull(packageItem, message = "Expected $pkgName to be defined")
+        return packageItem
+    }
+
     /** Get the type alias from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertTypeAlias(qualifiedName: String): TypeAliasItem {
-        val typeAliasItem = findTypeAlias(qualifiedName)
-        assertNotNull(typeAliasItem, message = "Expected $qualifiedName to be a defined type alias")
+    fun Codebase.assertTypeAlias(qualifiedName: String): ClassItem {
+        val typeAliasItem = assertClass(qualifiedName)
+        assertEquals(
+            typeAliasItem.classKind,
+            ClassKind.TYPEALIAS,
+            message =
+                "Expected $qualifiedName to be a defined type alias but was ${typeAliasItem.classKind}"
+        )
         return typeAliasItem
     }
 
@@ -223,6 +237,30 @@ interface Assertions {
             explicitlyDeprecated = false,
             implicitlyDeprecated = true,
         )
+    }
+
+    /** Make sure that [this] contains a [TypeParameterItem] called [name], returning it. */
+    fun TypeParameterListOwner.assertTypeParameter(name: String): TypeParameterItem {
+        val found = typeParameterList.find { it.name() == name }
+        assertNotNull(
+            found,
+            message =
+                "Expected $this to have type parameter $name but had ${typeParameterList.joinToString()}"
+        )
+        return found
+    }
+
+    /** Make sure when the documentation for [this] is printed that it matches [expectedOutput]. */
+    fun SelectableItem.assertPrintedDocumentation(expectedOutput: String, message: String? = null) {
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals("$expectedOutput\n".trimIndent(), actualOutput, message)
+    }
+
+    /** Make sure the documentation text for [this] matches [expectedOutput]. */
+    fun SelectableItem.assertDocumentationText(expectedOutput: String, message: String? = null) {
+        assertEquals(expectedOutput.trimIndent(), documentation.text.trim(), message)
     }
 
     /**

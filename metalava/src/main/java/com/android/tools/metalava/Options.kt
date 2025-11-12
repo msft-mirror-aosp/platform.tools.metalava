@@ -67,12 +67,9 @@ import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
-import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 import java.io.PrintWriter
@@ -176,13 +173,11 @@ const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
-const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_PROJECT = "--project"
-const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -221,9 +216,6 @@ class Options(
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
-
-    /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
-    var subtractApiFile: File? = null
 
     /**
      * Backing property for [nullabilityAnnotationsValidator]
@@ -488,7 +480,7 @@ class Options(
      * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
      * flag.
      */
-    var externalAnnotations: File? = null
+    var externalAnnotationsFile: File? = null
 
     /** An optional manifest [File]. */
     private val manifestFile by
@@ -555,7 +547,7 @@ class Options(
         apiLevelsGenerationOptions::includeApiVersionInDocumentation
 
     /** Reads API XML file to apply into documentation */
-    var applyApiLevelsXml: File? = null
+    var applyApiLevelsXmlFile: File? = null
 
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
@@ -633,18 +625,6 @@ class Options(
             field = value
         }
 
-    val sourceModelProvider by
-        option(
-                ARG_SOURCE_MODEL_PROVIDER,
-                hidden = true,
-            )
-            .choice("psi", "turbine")
-            .default("psi")
-            .deprecated(
-                """WARNING: The turbine model is under work and not usable for now. Eventually this option can be used to set the source model provider to either turbine or psi. The default is psi. """
-                    .trimIndent()
-            )
-
     fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
@@ -659,12 +639,6 @@ class Options(
                     listString.split(",").forEach { path ->
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
-                }
-                ARG_SUBTRACT_API -> {
-                    if (subtractApiFile != null) {
-                        cliError("Only one $ARG_SUBTRACT_API can be supplied")
-                    }
-                    subtractApiFile = stringToExistingFile(getValue(args, ++index))
                 }
 
                 // TODO: Remove the legacy --merge-annotations flag once it's no longer used to
@@ -709,12 +683,12 @@ class Options(
                 }
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
-                    externalAnnotations = stringToNewFile(getValue(args, ++index))
+                    externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
 
                 // Extracting API levels
                 ARG_APPLY_API_LEVELS -> {
-                    applyApiLevelsXml =
-                        if (apiLevelsGenerationOptions.generateApiLevelXml != null) {
+                    applyApiLevelsXmlFile =
+                        if (apiLevelsGenerationOptions.generateApiLevelsXmlFile != null) {
                             // If generating the API file at the same time, it doesn't have
                             // to already exist
                             stringToNewFile(getValue(args, ++index))
@@ -995,10 +969,6 @@ object OptionsHelp {
                 "Use the given API level",
                 "$ARG_JDK_HOME <dir>",
                 "If set, add the Java APIs from the given JDK to the classpath",
-                "$ARG_SUBTRACT_API <api file>",
-                "Subtracts the API in the given signature or jar file from the " +
-                    "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +
-                    "Note that the subtraction only applies to classes; it does not subtract members.",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
