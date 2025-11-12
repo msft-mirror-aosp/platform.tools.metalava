@@ -17,8 +17,11 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Uses [tagType] to extract [TagData] from [JavadocContent] using [context].
@@ -31,9 +34,15 @@ import com.android.tools.metalava.model.source.doc.TagType
 internal class TagDataExtractor(
     private val context: DocCommentContext,
     private val tagType: TagType<*>,
-) : JavadocContentRewriter {
+    private val reporter: DocumentationIssueReporter,
+) : JavadocContentRewriter, LocationSpecificReporter {
 
     private var tagData: TagData? = null
+
+    /** Implement [LocationSpecificReporter.report] to delegate to [reporter]. */
+    override fun report(issue: Issues.Issue, message: String) {
+        reporter.report(issue, message)
+    }
 
     /**
      * Extract the [TagData], if any, from [JavadocContent].
@@ -42,16 +51,16 @@ internal class TagDataExtractor(
      *   returned `null` or [JavadocContent] did not start with [JavadocText].
      */
     fun extractTagData(content: JavadocContent): ExtractorResult {
-        val remainder = content.rewrite(this)
+        val remainder = content.accept(this)
         return ExtractorResult(tagData, remainder)
     }
 
     /** Extract the data from the first item in the [JavadocContentList.contents]. */
-    override fun rewrite(list: JavadocContentList): JavadocContent? {
+    override fun visit(list: JavadocContentList): JavadocContent? {
         // Can only extract data from the start of a list.
         var contents = list.contents
         val first = contents[0]
-        val rewritten = first.rewrite(this)
+        val rewritten = first.accept(this)
 
         return when {
             rewritten === first -> list
@@ -80,7 +89,7 @@ internal class TagDataExtractor(
     }
 
     /** A [JavadocInlineTag] cannot have data extracted so do nothing. */
-    override fun rewrite(inlineTag: JavadocInlineTag): JavadocContent? {
+    override fun visit(inlineTag: JavadocInlineTag): JavadocContent? {
         // Nothing to do as cannot extract data from an inline tag.
         return inlineTag
     }
@@ -91,9 +100,9 @@ internal class TagDataExtractor(
      * This will only be called for a [JavadocText] that is at the start of the [JavadocContent]
      * passed into [extractTagData].
      */
-    override fun rewrite(text: JavadocText): JavadocContent? {
+    override fun visit(text: JavadocText): JavadocContent? {
         val contents = text.contents
-        var result = tagType.extractData(context, contents)
+        var result = tagType.extractData(context, reporter = this, contents)
         tagData = result?.tagData
 
         val consumedContent = result?.consumedContent ?: 0
@@ -109,7 +118,8 @@ internal class TagDataExtractor(
 internal fun JavadocContent.extractTagDataForTagType(
     context: DocCommentContext,
     tagType: TagType<*>,
-) = TagDataExtractor(context, tagType).extractTagData(this)
+    reporter: DocumentationIssueReporter,
+) = TagDataExtractor(context, tagType, reporter).extractTagData(this)
 
 /** The result of [TagDataExtractor.extractTagData]. */
 internal data class ExtractorResult(

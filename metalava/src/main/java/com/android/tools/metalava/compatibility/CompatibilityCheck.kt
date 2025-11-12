@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -40,7 +41,6 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -105,27 +105,51 @@ class CompatibilityCheck(
             new is ParameterItem && !new.containingCallable().canBeExternallyOverridden()
         // In a final method, you can change a method return from nullable to nonnull
         val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
-
-        old.type()
-            ?.accept(
-                object : MultipleTypeVisitor() {
-                    override fun visitType(type: TypeItem, other: List<TypeItem>) {
-                        val newType = other.singleOrNull() ?: return
-                        compareTypeNullability(
-                            type,
-                            newType,
-                            new,
-                            allowNonNullToNullable,
-                            allowNullableToNonNull,
-                            old
-                        )
-                    }
-                },
-                listOfNotNull(new.type())
-            )
+        compareTypeNullability(
+            old = old.type(),
+            new = new.type(),
+            oldContext = old,
+            newContext = new,
+            allowNonNullToNullable,
+            allowNullableToNonNull
+        )
     }
 
+    /**
+     * Recursively compares the nullability of the [old] and [new] types, and all the component
+     * types of these types (e.g. array components, class argument types).
+     */
     private fun compareTypeNullability(
+        old: TypeItem?,
+        new: TypeItem?,
+        oldContext: Item,
+        newContext: Item,
+        allowNonNullToNullable: Boolean,
+        allowNullableToNonNull: Boolean,
+    ) {
+        old?.accept(
+            object : MultipleTypeVisitor() {
+                override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                    val newType = other.singleOrNull() ?: return
+                    compareTypeNullabilityNonRecursive(
+                        type,
+                        newType,
+                        newContext,
+                        allowNonNullToNullable,
+                        allowNullableToNonNull,
+                        oldContext,
+                    )
+                }
+            },
+            listOfNotNull(new)
+        )
+    }
+
+    /**
+     * Compares the nullability of the [old] and [new] types. This only looks at the nullability of
+     * the types directly, not the nullability of component types.
+     */
+    private fun compareTypeNullabilityNonRecursive(
         old: TypeItem,
         new: TypeItem,
         context: Item,
@@ -442,6 +466,13 @@ class CompatibilityCheck(
     }
 
     override fun compareClassItems(old: ClassItem, new: ClassItem) {
+        // Perform different comparisons for typealiases.
+        // TODO(b/458733676): add error for converting from class to typealias or vice versa.
+        if (old.classKind == ClassKind.TYPEALIAS && new.classKind == ClassKind.TYPEALIAS) {
+            compareTypeAliasItems(old, new)
+            return
+        }
+
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -625,10 +656,46 @@ class CompatibilityCheck(
                 oldItem = old,
             )
         }
+
+        if (
+            oldModifiers.isSealed() &&
+                oldModifiers.isExhaustive() &&
+                newModifiers.isSealed() &&
+                !newModifiers.isExhaustive()
+        ) {
+            reporter.report(
+                Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED,
+                new,
+                "Sealed ${if (new.isInterface()) "interface" else "class"} can no longer be exhaustively matched because an inaccessible subclass was added.",
+                new.fileLocation,
+            )
+        }
+
+        if (
+            oldModifiers.isExhaustive() &&
+                newModifiers.isExhaustive() &&
+                // If the number of subclasses of a sealed class stays the same but the classes
+                // change
+                // in some way (e.g. renamed a class), there would be an issue with sealed class
+                // exhaustivity but we don't have to explicitly check for it here because it will be
+                // caught as another issue (e.g. removed class). The one case where no issue would
+                // be raised is if the removed class is experimental, and in that case the client
+                // would have had to opt in to the usage in the first place. Thus, we only need to
+                // check for cases where the number of subclasses increased
+                new.subClasses().size > old.subClasses().size
+        ) {
+            val addedSubclasses = new.subClasses().toSet() - old.subClasses().toSet()
+            reporter.report(
+                Issues.ADDED_SUBCLASS_TO_SEALED_CLASS,
+                new,
+                "Added a subclass to a sealed ${if (new.isInterface()) "interface" else "class"} that can be exhaustively matched",
+                addedSubclasses.first().fileLocation,
+            )
+        }
     }
 
-    override fun compareTypeAliasItems(old: TypeAliasItem, new: TypeAliasItem) {
-        if (old.type() != new.type()) {
+    fun compareTypeAliasItems(old: ClassItem, new: ClassItem) {
+        if (old.aliasedType != new.aliasedType) {
             val typeStringConfiguration =
                 TypeStringConfiguration(
                     annotations = true,
@@ -636,8 +703,8 @@ class CompatibilityCheck(
                     spaceBetweenTypeArguments = true,
                     stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS
                 )
-            val oldTypeString = old.type().toTypeString(typeStringConfiguration)
-            val newTypeString = new.type().toTypeString(typeStringConfiguration)
+            val oldTypeString = old.aliasedType.toTypeString(typeStringConfiguration)
+            val newTypeString = new.aliasedType.toTypeString(typeStringConfiguration)
             report(
                 Issues.CHANGED_TYPE,
                 new,
@@ -645,6 +712,14 @@ class CompatibilityCheck(
                 oldItem = old,
             )
         }
+        compareTypeNullability(
+            old = old.aliasedType,
+            new = new.aliasedType,
+            oldContext = old,
+            newContext = new,
+            allowNonNullToNullable = false,
+            allowNullableToNonNull = false,
+        )
     }
 
     /**
@@ -1083,6 +1158,7 @@ class CompatibilityCheck(
             } else {
                 Issues.ADDED_CLASS
             }
+
         handleAdded(error, new)
     }
 
@@ -1162,6 +1238,7 @@ class CompatibilityCheck(
     override fun removedClassItem(old: ClassItem, from: SelectableItem) {
         val error =
             when {
+                old.classKind == ClassKind.TYPEALIAS -> Issues.REMOVED_TYPE_ALIAS
                 old.isInterface() -> Issues.REMOVED_INTERFACE
                 old.effectivelyDeprecated -> Issues.REMOVED_DEPRECATED_CLASS
                 else -> Issues.REMOVED_CLASS
@@ -1200,8 +1277,108 @@ class CompatibilityCheck(
         }
     }
 
-    override fun removedTypeAliasItem(old: TypeAliasItem, from: PackageItem) {
-        handleRemoved(Issues.REMOVED_TYPE_ALIAS, old)
+    /**
+     * There are cases where compatibility issues need to be raised even for items marked as
+     * experimental. This happens when experimental items are modified, added, or removed and then
+     * create breaking changes for consumers of non-experimental APIs. This function determines if a
+     * change to an experimentally marked item can result in such problems, and if an issue needs to
+     * be raised. For a more detailed explanation and examples, see
+     * go/metalava-experimental-compatibility.
+     */
+    private fun shouldIssueApplyToExperimentalItem(
+        issue: Issue,
+        newItem: Item,
+        oldItem: Item?
+    ): Boolean {
+        when (issue) {
+            Issues.ADDED_ABSTRACT_METHOD -> {
+                val parentClass = newItem.containingClass()
+                // We need to raise an error here because adding an experimental abstract method
+                // to a non-experimental class is a breaking change, see b/454020293
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false && parentClass.isExtensible()
+                ) {
+                    return true
+                }
+            }
+            Issues.REMOVED_METHOD -> {
+                val parentClass = newItem.containingClass()
+                val methodItem = newItem as? CallableItem
+                // Any of these cases indicates that a method was removed from a class that, if
+                // a client decided to implement, the client would have been forced to implement
+                // the removed method, and as such removal of the method will break the client.
+                // Therefore, we should return an error
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        (parentClass.modifiers.isAbstract() || parentClass.isInterface()) &&
+                        parentClass.isExtensible() &&
+                        methodItem?.modifiers?.isAbstract() == true
+                ) {
+                    return true
+                }
+            }
+            Issues.ADDED_FINAL -> {
+                val parentClass = newItem.containingClass()
+                // If a method within an abstract class has 'final' added to it, and the old version
+                // was abstract, that means the client was forced to implement it (even though
+                // it is experimental), and will now break, so we should raise an error.
+                if (
+                    newItem is CallableItem &&
+                        (oldItem as? CallableItem)?.modifiers?.isAbstract() == true &&
+                        parentClass?.isCompatibilitySuppressed() == false &&
+                        parentClass.isExtensible() &&
+                        parentClass.modifiers.isAbstract()
+                ) {
+                    return true
+                }
+            }
+            Issues.CHANGED_TYPE -> {
+                val parentClass = newItem.containingClass()
+                // If a method within a non-experimental abstract class or interface has its return
+                // type changed, clients that were forced to implement it will break, so we should
+                // raise an error.
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        parentClass.isExtensible() &&
+                        (parentClass.modifiers.isAbstract() || parentClass.isInterface()) &&
+                        newItem is CallableItem &&
+                        newItem.modifiers.isAbstract() &&
+                        !newItem.modifiers.isDefault()
+                ) {
+                    return true
+                }
+            }
+            Issues.CHANGED_DEFAULT -> {
+                val parentClass = newItem.containingClass()
+                // If a method within a non-experimental interface changes from default to abstract,
+                // clients that implemented that interface will be broken unless they implement
+                // that function, so we should raise an error.
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        parentClass.isExtensible() &&
+                        parentClass.isInterface() &&
+                        newItem is CallableItem
+                ) {
+                    return true
+                }
+            }
+            Issues.CHANGED_ABSTRACT -> {
+                val parentClass = newItem.containingClass()
+                // If a method within a non-experimental abstract class has abstract added to it,
+                // this can be a breaking change for clients who either couldn't implement the
+                // method (because it was final) or didn't have to (because it was open and non-
+                // abstract). Thus, we should raise an error.
+
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        (oldItem as? MethodItem)?.modifiers?.isAbstract() == false &&
+                        (newItem as? MethodItem)?.modifiers?.isAbstract() == true
+                ) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     private fun report(
@@ -1216,7 +1393,10 @@ class CompatibilityCheck(
         // issues. In addition, if the old version of the item being compared against is
         // compatibility suppressed, we don't want to raise compatibility issues because
         // incompatible changes should still be allowed from that version. See b/391848485
-        if (item.isCompatibilitySuppressed() || oldItem?.isCompatibilitySuppressed() == true) {
+        if (
+            (item.isCompatibilitySuppressed() || oldItem?.isCompatibilitySuppressed() == true) &&
+                !shouldIssueApplyToExperimentalItem(issue, item, oldItem)
+        ) {
             // Long-term, we should consider allowing meta-annotations to specify a different
             // `configuration` so it can use a separate set of severities. For now, though, we'll
             // treat all issues for all unchecked items as `Severity.IGNORE`.
