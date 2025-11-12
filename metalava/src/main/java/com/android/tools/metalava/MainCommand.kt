@@ -36,7 +36,7 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMO
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.model.source.SourceModelProvider
+import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.github.ajalt.clikt.core.CliktCommand
@@ -227,12 +227,19 @@ class MainCommand(
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
             executionEnvironment.testEnvironment?.sourceModelProvider
                 // Otherwise, use the one specified on the command line, or the default.
-                ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
+                ?: sourceOptions.sourceModelProvider
 
         try {
             sourceModelProvider
                 .createEnvironmentManager(executionEnvironment.disableStderrDumping())
-                .use { processFlags(executionEnvironment, it, progressTracker) }
+                .use {
+                    processFlags(
+                        executionEnvironment,
+                        it,
+                        progressTracker,
+                        optionGroup,
+                    )
+                }
         } finally {
             // Write all saved reports. Do this even if the previous code threw an exception.
             optionGroup.allReporters.forEach { it.writeSavedReports() }
@@ -274,7 +281,7 @@ class MainCommand(
         val sourcePath = sourceOptions.sourcePath
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
             fun annotationToPrefix(qualifiedName: String): String {
-                val name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+                val name = qualifiedName.extractSimpleName()
                 return name.lowercase(Locale.US).removeSuffix("api") + "-"
             }
             val sb = StringBuilder()

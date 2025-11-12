@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JVM_FIELD
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.MemberItem
@@ -27,7 +28,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.PsiEnvironmentManager
+import com.android.tools.metalava.model.psi.javaLanguageLevelFromString
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.util.PsiUtil
@@ -39,8 +40,7 @@ import com.intellij.psi.util.PsiUtil
 class KotlinInteropChecks(val reporter: Reporter) {
 
     @Suppress("DEPRECATION")
-    private val javaLanguageLevel =
-        PsiEnvironmentManager.javaLanguageLevelFromString(options.javaLanguageLevelAsString)
+    private val javaLanguageLevel = javaLanguageLevelFromString(options.javaLanguageLevelAsString)
 
     fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
         ensureFieldNameNotKeyword(field)
@@ -151,9 +151,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     property,
                     "Companion object constants like ${property.name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
                 )
-            } else if (
-                property.backingField?.modifiers?.findAnnotation("kotlin.jvm.JvmField") == null
-            ) {
+            } else if (property.backingField?.modifiers?.findAnnotation(JVM_FIELD) == null) {
                 reporter.report(
                     Issues.MISSING_JVMSTATIC,
                     property,
@@ -309,7 +307,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
         filteredMembers: Sequence<MemberItem>,
     ) {
         if (
-            cls.isFileFacade() &&
+            cls.isFileFacade &&
                 // Technically it is possible to use JvmMultifileClass without using JvmName, but it
                 // wouldn't make sense to and it is difficult to find the annotations in psi in this
                 // case, so skip the check for multi-file classes.

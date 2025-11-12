@@ -16,6 +16,14 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.reporter.LocationSpecificReporter
+
 /**
  * Provides contextual information from the surrounding model for use when processing a
  * [DocComment].
@@ -45,4 +53,63 @@ internal interface DocCommentContext {
      *   callable parameter.
      */
     fun ordinalInParamsList(name: String): Int
+
+    /**
+     * Check to see whether the comment is on an overriding method and so may require insertion of
+     * `{@inheritDoc}` tags when appending content to preserve the developer's intended behavior.
+     *
+     * @return `true` if the commented [SelectableItem] is a [MethodItem] that has at least one
+     *   [MethodItem.superMethods].
+     */
+    fun isOverridingMethod(): Boolean
+
+    /** Fully qualify the Javadoc [comment]. */
+    fun fullyQualifyComment(comment: String): String
+
+    /**
+     * Resolve [typeName] (which may be a reference to a class or a type parameter) to a
+     * [TypeReference], if possible.
+     */
+    fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String): TypeReference?
+
+    /**
+     * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
+     * constructor, method, or field) to a [ResolvedReference], if possible.
+     */
+    fun resolveReference(sourceReference: String): ResolvedReference?
+}
+
+/**
+ * Base for resolved references to some part of the API, e.g. [SelectableItem]s or
+ * [TypeParameterItem]s.
+ *
+ * This allows the caller to differentiate between the different resolved types without depending on
+ * [Item]s that would cause issues when taking a snapshot.
+ */
+sealed interface ResolvedReference : Comparable<ResolvedReference> {
+    /** The display name of the referenced type. */
+    val displayName: String
+
+    override fun compareTo(other: ResolvedReference) = displayName.compareTo(other.displayName)
+}
+
+/** A reference to a [PackageItem]. */
+data class PackageReference(val qualifiedName: String) : ResolvedReference {
+    override val displayName: String
+        get() = qualifiedName
+}
+
+/** Base for references to type, i.e. classes and type parameters. */
+sealed interface TypeReference : ResolvedReference
+
+/** A reference to a [ClassItem]. */
+data class ClassReference(val qualifiedName: String) : TypeReference {
+    override val displayName: String
+        get() = qualifiedName
+}
+
+/** A reference to a [TypeParameterItem]. */
+data class TypeParameterReference(val name: String) : TypeReference {
+    override val displayName: String
+        get() = name
 }

@@ -65,6 +65,8 @@ import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
+import com.android.tools.metalava.model.utils.extractOptionalQualifierName
+import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -347,7 +349,6 @@ private constructor(
             parser.performAnyDeferredMerges()
 
             apiStatsConsumer(parser.stats)
-
             return assembler.codebase
         }
 
@@ -634,6 +635,8 @@ private constructor(
             containingPackage = pkg,
             aliasedType = type,
             typeParameterList = typeParameterList,
+            // All signature files have to be explicitly specified.
+            origin = ClassOrigin.COMMAND_LINE,
         )
     }
 
@@ -995,12 +998,11 @@ private constructor(
         val qualifiedName = qualifiedName(pkgName, fullName)
 
         // Split the full name into an optional outer class and a simple name.
-        val nestedClassIndex = fullName.lastIndexOf('.')
+        val outerClassFullName = fullName.extractOptionalQualifierName()
         val outerClass =
-            if (nestedClassIndex == -1) {
+            if (outerClassFullName == null) {
                 null
             } else {
-                val outerClassFullName = fullName.substring(0, nestedClassIndex)
                 val qualifiedOuterClassName = qualifiedName(pkgName, outerClassFullName)
 
                 // Search for the outer class in the codebase. This is safe as the outer class
@@ -1175,10 +1177,8 @@ private constructor(
         token = tokenizer.current
 
         tokenizer.assertIdent(token)
-        val name: String =
-            token.substring(
-                token.lastIndexOf('.') + 1
-            ) // For nested classes, strip outer classes from name
+        // For nested classes, strip outer classes from name
+        val name: String = token.extractSimpleName()
         val parameters = parseParameterList(tokenizer)
         token = tokenizer.requireToken()
         var throwsList = emptyList<ExceptionTypeItem>()
@@ -1504,6 +1504,24 @@ private constructor(
                     }
                     "sealed" -> {
                         modifiers.setSealed(true)
+                        // When reading in a sealed class, for backwards compatibility we want
+                        // to label it as non-exhaustive (for more details on what this means,
+                        // see b/447143803) in case the signature file doesn't have one of
+                        // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
+                        // allows compatibility checks to not raise unnecessary errors for
+                        // sealed classes without an exhaustivity modifier. If the class is indeed
+                        // labeled with an exhaustivity modifier in the signature file, the class's
+                        // exhaustivity will be adjusted accordingly in the following match
+                        // statements.
+                        modifiers.setExhaustive(false)
+                        tokenizer.requireToken()
+                    }
+                    "exhaustive" -> {
+                        modifiers.setExhaustive(true)
+                        tokenizer.requireToken()
+                    }
+                    "nonexhaustive" -> {
+                        modifiers.setExhaustive(false)
                         tokenizer.requireToken()
                     }
                     "default" -> {
@@ -1910,7 +1928,7 @@ private constructor(
                     fileLocation = location,
                     modifiers = modifiers,
                     name = name,
-                    publicNameProvider = { publicName },
+                    publicName = publicName,
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,
