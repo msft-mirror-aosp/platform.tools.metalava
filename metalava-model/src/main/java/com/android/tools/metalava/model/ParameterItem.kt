@@ -24,19 +24,17 @@ interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
 
-    override fun describe(capitalize: Boolean): String {
-        val builder = StringBuilder()
-        builder.append(if (capitalize) "Parameter" else "parameter")
-        builder.append(' ')
-        builder.append(name())
-        builder.append(" in ")
-        val callable = containingCallable()
-        callable.appendCallableSignature(
-            builder,
-            includeParameterNames = true,
-            includeParameterTypes = true,
-        )
-        return builder.toString()
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Parameter" else "parameter")
+        append(' ')
+        append(name())
+        append(" in ")
+        with(containingCallable()) {
+            appendCallableSignature(
+                includeParameterNames = true,
+                includeParameterTypes = true,
+            )
+        }
     }
 
     /** The type of this field */

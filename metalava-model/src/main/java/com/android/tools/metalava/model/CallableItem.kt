@@ -44,55 +44,52 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         includeParameterTypes: Boolean = false,
         includeReturnValue: Boolean = false,
         capitalize: Boolean = false
-    ): String {
-        val builder = StringBuilder()
+    ) = buildString {
         if (isConstructor()) {
-            builder.append(if (capitalize) "Constructor" else "constructor")
+            append(if (capitalize) "Constructor" else "constructor")
         } else {
-            builder.append(if (capitalize) "Method" else "method")
+            append(if (capitalize) "Method" else "method")
         }
-        builder.append(' ')
+        append(' ')
         if (includeReturnValue && !isConstructor()) {
-            builder.append(returnType().toSimpleType())
-            builder.append(' ')
+            append(returnType().toSimpleType())
+            append(' ')
         }
-        appendCallableSignature(builder, includeParameterNames, includeParameterTypes)
-        return builder.toString()
+        appendCallableSignature(includeParameterNames, includeParameterTypes)
     }
 
-    fun appendCallableSignature(
-        builder: StringBuilder,
+    fun StringBuilder.appendCallableSignature(
         includeParameterNames: Boolean,
         includeParameterTypes: Boolean
     ) {
-        builder.append(containingClass().qualifiedName())
+        append(containingClass().qualifiedName())
         if (!isConstructor()) {
-            builder.append('.')
-            builder.append(name())
+            append('.')
+            append(name())
         }
         if (includeParameterNames || includeParameterTypes) {
-            builder.append('(')
+            append('(')
             var first = true
             for (parameter in parameters()) {
                 if (first) {
                     first = false
                 } else {
-                    builder.append(',')
+                    append(',')
                     if (includeParameterNames && includeParameterTypes) {
-                        builder.append(' ')
+                        append(' ')
                     }
                 }
                 if (includeParameterTypes) {
-                    builder.append(parameter.type().toSimpleType())
+                    append(parameter.type().toSimpleType())
                     if (includeParameterNames) {
-                        builder.append(' ')
+                        append(' ')
                     }
                 }
                 if (includeParameterNames) {
-                    builder.append(parameter.publicName() ?: parameter.name())
+                    append(parameter.publicName() ?: parameter.name())
                 }
             }
-            builder.append(')')
+            append(')')
         }
     }
 
