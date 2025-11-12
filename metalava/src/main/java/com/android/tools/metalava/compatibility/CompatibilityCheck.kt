@@ -454,11 +454,7 @@ class CompatibilityCheck(
             report(
                 Issues.VARARG_REMOVAL,
                 new,
-                "Changing from varargs to array is an incompatible change: ${describeParameterItem(
-                    new,
-                    includeParameterTypes = true,
-                    includeParameterNames = true
-                )}",
+                "Changing from varargs to array is an incompatible change: ${new.describe()}",
                 oldItem = old,
             )
         }
