@@ -36,6 +36,66 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
     /** The list of parameters */
     @MetalavaApi fun parameters(): List<ParameterItem>
 
+    override fun describe(capitalize: Boolean) =
+        describeCallableItem(includeParameterTypes = true, capitalize = capitalize)
+
+    fun describeCallableItem(
+        includeParameterNames: Boolean = false,
+        includeParameterTypes: Boolean = false,
+        includeReturnValue: Boolean = false,
+        capitalize: Boolean = false
+    ): String {
+        val builder = StringBuilder()
+        if (isConstructor()) {
+            builder.append(if (capitalize) "Constructor" else "constructor")
+        } else {
+            builder.append(if (capitalize) "Method" else "method")
+        }
+        builder.append(' ')
+        if (includeReturnValue && !isConstructor()) {
+            builder.append(returnType().toSimpleType())
+            builder.append(' ')
+        }
+        appendCallableSignature(builder, includeParameterNames, includeParameterTypes)
+        return builder.toString()
+    }
+
+    fun appendCallableSignature(
+        builder: StringBuilder,
+        includeParameterNames: Boolean,
+        includeParameterTypes: Boolean
+    ) {
+        builder.append(containingClass().qualifiedName())
+        if (!isConstructor()) {
+            builder.append('.')
+            builder.append(name())
+        }
+        if (includeParameterNames || includeParameterTypes) {
+            builder.append('(')
+            var first = true
+            for (parameter in parameters()) {
+                if (first) {
+                    first = false
+                } else {
+                    builder.append(',')
+                    if (includeParameterNames && includeParameterTypes) {
+                        builder.append(' ')
+                    }
+                }
+                if (includeParameterTypes) {
+                    builder.append(parameter.type().toSimpleType())
+                    if (includeParameterNames) {
+                        builder.append(' ')
+                    }
+                }
+                if (includeParameterNames) {
+                    builder.append(parameter.publicName() ?: parameter.name())
+                }
+            }
+            builder.append(')')
+        }
+    }
+
     override fun type() = returnType()
 
     /** Types of exceptions that this callable can throw */
