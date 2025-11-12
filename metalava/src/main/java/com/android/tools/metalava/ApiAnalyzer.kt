@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
@@ -43,7 +44,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.annotation.AnnotationFilter
+import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -123,31 +126,47 @@ class ApiAnalyzer(
         // should also be marked as experimental. For more information, see b/408977387
         addExperimentalAnnotationsToGeneratedClassesIfAllTopLevelItemsExperimental(filterEmit)
 
-        // Mark package as compatibility suppressed if all member classes are experimental. This
-        // is a fix for b/404795417
-        suppressPackageIfAllClassesAreExperimental(filterEmit)
+        // Mark package as compatibility suppressed if all member classes and child packages
+        // are experimental. This is a fix for b/404795417
+        suppressPackageIfAllChildrenAreExperimental(filterEmit)
     }
 
-    private fun suppressPackageIfAllClassesAreExperimental(filterEmit: FilterPredicate) {
-        packages.packages.forEach { pkg ->
-            if (packageContainsOnlyExperimentalItems(pkg, filterEmit)) {
-                val newSuppressCompatibilityAnnotation =
-                    AnnotationItem.createMarkerAnnotation(
-                        codebase,
-                        SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED,
-                    )
-                pkg.mutateModifiers { this.addAnnotation(newSuppressCompatibilityAnnotation) }
+    private fun suppressPackageIfAllChildrenAreExperimental(filterEmit: FilterPredicate) {
+        // Sorting the packages in descending order by name length ensures that child
+        // packages are processed first, which allows processing packages from bottom-up
+        // and prevents the need for recursion and more complicated logic
+        packages.packages
+            .sortedByDescending { it.qualifiedName().length }
+            .forEach { pkg ->
+                if (packageContainsOnlyExperimentalItems(pkg, filterEmit)) {
+                    val newSuppressCompatibilityAnnotation =
+                        AnnotationItem.createMarkerAnnotation(
+                            codebase,
+                            SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED,
+                        )
+                    pkg.mutateModifiers { this.addAnnotation(newSuppressCompatibilityAnnotation) }
+                }
             }
-        }
     }
 
+    /**
+     * Mark a package as compatibility suppressed if all contained classes and packages are also
+     * compatibility suppressed.
+     */
     private fun packageContainsOnlyExperimentalItems(
         pkg: PackageItem,
-        filterEmit: FilterPredicate
+        filterEmit: FilterPredicate,
     ): Boolean {
         val classesToExamine = pkg.topLevelClasses().filter { filterEmit.test(it) }
-        return classesToExamine.isNotEmpty() &&
+        val areAllClassesExperimental =
             classesToExamine.all { topLevelClass -> topLevelClass.isCompatibilitySuppressed() }
+
+        val packagesToExamine = pkg.childPackages().filter { filterEmit.test(it) }
+        val areAllSubPackagesExperimental =
+            packagesToExamine.all { childPackage -> childPackage.isCompatibilitySuppressed() }
+
+        return (areAllClassesExperimental && areAllSubPackagesExperimental) &&
+            !(classesToExamine.isEmpty() && packagesToExamine.isEmpty())
     }
 
     private fun addExperimentalAnnotationsToGeneratedClassesIfAllTopLevelItemsExperimental(
@@ -158,7 +177,7 @@ class ApiAnalyzer(
         // compatibility annotations
         codebase.getTopLevelClassesFromSource().forEach { cls ->
             if (
-                cls.isFileFacade() &&
+                cls.isFileFacade &&
                     cls.modifiers.annotations().none { it.isSuppressCompatibilityAnnotation() } &&
                     cls.emit &&
                     allEmittableItemsHaveExperimentalAnnotations(cls.methods(), filterEmit) &&
@@ -434,7 +453,7 @@ class ApiAnalyzer(
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
             if (
-                cls.isFileFacade() &&
+                cls.isFileFacade &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
@@ -1050,15 +1069,31 @@ private fun SelectableItem.isApiCandidate(): Boolean {
  * Whether documentation for the [Item] has the `@deprecated` tag -- for inherited methods, this
  * also looks at any inherited documentation.
  */
-private fun Item.documentationContainsDeprecated(): Boolean {
+private fun SelectableItem.documentationContainsDeprecated(): Boolean {
     if (documentation.hasBlockTagOfType("deprecated")) return true
     if (this !is MethodItem) return false
-    val text = documentation.text
-    if (text == "" || text.contains("@inheritDoc")) {
+    if (!documentation.requiresSourceComment() || documentation.containsInheritDocTag()) {
         return superMethods().any { it.documentationContainsDeprecated() }
     }
     return false
 }
+
+/**
+ * Check for an `inheritDoc`.
+ *
+ * Strictly speaking it should not check for a block `inheritDoc` but the previous code would match
+ * that and there is some code downstream which uses that.
+ *
+ * TODO(b/450228132): Remove check for block tag.
+ */
+private fun ItemDocumentation.containsInheritDocTag(): Boolean =
+    hasBlockTagOfType("inheritDoc") || check(CONTAINS_INHERIT_DOC_TAG_PREDICATE)
+
+/**
+ * A [DocContentPredicate] that will check for the presence of `{@inheritDoc}` in the documentation.
+ */
+private val CONTAINS_INHERIT_DOC_TAG_PREDICATE =
+    DocContentPredicates.containsInlineTag("inheritDoc")
 
 /**
  * A set of [MethodItem]s.
