@@ -262,7 +262,7 @@ interface Item : Reportable {
     val targetLanguages: Set<TargetLanguage>
 
     companion object {
-        fun describe(item: Item, capitalize: Boolean = false): String {
+        private fun describe(item: Item, capitalize: Boolean = false): String {
             return when (item) {
                 is PackageItem -> describe(item, capitalize = capitalize)
                 is ClassItem -> describe(item, capitalize = capitalize)
@@ -281,7 +281,8 @@ interface Item : Reportable {
                         includeParameterTypes = true,
                         capitalize = capitalize
                     )
-                else -> item.toString()
+                is PropertyItem -> item.toString()
+                else -> error("Unknown item: $item")
             }
         }
 

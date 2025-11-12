@@ -169,7 +169,7 @@ class CompatibilityCheck(
             report(
                 Issues.INVALID_NULL_CONVERSION,
                 context,
-                "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}",
+                "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${context.describe()}",
                 oldItem = oldContext
             )
         } else if (oldNullability != newNullability) {
@@ -195,7 +195,7 @@ class CompatibilityCheck(
                 report(
                     Issues.INVALID_NULL_CONVERSION,
                     context,
-                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context)}",
+                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${context.describe()}",
                     maximumSeverity = maximumSeverity,
                     oldItem = oldContext,
                 )
@@ -210,7 +210,7 @@ class CompatibilityCheck(
             report(
                 Issues.OPERATOR_REMOVAL,
                 new,
-                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change",
+                "Cannot remove `operator` modifier from ${new.describe()}: Incompatible change",
                 oldItem = old,
             )
         }
@@ -219,7 +219,7 @@ class CompatibilityCheck(
             report(
                 Issues.INFIX_REMOVAL,
                 new,
-                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change",
+                "Cannot remove `infix` modifier from ${new.describe()}: Incompatible change",
                 oldItem = old,
             )
         }
@@ -228,7 +228,7 @@ class CompatibilityCheck(
             report(
                 Issues.BECAME_UNCHECKED,
                 old,
-                "Removed ${describe(old)} from compatibility checked API surface",
+                "Removed ${old.describe()} from compatibility checked API surface",
             )
         }
 
@@ -239,14 +239,14 @@ class CompatibilityCheck(
                 report(
                     Issues.REMOVED_ANNOTATION,
                     new,
-                    "Cannot remove @$annotation annotation from ${describe(old)}: Incompatible change",
+                    "Cannot remove @$annotation annotation from ${old.describe()}: Incompatible change",
                     oldItem = old,
                 )
             } else if (!isOldAnnotated && newAnnotation != null) {
                 report(
                     Issues.ADDED_ANNOTATION,
                     new,
-                    "Cannot add @$annotation annotation to ${describe(old)}: Incompatible change",
+                    "Cannot add @$annotation annotation to ${old.describe()}: Incompatible change",
                     newAnnotation.fileLocation,
                     oldItem = old,
                 )
@@ -259,7 +259,7 @@ class CompatibilityCheck(
     override fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {
         // Adding target languages is allowed, removing is not
         val removedTargetLanguages = old.targetLanguages.minus(new.targetLanguages)
-        val item = describe(new)
+        val item = new.describe()
         // Report issues on the old version of the item. If they were reported on the new version,
         // they wouldn't end up reported, since removing from bytecode is only binary breaking and
         // wouldn't be reported for the new item which only targets source (similarly for removing
@@ -484,7 +484,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_CLASS,
                 new,
-                "${describe(new, capitalize = true)} changed class/interface declaration",
+                "${new.describe(capitalize = true)} changed class/interface declaration",
                 oldItem = old,
             )
             return // Avoid further warnings like "has changed abstract qualifier" which is implicit
@@ -497,7 +497,7 @@ class CompatibilityCheck(
                 report(
                     Issues.REMOVED_INTERFACE,
                     new,
-                    "${describe(old, capitalize = true)} no longer implements $iface",
+                    "${old.describe(capitalize = true)} no longer implements $iface",
                     oldItem = old,
                 )
             }
@@ -509,7 +509,7 @@ class CompatibilityCheck(
                 report(
                     Issues.ADDED_INTERFACE,
                     new,
-                    "Added interface $iface to class ${describe(old)}",
+                    "Added interface $iface to class ${old.describe()}",
                     oldItem = old,
                 )
             }
@@ -519,14 +519,14 @@ class CompatibilityCheck(
             report(
                 Issues.ADD_SEALED,
                 new,
-                "Cannot add 'sealed' modifier to ${describe(new)}: Incompatible change",
+                "Cannot add 'sealed' modifier to ${new.describe()}: Incompatible change",
                 oldItem = old,
             )
         } else if (old.isClass() && !oldModifiers.isAbstract() && newModifiers.isAbstract()) {
             report(
                 Issues.CHANGED_ABSTRACT,
                 new,
-                "${describe(new, capitalize = true)} changed 'abstract' qualifier",
+                "${new.describe(capitalize = true)} changed 'abstract' qualifier",
                 oldItem = old,
             )
         }
@@ -535,7 +535,7 @@ class CompatibilityCheck(
             report(
                 Issues.FUN_REMOVAL,
                 new,
-                "Cannot remove 'fun' modifier from ${describe(new)}: source incompatible change",
+                "Cannot remove 'fun' modifier from ${new.describe()}: source incompatible change",
                 oldItem = old,
             )
         }
@@ -552,8 +552,7 @@ class CompatibilityCheck(
                         Issues.ADDED_FINAL_UNINSTANTIABLE,
                         new,
                         "${
-                            describe(
-                                new,
+                            new.describe(
                                 capitalize = true
                             )
                         } added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed",
@@ -563,7 +562,7 @@ class CompatibilityCheck(
                     report(
                         Issues.ADDED_FINAL,
                         new,
-                        "${describe(new, capitalize = true)} added 'final' qualifier",
+                        "${new.describe(capitalize = true)} added 'final' qualifier",
                         oldItem = old,
                     )
                 }
@@ -575,7 +574,7 @@ class CompatibilityCheck(
                     report(
                         Issues.CHANGED_STATIC,
                         new,
-                        "${describe(new, capitalize = true)} changed 'static' qualifier",
+                        "${new.describe(capitalize = true)} changed 'static' qualifier",
                         oldItem = old,
                     )
                 }
@@ -594,7 +593,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_SCOPE,
                 new,
-                "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
+                "${new.describe(capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
                 oldItem = old,
             )
         }
@@ -603,10 +602,11 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
-                "${describe(
-                    new,
-                    capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                "${
+                    new.describe(
+                        capitalize = true
+                    )
+                } has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
                 oldItem = old,
             )
         }
@@ -617,10 +617,11 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_SUPERCLASS,
                     new,
-                    "${describe(
-                        new,
-                        capitalize = true
-                    )} superclass changed from $oldSuperClassName to ${new.superClass()?.qualifiedName()}",
+                    "${
+                        new.describe(
+                            capitalize = true
+                        )
+                    } superclass changed from $oldSuperClassName to ${new.superClass()?.qualifiedName()}",
                     oldItem = old,
                 )
             }
@@ -634,8 +635,7 @@ class CompatibilityCheck(
                     Issues.CHANGED_TYPE,
                     new,
                     "${
-                        describe(
-                            old,
+                        old.describe(
                             capitalize = true
                         )
                     } changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount",
@@ -652,7 +652,7 @@ class CompatibilityCheck(
                 Issues.REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY,
                 new,
                 "Cannot remove @$JVM_DEFAULT_WITH_COMPATIBILITY annotation from " +
-                    "${describe(new)}: Incompatible change",
+                    "${new.describe()}: Incompatible change",
                 oldItem = old,
             )
         }
@@ -708,7 +708,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_TYPE,
                 new,
-                "${describe(new, capitalize = true)} has changed type from $oldTypeString to $newTypeString",
+                "${new.describe(capitalize = true)} has changed type from $oldTypeString to $newTypeString",
                 oldItem = old,
             )
         }
@@ -1017,15 +1017,14 @@ class CompatibilityCheck(
             val newType = new.type()
             if (oldType != newType) {
                 val message =
-                    "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
+                    "${new.describe(capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message, oldItem = old)
             } else if (!old.hasSameConstantValue(new)) {
                 val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
                 val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
                 val message =
                     "${
-                        describe(
-                            new,
+                        new.describe(
                             capitalize = true
                         )
                     } has changed value from $oldString to $newString"
@@ -1043,10 +1042,9 @@ class CompatibilityCheck(
                     Issues.CHANGED_SCOPE,
                     new,
                     "${
-                    describe(
-                        new,
-                        capitalize = true
-                    )
+                        new.describe(
+                            capitalize = true
+                        )
                     } changed visibility from $oldVisibility to $newVisibility",
                     oldItem = old,
                 )
@@ -1057,7 +1055,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_STATIC,
                 new,
-                "${describe(new, capitalize = true)} has changed 'static' qualifier",
+                "${new.describe(capitalize = true)} has changed 'static' qualifier",
                 oldItem = old,
             )
         }
@@ -1066,7 +1064,7 @@ class CompatibilityCheck(
             report(
                 Issues.ADDED_FINAL,
                 new,
-                "${describe(new, capitalize = true)} has added 'final' qualifier",
+                "${new.describe(capitalize = true)} has added 'final' qualifier",
                 oldItem = old,
             )
         } else if (
@@ -1079,7 +1077,7 @@ class CompatibilityCheck(
             report(
                 Issues.REMOVED_FINAL,
                 new,
-                "${describe(new, capitalize = true)} has removed 'final' qualifier",
+                "${new.describe(capitalize = true)} has removed 'final' qualifier",
                 oldItem = old,
             )
         }
@@ -1088,7 +1086,7 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_VOLATILE,
                 new,
-                "${describe(new, capitalize = true)} has changed 'volatile' qualifier",
+                "${new.describe(capitalize = true)} has changed 'volatile' qualifier",
                 oldItem = old,
             )
         }
@@ -1097,10 +1095,11 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_DEPRECATED,
                 new,
-                "${describe(
-                    new,
-                    capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                "${
+                    new.describe(
+                        capitalize = true
+                    )
+                } has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
                 oldItem = old,
             )
         }
@@ -1121,7 +1120,7 @@ class CompatibilityCheck(
 
         val message = buildString {
             append("Added ")
-            append(describe(item))
+            append(item.describe())
             if (apiName != null) {
                 append(" to the ")
                 append(apiName)
@@ -1143,7 +1142,7 @@ class CompatibilityCheck(
         report(
             issue,
             item,
-            "Removed ${if (item.effectivelyDeprecated) "deprecated " else ""}${describe(item)}"
+            "Removed ${if (item.effectivelyDeprecated) "deprecated " else ""}${item.describe()}"
         )
     }
 
