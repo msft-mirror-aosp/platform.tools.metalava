@@ -90,45 +90,17 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
     // contain @hide which needs to be respected.
     if (!allowReadingComments && decl !is PkgDecl) return ItemDocumentation.NONE_FACTORY
 
-    val doc =
+    val turbineJavadoc =
         when (decl) {
             is TyDecl -> decl.javadoc()
             is MethDecl -> decl.javadoc()
             is VarDecl -> decl.javadoc()
-            is PkgDecl -> getDocCommentForPkgDecl(sourceFile, decl)
+            is PkgDecl -> decl.javadoc()
             null -> null
             else -> error("Should never be called")
         } ?: return NO_SOURCE_COMMENT_FACTORY
 
-    return { item -> TurbineItemDocumentation(item, sourceFile, doc, decl?.position() ?: -1) }
-}
-
-/** Extract the package documentation comment for [pkgDecl] from [sourceFile]. */
-private fun TurbineGlobalContext.getDocCommentForPkgDecl(
-    sourceFile: TurbineSourceFile?,
-    pkgDecl: PkgDecl
-): String? {
-    sourceFile ?: return null
-
-    val source = sourceFile.compUnit.source().source()
-    // The PkgDecl.position() is the start of the package name not the `package` keyword.
-    val packageNamePosition = pkgDecl.position()
-    if (packageNamePosition == -1) return null
-
-    // Search backwards for the start of the `package` keyword.
-    val packageKeywordStart = source.lastIndexOf("package", packageNamePosition)
-    if (packageKeywordStart == -1) return null
-
-    // Search backwards for the end token of the comment.
-    val docCommentEnd = source.lastIndexOf("*/", packageKeywordStart)
-    if (docCommentEnd == -1) return null
-
-    // Search backwards for the start token of the comment.
-    val docCommentStart = source.lastIndexOf("/**", docCommentEnd)
-    if (docCommentStart == -1) return null
-
-    // Trim leading /** and trailing */ to match what Turbine does with Lexer.javadoc().
-    return source.substring(docCommentStart + 3, docCommentEnd)
+    return { item -> TurbineItemDocumentation(item, sourceFile, turbineJavadoc) }
 }
 
 /**
