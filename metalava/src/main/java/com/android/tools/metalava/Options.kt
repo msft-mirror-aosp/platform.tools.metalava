@@ -451,7 +451,7 @@ class Options(
 
     internal val stubWriterConfig by lazy {
         StubWriterConfig(
-            includeDocumentationInStubs = includeDocumentationInStubs,
+            includeDocumentationInStubs = includeDocumentationInStubs || docStubsDir != null,
         )
     }
 

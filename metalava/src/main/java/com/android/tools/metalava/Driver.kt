@@ -876,16 +876,6 @@ private fun createStubFiles(
 
     val localTimer = Stopwatch.createStarted()
 
-    val stubWriterConfig =
-        options.stubWriterConfig.let {
-            if (docStubs) {
-                // Doc stubs always include documentation.
-                it.copy(includeDocumentationInStubs = true)
-            } else {
-                it
-            }
-        }
-
     var codebaseFragment =
         CodebaseFragment.create(codebase) { delegate ->
             createFilteringVisitorForStubs(
@@ -930,7 +920,7 @@ private fun createStubFiles(
             generateAnnotations = options.generateAnnotations,
             docStubs = docStubs,
             reporter = options.reporter,
-            config = stubWriterConfig,
+            config = options.stubWriterConfig,
             stubConstructorManager = stubConstructorManager,
         )
 
