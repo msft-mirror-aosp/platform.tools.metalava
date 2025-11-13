@@ -38,6 +38,8 @@ import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -52,6 +54,7 @@ import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.diag.SourceFile
+import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.parse.Parser
@@ -62,6 +65,7 @@ import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.type.AnnoInfo
 import java.io.File
+import java.nio.file.Paths
 import java.util.Optional
 import javax.lang.model.SourceVersion
 import javax.lang.model.element.TypeElement
@@ -130,10 +134,14 @@ internal class TurbineCodebaseInitialiser(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
     ) {
+        // Any non-fatal error (like unresolved symbols) will be captured in this log and will
+        // be handled below.
+        val log = TurbineLog()
+
         // Get the units from the source files provided on the command line.
         val commandLineSources = sourceSet.sources
         val sourceFiles = getSourceFiles(commandLineSources.asSequence())
-        val units = sourceFiles.map { Parser.parse(it) }
+        val units = sourceFiles.mapNotNull { parse(log, it) }
 
         // Get the sequence of all files that can be found on the source path which are not
         // explicitly listed on the command line.
@@ -147,11 +155,17 @@ internal class TurbineCodebaseInitialiser(
         // Get the units for the extra source files found on the source path.
         val extraUnits =
             sourcePathFiles
-                .map { Parser.parse(it) }
+                .mapNotNull { parse(log, it) }
                 // Ignore any files that contain duplicates of a class that was specified on the
                 // command line. This is needed when merging annotations from other java files as
                 // there may be duplicate definitions of the class on the source path.
                 .filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
+
+        // If any errors were reported during parsing then report them and abort.
+        if (log.anyErrors()) {
+            log.reportTo(codebase.reporter)
+            throw TurbineError(ImmutableList.of())
+        }
 
         // Combine all the units together.
         val allUnits = ImmutableList.builder<CompUnit>().addAll(units).addAll(extraUnits).build()
@@ -165,10 +179,6 @@ internal class TurbineCodebaseInitialiser(
                     ImmutableMap.of(),
                     SourceVersion.latest()
                 )
-
-            // Any non-fatal error (like unresolved symbols) will be captured in this log and will
-            // be ignored.
-            val log = TurbineLog()
 
             bindingResult =
                 Binder.bind(
@@ -259,6 +269,43 @@ internal class TurbineCodebaseInitialiser(
 
         createAllPackages(packageDocs)
         createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+    }
+
+    /**
+     * Parse [sourceFile] and return the [CompUnit].
+     *
+     * If [Parser.parse] throws a [TurbineError] then add any diagnostics from that to [log] and
+     * return `null`.
+     */
+    private fun parse(log: TurbineLog, sourceFile: SourceFile): CompUnit? =
+        try {
+            Parser.parse(sourceFile)
+        } catch (e: TurbineError) {
+            e.logAllDiagnostics(log)
+            null
+        }
+
+    private fun TurbineError.logAllDiagnostics(log: TurbineLog) {
+        for (diagnostic in diagnostics()) {
+            log.add(diagnostic)
+        }
+    }
+
+    /** Report all the diagnostics in this [TurbineLog], if any, to [reporter]. */
+    private fun TurbineLog.reportTo(
+        reporter: Reporter,
+    ) {
+        for (diagnostic in diagnostics()) {
+            val path = diagnostic.path()
+            val location =
+                FileLocation.createLocation(
+                    Paths.get(path),
+                    line = diagnostic.line(),
+                    characterPosition = diagnostic.column()
+                )
+            reporter.report(Issues.INVALID_SYNTAX, null, diagnostic.message(), location)
+        }
+        clear()
     }
 
     /**

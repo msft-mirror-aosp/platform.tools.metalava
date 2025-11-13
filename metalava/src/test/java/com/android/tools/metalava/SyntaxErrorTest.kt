@@ -34,8 +34,8 @@ class SyntaxErrorTest : DriverTest() {
                         src/test/pkg/Foo.java:5: error: Syntax error: `'{' or ';' expected` [InvalidSyntax]
                     """
                 "turbine" ->
-                    // TODO(b/458362596): Only reporting errors from the first class.
                     """
+                        src/test/pkg/Bar.java:2: error: expected token <identifier> [InvalidSyntax]
                         src/test/pkg/Foo.java:6: error: unexpected token: } [InvalidSyntax]
                     """
                 else -> fail("Unknown provider $providerName")
