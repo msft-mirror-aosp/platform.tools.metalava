@@ -47,22 +47,20 @@ descriptionLine
     : descriptionLineElement*
     ;
 
-descriptionLineNoSpaceNoAt
-    : TEXT_CONTENT
-    | NAME
-    | STAR
-    | SLASH
-    | BRACE_OPEN
-    | BRACE_CLOSE
-    ;
-
 descriptionLineElement
     : inlineTag
     | descriptionLineText
     ;
 
 descriptionLineText
-    : (descriptionLineNoSpaceNoAt | SPACE | AT)+
+    : TEXT_CONTENT
+    | NAME
+    | SPACE
+    | STAR
+    | SLASH
+    | AT
+    | BRACE_OPEN
+    | BRACE_CLOSE
     ;
 
 // Newline requires special handling when constructing the model.
