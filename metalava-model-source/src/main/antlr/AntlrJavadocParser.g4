@@ -53,12 +53,7 @@ descriptionLineElement
     ;
 
 descriptionLineText
-    : TEXT_CONTENT
-    | NAME
-    | SPACE
-    | STAR
-    | SLASH
-    | AT
+    : braceText
     | BRACE_OPEN
     | BRACE_CLOSE
     ;
