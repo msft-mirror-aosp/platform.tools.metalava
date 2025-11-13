@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.source.doc.PackageReference
 import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
+import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
@@ -146,6 +147,9 @@ abstract class AbstractItemDocumentation(
     override fun docCommentMutated() {
         _text = null
     }
+
+    /** Implements [ExprContext.isFlagEnabled]. */
+    override fun isFlagEnabled(flagFieldReference: String) = TODO("Not yet implemented")
 
     override val isHidden
         get() = hasBlockTagOfType("hide")

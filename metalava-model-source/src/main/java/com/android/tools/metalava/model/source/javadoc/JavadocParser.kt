@@ -197,6 +197,18 @@ private class JavadocContentBuilder(
     /** A [DocumentationIssueReporter] that can be used to report issues with a [Token]. */
     private val tokenIssueReporter = TokenIssueReporter(reporter)
 
+    /** Backing field for [exprBuilder], lazily initialized when [exprBuilder] is accessed. */
+    private lateinit var _exprBuilder: ExprBuilder
+
+    /** Get the [ExprBuilder] to use to construct [Expr] for conditional javadoc processing. */
+    private val exprBuilder: ExprBuilder
+        get() {
+            if (!::_exprBuilder.isInitialized) {
+                _exprBuilder = ExprBuilder(tokenIssueReporter)
+            }
+            return _exprBuilder
+        }
+
     /**
      * Determines whether whitespace should be trimmed from the start of the content.
      *
@@ -422,6 +434,33 @@ private class JavadocContentBuilder(
         // This matches a newline possible following by white space and then a `*` (but not '*/').
         // However, the white space and `*` are not considered part of the comment so are ignored.
         appendNewline()
+    }
+
+    override fun visitInlineIfTag(ctx: AntlrJavadocParser.InlineIfTagContext) {
+        // Convert the expression into an Expr object.
+        val exprRule =
+            ctx.expr()
+                ?: run {
+                    tokenIssueReporter.report(
+                        ctx.INLINE_IF_TAG_START().symbol,
+                        Issues.INVALID_IF_TAG,
+                        "missing <expr>"
+                    )
+                    return
+                }
+        val expr = exprBuilder.buildExpr(exprRule)
+
+        // Evaluate the expression to get a boolean result.
+        val result = expr.evaluate(context)
+
+        // Select the content to use based on the value of the expression.
+        if (result) {
+            // The content to use when true is always provided.
+            ctx.braceExpression(0).braceContent().forEach { it.accept(this) }
+        } else {
+            // The else content is optional.
+            ctx.braceExpression(1)?.braceContent()?.forEach { it.accept(this) }
+        }
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {

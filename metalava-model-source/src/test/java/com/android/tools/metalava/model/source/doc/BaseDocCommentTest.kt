@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 import kotlin.test.assertEquals
@@ -102,6 +103,12 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
         get() = this
 
     override fun docCommentMutated() {}
+
+    /** A map from flage name to enabled status. */
+    var flags: Map<String, Boolean> = emptyMap()
+
+    /** Implements [ExprContext.isFlagEnabled]. */
+    override fun isFlagEnabled(flagFieldReference: String) = flags[flagFieldReference] ?: false
 
     override fun ordinalInParamsList(name: String) = 0
 
