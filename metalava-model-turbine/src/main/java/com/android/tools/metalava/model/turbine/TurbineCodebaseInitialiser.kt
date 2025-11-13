@@ -170,9 +170,9 @@ internal class TurbineCodebaseInitialiser(
         // Combine all the units together.
         val allUnits = ImmutableList.builder<CompUnit>().addAll(units).addAll(extraUnits).build()
 
-        // Bind the units
         try {
-            val procInfo =
+            // No annotation processors are used.
+            val annotationProcessorInfo =
                 ProcessorInfo.create(
                     ImmutableList.of(),
                     null,
@@ -180,19 +180,23 @@ internal class TurbineCodebaseInitialiser(
                     SourceVersion.latest()
                 )
 
+            // Bind the units
             bindingResult =
                 Binder.bind(
                     log,
                     allUnits,
                     ClassPathBinder.bindClasspath(classpath.map { it.toPath() }),
-                    procInfo,
+                    annotationProcessorInfo,
                     ClassPathBinder.bindClasspath(listOf()),
                     Optional.empty()
                 )!!
-            index = bindingResult.tli()
         } catch (e: Throwable) {
             throw e
         }
+
+        // Get the top level index needed for creating TurbineElements.
+        index = bindingResult.tli()
+
         // Get the SourceTypeBoundClass for all units that have been bound together.
         val allSourceClassMap = bindingResult.units()
 
