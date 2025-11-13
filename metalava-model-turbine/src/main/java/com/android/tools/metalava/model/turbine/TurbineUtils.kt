@@ -90,7 +90,7 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
     // contain @hide which needs to be respected.
     if (!allowReadingComments && decl !is PkgDecl) return ItemDocumentation.NONE_FACTORY
 
-    val doc: String? =
+    val doc =
         when (decl) {
             is TyDecl -> decl.javadoc()
             is MethDecl -> decl.javadoc()
@@ -98,9 +98,7 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
             is PkgDecl -> getDocCommentForPkgDecl(sourceFile, decl)
             null -> null
             else -> error("Should never be called")
-        }
-
-    if (doc == null || doc == "") return NO_SOURCE_COMMENT_FACTORY
+        } ?: return NO_SOURCE_COMMENT_FACTORY
 
     return { item -> TurbineItemDocumentation(item, sourceFile, doc, decl?.position() ?: -1) }
 }
