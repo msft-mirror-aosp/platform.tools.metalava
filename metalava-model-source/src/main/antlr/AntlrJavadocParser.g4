@@ -66,8 +66,7 @@ newline
 inlineTag
     // Make BRACE_CLOSE optional to support inline tags without a closing brace.
     // TODO(b/429965593): Fix broken javadoc and make BRACE_CLOSE required.
-    // TODO(b/429965593): Fix broken javadoc and remove SPACE* between INLINE_TAG_START and inlineTagName
-    : INLINE_TAG_START SPACE* inlineTagName SPACE* inlineTagContent? BRACE_CLOSE?
+    : INLINE_TAG_START inlineTagName SPACE* inlineTagContent? BRACE_CLOSE?
     ;
 
 inlineTagName

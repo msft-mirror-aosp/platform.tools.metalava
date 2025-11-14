@@ -271,6 +271,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                     inlineTag: code
                       text: 'extra space'
                 """,
+            expectedJavadocIssues =
+                """
+                    2:6: extraneous input ' ' expecting NAME [InvalidJavadoc]
+                """,
         )
     }
 
