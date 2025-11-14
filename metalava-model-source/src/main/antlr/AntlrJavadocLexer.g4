@@ -53,19 +53,19 @@ NEWLINE:
 
 SPACE: (' ' | '\t')+;
 
-BRACE_OPEN: '{';
-
-BRACE_CLOSE: '}';
-
-// General text content. Excludes characters that are handled by one of the other
-// tokens above.
-TEXT_CONTENT: ~[\n\r\t {}]+;
+// Although `{` are generally treated as TEXT_CONTENT in this mode they have to be matched as
+// separate tokens to avoid TEXT_CONTENT matching `{@` instead of INLINE_TAG_START.
+TEXTUAL_BRACE_OPEN: '{' -> type(TEXT_CONTENT);
 
 // The start of an inline tag.
 INLINE_TAG_START: '{@' ->
     // Start a special mode for processing the INLINE_TAG_NAME. That avoids having to exclude
     // characters in the INLINE_TAG_NAME from TEXT_CONTENT.
     pushMode(INLINE_TAG_MODE);
+
+// General text content. Excludes characters that are handled by one of the other
+// tokens above.
+TEXT_CONTENT: ~[\n\r\t {]+;
 
 // ============================== END DEFAULT_MODE ==============================
 
@@ -98,23 +98,17 @@ BALANCED_BRACE_NEWLINE: NEWLINE -> type(NEWLINE);
 BALANCED_BRACE_SPACE: SPACE -> type(SPACE);
 
 // A `{` that must be matched by a following `}`.
-BALANCED_BRACE_OPEN: '{' ->
+BRACE_OPEN: '{' ->
     // Repush balanced mode. That ensures that when the matching `}` pops the mode it is still in
     // balanced mode.
-    pushMode(BALANCED_BRACE_MODE),
-    // Treat this as the default BRACE_OPEN token as the parser does not need to be aware of this
-    // token.
-    type(BRACE_OPEN);
+    pushMode(BALANCED_BRACE_MODE);
 
 // A `}` that must match a preceding `{`.
-BALANCED_BRACE_CLOSE: '}' ->
+BRACE_CLOSE: '}' ->
     // Pop the mode. If this matches a `{` matched by BALANCED_BRACE_OPEN then it will stay in
     // balanced mode. Otherwise, if this matches the `{` that caused entry to this mode then it
     // will switch back to the original mode.
-    popMode,
-    // Treat this as the default BRACE_CLOSE token as the parser does not need to be aware of this
-    // token.
-    type(BRACE_CLOSE);
+    popMode;
 
 // The start of an inline tag. Needed to ensure inline tags can contain other inline tags.
 BALANCED_INLINE_TAG_START: '{@' ->

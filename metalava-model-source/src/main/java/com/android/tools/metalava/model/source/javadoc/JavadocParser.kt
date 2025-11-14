@@ -414,7 +414,7 @@ private class JavadocContentBuilder(
         return content
     }
 
-    override fun visitDescriptionLineText(ctx: AntlrJavadocParser.DescriptionLineTextContext) {
+    override fun visitTextContent(ctx: AntlrJavadocParser.TextContentContext) {
         // Add the text to the text buffer.
         appendText(ctx.text)
     }
@@ -494,12 +494,6 @@ private class JavadocContentBuilder(
         appendText("{")
         super.visitBraceExpression(ctx)
         appendText("}")
-    }
-
-    override fun visitBraceText(ctx: AntlrJavadocParser.BraceTextContext) {
-        // Brace text is just a set of possible different blocks of text so just add them into the
-        // buffer.
-        appendText(ctx.text)
     }
 
     /** A [DocumentationIssueReporter] that reports issues for a [Token]. */

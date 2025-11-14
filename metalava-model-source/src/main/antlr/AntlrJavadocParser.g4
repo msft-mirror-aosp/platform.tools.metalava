@@ -49,13 +49,12 @@ descriptionLine
 
 descriptionLineElement
     : inlineTag
-    | descriptionLineText
+    | textContent
     ;
 
-descriptionLineText
-    : braceText
-    | BRACE_OPEN
-    | BRACE_CLOSE
+textContent
+    : TEXT_CONTENT
+    | SPACE
     ;
 
 // Newline requires special handling when constructing the model.
@@ -79,12 +78,7 @@ braceExpression
 
 braceContent
     : braceExpression
-    | braceText
+    | textContent
     | inlineTag
     | newline
-    ;
-
-braceText
-    : TEXT_CONTENT
-    | SPACE
     ;
