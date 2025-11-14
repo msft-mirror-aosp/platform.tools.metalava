@@ -46,9 +46,7 @@ NEWLINE:
 
 SPACE: (' ' | '\t')+;
 
-TEXT_CONTENT: ~[\n\r\t @*{}/a-zA-Z]+;
-
-AT: '@';
+TEXT_CONTENT: ~[\n\r\t *{}/a-zA-Z]+;
 
 STAR: '*';
 

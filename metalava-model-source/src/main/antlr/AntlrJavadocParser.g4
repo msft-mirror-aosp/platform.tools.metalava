@@ -95,5 +95,4 @@ braceText
     | SPACE
     | STAR
     | SLASH
-    | AT
     ;
