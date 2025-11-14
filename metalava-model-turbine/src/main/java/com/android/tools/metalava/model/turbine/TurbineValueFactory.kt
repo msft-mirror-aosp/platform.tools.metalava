@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -41,6 +40,7 @@ import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.ConstVarName
+import com.google.turbine.tree.Tree.Expression
 
 /**
  * Factory for creating [Value]s from [TurbineValue]s.
@@ -99,17 +99,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
         optionalTypeItem: TypeItem?,
         implementationValue: TurbineValue,
         valueUseSite: ValueUseSite,
-    ) =
-        when (valueUseSite) {
-            ValueUseSite.ANNOTATION -> {
-                // For annotations convert to any Value.
-                implementationValue.toValue(optionalTypeItem)
-            }
-            ValueUseSite.FIELD -> {
-                // For fields convert to ConstantValues.
-                implementationValue.toConstant(optionalTypeItem)
-            }
-        }
+    ) = implementationValue.toValue(optionalTypeItem)
 
     /** Create a [Value] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toValue(optionalTypeItem: TypeItem?): Value {
@@ -117,10 +107,19 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             val arrayTypeItem = optionalTypeItem as ArrayTypeItem
             val elementTypeItem = arrayTypeItem.componentType
 
-            val elements = const.elements()
-            val exprElements = (expr as? ArrayInit)?.exprs()
+            val constElements = const.elements()
+
+            val exprElements =
+                expr?.let { expr ->
+                    // If expr is an ArrayInit then get the expressions that make up its contents.
+                    (expr as? ArrayInit)?.exprs()
+                        // Otherwise, it was just a single value in the source so wrap it in a list
+                        // to match the constElements.
+                        ?: listOf(expr)
+                }
+
             val turbineValues =
-                elements.mapIndexed { index, element ->
+                constElements.mapIndexed { index, element ->
                     TurbineValue(element, exprElements?.get(index), fieldResolver)
                 }
 
@@ -131,7 +130,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             // `ArrayInitValue` so check the expression. If the expression was provided (i.e. from
             // sources not jars) but was not an `ArrayInit` expression (no `exprElements) then it
             // was unwrapped in the sources, otherwise it was not.
-            val wasUnwrappedInSource = expr != null && exprElements == null
+            val wasUnwrappedInSource = expr != null && expr !is ArrayInit
 
             return createArrayValue(values, wasUnwrappedInSource)
         }
@@ -164,8 +163,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
                 return createClassObjectValue(
                     classLiteralTypeItem,
-                    // Java does not need the source expression.
-                    null,
+                    sourceExpression = expr?.toString(),
                 )
             }
             Const.Kind.ANNOTATION -> {
@@ -192,14 +190,11 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             val fieldSymbol = fieldInfo?.sym()
             // If the field could be resolved then wrap it around the constant value.
             if (fieldSymbol != null) {
-                // Get the constant value first.
-                val constantValue = toConstant(optionalTypeItem)
-
-                return createFieldReferenceValue(
+                return createFieldReferenceValueWithDeferredConstantValue(
                     codebase,
                     fieldSymbol.owner().qualifiedName,
                     fieldSymbol.name(),
-                    constantValue,
+                    optionalTypeItem,
                 )
             }
         }
@@ -210,30 +205,77 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
     /** Create a [ConstantValue] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toConstant(optionalTypeItem: TypeItem?): ConstantValue {
         if (const.kind() == Const.Kind.PRIMITIVE) {
-            // Check to see if the underlying value has been already been cast from the source
-            // literal type to a type appropriate for where it is being used. If it has then reverse
-            // the cast to preserve the information about the source literal type. That is needed to
-            // enable consistent processing with legacy value handling which often uses the source
-            // type directly, e.g. when parsing `longValue = 1` it may write it as `longValue = 1`
-            // instead of the more consistent `longValue = 1L`.
-            val transformedValue =
-                when (val underlyingValue = (const as Const.Value).value) {
-                    is Double,
-                    is Float,
-                    is Long -> {
-                        if (expr is Tree.Literal && expr.tykind() == TurbineConstantTypeKind.INT) {
-                            expr.toString().toInt()
-                        } else underlyingValue
+            val underlyingValue = (const as Const.Value).value
+
+            // If no expr is provided then this comes from a .class file, otherwise it comes from
+            // the source.
+            if (expr == null) {
+                // A .class file stores byte and short constants as ints so convert them back from
+                // the Turbine value (which has been converted to the correct type) to the behavior
+                // relied upon by Psi legacy behavior.
+                val transformedValue =
+                    when (underlyingValue) {
+                        is Byte -> underlyingValue.toInt()
+                        is Short -> underlyingValue.toInt()
+                        else -> underlyingValue
                     }
-                    else -> underlyingValue
-                }
-            return createLiteralValue(optionalTypeItem, transformedValue)
+
+                return createLiteralValue(optionalTypeItem, transformedValue)
+            } else {
+                // Check to see if the underlying value has been already been converted from the
+                // source literal type to a type appropriate for where it is being used. If it has
+                // then this undoes the conversion to preserve the information about the source
+                // literal type. That is needed to enable consistent processing with legacy value
+                // handling which often uses the source type directly, e.g. when parsing
+                //     `longValue = 1`
+                // it may write it as
+                //     `longValue = 1`
+                // instead of the more consistent
+                //     `longValue = 1L`.
+                val transformedValue =
+                    when (underlyingValue) {
+                        is Byte,
+                        is Double,
+                        is Float,
+                        is Long,
+                        is Short -> {
+                            when (expr.getLiteralKind()) {
+                                TurbineConstantTypeKind.INT -> {
+                                    (underlyingValue as Number).toInt()
+                                }
+                                TurbineConstantTypeKind.FLOAT -> {
+                                    (underlyingValue as Number).toFloat()
+                                }
+                                else -> underlyingValue
+                            }
+                        }
+                        else -> underlyingValue
+                    }
+
+                // A value is considered non-literal if it was not a literal expression.
+                val nonLiteralInSource = expr !is Tree.Literal
+                return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
+            }
         }
 
         throw ValueProviderException(
             "Unknown value '$const' of ${const.javaClass} for type $optionalTypeItem"
         )
     }
+
+    /**
+     * Get the literal kind of this expression.
+     *
+     * If this is itself a [Tree.Literal] then return its [Tree.Literal.tykind]. Otherwise, if this
+     * is a [Tree.Unary], e.g. `-<expr>` of `+<expr>`, then it will call this on its
+     * [Tree.Unary.expr].
+     */
+    private fun Expression.getLiteralKind(): TurbineConstantTypeKind? =
+        when (this) {
+            is Tree.Literal -> this.tykind()
+            is Tree.Unary -> expr().getLiteralKind()
+            else -> null
+        }
 }
 
 /**

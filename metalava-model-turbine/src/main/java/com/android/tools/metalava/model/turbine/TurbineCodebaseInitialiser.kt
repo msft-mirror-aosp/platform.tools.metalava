@@ -21,9 +21,9 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.FileLocation
@@ -239,10 +240,10 @@ internal class TurbineCodebaseInitialiser(
                 packageNameFilter = { true },
                 packageInfoList
             ) { (unit, packageName, sourceTypeBoundClass) ->
-                val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
-                val comment = getHeaderComments(source).toItemDocumentationFactory()
+                val turbineSourceFile = sourceFileCache.turbineSourceFile(unit.source())
+                val comment = itemDocumentationFactoryForDecl(turbineSourceFile, unit.pkg().get())
 
                 val annotations =
                     annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())
@@ -397,6 +398,8 @@ internal class TurbineCodebaseInitialiser(
         codebase.packageTracker.createInitialPackages(packageDocs)
     }
 
+    override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
+
     private fun createAllCommandLineClasses(
         sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
         apiPackages: PackageFilter?,
@@ -445,6 +448,12 @@ internal class TurbineCodebaseInitialiser(
             enclosingClassTypeItemFactory = globalTypeItemFactory,
             origin = origin,
         )
+    }
+
+    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
+        // Make sure that the underlying package exists before creating one.
+        turbineElements.getPackageElement(qualifiedName) ?: return null
+        return codebase.findOrCreatePackage(qualifiedName)
     }
 
     /** Tries to create a class from a Turbine class with [qualifiedName]. */

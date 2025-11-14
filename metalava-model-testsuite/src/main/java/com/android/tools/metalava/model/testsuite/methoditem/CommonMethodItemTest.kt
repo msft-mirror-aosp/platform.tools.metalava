@@ -31,6 +31,7 @@ import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
@@ -93,7 +94,7 @@ class CommonMethodItemTest : BaseModelTest() {
             val methodType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
-                    .assertMethod("method", "")
+                    .assertMethod("method", emptyList())
                     .type()
 
             methodType.assertReferencesTypeParameter(oTypeParameter)
@@ -343,6 +344,53 @@ class CommonMethodItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test throws type on kotlin only constructor`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                annotation class SingleThrowsType
+                    @Throws(IllegalStateException::class)
+                    constructor(val v: Int)
+
+                annotation class MultipleThrowsTypes
+                    @Throws(IllegalStateException::class, IllegalArgumentException::class)
+                    constructor(val v: Int)
+
+                annotation class NoThrowsTypes
+                    @Throws
+                    constructor(val v: Int)
+                """
+            )
+        ) {
+            assertEquals(
+                codebase
+                    .assertClass("test.pkg.SingleThrowsType")
+                    .assertConstructor(listOf("int"))
+                    .throwsTypes()
+                    .single()
+                    .toTypeString(),
+                "java.lang.IllegalStateException"
+            )
+            assertContentEquals(
+                codebase
+                    .assertClass("test.pkg.MultipleThrowsTypes")
+                    .assertConstructor(listOf("int"))
+                    .throwsTypes()
+                    .map { it.toTypeString() },
+                listOf("java.lang.IllegalStateException", "java.lang.IllegalArgumentException")
+            )
+            assertTrue(
+                codebase
+                    .assertClass("test.pkg.NoThrowsTypes")
+                    .assertConstructor(listOf("int"))
+                    .throwsTypes()
+                    .isEmpty()
+            )
+        }
+    }
+
+    @Test
     fun `Test method default values`() {
         runSourceCodebaseTest(
             java(
@@ -450,15 +498,18 @@ class CommonMethodItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // check all overloads for `allOptionalJvmOverloads` are present
-            fooClass.assertMethod("allOptionalJvmOverloads", "")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int,int")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int,int,int")
+            fooClass.assertMethod("allOptionalJvmOverloads", emptyList())
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int"))
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int", "int"))
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int", "int", "int"))
 
             // check all overloads for `someOptionalJvmOverloads` are present
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,int,int")
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,long,int,int")
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,long,int,float,int")
+            fooClass.assertMethod("someOptionalJvmOverloads", listOf("int", "int", "int"))
+            fooClass.assertMethod("someOptionalJvmOverloads", listOf("int", "long", "int", "int"))
+            fooClass.assertMethod(
+                "someOptionalJvmOverloads",
+                listOf("int", "long", "int", "float", "int")
+            )
 
             // check that there aren't any other methods present
             assertEquals(fooClass.methods().size, 7)

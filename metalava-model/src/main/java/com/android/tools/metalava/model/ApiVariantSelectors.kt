@@ -374,6 +374,11 @@ sealed class ApiVariantSelectors {
                 return
             }
 
+            // Propagate hidden status from fields to properties.
+            if (item is PropertyItem && item.backingField?.hidden == true) {
+                hidden = true
+            }
+
             // Inheritance is only done on a few Item types, ignore the rest.
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
@@ -433,7 +438,8 @@ sealed class ApiVariantSelectors {
                     }
                 } else if (item is ClassItem) {
                     // This will only be executed for top level classes, i.e. containing class is
-                    // null. They inherit their properties from the containing package.
+                    // null, and type aliases which are always top-level. They inherit their
+                    // properties from the containing package.
                     val containingPackageSelectors = item.containingPackage().variantSelectors
                     if (containingPackageSelectors.inheritableHidden) {
                         inheritableHidden = true

@@ -18,6 +18,8 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -67,10 +69,22 @@ interface Assertions {
         return packageItem
     }
 
+    /** Resolve the package from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertResolvedPackage(pkgName: String): PackageItem {
+        val packageItem = resolvePackage(pkgName)
+        assertNotNull(packageItem, message = "Expected $pkgName to be defined")
+        return packageItem
+    }
+
     /** Get the type alias from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertTypeAlias(qualifiedName: String): TypeAliasItem {
-        val typeAliasItem = findTypeAlias(qualifiedName)
-        assertNotNull(typeAliasItem, message = "Expected $qualifiedName to be a defined type alias")
+    fun Codebase.assertTypeAlias(qualifiedName: String): ClassItem {
+        val typeAliasItem = assertClass(qualifiedName)
+        assertEquals(
+            typeAliasItem.classKind,
+            ClassKind.TYPEALIAS,
+            message =
+                "Expected $qualifiedName to be a defined type alias but was ${typeAliasItem.classKind}"
+        )
         return typeAliasItem
     }
 
@@ -110,21 +124,64 @@ interface Assertions {
         return fieldItem
     }
 
-    /** Get the method from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertMethod(methodName: String, parameters: String): MethodItem {
-        val methodItem = findMethod(methodName, parameters)
-        assertNotNull(methodItem, message = "Expected $methodName($parameters) to be defined")
-        return methodItem
+    /** Finds the callable in the list, failing if it does not exist. */
+    private fun <T : CallableItem> List<T>.assertCallable(
+        callableName: String,
+        parameters: List<String>,
+        requiredTargetLanguage: TargetLanguage? = null,
+    ): T {
+        val callableItem = singleOrNull {
+            it.name() == callableName &&
+                it.parameters().size == parameters.size &&
+                it.parameters().zip(parameters).all { (parameterItem, expectedTypeString) ->
+                    parameterItem.type().toTypeString() == expectedTypeString
+                } &&
+                (requiredTargetLanguage == null || requiredTargetLanguage in it.targetLanguages)
+        }
+        assertNotNull(
+            callableItem,
+            message =
+                "Expected $callableName($parameters) to be defined" +
+                    if (requiredTargetLanguage != null) {
+                        " with target language $requiredTargetLanguage"
+                    } else {
+                        ""
+                    }
+        )
+        return callableItem
     }
 
-    /** Get the constructor from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertConstructor(parameters: String): ConstructorItem {
-        val constructorItem = findConstructor(parameters)
-        assertNotNull(
-            constructorItem,
-            message = "Expected ${simpleName()}($parameters) to be defined"
-        )
-        return assertIs(constructorItem)
+    /**
+     * Get the method from the [ClassItem], failing if it does not exist. The [parameters] are
+     * expected to be type strings formatted according to [TypeStringConfiguration.DEFAULT].
+     *
+     * If a [requiredTargetLanguage] is provided, the return [MethodItem] will have it as one of its
+     * target languages. If no [requiredTargetLanguage] is provided and there are multiple
+     * [MethodItem]s with the same name and parameters but different target languages, the assertion
+     * will fail.
+     */
+    fun ClassItem.assertMethod(
+        methodName: String,
+        parameters: List<String>,
+        requiredTargetLanguage: TargetLanguage? = null,
+    ): MethodItem {
+        return methods().assertCallable(methodName, parameters, requiredTargetLanguage)
+    }
+
+    /**
+     * Get the constructor from the [ClassItem], failing if it does not exist. The [parameters] are
+     * expected to be type strings formatted according to [TypeStringConfiguration.DEFAULT].
+     *
+     * If a [requiredTargetLanguage] is provided, the return [ConstructorItem] will have it as one
+     * of its target languages. If no [requiredTargetLanguage] is provided and there are multiple
+     * [ConstructorItem]s with the same parameters but different target languages, the assertion
+     * will fail.
+     */
+    fun ClassItem.assertConstructor(
+        parameters: List<String>,
+        requiredTargetLanguage: TargetLanguage? = null,
+    ): ConstructorItem {
+        return constructors().assertCallable(simpleName(), parameters, requiredTargetLanguage)
     }
 
     /** Get the property from the [ClassItem], failing if it does not exist. */
@@ -180,6 +237,30 @@ interface Assertions {
             explicitlyDeprecated = false,
             implicitlyDeprecated = true,
         )
+    }
+
+    /** Make sure that [this] contains a [TypeParameterItem] called [name], returning it. */
+    fun TypeParameterListOwner.assertTypeParameter(name: String): TypeParameterItem {
+        val found = typeParameterList.find { it.name() == name }
+        assertNotNull(
+            found,
+            message =
+                "Expected $this to have type parameter $name but had ${typeParameterList.joinToString()}"
+        )
+        return found
+    }
+
+    /** Make sure when the documentation for [this] is printed that it matches [expectedOutput]. */
+    fun SelectableItem.assertPrintedDocumentation(expectedOutput: String, message: String? = null) {
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals("$expectedOutput\n".trimIndent(), actualOutput, message)
+    }
+
+    /** Make sure the documentation text for [this] matches [expectedOutput]. */
+    fun SelectableItem.assertDocumentationText(expectedOutput: String, message: String? = null) {
+        assertEquals(expectedOutput.trimIndent(), documentation.text.trim(), message)
     }
 
     /**

@@ -147,16 +147,16 @@ API sources:
                                              Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>
                                              Sets the source level for Kotlin source files; default is ${DEFAULT_KOTLIN_LANGUAGE_LEVEL}.
+--Xuse-k1-uast
+                                             Specifies that the K1 compiler should be used (K1 is the default).
+--Xuse-k2-uast
+                                             Specifies that the K2 compiler should be used (K1 is the default).
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
                                              Use the given API level
 --jdk-home <dir>
                                              If set, add the Java APIs from the given JDK to the classpath
---subtract-api <api file>
-                                             Subtracts the API in the given signature or jar file from the current API
-                                             being emitted via --api, --stubs, --doc-stubs, etc. Note that the
-                                             subtraction only applies to classes; it does not subtract members.
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
@@ -251,15 +251,18 @@ $EXPECTED_HELP
     @Test
     fun `Test for @file`() {
         val dir = temporaryFolder.newFolder()
-        val files = (1..4).map { TestFiles.source("File$it.java", "File$it").createFile(dir) }
+        val files =
+            (1..4).map {
+                TestFiles.source("File$it.java", "public class File$it {}").createFile(dir)
+            }
         val fileList =
             TestFiles.source(
                 "files.lst",
                 """
-            ${files[0]}
-            ${files[1]} ${files[2]}
-            ${files[3]}
-        """
+                    ${files[0]}
+                    ${files[1]} ${files[2]}
+                    ${files[3]}
+                """
                     .trimIndent()
             )
 

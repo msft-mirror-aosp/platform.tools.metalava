@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
@@ -72,12 +74,18 @@ interface Item : Reportable {
     fun mutateModifiers(mutator: MutableModifierList.() -> Unit)
 
     /**
-     * The javadoc/KDoc comment for this code element, if any. This is the original content of the
-     * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
-     * qualified references to classes.
+     * The, possibly empty, description of the [Item].
+     *
+     * For [SelectableItem]s this is the main description in [SelectableItem.documentation]. For
+     * [ParameterItem]s this is the description of the corresponding `@param` tag in the
+     * [ParameterItem.containingCallable]'s [CallableItem.documentation],
      */
-    val documentation: ItemDocumentation
+    val description: DocContent?
+
+    /**
+     * The owner of this [Item]'s [description] that provides support for modifying [description].
+     */
+    val descriptionOwner: DocContentOwner
 
     /**
      * A rank used for sorting. This allows signature files etc to sort similar items by a natural
@@ -87,18 +95,6 @@ interface Item : Reportable {
      * not clear that an alphabetical order (of each parameter?) would be preferable.)
      */
     val sortingRank: Int
-
-    /**
-     * Add the given text to the documentation.
-     *
-     * If the [tagSection] is null, add the comment to the initial text block of the description.
-     *
-     * If it is "@return", add the comment to the return value.
-     *
-     * Otherwise, the [tagSection] is taken to be the parameter name, and the comment added as
-     * parameter documentation for the given parameter.
-     */
-    fun appendDocumentation(comment: String, tagSection: String? = null)
 
     val isPublic: Boolean
     val isProtected: Boolean
@@ -262,6 +258,9 @@ interface Item : Reportable {
      */
     fun baselineElementId(): String
 
+    /** The languages from which this [Item] can be used. */
+    val targetLanguages: Set<TargetLanguage>
+
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
             return when (item) {
@@ -370,7 +369,21 @@ interface Item : Reportable {
         }
 
         private fun describe(item: ClassItem, capitalize: Boolean = false): String {
-            return "${if (capitalize) "Class" else "class"} ${item.qualifiedName()}"
+            val descriptor =
+                if (item.classKind == ClassKind.TYPEALIAS) {
+                    if (capitalize) {
+                        "Typealias"
+                    } else {
+                        "typealias"
+                    }
+                } else {
+                    if (capitalize) {
+                        "Class"
+                    } else {
+                        "class"
+                    }
+                }
+            return "$descriptor ${item.qualifiedName()}"
         }
 
         private fun describe(item: PackageItem, capitalize: Boolean = false): String {
@@ -382,21 +395,11 @@ interface Item : Reportable {
 
 /** Base [Item] implementation that is common to all models. */
 abstract class DefaultItem(
-    override val codebase: Codebase,
+    final override val codebase: Codebase,
     final override val fileLocation: FileLocation,
     final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
 ) : Item {
-
-    /**
-     * Create a [ItemDocumentation] appropriate for this [Item].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
-
     /**
      * The immutable [modifiers].
      *
@@ -408,12 +411,6 @@ abstract class DefaultItem(
      */
     final override var modifiers: ModifierList = modifiers.toImmutable()
         private set
-
-    init {
-        if (!modifiers.isDeprecated() && documentation.hasTagSection("@deprecated")) {
-            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
-        }
-    }
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -435,7 +432,7 @@ abstract class DefaultItem(
         get() = modifiers.isProtected()
 
     final override val isInternal: Boolean
-        get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
+        get() = modifiers.isInternal()
 
     final override val isPackagePrivate: Boolean
         get() = modifiers.isPackagePrivate()
@@ -464,27 +461,6 @@ abstract class DefaultItem(
                 }
             }
         }
-    }
-
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
-        }
-
-        // TODO: Figure out if an annotation should go on the return value, or on the method.
-        // For example; threading: on the method, range: on the return value.
-        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
-
-        if (this is ParameterItem) {
-            // For parameters, the documentation goes into the surrounding method's documentation!
-            // Find the right parameter location!
-            val parameterName = name()
-            val target = containingCallable()
-            target.appendDocumentation(comment, parameterName)
-            return
-        }
-
-        documentation.appendDocumentation(comment, tagSection)
     }
 
     final override fun equals(other: Any?) = equalsToItem(other)

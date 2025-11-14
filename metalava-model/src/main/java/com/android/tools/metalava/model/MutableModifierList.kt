@@ -41,9 +41,13 @@ interface MutableModifierList : BaseModifierList {
 
     fun setSealed(sealed: Boolean)
 
+    fun setExhaustive(exhaustive: Boolean)
+
     fun setFunctional(functional: Boolean)
 
     fun setInfix(infix: Boolean)
+
+    fun setConst(const: Boolean)
 
     fun setOperator(operator: Boolean)
 

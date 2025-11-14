@@ -40,6 +40,8 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -57,13 +59,14 @@ import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
+import com.android.tools.metalava.model.utils.extractOptionalQualifierName
+import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -346,7 +349,6 @@ private constructor(
             parser.performAnyDeferredMerges()
 
             apiStatsConsumer(parser.stats)
-
             return assembler.codebase
         }
 
@@ -633,6 +635,8 @@ private constructor(
             containingPackage = pkg,
             aliasedType = type,
             typeParameterList = typeParameterList,
+            // All signature files have to be explicitly specified.
+            origin = ClassOrigin.COMMAND_LINE,
         )
     }
 
@@ -641,7 +645,7 @@ private constructor(
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
 
-        val modifiers = parseModifiers(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
         val classPosition = tokenizer.fileLocation()
@@ -804,6 +808,7 @@ private constructor(
                 origin = ClassOrigin.COMMAND_LINE,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
+                targetLanguages = targetLanguages,
             )
         cl.markForMainApiSurface()
 
@@ -993,12 +998,11 @@ private constructor(
         val qualifiedName = qualifiedName(pkgName, fullName)
 
         // Split the full name into an optional outer class and a simple name.
-        val nestedClassIndex = fullName.lastIndexOf('.')
+        val outerClassFullName = fullName.extractOptionalQualifierName()
         val outerClass =
-            if (nestedClassIndex == -1) {
+            if (outerClassFullName == null) {
                 null
             } else {
-                val outerClassFullName = fullName.substring(0, nestedClassIndex)
                 val qualifiedOuterClassName = qualifiedName(pkgName, outerClassFullName)
 
                 // Search for the outer class in the codebase. This is safe as the outer class
@@ -1165,7 +1169,7 @@ private constructor(
         var token = startingToken
         val method: ConstructorItem
 
-        val modifiers = parseModifiers(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) =
@@ -1173,10 +1177,8 @@ private constructor(
         token = tokenizer.current
 
         tokenizer.assertIdent(token)
-        val name: String =
-            token.substring(
-                token.lastIndexOf('.') + 1
-            ) // For nested classes, strip outer classes from name
+        // For nested classes, strip outer classes from name
+        val name: String = token.extractSimpleName()
         val parameters = parseParameterList(tokenizer)
         token = tokenizer.requireToken()
         var throwsList = emptyList<ExceptionTypeItem>()
@@ -1205,6 +1207,7 @@ private constructor(
                 // the same as whether it was created by the compiler or in the source has no effect
                 // on the API surface.
                 implicitConstructor = false,
+                targetLanguages = targetLanguages,
             )
         method.markForMainApiSurface()
 
@@ -1222,7 +1225,7 @@ private constructor(
         var token = startingToken
         val method: MethodItem
 
-        val modifiers = parseModifiers(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
@@ -1307,6 +1310,8 @@ private constructor(
                 },
                 throwsTypes = throwsList,
                 defaultValueProvider = defaultValueProvider,
+                targetLanguages = targetLanguages,
+                isExtensionMethod = false, // no way to tell if this is an extension method
             )
 
         // Ignore enum synthetic methods. They are no longer included in signature files as they add
@@ -1334,7 +1339,7 @@ private constructor(
         isEnumConstant: Boolean,
     ) {
         var token = startingToken
-        val modifiers = parseModifiers(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
@@ -1403,9 +1408,32 @@ private constructor(
                 type = type,
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
+                targetLanguages = targetLanguages,
             )
         field.markForMainApiSurface()
         cl.addField(field)
+    }
+
+    /**
+     * Parses and creates an optional target language set and modifiers (see [parseModifiers]).
+     *
+     * When the method returns, the current token of [tokenizer] will be the first token after the
+     * modifiers.
+     */
+    private fun parseModifiersAndTargetLanguages(
+        tokenizer: Tokenizer,
+        startingToken: String,
+    ): Pair<MutableModifierList, Set<TargetLanguage>> {
+        var token = startingToken
+        // Check if there's a token describing the target languages of the item. If there is, get
+        // the next token, if not, use the set of all languages.
+        val targetLanguages =
+            TargetLanguageSet.signatureFileRepresentationToTargetLanguageSet[token]?.also {
+                token = tokenizer.requireToken()
+            } ?: TargetLanguageSet.ALL
+
+        val modifiers = parseModifiers(tokenizer, token)
+        return modifiers to targetLanguages
     }
 
     /**
@@ -1476,6 +1504,24 @@ private constructor(
                     }
                     "sealed" -> {
                         modifiers.setSealed(true)
+                        // When reading in a sealed class, for backwards compatibility we want
+                        // to label it as non-exhaustive (for more details on what this means,
+                        // see b/447143803) in case the signature file doesn't have one of
+                        // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
+                        // allows compatibility checks to not raise unnecessary errors for
+                        // sealed classes without an exhaustivity modifier. If the class is indeed
+                        // labeled with an exhaustivity modifier in the signature file, the class's
+                        // exhaustivity will be adjusted accordingly in the following match
+                        // statements.
+                        modifiers.setExhaustive(false)
+                        tokenizer.requireToken()
+                    }
+                    "exhaustive" -> {
+                        modifiers.setExhaustive(true)
+                        tokenizer.requireToken()
+                    }
+                    "nonexhaustive" -> {
+                        modifiers.setExhaustive(false)
                         tokenizer.requireToken()
                     }
                     "default" -> {
@@ -1830,21 +1876,12 @@ private constructor(
                 }
             }
 
-            // Select the DefaultValue for the parameter.
-            val defaultValue =
-                if (hasOptionalKeyword) {
-                    // It has an optional keyword, so it has a default value but the actual value is
-                    // not known.
-                    ParameterDefaultValue.UNKNOWN
-                } else {
-                    // It does not have an optional keyword so it has no default value.
-                    ParameterDefaultValue.NONE
-                }
             parameters.add(
                 ParameterInfo(
                     name,
                     publicName,
-                    defaultValue,
+                    // The optional keyword indicates whether a parameter has a default value
+                    hasDefaultValue = hasOptionalKeyword,
                     typeString,
                     modifiers,
                     tokenizer.fileLocation(),
@@ -1864,7 +1901,7 @@ private constructor(
     private inner class ParameterInfo(
         val name: String,
         val publicName: String?,
-        val defaultValue: ParameterDefaultValue,
+        val hasDefaultValue: Boolean,
         val typeString: String,
         val modifiers: MutableModifierList,
         val location: FileLocation,
@@ -1891,11 +1928,11 @@ private constructor(
                     fileLocation = location,
                     modifiers = modifiers,
                     name = name,
-                    publicNameProvider = { publicName },
+                    publicName = publicName,
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,
-                    defaultValueFactory = { defaultValue },
+                    hasDefaultValue = hasDefaultValue,
                 )
 
             return parameter
@@ -1992,7 +2029,7 @@ private constructor(
     private fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
         if (typeParser.kotlinStyleNulls) {
             // Add an annotation to the context item for the type's nullability if applicable.
-            val annotationToAdd =
+            val annotationClassNameToAdd =
                 // Treat varargs as non-null for consistency with the psi model.
                 if (typeItem is ArrayTypeItem && typeItem.isVarargs) {
                     ANDROIDX_NONNULL
@@ -2007,7 +2044,9 @@ private constructor(
                         return
                     }
                 }
-            modifiers.addAnnotation(codebase.createAnnotation("@$annotationToAdd"))
+            val annotation =
+                AnnotationItem.createMarkerAnnotation(codebase, annotationClassNameToAdd)
+            modifiers.addAnnotation(annotation)
         }
     }
 

@@ -17,17 +17,18 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.BaseCachingDeferredTypeValueProvider
@@ -37,12 +38,12 @@ import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
+import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
-import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiAnnotation
@@ -64,10 +65,13 @@ import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
+import org.jetbrains.uast.UPrefixExpression
 import org.jetbrains.uast.UQualifiedReferenceExpression
+import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.UResolvable
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastCallKind
+import org.jetbrains.uast.UastPrefixOperator
 import org.jetbrains.uast.UastQualifiedExpressionAccessType
 import org.jetbrains.uast.getParameterForArgument
 
@@ -134,38 +138,24 @@ internal class PsiValueFactory(
         implementationValue: Any,
         valueUseSite: ValueUseSite,
     ): Value? {
-        return when (valueUseSite) {
-            ValueUseSite.ANNOTATION -> {
-                // For annotations convert to any Value.
-                val value =
-                    when (implementationValue) {
-                        is UExpression -> {
-                            uExpressionToValue(optionalTypeItem, implementationValue)
-                        }
-                        is PsiAnnotationMemberValue -> {
-                            psiToValue(optionalTypeItem, implementationValue)
-                        }
-                        else -> null
-                    }
+        val value =
+            when (implementationValue) {
+                is UExpression -> {
+                    uExpressionToValue(optionalTypeItem, implementationValue)
+                }
+                is PsiAnnotationMemberValue -> {
+                    psiToValue(optionalTypeItem, implementationValue)
+                }
+                else -> null
+            }
 
-                if (value == null) {
-                    unknownExpression(optionalTypeItem, implementationValue)
-                }
-                value
-            }
-            ValueUseSite.FIELD -> {
-                // For fields convert to ConstantValues.
-                when (implementationValue) {
-                    is UExpression -> {
-                        uExpressionToConstant(optionalTypeItem, implementationValue)
-                    }
-                    is PsiAnnotationMemberValue -> {
-                        psiToConstant(optionalTypeItem, implementationValue)
-                    }
-                    else -> null
-                }
-            }
+        // If no value could be created, and it is for an annotation attribute then fail as an
+        // annotation attribute MUST always have a value.
+        if (value == null && valueUseSite == ValueUseSite.ANNOTATION) {
+            unknownExpression(optionalTypeItem, implementationValue)
         }
+
+        return value
     }
 
     /**
@@ -224,8 +214,14 @@ internal class PsiValueFactory(
                     return it
                 }
 
+                val receiver = uExpression.receiver
+
+                // Check to see if the receiver could be resolved to a class. If it could then pass
+                // it in below as it may affect the result.
+                val receiverPsiClass = (receiver as? UReferenceExpression)?.resolve() as? PsiClass
+
                 // Try and resolve it and convert to a value.
-                uResolvableToValue(optionalTypeItem, uExpression)?.let {
+                uResolvableToValue(optionalTypeItem, uExpression, receiverPsiClass)?.let {
                     return it
                 }
 
@@ -240,10 +236,32 @@ internal class PsiValueFactory(
                             uCallExpressionToAnnotationValue(selector)?.let {
                                 return it
                             }
+
+                            // Check to see whether the call is to a numeric conversion function.
+                            val explicitConversionTo = selector.isNumericConversionFunction()
+                            if (explicitConversionTo != null) {
+                                //  Deconstruct the call to if it is being called on a field
+                                //  reference. If it is then create a field reference for it. This
+                                // handles two cases, e.g.:
+                                //     qualified.FIELD.toLong()
+                                //     UNQUALIFIED.toLong()
+                                if (receiver is UReferenceExpression) {
+                                    // Try and resolve it and convert to a value.
+                                    uResolvableToValue(
+                                            optionalTypeItem,
+                                            receiver,
+                                            receiverPsiClass,
+                                            explicitConversionTo
+                                        )
+                                        ?.let {
+                                            return it
+                                        }
+                                }
+                            }
                         }
                         is USimpleNameReferenceExpression -> {
                             // Handle an unknown, unresolvable field.
-                            val receiverText = uExpression.receiver.asRenderString()
+                            val receiverText = receiver.asRenderString()
                             val selectorText = selector.asRenderString()
                             return createFieldReferenceValue(codebase, receiverText, selectorText)
                         }
@@ -340,15 +358,23 @@ internal class PsiValueFactory(
     /** Try and convert a [UResolvable] to an [ArrayElementValue]. */
     private fun uResolvableToValue(
         optionalTypeItem: TypeItem?,
-        uResolvable: UResolvable
+        uResolvable: UResolvable,
+        receiverPsiClass: PsiClass? = null,
+        explicitConversionTo: Primitive? = null,
     ): ArrayElementValue? {
         // Resolve it and convert it to a Value if possible.
         val resolved = uResolvable.resolve()
 
         // Try and convert the resolved PsiElement to a Value and return it if succeeded.
-        resolvedPsiElementToValue(optionalTypeItem, resolved)?.let {
-            return it
-        }
+        resolvedPsiElementToValue(
+                optionalTypeItem,
+                resolved,
+                receiverPsiClass,
+                explicitConversionTo
+            )
+            ?.let {
+                return it
+            }
 
         return null
     }
@@ -359,7 +385,7 @@ internal class PsiValueFactory(
      * `Class<Integer>`. So, use clues from the source [receiver] to choose the correct one.
      */
     private fun unboxTypeItemIfNeeded(
-        receiverTypeItem: PsiTypeItem,
+        receiverTypeItem: TypeItem,
         receiver: UClassLiteralExpression
     ): TypeItem {
         if (receiverTypeItem !is ClassTypeItem) return receiverTypeItem
@@ -399,15 +425,28 @@ internal class PsiValueFactory(
         if (uExpression.kind != UastCallKind.CONSTRUCTOR_CALL) return null
 
         // Resolve the call to the constructor, return null if it cannot be resolved.
-        val resolved = uExpression.resolve()
-        if (resolved !is PsiMethod || !resolved.isConstructor) return null
+        // The resolved element might be the constructor method or the class of the constructor.
+        // It will be the class when the annotation class is originally kotlin source but from the
+        // classpath, because annotation constructors are a kotlin feature only present in the
+        // kotlin metadata annotation for compiled code.
+        val resolved = uExpression.resolve() ?: uExpression.classReference?.resolve()
+        val psiClass =
+            when (resolved) {
+                is PsiMethod ->
+                    if (resolved.isConstructor) {
+                        resolved.containingClass
+                    } else {
+                        null
+                    }
+                is PsiClass -> resolved
+                else -> null
+            }
 
         // Get the qualified name of the constructor class, return null if it is not available.
-        val psiClass = resolved.containingClass
         val qualifiedClassName = psiClass?.qualifiedName ?: return null
 
         fun attributesProvider() =
-            // Iterate over the arguments as the order in which they are specified if important.
+            // Iterate over the arguments as the order in which they are specified is important.
             uExpression.valueArguments.mapNotNull { uArgument ->
 
                 // Get the parameter for this argument, if no parameter is provided then ignore the
@@ -426,23 +465,33 @@ internal class PsiValueFactory(
                 val value =
                     uExpressionToArrayElementValue(typeItem, uArgument)
                         ?: unknownExpression(typeItem, uArgument)
-                DefaultAnnotationAttribute(
-                    name,
-                    value.provider(),
-                    value.asAnnotationAttributeValue(),
-                )
+                AnnotationAttribute.createAttribute(name, value)
             }
 
         val annotationItem =
-            DefaultAnnotationItem.createAttributesLazily(
+            AnnotationItem.createAttributesLazily(
                 codebase,
                 FileLocation.UNKNOWN,
                 qualifiedClassName,
-            ) {
-                attributesProvider()
-            }
+                ::attributesProvider,
+            )
 
         return createAnnotationValue(annotationItem!!)
+    }
+
+    /**
+     * Check to see whether this [UCallExpression] is for a Kotlin numeric conversion function, e.g.
+     * `toLong()`.
+     */
+    private fun UCallExpression.isNumericConversionFunction(): Primitive? {
+        // Casts are represented as method calls.
+        if (kind != UastCallKind.METHOD_CALL) return null
+
+        // Cast methods have no arguments
+        if (valueArgumentCount != 0) return null
+
+        val methodName = methodName ?: return null
+        return Primitive.forKotlinNumericConversionFunctionName(methodName)
     }
 
     /** Create a [ConstantValue] of [optionalTypeItem] from [uExpression]. */
@@ -459,37 +508,117 @@ internal class PsiValueFactory(
 
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
-                // Check to see if the underlying value has been already been cast from the source
-                // literal type to a type appropriate for where it is being used. If it has then
-                // reverse the cast to preserve the information about the source literal type. That
-                // is needed to enable consistent processing with legacy value handling which often
-                // uses the source type directly, e.g. when parsing `longValue = 1` it may write it
-                // as `longValue = 1` instead of the more consistent `longValue = 1L`.
-                val transformedValue =
-                    if (underlyingValue is Long) {
-                        uExpression.sourcePsi?.text?.let { text ->
-                            // If the text ends with `L` or `l` then it was a long literal so keep
-                            // it as such.
-                            if (text.endsWith("L") || text.endsWith("l")) underlyingValue
-                            else {
-                                // Otherwise, try and see if it can be cast to an int without loss.
-                                // If it can then use the int, otherwise keep the long.
-                                val asInt = underlyingValue.toInt()
-                                if (asInt.toLong() == underlyingValue) asInt else underlyingValue
-                            }
-                        } ?: underlyingValue
-                    } else underlyingValue
-                return createLiteralValue(optionalTypeItem, transformedValue)
+                // Get the original source value, undoing any int -> long conversions done by K2.
+                val originalSourceValue =
+                    when (underlyingValue) {
+                        // Byte and short always use an integer literal as there are no byte or
+                        // short literals in Kotlin. That is true whether they are signed or
+                        // unsigned.
+                        is Byte -> underlyingValue.toInt()
+                        is Short -> underlyingValue.toInt()
+                        is UByte -> underlyingValue.toInt()
+                        is UShort -> underlyingValue.toInt()
+                        is Long -> undoConversionOfSourceIntIfNeeded(underlyingValue, uExpression)
+                        else -> underlyingValue
+                    }
+
+                // TODO(b/420371817): Work around an issue in Psi which prevents the class of the
+                //   @setparam:Anno from being resolved which means that optionalTypeItem is null
+                //   even though the underlying Psi code knows the type and has cast the integer
+                //   literal to a `long`. The workaround synthesizes an optionalTypeItem of `long`
+                //   based on the fact that the `underlyingValue` is `long`. It does not handle the
+                //   other types as they are not needed at the moment.
+                val actualPrimitiveKind =
+                    if (optionalTypeItem == null && underlyingValue != originalSourceValue)
+                        when (underlyingValue) {
+                            is Byte -> Primitive.BYTE
+                            is Long -> Primitive.LONG
+                            is Short -> Primitive.SHORT
+                            else -> null
+                        }
+                    else null
+
+                val actualTypeItem =
+                    actualPrimitiveKind?.let { kind ->
+                        DefaultPrimitiveTypeItem(DefaultTypeModifiers.emptyNonNullModifiers, kind)
+                    } ?: optionalTypeItem
+
+                return uLiteralValue(actualTypeItem, originalSourceValue)
             }
         }
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, uExpression)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            // Get the original source value, undoing any int -> long conversions done by K2. This
+            // is only done for unary minus expressions, i.e. of the form `-<expr>`.
+            val originalSourceValue =
+                if (
+                    uExpression is UPrefixExpression &&
+                        uExpression.operator == UastPrefixOperator.UNARY_MINUS &&
+                        value is Long
+                ) {
+                    undoConversionOfSourceIntIfNeeded(value, uExpression)
+                } else {
+                    value
+                }
+
+            return uLiteralValue(optionalTypeItem, originalSourceValue, nonLiteralInSource = true)
         }
 
         // An unknown expression was found so return null and the caller will handle as needed.
         return null
+    }
+
+    /**
+     * Checks to see if the underlying value has been already been converted from the source literal
+     * type to a type appropriate for where it is being used; if it has then it undo the conversion
+     * to preserve the information about the source literal type.
+     *
+     * That is needed to enable consistent processing with legacy value handling which often uses
+     * the source type directly, e.g. when parsing `longValue = 1` it may write it as `longValue =
+     * 1` instead of the more consistent `longValue = 1L`.
+     *
+     * This generally only affects K2 as K1 does not bother casting to the correct type.
+     */
+    private fun undoConversionOfSourceIntIfNeeded(
+        underlyingValue: Long,
+        uExpression: UExpression,
+    ) =
+        uExpression.sourcePsi?.text?.let { text ->
+            // If the text ends with `L` or `l` then it was a long literal so keep it as
+            // such.
+            if (text.endsWith("L") || text.endsWith("l")) underlyingValue
+            else {
+                // Otherwise, try and see if it can be cast to an int without loss. If it
+                // can then use the int, otherwise keep the original value.
+                val asInt = underlyingValue.toInt()
+                if (asInt.toLong() == underlyingValue) asInt else underlyingValue
+            }
+        } ?: underlyingValue
+
+    /**
+     * Create a [LiteralValue] from a [value].
+     *
+     * Handles mapping Kotlin unsigned value to the equivalent Java signed value.
+     */
+    private fun uLiteralValue(
+        optionalTypeItem: TypeItem?,
+        value: Any,
+        nonLiteralInSource: Boolean = false,
+    ): LiteralValue<*> {
+        // Convert unsigned to signed values. It would be cleaner if these could just be treated
+        // like another Number class as then they could be handled as part of the normalization done
+        // by `createLiteralValue(...)` but unfortunately, the unsigned types are not Numbers.
+        val transformedValue =
+            when (value) {
+                is UByte -> value.toByte()
+                is UInt -> value.toInt()
+                is ULong -> value.toLong()
+                is UShort -> value.toShort()
+                else -> value
+            }
+
+        return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
     }
 
     /** Create a [Value] of [optionalTypeItem] from [psiValue]. */
@@ -551,8 +680,7 @@ internal class PsiValueFactory(
 
                 return createClassObjectValue(
                     classLiteralTypeItem,
-                    // Java does not need the source expression.
-                    null,
+                    sourceExpression = psiValue.text,
                 )
             }
             // Field reference.
@@ -622,14 +750,22 @@ internal class PsiValueFactory(
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, psiValue)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return createLiteralValue(
+                optionalTypeItem,
+                value,
+                nonLiteralInSource = true,
+            )
         }
 
         // Temporarily fall through to use PsiConstantEvaluationHelper
         // TODO(b/408445860): Remove once ConstantEvaluator can handle the necessary cases.
         val javaPsiFacade = JavaPsiFacade.getInstance(codebase.project)
         javaPsiFacade.constantEvaluationHelper.computeConstantExpression(psiValue)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return createLiteralValue(
+                optionalTypeItem,
+                value,
+                nonLiteralInSource = true,
+            )
         }
 
         // An unknown expression was found so return null and the caller will handle as needed.
@@ -645,20 +781,46 @@ internal class PsiValueFactory(
     private fun resolvedPsiElementToValue(
         optionalTypeItem: TypeItem?,
         resolved: PsiElement?,
+        receiverPsiClass: PsiClass? = null,
+        explicitConversionTo: Primitive? = null,
     ): ArrayElementValue? {
         if (resolved is PsiField) {
             val qualifiedClassName = resolved.containingClass?.qualifiedName ?: ""
             val fieldName = resolved.name
+
+            val kotlinCompanionClass =
+                if (receiverPsiClass !== resolved.containingClass)
+                    receiverPsiClass?.qualifiedNameIfCompanionClass()
+                else null
+
             return createFieldReferenceValueWithDeferredConstantValue(
                 codebase,
                 qualifiedClassName,
                 fieldName,
                 optionalTypeItem,
+                kotlinCompanionClass,
+                explicitConversionTo,
             )
         }
 
         return null
     }
+
+    /**
+     * Returns [PsiClass.getQualifiedName] if this is a companion class.
+     *
+     * This must have been resolved from a [UQualifiedReferenceExpression.receiver].
+     */
+    private fun PsiClass.qualifiedNameIfCompanionClass(): String? =
+        if (isCompanion()) qualifiedName else null
+
+    /**
+     * Returns `true` if this is a companion class.
+     *
+     * This uses [PsiModifierItem.create] to avoid having to duplicate the code that deals with the
+     * Psi object model.
+     */
+    private fun PsiClass.isCompanion() = PsiModifierItem.create(codebase, this).isCompanion()
 }
 
 /**

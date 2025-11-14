@@ -34,6 +34,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -104,14 +105,42 @@ class CommonClassItemTest : BaseModelTest() {
 
             // This should not find the method as `findMethod` splits parameters by `,` so it looks
             // for one parameter of type `java.util.Map<String` and one of type `Integer>`.
-            val foundMethod = fooClass.findMethod("foo", "java.util.Map<String, Integer>")
+            val foundMethod = fooClass.findBytecodeMethod("foo", "java.util.Map<String, Integer>")
             assertNull(
                 foundMethod,
                 message = "unexpectedly found method with multiple type parameters"
             )
 
             // This should find the method.
-            assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
+            assertSame(fooMethod, fooClass.findBytecodeMethod("foo", "java.util.Map"))
+        }
+    }
+
+    @Test
+    fun `Find method by multiple erased types`() {
+        runCodebaseTest(
+            java(
+                """
+                package test.pkg;
+                import java.util.List;
+                import java.util.Map;
+                public class Foo {
+                    public void multipleSimpleParams(int i, float f, String s) {}
+                    public <T1, T2 extends Integer> void multipleVariableParams(T1 t1, T2 t2, List<T1> t1s, Map<T2, T1> map) {}
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertNotNull(
+                fooClass.findBytecodeMethod("multipleSimpleParams", "int,float,java.lang.String")
+            )
+            assertNotNull(
+                fooClass.findBytecodeMethod(
+                    "multipleVariableParams",
+                    "java.lang.Object,java.lang.Integer,java.util.List,java.util.Map"
+                )
+            )
         }
     }
 
@@ -1818,6 +1847,203 @@ class CommonClassItemTest : BaseModelTest() {
             // Make sure that a class defined excluded by a package filter can be resolved but is
             // not emitted.
             codebase.assertResolvedClass("test.excluded.pkg.Excluded")
+        }
+    }
+
+    /**
+     * This test is to make sure that older signature files without any exhaustivity modifiers are
+     * read as non-exhaustive.
+     */
+    @Test
+    fun `modifiers show nonexhaustive when no exhaustivity modifier is present in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed class SealedClass {
+                      }
+                      public sealed interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+                    public sealed interface SealedInterface {}
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(false, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show exhaustive when class or interface is marked as exhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed exhaustive class SealedClass {
+                      }
+                      public sealed exhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    public sealed interface SealedInterface {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(true, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(true, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show nonexhaustive when class or interface is marked as nonexhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed nonexhaustive class SealedClass {
+                      }
+                      public sealed nonexhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+
+                    public sealed interface SealedInterface
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `subclasses are populated correctly for classes and interfaces, and indirect subclasses aren't tracked`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class MyIndirectInterfaceImplementor extends test.pkg.MyInterfaceImplementorA {
+                        ctor public MyIndirectInterfaceImplementor();
+                      }
+                      public final class MyIndirectSubclass extends test.pkg.MySubclassA {
+                        ctor public MyIndirectSubclass();
+                      }
+                      public class MyInterfaceImplementorA implements test.pkg.ParentInterface {
+                        ctor public MyInterfaceImplementorA();
+                      }
+                      public final class MyInterfaceImplementorB implements test.pkg.ParentInterface {
+                        ctor public MyInterfaceImplementorB();
+                      }
+                      public class MySubclassA extends test.pkg.ParentClass {
+                        ctor public MySubclassA();
+                      }
+                      public final class MySubclassB extends test.pkg.ParentClass {
+                        ctor public MySubclassB();
+                      }
+                      public class ParentClass {
+                        ctor public ParentClass();
+                      }
+                      public interface ParentInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    open class ParentClass
+
+                    open class MySubclassA : ParentClass()
+                    class MySubclassB : ParentClass()
+
+                    class MyIndirectSubclass : MySubclassA()
+
+                    interface ParentInterface
+
+                    open class MyInterfaceImplementorA : ParentInterface
+                    class MyInterfaceImplementorB : ParentInterface
+
+                    class MyIndirectInterfaceImplementor : MyInterfaceImplementorA()
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class ParentClass {}
+                    public class MySubclassA extends ParentClass {}
+                    public class MySubclassB extends ParentClass {}
+                    public class MyIndirectSubclass extends MySubclassA {}
+
+                    public interface ParentInterface {}
+                    public class MyInterfaceImplementorA implements ParentInterface {}
+                    public class MyInterfaceImplementorB implements ParentInterface {}
+                    public class MyIndirectInterfaceImplementor extends MyInterfaceImplementorA {}
+                """
+                    .trimIndent()
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.ParentClass")
+            assertEquals(2, testClass.subClasses().size)
+            assertTrue("test.pkg.MySubclassA" in testClass.subClasses().map { it.qualifiedName() })
+            assertTrue("test.pkg.MySubclassB" in testClass.subClasses().map { it.qualifiedName() })
+
+            val testInterface = codebase.assertClass("test.pkg.ParentInterface")
+            assertEquals(2, testInterface.subClasses().size)
+            assertTrue(
+                "test.pkg.MyInterfaceImplementorA" in
+                    testInterface.subClasses().map { it.qualifiedName() }
+            )
+            assertTrue(
+                "test.pkg.MyInterfaceImplementorB" in
+                    testInterface.subClasses().map { it.qualifiedName() }
+            )
+
+            val subClass = codebase.assertClass("test.pkg.MySubclassA")
+            assertEquals(1, subClass.subClasses().size)
+            assertTrue(
+                "test.pkg.MyIndirectSubclass" in subClass.subClasses().map { it.qualifiedName() }
+            )
+
+            val ifaceImplementor = codebase.assertClass("test.pkg.MyInterfaceImplementorA")
+            assertEquals(1, ifaceImplementor.subClasses().size)
+            assertTrue(
+                "test.pkg.MyIndirectInterfaceImplementor" in
+                    ifaceImplementor.subClasses().map { it.qualifiedName() }
+            )
         }
     }
 }
