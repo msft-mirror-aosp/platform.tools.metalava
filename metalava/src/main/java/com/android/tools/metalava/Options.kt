@@ -67,7 +67,6 @@ import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
@@ -452,7 +451,7 @@ class Options(
 
     internal val stubWriterConfig by lazy {
         StubWriterConfig(
-            includeDocumentationInStubs = includeDocumentationInStubs,
+            includeDocumentationInStubs = includeDocumentationInStubs || docStubsDir != null,
         )
     }
 
@@ -481,7 +480,7 @@ class Options(
      * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
      * flag.
      */
-    var externalAnnotations: File? = null
+    var externalAnnotationsFile: File? = null
 
     /** An optional manifest [File]. */
     private val manifestFile by
@@ -684,7 +683,7 @@ class Options(
                 }
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
-                    externalAnnotations = stringToNewFile(getValue(args, ++index))
+                    externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
 
                 // Extracting API levels
                 ARG_APPLY_API_LEVELS -> {
