@@ -444,4 +444,22 @@ class JavadocParserTest : BaseDocCommentTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test unbalanced braces`() {
+        checkParse(
+            """
+                /**
+                 * { } } } {@code text} { { { {
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: '{ } } } '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' { { { {'
+                """,
+        )
+    }
 }
