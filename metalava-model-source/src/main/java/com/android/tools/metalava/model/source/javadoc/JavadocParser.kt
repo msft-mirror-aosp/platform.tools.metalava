@@ -154,6 +154,10 @@ internal class JavadocErrorListener(
         // expected tokens so return immediately.
         recognizer ?: return null
 
+        // Work around a problem where calling expectedTokens does not work if [recognizer] has
+        // never entered a valid state.
+        if (e.offendingState == -1) return null
+
         // If the exception does not have any expected tokens then return immediately.
         val expectedTokens = e.expectedTokens ?: return null
 
@@ -431,7 +435,7 @@ private class JavadocContentBuilder(
         // from the start of the inline tag content.
         trimLeadingWhitespace = false
 
-        val tagTypeName = ctx.inlineTagName().NAME().text
+        val tagTypeName = ctx.INLINE_TAG_NAME().text
         val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
 
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so

@@ -36,7 +36,13 @@ lexer grammar AntlrJavadocLexer;
 package com.android.tools.metalava.model.source.javadoc;
 }
 
-NAME: [a-zA-Z]+;
+// This document is split into sections one for each mode. It is important that rules are added in
+// the correct section otherwise they will be in the wrong mode and not behave as expected. Also,
+// order of rules matters when determining matches. Usually the longest match wins but if two
+// rules match the same text then the rule listed first wins.
+
+// ============================== BEGIN DEFAULT_MODE ==============================
+// This is the default mode that will be used when the lexer first starts.
 
 NEWLINE:
     '\n' (SPACE? '*'+)?
@@ -46,10 +52,34 @@ NEWLINE:
 
 SPACE: (' ' | '\t')+;
 
-TEXT_CONTENT: ~[\n\r\t {}a-zA-Z]+;
-
-INLINE_TAG_START: '{@';
-
 BRACE_OPEN: '{';
 
 BRACE_CLOSE: '}';
+
+// General text content. Excludes characters that are handled by one of the other
+// tokens above.
+TEXT_CONTENT: ~[\n\r\t {}]+;
+
+// The start of an inline tag.
+INLINE_TAG_START: '{@' ->
+    // Start a special mode for processing the INLINE_TAG_NAME. That avoids having to exclude
+    // characters in the INLINE_TAG_NAME from TEXT_CONTENT.
+    pushMode(INLINE_TAG_MODE);
+
+// ============================== END DEFAULT_MODE ==============================
+
+// ============================== BEGIN INLINE_TAG_MODE ==============================
+// This mode is in use after `{@`. It switches to INLINE_TAG_CONTENT_MODE after seeing an
+// INLINE_TAG_NAME.
+mode INLINE_TAG_MODE;
+
+// The inline tag name.
+INLINE_TAG_NAME: [a-zA-Z]+ ->
+    // Pop this mode to switch back to the default mode.
+    popMode;
+
+// ============================== END INLINE_TAG_MODE ==============================
+
+// Add new modes before this line.
+// ============================== END OF FILE ==============================
+// Do not add any more rules below here as they will appear in whatever mode was created last.

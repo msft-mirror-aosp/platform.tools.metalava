@@ -273,7 +273,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                 """,
             expectedJavadocIssues =
                 """
-                    2:6: extraneous input ' ' expecting NAME [InvalidJavadoc]
+                    2:6: token recognition error at: ' ' [InvalidJavadoc]
                 """,
         )
     }
