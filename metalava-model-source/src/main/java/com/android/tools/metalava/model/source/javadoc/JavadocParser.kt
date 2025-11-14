@@ -122,50 +122,66 @@ internal class JavadocErrorListener(
         offendingSymbol: Any?,
         line: Int,
         charPositionInLine: Int,
-        msg: String?,
+        msg: String,
         e: RecognitionException?
     ) {
         // Construct a full message that includes lots of debug information about the nature of the
-        // problem. This is not intended to report issues for developers to
-        val fullMsg =
-            e?.expectedTokens?.let { expectedTokens ->
-                buildString {
-                    append(msg)
-                    append("\n")
-                    append("  Expected:\n")
-                    val vocabulary = recognizer?.vocabulary
-                    for (interval in expectedTokens.intervals) {
-                        for (tokenTypeIndex in interval.a.rangeTo(interval.b)) {
-                            append("    ${vocabulary?.getSymbolicName(tokenTypeIndex)}\n")
-                        }
-                    }
-                    val offendingToken = e.offendingToken
-                    val tokens = recognizer?.inputStream as? TokenStream
-                    if (e is NoViableAltException && tokens != null) {
-                        append("  No viable alternative found for sequence:\n")
-                        for (tokenIndex in
-                            e.startToken.tokenIndex.rangeTo(offendingToken.tokenIndex)) {
-                            val token = tokens[tokenIndex]
-                            append(
-                                "    ${vocabulary?.getSymbolicName(token.type)} \"${token.text}\"\n"
-                            )
-                        }
-                    } else {
-                        append("  Found:\n")
-                        append(
-                            "    ${vocabulary?.getSymbolicName(offendingToken.type)} \"${offendingToken.text}\"\n"
-                        )
-                    }
+        // problem. This is not intended to report issues for developers to handle.
+        val fullMsg = appendExpectedTokens(e, msg, recognizer) ?: msg
+
+        // line is 1-based but lineOffset is 0-based so subtract 1 from the former to create the
+        // latter.
+        val lineOffset = line - 1
+        // charPositionInLine is 0-based and so is charOffset so the former can be used as the
+        // latter directly.
+        val charOffset = charPositionInLine
+        reporter.report(Issues.INVALID_JAVADOC, fullMsg, lineOffset, charOffset)
+    }
+
+    /**
+     * Append information about expected tokens in [e] (if any) from [recognizer], from [e] to the
+     * [msg], or return `null` if the original [msg] is to be used unchanged.
+     */
+    private fun appendExpectedTokens(
+        e: RecognitionException?,
+        msg: String,
+        recognizer: Recognizer<*, *>?
+    ): String? {
+        // If there is no exception then return immediately.
+        e ?: return null
+
+        // If there is no recognizer then there is no way to create meaningful descriptions of any
+        // expected tokens so return immediately.
+        recognizer ?: return null
+
+        // If the exception does not have any expected tokens then return immediately.
+        val expectedTokens = e.expectedTokens ?: return null
+
+        // Otherwise, append the expected token information to `msg`.
+        return buildString {
+            append(msg)
+            append("\n")
+            append("  Expected:\n")
+            val vocabulary = recognizer.vocabulary
+            for (interval in expectedTokens.intervals) {
+                for (tokenTypeIndex in interval.a.rangeTo(interval.b)) {
+                    append("    ${vocabulary.getSymbolicName(tokenTypeIndex)}\n")
                 }
-            } ?: msg
-        if (fullMsg != null) {
-            // line is 1-based but lineOffset is 0-based so subtract 1 from the former to create the
-            // latter.
-            val lineOffset = line - 1
-            // charPositionInLine is 0-based and so is charOffset so the former can be used as the
-            // latter directly.
-            val charOffset = charPositionInLine
-            reporter.report(Issues.INVALID_JAVADOC, fullMsg, lineOffset, charOffset)
+            }
+            val offendingToken = e.offendingToken
+            val tokens = recognizer.inputStream as? TokenStream
+            if (e is NoViableAltException && tokens != null) {
+                append("  No viable alternative found for sequence:\n")
+                for (tokenIndex in e.startToken.tokenIndex.rangeTo(offendingToken.tokenIndex)) {
+                    val token = tokens[tokenIndex]
+                    append("    ${vocabulary?.getSymbolicName(token.type)} \"${token.text}\"\n")
+                }
+            } else {
+                append("  Found:\n")
+                append(
+                    "    ${vocabulary?.getSymbolicName(offendingToken.type)} \"${offendingToken.text}\"\n"
+                )
+            }
         }
     }
 }
