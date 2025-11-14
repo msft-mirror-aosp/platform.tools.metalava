@@ -39,18 +39,14 @@ package com.android.tools.metalava.model.source.javadoc;
 NAME: [a-zA-Z]+;
 
 NEWLINE:
-    '\n' (SPACE? STAR+)?
-    | '\r\n' (SPACE? STAR+)?
-    | '\r' (SPACE? STAR+)?
+    '\n' (SPACE? '*'+)?
+    | '\r\n' (SPACE? '*'+)?
+    | '\r' (SPACE? '*'+)?
 ;
 
 SPACE: (' ' | '\t')+;
 
-TEXT_CONTENT: ~[\n\r\t *{}/a-zA-Z]+;
-
-STAR: '*';
-
-SLASH: '/';
+TEXT_CONTENT: ~[\n\r\t {}a-zA-Z]+;
 
 INLINE_TAG_START: '{@';
 

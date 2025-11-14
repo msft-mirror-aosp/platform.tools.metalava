@@ -93,6 +93,4 @@ braceText
     : TEXT_CONTENT
     | NAME
     | SPACE
-    | STAR
-    | SLASH
     ;
