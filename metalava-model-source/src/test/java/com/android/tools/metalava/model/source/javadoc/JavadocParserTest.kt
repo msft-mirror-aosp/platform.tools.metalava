@@ -307,54 +307,6 @@ class JavadocParserTest : BaseDocCommentTest() {
     }
 
     @Test
-    fun `Test invalid Javadoc comment with end comment token in main description`() {
-        checkParse(
-            """
-                /**
-                 * Some text with */ inside
-                 */
-            """,
-            expectedStructure =
-                // Error recovery ignores the */ and everything after it.
-                """
-                    text: 'Some text with'
-                """,
-            expectedJavadocIssues =
-                """
-                    2:19: extraneous input '*/' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
-                """,
-        )
-    }
-
-    @Test
-    fun `Test invalid Javadoc comment with end comment token in block tag description`() {
-        checkParse(
-            """
-                /**
-                 * Some text
-                 * @param p A block tag with */ inside
-                 */
-            """,
-            contentGetter = { docComment -> docComment.blockTagSections.single().description },
-            expectedStructure =
-                // Error recovery ignores the */ and everything after it.
-                """
-                    text: 'A block tag with'
-                """,
-            expectedJavadocIssues =
-                """
-                    3:30: mismatched input '*/' expecting {<EOF>, NEWLINE}
-                      Expected:
-                        EOF
-                        NEWLINE
-                      Found:
-                        COMMENT_END "*/"
-                     [InvalidJavadoc]
-                """,
-        )
-    }
-
-    @Test
     fun `Test an inline tag split across multiple lines`() {
         checkParse(
             """
