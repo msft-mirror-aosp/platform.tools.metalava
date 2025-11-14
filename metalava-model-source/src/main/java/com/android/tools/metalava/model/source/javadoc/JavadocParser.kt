@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhit
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
 import java.nio.CharBuffer
+import org.antlr.v4.runtime.ANTLRErrorListener
 import org.antlr.v4.runtime.BaseErrorListener
 import org.antlr.v4.runtime.CodePointBuffer
 import org.antlr.v4.runtime.CodePointCharStream
@@ -65,12 +66,17 @@ private constructor(
         ): JavadocContent? {
             var fileName = "<unknown>"
             val errorListener = JavadocErrorListener(reporter)
+
+            // Create the ANTLR lexer.
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
             val lexer = AntlrJavadocLexer(charStream)
+            lexer.setErrorListener(errorListener)
+
+            // Create the ANTLR parser.
             val tokenStream = CommonTokenStream(lexer)
             val antlrParser = AntlrJavadocParser(tokenStream)
-            antlrParser.removeErrorListeners()
-            antlrParser.addErrorListener(errorListener)
+            antlrParser.setErrorListener(errorListener)
+
             val parser = JavadocParser(antlrParser, context, reporter)
             return parser.parse()
         }
@@ -92,6 +98,12 @@ private constructor(
             cb.flip()
             codePointBufferBuilder.append(cb)
             return CodePointCharStream.fromBuffer(codePointBufferBuilder.build(), fileName)
+        }
+
+        /** Remove any default listeners and add [listener] as the only one. */
+        private fun Recognizer<*, *>.setErrorListener(listener: ANTLRErrorListener) {
+            removeErrorListeners()
+            addErrorListener(listener)
         }
     }
 
