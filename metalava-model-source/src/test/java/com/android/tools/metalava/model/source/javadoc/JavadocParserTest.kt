@@ -236,6 +236,26 @@ class JavadocParserTest : BaseDocCommentTest() {
     }
 
     @Test
+    fun `Test inline tag nested within tag that supports nested inline tags`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@bar can contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: bar BarTagData(identifier=can)
+                      text: 'contain inline '
+                      inlineTag: bar BarTagData(identifier=tag)
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
     fun `Test unclosed inline tags in main description`() {
         checkParse(
             // This purposely indents the second and third lines so they no longer align with the
