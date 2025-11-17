@@ -40,14 +40,11 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
-import com.android.tools.metalava.model.createImmutableModifiers
-import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
+import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
@@ -99,9 +96,19 @@ import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 internal class PsiCodebaseAssembler(
     private val uastEnvironment: UastEnvironment,
     codebaseFactory: (PsiCodebaseAssembler) -> PsiBasedCodebase
-) : CodebaseAssembler {
+) : DefaultCodebaseAssembler() {
 
     internal val codebase = codebaseFactory(this)
+
+    override val itemFactory: DefaultItemFactory =
+        DefaultItemFactory(
+            codebase = codebase,
+            // Psi can process Java and Kotlin so use unknown as the default.
+            defaultSourceLanguage = SourceLanguage.UNKNOWN,
+            // Source files need to track which parts belong to which API surface variants, so they
+            // need to create an ApiVariantSelectors instance that can be used to track that.
+            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        )
 
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
@@ -151,45 +158,12 @@ internal class PsiCodebaseAssembler(
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
-    /** Create [MutableModifierList] for [this] [PsiPackage]. */
-    private fun PsiPackage.createPackageModifiers() =
-        PsiModifierItem.create(codebase = this@PsiCodebaseAssembler.codebase, element = this).let {
-            // Packages cannot have any modifiers, only annotations but Psi seems to add modifiers
-            // to them, possibly as a side effect of how `package-info.java` files are modelled
-            // internally as a PsiClass. Rather than try and deal with all the possible modifiers
-            // that it could add this just extracts the annotations (if any) that have been obtained
-            // from the PsiPackage and use them in an empty modifier list. It uses public visibility
-            // because packages are always public.
-            createMutableModifiers(VisibilityLevel.PUBLIC, it.annotations())
-        }
-
-    override fun createPackageItem(
-        packageName: String,
-        annotations: List<AnnotationItem>,
-        packageDoc: PackageDoc,
-        containingPackage: PackageItem?
-    ): PackageItem {
-        val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
-        return DefaultPackageItem(
-            codebase = codebase,
-            fileLocation = packageDoc.fileLocation,
-            // Treat all packages as being Java as Kotlin does not currently provide an equivalent
-            // to `package-info.java`.
-            sourceLanguage = SourceLanguage.JAVA,
-            targetLanguages = TargetLanguageSet.ALL,
-            modifiers = modifiers,
-            documentationFactory = packageDoc.commentFactory ?: NO_SOURCE_COMMENT_FACTORY,
-            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-            qualifiedName = packageName,
-            containingPackage = containingPackage,
-            overviewDocumentation = packageDoc.overview,
-        )
-    }
-
     override fun createPackageAnnotations(packageName: String) =
         findPsiPackage(packageName)?.let { psiPackage ->
             PsiModifierItem.create(codebase, psiPackage).annotations()
         } ?: emptyList()
+
+    override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
         // Make sure that the underlying package exists before creating one.
