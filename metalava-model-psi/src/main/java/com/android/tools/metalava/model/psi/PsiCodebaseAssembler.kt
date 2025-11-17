@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -67,13 +68,11 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.impl.file.PsiPackageImpl
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
@@ -156,21 +155,20 @@ internal class PsiCodebaseAssembler(
         packageDoc: PackageDoc,
         containingPackage: PackageItem?
     ): DefaultPackageItem {
-        val psiPackage =
-            findPsiPackage(packageName)
+        val modifiers =
+            findPsiPackage(packageName)?.let { psiPackage ->
+                PsiModifierItem.create(codebase = codebase, element = psiPackage).apply {
+                    if (isPackagePrivate()) {
+                        // packages are always public (if not hidden explicitly with private)
+                        setVisibilityLevel(VisibilityLevel.PUBLIC)
+                    }
+                }
+            }
                 ?: run {
                     // This can happen if a class's package statement does not match its file path.
-                    // In that case, this fakes up a PsiPackageImpl that matches the package
-                    // statement as that is the source of truth.
-                    val manager = PsiManager.getInstance(codebase.project)
-                    PsiPackageImpl(manager, packageName)
+                    // In that case, this fakes up an empty mutable public modifiers.
+                    createMutableModifiers(VisibilityLevel.PUBLIC)
                 }
-        val modifiers = PsiModifierItem.create(codebase = codebase, element = psiPackage)
-        if (modifiers.isPackagePrivate()) {
-            // packages are always public (if not hidden explicitly with private)
-            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-        }
-        val qualifiedName = psiPackage.qualifiedName
         return DefaultPackageItem(
             codebase = codebase,
             fileLocation = packageDoc.fileLocation,
@@ -181,7 +179,7 @@ internal class PsiCodebaseAssembler(
             modifiers = modifiers,
             documentationFactory = packageDoc.commentFactory ?: NO_SOURCE_COMMENT_FACTORY,
             variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-            qualifiedName = qualifiedName,
+            qualifiedName = packageName,
             containingPackage = containingPackage,
             overviewDocumentation = packageDoc.overview,
         )
