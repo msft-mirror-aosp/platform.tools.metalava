@@ -22,7 +22,7 @@ import kotlin.test.assertEquals
 
 abstract class BaseDocCommentTest {
     val reporter = CollatingDocumentationIssueReporter()
-    val context = NoOpDocCommentContext()
+    val context = TestDocCommentContext()
 
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
@@ -78,8 +78,8 @@ class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
     }
 }
 
-/** A test [DocCommentContext] that provides basic no-op implementations. */
-class NoOpDocCommentContext : DocCommentContext, DocCommentMutationListener {
+/** A test [DocCommentContext] that provides basic implementations. */
+class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override val mutationListener: DocCommentMutationListener
         get() = this
 
