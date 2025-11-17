@@ -21,6 +21,7 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -47,6 +48,7 @@ import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
@@ -162,11 +164,23 @@ internal class PsiCodebaseAssembler(
                     val manager = PsiManager.getInstance(codebase.project)
                     PsiPackageImpl(manager, packageName)
                 }
-        return PsiPackageItem.create(
+        val modifiers = PsiModifierItem.create(codebase = codebase, element = psiPackage)
+        if (modifiers.isPackagePrivate()) {
+            // packages are always public (if not hidden explicitly with private)
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+        }
+        val qualifiedName = psiPackage.qualifiedName
+        return DefaultPackageItem(
             codebase = codebase,
-            psiPackage = psiPackage,
-            packageDoc = packageDoc,
+            fileLocation = packageDoc.fileLocation,
+            sourceLanguage = psiPackage.sourceLanguage,
+            targetLanguages = TargetLanguageSet.ALL,
+            modifiers = modifiers,
+            documentationFactory = packageDoc.commentFactory ?: NO_SOURCE_COMMENT_FACTORY,
+            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+            qualifiedName = qualifiedName,
             containingPackage = containingPackage,
+            overviewDocumentation = packageDoc.overview,
         )
     }
 
