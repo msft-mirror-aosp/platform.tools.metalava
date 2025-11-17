@@ -204,6 +204,24 @@ interface ClassItem :
      */
     fun isMultiFileClass() = false
 
+    override fun describe(capitalize: Boolean): String {
+        val descriptor =
+            if (classKind == ClassKind.TYPEALIAS) {
+                if (capitalize) {
+                    "Typealias"
+                } else {
+                    "typealias"
+                }
+            } else {
+                if (capitalize) {
+                    "Class"
+                } else {
+                    "class"
+                }
+            }
+        return "$descriptor ${qualifiedName()}"
+    }
+
     /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
 

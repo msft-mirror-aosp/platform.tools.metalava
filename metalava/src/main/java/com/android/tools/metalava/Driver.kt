@@ -214,7 +214,7 @@ internal fun processFlags(
             options,
             stubDir,
             codebase,
-            docStubs = true,
+            isDocStubs = true,
         )
     }
 
@@ -285,7 +285,7 @@ internal fun processFlags(
             options,
             stubDir,
             codebase,
-            docStubs = false,
+            isDocStubs = false,
         )
     }
 
@@ -866,9 +866,9 @@ private fun createStubFiles(
     options: Options,
     stubDir: File,
     codebase: Codebase,
-    docStubs: Boolean,
+    isDocStubs: Boolean,
 ) {
-    if (docStubs) {
+    if (isDocStubs) {
         progressTracker.progress("Generating documentation stub files: ")
     } else {
         progressTracker.progress("Generating stub files: ")
@@ -876,21 +876,11 @@ private fun createStubFiles(
 
     val localTimer = Stopwatch.createStarted()
 
-    val stubWriterConfig =
-        options.stubWriterConfig.let {
-            if (docStubs) {
-                // Doc stubs always include documentation.
-                it.copy(includeDocumentationInStubs = true)
-            } else {
-                it
-            }
-        }
-
     var codebaseFragment =
         CodebaseFragment.create(codebase) { delegate ->
             createFilteringVisitorForStubs(
                 delegate = delegate,
-                docStubs = docStubs,
+                isDocStubs = isDocStubs,
                 preFiltered = codebase.preFiltered,
                 apiPredicateConfig = options.apiPredicateConfig,
             )
@@ -904,7 +894,7 @@ private fun createStubFiles(
                 referenceVisitorFactory = { delegate ->
                     createFilteringVisitorForStubs(
                         delegate = delegate,
-                        docStubs = docStubs,
+                        isDocStubs = isDocStubs,
                         preFiltered = codebase.preFiltered,
                         apiPredicateConfig = options.apiPredicateConfig,
                         ignoreEmit = true,
@@ -928,15 +918,15 @@ private fun createStubFiles(
         StubWriter(
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
-            docStubs = docStubs,
+            isDocStubs = isDocStubs,
             reporter = options.reporter,
-            config = stubWriterConfig,
+            config = options.stubWriterConfig,
             stubConstructorManager = stubConstructorManager,
         )
 
     codebaseFragment.accept(stubWriter)
 
-    if (docStubs) {
+    if (isDocStubs) {
         // Overview docs? These are generally in the empty package.
         codebase.findPackage("")?.let { empty ->
             val overview = empty.overviewDocumentation
@@ -947,7 +937,7 @@ private fun createStubFiles(
     }
 
     progressTracker.progress(
-        "$PROGRAM_NAME wrote ${if (docStubs) "documentation" else ""} stubs directory $stubDir in ${
+        "$PROGRAM_NAME wrote ${if (isDocStubs) "documentation" else ""} stubs directory $stubDir in ${
         localTimer.elapsed(SECONDS)} seconds\n"
     )
 }
