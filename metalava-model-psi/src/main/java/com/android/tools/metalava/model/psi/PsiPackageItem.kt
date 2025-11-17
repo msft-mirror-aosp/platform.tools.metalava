@@ -17,74 +17,39 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDoc
-import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
-import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
-internal class PsiPackageItem
-internal constructor(
-    override val psiCodebase: PsiBasedCodebase,
-    private val psiPackage: PsiPackage,
-    fileLocation: FileLocation,
-    modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
-    qualifiedName: String,
-    containingPackage: PackageItem?,
-    overviewDocumentation: ResourceFile?,
-) :
-    DefaultPackageItem(
-        codebase = psiCodebase,
-        fileLocation = fileLocation,
-        sourceLanguage = psiPackage.sourceLanguage,
-        targetLanguages = TargetLanguageSet.ALL,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-        qualifiedName = qualifiedName,
-        containingPackage = containingPackage,
-        overviewDocumentation = overviewDocumentation,
-    ),
-    PackageItem,
-    PsiItem {
-
-    override fun psi() = psiPackage
-
-    // N.A. a package cannot be contained in a class
-    override fun containingClass(): ClassItem? = null
-
-    companion object {
-        fun create(
-            codebase: PsiBasedCodebase,
-            psiPackage: PsiPackage,
-            packageDoc: PackageDoc,
-            containingPackage: PackageItem?,
-        ): PsiPackageItem {
-            val modifiers = PsiModifierItem.create(codebase, psiPackage)
-            if (modifiers.isPackagePrivate()) {
-                // packages are always public (if not hidden explicitly with private)
-                modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-            }
-            val qualifiedName = psiPackage.qualifiedName
-
-            return PsiPackageItem(
-                psiCodebase = codebase,
-                psiPackage = psiPackage,
-                fileLocation = packageDoc.fileLocation,
-                modifiers = modifiers,
-                documentationFactory = packageDoc.commentFactory ?: NO_SOURCE_COMMENT_FACTORY,
-                qualifiedName = qualifiedName,
-                containingPackage = containingPackage,
-                overviewDocumentation = packageDoc.overview,
-            )
+internal object PsiPackageItem {
+    fun create(
+        codebase: PsiBasedCodebase,
+        psiPackage: PsiPackage,
+        packageDoc: PackageDoc,
+        containingPackage: PackageItem?,
+    ): DefaultPackageItem {
+        val modifiers = PsiModifierItem.create(codebase, psiPackage)
+        if (modifiers.isPackagePrivate()) {
+            // packages are always public (if not hidden explicitly with private)
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
         }
+        val qualifiedName = psiPackage.qualifiedName
+
+        return DefaultPackageItem(
+            codebase = codebase,
+            fileLocation = packageDoc.fileLocation,
+            sourceLanguage = psiPackage.sourceLanguage,
+            targetLanguages = TargetLanguageSet.ALL,
+            modifiers = modifiers,
+            documentationFactory = packageDoc.commentFactory ?: NO_SOURCE_COMMENT_FACTORY,
+            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+            qualifiedName = qualifiedName,
+            containingPackage = containingPackage,
+            overviewDocumentation = packageDoc.overview,
+        )
     }
 }
