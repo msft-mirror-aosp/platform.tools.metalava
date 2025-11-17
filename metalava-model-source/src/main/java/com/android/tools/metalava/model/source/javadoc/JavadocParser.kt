@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocCommentContext
-import com.android.tools.metalava.model.source.doc.DocumentationFragmentIssueReporter
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
@@ -494,39 +493,6 @@ private class JavadocContentBuilder(
         appendText("{")
         super.visitBraceExpression(ctx)
         appendText("}")
-    }
-
-    /** A [DocumentationIssueReporter] that reports issues for a [Token]. */
-    class TokenIssueReporter(reporter: DocumentationIssueReporter) :
-        DocumentationFragmentIssueReporter(reporter) {
-        /** The [Token] on which the issues will be reported. */
-        private var token: Token? = null
-
-        /**
-         * The line offset of [token] from the beginning of the content parsed by [JavadocParser].
-         */
-        override val lineOffsetFromContainer: Int
-            get() =
-                // The token's `line` property is 1-based but this is 0-based so convert the former
-                // to the latter.
-                token!!.line - 1
-
-        /** The character offset of [token] from the beginning of the line containing it. */
-        override val firstLineCharacterOffset: Int
-            get() =
-                // The token's `charPositionInLine` is already 0-based like this.
-                token!!.charPositionInLine
-
-        /** Treat any issues reported by [body] as if they were reported on [token]. */
-        inline fun <R> reportAtToken(token: Token, body: () -> R): R {
-            val oldToken = token
-            this.token = token
-            try {
-                return body()
-            } finally {
-                this.token = oldToken
-            }
-        }
     }
 
     companion object {
