@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocumentationFragmentIssueReporter
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.reporter.Issues.Issue
 import org.antlr.v4.runtime.Token
 
 /** A [DocumentationIssueReporter] that reports issues for a [Token]. */
@@ -48,5 +49,10 @@ internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
         } finally {
             this.token = oldToken
         }
+    }
+
+    /** Report [issue] with message for [token]. */
+    fun report(token: Token, issue: Issue, message: String) {
+        reportAtToken(token) { report(issue, message) }
     }
 }

@@ -440,12 +440,11 @@ private class JavadocContentBuilder(
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
         // report the issue.
         if (ctx.BRACE_CLOSE() == null) {
-            tokenIssueReporter.reportAtToken(ctx.INLINE_TAG_START().symbol) {
-                tokenIssueReporter.report(
-                    Issues.UNCLOSED_INLINE_TAG,
-                    "unclosed inline '@${tagTypeName}' tag",
-                )
-            }
+            tokenIssueReporter.report(
+                ctx.INLINE_TAG_START().symbol,
+                Issues.UNCLOSED_INLINE_TAG,
+                "unclosed inline '@${tagTypeName}' tag",
+            )
         }
 
         // Split the nested content, if any, into separate data and remaining content.
