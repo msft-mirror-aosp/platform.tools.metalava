@@ -68,7 +68,9 @@ class DefaultItemFactory(
         return DefaultPackageItem(
             codebase,
             fileLocation,
-            defaultSourceLanguage,
+            // Treat all packages as being Java as Kotlin does not currently provide an equivalent
+            // to `package-info.java`.
+            SourceLanguage.JAVA,
             targetLanguages,
             modifiers,
             documentationFactory,
