@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 import kotlin.test.assertEquals
 
@@ -60,21 +60,39 @@ abstract class BaseDocCommentTest {
  * [toString].
  */
 class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
-    private val builder = StringBuilder()
+    private val list = mutableListOf<Report>()
 
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
-        builder.append("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]\n")
+    private data class Report(
+        val line: Int,
+        val charPosition: Int,
+        val issue: Issue,
+        val message: String,
+    )
+
+    override fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int) {
+        list.add(Report(lineOffset + 1, charOffset + 1, issue, message))
     }
 
-    override fun toString() = builder.toString()
+    override fun toString(): String {
+        list.sortWith(reportComparator)
+        return list.joinToString("\n") { report ->
+            "${report.line}:${report.charPosition}: ${report.message} [${report.issue.name}]"
+        }
+    }
 
     /** Verify that the reported issues matches [expectedIssues]. */
     fun assertJavadocParserIssues(expectedIssues: String) {
-        assertEquals(
-            expectedIssues.trimIndent(),
-            toString().trim(),
-            message = "javadoc parser issues"
-        )
+        assertEquals(expectedIssues.trimIndent(), toString(), message = "javadoc parser issues")
+    }
+
+    companion object {
+        private val reportComparator =
+            compareBy<Report>(
+                { it.line },
+                { it.charPosition },
+                { it.issue?.name },
+                { it.message },
+            )
     }
 }
 
