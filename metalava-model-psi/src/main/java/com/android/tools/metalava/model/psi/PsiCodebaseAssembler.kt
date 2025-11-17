@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterScope
@@ -173,7 +174,9 @@ internal class PsiCodebaseAssembler(
         return DefaultPackageItem(
             codebase = codebase,
             fileLocation = packageDoc.fileLocation,
-            sourceLanguage = psiPackage.sourceLanguage,
+            // Treat all packages as being Java as Kotlin does not currently provide an equivalent
+            // to `package-info.java`.
+            sourceLanguage = SourceLanguage.JAVA,
             targetLanguages = TargetLanguageSet.ALL,
             modifiers = modifiers,
             documentationFactory = packageDoc.commentFactory ?: NO_SOURCE_COMMENT_FACTORY,
