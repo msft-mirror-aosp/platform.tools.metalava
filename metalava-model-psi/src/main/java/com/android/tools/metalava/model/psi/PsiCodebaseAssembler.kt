@@ -154,7 +154,7 @@ internal class PsiCodebaseAssembler(
         packageName: String,
         packageDoc: PackageDoc,
         containingPackage: PackageItem?
-    ): DefaultPackageItem {
+    ): PackageItem {
         val modifiers =
             findPsiPackage(packageName)?.let { psiPackage ->
                 PsiModifierItem.create(codebase = codebase, element = psiPackage).apply {

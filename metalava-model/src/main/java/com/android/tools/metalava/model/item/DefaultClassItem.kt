@@ -358,7 +358,7 @@ open class DefaultClassItem(
             aliasedType: TypeItem,
             qualifiedName: String,
             typeParameterList: TypeParameterList,
-            containingPackage: DefaultPackageItem,
+            containingPackage: PackageItem,
             origin: ClassOrigin,
         ): DefaultClassItem {
             return DefaultClassItem(

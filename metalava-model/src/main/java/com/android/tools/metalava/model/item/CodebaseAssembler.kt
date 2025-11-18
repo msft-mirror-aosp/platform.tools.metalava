@@ -41,14 +41,14 @@ typealias DefaultCodebaseFactory = (CodebaseAssembler) -> DefaultCodebase
  */
 interface CodebaseAssembler {
     /**
-     * Create a [DefaultPackageItem] for package called [packageName], with additional information
-     * from [packageDoc] whose containing package, if any, is [containingPackage].
+     * Create a [PackageItem] for package called [packageName], with additional information from
+     * [packageDoc] whose containing package, if any, is [containingPackage].
      */
     fun createPackageItem(
         packageName: String,
         packageDoc: PackageDoc,
         containingPackage: PackageItem?,
-    ): DefaultPackageItem
+    ): PackageItem
 
     /**
      * A [PackageItem] with [qualifiedName] could not be found in the associated [Codebase] so look
@@ -84,7 +84,7 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
         packageName: String,
         packageDoc: PackageDoc,
         containingPackage: PackageItem?,
-    ): DefaultPackageItem {
+    ): PackageItem {
         val documentationFactory = packageDoc.commentFactory ?: emptyPackageDocumentationFactory()
         val modifiers =
             packageDoc.annotations?.let { annotations ->

@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
@@ -55,7 +56,6 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
@@ -587,7 +587,7 @@ private constructor(
      * typealias line.
      */
     private fun parseTypeAlias(
-        pkg: DefaultPackageItem,
+        pkg: PackageItem,
         tokenizer: Tokenizer,
         modifiers: MutableModifierList,
         location: FileLocation
@@ -639,7 +639,7 @@ private constructor(
         )
     }
 
-    private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
+    private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
@@ -978,7 +978,7 @@ private constructor(
      * If the qualified name matches an existing class then return its information.
      */
     private fun parseDeclaredClassType(
-        pkg: DefaultPackageItem,
+        pkg: PackageItem,
         declaredClassType: String,
         classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {

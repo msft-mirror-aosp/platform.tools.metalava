@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
@@ -179,7 +178,7 @@ internal class TextCodebaseAssembler(
                 val pkgName = qualifiedName.extractPossiblyEmptyQualifierName()
                 codebase.findOrCreatePackage(pkgName)
             } else {
-                outerClass.containingPackage() as DefaultPackageItem
+                outerClass.containingPackage()
             }
 
         // Build a stub class of the required kind.

@@ -64,7 +64,7 @@ class DefaultItemFactory(
         containingPackage: PackageItem?,
         overviewDocumentation: ResourceFile?,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-    ): DefaultPackageItem {
+    ): PackageItem {
         return DefaultPackageItem(
             codebase,
             fileLocation,
@@ -284,7 +284,7 @@ class DefaultItemFactory(
         fileLocation: FileLocation,
         modifiers: BaseModifierList,
         qualifiedName: String,
-        containingPackage: DefaultPackageItem,
+        containingPackage: PackageItem,
         aliasedType: TypeItem,
         typeParameterList: TypeParameterList,
         origin: ClassOrigin,
