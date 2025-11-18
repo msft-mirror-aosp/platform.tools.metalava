@@ -541,8 +541,7 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageItem = codebase.assertResolvedPackage("other.pkg")
 
             assertEquals(
-                // TODO(b/461491536): The `abstract` modifier is not expected on packages.
-                "ModifierList(flags = [public, abstract], annotations = [@other.pkg.PkgAnno])",
+                "ModifierList(flags = [public], annotations = [@other.pkg.PkgAnno])",
                 packageItem.modifiers.toString()
             )
         }

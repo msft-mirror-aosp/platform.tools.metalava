@@ -150,25 +150,28 @@ internal class PsiCodebaseAssembler(
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
+    /** Create [MutableModifierList] for [this] [PsiPackage]. */
+    private fun PsiPackage.createPackageModifiers() =
+        PsiModifierItem.create(codebase = this@PsiCodebaseAssembler.codebase, element = this).let {
+            // Packages cannot have any modifiers, only annotations but Psi seems to add modifiers
+            // to them, possibly as a side effect of how `package-info.java` files are modelled
+            // internally as a PsiClass. Rather than try and deal with all the possible modifiers
+            // that it could add this just extracts the annotations (if any) that have been obtained
+            // from the PsiPackage and use them in an empty modifier list. It uses public visibility
+            // because packages are always public.
+            createMutableModifiers(VisibilityLevel.PUBLIC, it.annotations())
+        }
+
     override fun createPackageItem(
         packageName: String,
         packageDoc: PackageDoc,
         containingPackage: PackageItem?
     ): PackageItem {
         val modifiers =
-            findPsiPackage(packageName)?.let { psiPackage ->
-                PsiModifierItem.create(codebase = codebase, element = psiPackage).apply {
-                    if (isPackagePrivate()) {
-                        // packages are always public (if not hidden explicitly with private)
-                        setVisibilityLevel(VisibilityLevel.PUBLIC)
-                    }
-                }
-            }
-                ?: run {
-                    // This can happen if a class's package statement does not match its file path.
-                    // In that case, this fakes up an empty mutable public modifiers.
-                    createMutableModifiers(VisibilityLevel.PUBLIC)
-                }
+            findPsiPackage(packageName)?.createPackageModifiers()
+                // This can happen if a class's package statement does not match its file path.
+                // In that case, this fakes up an empty mutable public modifiers.
+                ?: createMutableModifiers(VisibilityLevel.PUBLIC)
         return DefaultPackageItem(
             codebase = codebase,
             fileLocation = packageDoc.fileLocation,
