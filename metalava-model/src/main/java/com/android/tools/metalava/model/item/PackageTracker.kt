@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -24,7 +25,8 @@ import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
 
-typealias PackageItemFactory = (String, PackageDoc, PackageItem?) -> PackageItem
+typealias PackageItemFactory =
+    (String, List<AnnotationItem>, PackageDoc, PackageItem?) -> PackageItem
 
 class PackageTracker(private val packageItemFactory: PackageItemFactory) {
     /** Map from package name to [PackageItem] of all packages in this. */
@@ -65,13 +67,16 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             return existing
         }
 
-        return createPackage(packageName, packageDocs)
+        val annotations = packageDocs[packageName]?.annotations ?: emptyList()
+
+        return createPackage(packageName, packageDocs, annotations)
     }
 
     /** Create [PackageItem] for [packageName] using additional information from [packageDocs]. */
     fun createPackage(
         packageName: String,
         packageDocs: PackageDocs,
+        annotations: List<AnnotationItem>,
     ): PackageItem {
         // Unless this is the root package, it has a containing package so get that before creating
         // this package, so it can be passed into the `packageItemFactory`.
@@ -83,7 +88,8 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         // Get the `PackageDoc`, if any, to use for creating this package.
         val packageDoc = packageDocs[packageName]
 
-        val packageItem = packageItemFactory(packageName, packageDoc, containingPackage)
+        val packageItem =
+            packageItemFactory(packageName, annotations, packageDoc, containingPackage)
 
         // The packageItemFactory may provide its own modifiers so check to make sure that they are
         // public.

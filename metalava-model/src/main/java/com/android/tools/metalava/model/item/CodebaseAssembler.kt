@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -46,6 +47,7 @@ interface CodebaseAssembler {
      */
     fun createPackageItem(
         packageName: String,
+        annotations: List<AnnotationItem>,
         packageDoc: PackageDoc,
         containingPackage: PackageItem?,
     ): PackageItem
@@ -82,14 +84,14 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
 
     override fun createPackageItem(
         packageName: String,
+        annotations: List<AnnotationItem>,
         packageDoc: PackageDoc,
         containingPackage: PackageItem?,
     ): PackageItem {
         val documentationFactory = packageDoc.commentFactory ?: emptyPackageDocumentationFactory()
         val modifiers =
-            packageDoc.annotations?.let { annotations ->
-                createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
-            } ?: DEFAULT_PACKAGE_MODIFIERS
+            if (annotations.isEmpty()) DEFAULT_PACKAGE_MODIFIERS
+            else createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
         return itemFactory.createPackageItem(
             packageDoc.fileLocation,
             modifiers,

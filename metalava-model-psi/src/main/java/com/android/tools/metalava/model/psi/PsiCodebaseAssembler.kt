@@ -164,6 +164,7 @@ internal class PsiCodebaseAssembler(
 
     override fun createPackageItem(
         packageName: String,
+        annotations: List<AnnotationItem>,
         packageDoc: PackageDoc,
         containingPackage: PackageItem?
     ): PackageItem {

@@ -566,19 +566,14 @@ private constructor(
             return existing
         }
 
-        // Wrap the annotations and file location in a PackageDocs so that findOrCreatePackage(...)
-        // will create a package with them.
-        val packageDoc =
-            MutablePackageDoc(
-                name,
-                fileLocation = tokenizer.fileLocation(),
-                annotations = annotations,
-            )
+        // Wrap the file location in a PackageDocs so that findOrCreatePackage(...) will create a
+        // package with them.
+        val packageDoc = MutablePackageDoc(name, fileLocation = tokenizer.fileLocation())
         val packageDocs = PackageDocs(mapOf(name to packageDoc))
 
         // Create the package. This relies on containing packages always being processed before any
         // contained package which is guaranteed by the signature file order.
-        return codebase.packageTracker.createPackage(name, packageDocs)
+        return codebase.packageTracker.createPackage(name, packageDocs, annotations)
     }
 
     private fun parsePackage(tokenizer: Tokenizer) {
