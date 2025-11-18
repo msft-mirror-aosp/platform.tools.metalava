@@ -28,7 +28,12 @@ private const val PACKAGE_ESTIMATE = 500
 typealias PackageItemFactory =
     (String, List<AnnotationItem>, PackageDoc, PackageItem?) -> PackageItem
 
-class PackageTracker(private val packageItemFactory: PackageItemFactory) {
+typealias PackageAnnotationsFactory = (String) -> List<AnnotationItem>
+
+class PackageTracker(
+    private val packageItemFactory: PackageItemFactory,
+    private val packageAnnotationsFactory: PackageAnnotationsFactory,
+) {
     /** Map from package name to [PackageItem] of all packages in this. */
     private val packagesByName = HashMap<String, PackageItem>(PACKAGE_ESTIMATE)
 
@@ -67,7 +72,8 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             return existing
         }
 
-        val annotations = packageDocs[packageName]?.annotations ?: emptyList()
+        val annotations =
+            packageDocs[packageName]?.annotations ?: packageAnnotationsFactory(packageName)
 
         return createPackage(packageName, packageDocs, annotations)
     }

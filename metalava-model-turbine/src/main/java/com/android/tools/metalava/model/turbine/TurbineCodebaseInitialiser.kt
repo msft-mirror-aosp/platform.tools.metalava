@@ -273,18 +273,14 @@ internal class TurbineCodebaseInitialiser(
                 sourceSet,
                 packageNameFilter = { true },
                 packageInfoList
-            ) { (unit, packageName, sourceTypeBoundClass) ->
+            ) { (unit, packageName) ->
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
                 val turbineSourceFile = sourceFileCache.turbineSourceFile(unit.source())
                 val comment = itemDocumentationFactoryForDecl(turbineSourceFile, unit.pkg().get())
 
-                val annotations =
-                    annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())
-
                 MutablePackageDoc(
                     qualifiedName = packageName,
-                    annotations = annotations,
                     fileLocation = fileLocation,
                     commentFactory = comment,
                 )
@@ -447,7 +443,6 @@ internal class TurbineCodebaseInitialiser(
     data class PackageInfoClass(
         val unit: CompUnit,
         val packageName: String,
-        val sourceTypeBoundClass: SourceTypeBoundClass,
     )
 
     /** Combine `package-info.java` synthetic classes and units */
@@ -458,12 +453,11 @@ internal class TurbineCodebaseInitialiser(
         // Create a mapping between the package name and the unit.
         val packageInfoMap = packageInfoUnits.associateBy { getPackageName(it) }
 
-        return sourceClassMap.entries.map { (symbol, typeBoundClass) ->
+        return sourceClassMap.keys.map { symbol ->
             val packageName = symbol.packageName().replace('/', '.')
             PackageInfoClass(
                 unit = packageInfoMap[packageName]!!,
                 packageName = packageName,
-                sourceTypeBoundClass = typeBoundClass,
             )
         }
     }
@@ -475,6 +469,18 @@ internal class TurbineCodebaseInitialiser(
     private fun createAllPackages(packageDocs: PackageDocs) {
         // Create packages for all the documentation packages and make sure there is a root package.
         codebase.packageTracker.createInitialPackages(packageDocs)
+    }
+
+    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
+        // Construct the binary name for the package-info class.
+        val packageInfoBinaryName = "${packageName.replace('.', '/')}/package-info"
+
+        // The underlying package may have annotations if it had a package-info.java file so check
+        // for the presence of the corresponding `package-info.class`.
+        val packageInfoSym = ClassSymbol(packageInfoBinaryName)
+        val packageInfoClass = envClassMap[packageInfoSym] ?: return emptyList()
+
+        return annotationFactory.createAnnotations(packageInfoClass.annotations())
     }
 
     override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY

@@ -53,6 +53,15 @@ interface CodebaseAssembler {
     ): PackageItem
 
     /**
+     * Create package annotations for [packageName].
+     *
+     * This will be used to create annotations for packages whether they are created by
+     * [createPackageItem] or [createPackageFromUnderlyingModel]. It ensures consistent behavior for
+     * packages from source `package-info.java` files and binary `package-info.class` files.
+     */
+    fun createPackageAnnotations(packageName: String): List<AnnotationItem> = emptyList()
+
+    /**
      * A [PackageItem] with [qualifiedName] could not be found in the associated [Codebase] so look
      * in the underlying model's set of packages to see if one could be found there. If it could
      * then create a [PackageItem] representation of it and return that, otherwise return null.

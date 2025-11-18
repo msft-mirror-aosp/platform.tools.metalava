@@ -139,7 +139,6 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package info processed last[psi,java,k1]
   Test @hide in package info processed last[psi,java,k2]
   Test @hide in package info processed last[turbine]
-  Test resolving package from jar[turbine]
 
 com.android.tools.metalava.model.testsuite.sourcefile.CommonParameterizedImportTest
   Test imports[psi,java,k1,static java.util.Map.*]
