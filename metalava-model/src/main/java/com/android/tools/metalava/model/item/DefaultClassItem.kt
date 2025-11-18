@@ -122,12 +122,11 @@ open class DefaultClassItem(
     final override fun subClasses(): List<ClassItem> {
         if (!::subClassList.isInitialized) {
             subClassList =
-                codebase
-                    .getAllClassesByName()
-                    .values
+                containingPackage
+                    .allClasses()
                     .filter { cls ->
-                        cls.superClassType()?.qualifiedName == this.qualifiedName ||
-                            cls.interfaceTypes().any { it.qualifiedName == this.qualifiedName }
+                        cls.superClassType()?.qualifiedName == qualifiedName ||
+                            cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
                     }
                     .toMutableList()
         }
