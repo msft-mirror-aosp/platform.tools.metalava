@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
@@ -168,11 +169,7 @@ internal class PsiCodebaseAssembler(
         packageDoc: PackageDoc,
         containingPackage: PackageItem?
     ): PackageItem {
-        val modifiers =
-            findPsiPackage(packageName)?.createPackageModifiers()
-                // This can happen if a class's package statement does not match its file path.
-                // In that case, this fakes up an empty mutable public modifiers.
-                ?: createMutableModifiers(VisibilityLevel.PUBLIC)
+        val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
         return DefaultPackageItem(
             codebase = codebase,
             fileLocation = packageDoc.fileLocation,
@@ -188,6 +185,11 @@ internal class PsiCodebaseAssembler(
             overviewDocumentation = packageDoc.overview,
         )
     }
+
+    override fun createPackageAnnotations(packageName: String) =
+        findPsiPackage(packageName)?.let { psiPackage ->
+            PsiModifierItem.create(codebase, psiPackage).annotations()
+        } ?: emptyList()
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
         // Make sure that the underlying package exists before creating one.
