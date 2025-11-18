@@ -86,9 +86,13 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
         containingPackage: PackageItem?,
     ): DefaultPackageItem {
         val documentationFactory = packageDoc.commentFactory ?: emptyPackageDocumentationFactory()
+        val modifiers =
+            packageDoc.annotations?.let { annotations ->
+                createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
+            } ?: DEFAULT_PACKAGE_MODIFIERS
         return itemFactory.createPackageItem(
             packageDoc.fileLocation,
-            packageDoc.modifiers ?: createImmutableModifiers(VisibilityLevel.PUBLIC),
+            modifiers,
             documentationFactory,
             packageName,
             containingPackage,
@@ -102,4 +106,8 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
      * This will be called for packages that have no `package.html` or `package-info.java`.
      */
     protected abstract fun emptyPackageDocumentationFactory(): ItemDocumentationFactory
+
+    companion object {
+        private val DEFAULT_PACKAGE_MODIFIERS = createImmutableModifiers(VisibilityLevel.PUBLIC)
+    }
 }

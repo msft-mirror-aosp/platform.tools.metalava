@@ -326,7 +326,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         assertThat(exception.message)
             .endsWith(
                 """
-                    Contradicting declaration of package test.pkg. Previously seen with modifiers "ModifierList(flags = [public], annotations = [@androidx.annotation.PackageAnnotation1])", but now with "ModifierList(flags = [public], annotations = [@androidx.annotation.PackageAnnotation2])"
+                    Contradicting declaration of package test.pkg. Previously seen with annotations "[@androidx.annotation.PackageAnnotation1]", but now with "[@androidx.annotation.PackageAnnotation2]"
                 """
                     .trimIndent()
             )

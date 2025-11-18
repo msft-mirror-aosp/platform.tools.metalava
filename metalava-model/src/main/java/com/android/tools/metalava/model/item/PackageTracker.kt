@@ -68,15 +68,16 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             // If the same package showed up multiple times, make sure they have the same modifiers.
             // (Packages can't have public/private/etc., but they can have annotations, which are
             // part of ModifierList.)
-            val modifiers = packageDoc.modifiers
-            if (modifiers != null && modifiers != existing.modifiers) {
+            val annotations = packageDoc.annotations
+            var existingAnnotations = existing.modifiers.annotations()
+            if (annotations != null && annotations != existingAnnotations) {
                 error(
                     String.format(
                         "Contradicting declaration of package %s." +
-                            " Previously seen with modifiers \"%s\", but now with \"%s\"",
+                            " Previously seen with annotations \"%s\", but now with \"%s\"",
                         packageName,
-                        existing.modifiers,
-                        modifiers
+                        existingAnnotations,
+                        annotations
                     ),
                 )
             }

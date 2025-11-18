@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
@@ -41,7 +41,9 @@ class PackageDocs(
 /** Package specific documentation. */
 interface PackageDoc {
     val fileLocation: FileLocation
-    val modifiers: BaseModifierList?
+
+    /** The list of annotations, if any, applied to the package. */
+    val annotations: List<AnnotationItem>?
 
     /**
      * Factory for creating an [ItemDocumentation] instance containing the package level document.
@@ -65,7 +67,7 @@ interface PackageDoc {
                 override val fileLocation: FileLocation
                     get() = FileLocation.UNKNOWN
 
-                override val modifiers: BaseModifierList?
+                override val annotations: List<AnnotationItem>?
                     get() = null
 
                 override val commentFactory
@@ -81,7 +83,7 @@ interface PackageDoc {
 data class MutablePackageDoc(
     val qualifiedName: String,
     override var fileLocation: FileLocation = FileLocation.UNKNOWN,
-    override var modifiers: BaseModifierList? = null,
+    override var annotations: List<AnnotationItem>? = null,
     override var commentFactory: ItemDocumentationFactory? = null,
     override var overview: ResourceFile? = null,
 ) : PackageDoc

@@ -26,8 +26,6 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
@@ -284,8 +282,12 @@ internal class TurbineCodebaseInitialiser(
                 val annotations =
                     annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())
 
-                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
-                MutablePackageDoc(packageName, fileLocation, modifiers, comment)
+                MutablePackageDoc(
+                    qualifiedName = packageName,
+                    annotations = annotations,
+                    fileLocation = fileLocation,
+                    commentFactory = comment,
+                )
             }
 
         // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on

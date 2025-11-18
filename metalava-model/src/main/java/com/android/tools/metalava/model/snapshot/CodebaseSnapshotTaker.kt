@@ -148,11 +148,14 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         break
                     }
 
+                    val packageAnnotations =
+                        pkgItem.modifiers.annotations().map { it.snapshot(snapshotCodebase) }
+
                     val packageDoc =
                         MutablePackageDoc(
                             qualifiedName = qualifiedName,
                             fileLocation = pkgItem.fileLocation,
-                            modifiers = pkgItem.modifiers.snapshot(),
+                            annotations = packageAnnotations,
                             commentFactory = pkgItem.documentation::snapshot,
                             overview = pkgItem.overviewDocumentation,
                         )

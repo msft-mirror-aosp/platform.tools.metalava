@@ -539,19 +539,18 @@ private constructor(
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
-        val modifiers = createModifiers(VisibilityLevel.PUBLIC, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
 
-        // Wrap the modifiers and file location in a PackageDocs so that findOrCreatePackage(...)
+        // Wrap the annotations and file location in a PackageDocs so that findOrCreatePackage(...)
         // will create a package with them and will check to make sure that an existing package, if
-        // any, has matching modifiers.
+        // any, has matching annotations.
         val packageDoc =
             MutablePackageDoc(
                 name,
                 fileLocation = tokenizer.fileLocation(),
-                modifiers = modifiers,
+                annotations = annotations,
             )
         val packageDocs = PackageDocs(mapOf(name to packageDoc))
         val pkg =
