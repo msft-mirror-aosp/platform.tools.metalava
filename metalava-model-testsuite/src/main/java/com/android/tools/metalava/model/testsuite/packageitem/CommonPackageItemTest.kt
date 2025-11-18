@@ -20,14 +20,44 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.html
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import org.junit.ClassRule
 import org.junit.Test
 
 class CommonPackageItemTest : BaseModelTest() {
+    companion object {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        private val otherJarFile =
+            jarFromSources(
+                    "other-package.jar",
+                    java(
+                        """
+                            @PkgAnno
+                            package other.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            package other.pkg;
+
+                            /** Annotation comment. */
+                            public @interface PkgAnno {
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+    }
 
     @Test
     fun `Test @hide in package html`() {
@@ -487,6 +517,34 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("test")
             packageItem.assertDocumentationText(expectedOutput = "/** Some documentation. */")
+        }
+    }
+
+    @Test
+    fun `Test resolving package from jar`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(otherJarFile.createFile(temporaryFolder.root))
+                ),
+        ) {
+            val packageItem = codebase.assertResolvedPackage("other.pkg")
+
+            assertEquals(
+                // TODO(b/461491536): The `abstract` modifier is not expected on packages.
+                "ModifierList(flags = [public, abstract], annotations = [@other.pkg.PkgAnno])",
+                packageItem.modifiers.toString()
+            )
         }
     }
 }
