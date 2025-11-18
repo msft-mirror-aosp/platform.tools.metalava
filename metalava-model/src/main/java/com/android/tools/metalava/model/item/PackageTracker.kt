@@ -60,20 +60,28 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
     ): PackageItem {
-        // Get the `PackageDoc`, if any, to use for creating this package.
-        val packageDoc = packageDocs[packageName]
-
         // Check to see if the package already exists, if it does then return it.
         findPackage(packageName)?.let { existing ->
             return existing
         }
 
+        return createPackage(packageName, packageDocs)
+    }
+
+    /** Create [PackageItem] for [packageName] using additional information from [packageDocs]. */
+    fun createPackage(
+        packageName: String,
+        packageDocs: PackageDocs,
+    ): PackageItem {
         // Unless this is the root package, it has a containing package so get that before creating
         // this package, so it can be passed into the `packageItemFactory`.
         val containingPackageName = getContainingPackageName(packageName)
         val containingPackage =
             if (containingPackageName == null) null
             else findOrCreatePackage(containingPackageName, packageDocs)
+
+        // Get the `PackageDoc`, if any, to use for creating this package.
+        val packageDoc = packageDocs[packageName]
 
         val packageItem = packageItemFactory(packageName, packageDoc, containingPackage)
 

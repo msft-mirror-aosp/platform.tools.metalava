@@ -575,7 +575,10 @@ private constructor(
                 annotations = annotations,
             )
         val packageDocs = PackageDocs(mapOf(name to packageDoc))
-        return codebase.findOrCreatePackage(name, packageDocs)
+
+        // Create the package. This relies on containing packages always being processed before any
+        // contained package which is guaranteed by the signature file order.
+        return codebase.packageTracker.createPackage(name, packageDocs)
     }
 
     private fun parsePackage(tokenizer: Tokenizer) {
