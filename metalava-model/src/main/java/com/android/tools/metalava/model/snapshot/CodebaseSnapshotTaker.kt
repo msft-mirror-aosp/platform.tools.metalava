@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.snapshot
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -148,14 +149,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         break
                     }
 
-                    val packageAnnotations =
-                        pkgItem.modifiers.annotations().map { it.snapshot(snapshotCodebase) }
-
                     val packageDoc =
                         MutablePackageDoc(
                             qualifiedName = qualifiedName,
                             fileLocation = pkgItem.fileLocation,
-                            annotations = packageAnnotations,
                             commentFactory = pkgItem.documentation::snapshot,
                             overview = pkgItem.overviewDocumentation,
                         )
@@ -165,6 +162,11 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 }
             }
         )
+    }
+
+    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
+        val originalPackage = originalCodebase.resolvePackage(packageName) ?: return emptyList()
+        return originalPackage.modifiers.annotations()
     }
 
     /**
