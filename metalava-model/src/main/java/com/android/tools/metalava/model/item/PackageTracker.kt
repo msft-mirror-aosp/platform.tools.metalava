@@ -72,8 +72,7 @@ class PackageTracker(
             return existing
         }
 
-        val annotations =
-            packageDocs[packageName]?.annotations ?: packageAnnotationsFactory(packageName)
+        val annotations = packageAnnotationsFactory(packageName)
 
         return createPackage(packageName, packageDocs, annotations)
     }
