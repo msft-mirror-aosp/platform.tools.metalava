@@ -199,10 +199,12 @@ class JavadocTest : DriverTest() {
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
             // These warnings prove that lint is enabled and will report MutableBareField and
-            // MissingNullability, issues that would be reported on test.hidden.Hidden if it was not
-            // hidden by the package-info.java.
+            // MissingNullability. The first two issues are reported because `test.hidden.Hidden`
+            // is not hidden by the `@hide` in `test/hidden/package-info.java`.
             warnings =
                 """
+                    src/test/hidden/Hidden.java:4: error: Missing nullability on field `bareMutableFieldMissingNullability` in class `class test.hidden.Hidden` [MissingNullability]
+                    src/test/hidden/Hidden.java:4: error: Bare field bareMutableFieldMissingNullability must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg1/SomeClass.java:29: error: Bare field importance must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg2/OtherClass.java:7: error: Missing nullability on field `foo` in class `class test.pkg2.OtherClass` [MissingNullability]
                     src/test/pkg2/OtherClass.java:7: error: Bare field foo must be marked final, or moved behind accessors if mutable [MutableBareField]
@@ -265,8 +267,8 @@ class JavadocTest : DriverTest() {
                     }
                     """
                     ),
-                    // Make sure that hiding a package by using `@hide` in the Javadoc of a
-                    // package-info.java file still works when allowReadingComments = false.
+                    // Make sure that using `@hide` in the package javadoc comment has no effect
+                    // when allowReadingComments = false.
                     java(
                         """
                             /** @hide */

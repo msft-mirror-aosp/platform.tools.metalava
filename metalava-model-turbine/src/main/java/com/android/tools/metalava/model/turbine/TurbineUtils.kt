@@ -86,9 +86,8 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
     sourceFile: TurbineSourceFile?,
     decl: Tree?
 ): ItemDocumentationFactory {
-    // If comments are not read then ignore the javadoc, unless it is for a package as it may
-    // contain @hide which needs to be respected.
-    if (!allowReadingComments && decl !is PkgDecl) return ItemDocumentation.NONE_FACTORY
+    // If comments are not read then ignore the javadoc.
+    if (!allowReadingComments) return ItemDocumentation.NONE_FACTORY
 
     val turbineJavadoc =
         when (decl) {
