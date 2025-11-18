@@ -1459,4 +1459,90 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test allow reading comments = false`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /**
+                         * @hide
+                         */
+                        @PkgAnno
+                        package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        /** Annotation comment. */
+                        public @interface PkgAnno {
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    allowReadingComments = false,
+                ),
+        ) {
+            val testPackage = codebase.assertPackage("test.pkg")
+            testPackage.assertPrintedDocumentation(
+                expectedOutput = "/** @hide */\n",
+            )
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.pkg.PkgAnno])",
+                testPackage.modifiers.toString()
+            )
+
+            val testAnnotation = codebase.assertClass("test.pkg.PkgAnno")
+            testAnnotation.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
+
+    @Test
+    fun `Test allow reading comments = true`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /**
+                         * @hide
+                         */
+                        @PkgAnno
+                        package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        /** Annotation comment. */
+                        public @interface PkgAnno {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testPackage = codebase.assertPackage("test.pkg")
+            testPackage.assertPrintedDocumentation(
+                expectedOutput = "/** @hide */\n",
+            )
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@test.pkg.PkgAnno])",
+                testPackage.modifiers.toString()
+            )
+
+            val testAnnotation = codebase.assertClass("test.pkg.PkgAnno")
+            testAnnotation.assertPrintedDocumentation(
+                expectedOutput = "/** Annotation comment. */\n",
+            )
+        }
+    }
 }
