@@ -117,20 +117,23 @@ open class DefaultClassItem(
 
     final override fun containingClass() = containingClass
 
-    private lateinit var subClassList: MutableList<ClassItem>
+    private lateinit var sealedClassSubclasses: List<ClassItem>
 
-    final override fun subClasses(): List<ClassItem> {
-        if (!::subClassList.isInitialized) {
-            subClassList =
+    final override fun sealedClassDirectSubclasses(): List<ClassItem> {
+        if (!modifiers.isSealed()) {
+            error("Computing subclasses is only available for sealed classes and interfaces")
+        }
+        if (!::sealedClassSubclasses.isInitialized) {
+            sealedClassSubclasses =
                 containingPackage
                     .allClasses()
                     .filter { cls ->
                         cls.superClassType()?.qualifiedName == qualifiedName ||
                             cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
                     }
-                    .toMutableList()
+                    .toList()
         }
-        return subClassList.toList()
+        return sealedClassSubclasses
     }
 
     final override fun qualifiedName() = qualifiedName
