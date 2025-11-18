@@ -534,6 +534,50 @@ private constructor(
         }
     }
 
+    /**
+     * Find an existing package called [name] or create a new one.
+     *
+     * If an existing package exists then this makes sure that its annotations match [annotations].
+     */
+    private fun findOrCreatePackage(
+        tokenizer: Tokenizer,
+        name: String,
+        annotations: List<AnnotationItem>
+    ): PackageItem {
+        // Check to see if the package already exists, if it does then return it.
+        codebase.findPackage(name)?.let { existing ->
+            // If the same package showed up multiple times, make sure they have the same modifiers.
+            // (Packages can't have public/private/etc., but they can have annotations, which are
+            // part of ModifierList.)
+            var existingAnnotations = existing.modifiers.annotations()
+            if (annotations != existingAnnotations) {
+                throw ApiParseException(
+                    String.format(
+                        "Contradicting declaration of package %s." +
+                            " Previously seen with annotations \"%s\", but now with \"%s\"",
+                        name,
+                        existingAnnotations,
+                        annotations
+                    ),
+                    tokenizer,
+                )
+            }
+
+            return existing
+        }
+
+        // Wrap the annotations and file location in a PackageDocs so that findOrCreatePackage(...)
+        // will create a package with them.
+        val packageDoc =
+            MutablePackageDoc(
+                name,
+                fileLocation = tokenizer.fileLocation(),
+                annotations = annotations,
+            )
+        val packageDocs = PackageDocs(mapOf(name to packageDoc))
+        return codebase.findOrCreatePackage(name, packageDocs)
+    }
+
     private fun parsePackage(tokenizer: Tokenizer) {
         var token: String = tokenizer.requireToken()
 
@@ -543,22 +587,7 @@ private constructor(
         tokenizer.assertIdent(token)
         val name: String = token
 
-        // Wrap the annotations and file location in a PackageDocs so that findOrCreatePackage(...)
-        // will create a package with them and will check to make sure that an existing package, if
-        // any, has matching annotations.
-        val packageDoc =
-            MutablePackageDoc(
-                name,
-                fileLocation = tokenizer.fileLocation(),
-                annotations = annotations,
-            )
-        val packageDocs = PackageDocs(mapOf(name to packageDoc))
-        val pkg =
-            try {
-                codebase.findOrCreatePackage(name, packageDocs)
-            } catch (e: IllegalStateException) {
-                throw ApiParseException(e.message!!, tokenizer)
-            }
+        val pkg = findOrCreatePackage(tokenizer, name, annotations)
 
         // Make sure that the package records the ApiVariants to which it belongs.
         pkg.markSelectedApiVariant()

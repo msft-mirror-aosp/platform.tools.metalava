@@ -65,23 +65,6 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
 
         // Check to see if the package already exists, if it does then return it.
         findPackage(packageName)?.let { existing ->
-            // If the same package showed up multiple times, make sure they have the same modifiers.
-            // (Packages can't have public/private/etc., but they can have annotations, which are
-            // part of ModifierList.)
-            val annotations = packageDoc.annotations
-            var existingAnnotations = existing.modifiers.annotations()
-            if (annotations != null && annotations != existingAnnotations) {
-                error(
-                    String.format(
-                        "Contradicting declaration of package %s." +
-                            " Previously seen with annotations \"%s\", but now with \"%s\"",
-                        packageName,
-                        existingAnnotations,
-                        annotations
-                    ),
-                )
-            }
-
             return existing
         }
 
