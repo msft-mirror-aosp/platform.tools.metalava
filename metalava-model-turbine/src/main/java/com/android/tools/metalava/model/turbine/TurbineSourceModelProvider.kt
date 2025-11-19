@@ -31,6 +31,7 @@ internal class TurbineSourceModelProvider :
         setOf(
             Capability.JAVA,
             Capability.DOCUMENTATION,
+            Capability.IMPORTS,
         )
 
     override fun createEnvironmentManager(

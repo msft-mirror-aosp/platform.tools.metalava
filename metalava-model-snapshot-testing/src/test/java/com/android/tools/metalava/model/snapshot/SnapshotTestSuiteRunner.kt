@@ -16,7 +16,15 @@
 
 package com.android.tools.metalava.model.snapshot
 
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 
 /** A [ModelSuiteRunner] that delegates to [delegate] unless it needs to override something. */
-class SnapshotTestSuiteRunner(val delegate: ModelSuiteRunner) : ModelSuiteRunner by delegate
+class SnapshotTestSuiteRunner(val delegate: ModelSuiteRunner) : ModelSuiteRunner by delegate {
+    override val capabilities: Set<Capability> =
+        delegate.capabilities -
+            // Snapshot does not support the following capabilities:
+            setOf(
+                Capability.IMPORTS,
+            )
+}

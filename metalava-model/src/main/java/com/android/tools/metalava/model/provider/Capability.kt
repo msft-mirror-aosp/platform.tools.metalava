@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.provider
 
 /** The set of different capabilities that a codebase creator can provide. */
-enum class Capability() {
+enum class Capability {
     /** Can parse java files. */
     JAVA,
 
@@ -35,4 +35,7 @@ enum class Capability() {
 
     /** Can continue parsing if it hits an error. */
     LAX_PARSER,
+
+    /** Has access to the imports from the source file. */
+    IMPORTS,
 }
