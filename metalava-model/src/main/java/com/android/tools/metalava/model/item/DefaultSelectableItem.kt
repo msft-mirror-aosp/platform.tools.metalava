@@ -81,9 +81,8 @@ abstract class DefaultSelectableItem(
         selectedApiVariants = mutable.toImmutable()
     }
 
-    final override var emit =
-        // Do not emit expect declarations in APIs.
-        !modifiers.isExpect()
+    // Default to true, may be updated later
+    final override var emit = true
 
     /**
      * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].
