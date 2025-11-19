@@ -25,14 +25,8 @@ import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
 
-typealias PackageItemFactory =
-    (String, List<AnnotationItem>, PackageDoc, PackageItem?) -> PackageItem
-
-typealias PackageAnnotationsFactory = (String) -> List<AnnotationItem>
-
 class PackageTracker(
-    private val packageItemFactory: PackageItemFactory,
-    private val packageAnnotationsFactory: PackageAnnotationsFactory,
+    private val assembler: CodebaseAssembler,
 ) {
     /** Map from package name to [PackageItem] of all packages in this. */
     private val packagesByName = HashMap<String, PackageItem>(PACKAGE_ESTIMATE)
@@ -72,7 +66,7 @@ class PackageTracker(
             return existing
         }
 
-        val annotations = packageAnnotationsFactory(packageName)
+        val annotations = assembler.createPackageAnnotations(packageName)
 
         return createPackage(packageName, packageDocs, annotations)
     }
@@ -94,7 +88,7 @@ class PackageTracker(
         val packageDoc = packageDocs[packageName]
 
         val packageItem =
-            packageItemFactory(packageName, annotations, packageDoc, containingPackage)
+            assembler.createPackageItem(packageName, annotations, packageDoc, containingPackage)
 
         // The packageItemFactory may provide its own modifiers so check to make sure that they are
         // public.
