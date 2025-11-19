@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.TestFileCache
@@ -59,6 +61,7 @@ class CommonPackageItemTest : BaseModelTest() {
                 .cacheIn(testFileCacheRule)
     }
 
+    @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
     @Test
     fun `Test @hide in package html`() {
         runSourceCodebaseTest(

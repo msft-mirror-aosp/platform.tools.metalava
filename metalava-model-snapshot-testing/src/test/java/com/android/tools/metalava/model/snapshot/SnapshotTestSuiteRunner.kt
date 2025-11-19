@@ -26,5 +26,6 @@ class SnapshotTestSuiteRunner(val delegate: ModelSuiteRunner) : ModelSuiteRunner
             // Snapshot does not support the following capabilities:
             setOf(
                 Capability.IMPORTS,
+                Capability.PACKAGE_HTML_FILES,
             )
 }

@@ -130,9 +130,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterModifierTes
   Test varargs[turbine]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test @hide in package html[psi,java,k1]
-  Test @hide in package html[psi,java,k2]
-  Test @hide in package html[turbine]
   Test @hide in package info processed first[psi,java,k1]
   Test @hide in package info processed first[psi,java,k2]
   Test @hide in package info processed first[turbine]

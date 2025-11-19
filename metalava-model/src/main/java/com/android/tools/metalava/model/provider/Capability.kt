@@ -38,4 +38,7 @@ enum class Capability {
 
     /** Has access to the imports from the source file. */
     IMPORTS,
+
+    /** Has access to `package.html` files. */
+    PACKAGE_HTML_FILES,
 }
