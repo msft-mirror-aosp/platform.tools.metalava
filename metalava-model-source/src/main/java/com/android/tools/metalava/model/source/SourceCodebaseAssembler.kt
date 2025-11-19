@@ -155,7 +155,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         // Get the `PackageDoc`, if any, to use for creating this package.
         val packageDoc = packageDocs[packageName]
 
-        if (packageDoc == PackageDoc.EMPTY) {
+        if (packageDoc == null) {
             // Make sure the returned [PackageInfo] has a non-null [PackageInfo.commentFactory].
             return sourcePackageInfo.toPackageInfo(defaultCommentFactory)
         }

@@ -29,9 +29,7 @@ internal class PackageDocs(
     /** The set of package names. */
     val packageNames: Collection<String> = packages.keys
 
-    operator fun get(packageName: String): PackageDoc {
-        return packages[packageName] ?: PackageDoc.EMPTY
-    }
+    operator fun get(packageName: String) = packages[packageName]
 
     companion object {
         val EMPTY: PackageDocs = PackageDocs(emptyMap())
@@ -57,20 +55,6 @@ internal interface PackageDoc {
      * If specified this is used for [PackageItem.overviewDocumentation].
      */
     val overview: ResourceFile?
-
-    companion object {
-        val EMPTY =
-            object : PackageDoc {
-                override val fileLocation: FileLocation
-                    get() = FileLocation.UNKNOWN
-
-                override val commentFactory
-                    get() = null
-
-                override val overview
-                    get() = null
-            }
-    }
 }
 
 /**
