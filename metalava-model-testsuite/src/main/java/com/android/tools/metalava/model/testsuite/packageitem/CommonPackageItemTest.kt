@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.packageitem
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
@@ -541,6 +542,46 @@ class CommonPackageItemTest : BaseModelTest() {
             assertEquals(
                 "ModifierList(flags = [public], annotations = [@other.pkg.PkgAnno])",
                 packageItem.modifiers.toString()
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
+    @Test
+    fun `Test conflicting comments in package-info java and package html`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /**
+                         * A package comment.
+                         */
+                        package test.pkg;
+                    """
+                ),
+                source(
+                        "src/test/pkg/package.html",
+                        """
+                        <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+                        <html>
+                        <body bgcolor="white">
+                        An HTML package comment
+                        </BODY>
+                        </html>
+                    """
+                    )
+                    .indented(),
+            ),
+        ) {
+            val testPackage = codebase.assertPackage("test.pkg")
+
+            testPackage.assertPrintedDocumentation(expectedOutput = "/** A package comment. */\n")
+
+            assertAndRemoveReportedIssues(
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/package-info.java: warning: It is illegal to provide both a package-info.java file and a package.html file for the same package [BothPackageInfoAndHtml]
+                    """
             )
         }
     }
