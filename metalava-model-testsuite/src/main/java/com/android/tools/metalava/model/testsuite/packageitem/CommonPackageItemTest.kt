@@ -92,6 +92,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.HIDDEN_ITEMS)
     @Test
     fun `Test @hide in package info processed first`() {
         runSourceCodebaseTest(
@@ -120,6 +121,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.HIDDEN_ITEMS)
     @Test
     fun `Test @hide in package info processed last`() {
         runSourceCodebaseTest(

@@ -27,5 +27,6 @@ class SnapshotTestSuiteRunner(val delegate: ModelSuiteRunner) : ModelSuiteRunner
             setOf(
                 Capability.IMPORTS,
                 Capability.PACKAGE_HTML_FILES,
+                Capability.HIDDEN_ITEMS,
             )
 }

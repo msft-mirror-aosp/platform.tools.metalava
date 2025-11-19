@@ -41,4 +41,7 @@ enum class Capability {
 
     /** Has access to `package.html` files. */
     PACKAGE_HTML_FILES,
+
+    /** Has access to hidden items. */
+    HIDDEN_ITEMS,
 }

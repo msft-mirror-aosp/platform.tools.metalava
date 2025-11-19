@@ -33,6 +33,7 @@ internal class TurbineSourceModelProvider :
             Capability.DOCUMENTATION,
             Capability.IMPORTS,
             Capability.PACKAGE_HTML_FILES,
+            Capability.HIDDEN_ITEMS,
         )
 
     override fun createEnvironmentManager(
