@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.provider
 
+import com.android.tools.metalava.model.ApiVariantSelectors
+
 /** The set of different capabilities that a codebase creator can provide. */
 enum class Capability {
     /** Can parse java files. */
@@ -44,4 +46,7 @@ enum class Capability {
 
     /** Has access to hidden items. */
     HIDDEN_ITEMS,
+
+    /** Has access to [ApiVariantSelectors]. */
+    API_VARIANT_SELECTORS,
 }
