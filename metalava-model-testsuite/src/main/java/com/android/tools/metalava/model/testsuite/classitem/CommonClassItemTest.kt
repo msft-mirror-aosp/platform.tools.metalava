@@ -1950,11 +1950,11 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `subclasses are populated correctly for classes and interfaces, and indirect subclasses aren't tracked`() {
+    fun `subclasses are populated correctly for sealed classes and interfaces, and indirect subclasses aren't tracked`() {
         runCodebaseTest(
             signature(
                 """
-                    // Signature format: 2.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public final class MyIndirectInterfaceImplementor extends test.pkg.MyInterfaceImplementorA {
                         ctor public MyIndirectInterfaceImplementor();
@@ -1962,22 +1962,19 @@ class CommonClassItemTest : BaseModelTest() {
                       public final class MyIndirectSubclass extends test.pkg.MySubclassA {
                         ctor public MyIndirectSubclass();
                       }
-                      public class MyInterfaceImplementorA implements test.pkg.ParentInterface {
-                        ctor public MyInterfaceImplementorA();
+                      public abstract sealed exhaustive class MyInterfaceImplementorA implements test.pkg.ParentInterface {
                       }
                       public final class MyInterfaceImplementorB implements test.pkg.ParentInterface {
                         ctor public MyInterfaceImplementorB();
                       }
-                      public class MySubclassA extends test.pkg.ParentClass {
-                        ctor public MySubclassA();
+                      public abstract sealed exhaustive class MySubclassA extends test.pkg.ParentClass {
                       }
                       public final class MySubclassB extends test.pkg.ParentClass {
                         ctor public MySubclassB();
                       }
-                      public class ParentClass {
-                        ctor public ParentClass();
+                      public abstract sealed exhaustive class ParentClass {
                       }
-                      public interface ParentInterface {
+                      public sealed exhaustive interface ParentInterface {
                       }
                     }
                 """
@@ -1985,64 +1982,53 @@ class CommonClassItemTest : BaseModelTest() {
             kotlin(
                 """
                     package test.pkg
-                    open class ParentClass
 
-                    open class MySubclassA : ParentClass()
+                    sealed class ParentClass
+                    sealed class MySubclassA : ParentClass()
                     class MySubclassB : ParentClass()
-
                     class MyIndirectSubclass : MySubclassA()
 
-                    interface ParentInterface
-
-                    open class MyInterfaceImplementorA : ParentInterface
+                    sealed interface ParentInterface
+                    sealed class MyInterfaceImplementorA : ParentInterface
                     class MyInterfaceImplementorB : ParentInterface
-
                     class MyIndirectInterfaceImplementor : MyInterfaceImplementorA()
                 """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class ParentClass {}
-                    public class MySubclassA extends ParentClass {}
-                    public class MySubclassB extends ParentClass {}
-                    public class MyIndirectSubclass extends MySubclassA {}
-
-                    public interface ParentInterface {}
-                    public class MyInterfaceImplementorA implements ParentInterface {}
-                    public class MyInterfaceImplementorB implements ParentInterface {}
-                    public class MyIndirectInterfaceImplementor extends MyInterfaceImplementorA {}
-                """
-                    .trimIndent()
             )
         ) {
             val testClass = codebase.assertClass("test.pkg.ParentClass")
-            assertEquals(2, testClass.subClasses().size)
-            assertTrue("test.pkg.MySubclassA" in testClass.subClasses().map { it.qualifiedName() })
-            assertTrue("test.pkg.MySubclassB" in testClass.subClasses().map { it.qualifiedName() })
+            assertEquals(2, testClass.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MySubclassA" in
+                    testClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+            assertTrue(
+                "test.pkg.MySubclassB" in
+                    testClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
 
             val testInterface = codebase.assertClass("test.pkg.ParentInterface")
-            assertEquals(2, testInterface.subClasses().size)
+            assertEquals(2, testInterface.sealedClassDirectSubclasses().size)
             assertTrue(
                 "test.pkg.MyInterfaceImplementorA" in
-                    testInterface.subClasses().map { it.qualifiedName() }
+                    testInterface.sealedClassDirectSubclasses().map { it.qualifiedName() }
             )
             assertTrue(
                 "test.pkg.MyInterfaceImplementorB" in
-                    testInterface.subClasses().map { it.qualifiedName() }
+                    testInterface.sealedClassDirectSubclasses().map { it.qualifiedName() }
             )
 
             val subClass = codebase.assertClass("test.pkg.MySubclassA")
-            assertEquals(1, subClass.subClasses().size)
+            assertEquals(1, subClass.sealedClassDirectSubclasses().size)
             assertTrue(
-                "test.pkg.MyIndirectSubclass" in subClass.subClasses().map { it.qualifiedName() }
+                "test.pkg.MyIndirectSubclass" in
+                    subClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
             )
 
             val ifaceImplementor = codebase.assertClass("test.pkg.MyInterfaceImplementorA")
-            assertEquals(1, ifaceImplementor.subClasses().size)
+            assertEquals(1, ifaceImplementor.sealedClassDirectSubclasses().size)
             assertTrue(
                 "test.pkg.MyIndirectInterfaceImplementor" in
-                    ifaceImplementor.subClasses().map { it.qualifiedName() }
+                    ifaceImplementor.sealedClassDirectSubclasses().map { it.qualifiedName() }
             )
         }
     }
