@@ -243,6 +243,14 @@ abstract class AbstractItemDocumentation(
         docComment.hasBlockTagOfType(blockTagType)
 
     override fun print(writer: PrintWriter) {
+        // Remove all `@hide`, and `@doconly` tags before printing to prevent them from being
+        // visible to the documentation generation tool that consumes the stubs. That is because the
+        // tool may act upon them, e.g. hiding any APIs that are tagged with `@hide`.
+        docComment.removeBlockTagSections {
+            val type = it.tagType.name
+            type == "hide" || type == "doconly"
+        }
+
         val originalText = text
 
         // Before printing fully qualify the comment. This expects a whole comment and will fix up

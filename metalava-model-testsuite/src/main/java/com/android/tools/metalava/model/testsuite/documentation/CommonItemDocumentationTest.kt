@@ -1515,7 +1515,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 java(
                     """
                         /**
-                         * @hide
+                         * Some comment.
                          */
                         @PkgAnno
                         package test.pkg;
@@ -1534,7 +1534,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         ) {
             val testPackage = codebase.assertPackage("test.pkg")
             testPackage.assertPrintedDocumentation(
-                expectedOutput = "/** @hide */\n",
+                expectedOutput = "/** Some comment. */\n",
             )
 
             assertEquals(
