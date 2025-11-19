@@ -47,7 +47,7 @@ Available Issues                             |  Category                        
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
   AddedReified                               |  binary_compatibility_only            |   error
-  AddedSubclassToSealedClass                 |  source_compatibility_only            |   hidden
+  AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
   AndroidUri                                 |  api_lint                             |   error
   AnnotationExtraction                       |  unknown                              |   error
@@ -204,7 +204,7 @@ Available Issues                             |  Category                        
   ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
-  SealedClassExhaustivityChanged             |  source_compatibility_only            |   hidden
+  SealedClassExhaustivityChanged             |  source_compatibility_only            |   error
   ServiceName                                |  api_lint                             |   error
   SetterReturnsThis                          |  api_lint                             |   warning
   ShowingMemberInHiddenClass                 |  api_lint                             |   error
