@@ -54,6 +54,18 @@ interface CodebaseAssembler {
     ): PackageItem
 
     /**
+     * Gets the [PackageInfo] from the underlying model.
+     *
+     * This will only be used for packages that are known to exist in the underlying model.
+     *
+     * This will be used to create packages whether they are created by [createPackageItem] or
+     * [createPackageFromUnderlyingModel]. It ensures consistent behavior for packages from source
+     * `package-info.java` files and binary `package-info.class` files.
+     */
+    fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo =
+        PackageInfo(annotations = createPackageAnnotations(packageName))
+
+    /**
      * Create package annotations for [packageName].
      *
      * This will be used to create annotations for packages whether they are created by
