@@ -271,7 +271,7 @@ internal class TurbineCodebaseInitialiser(
             gatherPackageJavadoc(
                 codebase.reporter,
                 sourceSet,
-                packageNameFilter = { true },
+                packageNameFilter = { isValidPackage(it) },
                 packageInfoList
             ) { (unit, packageName) ->
                 val file = File(unit.source().path())
