@@ -608,9 +608,11 @@ internal class PsiItemDocumentation(
          * Get an [ItemDocumentationFactory] for the [psi].
          *
          * If [PsiBasedCodebase.allowReadingComments] is `true` then this will return a factory that
-         * creates a [PsiItemDocumentation] instance. If [extraDocs] is not-null then this will
-         * return a factory that will create an [ItemDocumentation] wrapper around [extraDocs],
-         * otherwise it will return [ItemDocumentation.NONE_FACTORY].
+         * creates a [PsiItemDocumentation] instance that contains the javadoc from [psi] plus
+         * [extraDocs] if it is not `null`.
+         *
+         * If [PsiBasedCodebase.allowReadingComments] is `false` then this will just return
+         * [ItemDocumentation.NONE_FACTORY] and ignore [extraDocs].
          *
          * @param psi the underlying element from which the documentation will be retrieved.
          *   Although this is usually accessible through the [PsiItem.psi] property, that is not
@@ -626,12 +628,8 @@ internal class PsiItemDocumentation(
                 // When reading comments provide full access to them.
                 { item -> PsiItemDocumentation(item, codebase, psi, extraDocs) }
             } else {
-                // If extraDocs are provided then they most likely contain documentation for the
-                // package from a `package-info.java` or `package.html` file. Make sure that they
-                // are included in the `ItemDocumentation`, otherwise package hiding will not work.
-                extraDocs?.toItemDocumentationFactory()
-                    // Otherwise, there is no documentation to use.
-                    ?: ItemDocumentation.NONE_FACTORY
+                // Otherwise, there is no documentation to use.
+                ItemDocumentation.NONE_FACTORY
             }
     }
 }

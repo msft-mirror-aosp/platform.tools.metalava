@@ -1490,7 +1490,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         ) {
             val testPackage = codebase.assertPackage("test.pkg")
             testPackage.assertPrintedDocumentation(
-                expectedOutput = "/** @hide */\n",
+                expectedOutput = "",
             )
 
             assertEquals(
