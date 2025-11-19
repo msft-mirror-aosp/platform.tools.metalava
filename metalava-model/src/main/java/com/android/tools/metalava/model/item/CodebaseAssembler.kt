@@ -43,12 +43,13 @@ typealias DefaultCodebaseFactory = (CodebaseAssembler) -> DefaultCodebase
 interface CodebaseAssembler {
     /**
      * Create a [PackageItem] for package called [packageName], with additional information from
-     * [packageDoc] whose containing package, if any, is [containingPackage].
+     * [packageInfo].
+     *
+     * The returned [PackageItem]'s [PackageItem.containingPackage] is set to [containingPackage].
      */
     fun createPackageItem(
         packageName: String,
-        annotations: List<AnnotationItem>,
-        packageDoc: PackageDoc,
+        packageInfo: PackageInfo,
         containingPackage: PackageItem?,
     ): PackageItem
 
@@ -93,21 +94,21 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
 
     override fun createPackageItem(
         packageName: String,
-        annotations: List<AnnotationItem>,
-        packageDoc: PackageDoc,
+        packageInfo: PackageInfo,
         containingPackage: PackageItem?,
     ): PackageItem {
-        val documentationFactory = packageDoc.commentFactory ?: emptyPackageDocumentationFactory()
+        val documentationFactory = packageInfo.commentFactory ?: emptyPackageDocumentationFactory()
+        val annotations = packageInfo.annotations
         val modifiers =
             if (annotations.isEmpty()) DEFAULT_PACKAGE_MODIFIERS
             else createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
         return itemFactory.createPackageItem(
-            packageDoc.fileLocation,
+            packageInfo.fileLocation,
             modifiers,
             documentationFactory,
             packageName,
             containingPackage,
-            packageDoc.overview,
+            packageInfo.overview,
         )
     }
 

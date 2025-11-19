@@ -57,8 +57,8 @@ import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
@@ -566,14 +566,16 @@ private constructor(
             return existing
         }
 
-        // Wrap the file location in a PackageDocs so that findOrCreatePackage(...) will create a
-        // package with them.
-        val packageDoc = MutablePackageDoc(name, fileLocation = tokenizer.fileLocation())
-        val packageDocs = PackageDocs(mapOf(name to packageDoc))
+        // Wrap the file location and annotations in a PackageInfo.
+        val packageInfo =
+            PackageInfo(
+                fileLocation = tokenizer.fileLocation(),
+                annotations = annotations,
+            )
 
         // Create the package. This relies on containing packages always being processed before any
         // contained package which is guaranteed by the signature file order.
-        return codebase.packageTracker.createPackage(name, packageDocs, annotations)
+        return codebase.packageTracker.createPackage(name, PackageDocs.EMPTY, packageInfo)
     }
 
     private fun parsePackage(tokenizer: Tokenizer) {

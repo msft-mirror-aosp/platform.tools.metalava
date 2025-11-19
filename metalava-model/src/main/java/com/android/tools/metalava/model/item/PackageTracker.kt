@@ -17,13 +17,52 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
+
+data class PackageInfo(
+    /**
+     * Location of the `package-info.java`, `package-info.class` or `package.html` file from which
+     * this information was obtained.
+     *
+     * Is [FileLocation.UNKNOWN] for packages which do not have one of the above package files.
+     */
+    val fileLocation: FileLocation = FileLocation.UNKNOWN,
+
+    /** The list of annotations, if any, applied to the package. */
+    val annotations: List<AnnotationItem>,
+
+    /**
+     * Factory for creating an [ItemDocumentation] instance containing the package level document.
+     *
+     * This factory will be invoked when creating the associated [PackageItem].
+     *
+     * If specified this is used for [PackageItem.documentation].
+     */
+    val commentFactory: ItemDocumentationFactory? = null,
+
+    /**
+     * The `overview.html` file.
+     *
+     * If specified this is used for [PackageItem.overviewDocumentation].
+     */
+    val overview: ResourceFile? = null,
+) {
+    companion object {
+        val EMPTY =
+            PackageInfo(
+                annotations = emptyList(),
+            )
+    }
+}
 
 class PackageTracker(
     private val assembler: CodebaseAssembler,
@@ -66,16 +105,29 @@ class PackageTracker(
             return existing
         }
 
-        val annotations = assembler.createPackageAnnotations(packageName)
+        // Get the `PackageDoc`, if any, to use for creating this package.
+        val packageDoc = packageDocs[packageName]
 
-        return createPackage(packageName, packageDocs, annotations)
+        val packageInfo =
+            PackageInfo(
+                fileLocation = packageDoc.fileLocation,
+                annotations = assembler.createPackageAnnotations(packageName),
+                commentFactory = packageDoc.commentFactory,
+                overview = packageDoc.overview,
+            )
+
+        return createPackage(
+            packageName,
+            packageDocs,
+            packageInfo,
+        )
     }
 
     /** Create [PackageItem] for [packageName] using additional information from [packageDocs]. */
     fun createPackage(
         packageName: String,
         packageDocs: PackageDocs,
-        annotations: List<AnnotationItem>,
+        packageInfo: PackageInfo,
     ): PackageItem {
         // Unless this is the root package, it has a containing package so get that before creating
         // this package, so it can be passed into the `packageItemFactory`.
@@ -84,11 +136,7 @@ class PackageTracker(
             if (containingPackageName == null) null
             else findOrCreatePackage(containingPackageName, packageDocs)
 
-        // Get the `PackageDoc`, if any, to use for creating this package.
-        val packageDoc = packageDocs[packageName]
-
-        val packageItem =
-            assembler.createPackageItem(packageName, annotations, packageDoc, containingPackage)
+        val packageItem = assembler.createPackageItem(packageName, packageInfo, containingPackage)
 
         // The packageItemFactory may provide its own modifiers so check to make sure that they are
         // public.
