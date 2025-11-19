@@ -83,7 +83,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
                         public class Foo {}
                     """
-                        .trimIndent()
                 ),
             ),
         ) {
@@ -104,7 +103,6 @@ class CommonPackageItemTest : BaseModelTest() {
                          */
                         package test.pkg;
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
@@ -112,7 +110,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
                         public class Foo {}
                     """
-                        .trimIndent()
                 ),
             ),
         ) {
@@ -132,7 +129,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
                         public class Foo {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
@@ -141,7 +137,6 @@ class CommonPackageItemTest : BaseModelTest() {
                          */
                         package test.pkg;
                     """
-                        .trimIndent()
                 ),
             ),
         ) {
@@ -160,7 +155,6 @@ class CommonPackageItemTest : BaseModelTest() {
                         @android.annotation.NonNull
                         package test.pkg;
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
@@ -168,7 +162,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
                         public class Foo {}
                     """
-                        .trimIndent()
                 ),
             ),
             testFixture =

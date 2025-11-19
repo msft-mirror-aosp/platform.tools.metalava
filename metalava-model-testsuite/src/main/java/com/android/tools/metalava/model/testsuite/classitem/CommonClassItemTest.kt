@@ -918,14 +918,12 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Parent<M, N> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> extends Parent<X, Y> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -939,7 +937,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -949,7 +946,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Parent<M, N>
                         class Child<X, Y> : Parent<X, Y>()
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -980,28 +976,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Class4<I> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class3<G, H> extends Class4<G> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class2<D, E, F> extends Class3<D, F> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class1<A, B, C> extends Class2<B, C, A> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1019,7 +1011,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1031,7 +1022,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Class2<D, E, F> : Class3<D, F>
                         class Class1<A, B, C> : Class2<B, C, A>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1078,21 +1068,18 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Grandparent<A, B> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Parent<T> extends Grandparent<T, Parent<T>> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child extends Parent<Child> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1108,7 +1095,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1119,7 +1105,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Parent<T> : Grandparent<T, Parent<T>>
                         class Child : Parent<Child>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1161,28 +1146,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public interface Interface3<G, H> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface2<E, F> extends Interface3<E, F> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface1<C, D> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class<A, B> implements Interface1<A, B>, Interface2<B, A>{}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1200,7 +1181,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1212,7 +1192,6 @@ class CommonClassItemTest : BaseModelTest() {
                         interface Interface1<C, D>
                         class Class<A, B> : Interface1<A, B>, Interface2<B, A>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1255,28 +1234,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public interface Root<T> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface1<T1> extends Root<T1> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface2<T2> extends Root<T2> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> implements Interface1<X>, Interface2<Y> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1294,7 +1269,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1306,7 +1280,6 @@ class CommonClassItemTest : BaseModelTest() {
                         interface Interface2<T2> : Root<T2>
                         class Child<X, Y> : Interface1<X>, Interface2<Y>
                     """
-                        .trimIndent()
                 )
             )
         ) {
