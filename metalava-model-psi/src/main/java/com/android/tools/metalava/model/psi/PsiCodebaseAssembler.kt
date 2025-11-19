@@ -73,7 +73,6 @@ import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
@@ -1095,19 +1094,11 @@ internal class PsiCodebaseAssembler(
         // Make sure that this is actually a package.
         findPsiPackage(packageName) ?: return null
 
-        // Look for javadoc on the package statement; this is NOT handed to us on the PsiPackage!
-        val comment = PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
-        if (comment != null) {
-            return MutablePackageDoc(
-                qualifiedName = packageName,
-                fileLocation = PsiFileLocation.fromPsiElement(psiFile),
-                commentFactory =
-                    PsiItemDocumentation.factory(packageStatement, codebase, comment.text),
-            )
-        }
-
-        // No comment could be found.
-        return null
+        return MutablePackageDoc(
+            qualifiedName = packageName,
+            fileLocation = PsiFileLocation.fromPsiElement(psiFile),
+            commentFactory = PsiItemDocumentation.factory(packageStatement, codebase),
+        )
     }
 
     /** Check the [psiFile] for any syntax errors. */
