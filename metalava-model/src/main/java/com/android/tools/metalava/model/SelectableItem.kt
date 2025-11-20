@@ -123,24 +123,16 @@ interface SelectableItem : Item {
      */
     val documentation: ItemDocumentation?
 
-    /**
-     * Get the [ItemDocumentation], return `null` if it is [ItemDocumentation.NONE].
-     *
-     * Temporary property used to migrate code off [documentation].
-     */
-    val optionalDocumentation: ItemDocumentation?
-        get() = documentation
-
     /** Get the [ItemDocumentation], failing if it is `null`. */
     val requiredDocumentation: ItemDocumentation
         get() =
-            optionalDocumentation
+            documentation
                 ?: error(
                     "Cannot access documentation of $this as it does not support documentation"
                 )
 
     override val description: DocContent?
-        get() = optionalDocumentation?.mainDescription
+        get() = documentation?.mainDescription
 
     override val descriptionOwner: DocContentOwner
         get() = requiredDocumentation.mainDescriptionOwner

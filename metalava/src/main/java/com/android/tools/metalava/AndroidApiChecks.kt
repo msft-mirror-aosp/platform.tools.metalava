@@ -74,7 +74,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                 }
 
                 override fun visitMethod(method: MethodItem) {
-                    val documentation = method.optionalDocumentation ?: return
+                    val documentation = method.documentation ?: return
                     val content = documentation.blockTagDescription("return") ?: return
                     checkVariable(
                         method,
@@ -85,7 +85,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val documentation = field.optionalDocumentation ?: return
+                    val documentation = field.documentation ?: return
                     val content = documentation.mainDescription ?: return
                     if (field.name().contains("ACTION")) {
                         checkIntentAction(field, documentation)
@@ -111,14 +111,14 @@ class AndroidApiChecks(val reporter: Reporter) {
     }
 
     private fun checkTodos(item: SelectableItem) {
-        val documentation = item.optionalDocumentation ?: return
+        val documentation = item.documentation ?: return
         if (documentation.check(CONTAINS_TODO_PREDICATE)) {
             reporter.report(Issues.TODO, item, "Documentation mentions 'TODO'")
         }
     }
 
     private fun checkRequiresPermission(callable: CallableItem) {
-        val documentation = callable.optionalDocumentation ?: return
+        val documentation = callable.documentation ?: return
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()

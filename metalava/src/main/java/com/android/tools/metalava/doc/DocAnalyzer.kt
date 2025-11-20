@@ -284,7 +284,7 @@ class DocAnalyzer(
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
                     // Ignore Items without documentation.
                     item as? SelectableItem ?: return
-                    val documentation = item.optionalDocumentation ?: return
+                    val documentation = item.documentation ?: return
 
                     // Drop out if it already has a deprecated Javadoc tag.
                     if (documentation.hasBlockTagOfType("deprecated")) {
@@ -312,13 +312,13 @@ class DocAnalyzer(
                             item.description.containsNullWord()
                         }
                         is CallableItem -> {
-                            val documentation = item.optionalDocumentation ?: return false
+                            val documentation = item.documentation ?: return false
                             // Don't inspect param docs (and other tags) for this purpose.
                             documentation.mainDescription.containsNullWord() ||
                                 documentation.blockTagDescription("return").containsNullWord()
                         }
                         is SelectableItem -> {
-                            val documentation = item.optionalDocumentation ?: return false
+                            val documentation = item.documentation ?: return false
                             documentation.mainDescription.containsNullWord()
                         }
                         else -> false
@@ -701,7 +701,7 @@ class DocAnalyzer(
 
         // Documentation of the annotation class that is to be copied into the item where the
         // annotation is used.
-        val annotationDocumentation = cls.optionalDocumentation ?: return
+        val annotationDocumentation = cls.documentation ?: return
 
         // Get the text for the supplied tag as that is what needs to be copied into the use site.
         // If there is no such text then return immediately.

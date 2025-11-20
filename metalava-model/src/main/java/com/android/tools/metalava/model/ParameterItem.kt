@@ -108,7 +108,7 @@ interface ParameterItem : ClassContentItem, Item {
     ): ParameterItem
 
     override val description: DocContent?
-        get() = containingCallable().optionalDocumentation?.paramTagDescription(name())
+        get() = containingCallable().documentation?.paramTagDescription(name())
 
     override val descriptionOwner: DocContentOwner
         get() = containingCallable().requiredDocumentation.paramTagDescriptionOwner(name())
