@@ -1271,10 +1271,10 @@ class JavadocTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:4: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:9: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:14: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:19: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
                 """,
             api =
                 """
@@ -1336,7 +1336,7 @@ class JavadocTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:6: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:6: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
                 """,
             docStubs = true,
             stubFiles =
@@ -1400,17 +1400,23 @@ class JavadocTest : DriverTest() {
                     expectedOutputContents =
                         """
                             // Baseline format: 1.0
-                            InvalidHideDocTag: test/pkg/Foo.java:
-                                Invalid @hide syntax, it is ignored as it must be a block tag
+                            InvalidHideDocTag: test.pkg.Foo#bar():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidHideDocTag: test.pkg.Foo#baz():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidHideDocTag: test.pkg.Foo#quux():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidHideDocTag: test.pkg.Foo#qux():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
                         """,
                     silentUpdate = false,
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:4: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:9: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:14: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:19: warning: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. (ErrorWhenNew) [InvalidHideDocTag]
                 """,
             api =
                 """
