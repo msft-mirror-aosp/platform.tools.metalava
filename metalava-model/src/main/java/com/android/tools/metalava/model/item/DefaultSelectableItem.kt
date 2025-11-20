@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
@@ -59,9 +58,6 @@ abstract class DefaultSelectableItem(
      * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
      * instead. The latter is immutable and attempting to change it will throw an error but that is
      * safe as only documentation for API [Item]s is modified.
-     *
-     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
-     * [ParameterItem] as they do not have documentation.
      */
     final override val documentation =
         if (modifiers.isPrivate()) ItemDocumentation.NONE
