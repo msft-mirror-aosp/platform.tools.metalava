@@ -44,7 +44,6 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
@@ -871,18 +870,11 @@ internal class PsiCodebaseAssembler(
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
-        // Split the `PsiFile`s into `PsiClass`es and `package-info.java` `PsiJavaFile`s.
-        val (packageInfoFiles, psiClasses) = splitPsiFilesIntoClassesAndPackageInfoFiles(psiFiles)
+        // Get the `PsiClass`es from the `PsiFile`s.
+        val psiClasses = getPsiClassesFromPsiFiles(psiFiles)
 
         // Gather all package related javadoc.
-        val packageDocs =
-            gatherPackageJavadoc(
-                reporter,
-                sourceSet,
-                packageNameFilter = { findPsiPackage(it) != null },
-                packageInfoFiles,
-                packageInfoDocExtractor = { getOptionalPackageDocFromPackageInfoFile(it) },
-            )
+        val packageDocs = gatherPackageJavadoc(sourceSet) { findPsiPackage(it) != null }
 
         // Create the initial set of packages that were found in the source files.
         codebase.packageTracker.createInitialPackages(packageDocs)
@@ -1038,37 +1030,24 @@ internal class PsiCodebaseAssembler(
     }
 
     /**
-     * Split the [psiFiles] into separate `package-info.java` [PsiJavaFile]s and [PsiClass]es.
+     * Extract all the top level classes from [psiFiles].
      *
-     * During the processing this checks each [PsiFile] for unresolved imports and each [PsiClass]
-     * for syntax errors.
+     * During the processing this checks each [PsiFile] for unresolved imports and syntax errors.
      */
-    private fun splitPsiFilesIntoClassesAndPackageInfoFiles(
-        psiFiles: List<PsiFile>
-    ): Pair<List<PsiJavaFile>, List<PsiClass>> {
-        val psiClasses = mutableListOf<PsiClass>()
-        val packageInfoFiles = mutableListOf<PsiJavaFile>()
-
+    private fun getPsiClassesFromPsiFiles(psiFiles: List<PsiFile>): List<PsiClass> {
         // Make sure we only process the files once; sometimes there's overlap in the source lists
-        for (psiFile in psiFiles.asSequence().distinct()) {
-            // Check for syntax errors across the whole file.
-            checkForSyntaxErrors(psiFile)
+        return psiFiles
+            .asSequence()
+            .distinct()
+            .flatMap { psiFile ->
+                // Check for syntax errors across the whole file.
+                checkForSyntaxErrors(psiFile)
 
-            checkForUnresolvedImports(psiFile)
+                checkForUnresolvedImports(psiFile)
 
-            val classes = getPsiClassesFromPsiFile(psiFile)
-            when {
-                classes.isEmpty() && psiFile is PsiJavaFile -> {
-                    if (psiFile.name == JAVA_PACKAGE_INFO) {
-                        packageInfoFiles.add(psiFile)
-                    }
-                }
-                else -> {
-                    psiClasses.addAll(classes)
-                }
+                getPsiClassesFromPsiFile(psiFile)
             }
-        }
-        return Pair(packageInfoFiles, psiClasses)
+            .toList()
     }
 
     /** Check to see if [psiFile] contains any unresolved imports. */
@@ -1101,25 +1080,6 @@ internal class PsiCodebaseAssembler(
         // Then, check for Kotlin classes, returning any that are found, or an empty list.
         val uFile = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
         return uFile?.classes?.map { it }?.toList() ?: emptyList()
-    }
-
-    /**
-     * Get the optional [MutablePackageDoc] from [psiFile].
-     *
-     * @param psiFile must be a `package-info.java` file.
-     */
-    private fun getOptionalPackageDocFromPackageInfoFile(psiFile: PsiJavaFile): MutablePackageDoc? {
-        val packageStatement = psiFile.packageStatement ?: return null
-        val packageName = packageStatement.packageName
-
-        // Make sure that this is actually a package.
-        findPsiPackage(packageName) ?: return null
-
-        return MutablePackageDoc(
-            qualifiedName = packageName,
-            fileLocation = PsiFileLocation.fromPsiElement(psiFile),
-            commentFactory = PsiItemDocumentation.factory(packageStatement, codebase),
-        )
     }
 
     /** Check the [psiFile] for any syntax errors. */
