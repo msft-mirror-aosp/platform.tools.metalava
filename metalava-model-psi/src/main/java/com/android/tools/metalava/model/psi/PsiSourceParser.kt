@@ -158,22 +158,29 @@ internal class PsiSourceParser(
         return assembler.codebase
     }
 
+    /** Lists all of the [KaModule]s that exist in this project. */
+    private fun UastEnvironment.findAllSourceModules(): List<KaSourceModule> {
+        return (KotlinProjectStructureProvider.getInstance(ideaProject)
+                as? KotlinStaticProjectStructureProvider)
+            ?.allModules
+            ?.filterIsInstance<KaSourceModule>() ?: emptyList()
+    }
+
     /**
      * Attempts to locate the [KaModule] which should be used to create kotlin-only APIs through the
-     * analysis API. For a non-KMP codebase, this will be the only module in the project. For a KMP
-     * codebase, this will be either the androidMain or jvmMain module.
+     * analysis API when creating a regular [Codebase].
      *
-     * In the future (b/407735063), all platforms will be analyzed for KMP projects, but for now,
-     * only the android or jvm target is analyzed.
+     * For non-KMP sources, this will be the only module in the project. For KMP sources, this will
+     * be either the androidMain or jvmMain module.
+     *
+     * All platforms are analyzed when creating a multiplatform codebase, but only the main module
+     * is used for the [Codebase] created by [parseSources].
      */
-    private fun findMainAnalysisModule(environment: UastEnvironment): KaModule? {
-        val modules =
-            (KotlinProjectStructureProvider.getInstance(environment.ideaProject)
-                    as? KotlinStaticProjectStructureProvider)
-                ?.allModules
-        return modules?.singleOrNull()
-            ?: modules?.singleOrNull { (it as? KaSourceModule)?.name == "androidMain" }
-            ?: modules?.singleOrNull { (it as? KaSourceModule)?.name == "jvmMain" }
+    private fun findMainAnalysisModule(environment: UastEnvironment): KaSourceModule? {
+        val modules = environment.findAllSourceModules()
+        return modules.singleOrNull()
+            ?: modules.singleOrNull { it.name == "androidMain" }
+            ?: modules.singleOrNull { it.name == "jvmMain" }
     }
 
     private fun isJdkModular(homePath: File): Boolean {
