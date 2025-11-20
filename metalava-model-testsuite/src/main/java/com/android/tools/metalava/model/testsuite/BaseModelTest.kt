@@ -385,6 +385,30 @@ abstract class BaseModelTest() :
     }
 
     /**
+     * Creates a [MultiplatformCodebase] from one of the supplied [sources] and then runs the [test]
+     * on that [MultiplatformCodebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    fun runMultiplatformCodebaseTest(
+        vararg sources: InputSet,
+        projectDescription: TestFile?,
+        testFixture: TestFixture = TestFixture(),
+        test: CodebaseContext.() -> Unit,
+    ) {
+        createCodebaseFromInputSetAndRun(
+            inputSets = sources,
+            projectDescription = projectDescription,
+            compiledSourceJar = null,
+            testFixture = testFixture,
+            createMultiplatformCodebaseAndRun = { inputs, test ->
+                runner.createMultiplatformCodebaseAndRun(inputs, test)
+            },
+            test = test,
+        )
+    }
+
+    /**
      * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
      * that [Codebase].
      *
