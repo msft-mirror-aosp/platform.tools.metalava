@@ -438,6 +438,21 @@ internal class TurbineCodebaseInitialiser(
     }
 
     /**
+     * Convert this qualified name consisting of a list of identifiers separated by '.' into a list
+     * of identifiers.
+     *
+     * The empty string is converted to an empty list, otherwise it is just split on '.'.
+     */
+    private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
+
+    /**
+     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
+     * on the classpath.
+     */
+    private fun isValidPackage(packageName: String) =
+        index.lookupPackage(packageName.qualifiedNameToIdentifierList()) != null
+
+    /**
      * Encapsulates information needed to create a [DefaultPackageItem] in [gatherPackageJavadoc].
      */
     data class PackageInfoClass(
@@ -537,7 +552,7 @@ internal class TurbineCodebaseInitialiser(
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
         // Make sure that the underlying package exists before creating one.
-        turbineElements.getPackageElement(qualifiedName) ?: return null
+        if (!isValidPackage(qualifiedName)) return null
         return codebase.findOrCreatePackage(qualifiedName)
     }
 
