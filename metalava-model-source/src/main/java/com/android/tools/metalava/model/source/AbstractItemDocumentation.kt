@@ -303,7 +303,7 @@ abstract class AbstractItemDocumentation(
     private fun checkForInvalidBlockTagUse(text: String, blockTag: String) {
         if (text.contains(blockTag)) {
             item.codebase.reporter.report(
-                Issues.INVALID_HIDE_DOC_TAG,
+                Issues.INVALID_BLOCK_TAG_USE,
                 item,
                 "Documentation contains '$blockTag' that is not used as a block tag; that could cause unexpected behavior downstream.",
                 fileLocation,

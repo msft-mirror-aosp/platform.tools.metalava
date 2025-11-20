@@ -121,8 +121,8 @@ Available Issues                             |  Category                        
   InternalClasses                            |  api_lint                             |   error
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
+  InvalidBlockTagUse                         |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
-  InvalidHideDocTag                          |  documentation                        |   warning_error_when_new
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
   InvalidNullConversion                      |  source_compatibility_only            |   error
   InvalidNullabilityAnnotation               |  unknown                              |   error
