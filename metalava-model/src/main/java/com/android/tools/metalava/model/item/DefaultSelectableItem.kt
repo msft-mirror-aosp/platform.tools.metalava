@@ -64,7 +64,10 @@ abstract class DefaultSelectableItem(
         else @Suppress("LeakingThis") documentationFactory(this)
 
     init {
-        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
+        if (
+            !modifiers.isDeprecated() &&
+                optionalDocumentation?.hasBlockTagOfType("deprecated") == true
+        ) {
             @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }
