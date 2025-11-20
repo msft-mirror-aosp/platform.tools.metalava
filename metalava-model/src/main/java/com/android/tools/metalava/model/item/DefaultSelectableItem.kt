@@ -55,13 +55,10 @@ abstract class DefaultSelectableItem(
      * initialized.
      *
      * If this is private then it cannot be included in an API so its documentation is irrelevant.
-     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
-     * instead. The latter is immutable and attempting to change it will throw an error but that is
-     * safe as only documentation for API [Item]s is modified.
+     * In that case this ignores its [ItemDocumentationFactory] and uses `null` instead.
      */
     final override val documentation =
-        if (modifiers.isPrivate()) ItemDocumentation.NONE
-        else @Suppress("LeakingThis") documentationFactory(this)
+        if (modifiers.isPrivate()) null else @Suppress("LeakingThis") documentationFactory(this)
 
     init {
         if (

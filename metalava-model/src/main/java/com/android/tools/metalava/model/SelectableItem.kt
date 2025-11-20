@@ -129,9 +129,9 @@ interface SelectableItem : Item {
      * Temporary property used to migrate code off [documentation].
      */
     val optionalDocumentation: ItemDocumentation?
-        get() = documentation.takeUnless { it === ItemDocumentation.NONE }
+        get() = documentation
 
-    /** Get the [ItemDocumentation], failing if it is [ItemDocumentation.NONE]. */
+    /** Get the [ItemDocumentation], failing if it is `null`. */
     val requiredDocumentation: ItemDocumentation
         get() =
             optionalDocumentation

@@ -93,11 +93,9 @@ internal class TextCodebaseAssembler(
      * Override to return an [ItemDocumentation.NONE_FACTORY].
      *
      * This will be called for every package loaded from a signature file as none of them have any
-     * documentation. The returned [ItemDocumentation.NONE_FACTORY] will create
-     * [ItemDocumentation.NONE] instances which will throw an exception if any attempt is made to
-     * modify the documentation. That should not be a problem as they will only be modified when
-     * creating stubs containing enhanced documentation which cannot be created from signature
-     * files.
+     * documentation. The returned [ItemDocumentation.NONE_FACTORY] will return `null`. That should
+     * not be a problem as [ItemDocumentation] is only needed when creating stubs containing
+     * enhanced documentation which cannot be created from signature files.
      */
     override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
 
