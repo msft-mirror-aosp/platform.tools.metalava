@@ -121,7 +121,7 @@ interface SelectableItem : Item {
      * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
      * qualified references to classes.
      */
-    val documentation: ItemDocumentation
+    val documentation: ItemDocumentation?
 
     /**
      * Get the [ItemDocumentation], return `null` if it is [ItemDocumentation.NONE].

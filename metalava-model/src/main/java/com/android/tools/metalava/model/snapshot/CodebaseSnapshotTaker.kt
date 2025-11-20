@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
@@ -219,6 +220,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         itemToSnapshot: SelectableItem,
         documentedItem: SelectableItem,
     ): ItemDocumentationFactory {
+        val documentation = documentedItem.documentation ?: return ItemDocumentation.NONE_FACTORY
+
         // The documentation does not need to be reverted if...
         if (
             // the item is not being reverted
@@ -230,9 +233,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 ||
                 itemToSnapshot.effectivelyDeprecated
         )
-            return documentedItem.documentation.snapshottingFactory()
+            return documentation.snapshottingFactory()
 
-        val documentation = documentedItem.documentation
         return { item -> documentation.snapshot(item).apply { removeDeprecatedSection() } }
     }
 

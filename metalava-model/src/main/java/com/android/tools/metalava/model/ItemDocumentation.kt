@@ -255,7 +255,9 @@ interface ItemDocumentation {
 }
 
 /** Return an [ItemDocumentationFactory] that will create a duplicate of this. */
-fun ItemDocumentation.duplicatingFactory() = this::duplicate
+fun ItemDocumentation?.duplicatingFactory() =
+    this?.let { it::duplicate } ?: ItemDocumentation.NONE_FACTORY
 
 /** Return an [ItemDocumentationFactory] that will take a snapshot of this. */
-fun ItemDocumentation.snapshottingFactory() = this::snapshot
+fun ItemDocumentation?.snapshottingFactory() =
+    this?.let { it::snapshot } ?: ItemDocumentation.NONE_FACTORY
