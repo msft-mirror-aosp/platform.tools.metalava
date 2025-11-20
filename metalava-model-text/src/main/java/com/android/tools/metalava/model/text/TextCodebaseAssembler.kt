@@ -212,7 +212,6 @@ internal class TextCodebaseAssembler(
                             trustedApi = true,
                             supportsDocumentation = false,
                             assembler = assembler,
-                            isMultiplatform = false,
                         )
                     },
                     classResolver = classResolver,
