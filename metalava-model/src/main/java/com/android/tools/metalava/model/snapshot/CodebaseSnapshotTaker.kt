@@ -51,6 +51,7 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.snapshottingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.Value
 import java.util.IdentityHashMap
@@ -153,7 +154,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         MutablePackageDoc(
                             qualifiedName = qualifiedName,
                             fileLocation = pkgItem.fileLocation,
-                            commentFactory = pkgItem.documentation::snapshot,
+                            commentFactory = pkgItem.documentation.snapshottingFactory(),
                             overview = pkgItem.overviewDocumentation,
                         )
                     put(qualifiedName, packageDoc)
@@ -229,7 +230,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 ||
                 itemToSnapshot.effectivelyDeprecated
         )
-            return documentedItem.documentation::snapshot
+            return documentedItem.documentation.snapshottingFactory()
 
         val documentation = documentedItem.documentation
         return { item -> documentation.snapshot(item).apply { removeDeprecatedSection() } }

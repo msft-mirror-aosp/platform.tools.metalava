@@ -253,3 +253,9 @@ interface ItemDocumentation {
             inaccessible()
     }
 }
+
+/** Return an [ItemDocumentationFactory] that will create a duplicate of this. */
+fun ItemDocumentation.duplicatingFactory() = this::duplicate
+
+/** Return an [ItemDocumentationFactory] that will take a snapshot of this. */
+fun ItemDocumentation.snapshottingFactory() = this::snapshot
