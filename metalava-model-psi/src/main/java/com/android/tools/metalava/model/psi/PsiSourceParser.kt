@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
@@ -174,7 +175,7 @@ internal class PsiSourceParser(
      * For non-KMP sources, this will be the only module in the project. For KMP sources, this will
      * be either the androidMain or jvmMain module.
      *
-     * All platforms are analyzed when creating a multiplatform codebase, but only the main module
+     * All platforms are analyzed when using [createMultiplatformCodebase], but only the main module
      * is used for the [Codebase] created by [parseSources].
      */
     private fun findMainAnalysisModule(environment: UastEnvironment): KaSourceModule? {
@@ -211,7 +212,18 @@ internal class PsiSourceParser(
     }
 
     override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
-        TODO("b/407735063")
+        if (!useK2Uast) error("Multiplatform codebase creation requires K2 UAST.")
+
+        val config = UastEnvironment.Configuration.create(useFirUast = true)
+        config.javaLanguageLevel = javaLanguageLevel
+        configureUastEnvironmentFromProjectDescription(config, projectDescription)
+        val environment = psiEnvironmentManager.createEnvironment(config)
+
+        return KaCodebaseAssembler.assembleMultiplatform(
+            environment.findAllSourceModules(),
+            projectDescription,
+            codebaseConfig
+        )
     }
 
     fun mergeFromJar(existingCodebase: PsiBasedCodebase, jarFile: File) {
