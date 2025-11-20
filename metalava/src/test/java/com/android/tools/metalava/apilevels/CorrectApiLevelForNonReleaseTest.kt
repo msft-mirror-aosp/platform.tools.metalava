@@ -18,6 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
+import com.android.tools.metalava.ARG_API_VERSION_RANGE
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
@@ -229,6 +230,7 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         @Suppress("DEPRECATION") assertEquals(-1, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 
+    // TODO : b/454050901 remove this test once --current-version is deprecated
     @Test
     fun `Correct API Level for release (REL) with current version arg greater than last finalized version`() {
         val lastFinalizedVersion = 35
@@ -242,7 +244,9 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
                     ARG_CURRENT_CODENAME,
                     "REL", // not just Z, but very ZZZ
                     ARG_CURRENT_VERSION,
-                    (lastFinalizedVersion + 1).toString()
+                    (lastFinalizedVersion + 1).toString(),
+                    ARG_API_VERSION_RANGE,
+                    "1:35"
                 ),
             sourceFiles =
                 arrayOf(
