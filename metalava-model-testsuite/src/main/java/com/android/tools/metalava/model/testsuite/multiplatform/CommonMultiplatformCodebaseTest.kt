@@ -46,7 +46,7 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
                     createAndroidModuleDescription(arrayOf(androidSource), dependsOn = emptyList())
                 )
         ) {
-            assertThat(multiplatformCodebase.sourceSets).containsExactly("androidMain")
+            multiplatformCodebase.assertSourceSets("androidMain")
         }
     }
 
@@ -86,8 +86,86 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
                     createNativeModuleDescription(arrayOf(nativeSource)),
                 )
         ) {
-            assertThat(multiplatformCodebase.sourceSets)
-                .containsExactly("commonMain", "androidMain", "nativeMain")
+            multiplatformCodebase.assertSourceSets("commonMain", "androidMain", "nativeMain")
+        }
+    }
+
+    @Test
+    fun `Test finding and listing packages`() {
+        val commonSource =
+            kotlin(
+                "common/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class F00
+                """
+            )
+        val androidSource =
+            arrayOf(
+                kotlin(
+                    "androidMain/src/test/pkg/Foo_android.kt",
+                    """
+                    package test.pkg
+                    actual class Foo
+                    """
+                ),
+                kotlin(
+                    "androidMain/src/test/pkg/android/Android.kt",
+                    """
+                    package test.pkg.android
+                    class Android
+                    """
+                ),
+            )
+        val nativeSource =
+            arrayOf(
+                kotlin(
+                    "nativeMain/src/test/pkg/Foo_native.kt",
+                    """
+                    package test.pkg
+                    actual class Foo
+                    """
+                ),
+                kotlin(
+                    "nativeMain/src/test/pkg/native/Native.kt",
+                    """
+                    package test.pkg.native
+                    class Native
+                    """
+                ),
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, *androidSource, *nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(androidSource),
+                    createNativeModuleDescription(nativeSource),
+                )
+        ) {
+            val testPkg = multiplatformCodebase.assertPackage("test.pkg")
+            assertThat(testPkg.qualifiedName).isEqualTo("test.pkg")
+            assertThat(testPkg.toString()).isEqualTo("multiplatform package test.pkg")
+            testPkg.assertSourceSets("commonMain", "androidMain", "nativeMain")
+
+            val androidPkg = multiplatformCodebase.assertPackage("test.pkg.android")
+            assertThat(androidPkg.qualifiedName).isEqualTo("test.pkg.android")
+            assertThat(androidPkg.toString()).isEqualTo("multiplatform package test.pkg.android")
+            androidPkg.assertSourceSets("androidMain")
+
+            val nativePkg = multiplatformCodebase.assertPackage("test.pkg.native")
+            assertThat(nativePkg.qualifiedName).isEqualTo("test.pkg.native")
+            assertThat(nativePkg.toString()).isEqualTo("multiplatform package test.pkg.native")
+            nativePkg.assertSourceSets("nativeMain")
+
+            val fakePkg = multiplatformCodebase.findPackage("test.pkg.fake")
+            assertThat(fakePkg).isNull()
+
+            // The full list of packages may also contain packages from the classpath, but it should
+            // have at minimum all packages from source.
+            assertThat(multiplatformCodebase.packages)
+                .containsAtLeast(testPkg, androidPkg, nativePkg)
         }
     }
 }
