@@ -23,6 +23,7 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
@@ -207,6 +208,10 @@ internal class PsiSourceParser(
         val codebase = assembler.codebase
         assembler.initializeFromJar(apiJar)
         return codebase
+    }
+
+    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+        TODO("b/407735063")
     }
 
     fun mergeFromJar(existingCodebase: PsiBasedCodebase, jarFile: File) {
