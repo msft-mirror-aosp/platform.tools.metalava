@@ -23,7 +23,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.io.PrintWriter
 
 /** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
-typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
+typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation?
 
 /**
  * The documentation associated with an [Item].

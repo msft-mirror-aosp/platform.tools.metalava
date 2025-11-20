@@ -135,7 +135,7 @@ internal class PsiItemDocumentation(
 
     override fun duplicate(item: SelectableItem) =
         if (item is PsiItem) PsiItemDocumentation(item, codebase, psi)
-        else text.toItemDocumentationFactory()(item)
+        else text.toItemDocumentationFactory()(item)!!
 
     override fun snapshot(item: SelectableItem) = this
 
