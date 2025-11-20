@@ -95,7 +95,8 @@ internal class StubWriter(
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
         val writeDocumentation =
-            config.includeDocumentationInStubs && pkg.documentation.requiresSourceComment()
+            config.includeDocumentationInStubs &&
+                pkg.optionalDocumentation?.requiresSourceComment() == true
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =
@@ -299,7 +300,7 @@ internal fun appendDocumentation(
     config: StubWriterConfig
 ) {
     if (config.includeDocumentationInStubs) {
-        val documentation = item.documentation
-        documentation.print(writer)
+        val documentation = item.optionalDocumentation
+        documentation?.print(writer)
     }
 }
