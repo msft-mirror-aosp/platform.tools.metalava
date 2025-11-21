@@ -955,6 +955,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
     class TestClassPathResolver(val map: Map<String, ClassItem>) : ClassPathResolver {
         override fun resolveClass(erasedName: String): ClassItem? = map[erasedName]
 
+        override fun resolvePackage(pkgName: String) = TODO("Not yet implemented")
+
         companion object {
             fun create(vararg names: String): ClassPathResolver {
                 return TestClassPathResolver(

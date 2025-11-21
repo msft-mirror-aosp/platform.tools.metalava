@@ -100,4 +100,6 @@ class ClassLoaderBasedClassPathResolver(
     private val codebase by lazy(LazyThreadSafetyMode.NONE) { assembler.codebase }
 
     override fun resolveClass(erasedName: String) = codebase.resolveClass(erasedName)
+
+    override fun resolvePackage(pkgName: String) = codebase.resolvePackage(pkgName)
 }

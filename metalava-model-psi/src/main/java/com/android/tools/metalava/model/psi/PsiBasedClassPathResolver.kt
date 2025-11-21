@@ -47,4 +47,6 @@ internal class PsiBasedClassPathResolver(
     }
 
     override fun resolveClass(erasedName: String) = classpathCodebase.resolveClass(erasedName)
+
+    override fun resolvePackage(pkgName: String) = classpathCodebase.resolvePackage(pkgName)
 }

@@ -16,5 +16,13 @@
 
 package com.android.tools.metalava.model
 
-/** Supports resolving items from the classpath. */
-interface ClassPathResolver : ClassResolver, PackageResolver
+/** Supports resolving packages by name. */
+interface PackageResolver {
+    /**
+     * Resolve a package identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable package, e.g. searching classpath (if
+     * available).
+     */
+    fun resolvePackage(pkgName: String): PackageItem?
+}
