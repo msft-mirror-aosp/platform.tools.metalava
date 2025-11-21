@@ -565,7 +565,7 @@ class MultiplatformLintTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                commonMain/src/test/pkg/Foo.kt:3: error: multiplatform method test.pkg.Foo#foo(int) is infix in source sets [androidMain] but not infix in source sets [commonMain, nativeMain] [KmpModifierMismatch]
+                commonMain/src/test/pkg/Foo.kt:3: error: multiplatform method test.pkg.Foo#foo(kotlin.Int) is infix in source sets [androidMain] but not infix in source sets [commonMain, nativeMain] [KmpModifierMismatch]
                 """
         )
     }

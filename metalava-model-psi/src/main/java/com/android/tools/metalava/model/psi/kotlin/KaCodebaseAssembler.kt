@@ -230,6 +230,7 @@ private constructor(
             codebase,
             this,
             TypeParameterScope.empty,
+            addingToPsiCodebase,
         )
     private val kaValueFactory = KaValueFactory(this, kaTypeItemFactory)
     private val kaModifierFactory = KaModifierFactory(this)
@@ -387,7 +388,7 @@ private constructor(
                     findOrCreateFacadeClass(packageItem)
                 }
             val classTypeItemFactory =
-                KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem)
+                KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem, addingToPsiCodebase)
             processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
     }
@@ -423,6 +424,7 @@ private constructor(
                 codebase,
                 this@KaModuleProcessor,
                 classItem,
+                addingToPsiCodebase,
             )
 
         // The combined declared member scope contains both static and non-static members.
@@ -474,8 +476,10 @@ private constructor(
         // If this is a nested class, nest the type item factory in scope of the outer class,
         // otherwise use the default factory for the codebase.
         val enclosingTypeItemFactory =
-            containingClass?.let { KaTypeItemFactory(codebase, this@KaModuleProcessor, it) }
-                ?: kaTypeItemFactory
+            containingClass?.let {
+                KaTypeItemFactory(codebase, this@KaModuleProcessor, it, addingToPsiCodebase)
+            } ?: kaTypeItemFactory
+
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
                 enclosingTypeItemFactory,
