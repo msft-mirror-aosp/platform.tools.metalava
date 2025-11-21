@@ -52,8 +52,10 @@ class CommonPackageItemTest : BaseModelTest() {
                     java(
                         """
                             package other.pkg;
-
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
                             /** Annotation comment. */
+                            @Retention(RetentionPolicy.RUNTIME)
                             public @interface PkgAnno {
                             }
                         """

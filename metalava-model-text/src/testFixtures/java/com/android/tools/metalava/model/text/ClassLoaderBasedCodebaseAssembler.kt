@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -110,12 +111,33 @@ internal class ClassLoaderBasedCodebaseAssembler(
             }
         }
 
+    /** Define the [Package] called [pkgName]. */
+    private fun definePackage(pkgName: String): Package? {
+        return definePackageMethod.invoke(classLoader, pkgName, classLoader.unnamedModule)
+            as? Package
+    }
+
     internal fun initialize() {
         // Make sure that it has a root package.
         codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
     }
 
     override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
+
+    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
+        // Define the [Package] so it can access its annotations.
+        val pkg = definePackage(packageName) ?: return emptyList()
+
+        // Convert the annotation class, ignoring attributes for the moment.
+        val annotationItems =
+            pkg.annotations.mapNotNull { annotation ->
+                annotation.annotationClass.qualifiedName?.let { qualifiedName ->
+                    AnnotationItem.createMarkerAnnotation(codebase, qualifiedName)
+                }
+            }
+
+        return annotationItems
+    }
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
         // Make sure that the package exists in the jars before creating.
@@ -194,5 +216,13 @@ internal class ClassLoaderBasedCodebaseAssembler(
 
             return assembler
         }
+
+        /** Access the private [ClassLoader.definePackage]. */
+        private val definePackageMethod =
+            ClassLoader::class.java.run {
+                getDeclaredMethod("definePackage", String::class.java, Module::class.java).apply {
+                    isAccessible = true
+                }
+            }
     }
 }
