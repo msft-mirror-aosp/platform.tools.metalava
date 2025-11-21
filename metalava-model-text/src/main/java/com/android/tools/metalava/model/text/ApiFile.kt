@@ -57,7 +57,6 @@ import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
@@ -575,7 +574,7 @@ private constructor(
 
         // Create the package. This relies on containing packages always being processed before any
         // contained package which is guaranteed by the signature file order.
-        return codebase.packageTracker.createPackage(name, PackageDocs.EMPTY, packageInfo)
+        return codebase.packageTracker.createPackage(name, packageInfo)
     }
 
     private fun parsePackage(tokenizer: Tokenizer) {

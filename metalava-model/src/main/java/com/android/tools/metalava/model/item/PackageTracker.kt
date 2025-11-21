@@ -77,6 +77,13 @@ class PackageTracker(
     /** Map from package name to [PackageItem] of all packages in this. */
     private val packagesByName = HashMap<String, PackageItem>(PACKAGE_ESTIMATE)
 
+    /**
+     * Provides additional information needed for creating a package.
+     *
+     * Initialized to [PackageDocs.EMPTY] but is temporarily overridden by [createInitialPackages].
+     */
+    private var packageDocs: PackageDocs = PackageDocs.EMPTY
+
     val size
         get() = packagesByName.size
 
@@ -95,18 +102,10 @@ class PackageTracker(
      * corresponding [PackageItem], supply additional information from [packageDocs] and adds the
      * newly created [PackageItem] to this tracker.
      *
-     * If the [PackageItem] exists and [PackageDocs] contains [PackageDoc.modifiers] for the package
-     * then make sure that the existing [PackageItem] has the same [PackageItem.modifiers], if not
-     * throw an exception.
-     *
      * @param packageName the name of the package to create.
-     * @param packageDocs provides additional information needed for creating a package.
      * @return the [PackageItem] that was found or created.
      */
-    fun findOrCreatePackage(
-        packageName: String,
-        packageDocs: PackageDocs = PackageDocs.EMPTY,
-    ): PackageItem {
+    fun findOrCreatePackage(packageName: String): PackageItem {
         // Check to see if the package already exists, if it does then return it.
         findPackage(packageName)?.let { existing ->
             return existing
@@ -143,25 +142,16 @@ class PackageTracker(
                 overview = infoFromModel.overview ?: packageDoc.overview,
             )
 
-        return createPackage(
-            packageName,
-            packageDocs,
-            packageInfo,
-        )
+        return createPackage(packageName, packageInfo)
     }
 
-    /** Create [PackageItem] for [packageName] using additional information from [packageDocs]. */
-    fun createPackage(
-        packageName: String,
-        packageDocs: PackageDocs,
-        packageInfo: PackageInfo,
-    ): PackageItem {
+    /** Create [PackageItem] for [packageName] using additional information from [packageInfo]. */
+    fun createPackage(packageName: String, packageInfo: PackageInfo): PackageItem {
         // Unless this is the root package, it has a containing package so get that before creating
         // this package, so it can be passed into the `packageItemFactory`.
         val containingPackageName = getContainingPackageName(packageName)
         val containingPackage =
-            if (containingPackageName == null) null
-            else findOrCreatePackage(containingPackageName, packageDocs)
+            if (containingPackageName == null) null else findOrCreatePackage(containingPackageName)
 
         val packageItem = assembler.createPackageItem(packageName, packageInfo, containingPackage)
 
@@ -192,12 +182,18 @@ class PackageTracker(
      * root package.
      */
     fun createInitialPackages(packageDocs: PackageDocs) {
+        // Make the packageDocs available when creating the packages below.
+        this.packageDocs = packageDocs
+
         // Create packages for all the documentation packages.
         for (packageName in packageDocs.packageNames) {
-            findOrCreatePackage(packageName, packageDocs)
+            findOrCreatePackage(packageName)
         }
 
         // Make sure that there is a root package.
-        findOrCreatePackage("", packageDocs)
+        findOrCreatePackage("")
+
+        // Reset the package docs as they are no longer needed.
+        this.packageDocs = PackageDocs.EMPTY
     }
 }
