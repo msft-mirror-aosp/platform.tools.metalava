@@ -506,4 +506,28 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             assertThat(testPkg.allClasses().toList()).isEmpty()
         }
     }
+
+    @Test
+    fun `Definition of suspend function`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                suspend fun foo(int: Int) = Unit
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(createCommonModuleDescription(arrayOf(commonSource))),
+        ) {
+            val testPkg = multiplatformCodebase.assertPackage("test.pkg")
+            val fooFunction = testPkg.assertMethod("foo", listOf("int"))
+            fooFunction.assertSourceSets("commonMain")
+            fooFunction.modifiers
+                .transformValues { it.isSuspend() }
+                .assertSourceSetValues("commonMain" to true)
+        }
+    }
 }

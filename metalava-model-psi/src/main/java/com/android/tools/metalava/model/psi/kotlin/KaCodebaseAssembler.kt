@@ -768,13 +768,14 @@ private constructor(
                 functionSymbol.typeParameters
             )
 
-        // Create the jvm signature of the method: in addition to the regular parameters, if this is
-        // an extension function a parameter is added for the receiver, and if this is a suspend
-        // function a parameter is added for the continuation.
+        // Create the jvm signature of the method (which is used when adding to a psi codebase): in
+        // addition to the regular parameters, if this is an extension function a parameter is added
+        // for the receiver, and if this is a suspend function a parameter is added for the
+        // continuation.
         val parameterCount =
             functionSymbol.valueParameters.size +
                 (if (functionSymbol.receiverParameter != null) 1 else 0) +
-                (if (functionSymbol.isSuspend) 1 else 0)
+                (if (addingToPsiCodebase && functionSymbol.isSuspend) 1 else 0)
         val fingerprint = MethodFingerprint(name, parameterCount)
 
         val originalReturnType =
@@ -784,10 +785,11 @@ private constructor(
                 fingerprint,
                 containingClass.isAnnotationType()
             )
-        // For suspend functions, the jvm signature will have a nullable object return type (the
-        // source return type is used for the generated continuation parameter).
+        // For suspend functions, the jvm signature (which is used when adding to a psi codebase)
+        // will have a nullable object return type (the source return type is used for the generated
+        // continuation parameter).
         val returnType =
-            if (functionSymbol.isSuspend) {
+            if (addingToPsiCodebase && functionSymbol.isSuspend) {
                 typeParameterListAndFactory.factory.createObjectTypeItem()
             } else {
                 originalReturnType
@@ -1052,9 +1054,10 @@ private constructor(
                 )
             }
 
-        // If this is a suspend function, there is an extra continuation parameter added to the end.
+        // If this is a suspend function, there is an extra continuation parameter added to the end
+        // for the jvm signature (which is used when adding to a psi codebase).
         val continuationParameter =
-            if (isSuspend) {
+            if (addingToPsiCodebase && isSuspend) {
                 val index = regularParameters.size + (receiverParameter?.let { 1 } ?: 0)
                 itemFactory.createParameterItem(
                     fileLocation = FileLocation.UNKNOWN,
