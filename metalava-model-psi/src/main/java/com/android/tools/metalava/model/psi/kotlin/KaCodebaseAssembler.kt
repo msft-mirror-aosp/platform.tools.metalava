@@ -37,9 +37,11 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
@@ -122,15 +124,28 @@ internal class KaCodebaseAssembler(
  * Processor for a single [kaModule] (a regular project has just one module, a KMP projects has
  * several like androidMain, commonMain, etc.) to update the [codebase] based on the kotlin APIs in
  * the module.
+ *
+ * If [codebase] is a [PsiBasedCodebase], certain operations like finding documentation and field
+ * reference values is done through the codebase.
  */
-internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedCodebase) {
+internal class KaModuleProcessor
+private constructor(
+    val kaModule: KaModule,
+    val codebase: DefaultCodebase,
+    val psiCodebase: PsiBasedCodebase?
+) {
+    constructor(
+        kaModule: KaModule,
+        psiCodebase: PsiBasedCodebase
+    ) : this(kaModule, psiCodebase, psiCodebase)
+
     private val kaTypeItemFactory =
         KaTypeItemFactory(
             codebase,
             this,
-            codebase.globalTypeItemFactory.typeParameterScope,
+            TypeParameterScope.empty,
         )
-    private val kaValueFactory = KaValueFactory(codebase, this, kaTypeItemFactory)
+    private val kaValueFactory = KaValueFactory(this, kaTypeItemFactory)
     private val kaModifierFactory = KaModifierFactory(this)
 
     /** Analyze the [packages] to add type aliases to the codebase for this [kaModule]. */
@@ -795,8 +810,9 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
 
     /** Creates documentation for the symbol through psi, if possible. */
     private fun KaSymbol.getDocumentation(): ItemDocumentationFactory {
-        return psi?.let { PsiItemDocumentation.factory(it, codebase) }
-            ?: ItemDocumentation.NONE_FACTORY
+        return psiCodebase?.let { psiCodebase ->
+            psi?.let { psi -> PsiItemDocumentation.factory(psi, psiCodebase) }
+        } ?: ItemDocumentation.NONE_FACTORY
     }
 
     /**
