@@ -522,15 +522,23 @@ class CommonPackageItemTest : BaseModelTest() {
     @Test
     fun `Test resolving package from jar`() {
         runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
+            java(
+                """
+                    package test.pkg;
 
-                        public class Foo {
-                        }
-                    """
-                ),
+                    public class Foo {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """
             ),
             testFixture =
                 TestFixture(
