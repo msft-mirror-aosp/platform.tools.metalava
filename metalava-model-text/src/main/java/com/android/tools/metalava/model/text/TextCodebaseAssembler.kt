@@ -60,8 +60,8 @@ internal class TextCodebaseAssembler(
     }
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String) =
-        // There are no additional packages available when processing signature files.
-        null
+        // Check on the class path, if any, for additional packages.
+        classPathResolver?.resolvePackage(qualifiedName)
 
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         getOrCreateClass(qualifiedName)

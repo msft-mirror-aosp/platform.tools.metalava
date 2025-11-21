@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpl
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.net.URLClassLoader
+import java.util.jar.JarFile
 
 /**
  * A [CodebaseAssembler] that will use information from a list of jars accessed through a
@@ -69,6 +70,46 @@ internal class ClassLoaderBasedCodebaseAssembler(
             URLClassLoader(urls, null)
         }
 
+    /**
+     * Add all the possible package names in [packageName] to this [MutableSet].
+     *
+     * @param packageName is a `.` separated package name which is added to this [MutableSet] if it
+     *   is not already in it. If [packageName] is not a top level package then all its containing
+     *   packages are also added to this [MutableSet].
+     */
+    private fun MutableSet<String>.addAllPackageNames(packageName: String) {
+        var name = packageName
+        while (true) {
+            if (contains(name)) return
+            add(name)
+            val index = name.lastIndexOf('.')
+            if (index == -1) return
+            name = name.substring(0, index)
+        }
+    }
+
+    /**
+     * The set of packages in [classLoader].
+     *
+     * Constructed by scanning all the entries in all the jars for any `.class` files and then
+     * getting their package name and adding it and all its containing packages to the set.
+     */
+    private val packages by
+        lazy(LazyThreadSafetyMode.NONE) {
+            buildSet<String> {
+                for (jar in jars) {
+                    val jarFile = JarFile(jar)
+                    for (jarEntry in jarFile.entries()) {
+                        val path = jarEntry.name
+                        if (path.endsWith(".class")) {
+                            val packageName = path.substringBeforeLast('/').replace('/', '.')
+                            addAllPackageNames(packageName)
+                        }
+                    }
+                }
+            }
+        }
+
     internal fun initialize() {
         // Make sure that it has a root package.
         codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
@@ -77,7 +118,9 @@ internal class ClassLoaderBasedCodebaseAssembler(
     override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        TODO("Not yet implemented")
+        // Make sure that the package exists in the jars before creating.
+        if (qualifiedName !in packages) return null
+        return codebase.findOrCreatePackage(qualifiedName)
     }
 
     /**
