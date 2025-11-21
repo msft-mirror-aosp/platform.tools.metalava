@@ -43,9 +43,9 @@ object Issues {
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val ADDED_CLASS by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
-    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
+    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val SEALED_CLASS_EXHAUSTIVITY_CHANGED by
-        Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
+        Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     // Adding an abstract method is breaking, but that is a separate issue.
     val ADDED_METHOD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     // Note that this may be breaking if the class/interface can be implemented, but the reporter

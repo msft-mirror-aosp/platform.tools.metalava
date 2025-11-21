@@ -65,6 +65,7 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
@@ -160,13 +161,24 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
         }
     }
 
+    /**
+     * Both expect and actual symbols for functions, constructors, and properties are present in the
+     * [KaModule]s with actual symbols, but the expect symbols should not be included in the
+     * codebase.
+     */
+    private fun <T : KaDeclarationSymbol> KaSession.filterExpects(
+        symbols: Sequence<T>
+    ): Sequence<T> {
+        return symbols.filter { !it.isExpect }
+    }
+
     /** Analyze the classes of the package as well as any top-level callables. */
     private fun KaSession.processPackage(packageSymbol: KaPackageSymbol) {
         val packageScope = packageSymbol.packageScope
         for (classifierSymbol in packageScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
             processNamedClass(classifierSymbol)
         }
-        for (callableSymbol in packageScope.callables) {
+        for (callableSymbol in filterExpects(packageScope.callables)) {
             // For top-level callables, find their containing class in the codebase.
             @OptIn(KaExperimentalApi::class)
             val className = callableSymbol.containingJvmClassName ?: continue
@@ -193,10 +205,10 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
 
         // The combined declared member scope contains both static and non-static members.
         val memberScope = classifierSymbol.combinedDeclaredMemberScope
-        for (constructorSymbol in memberScope.constructors) {
+        for (constructorSymbol in filterExpects(memberScope.constructors)) {
             processConstructor(constructorSymbol, classItem, classTypeItemFactory)
         }
-        for (callableSymbol in memberScope.callables) {
+        for (callableSymbol in filterExpects(memberScope.callables)) {
             // K1 includes delegate symbols in the combinedDeclaredMemberScope, K2 does not.
             // Don't add delegate symbols here because they're processed from the
             // delegatedMemberScope below, and they shouldn't be duplicated for K1.
@@ -211,7 +223,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
 
         // Process callables defined through a delegate
         val delegateScope = classifierSymbol.delegatedMemberScope
-        for (callableSymbol in delegateScope.callables) {
+        for (callableSymbol in filterExpects(delegateScope.callables)) {
             processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
     }
@@ -270,8 +282,6 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
             return false
         // Deprecation level hidden items can't be resolved from source.
         if (constructorSymbol.isDeprecatedHidden()) return false
-        // Items are generated for actual constructors, and aren't needed for expects.
-        if (constructorSymbol.isExpect) return false
         return true
     }
 
@@ -357,9 +367,6 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
     private fun KaSession.shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
         // Don't generate hidden functions since they cannot be resolved from source.
         if (functionSymbol.isDeprecatedHidden()) return false
-        // For an expect/actual function, there are separate KaNamedFunctionSymbols for the expect
-        // and actual. Only create a MethodItem based on the actual.
-        if (functionSymbol.isExpect) return false
         // Generate delegate functions.
         if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) return true
         // Skip generated equals and hashCode methods, when they aren't implemented in source.
