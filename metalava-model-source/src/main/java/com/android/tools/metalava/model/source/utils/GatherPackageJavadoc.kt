@@ -22,9 +22,6 @@ import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.ThrowingReporter
 import java.io.File
 
 /** The kinds of package documentation file. */
@@ -42,7 +39,7 @@ private enum class PackageDocumentationKind {
         }
     };
 
-    /** Update kind appropriate property in [packageDoc] with [contents]. */
+    /** Update kind appropriate property in [packageDoc] with [file]. */
     abstract fun update(packageDoc: MutablePackageDoc, file: File)
 }
 
@@ -62,43 +59,6 @@ private enum class PackageDocumentationKind {
 fun gatherPackageJavadoc(
     sourceSet: SourceSet,
     packageNameFilter: (String) -> Boolean,
-): PackageDocs {
-    return gatherPackageJavadoc(
-        ThrowingReporter.INSTANCE,
-        sourceSet,
-        packageNameFilter,
-        emptyList<Unit>()
-    ) {
-        error("Should never be called")
-    }
-}
-
-/**
- * Gather javadoc related to packages from the [sourceSet] and a list of model specific
- * [packageInfoFiles].
- *
- * This will look for `package.html` and `overview.html` files within the source set and then map
- * that back to a package. It will first check to see if there is a java class in the same directory
- * and if so then extract the package name from that otherwise it will construct one from the
- * directory, which may be wrong.
- *
- * If a `package.html` and `package-info.java` are provided for the same package then it will be
- * reported as an error and the comment from the latter will win.
- *
- * @param P the model specific `package-info.java` file type.
- * @param packageNameFilter a lambda that given a package name will return `true` if it is a valid
- *   package and `false` otherwise. This is used to filter out any packages incorrectly inferred
- *   from `package.html` files.
- * @param packageInfoFiles a collection of model specific `package-info.java` files.
- * @param packageInfoDocExtractor get a [MutablePackageDoc] from a model specific
- *   `package-info.java` file.
- */
-fun <P> gatherPackageJavadoc(
-    reporter: Reporter,
-    sourceSet: SourceSet,
-    packageNameFilter: (String) -> Boolean,
-    packageInfoFiles: Collection<P>,
-    packageInfoDocExtractor: (P) -> MutablePackageDoc?,
 ): PackageDocs {
     val packages = mutableMapOf<String, MutablePackageDoc>()
     val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
@@ -136,27 +96,6 @@ fun <P> gatherPackageJavadoc(
         val packageDoc = packages.computeIfAbsent(pkg, ::MutablePackageDoc)
 
         documentationFile.update(packageDoc, file)
-    }
-
-    // Merge package-info.java documentation.
-    for (packageInfoFile in packageInfoFiles) {
-        val (packageName, fileLocation, comment, _) =
-            packageInfoDocExtractor(packageInfoFile) ?: continue
-
-        val packageDoc = packages.computeIfAbsent(packageName, ::MutablePackageDoc)
-        if (packageDoc.commentFactory != null) {
-            reporter.report(
-                Issues.BOTH_PACKAGE_INFO_AND_HTML,
-                null,
-                "It is illegal to provide both a package-info.java file and " +
-                    "a package.html file for the same package",
-                fileLocation,
-            )
-        }
-
-        // Always set this as package-info.java is preferred over package.html.
-        packageDoc.fileLocation = fileLocation
-        packageDoc.commentFactory = comment
     }
 
     return PackageDocs(packages)
