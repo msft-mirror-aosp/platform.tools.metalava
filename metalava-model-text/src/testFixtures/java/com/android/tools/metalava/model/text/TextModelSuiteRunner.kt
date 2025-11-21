@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -58,12 +58,12 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 
         val signatureFiles = SignatureFile.forTest(inputs.mainSourceDir.createFiles())
         val classPath = listOf(getAndroidJar()) + inputs.testFixture.additionalClassPath
-        val resolver = ClassLoaderBasedClassResolver(classPath, codebaseConfig)
+        val resolver = ClassLoaderBasedClassPathResolver(classPath, codebaseConfig)
         val codebase =
             ApiFile.parseApi(
                 signatureFiles,
                 codebaseConfig = codebaseConfig,
-                classResolver = resolver,
+                classPathResolver = resolver,
             )
 
         // If available, transform the codebase for testing, otherwise use the one provided.
@@ -83,7 +83,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 }
 
 /**
- * A [ClassResolver] that is backed by a [URLClassLoader].
+ * A [ClassPathResolver] that is backed by a [URLClassLoader].
  *
  * When [resolveClass] is called this will first look in [codebase] to see if the [ClassItem] has
  * already been loaded, returning it if found. Otherwise, it will look in the [classLoader] to see
@@ -94,10 +94,10 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
  * change in the future.
  */
-class ClassLoaderBasedClassResolver(
+class ClassLoaderBasedClassPathResolver(
     jars: List<File>,
     codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
-) : ClassResolver {
+) : ClassPathResolver {
 
     private val assembler by
         lazy(LazyThreadSafetyMode.NONE) {
@@ -106,7 +106,7 @@ class ClassLoaderBasedClassResolver(
                 location = location,
                 description = "Codebase for resolving classes in $location for tests",
                 codebaseConfig = codebaseConfig,
-                classResolver = null,
+                classPathResolver = null,
             )
         }
 

@@ -62,7 +62,7 @@ class DefaultSignatureFileLoader(
             return ApiFile.parseApi(
                 signatureFiles = signatureFiles,
                 codebaseConfig = codebaseConfig,
-                classResolver = classPathResolver,
+                classPathResolver = classPathResolver,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
         } catch (ex: ApiParseException) {
