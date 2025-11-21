@@ -23,7 +23,9 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.io.PrintWriter
 
 /** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
-typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation?
+fun interface ItemDocumentationFactory {
+    fun create(item: SelectableItem): ItemDocumentation?
+}
 
 /**
  * The documentation associated with an [Item].
@@ -178,14 +180,16 @@ interface ItemDocumentation {
          * Used where there is no documentation possible, e.g. text model, type parameters,
          * parameters.
          */
-        val NONE_FACTORY: ItemDocumentationFactory = { null }
+        val NONE_FACTORY: ItemDocumentationFactory = ItemDocumentationFactory { null }
     }
 }
 
 /** Return an [ItemDocumentationFactory] that will create a duplicate of this. */
-fun ItemDocumentation?.duplicatingFactory() =
-    this?.let { it::duplicate } ?: ItemDocumentation.NONE_FACTORY
+fun ItemDocumentation?.duplicatingFactory(): ItemDocumentationFactory =
+    this?.let { ItemDocumentationFactory { item -> it.duplicate(item) } }
+        ?: ItemDocumentation.NONE_FACTORY
 
 /** Return an [ItemDocumentationFactory] that will take a snapshot of this. */
-fun ItemDocumentation?.snapshottingFactory() =
-    this?.let { it::snapshot } ?: ItemDocumentation.NONE_FACTORY
+fun ItemDocumentation?.snapshottingFactory(): ItemDocumentationFactory =
+    this?.let { ItemDocumentationFactory { item: SelectableItem -> it.snapshot(item) } }
+        ?: ItemDocumentation.NONE_FACTORY

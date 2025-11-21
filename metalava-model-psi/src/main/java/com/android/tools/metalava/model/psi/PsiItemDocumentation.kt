@@ -135,7 +135,7 @@ internal class PsiItemDocumentation(
 
     override fun duplicate(item: SelectableItem) =
         if (item is PsiItem) PsiItemDocumentation(item, codebase, psi)
-        else text.toItemDocumentationFactory()(item)!!
+        else text.toItemDocumentationFactory().create(item)!!
 
     override fun snapshot(item: SelectableItem) = this
 
@@ -636,7 +636,7 @@ internal class PsiItemDocumentation(
         ) =
             if (codebase.allowReadingComments) {
                 // When reading comments provide full access to them.
-                { item -> PsiItemDocumentation(item, codebase, psi) }
+                ItemDocumentationFactory { item -> PsiItemDocumentation(item, codebase, psi) }
             } else {
                 // Otherwise, there is no documentation to use.
                 ItemDocumentation.NONE_FACTORY
