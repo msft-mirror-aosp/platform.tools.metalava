@@ -44,7 +44,7 @@ import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -171,8 +171,8 @@ internal fun processFlags(
             reporterApiLint = reporter,
             sourceParser = sourceParser,
         )
-    val classResolverProvider =
-        ClassResolverProvider(
+    val classPathResolverProvider =
+        ClassPathResolverProvider(
             sourceParser = sourceParser,
             apiClassResolution = options.apiClassResolution,
             classpath = options.classpath,
@@ -180,7 +180,7 @@ internal fun processFlags(
     val codebase =
         createCodebaseFromOptions(
             options,
-            classResolverProvider,
+            classPathResolverProvider,
             signatureFileCache,
             actionContext,
         ) ?: return
@@ -226,7 +226,7 @@ internal fun processFlags(
         codebase,
         progressTracker,
         signatureFileCache,
-        classResolverProvider,
+        classPathResolverProvider,
         reporter
     )
 
@@ -265,7 +265,7 @@ internal fun processFlags(
         actionContext.checkCompatibility(
             options,
             signatureFileCache,
-            classResolverProvider,
+            classPathResolverProvider,
             codebase,
             check,
         )
@@ -308,7 +308,7 @@ private fun runApiChecksFromOptions(
     options: Options,
     progressTracker: ProgressTracker,
     signatureFileCache: SignatureFileCache,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
     codebase: Codebase,
     reporter: Reporter,
     apiCheckMethod: (Codebase, Codebase?, Reporter, Options) -> Unit
@@ -322,7 +322,7 @@ private fun runApiChecksFromOptions(
         // See if we should provide a previous codebase to provide a delta from?
         val previouslyReleasedCodebase by lazy {
             apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+                signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
             }
         }
         apiCheckMethod(codebase, previouslyReleasedCodebase, reporter, options)
@@ -338,7 +338,7 @@ private fun createApiSignatureFilesFromOptions(
     codebase: Codebase,
     progressTracker: ProgressTracker,
     signatureFileCache: SignatureFileCache,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
     reporter: Reporter,
 ) {
     val fileFormat = options.signatureFileFormat
@@ -358,7 +358,7 @@ private fun createApiSignatureFilesFromOptions(
         options,
         progressTracker,
         signatureFileCache,
-        classResolverProvider,
+        classPathResolverProvider,
         codebase,
         reporter
     ) { _, previouslyReleasedCodebase, reporter, options ->
@@ -483,7 +483,7 @@ private fun createModelOptions(
 /** Create [Codebase] object from option flags */
 private fun createCodebaseFromOptions(
     options: Options,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
     signatureFileCache: SignatureFileCache,
     actionContext: ActionContext
 ): Codebase? {
@@ -500,12 +500,12 @@ private fun createCodebaseFromOptions(
         val signatureFileLoader = options.signatureFileLoader
         return signatureFileLoader.load(
             SignatureFile.fromFiles(sources),
-            classResolverProvider.classResolver,
+            classPathResolverProvider.classPathResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
         return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(options, signatureFileCache, classResolverProvider)
+        return actionContext.loadFromSources(options, signatureFileCache, classPathResolverProvider)
     }
 
     return null
@@ -597,7 +597,7 @@ private fun generateApiHistoryFromOptions(
 private fun ActionContext.checkCompatibility(
     options: Options,
     signatureFileCache: SignatureFileCache,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -629,7 +629,7 @@ private fun ActionContext.checkCompatibility(
 
     val oldCodebase =
         check.previouslyReleasedApi.load { signatureFiles ->
-            signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+            signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
         }
 
     val apiName =
@@ -730,7 +730,7 @@ private fun convertToWarningNullabilityAnnotations(
 private fun ActionContext.loadFromSources(
     options: Options,
     signatureFileCache: SignatureFileCache,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
 ): Codebase? {
     progressTracker.progress("Processing sources: ")
 
@@ -797,7 +797,7 @@ private fun ActionContext.loadFromSources(
         options,
         progressTracker,
         signatureFileCache,
-        classResolverProvider,
+        classPathResolverProvider,
         codebase,
         reporter
     ) { codebase, previouslyReleasedCodebase, reporter, options ->
@@ -818,17 +818,17 @@ private fun ActionContext.loadFromSources(
 }
 
 /**
- * Avoids creating a [ClassResolver] unnecessarily as it is expensive to create but once created
+ * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once created
  * allows it to be reused for the same reason.
  */
-private class ClassResolverProvider(
+private class ClassPathResolverProvider(
     private val sourceParser: SourceParser,
     private val apiClassResolution: ApiClassResolution,
     private val classpath: List<File>
 ) {
-    val classResolver: ClassResolver? by lazy {
+    val classPathResolver: ClassPathResolver? by lazy {
         if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-            sourceParser.getClassResolver(classpath)
+            sourceParser.getClassPathResolver(classpath)
         } else {
             null
         }

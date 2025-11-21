@@ -18,18 +18,18 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceSet
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
 
-internal class PsiBasedClassResolver(
+internal class PsiBasedClassPathResolver(
     uastEnvironment: UastEnvironment,
     config: Codebase.Config,
     allowReadingComments: Boolean,
-) : ClassResolver {
+) : ClassPathResolver {
     private val javaPsiFacade: JavaPsiFacade
     private val searchScope: GlobalSearchScope
     private val classpathCodebase: PsiBasedCodebase
