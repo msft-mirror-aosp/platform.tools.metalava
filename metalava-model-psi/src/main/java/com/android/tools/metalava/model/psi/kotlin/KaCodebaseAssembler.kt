@@ -152,6 +152,7 @@ internal class KaCodebaseAssembler(
                                     assembler = assembler,
                                 )
                             }
+                        processor.assemble()
                         processor.codebase
                     }
                 )
@@ -207,13 +208,27 @@ private constructor(
     }
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        // TODO("b/407735063")
-        return null
+        return analyze(kaModule) {
+            findPackage(FqName(qualifiedName))?.let {
+                // Create the package only if one with this name was found in the module.
+                codebase.findOrCreatePackage(qualifiedName)
+            }
+        }
     }
 
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
         // TODO(b/407735063)
         return null
+    }
+
+    @OptIn(KaExperimentalApi::class)
+    private fun KaSession.allPackages(): Sequence<KaPackageSymbol> {
+        fun childPackages(packageSymbol: KaPackageSymbol): Sequence<KaPackageSymbol> {
+            return sequenceOf(packageSymbol) +
+                packageSymbol.packageScope.getPackageSymbols().flatMap { childPackages(it) }
+        }
+
+        return childPackages(rootPackageSymbol)
     }
 
     /** Analyze the [packages] to add type aliases to the codebase for this [kaModule]. */
@@ -232,14 +247,18 @@ private constructor(
     }
 
     /**
-     * Analyze the [packages] to add items to the codebase for this [kaModule] (except type aliases,
+     * Analyze the [KaModule] to add items to the codebase for this [kaModule] (except type aliases,
      * which are added by [createTypeAliases]).
+     *
+     * If [packageNames] is provided, specifically processes those packages, otherwise processes all
+     * packages in the module (which includes packages from the classpath).
      */
-    fun assemble(packages: List<FqName>) {
+    fun assemble(packageNames: List<FqName>? = null) {
         analyze(kaModule) {
-            for (packageName in packages) {
-                val packageSymbol = findPackage(packageName)
-                packageSymbol?.let { processPackage(it) }
+            val packages =
+                packageNames?.mapNotNull { findPackage(it) }?.asSequence() ?: allPackages()
+            for (packageSymbol in packages) {
+                processPackage(packageSymbol)
             }
         }
     }
@@ -257,6 +276,8 @@ private constructor(
 
     /** Analyze the classes of the package as well as any top-level callables. */
     private fun KaSession.processPackage(packageSymbol: KaPackageSymbol) {
+        // Ensure the package has been created
+        codebase.findOrCreatePackage(packageSymbol.fqName.asString())
         val packageScope = packageSymbol.packageScope
         for (classifierSymbol in packageScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
             processNamedClass(classifierSymbol)
