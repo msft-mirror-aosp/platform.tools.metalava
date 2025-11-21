@@ -55,6 +55,10 @@ fun <V, T> SourceSetDependent<V>.transformValues(transform: (V) -> T): SourceSet
  */
 class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
     MultiplatformElement<Codebase>(sourceSetToCodebase) {
+    fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
     /** A list of all the packages which exist in any source set of the codebase. */
     val packages: List<MultiplatformPackageItem> =
         aggregateChildren(
@@ -202,6 +206,8 @@ sealed class MultiplatformItem<I : Item>(sourceSetToItem: SourceSetDependent<I?>
      */
     val modifiers: SourceSetDependent<BaseModifierList> = sourceSetDependentValue { it.modifiers }
 
+    abstract fun accept(visitor: MultiplatformItemVisitor)
+
     override fun suppressedIssues(): Set<String> {
         // Aggregate suppressions from all versions of the item.
         return sourceSetToElement.values.flatMap { it?.suppressedIssues() ?: emptyList() }.toSet()
@@ -225,6 +231,10 @@ class MultiplatformPackageItem(
     val qualifiedName: String,
     sourceSetToItem: SourceSetDependent<PackageItem?>,
 ) : MultiplatformItem<PackageItem>(sourceSetToItem) {
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
     /** All the top-level (not nested) classes defined in this package in any source set. */
     fun topLevelClasses(): List<MultiplatformClassItem> {
         return aggregateChildren(
@@ -397,6 +407,10 @@ class MultiplatformClassItem(
             }
         )
 
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
     override fun elementId(): String {
         return qualifiedName
     }
@@ -452,6 +466,10 @@ private constructor(
      */
     val receiver: TypeItem?
         get() = identifier.receiver
+
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
 
     override fun elementId(): String {
         val receiverString =
@@ -626,6 +644,10 @@ private constructor(
     val name: String
         get() = identifier.name
 
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
     override fun elementId(): String {
         return "$containingItemQualifiedName#${identifier.name}${identifier.parameterDescription()}"
     }
@@ -643,6 +665,10 @@ class MultiplatformConstructorItem(
     identifier: Identifier,
     sourceSetToItem: SourceSetDependent<ConstructorItem?>
 ) : MultiplatformCallableItem<ConstructorItem>(containingItem, identifier, sourceSetToItem) {
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
     override fun elementId(): String {
         return "$containingItemQualifiedName${identifier.parameterDescription()}"
     }
@@ -676,6 +702,10 @@ class MultiplatformParameterItem(
      */
     val hasDefaultValue: SourceSetDependent<Boolean> = sourceSetDependentValue {
         it.hasDefaultValue()
+    }
+
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
     }
 
     override fun elementId(): String {
