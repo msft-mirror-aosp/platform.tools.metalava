@@ -98,6 +98,7 @@ class DefaultItemFactory(
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
         optionalAliasedType: TypeItem? = null,
+        isFileFacade: Boolean = false,
     ) =
         DefaultClassItem(
             codebase,
@@ -116,7 +117,7 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
-            isFileFacade = false,
+            isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
         )
 

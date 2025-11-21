@@ -39,10 +39,12 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -309,11 +311,19 @@ private constructor(
                 is KaTypeParameterSymbol -> {}
             }
         }
-        for (callableSymbol in filterExpects(packageScope.callables)) {
+
+        // Only process top level functions and properties from sources, not from the classpath.
+        for (callableSymbol in
+            filterExpects(packageScope.callables.filter { it.origin != KaSymbolOrigin.LIBRARY })) {
             // For top-level callables, find their containing class in the codebase.
-            @OptIn(KaExperimentalApi::class)
-            val className = callableSymbol.containingJvmClassName ?: continue
-            val classItem = codebase.findClass(className) as? DefaultClassItem ?: continue
+            val classItem =
+                if (addingToPsiCodebase) {
+                    @OptIn(KaExperimentalApi::class)
+                    val className = callableSymbol.containingJvmClassName ?: continue
+                    codebase.findClassInCodebase(className) ?: continue
+                } else {
+                    findOrCreateFacadeClass(packageItem)
+                }
             val classTypeItemFactory =
                 KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem)
             processCallable(callableSymbol, classItem, classTypeItemFactory)
@@ -469,6 +479,40 @@ private constructor(
             KaSymbolOrigin.JAVA_LIBRARY -> ClassOrigin.CLASS_PATH
             else -> ClassOrigin.COMMAND_LINE
         }
+    }
+
+    /**
+     * Finds or creates a fake facade class to hold the top level functions and properties of a
+     * package, for use when creating a multiplatform codebase.
+     *
+     * Facade classes are only created for the JVM, but in order to support top level functions and
+     * properties in the [Codebase] model this creates a fake class to hold the package-level items.
+     */
+    private fun findOrCreateFacadeClass(containingPackage: PackageItem): DefaultClassItem {
+        // Create a fake class name to contain the top level items.
+        val qualifiedName = containingPackage.qualifiedName() + ".\$TopLevelDeclarations"
+        codebase.findClassInCodebase(qualifiedName)?.let {
+            return it
+        }
+        val classItem =
+            itemFactory.createClassItem(
+                fileLocation = FileLocation.UNKNOWN,
+                targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
+                modifiers = createMutableModifiers(VisibilityLevel.PUBLIC),
+                source = null,
+                classKind = ClassKind.CLASS,
+                containingPackage = containingPackage,
+                containingClass = null,
+                qualifiedName = qualifiedName,
+                typeParameterList = TypeParameterList.NONE,
+                // Top level functions and properties are loaded from sources, not the classpath.
+                origin = ClassOrigin.COMMAND_LINE,
+                superClassType = null,
+                interfaceTypes = emptyList(),
+                isFileFacade = true,
+            )
+        codebase.addTopLevelClassFromSource(classItem)
+        return classItem
     }
 
     /** Creates a [DefaultClassItem] of kind type alias from the [typeAlias]. */
