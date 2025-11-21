@@ -122,7 +122,6 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
-                isMultiplatform = codebase.isMultiplatform,
             )
 
         this.snapshotCodebase = newCodebase
@@ -235,7 +234,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         )
             return documentation.snapshottingFactory()
 
-        return { item -> documentation.snapshot(item).apply { removeDeprecatedSection() } }
+        return ItemDocumentationFactory { item ->
+            documentation.snapshot(item).apply { removeDeprecatedSection() }
+        }
     }
 
     /** Get the [ClassItem] corresponding to this [ClassItem] in the [snapshotCodebase]. */

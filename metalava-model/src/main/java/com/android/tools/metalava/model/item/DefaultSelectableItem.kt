@@ -58,7 +58,8 @@ abstract class DefaultSelectableItem(
      * In that case this ignores its [ItemDocumentationFactory] and uses `null` instead.
      */
     final override val documentation =
-        if (modifiers.isPrivate()) null else @Suppress("LeakingThis") documentationFactory(this)
+        if (modifiers.isPrivate()) null
+        else @Suppress("LeakingThis") documentationFactory.create(this)
 
     init {
         if (!modifiers.isDeprecated() && documentation?.hasBlockTagOfType("deprecated") == true) {

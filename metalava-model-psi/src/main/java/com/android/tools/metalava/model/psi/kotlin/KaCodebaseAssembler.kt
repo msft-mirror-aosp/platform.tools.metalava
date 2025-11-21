@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
@@ -31,20 +32,27 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultConstructorItem
+import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
@@ -55,6 +63,7 @@ import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.FileLocation
+import java.io.File
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -62,6 +71,7 @@ import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
@@ -78,6 +88,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.name
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
@@ -94,7 +105,10 @@ internal class KaCodebaseAssembler(
     ktFiles: List<KtFile>,
     val codebase: PsiBasedCodebase,
 ) {
-    // TODO(b/407735063): analyze all modules for KMP projects
+    /**
+     * When creating a regular [Codebase], only the main analysis module is processed. All modules
+     * are analyzed when running [assembleMultiplatform].
+     */
     private val mainModule =
         codebase.mainAnalysisModule
             ?: error("No main analysis module found for project with Kotlin files")
@@ -116,22 +130,96 @@ internal class KaCodebaseAssembler(
     fun assemble() {
         mainModuleProcessor.assemble(packages)
     }
+
+    companion object {
+        /**
+         * Creates a [MultiplatformCodebase], with one [Codebase] created for each source set from
+         * the list of [modules].
+         */
+        fun assembleMultiplatform(
+            modules: List<KaSourceModule>,
+            location: File,
+            config: Codebase.Config,
+        ): MultiplatformCodebase {
+            return MultiplatformCodebase(
+                modules.associateBy(
+                    { kaModule -> kaModule.name },
+                    { kaModule ->
+                        val processor =
+                            KaModuleProcessor(kaModule) { assembler ->
+                                DefaultCodebase(
+                                    location = location,
+                                    description = "Codebase for source set ${kaModule.name}",
+                                    preFiltered = false,
+                                    config = config,
+                                    trustedApi = false,
+                                    supportsDocumentation = false,
+                                    assembler = assembler,
+                                )
+                            }
+                        processor.codebase
+                    }
+                )
+            )
+        }
+    }
 }
 
 /**
  * Processor for a single [kaModule] (a regular project has just one module, a KMP projects has
  * several like androidMain, commonMain, etc.) to update the [codebase] based on the kotlin APIs in
  * the module.
+ *
+ * If [codebase] is a [PsiBasedCodebase], certain operations like finding documentation and field
+ * reference values is done through the codebase.
  */
-internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedCodebase) {
+internal class KaModuleProcessor
+private constructor(
+    val kaModule: KaModule,
+    codebaseInitializer: (CodebaseAssembler) -> DefaultCodebase,
+    val psiCodebase: PsiBasedCodebase?
+) : DefaultCodebaseAssembler() {
+    constructor(
+        kaModule: KaModule,
+        psiCodebase: PsiBasedCodebase
+    ) : this(kaModule, { psiCodebase }, psiCodebase)
+
+    constructor(
+        kaModule: KaModule,
+        codebaseInitializer: (CodebaseAssembler) -> DefaultCodebase
+    ) : this(kaModule, codebaseInitializer, psiCodebase = null)
+
+    val codebase = codebaseInitializer(this)
+
     private val kaTypeItemFactory =
         KaTypeItemFactory(
             codebase,
             this,
-            codebase.globalTypeItemFactory.typeParameterScope,
+            TypeParameterScope.empty,
         )
-    private val kaValueFactory = KaValueFactory(codebase, this, kaTypeItemFactory)
+    private val kaValueFactory = KaValueFactory(this, kaTypeItemFactory)
     private val kaModifierFactory = KaModifierFactory(this)
+
+    override val itemFactory =
+        DefaultItemFactory(
+            codebase = codebase,
+            defaultSourceLanguage = SourceLanguage.KOTLIN,
+            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY
+        )
+
+    override fun emptyPackageDocumentationFactory(): ItemDocumentationFactory {
+        return ItemDocumentation.NONE_FACTORY
+    }
+
+    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
+        // TODO("b/407735063")
+        return null
+    }
+
+    override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
+        // TODO(b/407735063)
+        return null
+    }
 
     /** Analyze the [packages] to add type aliases to the codebase for this [kaModule]. */
     fun createTypeAliases(packages: List<FqName>) {
@@ -795,8 +883,9 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
 
     /** Creates documentation for the symbol through psi, if possible. */
     private fun KaSymbol.getDocumentation(): ItemDocumentationFactory {
-        return psi?.let { PsiItemDocumentation.factory(it, codebase) }
-            ?: ItemDocumentation.NONE_FACTORY
+        return psiCodebase?.let { psiCodebase ->
+            psi?.let { psi -> PsiItemDocumentation.factory(psi, psiCodebase) }
+        } ?: ItemDocumentation.NONE_FACTORY
     }
 
     /**
