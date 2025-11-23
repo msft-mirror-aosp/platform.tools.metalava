@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.multiplatform
 
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.multiplatform.transformValues
 import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
@@ -460,6 +461,112 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
             assertThat(commonInnerClass.allClasses().toList()).containsExactly(commonInnerClass)
             assertThat(androidInnerClass.allClasses().toList()).containsExactly(androidInnerClass)
             assertThat(nativeInnerClass.allClasses().toList()).containsExactly(nativeInnerClass)
+        }
+    }
+
+    @Test
+    fun `Definition of typealiases`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                typealias Common = String
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                typealias Android = List<Int>
+                """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                )
+        ) {
+            val common = multiplatformCodebase.assertClass("test.pkg.Common")
+            common.assertSourceSets("commonMain", "androidMain")
+            common.classKind.assertSourceSetValues(
+                "commonMain" to ClassKind.TYPEALIAS,
+                "androidMain" to ClassKind.TYPEALIAS,
+            )
+            common.optionalAliasedType
+                .transformValues { it?.toTypeString() }
+                .assertSourceSetValues(
+                    "commonMain" to "java.lang.String",
+                    "androidMain" to "java.lang.String",
+                )
+
+            val android = multiplatformCodebase.assertClass("test.pkg.Android")
+            android.assertSourceSets("androidMain")
+            android.classKind.assertSourceSetValues(
+                "androidMain" to ClassKind.TYPEALIAS,
+            )
+            android.optionalAliasedType
+                .transformValues { it?.toTypeString() }
+                .assertSourceSetValues(
+                    "androidMain" to "java.util.List<java.lang.Integer>",
+                )
+        }
+    }
+
+    @Test
+    fun `Definition of expect class with actual typealias`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                   package test.pkg
+                   expect class Foo
+                   """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                   package test.pkg
+                   actual typealias Foo = String
+                   """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                   package test.pkg
+                   actual typealias Foo = List<Int>
+                   """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            fooClass.assertSourceSets("androidMain", "nativeMain", "commonMain")
+            fooClass.classKind.assertSourceSetValues(
+                "commonMain" to ClassKind.CLASS,
+                "androidMain" to ClassKind.TYPEALIAS,
+                "nativeMain" to ClassKind.TYPEALIAS,
+            )
+            fooClass.optionalAliasedType
+                .transformValues { it?.toTypeString() }
+                .assertSourceSetValues(
+                    "commonMain" to null,
+                    "androidMain" to "java.lang.String",
+                    "nativeMain" to "java.util.List<java.lang.Integer>",
+                )
         }
     }
 }

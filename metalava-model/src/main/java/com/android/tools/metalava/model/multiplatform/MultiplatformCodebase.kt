@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeItem
 
 /**
  * A value which differs between source sets of a multiplatform project. This is a mapping from the
@@ -208,6 +209,19 @@ class MultiplatformClassItem(
                 MultiplatformClassItem(qualifiedName, sourceSetToClassItem)
             }
         )
+
+    /**
+     * A mapping from source set where the [ClassItem] exists to the optional aliased type of the
+     * class in that source set.
+     *
+     * If the [ClassItem] is a typealias in a source set, the value for that source set is the
+     * aliased type. If the class is not a typealias in a source set, the value for that source set
+     * is null.
+     *
+     * It is possible for a class to be defined as an `expect class` and an `actual typealias`.
+     */
+    val optionalAliasedType: SourceSetDependent<TypeItem?>
+        get() = sourceSetDependentValue { it.optionalAliasedType }
 
     /**
      * A sequence with this [MultiplatformClassItem], its [nestedClasses], and all the recursively
