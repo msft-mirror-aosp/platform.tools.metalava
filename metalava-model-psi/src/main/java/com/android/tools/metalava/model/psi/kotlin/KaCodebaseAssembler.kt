@@ -54,6 +54,7 @@ import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiClassItem.Companion.isFileFacade
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiItemDocumentation
@@ -94,6 +95,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.name
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtElement
@@ -223,8 +225,46 @@ private constructor(
         analyze(kaModule) { findPackage(FqName(packageName)) != null }
 
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
-        // TODO(b/407735063)
-        return null
+        // The search in a KaModule uses a ClassId, where packages are separated by "/" instead of
+        // ".". Class names are separated by "." for nested classes, but first try to find the class
+        // as top level.
+        val classIdString = qualifiedName.replace('.', '/')
+        val classItem =
+            analyze(kaModule) {
+                findClassLike(ClassId.fromString(classIdString))?.let { kaClassLikeSymbol ->
+                    val packageQualifiedName = qualifiedName.substringBeforeLast('.')
+                    val containingPackage = codebase.findOrCreatePackage(packageQualifiedName)
+                    when (kaClassLikeSymbol) {
+                        is KaNamedClassSymbol ->
+                            processNamedClass(
+                                kaClassLikeSymbol,
+                                containingPackage,
+                                containingClass = null,
+                                processIfClasspath = true
+                            )
+                        is KaTypeAliasSymbol ->
+                            processTypeAlias(kaClassLikeSymbol, containingPackage)
+                        else -> null
+                    }
+                }
+            }
+        // Return the top level class item if found.
+        if (classItem != null) {
+            return classItem
+        }
+
+        // See if this might be a nested class. If there are no qualifiers it can't be.
+        if (!qualifiedName.contains('.')) {
+            return null
+        }
+        // If a top level class was not found, try searching for this as a nested class. Attempt to
+        // create the containing class and locate the nested class inside of it.
+        val possibleContainingClassName = qualifiedName.substringBeforeLast('.')
+        val possibleContainingClass =
+            createClassFromUnderlyingModel(possibleContainingClassName) ?: return null
+        return possibleContainingClass.nestedClasses().firstOrNull {
+            it.qualifiedName() == qualifiedName
+        }
     }
 
     @OptIn(KaExperimentalApi::class)
@@ -335,22 +375,24 @@ private constructor(
         classifierSymbol: KaNamedClassSymbol,
         containingPackage: PackageItem,
         containingClass: DefaultClassItem? = null,
-    ) {
+        processIfClasspath: Boolean = false,
+    ): DefaultClassItem? {
         // Skip Java classes, these won't be kotlin-only.
-        if (classifierSymbol.psi?.isKotlin() == false) return
+        if (classifierSymbol.psi?.isKotlin() == false) return null
         // Skip classes loaded from the classpath.
-        if (classifierSymbol.origin == KaSymbolOrigin.LIBRARY) return
+        if (!processIfClasspath && classifierSymbol.origin == KaSymbolOrigin.LIBRARY) return null
         // Skip private classes since these aren't part of the API surface
-        if (classifierSymbol.visibility == KaSymbolVisibility.PRIVATE) return
+        if (!processIfClasspath && classifierSymbol.visibility == KaSymbolVisibility.PRIVATE)
+            return null
 
         // Find the class in the codebase.
-        val className = classifierSymbol.classId?.asFqNameString() ?: return
+        val className = classifierSymbol.classId?.asFqNameString() ?: return null
         val classItem =
             if (addingToPsiCodebase) {
                 // When adding Kotlin-only elements to a PsiBasedCodebase, don't create any new
                 // classes. Some classes won't have been generated in the psi assembly because they
                 // don't have API visibility, so they shouldn't be created here.
-                codebase.findClassInCodebase(className) ?: return
+                codebase.findClassInCodebase(className) ?: return null
             } else {
                 findOrCreateClass(classifierSymbol, containingPackage, containingClass, className)
             }
@@ -376,7 +418,12 @@ private constructor(
         }
         for (nestedClassifierSymbol in
             memberScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
-            processNamedClass(nestedClassifierSymbol, classItem.containingPackage(), classItem)
+            processNamedClass(
+                nestedClassifierSymbol,
+                classItem.containingPackage(),
+                classItem,
+                processIfClasspath = processIfClasspath
+            )
         }
 
         // Process callables defined through a delegate
@@ -384,6 +431,8 @@ private constructor(
         for (callableSymbol in filterExpects(delegateScope.callables)) {
             processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
+
+        return classItem
     }
 
     /**
@@ -516,8 +565,11 @@ private constructor(
     }
 
     /** Creates a [DefaultClassItem] of kind type alias from the [typeAlias]. */
-    private fun processTypeAlias(typeAlias: KaTypeAliasSymbol, containingPackage: PackageItem) {
-        val qualifiedName = typeAlias.classId?.asFqNameString() ?: return
+    private fun processTypeAlias(
+        typeAlias: KaTypeAliasSymbol,
+        containingPackage: PackageItem
+    ): DefaultClassItem? {
+        val qualifiedName = typeAlias.classId?.asFqNameString() ?: return null
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
                 kaTypeItemFactory,
@@ -525,7 +577,7 @@ private constructor(
                 typeAlias.typeParameters,
             )
 
-        itemFactory.createTypeAliasItem(
+        return itemFactory.createTypeAliasItem(
             fileLocation = PsiFileLocation.fromPsiElement(typeAlias.psi),
             modifiers = kaModifierFactory.createForDeclaration(typeAlias),
             aliasedType =

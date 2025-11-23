@@ -71,13 +71,17 @@ class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
     }
 
     /**
-     * Searches for the class with [qualifiedName]. If the class exists in any source set, returns a
-     * [MultiplatformClassItem]. If it does not exist in any source sets, returns null.
+     * Uses [getClassFromCodebase] to search for the class with [qualifiedName] in each [Codebase]
+     * of [sourceSetToElement]. If the class is found in any source sets, returns a
+     * [MultiplatformClassItem]. If it is not found in any, returns null.
      */
-    fun findClass(qualifiedName: String): MultiplatformClassItem? {
+    private fun getClass(
+        qualifiedName: String,
+        getClassFromCodebase: Codebase.() -> ClassItem?
+    ): MultiplatformClassItem? {
         val sourceSetToClass =
-            sourceSetToElement.mapValues { (_, codebase) -> codebase?.findClass(qualifiedName) }
-        return if (sourceSetToElement.values.any { it != null }) {
+            sourceSetToElement.transformValues { codebase -> codebase?.getClassFromCodebase() }
+        return if (sourceSetToClass.values.any { it != null }) {
             MultiplatformClassItem(
                 qualifiedName,
                 sourceSetToClass,
@@ -85,6 +89,23 @@ class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
         } else {
             null
         }
+    }
+
+    /**
+     * Searches for the class with [qualifiedName]. If the class exists in any source set, returns a
+     * [MultiplatformClassItem]. If it does not exist in any source sets, returns null.
+     */
+    fun findClass(qualifiedName: String): MultiplatformClassItem? {
+        return getClass(qualifiedName) { findClass(qualifiedName) }
+    }
+
+    /**
+     * Searches for the class with [qualifiedName], including searching the classpath. If the class
+     * exists in any source set, returns a [MultiplatformClassItem]. If it does not exist in any
+     * source sets, returns null.
+     */
+    fun resolveClass(qualifiedName: String): MultiplatformClassItem? {
+        return getClass(qualifiedName) { resolveClass(qualifiedName) }
     }
 }
 

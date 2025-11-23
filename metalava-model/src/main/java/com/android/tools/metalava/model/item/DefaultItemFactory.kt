@@ -290,7 +290,7 @@ class DefaultItemFactory(
         typeParameterList: TypeParameterList,
         origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
-    ): ClassItem =
+    ): DefaultClassItem =
         DefaultClassItem.createTypeAlias(
             codebase,
             fileLocation,
