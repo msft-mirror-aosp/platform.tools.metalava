@@ -787,8 +787,11 @@ data class TypeStringConfiguration(
          */
         private val DEFAULT_ANNOTATION_FORMATTER = AnnotationFormatter.legacyAnnotationFormatter()
 
-        /** The default[TypeStringConfiguration]. */
+        /** The default [TypeStringConfiguration]. */
         val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
+
+        /** A [TypeStringConfiguration] like [DEFAULT], but with Kotlin-style null suffixes. */
+        val DEFAULT_KOTLIN_NULLS = TypeStringConfiguration(kotlinStyleNulls = true)
     }
 }
 
