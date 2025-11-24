@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -41,13 +42,6 @@ interface Codebase : ClassResolver, AnnotationContext {
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
 
-    /**
-     * Whether this [Codebase] is set up as Kotlin Multiplatform (KMP).
-     *
-     * See https://kotlinlang.org/docs/multiplatform.html
-     */
-    val isMultiplatform: Boolean
-
     /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
     val apiSurfaces: ApiSurfaces
 
@@ -62,9 +56,6 @@ interface Codebase : ClassResolver, AnnotationContext {
      * classpath).
      */
     fun getTopLevelClassesFromSource(): List<ClassItem>
-
-    /** Returns a list of all classes (including nested classes) created by this. */
-    fun getAllClassesByName(): Map<String, ClassItem>
 
     /**
      * Return `true` if this whole [Codebase] was created from the class path, i.e. not from
@@ -191,6 +182,13 @@ interface Codebase : ClassResolver, AnnotationContext {
     data class Config(
         /** Determines how annotations will affect the [Codebase]. */
         val annotationManager: AnnotationManager,
+
+        /**
+         * The [ApiFlags] to use in conditional javadoc.
+         *
+         * If set to `null` then it behaves as if all flags are enabled.
+         */
+        val apiFlags: ApiFlags? = null,
 
         /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,

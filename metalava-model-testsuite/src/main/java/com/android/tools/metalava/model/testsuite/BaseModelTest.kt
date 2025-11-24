@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
@@ -215,8 +216,18 @@ abstract class BaseModelTest() :
 
     /** Additional properties that affect the behavior of the test. */
     data class TestFixture(
+        /**
+         * Indicates whether comments should be read.
+         *
+         * This has no effect on package comments, they are always read.
+         */
+        val allowReadingComments: Boolean = true,
+
         /** The [AnnotationManager] to use when creating a [Codebase]. */
         val annotationManager: AnnotationManager = DefaultAnnotationManager(),
+
+        /** The [ApiFlags] to use in conditional javadoc. */
+        val apiFlags: ApiFlags? = null,
 
         /**
          * The optional [PackageFilter] that defines which packages can contribute to the API. If
@@ -240,6 +251,7 @@ abstract class BaseModelTest() :
         val codebaseConfig =
             Codebase.Config(
                 annotationManager = annotationManager,
+                apiFlags = apiFlags,
                 apiSurfaces = apiSurfaces,
                 reporter = reporter ?: ThrowingReporter.INSTANCE,
             )
