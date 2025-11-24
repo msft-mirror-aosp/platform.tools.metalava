@@ -35,6 +35,8 @@ internal class PsiSourceModelProvider : SourceModelProvider {
             Capability.KOTLIN,
             Capability.METHOD_BODY,
             Capability.DOCUMENTATION,
+            Capability.JAR_WITH_SOURCES,
+            Capability.LAX_PARSER,
         )
 
     override val modelOptionsList: List<ModelOptions> =

@@ -17,11 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.reporter.Reporter
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.util.Disposer
@@ -33,10 +31,13 @@ import kotlin.io.path.createTempDirectory
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 
 /** Manages the [UastEnvironment] objects created when processing sources. */
-class PsiEnvironmentManager(
+internal class PsiEnvironmentManager(
     private val disableStderrDumping: Boolean = false,
     private val forTesting: Boolean = false,
 ) : EnvironmentManager {
+    init {
+        openManagerCount++
+    }
 
     /**
      * An empty directory, used when it is necessary to create an environment without any source.
@@ -117,18 +118,16 @@ class PsiEnvironmentManager(
     }
 
     override fun createSourceParser(
-        reporter: Reporter,
-        annotationManager: AnnotationManager,
+        codebaseConfig: Codebase.Config,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
         allowReadingComments: Boolean,
         jdkHome: File?,
-    ): SourceParser {
+    ): PsiSourceParser {
         return PsiSourceParser(
             psiEnvironmentManager = this,
-            reporter = reporter,
-            annotationManager = annotationManager,
+            codebaseConfig = codebaseConfig,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
             useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
@@ -147,27 +146,38 @@ class PsiEnvironmentManager(
             }
         }
         uastEnvironments.clear()
-        UastEnvironment.disposeApplicationEnvironment()
 
-        if (forTesting) {
-            Disposer.assertIsEmpty(true)
+        // Only dispose of the application environment if this is the final environment to close.
+        // If it was not then there is no point in checking to make sure that [Disposer] is empty
+        // because it will include items that have not yet been disposed of by the other open
+        // [PsiEnvironmentManager]s.
+        openManagerCount--
+        if (openManagerCount == 0) {
+            UastEnvironment.disposeApplicationEnvironment()
+            if (forTesting) {
+                Disposer.assertIsEmpty(true)
+            }
         }
     }
 
     companion object {
-        fun javaLanguageLevelFromString(value: String): LanguageLevel {
-            val level = LanguageLevel.parse(value)
-            when {
-                level == null ->
-                    throw IllegalStateException(
-                        "$value is not a valid or supported Java language level"
-                    )
-                level.isLessThan(LanguageLevel.JDK_1_7) ->
-                    throw IllegalStateException("$value must be at least 1.7")
-                else -> return level
-            }
-        }
+        /**
+         * Track how many open [PsiEnvironmentManager]s exist. This is so that when the final
+         * manager is closed, it can ensure that everything has been disposed.
+         */
+        private var openManagerCount = 0
     }
 }
 
 private const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
+
+private fun javaLanguageLevelFromString(value: String): LanguageLevel {
+    val level = LanguageLevel.parse(value)
+    when {
+        level == null ->
+            throw IllegalStateException("$value is not a valid or supported Java language level")
+        level.isLessThan(LanguageLevel.JDK_1_7) ->
+            throw IllegalStateException("$value must be at least 1.7")
+        else -> return level
+    }
+}

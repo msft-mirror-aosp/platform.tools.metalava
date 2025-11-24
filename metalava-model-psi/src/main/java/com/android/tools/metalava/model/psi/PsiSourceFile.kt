@@ -17,77 +17,66 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.JavaImport
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.item.AbstractSourceFile
+import com.android.tools.metalava.model.source.filterImports
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
-import com.intellij.psi.PsiComment
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiImportStaticStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiWhiteSpace
 import java.util.TreeSet
-import java.util.function.Predicate
-import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
-import org.jetbrains.uast.UFile
 
 /** Whether we should limit import statements to symbols found in class docs */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
 internal class PsiSourceFile(
-    val codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     val file: PsiFile,
-    val uFile: UFile? = null
-) : SourceFile {
-    override fun getHeaderComments(): String? {
-        if (uFile != null) {
-            var comment: String? = null
-            for (uComment in uFile.allCommentsInFile) {
-                val text = uComment.text
-                comment =
-                    if (comment != null) {
-                        comment + "\n" + text
-                    } else {
-                        text
-                    }
-            }
-            return comment
-        }
+) : AbstractSourceFile() {
 
+    override val containingPackage: PackageItem = run {
+        val packageName = (file as PsiClassOwner).packageName
+        codebase.resolvePackage(packageName)!!
+    }
+
+    override fun getHeaderComments(): String? {
         // https://youtrack.jetbrains.com/issue/KT-22135
         if (file is PsiJavaFile) {
             val pkg = file.packageStatement ?: return null
             return file.text.substring(0, pkg.startOffset)
         } else if (file is KtFile) {
-            var curr: PsiElement? = file.firstChild
-            var comment: String? = null
-            while (curr != null) {
-                if (curr is PsiComment || curr is KDoc) {
-                    val text = curr.text
-                    comment =
-                        if (comment != null) {
-                            comment + "\n" + text
-                        } else {
-                            text
-                        }
-                } else if (curr !is PsiWhiteSpace) {
-                    break
-                }
-                curr = curr.nextSibling
-            }
-            return comment
+            val pkg = file.packageDirective ?: return null
+            return file.text.substring(0, pkg.startOffset)
         }
 
         return super.getHeaderComments()
     }
 
-    override fun getImports(predicate: Predicate<Item>): Collection<Import> {
+    override fun allJavaImports(): List<JavaImport> {
+        file as? PsiJavaFile ?: return emptyList()
+
+        val importList = file.importList ?: return emptyList()
+        return importList.allImportStatements.mapNotNull { importStatement ->
+            importStatement.importReference?.qualifiedName?.let { qualifiedName ->
+                JavaImport(
+                    qualifiedName = qualifiedName,
+                    onDemand = importStatement.isOnDemand,
+                    static = importStatement is PsiImportStaticStatement,
+                )
+            }
+        }
+    }
+
+    override fun getImports(predicate: FilterPredicate): Collection<Import> {
         val imports = TreeSet<Import>(compareBy { it.pattern })
 
         if (file is PsiJavaFile) {
@@ -96,7 +85,7 @@ internal class PsiSourceFile(
                 for (importStatement in importList.importStatements) {
                     val resolved = importStatement.resolve() ?: continue
                     if (resolved is PsiClass) {
-                        val classItem = codebase.findClass(resolved) ?: continue
+                        val classItem = codebase.findOrCreateClass(resolved)
                         if (predicate.test(classItem)) {
                             imports.add(Import(classItem))
                         }
@@ -113,20 +102,19 @@ internal class PsiSourceFile(
                         }
                     } else if (resolved is PsiMethod) {
                         codebase.findClass(resolved.containingClass ?: continue) ?: continue
-                        val methodItem = codebase.findMethod(resolved)
+                        val methodItem = codebase.findCallableByPsiMethod(resolved)
                         if (predicate.test(methodItem)) {
                             imports.add(Import(methodItem))
                         }
                     } else if (resolved is PsiField) {
                         val classItem =
-                            codebase.findClass(resolved.containingClass ?: continue) ?: continue
+                            codebase.findOrCreateClass(resolved.containingClass ?: continue)
                         val fieldItem =
                             classItem.findField(
                                 resolved.name,
                                 includeSuperClasses = true,
                                 includeInterfaces = false
-                            )
-                                ?: continue
+                            ) ?: continue
                         if (predicate.test(fieldItem)) {
                             imports.add(Import(fieldItem))
                         }
@@ -137,7 +125,7 @@ internal class PsiSourceFile(
             for (importDirective in file.importDirectives) {
                 val resolved = importDirective.reference?.resolve() ?: continue
                 if (resolved is PsiClass) {
-                    val classItem = codebase.findClass(resolved) ?: continue
+                    val classItem = codebase.findOrCreateClass(resolved)
                     if (predicate.test(classItem)) {
                         imports.add(Import(classItem))
                     }
@@ -150,7 +138,7 @@ internal class PsiSourceFile(
         if (imports.isNotEmpty()) {
             @Suppress("ConstantConditionIf")
             return if (ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS) {
-                filterImports(imports, predicate)
+                filterImports(imports, classes(), predicate)
             } else {
                 imports
             }
@@ -166,13 +154,6 @@ internal class PsiSourceFile(
             ?.mapNotNull { codebase.findClass(it) }
             .orEmpty()
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        return other is PsiSourceFile && file == other.file
-    }
-
-    override fun hashCode(): Int = file.hashCode()
 
     override fun toString(): String = "file ${file.virtualFile?.path}"
 }
