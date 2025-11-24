@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.provider
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 
 /** The set of different capabilities that a codebase creator can provide. */
 enum class Capability {
@@ -49,4 +50,7 @@ enum class Capability {
 
     /** Has access to [ApiVariantSelectors]. */
     API_VARIANT_SELECTORS,
+
+    /** Can create [MultiplatformCodebase]s */
+    MULTIPLATFORM,
 }

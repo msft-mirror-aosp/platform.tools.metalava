@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
@@ -69,6 +70,13 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         val transformedCodebase = CodebaseTransformer.transformIfAvailable(codebase)
 
         test(transformedCodebase)
+    }
+
+    override fun createMultiplatformCodebaseAndRun(
+        inputs: ModelSuiteRunner.TestInputs,
+        test: (MultiplatformCodebase?) -> Unit
+    ) {
+        TODO("b/407735666")
     }
 
     override fun toString() = providerName

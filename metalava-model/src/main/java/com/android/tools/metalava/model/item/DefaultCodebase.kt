@@ -39,7 +39,6 @@ open class DefaultCodebase(
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
     val assembler: CodebaseAssembler,
-    override val isMultiplatform: Boolean,
 ) : Codebase {
 
     final override val annotationManager: AnnotationManager = config.annotationManager

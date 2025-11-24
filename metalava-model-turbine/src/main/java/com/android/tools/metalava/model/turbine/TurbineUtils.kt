@@ -99,7 +99,9 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
             else -> error("Should never be called")
         } ?: return NO_SOURCE_COMMENT_FACTORY
 
-    return { item -> TurbineItemDocumentation(item, sourceFile, turbineJavadoc) }
+    return ItemDocumentationFactory { item ->
+        TurbineItemDocumentation(item, sourceFile, turbineJavadoc)
+    }
 }
 
 /**

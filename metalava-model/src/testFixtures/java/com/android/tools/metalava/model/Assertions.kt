@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformElement
+import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
@@ -373,6 +376,18 @@ interface Assertions {
      */
     fun TypeItem?.assertWildcardItem(body: (WildcardTypeItem.() -> Unit)? = null) {
         assertIsInstanceOf(body ?: {})
+    }
+
+    /** Checks that the element exists in exactly the source sets of [expectedSourceSets]. */
+    fun MultiplatformElement<*>.assertSourceSets(vararg expectedSourceSets: String) {
+        assertThat(sourceSets).containsExactly(*expectedSourceSets)
+    }
+
+    /** Finds the package in the [MultiplatformCodebase], failing if it does not exist. */
+    fun MultiplatformCodebase.assertPackage(qualifiedName: String): MultiplatformPackageItem {
+        val packageItem = findPackage(qualifiedName)
+        assertNotNull(packageItem, "Expected package $qualifiedName to be defined")
+        return packageItem
     }
 
     companion object : Assertions {}
