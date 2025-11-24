@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model.multiplatform
 
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
@@ -25,6 +29,10 @@ import com.android.tools.metalava.model.PackageItem
  * name of a source set to the value in that source set.
  */
 typealias SourceSetDependent<V> = Map<String, V>
+
+fun <V, T> SourceSetDependent<V>.transformValues(transform: (V) -> T): SourceSetDependent<T> {
+    return mapValues { (_, value) -> transform(value) }
+}
 
 /**
  * Models a Kotlin multiplatform project (see https://kotlinlang.org/docs/multiplatform.html).
@@ -50,6 +58,23 @@ class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
     fun findPackage(qualifiedName: String): MultiplatformPackageItem? {
         return packages.singleOrNull { it.qualifiedName == qualifiedName }
     }
+
+    /**
+     * Searches for the class with [qualifiedName]. If the class exists in any source set, returns a
+     * [MultiplatformClassItem]. If it does not exist in any source sets, returns null.
+     */
+    fun findClass(qualifiedName: String): MultiplatformClassItem? {
+        val sourceSetToClass =
+            sourceSetToElement.mapValues { (_, codebase) -> codebase?.findClass(qualifiedName) }
+        return if (sourceSetToElement.values.any { it != null }) {
+            MultiplatformClassItem(
+                qualifiedName,
+                sourceSetToClass,
+            )
+        } else {
+            null
+        }
+    }
 }
 
 /**
@@ -63,6 +88,16 @@ sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSet
     /** The source sets which this element exists in. */
     val sourceSets: Set<String> =
         sourceSetToElement.keys.filter { sourceSetToElement[it] != null }.toSet()
+
+    /**
+     * For each source set, computes some value with [valueAccessor] based on the element for that
+     * source set. Returns a mapping from source set to value, with only the source sets where the
+     * element exists.
+     */
+    protected fun <V> sourceSetDependentValue(valueAccessor: (E) -> V): SourceSetDependent<V> {
+        // Only map from source sets where the element exists.
+        return sourceSets.associateWith { valueAccessor(sourceSetToElement[it]!!) }
+    }
 
     /**
      * Computes a list of the [MultiplatformElement] children with type [C] of this element. For
@@ -100,14 +135,98 @@ sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSet
 
 /** Wrapper for common functionality of [MultiplatformElement] with [Item] element types. */
 sealed class MultiplatformItem<I : Item>(sourceSetToItem: SourceSetDependent<I?>) :
-    MultiplatformElement<I>(sourceSetToItem)
+    MultiplatformElement<I>(sourceSetToItem) {
+    /**
+     * A mapping from source set where the [Item] to the modifiers of the [Item] in that source set.
+     */
+    val modifiers: SourceSetDependent<BaseModifierList> = sourceSetDependentValue { it.modifiers }
+}
 
 /** A package named [qualifiedName] in a [MultiplatformCodebase]. */
 class MultiplatformPackageItem(
     val qualifiedName: String,
     sourceSetToItem: SourceSetDependent<PackageItem?>,
 ) : MultiplatformItem<PackageItem>(sourceSetToItem) {
+    /** All the top-level (not nested) classes defined in this package in any source set. */
+    fun topLevelClasses(): List<MultiplatformClassItem> {
+        return aggregateChildren(
+            childAccessor = { topLevelClasses() },
+            childIdentifier = { qualifiedName() },
+            multiplatformChildCreator = { qualifiedName, sourceSetToClassItem ->
+                MultiplatformClassItem(qualifiedName, sourceSetToClassItem)
+            }
+        )
+    }
+
+    /** All the classes (including nested classes) defined in this package in any source set. */
+    fun allClasses(): Sequence<MultiplatformClassItem> {
+        return topLevelClasses().asSequence().flatMap { it.allClasses() }
+    }
+
     override fun toString(): String {
         return "multiplatform package $qualifiedName"
+    }
+}
+
+/** A class named [qualifiedName] in a [MultiplatformCodebase]. */
+class MultiplatformClassItem(
+    val qualifiedName: String,
+    sourceSetToItem: SourceSetDependent<ClassItem?>
+) : MultiplatformItem<ClassItem>(sourceSetToItem) {
+    /**
+     * A mapping from source set where the [ClassItem] exists to the super class of the [ClassItem]
+     * for that source set.
+     */
+    val superClassType: SourceSetDependent<ClassTypeItem?> = sourceSetDependentValue {
+        it.superClassType()
+    }
+
+    /**
+     * A mapping from source set where the [ClassItem] exists to the interfaces of the [ClassItem]
+     * for that source set.
+     */
+    val interfaceTypes: SourceSetDependent<List<ClassTypeItem>> = sourceSetDependentValue {
+        it.interfaceTypes()
+    }
+
+    /**
+     * A mapping from source set where the [ClassItem] exists to the kind of the [ClassItem] for
+     * that source set.
+     */
+    val classKind: SourceSetDependent<ClassKind> = sourceSetDependentValue { it.classKind }
+
+    /**
+     * The nested classes of this class which exist in any source set.
+     *
+     * This only includes directly nested classes, not the nested classes of nested classes.
+     */
+    val nestedClasses: List<MultiplatformClassItem> =
+        aggregateChildren(
+            childAccessor = { nestedClasses() },
+            childIdentifier = { qualifiedName() },
+            multiplatformChildCreator = { qualifiedName, sourceSetToClassItem ->
+                MultiplatformClassItem(qualifiedName, sourceSetToClassItem)
+            }
+        )
+
+    /**
+     * A sequence with this [MultiplatformClassItem], its [nestedClasses], and all the recursively
+     * nested classes of those nested classes.
+     */
+    fun allClasses(): Sequence<MultiplatformClassItem> {
+        return sequenceOf(this).plus(nestedClasses.asSequence().flatMap { it.allClasses() })
+    }
+
+    override fun toString(): String {
+        return "multiplatform class $qualifiedName"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        return (other as? MultiplatformClassItem)?.qualifiedName == qualifiedName
+    }
+
+    override fun hashCode(): Int {
+        return qualifiedName.hashCode()
     }
 }

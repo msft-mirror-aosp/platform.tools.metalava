@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformElement
 import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
+import com.android.tools.metalava.model.multiplatform.SourceSetDependent
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
@@ -388,6 +390,18 @@ interface Assertions {
         val packageItem = findPackage(qualifiedName)
         assertNotNull(packageItem, "Expected package $qualifiedName to be defined")
         return packageItem
+    }
+
+    /** Finds the class in the [MultiplatformCodebase], failing if it does not exist. */
+    fun MultiplatformCodebase.assertClass(qualifiedName: String): MultiplatformClassItem {
+        val classItem = findClass(qualifiedName)
+        assertNotNull(classItem, "Expected class $qualifiedName to be defined")
+        return classItem
+    }
+
+    /** Assert that the source set to value mapping contains exactly the expected pairs. */
+    fun <V> SourceSetDependent<V>.assertSourceSetValues(vararg expectedValues: Pair<String, V>) {
+        assertThat(this).isEqualTo(expectedValues.toMap())
     }
 
     companion object : Assertions {}
