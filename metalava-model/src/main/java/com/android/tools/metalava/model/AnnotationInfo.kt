@@ -158,9 +158,9 @@ data class Showability(
      * `--show-annotation`, but not `--show-single-annotation`, or
      * `--show-for-stub-purposes-annotation`.
      *
-     * If [ShowOrHide.hide] is `true` then the contents of the annotated [Item] will be included in
-     * the API unless overridden by a closer annotation. That is the case for annotations that match
-     * `--hide-annotation`.
+     * If [ShowOrHide.hide] is `true` then the contents of the annotated [Item] will NOT be included
+     * in the API unless overridden by a closer annotation. That is the case for annotations that
+     * match `--hide-annotation`.
      */
     private val recursive: ShowOrHide,
 
