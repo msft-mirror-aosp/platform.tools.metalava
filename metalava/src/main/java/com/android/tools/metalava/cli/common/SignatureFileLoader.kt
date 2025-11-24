@@ -27,6 +27,17 @@ import com.android.tools.metalava.model.text.SignatureFile
 interface SignatureFileLoader {
     /** Load [signatureFiles] into a [Codebase] using the optional [classResolver]. */
     fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase
+
+    companion object {
+        /** A [SignatureFileLoader] that will throw an exception when called. */
+        val THROWING =
+            object : SignatureFileLoader {
+                override fun load(
+                    signatureFiles: List<SignatureFile>,
+                    classResolver: ClassResolver?
+                ) = error("Throwing signature file loader cannot load signature files")
+            }
+    }
 }
 
 /**

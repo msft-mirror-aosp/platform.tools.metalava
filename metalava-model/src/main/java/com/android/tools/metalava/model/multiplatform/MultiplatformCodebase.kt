@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.multiplatform
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageItem
 
 /**
  * A value which differs between source sets of a multiplatform project. This is a mapping from the
@@ -30,14 +32,82 @@ typealias SourceSetDependent<V> = Map<String, V>
  * There is a [Codebase] for each source set of the multiplatform project.
  */
 class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
-    MultiplatformElement<Codebase>(sourceSetToCodebase)
+    MultiplatformElement<Codebase>(sourceSetToCodebase) {
+    /** A list of all the packages which exist in any source set of the codebase. */
+    val packages: List<MultiplatformPackageItem> =
+        aggregateChildren(
+            childAccessor = { getPackages().packages },
+            childIdentifier = { qualifiedName() },
+            multiplatformChildCreator = { qualifiedName, sourceSetToPackage ->
+                MultiplatformPackageItem(qualifiedName, sourceSetToPackage)
+            },
+        )
+
+    /**
+     * Searches for the package with [qualifiedName]. If the package exists in any source set,
+     * returns a [MultiplatformPackageItem]. If it does not exist in any source sets, returns null.
+     */
+    fun findPackage(qualifiedName: String): MultiplatformPackageItem? {
+        return packages.singleOrNull { it.qualifiedName == qualifiedName }
+    }
+}
 
 /**
  * A wrapper for a [SourceSetDependent] map of some element. Provides common functionality for
  * different parts of a multiplatform model.
+ *
+ * The key of [sourceSetToElement] is nullable. If the value is null for some source set, that means
+ * the element does not exist in that source set.
  */
-sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSetDependent<E>) {
+sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSetDependent<E?>) {
     /** The source sets which this element exists in. */
-    val sourceSets: Set<String>
-        get() = sourceSetToElement.keys
+    val sourceSets: Set<String> =
+        sourceSetToElement.keys.filter { sourceSetToElement[it] != null }.toSet()
+
+    /**
+     * Computes a list of the [MultiplatformElement] children with type [C] of this element. For
+     * instance, this can be used to list all packages in a codebase, all classes in a package, etc.
+     *
+     * @param childAccessor Lists the children for the element of one source set.
+     * @param childIdentifier Returns an identifier for a child of type [C] in order to collect
+     *   children with the same signature from different source sets into a [MultiplatformElement].
+     * @param multiplatformChildCreator Creates a [MultiplatformElement] for a child from an
+     *   identifier and a mapping of source set to value of the child in that source set.
+     */
+    protected fun <C, M : MultiplatformElement<C>, I> aggregateChildren(
+        childAccessor: E.() -> List<C>,
+        childIdentifier: C.() -> I,
+        multiplatformChildCreator: (I, SourceSetDependent<C?>) -> M,
+    ): List<M> {
+        // Create a mapping from source set to the children that exist in that source set.
+        val sourceSetToChildren =
+            sourceSetToElement.mapValues { (_, parent) -> parent?.childAccessor() ?: emptyList() }
+        val allChildIdentifiers =
+            sourceSetToChildren.values
+                .flatMap { childList -> childList.map { child -> childIdentifier(child) } }
+                .toSet()
+        // For each child identifier, find the value of the child in all source sets, and create a
+        // MultiplatformElement for it.
+        return allChildIdentifiers.map { childIdentifier ->
+            val sourceSetToChild =
+                sourceSetToChildren.mapValues { (_, children) ->
+                    children.singleOrNull { child -> childIdentifier(child) == childIdentifier }
+                }
+            multiplatformChildCreator(childIdentifier, sourceSetToChild)
+        }
+    }
+}
+
+/** Wrapper for common functionality of [MultiplatformElement] with [Item] element types. */
+sealed class MultiplatformItem<I : Item>(sourceSetToItem: SourceSetDependent<I?>) :
+    MultiplatformElement<I>(sourceSetToItem)
+
+/** A package named [qualifiedName] in a [MultiplatformCodebase]. */
+class MultiplatformPackageItem(
+    val qualifiedName: String,
+    sourceSetToItem: SourceSetDependent<PackageItem?>,
+) : MultiplatformItem<PackageItem>(sourceSetToItem) {
+    override fun toString(): String {
+        return "multiplatform package $qualifiedName"
+    }
 }

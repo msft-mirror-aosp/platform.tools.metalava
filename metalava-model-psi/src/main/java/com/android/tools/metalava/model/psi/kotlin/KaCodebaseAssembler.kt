@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
@@ -46,12 +45,8 @@ import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
-import com.android.tools.metalava.model.item.DefaultPropertyItem
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
@@ -157,6 +152,7 @@ internal class KaCodebaseAssembler(
                                     assembler = assembler,
                                 )
                             }
+                        processor.assemble()
                         processor.codebase
                     }
                 )
@@ -212,13 +208,27 @@ private constructor(
     }
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        // TODO("b/407735063")
-        return null
+        return analyze(kaModule) {
+            findPackage(FqName(qualifiedName))?.let {
+                // Create the package only if one with this name was found in the module.
+                codebase.findOrCreatePackage(qualifiedName)
+            }
+        }
     }
 
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
         // TODO(b/407735063)
         return null
+    }
+
+    @OptIn(KaExperimentalApi::class)
+    private fun KaSession.allPackages(): Sequence<KaPackageSymbol> {
+        fun childPackages(packageSymbol: KaPackageSymbol): Sequence<KaPackageSymbol> {
+            return sequenceOf(packageSymbol) +
+                packageSymbol.packageScope.getPackageSymbols().flatMap { childPackages(it) }
+        }
+
+        return childPackages(rootPackageSymbol)
     }
 
     /** Analyze the [packages] to add type aliases to the codebase for this [kaModule]. */
@@ -237,14 +247,18 @@ private constructor(
     }
 
     /**
-     * Analyze the [packages] to add items to the codebase for this [kaModule] (except type aliases,
+     * Analyze the [KaModule] to add items to the codebase for this [kaModule] (except type aliases,
      * which are added by [createTypeAliases]).
+     *
+     * If [packageNames] is provided, specifically processes those packages, otherwise processes all
+     * packages in the module (which includes packages from the classpath).
      */
-    fun assemble(packages: List<FqName>) {
+    fun assemble(packageNames: List<FqName>? = null) {
         analyze(kaModule) {
-            for (packageName in packages) {
-                val packageSymbol = findPackage(packageName)
-                packageSymbol?.let { processPackage(it) }
+            val packages =
+                packageNames?.mapNotNull { findPackage(it) }?.asSequence() ?: allPackages()
+            for (packageSymbol in packages) {
+                processPackage(packageSymbol)
             }
         }
     }
@@ -262,6 +276,8 @@ private constructor(
 
     /** Analyze the classes of the package as well as any top-level callables. */
     private fun KaSession.processPackage(packageSymbol: KaPackageSymbol) {
+        // Ensure the package has been created
+        codebase.findOrCreatePackage(packageSymbol.fqName.asString())
         val packageScope = packageSymbol.packageScope
         for (classifierSymbol in packageScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
             processNamedClass(classifierSymbol)
@@ -324,7 +340,7 @@ private constructor(
         }
     }
 
-    /** Creates a [DefaultTypeAliasItem] from the [typeAlias]. */
+    /** Creates a [DefaultClassItem] of kind type alias from the [typeAlias]. */
     private fun processTypeAlias(typeAlias: KaTypeAliasSymbol) {
         val qualifiedName = typeAlias.classId?.asFqNameString() ?: return
         val packageName = qualifiedName.substringBeforeLast(".")
@@ -337,12 +353,9 @@ private constructor(
                 typeAlias.typeParameters,
             )
 
-        DefaultClassItem.createTypeAlias(
-            codebase = codebase,
+        itemFactory.createTypeAliasItem(
             fileLocation = PsiFileLocation.fromPsiElement(typeAlias.psi),
             modifiers = kaModifierFactory.createForDeclaration(typeAlias),
-            documentationFactory = ItemDocumentation.NONE_FACTORY,
-            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
             aliasedType =
                 typeParameterListAndFactory.factory.getGeneralType(typeAlias.expandedType),
             qualifiedName = qualifiedName,
@@ -392,14 +405,11 @@ private constructor(
 
         val modifiers = kaModifierFactory.createForDeclaration(constructorSymbol)
         val constructorItem =
-            DefaultConstructorItem(
-                codebase = codebase,
+            itemFactory.createConstructorItem(
                 fileLocation = PsiFileLocation.fromPsiElement(constructorSymbol.psi),
-                sourceLanguage = SourceLanguage.KOTLIN,
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
-                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
                 name = containingClass.simpleName(),
                 containingClass = containingClass,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
@@ -419,7 +429,6 @@ private constructor(
                     )
                 },
                 throwsTypes = throwsTypesFromModifiers(modifiers),
-                callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
                 implicitConstructor = false,
                 isPrimary = constructorSymbol.isPrimary,
             )
@@ -546,14 +555,11 @@ private constructor(
 
         val modifiers = kaModifierFactory.createForFunction(functionSymbol, containingClass)
         val methodItem =
-            DefaultMethodItem(
-                codebase = codebase,
+            itemFactory.createMethodItem(
                 fileLocation = PsiFileLocation.fromPsiElement(functionSymbol.psi),
-                sourceLanguage = SourceLanguage.KOTLIN,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
-                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
                 name = name,
                 containingClass = containingClass,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
@@ -570,7 +576,6 @@ private constructor(
                     )
                 },
                 throwsTypes = throwsTypesFromModifiers(modifiers),
-                callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
                 // The default value provider is only used for annotation value accessors, but those
                 // won't be generated here since they'll be usable from Java.
                 defaultValueProvider = null,
@@ -733,12 +738,9 @@ private constructor(
             )
         kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter, backingField)
         val propertyItem =
-            DefaultPropertyItem(
-                codebase = codebase,
+            itemFactory.createPropertyItem(
                 fileLocation = PsiFileLocation.fromPsiElement(propertySymbol.psi),
-                sourceLanguage = SourceLanguage.KOTLIN,
                 documentationFactory = propertySymbol.getDocumentation(),
-                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
                 modifiers = modifiers,
                 name = propertySymbol.name.identifier,
                 containingClass = containingClass,
@@ -779,10 +781,8 @@ private constructor(
                         isVarArg = false,
                     )
 
-                DefaultParameterItem(
-                    codebase = codebase,
+                itemFactory.createParameterItem(
                     fileLocation = PsiFileLocation.fromPsiElement(it.psi),
-                    sourceLanguage = SourceLanguage.KOTLIN,
                     modifiers = kaModifierFactory.createForReceiverParameter(it),
                     name = "receiver",
                     publicName = null,
@@ -806,10 +806,8 @@ private constructor(
                         isVarArg = parameterSymbol.isVararg,
                     )
 
-                DefaultParameterItem(
-                    codebase = codebase,
+                itemFactory.createParameterItem(
                     fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
-                    sourceLanguage = SourceLanguage.KOTLIN,
                     modifiers = kaModifierFactory.createForValueParameter(parameterSymbol),
                     name = parameterSymbol.name.identifier,
                     publicName = parameterSymbol.name.identifierOrNullIfSpecial,
@@ -824,10 +822,8 @@ private constructor(
         val continuationParameter =
             if (isSuspend) {
                 val index = regularParameters.size + (receiverParameter?.let { 1 } ?: 0)
-                DefaultParameterItem(
-                    codebase = codebase,
+                itemFactory.createParameterItem(
                     fileLocation = FileLocation.UNKNOWN,
-                    sourceLanguage = SourceLanguage.KOTLIN,
                     modifiers =
                         createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, emptyList()),
                     name = "\$completion",
@@ -944,8 +940,7 @@ private constructor(
             typeParameterSymbols,
             // Construct type parameter items from the symbols
             { typeParameterSymbol ->
-                DefaultTypeParameterItem(
-                    codebase,
+                itemFactory.createTypeParameterItem(
                     kaModifierFactory.createForDeclaration(typeParameterSymbol),
                     typeParameterSymbol.name.identifier,
                     typeParameterSymbol.isReified,
