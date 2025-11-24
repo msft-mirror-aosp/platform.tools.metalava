@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.testing.java
@@ -180,12 +179,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         method public void method();
                       }
                     }
-                """,
-            // TODO(b/
-            expectedFail = DefaultLintErrorMessage,
-            expectedIssues =
-                """
-                    src/test/pkg/Test.java:13: error: @SystemApi APIs must also be marked @hide: method test.pkg.Test.method() [UnhiddenSystemApi]
                 """,
         )
     }
