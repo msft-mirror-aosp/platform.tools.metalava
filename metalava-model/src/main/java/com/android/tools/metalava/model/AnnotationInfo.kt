@@ -220,10 +220,9 @@ data class Showability(
     /**
      * Check whether the annotated item is part of an unstable API that needs to be reverted.
      *
-     * Returns `true` if the annotation matches `--hide-annotation android.annotation.FlaggedApi` or
-     * if this is on an item then when the item is annotated with such an annotation or is a method
-     * that overrides such an item or is contained within a class that is annotated with such an
-     * annotation.
+     * Returns `true` if the annotation is an [ANDROID_FLAGGED_API] annotation or if this is on an
+     * item then when the item is annotated with such an annotation or is a method that overrides
+     * such an item or is contained within a class that is annotated with such an annotation.
      */
     fun revertUnstableApi() = show == ShowOrHide.REVERT_UNSTABLE_API
 
