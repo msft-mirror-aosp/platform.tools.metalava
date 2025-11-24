@@ -294,4 +294,36 @@ class ApiLintBaselineTest : DriverTest() {
                 ),
         )
     }
+    /**
+     * TODO: rename this to "Should report multiple type parameter issues for a particular element"
+     */
+    @Test
+    fun `Don't report multiple type parameter issues for a particular element`() {
+        check(
+            apiLint = "", // enabled
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    // This baseline should have errors for both "KeyType" and "ValueType"
+                    // as they both violate Google generic type parameter naming guidelines
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            TypeParameterName: test.AppSearchBatchResult:
+                                Invalid type parameter name "ValueType". Type parameter names must follow the Google naming guidelines specified here: https://developer.android.com/kotlin/style-guide#type_variable_names
+                        """,
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test;
+
+                    public final class AppSearchBatchResult<KeyType, ValueType> {
+                    }
+                    """
+                    )
+                ),
+        )
+    }
 }
