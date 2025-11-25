@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
@@ -118,9 +119,9 @@ internal class ClassLoaderBasedCodebaseAssembler(
 
     override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
 
-    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
+    override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
         // Define the [Package] so it can access its annotations.
-        val pkg = definePackage(packageName) ?: return emptyList()
+        val pkg = definePackage(packageName) ?: return PackageInfo.EMPTY
 
         // Convert the annotation class, ignoring attributes for the moment.
         val annotationItems =
@@ -130,7 +131,7 @@ internal class ClassLoaderBasedCodebaseAssembler(
                 }
             }
 
-        return annotationItems
+        return PackageInfo(annotations = annotationItems)
     }
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
