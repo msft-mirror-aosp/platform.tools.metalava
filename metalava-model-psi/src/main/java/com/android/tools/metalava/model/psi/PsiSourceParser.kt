@@ -67,13 +67,6 @@ internal class PsiSourceParser(
 
     private val reporter = codebaseConfig.reporter
 
-    override fun getClassPathResolver(classPath: List<File>) =
-        parseSources(
-            sourceSet = SourceSet.empty(),
-            description = "Codebase from classpath",
-            classPath = classPath,
-        )
-
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
      * description.
