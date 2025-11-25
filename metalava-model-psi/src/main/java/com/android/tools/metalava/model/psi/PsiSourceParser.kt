@@ -141,7 +141,7 @@ internal class PsiSourceParser(
             }
 
         assembler.initializeFromSources(sourceSet, apiPackages)
-        return assembler.codebase
+        return assembler.psiCodebase
     }
 
     /** Lists all of the [KaModule]s that exist in this project. */
@@ -190,7 +190,7 @@ internal class PsiSourceParser(
                     inlineTypeAliasUsages = environment.isKMP,
                 )
             }
-        val codebase = assembler.codebase
+        val codebase = assembler.psiCodebase
         assembler.initializeFromJar(apiJar)
         return codebase
     }
