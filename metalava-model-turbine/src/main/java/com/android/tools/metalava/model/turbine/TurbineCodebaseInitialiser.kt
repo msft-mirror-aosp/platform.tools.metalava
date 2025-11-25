@@ -393,13 +393,6 @@ internal class TurbineCodebaseInitialiser(
      */
     private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
 
-    /**
-     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
-     * on the classpath.
-     */
-    private fun isValidPackage(packageName: String) =
-        index.lookupPackage(packageName.qualifiedNameToIdentifierList()) != null
-
     private fun createAllPackages(packageDocs: PackageDocs) {
         // Create packages for all the documentation packages and make sure there is a root package.
         codebase.packageTracker.createInitialPackages(packageDocs)
@@ -494,6 +487,13 @@ internal class TurbineCodebaseInitialiser(
             origin = origin,
         )
     }
+
+    /**
+     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
+     * on the classpath.
+     */
+    private fun isValidPackage(packageName: String) =
+        index.lookupPackage(packageName.qualifiedNameToIdentifierList()) != null
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
         // Make sure that the underlying package exists before creating one.
