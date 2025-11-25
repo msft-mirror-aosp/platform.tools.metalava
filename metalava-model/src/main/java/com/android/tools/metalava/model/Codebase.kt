@@ -26,7 +26,7 @@ import java.io.File
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase : ClassResolver, PackageResolver, AnnotationContext {
+interface Codebase : ClassResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -89,6 +89,14 @@ interface Codebase : ClassResolver, PackageResolver, AnnotationContext {
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
+
+    /**
+     * Resolve a package identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable package, e.g. searching classpath (if
+     * available).
+     */
+    fun resolvePackage(pkgName: String): PackageItem?
 
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean

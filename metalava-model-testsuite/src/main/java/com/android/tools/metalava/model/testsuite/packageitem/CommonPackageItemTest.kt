@@ -52,10 +52,8 @@ class CommonPackageItemTest : BaseModelTest() {
                     java(
                         """
                             package other.pkg;
-                            import java.lang.annotation.Retention;
-                            import java.lang.annotation.RetentionPolicy;
+
                             /** Annotation comment. */
-                            @Retention(RetentionPolicy.RUNTIME)
                             public @interface PkgAnno {
                             }
                         """
@@ -524,23 +522,15 @@ class CommonPackageItemTest : BaseModelTest() {
     @Test
     fun `Test resolving package from jar`() {
         runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
 
-                    public class Foo {
-                    }
-                """
-            ),
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Test {
-                        ctor public Test();
-                      }
-                    }
-                """
+                        public class Foo {
+                        }
+                    """
+                ),
             ),
             testFixture =
                 TestFixture(

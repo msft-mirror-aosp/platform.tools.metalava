@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.ClassPathResolver
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -31,7 +31,7 @@ internal class TurbineSourceParser(
     private val allowReadingComments: Boolean
 ) : SourceParser {
 
-    override fun getClassPathResolver(classPath: List<File>): ClassPathResolver {
+    override fun getClassResolver(classPath: List<File>): ClassResolver {
         TODO("implement it")
     }
 

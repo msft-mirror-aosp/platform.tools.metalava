@@ -20,7 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassPathResolver
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -233,8 +233,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test unknown custom exception from other codebase`() {
-        val testClassPathResolver =
-            TestClassPathResolver.create(
+        val testClassResolver =
+            TestClassResolver.create(
                 "other.UnknownException",
                 "java.lang.Throwable",
             )
@@ -254,10 +254,10 @@ class ApiFileTest : BaseTextCodebaseTest() {
         val codebase =
             ApiFile.parseApi(
                 listOf(signatureFile),
-                classPathResolver = testClassPathResolver,
+                classResolver = testClassResolver,
             )
 
-        val unknownExceptionClass = testClassPathResolver.resolveClass("other.UnknownException")!!
+        val unknownExceptionClass = testClassResolver.resolveClass("other.UnknownException")!!
 
         // Make sure the UnknownException retrieved from the other codebase is used in the throws
         // types.
@@ -757,12 +757,12 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 annotationManager = noOpAnnotationManager,
                 apiSurfaces = apiSurfaces,
             )
-        val classPathResolver = ClassLoaderBasedClassPathResolver(listOf(getAndroidJar()))
+        val classResolver = ClassLoaderBasedClassResolver(listOf(getAndroidJar()))
         val codebase =
             ApiFile.parseApi(
                 signatureFiles,
                 codebaseConfig = codebaseConfig,
-                classPathResolver = classPathResolver,
+                classResolver = classResolver,
             )
 
         val current = buildList {
@@ -952,14 +952,12 @@ class ApiFileTest : BaseTextCodebaseTest() {
         }
     }
 
-    class TestClassPathResolver(val map: Map<String, ClassItem>) : ClassPathResolver {
+    class TestClassResolver(val map: Map<String, ClassItem>) : ClassResolver {
         override fun resolveClass(erasedName: String): ClassItem? = map[erasedName]
 
-        override fun resolvePackage(pkgName: String) = TODO("Not yet implemented")
-
         companion object {
-            fun create(vararg names: String): ClassPathResolver {
-                return TestClassPathResolver(
+            fun create(vararg names: String): ClassResolver {
+                return TestClassResolver(
                     names.map { TestClassItem.create(it) }.associateBy { it.qualifiedName() }
                 )
             }

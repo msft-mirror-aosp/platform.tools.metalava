@@ -17,14 +17,21 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassPathResolver
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import java.net.URLClassLoader
@@ -51,12 +58,12 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 
         val signatureFiles = SignatureFile.forTest(inputs.mainSourceDir.createFiles())
         val classPath = listOf(getAndroidJar()) + inputs.testFixture.additionalClassPath
-        val resolver = ClassLoaderBasedClassPathResolver(classPath, codebaseConfig)
+        val resolver = ClassLoaderBasedClassResolver(classPath, codebaseConfig)
         val codebase =
             ApiFile.parseApi(
                 signatureFiles,
                 codebaseConfig = codebaseConfig,
-                classPathResolver = resolver,
+                classResolver = resolver,
             )
 
         // If available, transform the codebase for testing, otherwise use the one provided.
@@ -76,7 +83,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 }
 
 /**
- * A [ClassPathResolver] that is backed by a [URLClassLoader].
+ * A [ClassResolver] that is backed by a [URLClassLoader].
  *
  * When [resolveClass] is called this will first look in [codebase] to see if the [ClassItem] has
  * already been loaded, returning it if found. Otherwise, it will look in the [classLoader] to see
@@ -87,19 +94,69 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
  * change in the future.
  */
-class ClassLoaderBasedClassPathResolver(
+class ClassLoaderBasedClassResolver(
     jars: List<File>,
     codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
-) : ClassPathResolver {
+) : ClassResolver {
 
     private val assembler by
         lazy(LazyThreadSafetyMode.NONE) {
-            ClassLoaderBasedCodebaseAssembler.createAssembler(jars, codebaseConfig)
+            val location = jars.first()
+            TextCodebaseAssembler.createAssembler(
+                location = location,
+                description = "Codebase for resolving classes in $location for tests",
+                codebaseConfig = codebaseConfig,
+                classResolver = null,
+            )
         }
 
     private val codebase by lazy(LazyThreadSafetyMode.NONE) { assembler.codebase }
 
-    override fun resolveClass(erasedName: String) = codebase.resolveClass(erasedName)
+    private val classLoader by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val urls = jars.map { it.toURI().toURL() }.toTypedArray()
+            URLClassLoader(urls, null)
+        }
 
-    override fun resolvePackage(pkgName: String) = codebase.resolvePackage(pkgName)
+    private fun findClassInClassLoader(qualifiedName: String): Class<*>? {
+        var binaryName = qualifiedName
+        do {
+            try {
+                return classLoader.loadClass(binaryName)
+            } catch (e: ClassNotFoundException) {
+                // If the class could not be found then maybe it was a nested class so replace the
+                // last '.' in the name with a $ and try again. If there is no '.' then return.
+                val (before, after) = binaryName.splitIntoOptionalQualifierAndSimpleName()
+                if (before == null) {
+                    return null
+                } else {
+                    binaryName = "$before\$$after"
+                }
+            }
+        } while (true)
+    }
+
+    override fun resolveClass(erasedName: String): ClassItem? {
+        return codebase.findClass(erasedName)
+            ?: run {
+                val cls = findClassInClassLoader(erasedName) ?: return null
+                val packageName = cls.`package`.name
+
+                val itemFactory = assembler.itemFactory
+
+                val packageItem = codebase.findOrCreatePackage(packageName)
+                itemFactory.createClassItem(
+                    fileLocation = FileLocation.UNKNOWN,
+                    modifiers = createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE),
+                    classKind = ClassKind.CLASS,
+                    containingClass = null,
+                    containingPackage = packageItem,
+                    qualifiedName = cls.canonicalName,
+                    typeParameterList = TypeParameterList.NONE,
+                    origin = ClassOrigin.CLASS_PATH,
+                    superClassType = null,
+                    interfaceTypes = emptyList(),
+                )
+            }
+    }
 }
