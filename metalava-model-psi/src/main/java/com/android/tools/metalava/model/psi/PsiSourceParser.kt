@@ -20,7 +20,6 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
-import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -68,23 +67,12 @@ internal class PsiSourceParser(
 
     private val reporter = codebaseConfig.reporter
 
-    override fun getClassPathResolver(classPath: List<File>): ClassPathResolver {
-        val uastEnvironment = loadUastFromJars(classPath)
-        val assembler =
-            PsiCodebaseAssembler(uastEnvironment) { assembler ->
-                PsiBasedCodebase(
-                    location = File("classpath"),
-                    description = "Codebase from classpath",
-                    config = codebaseConfig,
-                    fromClasspath = true,
-                    allowReadingComments = allowReadingComments,
-                    assembler = assembler,
-                    inlineTypeAliasUsages = uastEnvironment.isKMP,
-                )
-            }
-        assembler.initializeFromSources(SourceSet.empty(), apiPackages = null)
-        return assembler.codebase
-    }
+    override fun getClassPathResolver(classPath: List<File>) =
+        parseSources(
+            sourceSet = SourceSet.empty(),
+            description = "Codebase from classpath",
+            classPath = classPath,
+        )
 
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
