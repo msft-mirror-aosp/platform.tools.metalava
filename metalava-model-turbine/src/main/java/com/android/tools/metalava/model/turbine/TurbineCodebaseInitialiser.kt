@@ -389,7 +389,7 @@ internal class TurbineCodebaseInitialiser(
      */
     private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
 
-    override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
+    override fun getPackageInfoFromSource(packageName: String): PackageInfo {
         // Make sure that the underlying package exists.
         if (!isValidPackage(packageName)) {
             if (packageName == "") return PackageInfo.EMPTY

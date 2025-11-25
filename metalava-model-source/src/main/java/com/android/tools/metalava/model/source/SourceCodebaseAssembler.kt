@@ -17,9 +17,11 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.source.utils.DOT_JAVA
 import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
@@ -108,4 +110,15 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         val packageDocs = gatherPackageJavadoc(sourceSet)
         codebase.packageTracker.createInitialPackages(packageDocs)
     }
+
+    final override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
+        return getPackageInfoFromSource(packageName)
+    }
+
+    /**
+     * Gets the [PackageInfo] from the underlying source model.
+     *
+     * See [CodebaseAssembler.getPackageInfoFromUnderlyingModel].
+     */
+    protected abstract fun getPackageInfoFromSource(packageName: String): PackageInfo
 }

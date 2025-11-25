@@ -160,7 +160,7 @@ internal class PsiCodebaseAssembler(
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
-    override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
+    override fun getPackageInfoFromSource(packageName: String): PackageInfo {
         val psiPackage = findPsiPackage(packageName) ?: return PackageInfo.EMPTY
         val annotations = PsiModifierItem.create(psiCodebase, psiPackage).annotations()
 
