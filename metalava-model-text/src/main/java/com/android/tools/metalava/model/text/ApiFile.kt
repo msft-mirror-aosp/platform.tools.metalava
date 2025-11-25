@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -311,7 +311,7 @@ private constructor(
             signatureFiles: List<SignatureFile>,
             codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
             description: String? = null,
-            classResolver: ClassResolver? = null,
+            classPathResolver: ClassPathResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
             // Provides the called with access to the ApiFile.
             apiStatsConsumer: (Stats) -> Unit = {},
@@ -328,7 +328,7 @@ private constructor(
                     location = signatureFiles[0].file,
                     description = actualDescription,
                     codebaseConfig = codebaseConfig,
-                    classResolver = classResolver,
+                    classPathResolver = classPathResolver,
                 )
             val parser = ApiFile(assembler, formatForLegacyFiles)
             val apiSurfaces = codebaseConfig.apiSurfaces

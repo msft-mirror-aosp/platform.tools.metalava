@@ -17,29 +17,19 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceSet
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
 
-internal class PsiBasedClassResolver(
+internal class PsiBasedClassPathResolver(
     uastEnvironment: UastEnvironment,
     config: Codebase.Config,
     allowReadingComments: Boolean,
-) : ClassResolver {
-    private val javaPsiFacade: JavaPsiFacade
-    private val searchScope: GlobalSearchScope
+) : ClassPathResolver {
     private val classpathCodebase: PsiBasedCodebase
 
     init {
-        // Properties used to resolve classes from the classpath
-        val project = uastEnvironment.ideaProject
-        javaPsiFacade = JavaPsiFacade.getInstance(project)
-        searchScope = GlobalSearchScope.everythingScope(project)
-
         val assembler =
             PsiCodebaseAssembler(uastEnvironment) { assembler ->
                 PsiBasedCodebase(
@@ -56,10 +46,7 @@ internal class PsiBasedClassResolver(
         classpathCodebase = assembler.codebase
     }
 
-    override fun resolveClass(erasedName: String): ClassItem? {
-        // If the class cannot be found on the class path then return null, otherwise create a
-        // PsiClassItem for it.
-        val psiClass = javaPsiFacade.findClass(erasedName, searchScope) ?: return null
-        return classpathCodebase.findOrCreateClass(psiClass)
-    }
+    override fun resolveClass(erasedName: String) = classpathCodebase.resolveClass(erasedName)
+
+    override fun resolvePackage(pkgName: String) = classpathCodebase.resolvePackage(pkgName)
 }
