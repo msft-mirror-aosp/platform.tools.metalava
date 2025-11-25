@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.item
+package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.reporter.FileLocation
 
 /** Set of [PackageDoc] for every documented package defined in the source. */
-class PackageDocs(
+internal class PackageDocs(
     private val packages: Map<String, PackageDoc>,
 ) {
     /** The set of package names. */
@@ -38,7 +39,7 @@ class PackageDocs(
 }
 
 /** Package specific documentation. */
-interface PackageDoc {
+internal interface PackageDoc {
     val fileLocation: FileLocation
 
     /**
@@ -72,8 +73,10 @@ interface PackageDoc {
     }
 }
 
-/** Mutable package specific documentation for use in [gatherPackageJavadoc]. */
-data class MutablePackageDoc(
+/**
+ * Mutable package specific documentation for use in [SourceCodebaseAssembler.gatherPackageJavadoc].
+ */
+internal data class MutablePackageDoc(
     val qualifiedName: String,
     override var fileLocation: FileLocation = FileLocation.UNKNOWN,
     override var commentFactory: ItemDocumentationFactory? = null,

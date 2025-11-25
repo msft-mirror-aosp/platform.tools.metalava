@@ -20,9 +20,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
-import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDoc
-import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.source.utils.DOT_JAVA

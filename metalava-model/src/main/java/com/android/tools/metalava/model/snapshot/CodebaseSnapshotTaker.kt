@@ -48,7 +48,6 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.snapshottingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -146,10 +145,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
      * Override to throw an error.
      *
      * This should never be called when taking a snapshot as:
-     * 1. This will only be called for package items that have a null [PackageDoc.commentFactory].
+     * 1. This will only be called for package items that have a null [PackageInfo.commentFactory].
      * 2. Every [PackageItem] that is created in the snapshot [Codebase] must have a matching
      *    [PackageItem] in the original [Codebase].
-     * 3. [getPackageInfoFromUnderlyingModel] will ensure that the [PackageDoc.commentFactory] for
+     * 3. [getPackageInfoFromUnderlyingModel] will ensure that the [PackageInfo.commentFactory] for
      *    every [PackageItem] being snapshot is set to a non-null value.
      */
     override fun emptyPackageDocumentationFactory(): ItemDocumentationFactory {
