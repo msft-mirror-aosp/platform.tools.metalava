@@ -24,8 +24,6 @@ import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
@@ -70,19 +68,9 @@ data class PackageInfo(
     }
 }
 
-class PackageTracker(
-    private val reporter: Reporter,
-    private val assembler: CodebaseAssembler,
-) {
+class PackageTracker(private val assembler: CodebaseAssembler) {
     /** Map from package name to [PackageItem] of all packages in this. */
     private val packagesByName = HashMap<String, PackageItem>(PACKAGE_ESTIMATE)
-
-    /**
-     * Provides additional information needed for creating a package.
-     *
-     * Initialized to [PackageDocs.EMPTY] but is temporarily overridden by [createInitialPackages].
-     */
-    private var packageDocs: PackageDocs = PackageDocs.EMPTY
 
     val size
         get() = packagesByName.size
@@ -111,37 +99,8 @@ class PackageTracker(
             return existing
         }
 
-        // Get the `PackageDoc`, if any, to use for creating this package.
-        val packageDoc = packageDocs[packageName]
-
         // Get the info from the model.
-        val infoFromModel = assembler.getPackageInfoFromUnderlyingModel(packageName)
-
-        if (
-            infoFromModel != PackageInfo.EMPTY &&
-                packageDoc.fileLocation.path?.endsWith("package.html") == true
-        ) {
-            reporter.report(
-                Issues.BOTH_PACKAGE_INFO_AND_HTML,
-                null,
-                "It is illegal to provide both a package-info.java file and " +
-                    "a package.html file for the same package",
-                infoFromModel.fileLocation,
-            )
-        }
-
-        // Create a PackageInfo that combines information from PackageDoc, with the information from
-        // the model taking precedence.
-        val packageInfo =
-            PackageInfo(
-                fileLocation =
-                    infoFromModel.fileLocation.takeUnless { it == FileLocation.UNKNOWN }
-                        ?: packageDoc.fileLocation,
-                annotations = infoFromModel.annotations,
-                commentFactory = infoFromModel.commentFactory ?: packageDoc.commentFactory,
-                overview = infoFromModel.overview ?: packageDoc.overview,
-            )
-
+        val packageInfo = assembler.getPackageInfoFromUnderlyingModel(packageName)
         return createPackage(packageName, packageInfo)
     }
 
@@ -175,22 +134,5 @@ class PackageTracker(
     /** Add the package to this. */
     private fun addPackage(packageItem: PackageItem) {
         packagesByName[packageItem.qualifiedName()] = packageItem
-    }
-
-    /**
-     * Create and track [PackageItem]s for every entry in [packageDocs] and make sure there is a
-     * root package.
-     */
-    fun createInitialPackages(packageDocs: PackageDocs) {
-        // Make the packageDocs available when creating the packages below.
-        this.packageDocs = packageDocs
-
-        // Create packages for all the documentation packages.
-        for (packageName in packageDocs.packageNames) {
-            findOrCreatePackage(packageName)
-        }
-
-        // Reset the package docs as they are no longer needed.
-        this.packageDocs = PackageDocs.EMPTY
     }
 }

@@ -17,9 +17,11 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.item.ResourceFile
@@ -29,10 +31,18 @@ import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
 import com.android.tools.metalava.model.source.utils.findPackage
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
 import java.io.File
 
 /** Provides support for assembling a [Codebase] from source files. */
 abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
+    /**
+     * Provides additional information needed for creating a package.
+     *
+     * Initialized to [PackageDocs.EMPTY] but is temporarily overridden by [createInitialPackages].
+     */
+    private var packageDocs: PackageDocs = PackageDocs.EMPTY
+
     /** The kinds of package documentation file. */
     private enum class PackageDocumentationKind {
         PACKAGE {
@@ -106,13 +116,56 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         return PackageDocs(packages)
     }
 
+    /** Create and track [PackageItem]s for every entry in [packageDocs]. */
     fun createInitialPackages(sourceSet: SourceSet) {
-        val packageDocs = gatherPackageJavadoc(sourceSet)
-        codebase.packageTracker.createInitialPackages(packageDocs)
+        // Make the packageDocs available when creating the packages below.
+        this.packageDocs = gatherPackageJavadoc(sourceSet)
+
+        // Create packages for all the documentation packages.
+        for (packageName in packageDocs.packageNames) {
+            codebase.findOrCreatePackage(packageName)
+        }
+
+        // Reset the package docs as they are no longer needed.
+        this.packageDocs = PackageDocs.EMPTY
     }
 
     final override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
-        return getPackageInfoFromSource(packageName)
+        val sourcePackageInfo = getPackageInfoFromSource(packageName)
+
+        // Get the `PackageDoc`, if any, to use for creating this package.
+        val packageDoc = packageDocs[packageName]
+
+        if (packageDoc == PackageDoc.EMPTY) {
+            return sourcePackageInfo
+        }
+
+        if (
+            sourcePackageInfo != PackageInfo.EMPTY &&
+                packageDoc.fileLocation.path?.endsWith("package.html") == true
+        ) {
+            codebase.reporter.report(
+                Issues.BOTH_PACKAGE_INFO_AND_HTML,
+                null,
+                "It is illegal to provide both a package-info.java file and " +
+                    "a package.html file for the same package",
+                sourcePackageInfo.fileLocation,
+            )
+        }
+
+        // Create a PackageInfo that combines information from PackageDoc, with the information from
+        // the model taking precedence.
+        val packageInfo =
+            PackageInfo(
+                fileLocation =
+                    sourcePackageInfo.fileLocation.takeUnless { it == FileLocation.UNKNOWN }
+                        ?: packageDoc.fileLocation,
+                annotations = sourcePackageInfo.annotations,
+                commentFactory = sourcePackageInfo.commentFactory ?: packageDoc.commentFactory,
+                overview = sourcePackageInfo.overview ?: packageDoc.overview,
+            )
+
+        return packageInfo
     }
 
     /**
