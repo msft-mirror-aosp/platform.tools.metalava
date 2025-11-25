@@ -22,14 +22,12 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.SourceSet
 import java.io.File
 
-internal class PsiBasedClassPathResolver(
-    uastEnvironment: UastEnvironment,
-    config: Codebase.Config,
-    allowReadingComments: Boolean,
-) : ClassPathResolver {
-    private val classpathCodebase: PsiBasedCodebase
-
-    init {
+internal object PsiBasedClassPathResolver {
+    fun create(
+        uastEnvironment: UastEnvironment,
+        config: Codebase.Config,
+        allowReadingComments: Boolean,
+    ): ClassPathResolver {
         val assembler =
             PsiCodebaseAssembler(uastEnvironment) { assembler ->
                 PsiBasedCodebase(
@@ -43,10 +41,6 @@ internal class PsiBasedClassPathResolver(
                 )
             }
         assembler.initializeFromSources(SourceSet.empty(), apiPackages = null)
-        classpathCodebase = assembler.codebase
+        return assembler.codebase
     }
-
-    override fun resolveClass(erasedName: String) = classpathCodebase.resolveClass(erasedName)
-
-    override fun resolvePackage(pkgName: String) = classpathCodebase.resolvePackage(pkgName)
 }

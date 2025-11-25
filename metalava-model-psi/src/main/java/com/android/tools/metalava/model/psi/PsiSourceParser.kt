@@ -70,7 +70,7 @@ internal class PsiSourceParser(
 
     override fun getClassPathResolver(classPath: List<File>): ClassPathResolver {
         val uastEnvironment = loadUastFromJars(classPath)
-        return PsiBasedClassPathResolver(
+        return PsiBasedClassPathResolver.create(
             uastEnvironment,
             codebaseConfig,
             allowReadingComments,
