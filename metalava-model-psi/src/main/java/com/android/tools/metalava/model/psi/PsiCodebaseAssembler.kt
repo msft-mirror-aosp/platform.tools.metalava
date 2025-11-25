@@ -46,6 +46,7 @@ import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
@@ -113,6 +114,8 @@ internal class PsiCodebaseAssembler(
 
     internal val project: Project = uastEnvironment.ideaProject
 
+    private val projectSearchScope = GlobalSearchScope.allScope(project)
+
     private val reporter
         get() = codebase.reporter
 
@@ -157,10 +160,28 @@ internal class PsiCodebaseAssembler(
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
-    override fun createPackageAnnotations(packageName: String) =
-        findPsiPackage(packageName)?.let { psiPackage ->
-            PsiModifierItem.create(codebase, psiPackage).annotations()
-        } ?: emptyList()
+    override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
+        val psiPackage = findPsiPackage(packageName) ?: return PackageInfo.EMPTY
+        val annotations = PsiModifierItem.create(codebase, psiPackage).annotations()
+
+        val psiJavaFile =
+            psiPackage.getFiles(projectSearchScope).find { it.name == JAVA_PACKAGE_INFO }
+                as? PsiJavaFile
+
+        return if (psiJavaFile == null) {
+            PackageInfo(
+                annotations = annotations,
+            )
+        } else {
+            val documentationFactory =
+                psiJavaFile.packageStatement?.let { PsiItemDocumentation.factory(it, codebase) }
+            PackageInfo(
+                fileLocation = PsiFileLocation.fromPsiElement(psiJavaFile),
+                annotations = annotations,
+                commentFactory = documentationFactory,
+            )
+        }
+    }
 
     override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
@@ -670,7 +691,7 @@ internal class PsiCodebaseAssembler(
         // The following cannot find a class whose name does not correspond to the file name, e.g.
         // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
-        return finder.findClass(qualifiedName, GlobalSearchScope.allScope(project))
+        return finder.findClass(qualifiedName, projectSearchScope)
     }
 
     /**
