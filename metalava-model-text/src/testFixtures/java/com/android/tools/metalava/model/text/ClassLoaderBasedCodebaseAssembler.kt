@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
@@ -115,11 +114,6 @@ internal class ClassLoaderBasedCodebaseAssembler(
     private fun definePackage(pkgName: String): Package? {
         return definePackageMethod.invoke(classLoader, pkgName, classLoader.unnamedModule)
             as? Package
-    }
-
-    internal fun initialize() {
-        // Make sure that it has a root package.
-        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
     }
 
     override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
@@ -212,7 +206,6 @@ internal class ClassLoaderBasedCodebaseAssembler(
                         )
                     },
                 )
-            assembler.initialize()
 
             return assembler
         }

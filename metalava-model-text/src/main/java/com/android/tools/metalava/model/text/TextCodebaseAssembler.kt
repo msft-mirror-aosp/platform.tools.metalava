@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import java.io.File
@@ -53,11 +52,6 @@ internal class TextCodebaseAssembler(
             // the same immutable ApiVariantSelectors.
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
-
-    fun initialize() {
-        // Make sure that it has a root package.
-        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
-    }
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String) =
         // Check on the class path, if any, for additional packages.
@@ -216,7 +210,6 @@ internal class TextCodebaseAssembler(
                     },
                     classPathResolver = classPathResolver,
                 )
-            assembler.initialize()
 
             return assembler
         }

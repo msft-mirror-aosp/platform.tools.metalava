@@ -190,9 +190,6 @@ class PackageTracker(
             findOrCreatePackage(packageName)
         }
 
-        // Make sure that there is a root package.
-        findOrCreatePackage("")
-
         // Reset the package docs as they are no longer needed.
         this.packageDocs = PackageDocs.EMPTY
     }

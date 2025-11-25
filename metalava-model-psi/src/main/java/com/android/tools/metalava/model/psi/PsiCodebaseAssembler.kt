@@ -44,7 +44,6 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
@@ -844,10 +843,6 @@ internal class PsiCodebaseAssembler(
                 reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
             }
         }
-
-        // Create the initial set of packages that were found in the jar files. When loading from a
-        // jar there is no package documentation so this will only create the root package.
-        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
 
         // Find all classes referenced from the class
         val facade = JavaPsiFacade.getInstance(project)
