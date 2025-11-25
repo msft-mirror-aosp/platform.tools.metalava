@@ -26,12 +26,10 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -251,16 +249,15 @@ internal class TurbineCodebaseInitialiser(
         globalTypeItemFactory =
             TurbineTypeItemFactory(this, annotationFactory, TypeParameterScope.empty)
 
-        // Scan the files looking for package.html and overview.html files and extract the
-        // documentation just in case they are needed during package creation.
-        val packageDocs = gatherPackageJavadoc(sourceSet) { isValidPackage(it) }
-
         // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
         // the command line as only those classes can contribute directly to the API.
         val commandLineSourceClasses =
             topLevelAccessibleCommandLineClasses(allSourceClassMap, commandLineSources)
 
-        createAllPackages(packageDocs)
+        // Scan the files looking for package.html and overview.html files and extract the
+        // documentation just in case they are needed during package creation.
+        createInitialPackages(sourceSet)
+
         createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
     }
 
@@ -391,11 +388,6 @@ internal class TurbineCodebaseInitialiser(
      * The empty string is converted to an empty list, otherwise it is just split on '.'.
      */
     private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
-
-    private fun createAllPackages(packageDocs: PackageDocs) {
-        // Create packages for all the documentation packages and make sure there is a root package.
-        codebase.packageTracker.createInitialPackages(packageDocs)
-    }
 
     override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
         // Make sure that the underlying package exists.

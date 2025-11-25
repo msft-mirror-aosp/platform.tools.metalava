@@ -18,6 +18,12 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
+import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 
 /** Provides support for assembling a [Codebase] from source files. */
-abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler()
+abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
+    fun createInitialPackages(sourceSet: SourceSet) {
+        val packageDocs = gatherPackageJavadoc(sourceSet) { isValidPackage(it) }
+        codebase.packageTracker.createInitialPackages(packageDocs)
+    }
+}

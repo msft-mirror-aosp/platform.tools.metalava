@@ -49,7 +49,6 @@ import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -867,11 +866,8 @@ internal class PsiCodebaseAssembler(
         // Get the `PsiClass`es from the `PsiFile`s.
         val psiClasses = getPsiClassesFromPsiFiles(psiFiles)
 
-        // Gather all package related javadoc.
-        val packageDocs = gatherPackageJavadoc(sourceSet) { isValidPackage(it) }
-
         // Create the initial set of packages that were found in the source files.
-        codebase.packageTracker.createInitialPackages(packageDocs)
+        createInitialPackages(sourceSet)
 
         // Add type aliases.
         val kaCodebaseAssembler =
