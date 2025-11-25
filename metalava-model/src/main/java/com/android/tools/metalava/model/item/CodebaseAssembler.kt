@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -62,17 +61,7 @@ interface CodebaseAssembler {
      * [createPackageFromUnderlyingModel]. It ensures consistent behavior for packages from source
      * `package-info.java` files and binary `package-info.class` files.
      */
-    fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo =
-        PackageInfo(annotations = createPackageAnnotations(packageName))
-
-    /**
-     * Create package annotations for [packageName].
-     *
-     * This will be used to create annotations for packages whether they are created by
-     * [createPackageItem] or [createPackageFromUnderlyingModel]. It ensures consistent behavior for
-     * packages from source `package-info.java` files and binary `package-info.class` files.
-     */
-    fun createPackageAnnotations(packageName: String): List<AnnotationItem> = emptyList()
+    fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo = PackageInfo.EMPTY
 
     /**
      * A [PackageItem] with [qualifiedName] could not be found in the associated [Codebase] so look
