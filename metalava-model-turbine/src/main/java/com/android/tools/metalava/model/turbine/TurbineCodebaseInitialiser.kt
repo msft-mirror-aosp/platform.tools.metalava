@@ -24,12 +24,12 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
+import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.FileLocation
@@ -77,7 +77,7 @@ internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
     private val classpath: List<File>,
     override val allowReadingComments: Boolean,
-) : DefaultCodebaseAssembler(), TurbineGlobalContext {
+) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
 

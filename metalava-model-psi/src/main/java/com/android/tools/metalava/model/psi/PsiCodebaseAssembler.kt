@@ -42,12 +42,12 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
+import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
@@ -94,7 +94,7 @@ import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 internal class PsiCodebaseAssembler(
     private val uastEnvironment: UastEnvironment,
     codebaseFactory: (PsiCodebaseAssembler) -> PsiBasedCodebase
-) : DefaultCodebaseAssembler() {
+) : SourceCodebaseAssembler() {
 
     internal val psiCodebase = codebaseFactory(this)
 
