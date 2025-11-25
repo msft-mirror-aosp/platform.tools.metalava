@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -488,18 +487,8 @@ internal class TurbineCodebaseInitialiser(
         )
     }
 
-    /**
-     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
-     * on the classpath.
-     */
-    private fun isValidPackage(packageName: String) =
+    override fun isValidPackage(packageName: String) =
         index.lookupPackage(packageName.qualifiedNameToIdentifierList()) != null
-
-    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        // Make sure that the underlying package exists before creating one.
-        if (!isValidPackage(qualifiedName)) return null
-        return codebase.findOrCreatePackage(qualifiedName)
-    }
 
     /** Tries to create a class from a Turbine class with [qualifiedName]. */
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {

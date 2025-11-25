@@ -95,6 +95,16 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
     /** Factory for creating appropriate [Item] subclasses for the [Codebase] this is assembling. */
     abstract val itemFactory: DefaultItemFactory
 
+    /**
+     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
+     * on the classpath.
+     */
+    open fun isValidPackage(packageName: String): Boolean = error("Not implemented")
+
+    override fun createPackageFromUnderlyingModel(qualifiedName: String) =
+        // Make sure that the package exists in the jars before creating.
+        if (isValidPackage(qualifiedName)) codebase.findOrCreatePackage(qualifiedName) else null
+
     override fun createPackageItem(
         packageName: String,
         packageInfo: PackageInfo,

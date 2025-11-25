@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -187,17 +186,7 @@ internal class PsiCodebaseAssembler(
 
     override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
-    /**
-     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
-     * on the classpath.
-     */
-    private fun isValidPackage(packageName: String) = findPsiPackage(packageName) != null
-
-    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        // Make sure that the underlying package exists before creating one.
-        findPsiPackage(qualifiedName) ?: return null
-        return codebase.findOrCreatePackage(qualifiedName)
-    }
+    override fun isValidPackage(packageName: String) = findPsiPackage(packageName) != null
 
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         findOrCreateClass(qualifiedName)

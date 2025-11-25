@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -207,14 +206,8 @@ private constructor(
         return ItemDocumentation.NONE_FACTORY
     }
 
-    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        return analyze(kaModule) {
-            findPackage(FqName(qualifiedName))?.let {
-                // Create the package only if one with this name was found in the module.
-                codebase.findOrCreatePackage(qualifiedName)
-            }
-        }
-    }
+    override fun isValidPackage(packageName: String) =
+        analyze(kaModule) { findPackage(FqName(packageName)) != null }
 
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
         // TODO(b/407735063)

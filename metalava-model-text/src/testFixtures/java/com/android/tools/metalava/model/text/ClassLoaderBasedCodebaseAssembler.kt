@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -134,11 +133,7 @@ internal class ClassLoaderBasedCodebaseAssembler(
         return PackageInfo(annotations = annotationItems)
     }
 
-    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        // Make sure that the package exists in the jars before creating.
-        if (qualifiedName !in packages) return null
-        return codebase.findOrCreatePackage(qualifiedName)
-    }
+    override fun isValidPackage(packageName: String) = packageName in packages
 
     /**
      * Search for the class called [qualifiedName].
