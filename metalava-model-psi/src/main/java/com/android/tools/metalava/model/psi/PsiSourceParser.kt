@@ -125,14 +125,12 @@ internal class PsiSourceParser(
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
-        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
-
         when {
             projectDescription != null -> {
                 configureUastEnvironmentFromProjectDescription(config, projectDescription)
             }
             else -> {
-                configureUastEnvironment(config, sourceSet.sourcePath, classpath, rootDir)
+                configureUastEnvironment(config, sourceSet.sourcePath, classpath)
             }
         }
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
@@ -147,10 +145,11 @@ internal class PsiSourceParser(
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
+        val location = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
         val assembler =
             PsiCodebaseAssembler(environment) {
                 PsiBasedCodebase(
-                    location = rootDir,
+                    location = location,
                     description = description,
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
@@ -241,11 +240,11 @@ internal class PsiSourceParser(
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        // Use the empty dir otherwise this will end up scanning the current working directory.
-        configureUastEnvironment(config, listOf(psiEnvironmentManager.emptyDir), apiJars)
+        var sourceRoots = emptyList<File>()
+        configureUastEnvironment(config, sourceRoots, apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
-        environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
+        environment.analyzeFiles(sourceRoots) // Initializes PSI machinery.
         return environment
     }
 
@@ -253,8 +252,8 @@ internal class PsiSourceParser(
         config: UastEnvironment.Configuration,
         sourceRoots: List<File>,
         classpath: List<File>,
-        rootDir: File = sourceRoots.firstOrNull() ?: File("").canonicalFile
     ) {
+        val rootDir = sourceRoots.firstOrNull() ?: psiEnvironmentManager.emptyDir
         val lintClient = MetalavaCliClient()
         // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
         // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
@@ -263,7 +262,11 @@ internal class PsiSourceParser(
         val lintProject =
             Project.create(lintClient, /* dir= */ rootDir, /* referenceDir= */ rootDir)
         lintProject.kotlinLanguageLevel = kotlinLanguageLevel
-        lintProject.javaSourceFolders.addAll(sourceRoots)
+        if (sourceRoots.isEmpty()) {
+            lintProject.javaSourceFolders.add(psiEnvironmentManager.emptyDir)
+        } else {
+            lintProject.javaSourceFolders.addAll(sourceRoots)
+        }
         lintProject.javaLibraries.addAll(classpath)
         config.addModules(
             listOf(
