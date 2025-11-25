@@ -99,7 +99,7 @@ internal class PsiCodebaseAssembler(
 
     internal val psiCodebase = codebaseFactory(this)
 
-    private val codebase: DefaultCodebase
+    override val codebase: DefaultCodebase
         get() = psiCodebase
 
     override val itemFactory: DefaultItemFactory =

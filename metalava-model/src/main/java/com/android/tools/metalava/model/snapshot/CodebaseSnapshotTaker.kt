@@ -67,6 +67,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
      */
     private lateinit var snapshotCodebase: DefaultCodebase
 
+    override val codebase: DefaultCodebase
+        get() = snapshotCodebase
+
     /**
      * The [ItemVisitor] to use in [createClassFromUnderlyingModel] to create a [ClassItem] that is
      * not emitted as part of the snapshot but is included because it is referenced from a

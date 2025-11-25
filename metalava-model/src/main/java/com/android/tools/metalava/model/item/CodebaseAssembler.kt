@@ -89,6 +89,8 @@ interface CodebaseAssembler {
  * [Item] classes.
  */
 abstract class DefaultCodebaseAssembler : CodebaseAssembler {
+    /** The [DefaultCodebase] being assembled by this. */
+    abstract val codebase: DefaultCodebase
 
     /** Factory for creating appropriate [Item] subclasses for the [Codebase] this is assembling. */
     abstract val itemFactory: DefaultItemFactory

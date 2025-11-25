@@ -185,7 +185,7 @@ private constructor(
         codebaseInitializer: (CodebaseAssembler) -> DefaultCodebase
     ) : this(kaModule, codebaseInitializer, psiCodebase = null)
 
-    val codebase = codebaseInitializer(this)
+    override val codebase = codebaseInitializer(this)
 
     private val kaTypeItemFactory =
         KaTypeItemFactory(

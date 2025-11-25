@@ -39,7 +39,7 @@ internal class TextCodebaseAssembler(
     private val classPathResolver: ClassPathResolver?,
 ) : DefaultCodebaseAssembler() {
 
-    internal val codebase = codebaseFactory(this)
+    override val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =

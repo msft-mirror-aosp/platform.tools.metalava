@@ -51,7 +51,7 @@ internal class ClassLoaderBasedCodebaseAssembler(
     jars: List<File>,
     codebaseFactory: DefaultCodebaseFactory,
 ) : DefaultCodebaseAssembler() {
-    internal val codebase = codebaseFactory(this)
+    override val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =
