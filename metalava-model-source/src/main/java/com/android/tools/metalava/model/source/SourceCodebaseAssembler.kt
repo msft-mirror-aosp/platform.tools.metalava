@@ -60,14 +60,8 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      * from the directory, which may be wrong.
      *
      * @param sourceSet the sources to search for `package.html` and `overview.html` files.
-     * @param packageNameFilter a lambda that given a package name will return `true` if it is a
-     *   valid package and `false` otherwise. This is used to filter out any packages incorrectly
-     *   inferred from `package.html` files.
      */
-    private fun gatherPackageJavadoc(
-        sourceSet: SourceSet,
-        packageNameFilter: (String) -> Boolean,
-    ): PackageDocs {
+    private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
         val packages = mutableMapOf<String, MutablePackageDoc>()
         val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
         for (file in sourceSet.sources) {
@@ -100,7 +94,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
             }
 
             // If the package name is invalid then skip it.
-            if (!packageNameFilter(pkg)) continue
+            if (!isValidPackage(pkg)) continue
 
             val packageDoc = packages.computeIfAbsent(pkg, ::MutablePackageDoc)
 
@@ -111,7 +105,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
     }
 
     fun createInitialPackages(sourceSet: SourceSet) {
-        val packageDocs = gatherPackageJavadoc(sourceSet) { isValidPackage(it) }
+        val packageDocs = gatherPackageJavadoc(sourceSet)
         codebase.packageTracker.createInitialPackages(packageDocs)
     }
 }
