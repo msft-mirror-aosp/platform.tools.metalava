@@ -187,6 +187,12 @@ internal class PsiCodebaseAssembler(
 
     override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
+    /**
+     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
+     * on the classpath.
+     */
+    private fun isValidPackage(packageName: String) = findPsiPackage(packageName) != null
+
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
         // Make sure that the underlying package exists before creating one.
         findPsiPackage(qualifiedName) ?: return null
@@ -873,7 +879,7 @@ internal class PsiCodebaseAssembler(
         val psiClasses = getPsiClassesFromPsiFiles(psiFiles)
 
         // Gather all package related javadoc.
-        val packageDocs = gatherPackageJavadoc(sourceSet) { findPsiPackage(it) != null }
+        val packageDocs = gatherPackageJavadoc(sourceSet) { isValidPackage(it) }
 
         // Create the initial set of packages that were found in the source files.
         codebase.packageTracker.createInitialPackages(packageDocs)
