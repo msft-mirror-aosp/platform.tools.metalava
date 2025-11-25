@@ -51,9 +51,9 @@ interface SourceParser {
         sourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-        compiledSourceJar: File?,
+        apiPackages: PackageFilter? = null,
+        projectDescription: File? = null,
+        compiledSourceJar: File? = null,
     ): Codebase?
 
     /**
