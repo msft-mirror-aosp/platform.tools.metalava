@@ -70,11 +70,20 @@ internal class PsiSourceParser(
 
     override fun getClassPathResolver(classPath: List<File>): ClassPathResolver {
         val uastEnvironment = loadUastFromJars(classPath)
-        return PsiBasedClassPathResolver.create(
-            uastEnvironment,
-            codebaseConfig,
-            allowReadingComments,
-        )
+        val assembler =
+            PsiCodebaseAssembler(uastEnvironment) { assembler ->
+                PsiBasedCodebase(
+                    location = File("classpath"),
+                    description = "Codebase from classpath",
+                    config = codebaseConfig,
+                    fromClasspath = true,
+                    allowReadingComments = allowReadingComments,
+                    assembler = assembler,
+                    inlineTypeAliasUsages = uastEnvironment.isKMP,
+                )
+            }
+        assembler.initializeFromSources(SourceSet.empty(), apiPackages = null)
+        return assembler.codebase
     }
 
     /**
