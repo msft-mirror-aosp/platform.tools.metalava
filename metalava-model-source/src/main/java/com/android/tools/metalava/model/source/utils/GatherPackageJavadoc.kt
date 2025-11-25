@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import java.io.File
 
 /** The kinds of package documentation file. */
@@ -43,6 +44,33 @@ private enum class PackageDocumentationKind {
 
     /** Update kind appropriate property in [packageDoc] with [contents]. */
     abstract fun update(packageDoc: MutablePackageDoc, file: File)
+}
+
+/**
+ * Gather javadoc related to packages from the [sourceSet].
+ *
+ * This will look for `package.html` and `overview.html` files within the source set and then map
+ * that back to a package. It will first check to see if there is a java class in the same directory
+ * and if so then extract the package name from that otherwise it will construct one from the
+ * directory, which may be wrong.
+ *
+ * @param sourceSet the sources to search for `package.html` and `overview.html` files.
+ * @param packageNameFilter a lambda that given a package name will return `true` if it is a valid
+ *   package and `false` otherwise. This is used to filter out any packages incorrectly inferred
+ *   from `package.html` files.
+ */
+fun gatherPackageJavadoc(
+    sourceSet: SourceSet,
+    packageNameFilter: (String) -> Boolean,
+): PackageDocs {
+    return gatherPackageJavadoc(
+        ThrowingReporter.INSTANCE,
+        sourceSet,
+        packageNameFilter,
+        emptyList<Unit>()
+    ) {
+        error("Should never be called")
+    }
 }
 
 /**
