@@ -61,7 +61,6 @@ internal class PsiSourceParser(
     private val javaLanguageLevel: LanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val useK2Uast: Boolean,
-    private val allowReadingComments: Boolean,
     private val jdkHome: File?,
 ) : SourceParser {
 
@@ -133,7 +132,6 @@ internal class PsiSourceParser(
                     location = location,
                     description = description,
                     config = codebaseConfig,
-                    allowReadingComments = allowReadingComments,
                     assembler = it,
                     inlineTypeAliasUsages = environment.isKMP,
                     mainAnalysisModule = findMainAnalysisModule(environment),
@@ -185,7 +183,6 @@ internal class PsiSourceParser(
                     location = apiJar,
                     description = "Codebase loaded from $apiJar",
                     config = codebaseConfig,
-                    allowReadingComments = allowReadingComments,
                     assembler = assembler,
                     inlineTypeAliasUsages = environment.isKMP,
                 )

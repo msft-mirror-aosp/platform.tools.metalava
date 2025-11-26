@@ -271,6 +271,7 @@ abstract class BaseModelTest() :
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig =
             Codebase.Config(
+                allowReadingComments = allowReadingComments,
                 annotationManager = annotationManager,
                 apiFlags = apiFlags,
                 apiSurfaces = apiSurfaces,

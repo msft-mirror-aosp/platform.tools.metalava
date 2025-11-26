@@ -570,6 +570,10 @@ private constructor(
             PackageInfo(
                 fileLocation = tokenizer.fileLocation(),
                 annotations = annotations,
+                // Packages loaded from signature files have [SelectableItem.documentation] set to
+                // `null`. That is not a problem as it is only needed when creating stubs containing
+                // enhanced documentation which cannot be created from signature files.
+                commentFactory = ItemDocumentation.NONE_FACTORY,
             )
 
         // Create the package. This relies on containing packages always being processed before any

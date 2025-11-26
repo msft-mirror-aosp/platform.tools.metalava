@@ -172,6 +172,15 @@ interface Codebase : ClassPathResolver, AnnotationContext {
      * options.
      */
     data class Config(
+        /**
+         * Whether to allow reading comments from the sources.
+         *
+         * If `true` then source comments will be read and [SelectableItem.documentation] will not
+         * be `null` (unless the [SelectableItem] is `private`). If `false` then
+         * [SelectableItem.documentation] will always be `null`.
+         */
+        val allowReadingComments: Boolean = true,
+
         /** Determines how annotations will affect the [Codebase]. */
         val annotationManager: AnnotationManager,
 

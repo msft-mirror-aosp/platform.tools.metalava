@@ -26,9 +26,8 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageInfo
-import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
+import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -74,7 +73,6 @@ import javax.lang.model.element.TypeElement
 internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
     private val classpath: List<File>,
-    override val allowReadingComments: Boolean,
 ) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
@@ -389,11 +387,10 @@ internal class TurbineCodebaseInitialiser(
      */
     private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
 
-    override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
+    override fun getPackageInfoFromSource(packageName: String): SourcePackageInfo? {
         // Make sure that the underlying package exists.
         if (!isValidPackage(packageName)) {
-            if (packageName == "") return PackageInfo.EMPTY
-            else error("Unknown package '$packageName'")
+            if (packageName == "") return null else error("Unknown package '$packageName'")
         }
 
         // Construct the binary name for the package-info class.
@@ -402,7 +399,7 @@ internal class TurbineCodebaseInitialiser(
         // The underlying package may have annotations if it had a package-info.java file so check
         // for the presence of the corresponding `package-info.class`.
         val packageInfoSym = ClassSymbol(packageInfoBinaryName)
-        val packageInfoClass = envClassMap[packageInfoSym] ?: return PackageInfo.EMPTY
+        val packageInfoClass = envClassMap[packageInfoSym] ?: return null
 
         return when (packageInfoClass) {
             // Handle a package-info.java file.
@@ -411,7 +408,7 @@ internal class TurbineCodebaseInitialiser(
                 val unit = turbineSourceFile.compUnit
                 val pkgDecl = unit.pkg().get()
                 var annoInfos = packageInfoClass.annotations()
-                PackageInfo(
+                SourcePackageInfo(
                     fileLocation = TurbineFileLocation.forTree(turbineSourceFile),
                     annotations = annotationFactory.createAnnotations(annoInfos),
                     commentFactory = itemDocumentationFactoryForDecl(turbineSourceFile, pkgDecl),
@@ -421,13 +418,11 @@ internal class TurbineCodebaseInitialiser(
             is BytecodeBoundClass -> {
                 val annotations =
                     annotationFactory.createAnnotations(packageInfoClass.annotations())
-                PackageInfo(annotations = annotations)
+                SourcePackageInfo(annotations = annotations)
             }
             else -> error("Unknown package-info class: $packageInfoClass")
         }
     }
-
-    override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
     private fun createAllCommandLineClasses(
         sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,

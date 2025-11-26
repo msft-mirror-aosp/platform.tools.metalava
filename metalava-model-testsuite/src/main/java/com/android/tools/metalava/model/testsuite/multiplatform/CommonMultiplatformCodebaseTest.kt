@@ -168,4 +168,74 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
                 .containsAtLeast(testPkg, androidPkg, nativePkg)
         }
     }
+
+    @Test
+    fun `Test listing classes of a package`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Outer.kt",
+                """
+                package test.pkg
+                expect class Outer {
+                    class CommonMiddle {
+                        class CommonInner
+                    }
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                class Android
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Native.kt",
+                """
+                package test.pkg
+                class Native {
+                    inner class NativeInner
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+        ) {
+            val outerClass = multiplatformCodebase.assertClass("test.pkg.Outer")
+            outerClass.assertSourceSets("commonMain", "androidMain", "nativeMain")
+            val commonMiddleClass = multiplatformCodebase.assertClass("test.pkg.Outer.CommonMiddle")
+            commonMiddleClass.assertSourceSets("commonMain", "androidMain", "nativeMain")
+            val commonInnerClass =
+                multiplatformCodebase.assertClass("test.pkg.Outer.CommonMiddle.CommonInner")
+            commonInnerClass.assertSourceSets("commonMain", "androidMain", "nativeMain")
+            val androidClass = multiplatformCodebase.assertClass("test.pkg.Android")
+            androidClass.assertSourceSets("androidMain")
+            val nativeClass = multiplatformCodebase.assertClass("test.pkg.Native")
+            nativeClass.assertSourceSets("nativeMain")
+            val nativeInnerClass = multiplatformCodebase.assertClass("test.pkg.Native.NativeInner")
+            nativeInnerClass.assertSourceSets("nativeMain")
+
+            val testPkg = multiplatformCodebase.assertPackage("test.pkg")
+            assertThat(testPkg.topLevelClasses())
+                .containsExactly(outerClass, androidClass, nativeClass)
+            assertThat(testPkg.allClasses().toList())
+                .containsExactly(
+                    outerClass,
+                    androidClass,
+                    nativeClass,
+                    commonMiddleClass,
+                    commonInnerClass,
+                    nativeInnerClass,
+                )
+        }
+    }
 }

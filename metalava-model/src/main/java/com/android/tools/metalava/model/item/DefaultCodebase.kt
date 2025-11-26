@@ -68,7 +68,7 @@ open class DefaultCodebase(
     override val reporter: Reporter = config.reporter
 
     /** Tracks [PackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker(reporter, assembler)
+    val packageTracker = PackageTracker(assembler)
 
     final override fun getPackages() = packageTracker.getPackages()
 
