@@ -130,7 +130,8 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
      *
      * This will be called for packages that have no `package.html` or `package-info.java`.
      */
-    protected abstract fun emptyPackageDocumentationFactory(): ItemDocumentationFactory
+    protected open fun emptyPackageDocumentationFactory(): ItemDocumentationFactory =
+        error("Could not find documentation for package")
 
     companion object {
         private val DEFAULT_PACKAGE_MODIFIERS = createImmutableModifiers(VisibilityLevel.PUBLIC)
