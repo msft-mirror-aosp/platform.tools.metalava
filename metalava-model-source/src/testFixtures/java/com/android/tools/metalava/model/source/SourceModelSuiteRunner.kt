@@ -91,7 +91,6 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                     codebaseConfig = testFixture.codebaseConfig,
                     javaLanguageLevel = testFixture.javaLanguageLevel,
                     modelOptions = inputs.modelOptions,
-                    allowReadingComments = testFixture.allowReadingComments,
                 )
 
             val codebase = sourceParser.createMultiplatformCodebase(projectDescription)
@@ -110,7 +109,6 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                 codebaseConfig = testFixture.codebaseConfig,
                 javaLanguageLevel = testFixture.javaLanguageLevel,
                 modelOptions = inputs.modelOptions,
-                allowReadingComments = testFixture.allowReadingComments,
             )
         return sourceParser.parseSources(
             sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),

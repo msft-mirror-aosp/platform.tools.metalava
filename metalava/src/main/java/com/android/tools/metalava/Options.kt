@@ -381,6 +381,7 @@ class Options(
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {
             Codebase.Config(
+                allowReadingComments = allowReadingComments,
                 annotationManager = annotationManager,
                 apiFlags = apiFlags,
                 apiSurfaces = apiSurfaces,

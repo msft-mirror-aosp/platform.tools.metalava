@@ -27,7 +27,6 @@ import java.io.File
 
 internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
-    private val allowReadingComments: Boolean
 ) : SourceParser {
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
@@ -63,7 +62,6 @@ internal class TurbineSourceParser(
                     )
                 },
                 classpath = classPath,
-                allowReadingComments = allowReadingComments,
             )
 
         try {

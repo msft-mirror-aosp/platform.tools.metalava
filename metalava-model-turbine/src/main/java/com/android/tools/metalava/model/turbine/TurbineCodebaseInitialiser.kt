@@ -74,7 +74,6 @@ import javax.lang.model.element.TypeElement
 internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
     private val classpath: List<File>,
-    override val allowReadingComments: Boolean,
 ) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
