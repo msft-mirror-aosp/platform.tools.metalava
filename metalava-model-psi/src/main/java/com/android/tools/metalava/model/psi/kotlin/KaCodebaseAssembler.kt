@@ -501,6 +501,12 @@ private constructor(
         constructorSymbol: KaConstructorSymbol,
         containingClass: ClassItem,
     ): Boolean {
+        // Deprecation level hidden items can't be resolved from source.
+        if (constructorSymbol.isDeprecatedHidden()) return false
+        // If this codebase is being created just from the KaModule, all other source constructors
+        // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
+        if (!addingToPsiCodebase) return true
+
         // Value class primary constructors are always kotlin only.
         if (constructorSymbol.isPrimary && containingClass.modifiers.isValue()) return true
         // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
@@ -509,8 +515,6 @@ private constructor(
         // kotlin only.
         if (constructorSymbol.existsAsUElement() && !hasValueClassTypeParameter(constructorSymbol))
             return false
-        // Deprecation level hidden items can't be resolved from source.
-        if (constructorSymbol.isDeprecatedHidden()) return false
         return true
     }
 
@@ -592,8 +596,6 @@ private constructor(
     private fun KaSession.shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
         // Don't generate hidden functions since they cannot be resolved from source.
         if (functionSymbol.isDeprecatedHidden()) return false
-        // Generate delegate functions.
-        if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) return true
         // Skip generated equals and hashCode methods, when they aren't implemented in source.
         if (
             functionSymbol.origin == KaSymbolOrigin.SOURCE_MEMBER_GENERATED &&
@@ -602,6 +604,13 @@ private constructor(
                 } ?: false
         )
             return false
+
+        // If this codebase is being created just from the KaModule, all other source functions
+        // should be generated. Only skip functions when adding to a PsiBasedCodebase.
+        if (!addingToPsiCodebase) return true
+
+        // Generate delegate functions.
+        if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) return true
 
         // Composable APIs will have a different signature in bytecode than in source, so the source
         // signature should be generated here as kotlin-only.
