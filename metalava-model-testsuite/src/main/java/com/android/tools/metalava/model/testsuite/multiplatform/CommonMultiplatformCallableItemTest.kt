@@ -445,4 +445,65 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Definition of top level expect actual function`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                   package test.pkg
+                   expect fun foo(int: Int): Unit
+                   """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                   package test.pkg
+                   actual fun foo(int: Int) = Unit
+                   fun androidMethod(s: String) = Unit
+                   """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                   package test.pkg
+                   actual fun foo(int: Int) = Unit
+                   fun nativeMethod(s: String) = Unit
+                   """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+        ) {
+            val testPkg = multiplatformCodebase.assertPackage("test.pkg")
+            testPkg.assertSourceSets("androidMain", "commonMain", "nativeMain")
+
+            val fooMethod = testPkg.assertMethod("foo", listOf("int"))
+            fooMethod.assertSourceSets("androidMain", "commonMain", "nativeMain")
+
+            val androidMethod = testPkg.assertMethod("androidMethod", listOf("java.lang.String"))
+            androidMethod.assertSourceSets("androidMain")
+
+            val nativeMethod = testPkg.assertMethod("nativeMethod", listOf("java.lang.String"))
+            nativeMethod.assertSourceSets("nativeMain")
+
+            assertThat(testPkg.topLevelFunctions).hasSize(3)
+            assertThat(testPkg.topLevelFunctions)
+                .containsExactly(fooMethod, androidMethod, nativeMethod)
+
+            // Verify that the facade classes in the underlying model to hold the top level
+            // functions are not included in the multiplatform model.
+            assertThat(testPkg.topLevelClasses()).isEmpty()
+            assertThat(testPkg.allClasses().toList()).isEmpty()
+        }
+    }
 }

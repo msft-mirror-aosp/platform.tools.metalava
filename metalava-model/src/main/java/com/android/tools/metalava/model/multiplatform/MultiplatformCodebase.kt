@@ -187,7 +187,9 @@ class MultiplatformPackageItem(
     /** All the top-level (not nested) classes defined in this package in any source set. */
     fun topLevelClasses(): List<MultiplatformClassItem> {
         return aggregateChildren(
-            childAccessor = { topLevelClasses() },
+            // Do not include file facade classes. Their members will be listed in
+            // [topLevelFunctions] and [topLevelProperties].
+            childAccessor = { topLevelClasses().filter { !it.isFileFacade } },
             childIdentifier = { qualifiedName() },
             multiplatformChildCreator = { qualifiedName, sourceSetToClassItem ->
                 MultiplatformClassItem(qualifiedName, sourceSetToClassItem)
@@ -199,6 +201,40 @@ class MultiplatformPackageItem(
     fun allClasses(): Sequence<MultiplatformClassItem> {
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }
+
+    /**
+     * All the top-level functions defined in this package in any source set.
+     *
+     * In the underlying [Codebase] model, these functions are contained in file facade classes, but
+     * those are not included here because they are not real classes in the Kotlin API surface.
+     */
+    val topLevelFunctions: List<MultiplatformMethodItem> =
+        aggregateChildren(
+            childAccessor = {
+                topLevelClasses().filter { it.isFileFacade }.flatMap { it.methods() }
+            },
+            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+            multiplatformChildCreator = { identifier, sourceSetToMethodItem ->
+                MultiplatformMethodItem(this, identifier, sourceSetToMethodItem)
+            }
+        )
+
+    /**
+     * All the top-level properties defined in this package in any source set.
+     *
+     * In the underlying [Codebase] model, these properties are contained in file facade classes,
+     * but those are not included here because they are not real classes in the Kotlin API surface.
+     */
+    val topLevelProperties: List<MultiplatformPropertyItem> =
+        aggregateChildren(
+            childAccessor = {
+                topLevelClasses().filter { it.isFileFacade }.flatMap { it.properties() }
+            },
+            childIdentifier = { MultiplatformPropertyItem.Identifier(name(), receiver) },
+            multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
+                MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
+            }
+        )
 
     override fun toString(): String {
         return "multiplatform package $qualifiedName"
@@ -348,6 +384,12 @@ private constructor(
         sourceSetToItem: SourceSetDependent<PropertyItem?>
     ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
 
+    constructor(
+        containingPackage: MultiplatformPackageItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<PropertyItem?>
+    ) : this(containingPackage, containingPackage.qualifiedName, identifier, sourceSetToItem)
+
     /** The name of the property. */
     val name: String
         get() = identifier.name
@@ -420,6 +462,12 @@ protected constructor(
         identifier: Identifier,
         sourceSetToItem: SourceSetDependent<C?>
     ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
+
+    constructor(
+        containingPackage: MultiplatformPackageItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<C?>
+    ) : this(containingPackage, containingPackage.qualifiedName, identifier, sourceSetToItem)
 
     /**
      * The parameter types of the callable.
@@ -514,6 +562,12 @@ private constructor(
         identifier: Identifier,
         sourceSetToItem: SourceSetDependent<MethodItem?>
     ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
+
+    constructor(
+        containingPackage: MultiplatformPackageItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<MethodItem?>
+    ) : this(containingPackage, containingPackage.qualifiedName, identifier, sourceSetToItem)
 
     /** The name of the method. */
     val name: String

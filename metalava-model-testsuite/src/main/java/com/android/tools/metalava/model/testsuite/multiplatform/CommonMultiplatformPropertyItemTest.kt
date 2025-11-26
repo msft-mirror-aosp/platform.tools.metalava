@@ -292,4 +292,65 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
                 .containsExactly(stringNonNullable, stringNullable, listNonNullable, listNullable)
         }
     }
+
+    @Test
+    fun `Definition of top level expect actual extension property`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+               package test.pkg
+               expect val Int.foo: Int
+               """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                   package test.pkg
+                   actual val Int.foo = 0
+                   val Int.android = 0
+                   """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                   package test.pkg
+                   actual val Int.foo = 0
+                   val Int.native = 0
+                   """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+        ) {
+            val testPkg = multiplatformCodebase.assertPackage("test.pkg")
+            testPkg.assertSourceSets("androidMain", "commonMain", "nativeMain")
+
+            val fooProperty = testPkg.assertProperty("foo", "int")
+            fooProperty.assertSourceSets("androidMain", "commonMain", "nativeMain")
+
+            val androidProperty = testPkg.assertProperty("android", "int")
+            androidProperty.assertSourceSets("androidMain")
+
+            val nativeProperty = testPkg.assertProperty("native", "int")
+            nativeProperty.assertSourceSets("nativeMain")
+
+            assertThat(testPkg.topLevelProperties).hasSize(3)
+            assertThat(testPkg.topLevelProperties)
+                .containsExactly(fooProperty, androidProperty, nativeProperty)
+
+            // Verify that the facade classes in the underlying model to hold the top level
+            // properties are not included in the multiplatform model.
+            assertThat(testPkg.topLevelClasses()).isEmpty()
+            assertThat(testPkg.allClasses().toList()).isEmpty()
+        }
+    }
 }

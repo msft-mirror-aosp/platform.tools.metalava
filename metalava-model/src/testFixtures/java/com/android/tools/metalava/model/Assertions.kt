@@ -432,6 +432,30 @@ interface Assertions {
     }
 
     /**
+     * Finds the property by [name] and [receiverType] in the [MultiplatformClassItem], failing if
+     * it does not exist.
+     *
+     * [receiverType] is expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformPackageItem.assertProperty(
+        name: String,
+        receiverType: String? = null
+    ): MultiplatformPropertyItem {
+        val propertyItem =
+            topLevelProperties.singleOrNull { property ->
+                property.name == name &&
+                    property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
+                        receiverType
+            }
+        assertNotNull(
+            propertyItem,
+            "Expected property ${receiverType?.let { "$it." } ?: "" }$name to be defined in $this"
+        )
+        return propertyItem
+    }
+
+    /**
      * Finds the constructor by [parameterTypes] in the [MultiplatformClassItem], failing if it does
      * not exist.
      *
@@ -467,6 +491,31 @@ interface Assertions {
     ): MultiplatformMethodItem {
         val methodItem =
             methods.singleOrNull { method ->
+                method.name == name &&
+                    method.parameterTypes.map { type ->
+                        type.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                    } == parameterTypes
+            }
+        assertNotNull(
+            methodItem,
+            "Expected method $name(${parameterTypes.joinToString()}) to be defined in $this"
+        )
+        return methodItem
+    }
+
+    /**
+     * Finds the method by [name] and [parameterTypes] in the [MultiplatformPackageItem], failing if
+     * it does not exist.
+     *
+     * The [parameterTypes] are expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformPackageItem.assertMethod(
+        name: String,
+        parameterTypes: List<String>,
+    ): MultiplatformMethodItem {
+        val methodItem =
+            topLevelFunctions.singleOrNull { method ->
                 method.name == name &&
                     method.parameterTypes.map { type ->
                         type.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
