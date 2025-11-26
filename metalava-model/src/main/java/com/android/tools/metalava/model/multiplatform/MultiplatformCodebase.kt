@@ -30,6 +30,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import java.util.Objects
 
@@ -203,11 +205,30 @@ class MultiplatformPackageItem(
     }
 }
 
+/** A [MultiplatformItem] based on an [Item] that is a [TypeParameterListOwner]. */
+sealed class MultiplatformTypeParameterListOwner<E>(sourceSetToElement: SourceSetDependent<E?>) :
+    MultiplatformItem<E>(sourceSetToElement) where E : TypeParameterListOwner, E : Item {
+    /**
+     * The type parameters of this item, listed in order.
+     *
+     * For expect/actual items or items defined in a single source set, the source sets of the type
+     * parameters will be the same as the owning item. However, if two items with the same signature
+     * are defined in unrelated source sets, they could have different type parameters.
+     */
+    val typeParameterList: List<MultiplatformTypeParameterItem> =
+        aggregateIndexedChildren(
+            childAccessor = { typeParameterList },
+            multiplatformChildCreator = { typeParameterIndex, sourceSetToTypeParameter ->
+                MultiplatformTypeParameterItem(this, typeParameterIndex, sourceSetToTypeParameter)
+            }
+        )
+}
+
 /** A class named [qualifiedName] in a [MultiplatformCodebase]. */
 class MultiplatformClassItem(
     val qualifiedName: String,
     sourceSetToItem: SourceSetDependent<ClassItem?>
-) : MultiplatformItem<ClassItem>(sourceSetToItem) {
+) : MultiplatformTypeParameterListOwner<ClassItem>(sourceSetToItem) {
     /**
      * A mapping from source set where the [ClassItem] exists to the super class of the [ClassItem]
      * for that source set.
@@ -314,7 +335,7 @@ class MultiplatformPropertyItem(
     val containingClass: MultiplatformClassItem,
     private val identifier: Identifier,
     sourceSetToItem: SourceSetDependent<PropertyItem?>,
-) : MultiplatformItem<PropertyItem>(sourceSetToItem) {
+) : MultiplatformTypeParameterListOwner<PropertyItem>(sourceSetToItem) {
     /** The name of the property. */
     val name: String
         get() = identifier.name
@@ -375,7 +396,7 @@ sealed class MultiplatformCallableItem<C : CallableItem>(
     val containingClass: MultiplatformClassItem,
     protected val identifier: Identifier,
     sourceSetToItem: SourceSetDependent<C?>
-) : MultiplatformItem<C>(sourceSetToItem) {
+) : MultiplatformTypeParameterListOwner<C>(sourceSetToItem) {
     /**
      * The parameter types of the callable.
      *
@@ -517,5 +538,47 @@ class MultiplatformParameterItem(
 
     override fun hashCode(): Int {
         return Objects.hash(containingCallable, parameterIndex)
+    }
+}
+
+/** A type parameter of [owner], identified by [typeParameterIndex]. */
+class MultiplatformTypeParameterItem(
+    val owner: MultiplatformTypeParameterListOwner<*>,
+    val typeParameterIndex: Int,
+    sourceSetToItem: SourceSetDependent<TypeParameterItem?>
+) : MultiplatformElement<TypeParameterItem>(sourceSetToItem) {
+    /**
+     * A mapping from source set where this type parameter exists to the modifiers of the type
+     * parameter in that source set.
+     */
+    val modifiers: SourceSetDependent<BaseModifierList> = sourceSetDependentValue { it.modifiers }
+
+    /**
+     * A mapping from source set where this type parameter exists to the name of the type parameter
+     * in that source set.
+     *
+     * The compiler allows an expect/actual type parameter to have different names between the
+     * expect and actual.
+     */
+    val name: SourceSetDependent<String> = sourceSetDependentValue { it.name() }
+
+    /**
+     * A mapping from source set where this type parameter exists to whether the type parameter is
+     * reified in that source set.
+     */
+    val isReified: SourceSetDependent<Boolean> = sourceSetDependentValue { it.isReified() }
+
+    override fun toString(): String {
+        return "multiplatform type parameter #$typeParameterIndex of $owner"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MultiplatformTypeParameterItem) return false
+        return owner == other.owner && typeParameterIndex == other.typeParameterIndex
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hash(owner, typeParameterIndex)
     }
 }
