@@ -109,9 +109,7 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
         packageInfo: PackageInfo,
         containingPackage: PackageItem?,
     ): PackageItem {
-        val documentationFactory =
-            packageInfo.commentFactory
-                ?: error("No documentation factory provided for '$packageName' by $this")
+        val documentationFactory = packageInfo.commentFactory
         val annotations = packageInfo.annotations
         val modifiers =
             if (annotations.isEmpty()) DEFAULT_PACKAGE_MODIFIERS

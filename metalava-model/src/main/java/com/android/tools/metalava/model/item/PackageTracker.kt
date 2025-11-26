@@ -51,7 +51,7 @@ data class PackageInfo(
      *
      * If specified this is used for [PackageItem.documentation].
      */
-    val commentFactory: ItemDocumentationFactory? = null,
+    val commentFactory: ItemDocumentationFactory,
 
     /**
      * The `overview.html` file.
