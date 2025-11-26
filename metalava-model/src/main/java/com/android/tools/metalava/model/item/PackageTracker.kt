@@ -42,7 +42,7 @@ data class PackageInfo(
     val fileLocation: FileLocation = FileLocation.UNKNOWN,
 
     /** The list of annotations, if any, applied to the package. */
-    val annotations: List<AnnotationItem>,
+    val annotations: List<AnnotationItem> = emptyList(),
 
     /**
      * Factory for creating an [ItemDocumentation] instance containing the package level document.
@@ -61,10 +61,14 @@ data class PackageInfo(
     val overview: ResourceFile? = null,
 ) {
     companion object {
-        val EMPTY =
-            PackageInfo(
-                annotations = emptyList(),
-            )
+        /** An empty [PackageInfo] with every property set to its default. */
+        val EMPTY = PackageInfo()
+
+        /**
+         * A [PackageInfo] that does not provide any comment for the package so any [PackageItem]
+         * created from this will have a `null` [PackageItem.documentation] property.
+         */
+        val NO_COMMENT = PackageInfo(commentFactory = ItemDocumentation.NONE_FACTORY)
     }
 }
 

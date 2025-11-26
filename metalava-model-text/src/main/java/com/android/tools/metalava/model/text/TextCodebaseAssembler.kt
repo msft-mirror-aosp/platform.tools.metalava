@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -30,6 +29,7 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import java.io.File
@@ -83,15 +83,8 @@ internal class TextCodebaseAssembler(
         requiredStubKindForClass.remove(classItem.qualifiedName())
     }
 
-    /**
-     * Override to return an [ItemDocumentation.NONE_FACTORY].
-     *
-     * This will be called for every package loaded from a signature file as none of them have any
-     * documentation. The returned [ItemDocumentation.NONE_FACTORY] will return `null`. That should
-     * not be a problem as [ItemDocumentation] is only needed when creating stubs containing
-     * enhanced documentation which cannot be created from signature files.
-     */
-    override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
+    /** Override to return [PackageInfo.NO_COMMENT]. */
+    override fun getPackageInfoFromUnderlyingModel(packageName: String) = PackageInfo.NO_COMMENT
 
     /**
      * Register that the class type requires a specific stub kind.

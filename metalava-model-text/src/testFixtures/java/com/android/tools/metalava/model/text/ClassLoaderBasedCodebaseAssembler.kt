@@ -116,11 +116,9 @@ internal class ClassLoaderBasedCodebaseAssembler(
             as? Package
     }
 
-    override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
-
     override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
         // Define the [Package] so it can access its annotations.
-        val pkg = definePackage(packageName) ?: return PackageInfo.EMPTY
+        val pkg = definePackage(packageName) ?: return PackageInfo.NO_COMMENT
 
         // Convert the annotation class, ignoring attributes for the moment.
         val annotationItems =
@@ -130,7 +128,10 @@ internal class ClassLoaderBasedCodebaseAssembler(
                 }
             }
 
-        return PackageInfo(annotations = annotationItems)
+        return PackageInfo(
+            annotations = annotationItems,
+            commentFactory = ItemDocumentation.NONE_FACTORY,
+        )
     }
 
     override fun isValidPackage(packageName: String) = packageName in packages
