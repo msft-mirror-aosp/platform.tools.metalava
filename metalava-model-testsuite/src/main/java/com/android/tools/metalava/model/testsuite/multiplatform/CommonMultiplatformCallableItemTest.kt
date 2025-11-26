@@ -256,4 +256,193 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                 )
         }
     }
+
+    @Test
+    fun `Parameter definitions`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo {
+                    fun commonMethod(optionalString: String = ""): Unit
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    actual fun commonMethod(optionalString: String) = Unit
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                 package test.pkg
+                 actual class Foo {
+                     actual fun commonMethod(optionalString: String) = Unit
+                     fun nativeMethod(s0: String, s1: String?, s2: String) = Unit
+                 }
+                 """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+
+            val commonMethod = fooClass.assertMethod("commonMethod", listOf("java.lang.String"))
+            val commonParameter = commonMethod.parameters.single()
+            commonParameter.assertSourceSets("commonMain", "androidMain", "nativeMain")
+            assertThat(commonParameter.containingCallable).isEqualTo(commonMethod)
+            assertThat(commonParameter.parameterIndex).isEqualTo(0)
+            assertThat(commonParameter.toString())
+                .isEqualTo(
+                    "multiplatform parameter #0 of multiplatform method test.pkg.Foo#commonMethod(java.lang.String)"
+                )
+            commonParameter.publicName.assertSourceSetValues(
+                "commonMain" to "optionalString",
+                "androidMain" to "optionalString",
+                "nativeMain" to "optionalString",
+            )
+            // TODO(b/447420267): android and native should inherit the default value from common
+            commonParameter.hasDefaultValue.assertSourceSetValues(
+                "commonMain" to true,
+                "androidMain" to false,
+                "nativeMain" to false,
+            )
+
+            val nativeMethod =
+                fooClass.assertMethod(
+                    "nativeMethod",
+                    listOf("java.lang.String", "java.lang.String?", "java.lang.String")
+                )
+            assertThat(nativeMethod.parameters).hasSize(3)
+            for ((index, parameter) in nativeMethod.parameters.withIndex()) {
+                parameter.assertSourceSets("nativeMain")
+                assertThat(parameter.containingCallable).isEqualTo(nativeMethod)
+                assertThat(parameter.parameterIndex).isEqualTo(index)
+                assertThat(parameter.toString())
+                    .isEqualTo(
+                        "multiplatform parameter #$index of multiplatform method test.pkg.Foo#nativeMethod(java.lang.String, java.lang.String?, java.lang.String)"
+                    )
+                parameter.publicName.assertSourceSetValues("nativeMain" to "s$index")
+                parameter.hasDefaultValue.assertSourceSetValues("nativeMain" to false)
+            }
+        }
+    }
+
+    @Test
+    fun `Expect actual parameter definitions with different modifiers`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                annotation class CommonAnnotation
+                expect class Foo {
+                    fun foo(@CommonAnnotation s: String)
+                }
+                """
+            )
+        val androidMain =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                annotation class AndroidAnnotation
+                actual class Foo {
+                    actual fun foo(@AndroidAnnotation s: String) = Unit
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidMain),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidMain)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            val fooMethod = fooClass.assertMethod("foo", listOf("java.lang.String"))
+            val stringParameter = fooMethod.parameters.single()
+            stringParameter.assertSourceSets("androidMain", "commonMain")
+            assertThat(stringParameter.containingCallable).isEqualTo(fooMethod)
+            assertThat(stringParameter.parameterIndex).isEqualTo(0)
+            stringParameter.modifiers
+                .transformValues { modifiers -> modifiers.annotations().map { it.qualifiedName } }
+                .assertSourceSetValues(
+                    "commonMain" to listOf("test.pkg.CommonAnnotation"),
+                    "androidMain" to listOf("test.pkg.AndroidAnnotation"),
+                )
+        }
+    }
+
+    @Test
+    fun `Parameters of functions with the same signature in unrelated source sets`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val androidMain =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    fun clashingMethod(android: String) = Unit
+                }
+                """
+            )
+        val nativeMain =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    fun clashingMethod(native: String = "") = Unit
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidMain, nativeMain),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidMain)),
+                    createNativeModuleDescription(arrayOf(nativeMain)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            val clashingMethod = fooClass.assertMethod("clashingMethod", listOf("java.lang.String"))
+            val clashingParameter = clashingMethod.parameters.single()
+            clashingParameter.assertSourceSets("androidMain", "nativeMain")
+            assertThat(clashingParameter.containingCallable).isEqualTo(clashingMethod)
+            assertThat(clashingParameter.parameterIndex).isEqualTo(0)
+            clashingParameter.hasDefaultValue.assertSourceSetValues(
+                "androidMain" to false,
+                "nativeMain" to true,
+            )
+            clashingParameter.publicName.assertSourceSetValues(
+                "androidMain" to "android",
+                "nativeMain" to "native",
+            )
+        }
+    }
 }

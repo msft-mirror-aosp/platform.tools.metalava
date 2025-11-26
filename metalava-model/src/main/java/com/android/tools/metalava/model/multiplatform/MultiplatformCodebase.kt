@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -137,6 +138,32 @@ sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSet
                     children.singleOrNull { child -> childIdentifier(child) == childIdentifier }
                 }
             multiplatformChildCreator(childIdentifier, sourceSetToChild)
+        }
+    }
+
+    /**
+     * Computes a list of the [MultiplatformElement] children with type [C] of this element, where
+     * the children are grouped based on their index. For instance, this can be used to list all
+     * value parameters of a callable or type parameters of a type parameter owner.
+     *
+     * @param childAccessor Lists the children for the element of one source set.
+     * @param multiplatformChildCreator Creates a [MultiplatformElement] for a child from the index
+     *   of the child and a mapping of source set to value of the child in that source set.
+     */
+    protected fun <C, M : MultiplatformElement<C>> aggregateIndexedChildren(
+        childAccessor: E.() -> List<C>,
+        multiplatformChildCreator: (Int, SourceSetDependent<C?>) -> M,
+    ): List<M> {
+        // Create a mapping from source set to the children that exist in that source set.
+        val sourceSetToChildren =
+            sourceSetToElement.transformValues { parent -> parent?.childAccessor() ?: emptyList() }
+        val numberOfChildren = sourceSetToChildren.values.maxOf { it.size }
+        // For each child index, find the child at that index in all source sets, and create a
+        // MultiplatformElement for it.
+        return (0..<numberOfChildren).map { childIndex ->
+            val sourceSetToChild =
+                sourceSetToChildren.transformValues { children -> children.getOrNull(childIndex) }
+            multiplatformChildCreator(childIndex, sourceSetToChild)
         }
     }
 }
@@ -360,6 +387,18 @@ sealed class MultiplatformCallableItem<C : CallableItem>(
         get() = identifier.parameterTypes
 
     /**
+     * The parameters of the callable, listed in order. All parameters will exist in the same set of
+     * source sets as the containing callable.
+     */
+    val parameters: List<MultiplatformParameterItem> =
+        aggregateIndexedChildren(
+            childAccessor = { parameters() },
+            multiplatformChildCreator = { parameterIndex, sourceSetToParameter ->
+                MultiplatformParameterItem(this, parameterIndex, sourceSetToParameter)
+            }
+        )
+
+    /**
      * A mapping from source set where the [CallableItem] exists to the list of throws types for the
      * callable in that source set.
      */
@@ -436,5 +475,47 @@ class MultiplatformConstructorItem(
     override fun toString(): String {
         return "multiplatform constructor ${containingClass.qualifiedName}" +
             identifier.parameterDescription()
+    }
+}
+
+/** A parameter of the [containingCallable], identified by [parameterIndex]. */
+class MultiplatformParameterItem(
+    val containingCallable: MultiplatformCallableItem<*>,
+    val parameterIndex: Int,
+    sourceSetToItem: SourceSetDependent<ParameterItem?>
+) : MultiplatformItem<ParameterItem>(sourceSetToItem) {
+    /**
+     * A mapping from source set where the [ParameterItem] exists to the public name of the
+     * parameter in that source set.
+     *
+     * Expect/actuals must have the same parameter names, but if callables are defined with the same
+     * signature in unrelated source sets, they could have different parameter names.
+     */
+    val publicName: SourceSetDependent<String?> = sourceSetDependentValue { it.publicName() }
+
+    /**
+     * A mapping from source set where the [ParameterItem] exists to whether the parameter has a
+     * default value in that source set.
+     *
+     * Actual parameters inherit default values from expects, but if callables are defined with the
+     * same signature in unrelated source sets, they could have different parameter default values.
+     */
+    val hasDefaultValue: SourceSetDependent<Boolean> = sourceSetDependentValue {
+        it.hasDefaultValue()
+    }
+
+    override fun toString(): String {
+        return "multiplatform parameter #$parameterIndex of $containingCallable"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MultiplatformParameterItem) return false
+        return containingCallable == other.containingCallable &&
+            parameterIndex == other.parameterIndex
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hash(containingCallable, parameterIndex)
     }
 }
