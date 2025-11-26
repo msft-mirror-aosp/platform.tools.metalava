@@ -270,13 +270,22 @@ private constructor(
 
     /**
      * Both expect and actual symbols for functions, constructors, and properties are present in the
-     * [KaModule]s with actual symbols, but the expect symbols should not be included in the
+     * [KaModule]s with actual symbols.
+     *
+     * If this is a common module, the expect symbols should be used in codebase creation, but if
+     * both expects and actuals are present, the expect symbols should not be included in the
      * codebase.
      */
     private fun <T : KaDeclarationSymbol> KaSession.filterExpects(
         symbols: Sequence<T>
     ): Sequence<T> {
-        return symbols.filter { !it.isExpect }
+        if (addingToPsiCodebase) return symbols.filter { !it.isExpect }
+        val actuals = symbols.filter { it.isActual }
+        @OptIn(KaExperimentalApi::class)
+        // List all the expects that would be present in [symbols]
+        val expectsForActuals = actuals.flatMap { it.getExpectsForActual() }
+        // Return only non-expects or expects not present in [expectsForActuals]
+        return symbols.filter { !it.isExpect || it !in expectsForActuals }
     }
 
     /** Analyze the classes of the package as well as any top-level callables. */

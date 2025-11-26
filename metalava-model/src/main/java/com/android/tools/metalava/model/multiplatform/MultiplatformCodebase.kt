@@ -23,7 +23,10 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeStringConfiguration
+import java.util.Objects
 
 /**
  * A value which differs between source sets of a multiplatform project. This is a mapping from the
@@ -231,6 +234,16 @@ class MultiplatformClassItem(
         return sequenceOf(this).plus(nestedClasses.asSequence().flatMap { it.allClasses() })
     }
 
+    /** The properties of this class which exist in any source set. */
+    val properties: List<MultiplatformPropertyItem> =
+        aggregateChildren(
+            childAccessor = { properties() },
+            childIdentifier = { MultiplatformPropertyItem.Identifier(name(), receiver) },
+            multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
+                MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
+            }
+        )
+
     override fun toString(): String {
         return "multiplatform class $qualifiedName"
     }
@@ -242,5 +255,63 @@ class MultiplatformClassItem(
 
     override fun hashCode(): Int {
         return qualifiedName.hashCode()
+    }
+}
+
+/** A property of the [containingClass], identified by [name] and optional [receiver] type. */
+class MultiplatformPropertyItem(
+    val containingClass: MultiplatformClassItem,
+    private val identifier: Identifier,
+    sourceSetToItem: SourceSetDependent<PropertyItem?>,
+) : MultiplatformItem<PropertyItem>(sourceSetToItem) {
+    /** The name of the property. */
+    val name: String
+        get() = identifier.name
+
+    /**
+     * The receiver type of the property, or null if it has no receiver.
+     *
+     * The nullability of this type is significant, as it is possible to define two properties in
+     * Kotlin that differ only by receiver nullability. However, other modifiers (annotations) on
+     * the type are not significant and may differ by source set.
+     */
+    val receiver: TypeItem?
+        get() = identifier.receiver
+
+    override fun toString(): String {
+        val receiverString =
+            receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." }
+                ?: ""
+        return "multiplatform property ${containingClass.qualifiedName}#$receiverString$name"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MultiplatformPropertyItem) return false
+        return other.containingClass == containingClass && other.identifier == identifier
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hash(containingClass, identifier)
+    }
+
+    /**
+     * The combination of [name] and [receiver] that uniquely identifies the [PropertyItem] within a
+     * class. The nullability of the [receiver] is significant but other modifiers (annotations) are
+     * not.
+     */
+    class Identifier(val name: String, val receiver: TypeItem?) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Identifier) return false
+            return name == other.name &&
+                ((receiver == null && other.receiver == null) ||
+                    (receiver != null &&
+                        receiver.equalToType(other.receiver, includeNullability = true)))
+        }
+
+        override fun hashCode(): Int {
+            return Objects.hash(name, receiver)
+        }
     }
 }

@@ -569,4 +569,70 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
                 )
         }
     }
+
+    @Test
+    fun `Test listing properties of a class`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo {
+                    val common: Int
+                    val String.common: Int
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    actual val common: Int = 0
+                    actual val String.common: Int
+                        get() = 0
+                    val android: Int = 0
+                    val String.android: Int
+                        get() = 0
+                    val <T> T.android: Int
+                        get() = 0
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            val commonNoReceiver = fooClass.assertProperty("common")
+            commonNoReceiver.assertSourceSets("commonMain", "androidMain")
+            val commonStringReceiver = fooClass.assertProperty("common", "java.lang.String")
+            commonStringReceiver.assertSourceSets("commonMain", "androidMain")
+            assertThat(commonNoReceiver).isNotEqualTo(commonStringReceiver)
+
+            val androidNoReceiver = fooClass.assertProperty("android")
+            androidNoReceiver.assertSourceSets("androidMain")
+            val androidStringReceiver = fooClass.assertProperty("android", "java.lang.String")
+            androidStringReceiver.assertSourceSets("androidMain")
+            val androidVariableReceiver = fooClass.assertProperty("android", "T")
+            androidVariableReceiver.assertSourceSets("androidMain")
+            assertThat(androidNoReceiver).isNotEqualTo(androidStringReceiver)
+            assertThat(androidNoReceiver).isNotEqualTo(androidVariableReceiver)
+            assertThat(androidStringReceiver).isNotEqualTo(androidVariableReceiver)
+
+            assertThat(fooClass.properties)
+                .containsExactly(
+                    commonNoReceiver,
+                    commonStringReceiver,
+                    androidNoReceiver,
+                    androidStringReceiver,
+                    androidVariableReceiver
+                )
+        }
+    }
 }

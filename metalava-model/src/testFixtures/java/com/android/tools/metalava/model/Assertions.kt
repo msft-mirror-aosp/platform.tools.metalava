@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformElement
 import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformPropertyItem
 import com.android.tools.metalava.model.multiplatform.SourceSetDependent
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
@@ -402,6 +403,30 @@ interface Assertions {
     /** Assert that the source set to value mapping contains exactly the expected pairs. */
     fun <V> SourceSetDependent<V>.assertSourceSetValues(vararg expectedValues: Pair<String, V>) {
         assertThat(this).isEqualTo(expectedValues.toMap())
+    }
+
+    /**
+     * Finds the property by [name] and [receiverType] in the [MultiplatformClassItem], failing if
+     * it does not exist.
+     *
+     * [receiverType] is expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformClassItem.assertProperty(
+        name: String,
+        receiverType: String? = null
+    ): MultiplatformPropertyItem {
+        val propertyItem =
+            properties.singleOrNull { property ->
+                property.name == name &&
+                    property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
+                        receiverType
+            }
+        assertNotNull(
+            propertyItem,
+            "Expected property ${receiverType?.let { "$it." } ?: "" }$name to be defined in $this"
+        )
+        return propertyItem
     }
 
     companion object : Assertions {}
