@@ -49,6 +49,7 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultParameterItem
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
@@ -213,9 +214,7 @@ private constructor(
             defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY
         )
 
-    override fun emptyPackageDocumentationFactory(): ItemDocumentationFactory {
-        return ItemDocumentation.NONE_FACTORY
-    }
+    override fun getPackageInfoFromUnderlyingModel(packageName: String) = PackageInfo.NO_COMMENT
 
     override fun isValidPackage(packageName: String) =
         analyze(kaModule) { findPackage(FqName(packageName)) != null }
