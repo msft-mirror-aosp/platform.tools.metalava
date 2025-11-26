@@ -160,10 +160,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
             return sourcePackageInfo.toPackageInfo(defaultCommentFactory)
         }
 
-        if (
-            sourcePackageInfo != PackageInfo.EMPTY &&
-                packageDoc.fileLocation.path?.endsWith("package.html") == true
-        ) {
+        if (packageDoc.commentFactory != null && sourcePackageInfo.commentFactory != null) {
             codebase.reporter.report(
                 Issues.BOTH_PACKAGE_INFO_AND_HTML,
                 null,
