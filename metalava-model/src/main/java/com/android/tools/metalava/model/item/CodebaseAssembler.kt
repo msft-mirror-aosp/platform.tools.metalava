@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -110,7 +109,9 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
         packageInfo: PackageInfo,
         containingPackage: PackageItem?,
     ): PackageItem {
-        val documentationFactory = packageInfo.commentFactory ?: emptyPackageDocumentationFactory()
+        val documentationFactory =
+            packageInfo.commentFactory
+                ?: error("No documentation factory provided for '$packageName' by $this")
         val annotations = packageInfo.annotations
         val modifiers =
             if (annotations.isEmpty()) DEFAULT_PACKAGE_MODIFIERS
@@ -124,14 +125,6 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
             packageInfo.overview,
         )
     }
-
-    /**
-     * Get an [ItemDocumentationFactory] for empty package documentation.
-     *
-     * This will be called for packages that have no `package.html` or `package-info.java`.
-     */
-    protected open fun emptyPackageDocumentationFactory(): ItemDocumentationFactory =
-        error("Could not find documentation for package")
 
     companion object {
         private val DEFAULT_PACKAGE_MODIFIERS = createImmutableModifiers(VisibilityLevel.PUBLIC)
