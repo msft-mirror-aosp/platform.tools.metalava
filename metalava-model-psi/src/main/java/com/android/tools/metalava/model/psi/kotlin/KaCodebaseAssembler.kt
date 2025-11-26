@@ -70,6 +70,7 @@ import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
+import org.jetbrains.kotlin.analysis.api.symbols.KaAnonymousObjectSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
@@ -239,10 +240,11 @@ private constructor(
         analyze(kaModule) {
             for (packageName in packages) {
                 findPackage(packageName)?.let { packageSymbol ->
+                    val packageItem = codebase.findOrCreatePackage(packageName.asString())
                     val packageScope = packageSymbol.packageScope
                     for (typeAliasSymbol in
                         packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>()) {
-                        processTypeAlias(typeAliasSymbol)
+                        processTypeAlias(typeAliasSymbol, packageItem)
                     }
                 }
             }
@@ -282,8 +284,21 @@ private constructor(
         // Ensure the package has been created
         val packageItem = codebase.findOrCreatePackage(packageSymbol.fqName.asString())
         val packageScope = packageSymbol.packageScope
-        for (classifierSymbol in packageScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
-            processNamedClass(classifierSymbol, packageItem)
+        for (classifierSymbol in packageScope.classifiers) {
+            when (classifierSymbol) {
+                is KaNamedClassSymbol -> processNamedClass(classifierSymbol, packageItem)
+                is KaTypeAliasSymbol -> {
+                    // When adding Kotlin-only elements to a PsiBasedCodebase, all typealiases will
+                    // already have been processed in a separate step through [createTypealiases]
+                    // (in order to inline typealias usages from psi).
+                    if (!addingToPsiCodebase) {
+                        processTypeAlias(classifierSymbol, packageItem)
+                    }
+                }
+                // These symbols don't need to be processed.
+                is KaAnonymousObjectSymbol,
+                is KaTypeParameterSymbol -> {}
+            }
         }
         for (callableSymbol in filterExpects(packageScope.callables)) {
             // For top-level callables, find their containing class in the codebase.
@@ -448,11 +463,8 @@ private constructor(
     }
 
     /** Creates a [DefaultClassItem] of kind type alias from the [typeAlias]. */
-    private fun processTypeAlias(typeAlias: KaTypeAliasSymbol) {
+    private fun processTypeAlias(typeAlias: KaTypeAliasSymbol, containingPackage: PackageItem) {
         val qualifiedName = typeAlias.classId?.asFqNameString() ?: return
-        val packageName = qualifiedName.substringBeforeLast(".")
-        val containingPackage = codebase.findOrCreatePackage(packageName)
-
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
                 kaTypeItemFactory,
