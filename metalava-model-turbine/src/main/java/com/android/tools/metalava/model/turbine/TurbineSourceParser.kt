@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -30,11 +29,6 @@ internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
     private val allowReadingComments: Boolean
 ) : SourceParser {
-
-    override fun getClassPathResolver(classPath: List<File>): ClassPathResolver {
-        TODO("implement it")
-    }
-
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */

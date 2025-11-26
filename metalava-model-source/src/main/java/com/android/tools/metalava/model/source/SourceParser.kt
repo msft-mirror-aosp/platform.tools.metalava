@@ -30,7 +30,12 @@ interface SourceParser {
      *
      * @param classPath a list of jar [File]s.
      */
-    fun getClassPathResolver(classPath: List<File>): ClassPathResolver
+    fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
+        parseSources(
+            sourceSet = SourceSet.empty(),
+            description = "Codebase from classpath",
+            classPath = classPath,
+        ) ?: error("Could not create resolver from $classPath")
 
     /**
      * Parse a set of sources into a [Codebase].
@@ -51,9 +56,9 @@ interface SourceParser {
         sourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-        compiledSourceJar: File?,
+        apiPackages: PackageFilter? = null,
+        projectDescription: File? = null,
+        compiledSourceJar: File? = null,
     ): Codebase?
 
     /**

@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -34,7 +33,7 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
@@ -51,7 +50,7 @@ internal class ClassLoaderBasedCodebaseAssembler(
     jars: List<File>,
     codebaseFactory: DefaultCodebaseFactory,
 ) : DefaultCodebaseAssembler() {
-    internal val codebase = codebaseFactory(this)
+    override val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =
@@ -117,16 +116,11 @@ internal class ClassLoaderBasedCodebaseAssembler(
             as? Package
     }
 
-    internal fun initialize() {
-        // Make sure that it has a root package.
-        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
-    }
-
     override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
 
-    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
+    override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
         // Define the [Package] so it can access its annotations.
-        val pkg = definePackage(packageName) ?: return emptyList()
+        val pkg = definePackage(packageName) ?: return PackageInfo.EMPTY
 
         // Convert the annotation class, ignoring attributes for the moment.
         val annotationItems =
@@ -136,14 +130,10 @@ internal class ClassLoaderBasedCodebaseAssembler(
                 }
             }
 
-        return annotationItems
+        return PackageInfo(annotations = annotationItems)
     }
 
-    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        // Make sure that the package exists in the jars before creating.
-        if (qualifiedName !in packages) return null
-        return codebase.findOrCreatePackage(qualifiedName)
-    }
+    override fun isValidPackage(packageName: String) = packageName in packages
 
     /**
      * Search for the class called [qualifiedName].
@@ -212,7 +202,6 @@ internal class ClassLoaderBasedCodebaseAssembler(
                         )
                     },
                 )
-            assembler.initialize()
 
             return assembler
         }

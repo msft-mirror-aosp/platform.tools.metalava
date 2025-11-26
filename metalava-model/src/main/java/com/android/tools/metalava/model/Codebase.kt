@@ -26,7 +26,7 @@ import java.io.File
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase : ClassResolver, PackageResolver, AnnotationContext {
+interface Codebase : ClassPathResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
