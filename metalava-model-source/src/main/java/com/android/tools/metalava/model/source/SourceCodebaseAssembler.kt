@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -127,6 +129,26 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         this.packageDocs = PackageDocs.EMPTY
     }
 
+    /**
+     * Get the default [ItemDocumentationFactory] to use when the [PackageInfo] returned by
+     * [getPackageInfoFromSource] has [PackageInfo.commentFactory] set to `null`.
+     *
+     * This selects the default [ItemDocumentationFactory] on each access as it relies on the
+     * [codebase] which is not initialized until the subclass is initialized. A lazy property would
+     * work, but it would no more efficient and has a higher overhead.
+     */
+    private val defaultCommentFactory: ItemDocumentationFactory
+        get() =
+            if (codebase.config.allowReadingComments) NO_SOURCE_COMMENT_FACTORY
+            else ItemDocumentation.NONE_FACTORY
+
+    /**
+     * Check to see if this [PackageInfo] has a `null` [PackageInfo.commentFactory] and if it does
+     * then create and return a copy that has it set to [defaultCommentFactory].
+     */
+    private fun PackageInfo.toPackageInfo(defaultCommentFactory: ItemDocumentationFactory) =
+        if (commentFactory == null) copy(commentFactory = defaultCommentFactory) else this
+
     final override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
         val sourcePackageInfo = getPackageInfoFromSource(packageName)
 
@@ -134,7 +156,8 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         val packageDoc = packageDocs[packageName]
 
         if (packageDoc == PackageDoc.EMPTY) {
-            return sourcePackageInfo
+            // Make sure the returned [PackageInfo] has a non-null [PackageInfo.commentFactory].
+            return sourcePackageInfo.toPackageInfo(defaultCommentFactory)
         }
 
         if (
@@ -158,7 +181,13 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
                     sourcePackageInfo.fileLocation.takeUnless { it == FileLocation.UNKNOWN }
                         ?: packageDoc.fileLocation,
                 annotations = sourcePackageInfo.annotations,
-                commentFactory = sourcePackageInfo.commentFactory ?: packageDoc.commentFactory,
+                commentFactory =
+                    // The comment returned from [getPackageInfoFromSource] takes precedence.
+                    sourcePackageInfo.commentFactory
+                        // Then the comment from any `package-info.java` files is next.
+                        ?: packageDoc.commentFactory
+                        // Finally, use the default to make sure it is not `null`.
+                        ?: defaultCommentFactory,
                 overview = sourcePackageInfo.overview ?: packageDoc.overview,
             )
 

@@ -46,7 +46,6 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
-import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Issues
@@ -182,8 +181,6 @@ internal class PsiCodebaseAssembler(
             )
         }
     }
-
-    override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
     override fun isValidPackage(packageName: String) = findPsiPackage(packageName) != null
 
