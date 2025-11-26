@@ -130,7 +130,11 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 
     override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
         val originalPackage =
-            originalCodebase.resolvePackage(packageName) ?: return PackageInfo.EMPTY
+            originalCodebase.resolvePackage(packageName)
+                ?: error(
+                    "Snapshot requires all packages are present in the original codebase but it cannot find '$packageName'"
+                )
+
         var originalAnnotations = originalPackage.modifiers.annotations()
         val annotations = originalAnnotations.map { it.snapshot(snapshotCodebase) }
         return PackageInfo(
@@ -138,22 +142,6 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             annotations = annotations,
             commentFactory = originalPackage.documentation.snapshottingFactory(),
             overview = originalPackage.overviewDocumentation,
-        )
-    }
-
-    /**
-     * Override to throw an error.
-     *
-     * This should never be called when taking a snapshot as:
-     * 1. This will only be called for package items that have a null [PackageInfo.commentFactory].
-     * 2. Every [PackageItem] that is created in the snapshot [Codebase] must have a matching
-     *    [PackageItem] in the original [Codebase].
-     * 3. [getPackageInfoFromUnderlyingModel] will ensure that the [PackageInfo.commentFactory] for
-     *    every [PackageItem] being snapshot is set to a non-null value.
-     */
-    override fun emptyPackageDocumentationFactory(): ItemDocumentationFactory {
-        error(
-            "Internal Error: PackageItems in the snapshot must always be created from PackageItems in the original codebase"
         )
     }
 
