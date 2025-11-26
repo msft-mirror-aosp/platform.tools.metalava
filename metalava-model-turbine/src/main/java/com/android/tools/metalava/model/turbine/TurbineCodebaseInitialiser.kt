@@ -26,8 +26,8 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
+import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -387,7 +387,7 @@ internal class TurbineCodebaseInitialiser(
      */
     private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
 
-    override fun getPackageInfoFromSource(packageName: String): PackageInfo? {
+    override fun getPackageInfoFromSource(packageName: String): SourcePackageInfo? {
         // Make sure that the underlying package exists.
         if (!isValidPackage(packageName)) {
             if (packageName == "") return null else error("Unknown package '$packageName'")
@@ -408,7 +408,7 @@ internal class TurbineCodebaseInitialiser(
                 val unit = turbineSourceFile.compUnit
                 val pkgDecl = unit.pkg().get()
                 var annoInfos = packageInfoClass.annotations()
-                PackageInfo(
+                SourcePackageInfo(
                     fileLocation = TurbineFileLocation.forTree(turbineSourceFile),
                     annotations = annotationFactory.createAnnotations(annoInfos),
                     commentFactory = itemDocumentationFactoryForDecl(turbineSourceFile, pkgDecl),
@@ -418,7 +418,7 @@ internal class TurbineCodebaseInitialiser(
             is BytecodeBoundClass -> {
                 val annotations =
                     annotationFactory.createAnnotations(packageInfoClass.annotations())
-                PackageInfo(annotations = annotations)
+                SourcePackageInfo(annotations = annotations)
             }
             else -> error("Unknown package-info class: $packageInfoClass")
         }

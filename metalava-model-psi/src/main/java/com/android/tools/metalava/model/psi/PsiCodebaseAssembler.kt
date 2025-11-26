@@ -43,10 +43,10 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
+import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
@@ -159,7 +159,7 @@ internal class PsiCodebaseAssembler(
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
-    override fun getPackageInfoFromSource(packageName: String): PackageInfo? {
+    override fun getPackageInfoFromSource(packageName: String): SourcePackageInfo? {
         val psiPackage = findPsiPackage(packageName) ?: return null
         val annotations = PsiModifierItem.create(psiCodebase, psiPackage).annotations()
 
@@ -168,13 +168,13 @@ internal class PsiCodebaseAssembler(
                 as? PsiJavaFile
 
         return if (psiJavaFile == null) {
-            PackageInfo(
+            SourcePackageInfo(
                 annotations = annotations,
             )
         } else {
             val documentationFactory =
                 psiJavaFile.packageStatement?.let { PsiItemDocumentation.factory(it, psiCodebase) }
-            PackageInfo(
+            SourcePackageInfo(
                 fileLocation = PsiFileLocation.fromPsiElement(psiJavaFile),
                 annotations = annotations,
                 commentFactory = documentationFactory,

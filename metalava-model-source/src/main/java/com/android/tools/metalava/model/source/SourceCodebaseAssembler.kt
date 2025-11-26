@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -151,13 +152,6 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
     private val defaultPackageInfo by
         lazy(LazyThreadSafetyMode.NONE) { PackageInfo(commentFactory = defaultCommentFactory) }
 
-    /**
-     * Check to see if this [PackageInfo] has a `null` [PackageInfo.commentFactory] and if it does
-     * then create and return a copy that has it set to [defaultCommentFactory].
-     */
-    private fun PackageInfo.toPackageInfo(defaultCommentFactory: ItemDocumentationFactory) =
-        if (commentFactory == null) copy(commentFactory = defaultCommentFactory) else this
-
     final override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
         val sourcePackageInfo = getPackageInfoFromSource(packageName)
 
@@ -196,7 +190,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
                         ?: packageDoc.commentFactory
                         // Finally, use the default to make sure it is not `null`.
                         ?: defaultCommentFactory,
-                overview = sourcePackageInfo.overview ?: packageDoc.overview,
+                overview = packageDoc.overview,
             )
 
         return packageInfo
@@ -211,5 +205,37 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      * That does not mean the package does not exist it could mean that it exists but has no
      * `package-info.java` or `package-info.class` file.
      */
-    protected abstract fun getPackageInfoFromSource(packageName: String): PackageInfo?
+    protected abstract fun getPackageInfoFromSource(packageName: String): SourcePackageInfo?
+}
+
+/**
+ * A slightly modified version of [PackageInfo] used by [SourceCodebaseAssembler] to better handle
+ * merging with [PackageDoc].
+ *
+ * This does not have an equivalent to [PackageInfo.overview] as that cannot be obtained from the
+ * underlying model. That can only come from [PackageDoc.overview].
+ */
+data class SourcePackageInfo(
+    /** See [PackageInfo.fileLocation] for details. */
+    val fileLocation: FileLocation = FileLocation.UNKNOWN,
+
+    /** See [PackageInfo.annotations] for details. */
+    val annotations: List<AnnotationItem> = emptyList(),
+
+    /** See [PackageInfo.commentFactory] for details. */
+    val commentFactory: ItemDocumentationFactory? = null,
+) {
+    /**
+     * Construct a [PackageInfo] from this.
+     *
+     * @param defaultCommentFactory the default [ItemDocumentationFactory] to use if
+     *   [commentFactory] is `null`.
+     */
+    fun toPackageInfo(defaultCommentFactory: ItemDocumentationFactory) =
+        PackageInfo(
+            fileLocation,
+            annotations,
+            // Make sure the returned [PackageInfo] has a non-null [PackageInfo.commentFactory].
+            commentFactory ?: defaultCommentFactory,
+        )
 }
