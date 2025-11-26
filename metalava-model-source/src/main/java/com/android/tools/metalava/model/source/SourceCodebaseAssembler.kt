@@ -143,6 +143,15 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
             else ItemDocumentation.NONE_FACTORY
 
     /**
+     * The default [PackageInfo] to return which uses [defaultCommentFactory].
+     *
+     * Created lazily as the [defaultCommentFactory] cannot be called during initialization as
+     * [codebase] has not yet been initialized.
+     */
+    private val defaultPackageInfo by
+        lazy(LazyThreadSafetyMode.NONE) { PackageInfo(commentFactory = defaultCommentFactory) }
+
+    /**
      * Check to see if this [PackageInfo] has a `null` [PackageInfo.commentFactory] and if it does
      * then create and return a copy that has it set to [defaultCommentFactory].
      */
@@ -157,7 +166,9 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
 
         if (packageDoc == null) {
             // Make sure the returned [PackageInfo] has a non-null [PackageInfo.commentFactory].
-            return sourcePackageInfo.toPackageInfo(defaultCommentFactory)
+            return sourcePackageInfo?.toPackageInfo(defaultCommentFactory) ?: defaultPackageInfo
+        } else if (sourcePackageInfo == null) {
+            return packageDoc.toPackageInfo(defaultCommentFactory)
         }
 
         if (packageDoc.commentFactory != null && sourcePackageInfo.commentFactory != null) {
@@ -195,6 +206,10 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      * Gets the [PackageInfo] from the underlying source model.
      *
      * See [CodebaseAssembler.getPackageInfoFromUnderlyingModel].
+     *
+     * Returns `null` when it cannot find any information about the package in the underlying model.
+     * That does not mean the package does not exist it could mean that it exists but has no
+     * `package-info.java` or `package-info.class` file.
      */
-    protected abstract fun getPackageInfoFromSource(packageName: String): PackageInfo
+    protected abstract fun getPackageInfoFromSource(packageName: String): PackageInfo?
 }

@@ -387,11 +387,10 @@ internal class TurbineCodebaseInitialiser(
      */
     private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
 
-    override fun getPackageInfoFromSource(packageName: String): PackageInfo {
+    override fun getPackageInfoFromSource(packageName: String): PackageInfo? {
         // Make sure that the underlying package exists.
         if (!isValidPackage(packageName)) {
-            if (packageName == "") return PackageInfo.EMPTY
-            else error("Unknown package '$packageName'")
+            if (packageName == "") return null else error("Unknown package '$packageName'")
         }
 
         // Construct the binary name for the package-info class.
@@ -400,7 +399,7 @@ internal class TurbineCodebaseInitialiser(
         // The underlying package may have annotations if it had a package-info.java file so check
         // for the presence of the corresponding `package-info.class`.
         val packageInfoSym = ClassSymbol(packageInfoBinaryName)
-        val packageInfoClass = envClassMap[packageInfoSym] ?: return PackageInfo.EMPTY
+        val packageInfoClass = envClassMap[packageInfoSym] ?: return null
 
         return when (packageInfoClass) {
             // Handle a package-info.java file.

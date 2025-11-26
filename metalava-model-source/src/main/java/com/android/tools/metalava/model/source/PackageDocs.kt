@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -55,6 +56,19 @@ internal interface PackageDoc {
      * If specified this is used for [PackageItem.overviewDocumentation].
      */
     val overview: ResourceFile?
+
+    /**
+     * Construct a [PackageInfo] from this.
+     *
+     * @param defaultCommentFactory the default [ItemDocumentationFactory] to use if
+     *   [commentFactory] is `null`.
+     */
+    fun toPackageInfo(defaultCommentFactory: ItemDocumentationFactory) =
+        PackageInfo(
+            fileLocation,
+            commentFactory = commentFactory ?: defaultCommentFactory,
+            overview = overview,
+        )
 }
 
 /**
