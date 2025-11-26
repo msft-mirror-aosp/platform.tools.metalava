@@ -60,7 +60,7 @@ interface CodebaseAssembler {
      * [createPackageFromUnderlyingModel]. It ensures consistent behavior for packages from source
      * `package-info.java` files and binary `package-info.class` files.
      */
-    fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo = PackageInfo.EMPTY
+    fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo
 
     /**
      * A [PackageItem] with [qualifiedName] could not be found in the associated [Codebase] so look

@@ -61,9 +61,6 @@ data class PackageInfo(
     val overview: ResourceFile? = null,
 ) {
     companion object {
-        /** An empty [PackageInfo] with every property set to its default. */
-        val EMPTY = PackageInfo()
-
         /**
          * A [PackageInfo] that does not provide any comment for the package so any [PackageItem]
          * created from this will have a `null` [PackageItem.documentation] property.
