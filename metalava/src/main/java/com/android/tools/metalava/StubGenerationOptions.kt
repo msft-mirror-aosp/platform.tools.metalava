@@ -159,6 +159,9 @@ class StubGenerationOptions :
 
             // Enhance the documentation if explicitly requested of generating the doc stubs.
             enhanceDocumentation = enhanceDocumentation || docStubsDir != null,
+
+            // Documentation stubs are only written when ARG_DOC_STUBS is specified.
+            isDocStubs = docStubsDir != null,
         )
     }
 }
