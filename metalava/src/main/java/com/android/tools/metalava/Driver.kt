@@ -206,17 +206,6 @@ internal fun processFlags(
         reporter,
     )
 
-    // Generate the documentation stubs *before* we migrate nullness information.
-    options.docStubsDir?.let { stubDir ->
-        createStubFiles(
-            progressTracker,
-            options,
-            stubDir,
-            codebase,
-            isDocStubs = true,
-        )
-    }
-
     // Generate signature files based on provided input flags (i.e. if api file locations were
     // provided).
     // Also run API lint checks on current codebase
@@ -267,6 +256,17 @@ internal fun processFlags(
             classPathResolverProvider,
             codebase,
             check,
+        )
+    }
+
+    // Generate the documentation stubs *before* we migrate nullness information.
+    options.docStubsDir?.let { stubDir ->
+        createStubFiles(
+            progressTracker,
+            options,
+            stubDir,
+            codebase,
+            isDocStubs = true,
         )
     }
 
