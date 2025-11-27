@@ -52,6 +52,12 @@ Stub Generation:
                                              documentation based on source annotations present in the code. This is
                                              implied by --doc-stubs. (default: do not enhance unless --doc-stubs is
                                              specified)
+  --migrate-nullness <api-file>              Compare nullness information with the previous stable API and mark newly
+                                             annotated APIs as recently added. That replaces the annotations with a
+                                             special form of annotation that will cause the Kotlin compiler to treat
+                                             nullability issues as warnings not errors. The intent is that this will
+                                             make it possible to fix existing app code incrementally after a release
+                                             rather than having to fix it all at once.
   --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by

@@ -63,6 +63,18 @@ private constructor(
          * effects, e.g. reporting errors.
          */
         val stubsDir: File? = null,
+
+        /**
+         * An optional [PreviouslyReleasedApi] that is used to determine whether a nullability
+         * annotation was added recently and so requires converting to warning nullability.
+         */
+        val nullabilityConversionPreviouslyReleasedApi: PreviouslyReleasedApi? = null,
+
+        /**
+         * An optional [PackageFilter] that matches packages whose nullability annotations all need
+         * to be converted to warning nullability.
+         */
+        val nullabilityConversionPackageFilter: PackageFilter? = null,
     )
 
     /** Generate the stubs. */
@@ -77,8 +89,8 @@ private constructor(
         // but the documentation needs to show the correct nullability.
         if (!config.isDocStubs) {
             convertToWarningNullabilityAnnotations(
-                options.migrateNullsFrom,
-                options.forceConvertToWarningNullabilityAnnotations,
+                config.nullabilityConversionPreviouslyReleasedApi,
+                config.nullabilityConversionPackageFilter,
             )
         }
 

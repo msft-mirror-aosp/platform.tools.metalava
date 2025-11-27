@@ -23,16 +23,13 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
-import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
-import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
@@ -158,7 +155,6 @@ const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
-const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_JAVA_SOURCE = "--java-source"
@@ -441,8 +437,6 @@ class Options(
     val verbose: Boolean
         get() = verbosity.verbose
 
-    val forceConvertToWarningNullabilityAnnotations by
-        stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
     val generateAnnotations by stubGenerationOptions::includeAnnotations
 
     /** Proguard Keep list file to write */
@@ -486,28 +480,6 @@ class Options(
 
     /** The set of annotation classes that should be removed from all outputs */
     private var excludeAnnotations = mutableExcludeAnnotations
-
-    /** A signature file to migrate nullness data from */
-    val migrateNullsFrom by
-        option(
-                ARG_MIGRATE_NULLNESS,
-                metavar = "<api file>",
-                help =
-                    """
-                        Compare nullness information with the previous stable API
-                        and mark newly annotated APIs as under migration.
-                    """
-                        .trimIndent()
-            )
-            .existingFile()
-            .multiple()
-            .map {
-                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
-                    ARG_MIGRATE_NULLNESS,
-                    it,
-                    onlyUseLastForMainApiSurface = false
-                )
-            }
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks

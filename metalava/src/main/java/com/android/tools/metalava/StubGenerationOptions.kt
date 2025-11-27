@@ -17,6 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
+import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.stub.StubGenerator
@@ -24,6 +27,7 @@ import com.android.tools.metalava.stub.StubWriterConfig
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 
 private const val STUB_GENERATION_GROUP = "Stub Generation"
@@ -36,6 +40,7 @@ const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
     "--force-convert-to-warning-nullability-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
+const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 
 class StubGenerationOptions :
     OptionGroup(
@@ -133,7 +138,36 @@ class StubGenerationOptions :
                 defaultForHelp = "do not enhance unless $ARG_DOC_STUBS is specified",
             )
 
-    val forceConvertToWarningNullabilityAnnotations by
+    /**
+     * A [PreviouslyReleasedApi] used to determine whether to convert nullability annotations to a
+     * special.
+     */
+    private val nullabilityConversionPreviouslyReleasedApi by
+        option(
+                ARG_MIGRATE_NULLNESS,
+                metavar = "<api-file>",
+                help =
+                    """
+                        Compare nullness information with the previous stable API
+                        and mark newly annotated APIs as recently added. That replaces the
+                        annotations with a special form of annotation that will cause the Kotlin
+                        compiler to treat nullability issues as warnings not errors. The intent is
+                        that this will make it possible to fix existing app code incrementally after
+                        a release rather than having to fix it all at once.
+                    """
+                        .trimIndent()
+            )
+            .existingFile()
+            .multiple()
+            .map {
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                    ARG_MIGRATE_NULLNESS,
+                    it,
+                    onlyUseLastForMainApiSurface = false
+                )
+            }
+
+    private val forceConvertToWarningNullabilityAnnotations by
         option(
                 ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS,
                 metavar = "<package1:-package2:...>",
@@ -182,6 +216,10 @@ class StubGenerationOptions :
 
             // Specify the stubs directory, may be null.
             stubsDir = stubsDir,
+
+            // Provide information needed to migrate nullability information.
+            nullabilityConversionPreviouslyReleasedApi = nullabilityConversionPreviouslyReleasedApi,
+            nullabilityConversionPackageFilter = forceConvertToWarningNullabilityAnnotations,
         )
     }
 }

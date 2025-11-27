@@ -59,8 +59,6 @@ Options:
                                              annotation which is itself annotated with the given meta-annotation.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
-  --migrate-nullness <api file>              Compare nullness information with the previous stable API and mark newly
-                                             annotated APIs as under migration.
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
 
