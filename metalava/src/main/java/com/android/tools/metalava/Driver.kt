@@ -25,7 +25,6 @@ import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -40,7 +39,6 @@ import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
-import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
@@ -48,10 +46,8 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -69,9 +65,7 @@ import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.stub.StubConstructorManager
-import com.android.tools.metalava.stub.StubWriter
-import com.android.tools.metalava.stub.createFilteringVisitorForStubs
+import com.android.tools.metalava.stub.StubGenerator
 import com.github.ajalt.clikt.core.subcommands
 import com.google.common.base.Stopwatch
 import java.io.File
@@ -260,42 +254,16 @@ internal fun processFlags(
         )
     }
 
-    enhanceCodebaseDocumentationFromOptions(
+    // Generate the stubs. This must be done as the last operation in this method as it can modify
+    // the [codebase].
+    StubGenerator.generateStubs(
         options,
         codebase,
         progressTracker,
         executionEnvironment,
         reporter,
+        signatureFileCache,
     )
-
-    // Generate the documentation stubs *before* we migrate nullness information.
-    options.docStubsDir?.let { stubDir ->
-        createStubFiles(
-            progressTracker,
-            options,
-            stubDir,
-            codebase,
-            isDocStubs = true,
-        )
-    }
-
-    convertToWarningNullabilityAnnotations(
-        codebase,
-        options.migrateNullsFrom,
-        options.forceConvertToWarningNullabilityAnnotations,
-        signatureFileCache
-    )
-
-    // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
-    options.stubsDir?.let { stubDir ->
-        createStubFiles(
-            progressTracker,
-            options,
-            stubDir,
-            codebase,
-            isDocStubs = false,
-        )
-    }
 
     val packageCount = codebase.size()
     progressTracker.progress(
@@ -428,37 +396,6 @@ fun createCodeFragmentForSignatureFile(
             )
     }
     return codebaseFragment
-}
-
-/** Depending on option flags, enhance codebase documentation */
-private fun enhanceCodebaseDocumentationFromOptions(
-    options: Options,
-    codebase: Codebase,
-    progressTracker: ProgressTracker,
-    executionEnvironment: ExecutionEnvironment,
-    reporter: Reporter,
-) {
-    if (options.docStubsDir == null && !options.enhanceDocumentation) return
-    if (!codebase.supportsDocumentation()) {
-        error("Codebase does not support documentation, so it cannot be enhanced.")
-    }
-
-    progressTracker.progress("Enhancing docs: ")
-    val docAnalyzer =
-        DocAnalyzer(
-            executionEnvironment,
-            codebase,
-            reporter,
-            options.apiVersionLabelProvider,
-            options.includeApiLevelInDocumentation,
-            options.apiPredicateConfig,
-        )
-    docAnalyzer.enhance()
-    val applyApiLevelsXmlFile = options.applyApiLevelsXmlFile
-    if (applyApiLevelsXmlFile != null) {
-        progressTracker.progress("Applying API levels")
-        docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)
-    }
 }
 
 /** Create [ModelOptions] object from option flags */
@@ -697,35 +634,6 @@ private fun compareFileContents(file1: File, file2: File): Boolean {
  */
 internal var fastPathCheckResult: Boolean? = null
 
-private fun convertToWarningNullabilityAnnotations(
-    codebase: Codebase,
-    previouslyReleasedApi: PreviouslyReleasedApi?,
-    filter: PackageFilter?,
-    signatureFileCache: SignatureFileCache
-) {
-    if (previouslyReleasedApi != null) {
-        val previousCodebase =
-            previouslyReleasedApi.load { signatureFiles -> signatureFileCache.load(signatureFiles) }
-
-        // If configured, checks for newly added nullness information compared
-        // to the previous stable API and marks the newly annotated elements
-        // as migrated (which will cause the Kotlin compiler to treat problems
-        // as warnings instead of errors
-
-        NullnessMigration.migrateNulls(codebase, previousCodebase)
-
-        previousCodebase.dispose()
-    }
-
-    if (filter != null) {
-        // Our caller has asked for these APIs to not trigger nullness errors (only warnings) if
-        // their callers make incorrect nullness assumptions (for example, calling a function on a
-        // reference of nullable type). The way to communicate this to kotlinc is to mark these
-        // APIs as RecentlyNullable/RecentlyNonNull
-        codebase.accept(MarkPackagesAsRecent(filter))
-    }
-}
-
 private fun ActionContext.loadFromSources(
     options: Options,
     signatureFileCache: SignatureFileCache,
@@ -861,87 +769,6 @@ private fun extractAnnotations(
             "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
     }
-}
-
-private fun createStubFiles(
-    progressTracker: ProgressTracker,
-    options: Options,
-    stubDir: File,
-    codebase: Codebase,
-    isDocStubs: Boolean,
-) {
-    if (isDocStubs) {
-        progressTracker.progress("Generating documentation stub files: ")
-    } else {
-        progressTracker.progress("Generating stub files: ")
-    }
-
-    val localTimer = Stopwatch.createStarted()
-
-    var codebaseFragment =
-        CodebaseFragment.create(codebase) { delegate ->
-            createFilteringVisitorForStubs(
-                delegate = delegate,
-                isDocStubs = isDocStubs,
-                preFiltered = codebase.preFiltered,
-                apiPredicateConfig = options.apiPredicateConfig,
-            )
-        }
-
-    // If reverting some changes then create a snapshot that combines the items from the sources for
-    // any un-reverted changes and items from the previously released API for any reverted changes.
-    if (codebaseFragment.codebase.containsRevertedItem) {
-        codebaseFragment =
-            codebaseFragment.snapshotIncludingRevertedItems(
-                referenceVisitorFactory = { delegate ->
-                    createFilteringVisitorForStubs(
-                        delegate = delegate,
-                        isDocStubs = isDocStubs,
-                        preFiltered = codebase.preFiltered,
-                        apiPredicateConfig = options.apiPredicateConfig,
-                        ignoreEmit = true,
-                    )
-                },
-            )
-    }
-
-    // Add additional constructors needed by the stubs.
-    val filterEmit =
-        if (codebaseFragment.codebase.preFiltered) {
-            FilterPredicate { true }
-        } else {
-            val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
-            ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
-        }
-    val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
-    stubConstructorManager.addConstructors(filterEmit)
-
-    val stubWriter =
-        StubWriter(
-            stubsDir = stubDir,
-            generateAnnotations = options.generateAnnotations,
-            isDocStubs = isDocStubs,
-            reporter = options.reporter,
-            config = options.stubWriterConfig,
-            stubConstructorManager = stubConstructorManager,
-        )
-
-    codebaseFragment.accept(stubWriter)
-
-    if (isDocStubs) {
-        // Overview docs? These are generally in the empty package.
-        codebase.findPackage("")?.let { empty ->
-            val overview = empty.overviewDocumentation
-            if (overview != null) {
-                stubWriter.writeDocOverview(empty, overview)
-            }
-        }
-    }
-
-    progressTracker.progress(
-        "$PROGRAM_NAME wrote ${if (isDocStubs) "documentation" else ""} stubs directory $stubDir in ${
-        localTimer.elapsed(SECONDS)} seconds\n"
-    )
 }
 
 fun createOutputFileFromCodebaseFragment(
