@@ -198,14 +198,6 @@ internal fun processFlags(
 
     generateApiHistoryFromOptions(options, codebase, progressTracker)
 
-    enhanceCodebaseDocumentationFromOptions(
-        options,
-        codebase,
-        progressTracker,
-        executionEnvironment,
-        reporter,
-    )
-
     // Generate signature files based on provided input flags (i.e. if api file locations were
     // provided).
     // Also run API lint checks on current codebase
@@ -267,6 +259,14 @@ internal fun processFlags(
             codebase,
         )
     }
+
+    enhanceCodebaseDocumentationFromOptions(
+        options,
+        codebase,
+        progressTracker,
+        executionEnvironment,
+        reporter,
+    )
 
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let { stubDir ->
