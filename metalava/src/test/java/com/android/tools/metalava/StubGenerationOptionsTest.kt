@@ -26,6 +26,13 @@ Stub Generation:
 
   --stubs <dir>                              Base directory to output the generated stub source files for the API, if
                                              specified.
+  --doc-stubs <dir>                          Generate documentation stub source files for the API. Documentation stub
+                                             files are similar to regular stub files, but there are some differences.
+                                             For example, in the stub files, we'll use special annotations like
+                                             @RecentlyNonNull instead of @NonNull to indicate that an element is
+                                             recently marked as non null, whereas in the documentation stubs we'll just
+                                             list this as @NonNull. Another difference is that @doconly elements are
+                                             included in documentation stubs, but not regular stubs, etc.
   --include-annotations / --exclude-all-annotations
                                              Include/exclude annotations such as @Nullable in/from the stub files.
                                              (default: exclude)

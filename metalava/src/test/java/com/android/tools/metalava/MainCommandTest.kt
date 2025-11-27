@@ -172,14 +172,6 @@ Extracting Signature Files:
 
 
 Generating Stubs:
---doc-stubs <dir>
-                                             Generate documentation stub source files for the API. Documentation stub
-                                             files are similar to regular stub files, but there are some differences.
-                                             For example, in the stub files, we'll use special annotations like
-                                             @RecentlyNonNull instead of @NonNull to indicate that an element is
-                                             recently marked as non null, whereas in the documentation stubs we'll just
-                                             list this as @NonNull. Another difference is that @doconly elements are
-                                             included in documentation stubs, but not regular stubs, etc.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.

@@ -154,7 +154,6 @@ const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-f
 const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list"
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
-const val ARG_DOC_STUBS = "--doc-stubs"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
@@ -468,12 +467,7 @@ class Options(
     val forceConvertToWarningNullabilityAnnotations by
         stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
     val generateAnnotations by stubGenerationOptions::includeAnnotations
-
-    /**
-     * If set, a directory to write documentation stub files to. Corresponds to the --stubs/-stubs
-     * flag.
-     */
-    var docStubsDir: File? = null
+    val docStubsDir by stubGenerationOptions::docStubsDir
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -672,7 +666,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
                 ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
@@ -992,13 +985,6 @@ object OptionsHelp {
                 "Write SDK values files to the given directory",
                 "",
                 "Generating Stubs:",
-                "$ARG_DOC_STUBS <dir>",
-                "Generate documentation stub source files for the API. Documentation stub " +
-                    "files are similar to regular stub files, but there are some differences. For example, in " +
-                    "the stub files, we'll use special annotations like @RecentlyNonNull instead of @NonNull to " +
-                    "indicate that an element is recently marked as non null, whereas in the documentation stubs we'll " +
-                    "just list this as @NonNull. Another difference is that @doconly elements are included in " +
-                    "documentation stubs, but not regular stubs, etc.",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be passed through unchanged.",

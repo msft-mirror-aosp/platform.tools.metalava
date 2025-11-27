@@ -28,6 +28,7 @@ private const val STUB_GENERATION_GROUP = "Stub Generation"
 const val ARG_INCLUDE_ANNOTATIONS = "--include-annotations"
 const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
 const val ARG_STUBS = "--stubs"
+const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
     "--force-convert-to-warning-nullability-annotations"
 
@@ -45,6 +46,28 @@ class StubGenerationOptions :
                     """
                         Base directory to output the generated stub source files for the API, if
                         specified.
+                    """
+                        .trimIndent(),
+            )
+            .newDir()
+
+    /**
+     * If set, a directory to write documentation stub files to. Corresponds to the --doc-stubs
+     * flag.
+     */
+    val docStubsDir by
+        option(
+                ARG_DOC_STUBS,
+                metavar = "<dir>",
+                help =
+                    """
+                        Generate documentation stub source files for the API. Documentation stub
+                        files are similar to regular stub files, but there are some differences. For
+                        example, in the stub files, we'll use special annotations like
+                        @RecentlyNonNull instead of @NonNull to indicate that an element is recently
+                        marked as non null, whereas in the documentation stubs we'll just list this
+                        as @NonNull. Another difference is that @doconly elements are included in
+                        documentation stubs, but not regular stubs, etc.
                     """
                         .trimIndent(),
             )
