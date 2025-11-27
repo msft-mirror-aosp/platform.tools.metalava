@@ -64,7 +64,6 @@ import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -190,7 +189,7 @@ class Options(
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
-    stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
+    val stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
     internal val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
         ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
@@ -442,18 +441,11 @@ class Options(
     val verbose: Boolean
         get() = verbosity.verbose
 
-    internal val stubWriterConfig by lazy {
-        StubWriterConfig(
-            includeDocumentationInStubs = includeDocumentationInStubs || docStubsDir != null,
-        )
-    }
-
     val stubsDir by stubGenerationOptions::stubsDir
     val forceConvertToWarningNullabilityAnnotations by
         stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
     val generateAnnotations by stubGenerationOptions::includeAnnotations
     val docStubsDir by stubGenerationOptions::docStubsDir
-    private val includeDocumentationInStubs by stubGenerationOptions::includeDocumentationInStubs
     val enhanceDocumentation by stubGenerationOptions::enhanceDocumentation
 
     /** Proguard Keep list file to write */

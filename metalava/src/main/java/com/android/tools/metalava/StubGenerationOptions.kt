@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.stub.StubGenerator
+import com.android.tools.metalava.stub.StubWriterConfig
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -39,7 +41,6 @@ class StubGenerationOptions :
         name = STUB_GENERATION_GROUP,
         help = "Options controlling the generation of stub files.",
     ) {
-
     val stubsDir by
         option(
                 ARG_STUBS,
@@ -107,10 +108,6 @@ class StubGenerationOptions :
                 defaultForHelp = "exclude",
             )
 
-    /** Opposite of [excludeDocumentationFromStubs] */
-    val includeDocumentationInStubs
-        get() = !excludeDocumentationFromStubs
-
     /**
      * Enhance documentation in various ways, for example auto-generating documentation based on
      * source annotations present in the code. This is implied by `--doc-stubs`.
@@ -147,4 +144,18 @@ class StubGenerationOptions :
                         .trimIndent()
             )
             .convert { PackageFilter.parse(it) }
+
+    /** Construct a [StubGenerator.Config] based on these options. */
+    internal fun generatorConfig(): StubGenerator.Config {
+        // Always include documentations in the doc stubs and include documentation in the normal
+        // stubs unless explicitly excluded.
+        val includeDocumentationInStubs = !excludeDocumentationFromStubs || docStubsDir != null
+        return StubGenerator.Config(
+            // Create configuration for StubWriter.
+            stubWriterConfig =
+                StubWriterConfig(
+                    includeDocumentationInStubs = includeDocumentationInStubs,
+                ),
+        )
+    }
 }

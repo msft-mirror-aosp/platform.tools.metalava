@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit.SECONDS
 /** Generates stubs from [codebase]. */
 internal class StubGenerator
 private constructor(
+    private val config: Config,
     private val options: Options,
     private val codebase: Codebase,
     private val progressTracker: ProgressTracker,
@@ -45,6 +46,11 @@ private constructor(
     private val reporter: Reporter,
     private val signatureFileCache: SignatureFileCache,
 ) {
+    data class Config(
+        /** Configuration needed by [StubWriter]. */
+        val stubWriterConfig: StubWriterConfig = StubWriterConfig(),
+    )
+
     /** Generate the stubs. */
     private fun generateStubs() {
         // Use information from various sources to enhance the documentation, if required.
@@ -144,7 +150,7 @@ private constructor(
                 generateAnnotations = options.generateAnnotations,
                 isDocStubs = isDocStubs,
                 reporter = options.reporter,
-                config = options.stubWriterConfig,
+                config = config.stubWriterConfig,
                 stubConstructorManager = stubConstructorManager,
             )
 
@@ -198,6 +204,7 @@ private constructor(
     companion object {
         /** Generate stubs if necessary based on the [options]. */
         fun generateStubs(
+            config: Config,
             options: Options,
             codebase: Codebase,
             progressTracker: ProgressTracker,
@@ -206,6 +213,7 @@ private constructor(
             signatureFileCache: SignatureFileCache,
         ) {
             StubGenerator(
+                    config,
                     options,
                     codebase,
                     progressTracker,
