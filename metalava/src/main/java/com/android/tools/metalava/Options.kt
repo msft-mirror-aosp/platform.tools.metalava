@@ -50,6 +50,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
@@ -277,11 +278,13 @@ class Options(
     var enhanceDocumentation = false
 
     /**
-     * Whether to allow reading comments If false, any attempts by Metalava to read a PSI comment
-     * will return "" This can help callers to be sure that comment-only changes shouldn't affect
-     * Metalava output
+     * Whether to allow reading comments from the sources.
+     *
+     * If `true` then source comments will be read and [SelectableItem.documentation] will not be
+     * `null` (unless the [SelectableItem] is `private`). If `false` then
+     * [SelectableItem.documentation] will always be `null`.
      */
-    var allowReadingComments = true
+    private var allowReadingComments = true
 
     /** The list of source roots */
     val sourcePath: List<File> by sourceOptions::sourcePath

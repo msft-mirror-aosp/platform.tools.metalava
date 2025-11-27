@@ -788,7 +788,7 @@ private fun ActionContext.loadFromSources(
 
     // General API documentation checks for Android APIs.
     // They are pointless if Javadoc comments are not being read.
-    if (options.allowReadingComments) {
+    if (codebase.config.allowReadingComments) {
         AndroidApiChecks(reporterApiLint).check(codebase)
     }
 
