@@ -40,6 +40,10 @@ Stub Generation:
                                              Copyright notices are not affected by this, they are always included.
                                              Documentation stubs (--doc-stubs) are not affected either. (default:
                                              exclude)
+  --enhance-documentation                    Enhance documentation in various ways, for example auto-generating
+                                             documentation based on source annotations present in the code. This is
+                                             implied by --doc-stubs. (default: do not enhance unless --doc-stubs is
+                                             specified)
   --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by

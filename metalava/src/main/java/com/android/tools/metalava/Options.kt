@@ -157,7 +157,6 @@ const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
@@ -261,12 +260,6 @@ class Options(
      * set, [nullabilityAnnotationsValidator] must also be set.
      */
     var validateNullabilityFromList: File? = null
-
-    /**
-     * Enhance documentation in various ways, for example auto-generating documentation based on
-     * source annotations present in the code. This is implied by --doc-stubs.
-     */
-    var enhanceDocumentation = false
 
     /**
      * Whether to allow reading comments from the sources.
@@ -461,6 +454,7 @@ class Options(
     val generateAnnotations by stubGenerationOptions::includeAnnotations
     val docStubsDir by stubGenerationOptions::docStubsDir
     private val includeDocumentationInStubs by stubGenerationOptions::includeDocumentationInStubs
+    val enhanceDocumentation by stubGenerationOptions::enhanceDocumentation
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -659,7 +653,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
                 ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
@@ -983,9 +976,6 @@ object OptionsHelp {
                 "$ARG_EXCLUDE_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be stripped from metalava's outputs.",
-                ARG_ENHANCE_DOCUMENTATION,
-                "Enhance documentation in various ways, for example auto-generating documentation based on source " +
-                    "annotations present in the code. This is implied by --doc-stubs.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

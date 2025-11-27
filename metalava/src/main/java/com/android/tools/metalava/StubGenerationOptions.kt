@@ -32,6 +32,7 @@ const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
     "--force-convert-to-warning-nullability-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
+const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 
 class StubGenerationOptions :
     OptionGroup(
@@ -109,6 +110,26 @@ class StubGenerationOptions :
     /** Opposite of [excludeDocumentationFromStubs] */
     val includeDocumentationInStubs
         get() = !excludeDocumentationFromStubs
+
+    /**
+     * Enhance documentation in various ways, for example auto-generating documentation based on
+     * source annotations present in the code. This is implied by `--doc-stubs`.
+     */
+    val enhanceDocumentation by
+        option(
+                ARG_ENHANCE_DOCUMENTATION,
+                help =
+                    """
+                        Enhance documentation in various ways, for example auto-generating
+                        documentation based on source annotations present in the code. This is
+                        implied by $ARG_DOC_STUBS.
+                    """
+                        .trimIndent(),
+            )
+            .flag(
+                default = false,
+                defaultForHelp = "do not enhance unless $ARG_DOC_STUBS is specified",
+            )
 
     val forceConvertToWarningNullabilityAnnotations by
         option(
