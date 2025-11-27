@@ -441,11 +441,9 @@ class Options(
     val verbose: Boolean
         get() = verbosity.verbose
 
-    val stubsDir by stubGenerationOptions::stubsDir
     val forceConvertToWarningNullabilityAnnotations by
         stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
     val generateAnnotations by stubGenerationOptions::includeAnnotations
-    val docStubsDir by stubGenerationOptions::docStubsDir
 
     /** Proguard Keep list file to write */
     var proguard: File? = null

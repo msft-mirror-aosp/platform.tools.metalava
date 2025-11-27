@@ -55,6 +55,14 @@ private constructor(
 
         /** Determines whether documentation stubs should be written or normal stubs. */
         val isDocStubs: Boolean = false,
+
+        /**
+         * The directory into which the stubs will be written.
+         *
+         * Is nullable because even when no stubs are generated this does some work which has side
+         * effects, e.g. reporting errors.
+         */
+        val stubsDir: File? = null,
     )
 
     /** Generate the stubs. */
@@ -63,9 +71,6 @@ private constructor(
         if (config.enhanceDocumentation) {
             enhanceCodebaseDocumentationFromOptions()
         }
-
-        // Generate the documentation stubs *before* we migrate nullness information.
-        options.docStubsDir?.let { stubDir -> createStubFiles(stubDir, config.isDocStubs) }
 
         // Only convert to warning nullability for normal, i.e. not doc, stubs. That is because
         // the warning nullability only affects the Kotlin compiler which uses the normal stubs
@@ -77,9 +82,8 @@ private constructor(
             )
         }
 
-        // Now that we've migrated nullness information we can proceed to write non-doc stubs, if
-        // any.
-        options.stubsDir?.let { stubDir -> createStubFiles(stubDir, config.isDocStubs) }
+        // Generate the stubs, normal or documentation.
+        config.stubsDir?.let { stubDir -> createStubFiles(stubDir, config.isDocStubs) }
     }
 
     /** Depending on option flags, enhance codebase documentation */

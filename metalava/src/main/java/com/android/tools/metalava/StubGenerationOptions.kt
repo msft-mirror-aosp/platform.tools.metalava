@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.stub.StubGenerator
@@ -41,7 +42,7 @@ class StubGenerationOptions :
         name = STUB_GENERATION_GROUP,
         help = "Options controlling the generation of stub files.",
     ) {
-    val stubsDir by
+    private val stubsDir by
         option(
                 ARG_STUBS,
                 metavar = "<dir>",
@@ -49,6 +50,8 @@ class StubGenerationOptions :
                     """
                         Base directory to output the generated stub source files for the API, if
                         specified.
+
+                        At most one of this and $ARG_DOC_STUBS can be provided.
                     """
                         .trimIndent(),
             )
@@ -58,7 +61,7 @@ class StubGenerationOptions :
      * If set, a directory to write documentation stub files to. Corresponds to the --doc-stubs
      * flag.
      */
-    val docStubsDir by
+    private val docStubsDir by
         option(
                 ARG_DOC_STUBS,
                 metavar = "<dir>",
@@ -71,6 +74,8 @@ class StubGenerationOptions :
                         marked as non null, whereas in the documentation stubs we'll just list this
                         as @NonNull. Another difference is that @doconly elements are included in
                         documentation stubs, but not regular stubs, etc.
+
+                        At most one of this and $ARG_STUBS can be provided.
                     """
                         .trimIndent(),
             )
@@ -150,6 +155,18 @@ class StubGenerationOptions :
         // Always include documentations in the doc stubs and include documentation in the normal
         // stubs unless explicitly excluded.
         val includeDocumentationInStubs = !excludeDocumentationFromStubs || docStubsDir != null
+
+        val stubsDir =
+            when {
+                stubsDir == null -> docStubsDir
+                docStubsDir == null -> stubsDir
+                else -> {
+                    throw MetalavaCliException(
+                        "Cannot use $ARG_STUBS and $ARG_DOC_STUBS, they are mutually exclusive"
+                    )
+                }
+            }
+
         return StubGenerator.Config(
             // Create configuration for StubWriter.
             stubWriterConfig =
@@ -162,6 +179,9 @@ class StubGenerationOptions :
 
             // Documentation stubs are only written when ARG_DOC_STUBS is specified.
             isDocStubs = docStubsDir != null,
+
+            // Specify the stubs directory, may be null.
+            stubsDir = stubsDir,
         )
     }
 }
