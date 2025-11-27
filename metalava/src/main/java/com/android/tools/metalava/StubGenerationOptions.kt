@@ -112,7 +112,7 @@ class StubGenerationOptions :
      * Enhance documentation in various ways, for example auto-generating documentation based on
      * source annotations present in the code. This is implied by `--doc-stubs`.
      */
-    val enhanceDocumentation by
+    private val enhanceDocumentation by
         option(
                 ARG_ENHANCE_DOCUMENTATION,
                 help =
@@ -156,6 +156,9 @@ class StubGenerationOptions :
                 StubWriterConfig(
                     includeDocumentationInStubs = includeDocumentationInStubs,
                 ),
+
+            // Enhance the documentation if explicitly requested of generating the doc stubs.
+            enhanceDocumentation = enhanceDocumentation || docStubsDir != null,
         )
     }
 }

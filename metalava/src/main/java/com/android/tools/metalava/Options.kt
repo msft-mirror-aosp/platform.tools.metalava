@@ -446,7 +446,6 @@ class Options(
         stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
     val generateAnnotations by stubGenerationOptions::includeAnnotations
     val docStubsDir by stubGenerationOptions::docStubsDir
-    val enhanceDocumentation by stubGenerationOptions::enhanceDocumentation
 
     /** Proguard Keep list file to write */
     var proguard: File? = null

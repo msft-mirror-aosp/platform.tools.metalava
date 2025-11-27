@@ -49,12 +49,17 @@ private constructor(
     data class Config(
         /** Configuration needed by [StubWriter]. */
         val stubWriterConfig: StubWriterConfig = StubWriterConfig(),
+
+        /** Determines whether [enhanceCodebaseDocumentationFromOptions] is called. */
+        val enhanceDocumentation: Boolean = false,
     )
 
     /** Generate the stubs. */
     private fun generateStubs() {
         // Use information from various sources to enhance the documentation, if required.
-        enhanceCodebaseDocumentationFromOptions()
+        if (config.enhanceDocumentation) {
+            enhanceCodebaseDocumentationFromOptions()
+        }
 
         // Generate the documentation stubs *before* we migrate nullness information.
         options.docStubsDir?.let { stubDir -> createStubFiles(stubDir, isDocStubs = true) }
@@ -72,7 +77,6 @@ private constructor(
 
     /** Depending on option flags, enhance codebase documentation */
     private fun enhanceCodebaseDocumentationFromOptions() {
-        if (options.docStubsDir == null && !options.enhanceDocumentation) return
         if (!codebase.supportsDocumentation()) {
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
