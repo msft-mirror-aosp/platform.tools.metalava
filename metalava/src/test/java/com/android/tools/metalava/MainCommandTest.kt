@@ -182,10 +182,6 @@ Generating Stubs:
                                              Enhance documentation in various ways, for example auto-generating
                                              documentation based on source annotations present in the code. This is
                                              implied by --doc-stubs.
---exclude-documentation-from-stubs
-                                             Exclude element documentation (javadoc and kdoc) from the generated stubs.
-                                             (Copyright notices are not affected by this, they are always included.
-                                             Documentation stubs (--doc-stubs) are not affected.)
 
 
 Extracting Annotations:

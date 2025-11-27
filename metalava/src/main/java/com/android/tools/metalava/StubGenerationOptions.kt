@@ -31,6 +31,7 @@ const val ARG_STUBS = "--stubs"
 const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
     "--force-convert-to-warning-nullability-annotations"
+const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 
 class StubGenerationOptions :
     OptionGroup(
@@ -83,6 +84,31 @@ class StubGenerationOptions :
                 default = false,
                 defaultForHelp = "exclude",
             )
+
+    /**
+     * Whether to exclude element documentation (javadoc and KDoc) from the generated stubs.
+     * (Copyright notices are not affected by this, they are always included. Documentation stubs
+     * (--doc-stubs) are not affected.)
+     */
+    private val excludeDocumentationFromStubs by
+        option(
+                ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS,
+                help =
+                    """
+                        Exclude element documentation (javadoc and kdoc) from the generated stubs.
+                        Copyright notices are not affected by this, they are always included.
+                        Documentation stubs ($ARG_DOC_STUBS) are not affected either.
+                    """
+                        .trimIndent(),
+            )
+            .flag(
+                default = false,
+                defaultForHelp = "exclude",
+            )
+
+    /** Opposite of [excludeDocumentationFromStubs] */
+    val includeDocumentationInStubs
+        get() = !excludeDocumentationFromStubs
 
     val forceConvertToWarningNullabilityAnnotations by
         option(

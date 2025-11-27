@@ -36,6 +36,10 @@ Stub Generation:
   --include-annotations / --exclude-all-annotations
                                              Include/exclude annotations such as @Nullable in/from the stub files.
                                              (default: exclude)
+  --exclude-documentation-from-stubs         Exclude element documentation (javadoc and kdoc) from the generated stubs.
+                                             Copyright notices are not affected by this, they are always included.
+                                             Documentation stubs (--doc-stubs) are not affected either. (default:
+                                             exclude)
   --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by
