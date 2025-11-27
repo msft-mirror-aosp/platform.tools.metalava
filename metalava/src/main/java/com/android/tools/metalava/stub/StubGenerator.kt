@@ -48,54 +48,24 @@ private constructor(
     /** Generate the stubs. */
     private fun generateStubs() {
         // Use information from various sources to enhance the documentation, if required.
-        enhanceCodebaseDocumentationFromOptions(
-            options,
-            codebase,
-            progressTracker,
-            executionEnvironment,
-            reporter,
-        )
+        enhanceCodebaseDocumentationFromOptions()
 
         // Generate the documentation stubs *before* we migrate nullness information.
-        options.docStubsDir?.let { stubDir ->
-            createStubFiles(
-                progressTracker,
-                options,
-                stubDir,
-                codebase,
-                isDocStubs = true,
-            )
-        }
+        options.docStubsDir?.let { stubDir -> createStubFiles(stubDir, isDocStubs = true) }
 
         // Convert nullability annotations to warning nullability annotations, if needed.
         convertToWarningNullabilityAnnotations(
-            codebase,
             options.migrateNullsFrom,
             options.forceConvertToWarningNullabilityAnnotations,
-            signatureFileCache
         )
 
         // Now that we've migrated nullness information we can proceed to write non-doc stubs, if
         // any.
-        options.stubsDir?.let { stubDir ->
-            createStubFiles(
-                progressTracker,
-                options,
-                stubDir,
-                codebase,
-                isDocStubs = false,
-            )
-        }
+        options.stubsDir?.let { stubDir -> createStubFiles(stubDir, isDocStubs = false) }
     }
 
     /** Depending on option flags, enhance codebase documentation */
-    private fun enhanceCodebaseDocumentationFromOptions(
-        options: Options,
-        codebase: Codebase,
-        progressTracker: ProgressTracker,
-        executionEnvironment: ExecutionEnvironment,
-        reporter: Reporter,
-    ) {
+    private fun enhanceCodebaseDocumentationFromOptions() {
         if (options.docStubsDir == null && !options.enhanceDocumentation) return
         if (!codebase.supportsDocumentation()) {
             error("Codebase does not support documentation, so it cannot be enhanced.")
@@ -119,13 +89,7 @@ private constructor(
         }
     }
 
-    private fun createStubFiles(
-        progressTracker: ProgressTracker,
-        options: Options,
-        stubDir: File,
-        codebase: Codebase,
-        isDocStubs: Boolean,
-    ) {
+    private fun createStubFiles(stubDir: File, isDocStubs: Boolean) {
         if (isDocStubs) {
             progressTracker.progress("Generating documentation stub files: ")
         } else {
@@ -203,10 +167,8 @@ private constructor(
     }
 
     private fun convertToWarningNullabilityAnnotations(
-        codebase: Codebase,
         previouslyReleasedApi: PreviouslyReleasedApi?,
         filter: PackageFilter?,
-        signatureFileCache: SignatureFileCache
     ) {
         if (previouslyReleasedApi != null) {
             val previousCodebase =
