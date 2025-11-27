@@ -259,6 +259,15 @@ internal fun processFlags(
         )
     }
 
+    options.externalAnnotationsFile?.let { outputFile ->
+        extractAnnotations(
+            progressTracker,
+            outputFile,
+            options,
+            codebase,
+        )
+    }
+
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let { stubDir ->
         createStubFiles(
@@ -285,15 +294,6 @@ internal fun processFlags(
             stubDir,
             codebase,
             isDocStubs = false,
-        )
-    }
-
-    options.externalAnnotationsFile?.let { outputFile ->
-        extractAnnotations(
-            progressTracker,
-            outputFile,
-            options,
-            codebase,
         )
     }
 
