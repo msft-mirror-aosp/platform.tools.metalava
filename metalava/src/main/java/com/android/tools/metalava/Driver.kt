@@ -25,6 +25,7 @@ import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -190,7 +191,16 @@ internal fun processFlags(
         "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
 
-    generateApiHistoryFromOptions(options, codebase, progressTracker)
+    val apiPredicateConfig = options.apiPredicateConfig
+
+    val apiLevelsGenerationOptions = options.apiLevelsGenerationOptions
+    generateApiHistoryFromOptions(
+        apiLevelsGenerationOptions,
+        codebase,
+        progressTracker,
+        apiPredicateConfig,
+        options.signatureFileLoader,
+    )
 
     // Generate signature files based on provided input flags (i.e. if api file locations were
     // provided).
@@ -205,7 +215,6 @@ internal fun processFlags(
     )
 
     options.proguard?.let { proguard ->
-        val apiPredicateConfig = options.apiPredicateConfig
         val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
@@ -451,16 +460,18 @@ private fun createCodebaseFromOptions(
 
 /** write api history to files specified by option flags (e.g. api-versions.xml) */
 private fun generateApiHistoryFromOptions(
-    options: Options,
+    apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     codebase: Codebase,
-    progressTracker: ProgressTracker
+    progressTracker: ProgressTracker,
+    apiPredicateConfig: ApiPredicate.Config,
+    signatureFileLoader: SignatureFileLoader,
 ) {
     val androidConfigCodeFragmentProvider: () -> CodebaseFragment = {
         var codebaseFragment =
             CodebaseFragment.create(codebase) { delegatedVisitor ->
                 FilteringApiVisitor(
                     delegate = delegatedVisitor,
-                    apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
+                    apiFilters = ApiVisitor.defaultFilters(apiPredicateConfig),
                     preFiltered = false,
                 )
             }
@@ -486,7 +497,7 @@ private fun generateApiHistoryFromOptions(
     // version history.
     val signatureFileConfigCodeFragmentProvider: () -> CodebaseFragment = {
         val apiType = ApiType.PUBLIC_API
-        val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
+        val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
         CodebaseFragment.create(codebase) { delegatedVisitor ->
             FilteringApiVisitor(
@@ -498,12 +509,12 @@ private fun generateApiHistoryFromOptions(
     }
 
     val apiGenerator = ApiGenerator()
-    options.apiLevelsGenerationOptions
+    apiLevelsGenerationOptions
         .forAndroidConfig(
             // Do not use a cache here as each file loaded is only loaded once and the created
             // Codebase is discarded immediately after use so caching just uses memory for no
             // performance benefit.
-            options.signatureFileLoader,
+            signatureFileLoader,
             androidConfigCodeFragmentProvider,
         )
         ?.let { config ->
@@ -514,12 +525,12 @@ private fun generateApiHistoryFromOptions(
             apiGenerator.generateApiHistory(config)
         }
 
-    options.apiLevelsGenerationOptions
+    apiLevelsGenerationOptions
         .fromSignatureFilesConfig(
             // Do not use a cache here as each file loaded is only loaded once and the created
             // Codebase is discarded immediately after use so caching just uses memory for no
             // performance benefit.
-            options.signatureFileLoader,
+            signatureFileLoader,
             codebaseFragmentProvider = signatureFileConfigCodeFragmentProvider
         )
         ?.let { config ->
