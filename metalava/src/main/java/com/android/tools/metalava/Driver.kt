@@ -142,6 +142,7 @@ internal fun processFlags(
     environmentManager: EnvironmentManager,
     progressTracker: ProgressTracker,
     options: Options,
+    apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
 ) {
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
@@ -193,7 +194,6 @@ internal fun processFlags(
 
     val apiPredicateConfig = options.apiPredicateConfig
 
-    val apiLevelsGenerationOptions = options.apiLevelsGenerationOptions
     generateApiHistoryFromOptions(
         apiLevelsGenerationOptions,
         codebase,

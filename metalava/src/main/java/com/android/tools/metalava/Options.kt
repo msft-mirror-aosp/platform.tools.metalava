@@ -183,8 +183,6 @@ class Options(
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     val stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
-    internal val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
-        ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to. */
     val stdout: PrintWriter
