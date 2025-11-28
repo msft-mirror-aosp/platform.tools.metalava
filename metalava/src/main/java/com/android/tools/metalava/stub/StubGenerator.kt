@@ -18,7 +18,6 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.MarkPackagesAsRecent
 import com.android.tools.metalava.NullnessMigration
-import com.android.tools.metalava.Options
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.SignatureFileCache
@@ -41,7 +40,6 @@ import java.util.concurrent.TimeUnit.SECONDS
 /** Generates stubs from [codebase]. */
 internal class StubGenerator(
     private val config: Config,
-    private val options: Options,
     private val codebase: Codebase,
     private val progressTracker: ProgressTracker,
     private val executionEnvironment: ExecutionEnvironment,
@@ -197,7 +195,7 @@ internal class StubGenerator(
                 stubsDir = stubDir,
                 generateAnnotations = config.generateAnnotations,
                 isDocStubs = isDocStubs,
-                reporter = options.reporter,
+                reporter = reporter,
                 config = config.stubWriterConfig,
                 stubConstructorManager = stubConstructorManager,
             )

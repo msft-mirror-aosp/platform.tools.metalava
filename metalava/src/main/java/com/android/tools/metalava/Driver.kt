@@ -281,7 +281,6 @@ internal fun processFlags(
             )
     StubGenerator(
             generatorConfig,
-            options,
             codebase,
             progressTracker,
             executionEnvironment,
