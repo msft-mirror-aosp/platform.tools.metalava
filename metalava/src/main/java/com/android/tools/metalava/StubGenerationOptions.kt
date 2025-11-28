@@ -29,6 +29,9 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.file
+import java.io.File
+import kotlin.getValue
 
 private const val STUB_GENERATION_GROUP = "Stub Generation"
 
@@ -41,6 +44,8 @@ const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
+
+const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 
 class StubGenerationOptions :
     OptionGroup(
@@ -184,6 +189,21 @@ class StubGenerationOptions :
             )
             .convert { PackageFilter.parse(it) }
 
+    private val applyApiLevelsXmlFile: File? by
+        option(
+                ARG_APPLY_API_LEVELS,
+                metavar = "<api-versions.xml>",
+                help =
+                    """
+                        Reads an XML file containing API level descriptions and merges the
+                        information into the documentation.
+                    """
+                        .trimIndent()
+            )
+            // Existence cannot be verified at this time as it may reference a file that this
+            // invocation of Metalava will create. Instead, it must be verified when it is used.
+            .file(canBeDir = false)
+
     /** Construct a [StubGenerator.Config] based on these options. */
     internal fun generatorConfig(): StubGenerator.Config {
         // Always include documentations in the doc stubs and include documentation in the normal
@@ -199,6 +219,15 @@ class StubGenerationOptions :
                         "Cannot use $ARG_STUBS and $ARG_DOC_STUBS, they are mutually exclusive"
                     )
                 }
+            }
+
+        // Check to make sure that the ARG_APPLY_API_LEVELS file exists before it is used.
+        val apiVersionsXmlFile =
+            applyApiLevelsXmlFile?.also { file ->
+                if (!file.exists() || !file.canRead())
+                    throw MetalavaCliException(
+                        "$ARG_APPLY_API_LEVELS file '$file' does not exist or is not readable"
+                    )
             }
 
         return StubGenerator.Config(
@@ -217,9 +246,12 @@ class StubGenerationOptions :
             // Specify the stubs directory, may be null.
             stubsDir = stubsDir,
 
-            // Provide information needed to migrate nullability information.
+            // Provide config needed to migrate nullability information.
             nullabilityConversionPreviouslyReleasedApi = nullabilityConversionPreviouslyReleasedApi,
             nullabilityConversionPackageFilter = forceConvertToWarningNullabilityAnnotations,
+
+            // Provide config needed to apply API versions to the documentation.
+            apiVersionsXmlFile = apiVersionsXmlFile,
         )
     }
 }

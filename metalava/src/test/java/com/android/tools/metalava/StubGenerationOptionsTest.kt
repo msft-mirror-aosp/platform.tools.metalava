@@ -65,6 +65,8 @@ Stub Generation:
                                              @RecentlyNullable/@RecentlyNonNull.
 
                                              See `metalava help package-filters` for more information.
+  --apply-api-levels <api-versions.xml>      Reads an XML file containing API level descriptions and merges the
+                                             information into the documentation.
     """
         .trimIndent()
 
@@ -84,6 +86,23 @@ class StubGenerationOptionsTest :
             assertEquals(
                 "Cannot use --stubs and --doc-stubs, they are mutually exclusive",
                 exception.message
+            )
+        }
+    }
+
+    @Test
+    fun `Test --apply-api-levels for non-existent file works correctly`() {
+        val nonExistentFile = temporaryFolder.root.resolve("non-existent/api-versions.xml")
+        runTest(ARG_APPLY_API_LEVELS, nonExistentFile.path) {
+            // Make sure that no errors are reported when parsing the options.
+            assertEquals("", stdout)
+            assertEquals("", stderr)
+            val exception =
+                assertThrows(MetalavaCliException::class.java) { options.generatorConfig() }
+
+            assertEquals(
+                "--apply-api-levels file 'TESTROOT/non-existent/api-versions.xml' does not exist or is not readable",
+                cleanupString(exception.message!!)
             )
         }
     }

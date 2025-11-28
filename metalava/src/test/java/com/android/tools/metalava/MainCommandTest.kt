@@ -188,12 +188,6 @@ Extracting Annotations:
                                              the external annotations files instead.
 
 
-Injecting API Levels:
---apply-api-levels <api-versions.xml>
-                                             Reads an XML file containing API level descriptions and merges the
-                                             information into the documentation
-
-
 Environment Variables:
 METALAVA_DUMP_ARGV
                                              Set to true to have metalava emit all the arguments it was invoked with.

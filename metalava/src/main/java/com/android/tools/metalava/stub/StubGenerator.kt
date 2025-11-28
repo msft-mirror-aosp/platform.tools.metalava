@@ -75,6 +75,11 @@ internal class StubGenerator(
          * to be converted to warning nullability.
          */
         val nullabilityConversionPackageFilter: PackageFilter? = null,
+
+        /**
+         * Optional `api-versions.xml` file that if specified will be applied to the documentation.
+         */
+        val apiVersionsXmlFile: File? = null,
     )
 
     /** Generate the stubs. */
@@ -115,7 +120,9 @@ internal class StubGenerator(
                 apiPredicateConfig,
             )
         docAnalyzer.enhance()
-        val applyApiLevelsXmlFile = options.applyApiLevelsXmlFile
+
+        // If provided apply information in the api-versions.xml to the documentation.
+        val applyApiLevelsXmlFile = config.apiVersionsXmlFile
         if (applyApiLevelsXmlFile != null) {
             progressTracker.progress("Applying API levels")
             docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)

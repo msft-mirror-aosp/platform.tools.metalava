@@ -156,7 +156,6 @@ const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -497,9 +496,6 @@ class Options(
     val includeApiLevelInDocumentation: ApiVersionFilter =
         apiLevelsGenerationOptions::includeApiVersionInDocumentation
 
-    /** Reads API XML file to apply into documentation */
-    var applyApiLevelsXmlFile: File? = null
-
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
         get() =
@@ -632,18 +628,6 @@ class Options(
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
-
-                // Extracting API levels
-                ARG_APPLY_API_LEVELS -> {
-                    applyApiLevelsXmlFile =
-                        if (apiLevelsGenerationOptions.generateApiLevelsXmlFile != null) {
-                            // If generating the API file at the same time, it doesn't have
-                            // to already exist
-                            stringToNewFile(getValue(args, ++index))
-                        } else {
-                            stringToExistingFile(getValue(args, ++index))
-                        }
-                }
                 ARG_JAVA_SOURCE -> {
                     val value = getValue(args, ++index)
                     javaLanguageLevelAsString = value
@@ -946,11 +930,6 @@ object OptionsHelp {
                 "If true, include source-retention annotations in the stub files. Does " +
                     "not apply to signature files. Source retention annotations are extracted into the external " +
                     "annotations files instead.",
-                "",
-                "Injecting API Levels:",
-                "$ARG_APPLY_API_LEVELS <api-versions.xml>",
-                "Reads an XML file containing API level descriptions " +
-                    "and merges the information into the documentation",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
