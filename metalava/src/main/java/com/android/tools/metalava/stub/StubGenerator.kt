@@ -36,8 +36,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit.SECONDS
 
 /** Generates stubs from [codebase]. */
-internal class StubGenerator
-private constructor(
+internal class StubGenerator(
     private val config: Config,
     private val options: Options,
     private val codebase: Codebase,
@@ -78,7 +77,7 @@ private constructor(
     )
 
     /** Generate the stubs. */
-    private fun generateStubs() {
+    fun generateStubs() {
         // Use information from various sources to enhance the documentation, if required.
         if (config.enhanceDocumentation) {
             enhanceCodebaseDocumentationFromOptions()
@@ -225,30 +224,6 @@ private constructor(
             // a reference of nullable type). The way to communicate this to kotlinc is to mark
             // these APIs as RecentlyNullable/RecentlyNonNull
             codebase.accept(MarkPackagesAsRecent(filter))
-        }
-    }
-
-    companion object {
-        /** Generate stubs if necessary based on the [options]. */
-        fun generateStubs(
-            config: Config,
-            options: Options,
-            codebase: Codebase,
-            progressTracker: ProgressTracker,
-            executionEnvironment: ExecutionEnvironment,
-            reporter: Reporter,
-            signatureFileCache: SignatureFileCache,
-        ) {
-            StubGenerator(
-                    config,
-                    options,
-                    codebase,
-                    progressTracker,
-                    executionEnvironment,
-                    reporter,
-                    signatureFileCache,
-                )
-                .generateStubs()
         }
     }
 }

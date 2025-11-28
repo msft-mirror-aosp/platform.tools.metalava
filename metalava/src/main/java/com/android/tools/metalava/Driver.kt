@@ -256,15 +256,16 @@ internal fun processFlags(
 
     // Generate the stubs. This must be done as the last operation in this method as it can modify
     // the [codebase].
-    StubGenerator.generateStubs(
-        options.stubGenerationOptions.generatorConfig(),
-        options,
-        codebase,
-        progressTracker,
-        executionEnvironment,
-        reporter,
-        signatureFileCache,
-    )
+    StubGenerator(
+            options.stubGenerationOptions.generatorConfig(),
+            options,
+            codebase,
+            progressTracker,
+            executionEnvironment,
+            reporter,
+            signatureFileCache,
+        )
+        .generateStubs()
 
     val packageCount = codebase.size()
     progressTracker.progress(
