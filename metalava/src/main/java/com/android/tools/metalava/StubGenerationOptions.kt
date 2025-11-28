@@ -31,7 +31,6 @@ import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
-import kotlin.getValue
 
 private const val STUB_GENERATION_GROUP = "Stub Generation"
 
@@ -91,7 +90,7 @@ class StubGenerationOptions :
             )
             .newDir()
 
-    val includeAnnotations by
+    private val includeAnnotations by
         option(
                 ARG_INCLUDE_ANNOTATIONS,
                 help = "Include/exclude annotations such as @Nullable in/from the stub files.",
@@ -245,6 +244,9 @@ class StubGenerationOptions :
 
             // Specify the stubs directory, may be null.
             stubsDir = stubsDir,
+
+            // Specify whether annotations should be included.
+            generateAnnotations = includeAnnotations,
 
             // Provide config needed to migrate nullability information.
             nullabilityConversionPreviouslyReleasedApi = nullabilityConversionPreviouslyReleasedApi,

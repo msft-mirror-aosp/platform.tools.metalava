@@ -432,8 +432,6 @@ class Options(
     val verbose: Boolean
         get() = verbosity.verbose
 
-    val generateAnnotations by stubGenerationOptions::includeAnnotations
-
     /** Proguard Keep list file to write */
     var proguard: File? = null
 

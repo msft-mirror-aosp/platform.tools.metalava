@@ -67,6 +67,9 @@ internal class StubGenerator(
          */
         val stubsDir: File? = null,
 
+        /** Determines whether the annotations will be included in the stubs. */
+        val generateAnnotations: Boolean = false,
+
         /**
          * An optional [PreviouslyReleasedApi] that is used to determine whether a nullability
          * annotation was added recently and so requires converting to warning nullability.
@@ -192,7 +195,7 @@ internal class StubGenerator(
         val stubWriter =
             StubWriter(
                 stubsDir = stubDir,
-                generateAnnotations = options.generateAnnotations,
+                generateAnnotations = config.generateAnnotations,
                 isDocStubs = isDocStubs,
                 reporter = options.reporter,
                 config = config.stubWriterConfig,
