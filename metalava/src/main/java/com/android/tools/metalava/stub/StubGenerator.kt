@@ -22,8 +22,11 @@ import com.android.tools.metalava.Options
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.SignatureFileCache
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
+import com.android.tools.metalava.doc.ApiVersionFilter
+import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
@@ -80,6 +83,15 @@ internal class StubGenerator(
          * Optional `api-versions.xml` file that if specified will be applied to the documentation.
          */
         val apiVersionsXmlFile: File? = null,
+
+        /**
+         * Maps from [ApiVersion] to the form to use in the documentation, which may be a symbolic
+         * name.
+         */
+        val apiVersionLabelProvider: ApiVersionLabelProvider = ApiVersion::toString,
+
+        /** Determines whether an [ApiVersion] should be included in the documentation. */
+        val includeApiLevelInDocumentation: ApiVersionFilter = { true }
     )
 
     /** Generate the stubs. */
@@ -115,8 +127,8 @@ internal class StubGenerator(
                 executionEnvironment,
                 codebase,
                 reporter,
-                options.apiVersionLabelProvider,
-                options.includeApiLevelInDocumentation,
+                config.apiVersionLabelProvider,
+                config.includeApiLevelInDocumentation,
                 apiPredicateConfig,
             )
         docAnalyzer.enhance()

@@ -38,8 +38,6 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.doc.ApiVersionFilter
-import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -489,12 +487,6 @@ class Options(
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
-
-    val apiVersionLabelProvider: ApiVersionLabelProvider =
-        apiLevelsGenerationOptions::getApiVersionLabel
-
-    val includeApiLevelInDocumentation: ApiVersionFilter =
-        apiLevelsGenerationOptions::includeApiVersionInDocumentation
 
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
