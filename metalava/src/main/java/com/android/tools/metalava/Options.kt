@@ -296,9 +296,6 @@ class Options(
     val showUnannotated
         get() = apiSelectionOptions.showUnannotated
 
-    val apiSurfaces
-        get() = apiSelectionOptions.apiSurfaces
-
     /** Packages to include in the API (if null, include all) */
     val apiPackages: PackageFilter? by sourceOptions::apiPackages
 
@@ -361,7 +358,7 @@ class Options(
                 allowReadingComments = allowReadingComments,
                 annotationManager = annotationManager,
                 apiFlags = apiFlags,
-                apiSurfaces = apiSurfaces,
+                apiSurfaces = apiSelectionOptions.apiSurfaces,
                 reporter = reporter,
             )
         }
