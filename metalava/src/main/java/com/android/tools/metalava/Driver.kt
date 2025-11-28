@@ -273,6 +273,7 @@ internal fun processFlags(
             executionEnvironment,
             reporter,
             signatureFileCache,
+            apiPredicateConfig,
         )
         .generateStubs()
 

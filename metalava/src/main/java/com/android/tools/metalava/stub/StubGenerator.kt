@@ -44,6 +44,7 @@ internal class StubGenerator(
     private val executionEnvironment: ExecutionEnvironment,
     private val reporter: Reporter,
     private val signatureFileCache: SignatureFileCache,
+    private val apiPredicateConfig: ApiPredicate.Config,
 ) {
     data class Config(
         /** Configuration needed by [StubWriter]. */
@@ -111,7 +112,7 @@ internal class StubGenerator(
                 reporter,
                 options.apiVersionLabelProvider,
                 options.includeApiLevelInDocumentation,
-                options.apiPredicateConfig,
+                apiPredicateConfig,
             )
         docAnalyzer.enhance()
         val applyApiLevelsXmlFile = options.applyApiLevelsXmlFile
@@ -136,7 +137,7 @@ internal class StubGenerator(
                     delegate = delegate,
                     isDocStubs = isDocStubs,
                     preFiltered = codebase.preFiltered,
-                    apiPredicateConfig = options.apiPredicateConfig,
+                    apiPredicateConfig = apiPredicateConfig,
                 )
             }
 
@@ -151,7 +152,7 @@ internal class StubGenerator(
                             delegate = delegate,
                             isDocStubs = isDocStubs,
                             preFiltered = codebase.preFiltered,
-                            apiPredicateConfig = options.apiPredicateConfig,
+                            apiPredicateConfig = apiPredicateConfig,
                             ignoreEmit = true,
                         )
                     },
@@ -163,8 +164,7 @@ internal class StubGenerator(
             if (codebaseFragment.codebase.preFiltered) {
                 FilterPredicate { true }
             } else {
-                val apiPredicateConfigIgnoreShown =
-                    options.apiPredicateConfig.copy(ignoreShown = true)
+                val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
                 ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
             }
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
