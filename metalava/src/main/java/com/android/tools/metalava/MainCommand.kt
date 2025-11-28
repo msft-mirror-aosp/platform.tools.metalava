@@ -184,7 +184,6 @@ class MainCommand(
             compatibilityCheckOptions = compatibilityCheckOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
-            stubGenerationOptions = stubGenerationOptions,
         )
 
     override fun run() {
@@ -238,6 +237,7 @@ class MainCommand(
                         progressTracker,
                         optionGroup,
                         apiLevelsGenerationOptions,
+                        stubGenerationOptions,
                     )
                 }
         } finally {

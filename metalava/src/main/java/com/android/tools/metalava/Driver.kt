@@ -143,6 +143,7 @@ internal fun processFlags(
     progressTracker: ProgressTracker,
     options: Options,
     apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+    stubGenerationOptions: StubGenerationOptions,
 ) {
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
@@ -266,7 +267,7 @@ internal fun processFlags(
     // Generate the stubs. This must be done as the last operation in this method as it can modify
     // the [codebase].
     val generatorConfig =
-        options.stubGenerationOptions
+        stubGenerationOptions
             .generatorConfig()
             // Copy some additional config from the [apiLevelsGenerationOptions]. This is
             // necessary as the config cannot be initialized in `generatorConfig()` as they are

@@ -182,7 +182,6 @@ class Options(
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
-    val stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to. */
     val stdout: PrintWriter
