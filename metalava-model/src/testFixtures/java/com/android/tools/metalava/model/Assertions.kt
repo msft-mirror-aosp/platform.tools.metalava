@@ -18,7 +18,9 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformConstructorItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformElement
+import com.android.tools.metalava.model.multiplatform.MultiplatformMethodItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPropertyItem
 import com.android.tools.metalava.model.multiplatform.SourceSetDependent
@@ -427,6 +429,54 @@ interface Assertions {
             "Expected property ${receiverType?.let { "$it." } ?: "" }$name to be defined in $this"
         )
         return propertyItem
+    }
+
+    /**
+     * Finds the constructor by [parameterTypes] in the [MultiplatformClassItem], failing if it does
+     * not exist.
+     *
+     * The [parameterTypes] are expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformClassItem.assertConstructor(
+        parameterTypes: List<String>
+    ): MultiplatformConstructorItem {
+        val constructorItem =
+            constructors.singleOrNull { ctor ->
+                ctor.parameterTypes.map { type ->
+                    type.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                } == parameterTypes
+            }
+        assertNotNull(
+            constructorItem,
+            "Expected constructor $qualifiedName(${parameterTypes.joinToString()}) to be defined in $this"
+        )
+        return constructorItem
+    }
+
+    /**
+     * Finds the method by [name] and [parameterTypes] in the [MultiplatformClassItem], failing if
+     * it does not exist.
+     *
+     * The [parameterTypes] are expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformClassItem.assertMethod(
+        name: String,
+        parameterTypes: List<String>
+    ): MultiplatformMethodItem {
+        val methodItem =
+            methods.singleOrNull { method ->
+                method.name == name &&
+                    method.parameterTypes.map { type ->
+                        type.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                    } == parameterTypes
+            }
+        assertNotNull(
+            methodItem,
+            "Expected method $name(${parameterTypes.joinToString()}) to be defined in $this"
+        )
+        return methodItem
     }
 
     companion object : Assertions {}

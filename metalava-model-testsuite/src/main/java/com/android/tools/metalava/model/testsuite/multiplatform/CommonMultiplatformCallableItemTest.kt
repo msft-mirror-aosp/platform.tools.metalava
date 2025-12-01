@@ -1,0 +1,259 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.testsuite.multiplatform
+
+import com.android.tools.metalava.model.multiplatform.transformValues
+import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
+import com.android.tools.metalava.model.testing.FilterByProvider
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createNativeModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
+@FilterByProvider("psi", "k1", action = EXCLUDE)
+class CommonMultiplatformCallableItemTest : BaseModelTest() {
+    @Test
+    fun `Definition of expect actual constructor`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo(i: Int)
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo actual constructor(i: Int)
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                actual class Foo actual constructor(i: Int) {
+                    constructor(i1: Int, i2: Int): this(i1 + i2)
+                }
+                """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+
+            val commonConstructor = fooClass.assertConstructor(listOf("int"))
+            commonConstructor.assertSourceSets("androidMain", "commonMain", "nativeMain")
+            assertThat(commonConstructor.containingClass).isEqualTo(fooClass)
+            assertThat(commonConstructor.toString())
+                .isEqualTo("multiplatform constructor test.pkg.Foo(int)")
+
+            val nativeConstructor = fooClass.assertConstructor(listOf("int", "int"))
+            nativeConstructor.assertSourceSets("nativeMain")
+            assertThat(nativeConstructor.containingClass).isEqualTo(fooClass)
+            assertThat(nativeConstructor.toString())
+                .isEqualTo("multiplatform constructor test.pkg.Foo(int, int)")
+        }
+    }
+
+    @Test
+    fun `Definition of expect actual function`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo {
+                    expect fun commonMethod(s: String): Unit
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    actual fun commonMethod(s: String) = Unit
+                    fun androidMethod(s: String?) = Unit
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                 package test.pkg
+                 actual class Foo {
+                     actual fun commonMethod(s: String) = Unit
+                     fun nativeMethod(s1: String, s2: String?) = Unit
+                 }
+                 """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+
+            val commonMethod = fooClass.assertMethod("commonMethod", listOf("java.lang.String"))
+            commonMethod.assertSourceSets("androidMain", "commonMain", "nativeMain")
+            assertThat(commonMethod.containingClass).isEqualTo(fooClass)
+            assertThat(commonMethod.toString())
+                .isEqualTo("multiplatform method test.pkg.Foo#commonMethod(java.lang.String)")
+
+            val androidMethod = fooClass.assertMethod("androidMethod", listOf("java.lang.String?"))
+            androidMethod.assertSourceSets("androidMain")
+            assertThat(androidMethod.containingClass).isEqualTo(fooClass)
+            assertThat(androidMethod.toString())
+                .isEqualTo("multiplatform method test.pkg.Foo#androidMethod(java.lang.String?)")
+
+            val nativeMethod =
+                fooClass.assertMethod(
+                    "nativeMethod",
+                    listOf("java.lang.String", "java.lang.String?")
+                )
+            nativeMethod.assertSourceSets("nativeMain")
+            assertThat(nativeMethod.containingClass).isEqualTo(fooClass)
+            assertThat(nativeMethod.toString())
+                .isEqualTo(
+                    "multiplatform method test.pkg.Foo#nativeMethod(java.lang.String, java.lang.String?)"
+                )
+        }
+    }
+
+    @Test
+    fun `Definition of clashing definitions in unrelated source sets`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val androidMain =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo(i: Int) {
+                    fun clashingMethod(s: String) = Unit
+                }
+                """
+            )
+        val nativeMain =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                actual class Foo(i: Int) {
+                    fun clashingMethod(s: String) = Unit
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidMain, nativeMain),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidMain)),
+                    createNativeModuleDescription(arrayOf(nativeMain)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+
+            val clashingConstructor = fooClass.assertConstructor(listOf("int"))
+            clashingConstructor.assertSourceSets("androidMain", "nativeMain")
+
+            val clashingMethod = fooClass.assertMethod("clashingMethod", listOf("java.lang.String"))
+            clashingMethod.assertSourceSets("androidMain", "nativeMain")
+        }
+    }
+
+    @Test
+    fun `Different throws types in different source sets`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo {
+                    expect fun foo(s: String): Unit
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                import kotlin.jvm.Throws
+                actual class Foo {
+                    @Throws(IllegalStateException::class)
+                    actual fun foo(s: String) = Unit
+                }
+                """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            val fooMethod = fooClass.assertMethod("foo", listOf("java.lang.String"))
+            fooMethod.throwsTypes
+                .transformValues { throwsTypes ->
+                    throwsTypes.map { throwsType -> throwsType.toTypeString() }
+                }
+                .assertSourceSetValues(
+                    "commonMain" to emptyList(),
+                    "androidMain" to listOf("java.lang.IllegalStateException"),
+                )
+            fooMethod.modifiers
+                .transformValues { modifiers -> modifiers.annotations().map { it.qualifiedName } }
+                .assertSourceSetValues(
+                    "commonMain" to emptyList(),
+                    "androidMain" to listOf("kotlin.jvm.Throws"),
+                )
+        }
+    }
+}

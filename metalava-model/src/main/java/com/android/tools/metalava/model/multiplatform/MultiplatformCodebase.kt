@@ -17,11 +17,15 @@
 package com.android.tools.metalava.model.multiplatform
 
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -244,6 +248,26 @@ class MultiplatformClassItem(
             }
         )
 
+    /** The methods of this class which exist in any source set. */
+    val methods: List<MultiplatformMethodItem> =
+        aggregateChildren(
+            childAccessor = { methods() },
+            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+            multiplatformChildCreator = { identifier, sourceSetToMethodItem ->
+                MultiplatformMethodItem(this, identifier, sourceSetToMethodItem)
+            }
+        )
+
+    /** The constructors of this class which exist in any source set. */
+    val constructors: List<MultiplatformConstructorItem> =
+        aggregateChildren(
+            childAccessor = { constructors() },
+            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+            multiplatformChildCreator = { identifier, sourceSetToConstructorItem ->
+                MultiplatformConstructorItem(this, identifier, sourceSetToConstructorItem)
+            }
+        )
+
     override fun toString(): String {
         return "multiplatform class $qualifiedName"
     }
@@ -313,5 +337,104 @@ class MultiplatformPropertyItem(
         override fun hashCode(): Int {
             return Objects.hash(name, receiver)
         }
+    }
+}
+
+/**
+ * A callable (method or constructor) of the [containingClass], identified by [parameterTypes] and
+ * name for methods.
+ */
+sealed class MultiplatformCallableItem<C : CallableItem>(
+    val containingClass: MultiplatformClassItem,
+    protected val identifier: Identifier,
+    sourceSetToItem: SourceSetDependent<C?>
+) : MultiplatformItem<C>(sourceSetToItem) {
+    /**
+     * The parameter types of the callable.
+     *
+     * The nullability of these type is significant, as it is possible to define two callables in
+     * Kotlin that differ only by parameter nullability. However, other modifiers (annotations) on
+     * the types are not significant and may differ by source set.
+     */
+    val parameterTypes: List<TypeItem>
+        get() = identifier.parameterTypes
+
+    /**
+     * A mapping from source set where the [CallableItem] exists to the list of throws types for the
+     * callable in that source set.
+     */
+    val throwsTypes: SourceSetDependent<List<ExceptionTypeItem>> = sourceSetDependentValue {
+        it.throwsTypes()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MultiplatformCallableItem<C>) return false
+        return other.containingClass == containingClass && other.identifier == identifier
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hash(containingClass, identifier)
+    }
+
+    /**
+     * The combination of [name] and [parameterTypes] that uniquely identifies the [CallableItem]
+     * within a class. The nullability of the [parameterTypes] are significant but other modifiers
+     * (annotations) are not.
+     */
+    class Identifier(val name: String, val parameterTypes: List<TypeItem>) {
+        constructor(
+            callableItem: CallableItem
+        ) : this(callableItem.name(), callableItem.parameters().map { it.type() })
+
+        fun parameterDescription(): String {
+            return "(" +
+                parameterTypes.joinToString {
+                    it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                } +
+                ")"
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Identifier) return false
+            return name == other.name &&
+                parameterTypes.size == other.parameterTypes.size &&
+                parameterTypes.zip(other.parameterTypes).all { (t1, t2) ->
+                    t1.equalToType(t2, includeNullability = true)
+                }
+        }
+
+        override fun hashCode(): Int {
+            return Objects.hash(name, parameterTypes)
+        }
+    }
+}
+
+/** A method of the [containingClass], identified by [parameterTypes] and [name]. */
+class MultiplatformMethodItem(
+    containingClass: MultiplatformClassItem,
+    identifier: Identifier,
+    sourceSetToItem: SourceSetDependent<MethodItem?>
+) : MultiplatformCallableItem<MethodItem>(containingClass, identifier, sourceSetToItem) {
+    /** The name of the method. */
+    val name: String
+        get() = identifier.name
+
+    override fun toString(): String {
+        return "multiplatform method ${containingClass.qualifiedName}#${identifier.name}" +
+            identifier.parameterDescription()
+    }
+}
+
+/** A constructor of the [containingClass], identified by [parameterTypes]. */
+class MultiplatformConstructorItem(
+    containingClass: MultiplatformClassItem,
+    identifier: Identifier,
+    sourceSetToItem: SourceSetDependent<ConstructorItem?>
+) : MultiplatformCallableItem<ConstructorItem>(containingClass, identifier, sourceSetToItem) {
+    override fun toString(): String {
+        return "multiplatform constructor ${containingClass.qualifiedName}" +
+            identifier.parameterDescription()
     }
 }
