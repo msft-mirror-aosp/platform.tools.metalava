@@ -24,6 +24,56 @@ import org.junit.Test
 
 class ExperimentalApiFileTest : DriverTest() {
 
+    /**
+     * TODO: re-name this to "Check if an annotation is experimental only if direct meta-annotation
+     *   is experimental"
+     */
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check if an annotation is experimental if any meta-annotations in entire ancestry are experimental`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn
+                        annotation class SuppressCompatHasRequiresOptIn
+
+                        @SuppressCompatHasRequiresOptIn
+                        annotation class SuppressCompatNoRequiresOptIn
+
+                        @OptIn(SuppressCompatHasRequiresOptIn::class)
+                        @SuppressCompatNoRequiresOptIn
+                        annotation class NotSuppressCompatHasOptIn
+
+                        @NotSuppressCompatHasOptIn
+                        annotation class NotSuppressCompat
+                        """
+                    )
+                ),
+            api =
+                // TODO: "NotSuppressCompatHasOptIn" and "NotSuppressCompat" should not be marked
+                //  as @SuppressCompatibility (and also the package should not be marked that way
+                //  either)
+                """
+                package @SuppressCompatibility test.pkg {
+                  @SuppressCompatibility @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
+                  }
+                  @SuppressCompatibility @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
+                  }
+                  @SuppressCompatibility @test.pkg.SuppressCompatHasRequiresOptIn public @interface SuppressCompatNoRequiresOptIn {
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Don't annotate package as suppress compatibility when it contains a non-experimental class and an experimental package`() {
