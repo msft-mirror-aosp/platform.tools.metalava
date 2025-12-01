@@ -24,13 +24,9 @@ import org.junit.Test
 
 class ExperimentalApiFileTest : DriverTest() {
 
-    /**
-     * TODO: re-name this to "Check if an annotation is experimental only if direct meta-annotation
-     *   is experimental"
-     */
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Check if an annotation is experimental if any meta-annotations in entire ancestry are experimental`() {
+    fun `Mark an annotation as experimental only if direct annotation or immediate meta-annotation is experimental`() {
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -55,14 +51,11 @@ class ExperimentalApiFileTest : DriverTest() {
                     )
                 ),
             api =
-                // TODO: "NotSuppressCompatHasOptIn" and "NotSuppressCompat" should not be marked
-                //  as @SuppressCompatibility (and also the package should not be marked that way
-                //  either)
                 """
-                package @SuppressCompatibility test.pkg {
-                  @SuppressCompatibility @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
+                package test.pkg {
+                  @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
                   }
-                  @SuppressCompatibility @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
+                  @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
                   }
                   @SuppressCompatibility @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
                   }
