@@ -377,8 +377,8 @@ private constructor(
         containingClass: DefaultClassItem? = null,
         processIfClasspath: Boolean = false,
     ): DefaultClassItem? {
-        // Skip Java classes, these won't be kotlin-only.
-        if (classifierSymbol.psi?.isKotlin() == false) return null
+        // When adding to a psi codebase, skip Java classes as they won't be kotlin-only.
+        if (addingToPsiCodebase && classifierSymbol.psi?.isKotlin() == false) return null
         // Skip classes loaded from the classpath.
         if (!processIfClasspath && classifierSymbol.origin == KaSymbolOrigin.LIBRARY) return null
         // Skip private classes since these aren't part of the API surface
