@@ -72,13 +72,13 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
 
             val commonConstructor = fooClass.assertConstructor(listOf("int"))
             commonConstructor.assertSourceSets("androidMain", "commonMain", "nativeMain")
-            assertThat(commonConstructor.containingClass).isEqualTo(fooClass)
+            assertThat(commonConstructor.containingItem).isEqualTo(fooClass)
             assertThat(commonConstructor.toString())
                 .isEqualTo("multiplatform constructor test.pkg.Foo(int)")
 
             val nativeConstructor = fooClass.assertConstructor(listOf("int", "int"))
             nativeConstructor.assertSourceSets("nativeMain")
-            assertThat(nativeConstructor.containingClass).isEqualTo(fooClass)
+            assertThat(nativeConstructor.containingItem).isEqualTo(fooClass)
             assertThat(nativeConstructor.toString())
                 .isEqualTo("multiplatform constructor test.pkg.Foo(int, int)")
         }
@@ -132,13 +132,13 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
 
             val commonMethod = fooClass.assertMethod("commonMethod", listOf("java.lang.String"))
             commonMethod.assertSourceSets("androidMain", "commonMain", "nativeMain")
-            assertThat(commonMethod.containingClass).isEqualTo(fooClass)
+            assertThat(commonMethod.containingItem).isEqualTo(fooClass)
             assertThat(commonMethod.toString())
                 .isEqualTo("multiplatform method test.pkg.Foo#commonMethod(java.lang.String)")
 
             val androidMethod = fooClass.assertMethod("androidMethod", listOf("java.lang.String?"))
             androidMethod.assertSourceSets("androidMain")
-            assertThat(androidMethod.containingClass).isEqualTo(fooClass)
+            assertThat(androidMethod.containingItem).isEqualTo(fooClass)
             assertThat(androidMethod.toString())
                 .isEqualTo("multiplatform method test.pkg.Foo#androidMethod(java.lang.String?)")
 
@@ -148,7 +148,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                     listOf("java.lang.String", "java.lang.String?")
                 )
             nativeMethod.assertSourceSets("nativeMain")
-            assertThat(nativeMethod.containingClass).isEqualTo(fooClass)
+            assertThat(nativeMethod.containingItem).isEqualTo(fooClass)
             assertThat(nativeMethod.toString())
                 .isEqualTo(
                     "multiplatform method test.pkg.Foo#nativeMethod(java.lang.String, java.lang.String?)"

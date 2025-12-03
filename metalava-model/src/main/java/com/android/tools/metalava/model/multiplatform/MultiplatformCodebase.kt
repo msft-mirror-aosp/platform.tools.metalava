@@ -330,12 +330,24 @@ class MultiplatformClassItem(
     }
 }
 
-/** A property of the [containingClass], identified by [name] and optional [receiver] type. */
-class MultiplatformPropertyItem(
-    val containingClass: MultiplatformClassItem,
+/** A property of the [containingItem], identified by [name] and optional [receiver] type. */
+class MultiplatformPropertyItem
+private constructor(
+    /**
+     * The item which contains this property, either a class or a package (for a top level
+     * property).
+     */
+    val containingItem: MultiplatformItem<*>,
+    private val containingItemQualifiedName: String,
     private val identifier: Identifier,
     sourceSetToItem: SourceSetDependent<PropertyItem?>,
 ) : MultiplatformTypeParameterListOwner<PropertyItem>(sourceSetToItem) {
+    constructor(
+        containingClass: MultiplatformClassItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<PropertyItem?>
+    ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
+
     /** The name of the property. */
     val name: String
         get() = identifier.name
@@ -354,17 +366,17 @@ class MultiplatformPropertyItem(
         val receiverString =
             receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." }
                 ?: ""
-        return "multiplatform property ${containingClass.qualifiedName}#$receiverString$name"
+        return "multiplatform property $containingItemQualifiedName#$receiverString$name"
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is MultiplatformPropertyItem) return false
-        return other.containingClass == containingClass && other.identifier == identifier
+        return other.containingItem == containingItem && other.identifier == identifier
     }
 
     override fun hashCode(): Int {
-        return Objects.hash(containingClass, identifier)
+        return Objects.hash(containingItem, identifier)
     }
 
     /**
@@ -389,14 +401,26 @@ class MultiplatformPropertyItem(
 }
 
 /**
- * A callable (method or constructor) of the [containingClass], identified by [parameterTypes] and
+ * A callable (method or constructor) of the [containingItem], identified by [parameterTypes] and
  * name for methods.
  */
-sealed class MultiplatformCallableItem<C : CallableItem>(
-    val containingClass: MultiplatformClassItem,
+sealed class MultiplatformCallableItem<C : CallableItem>
+protected constructor(
+    /**
+     * The item which contains this property, either a class or a package (for a top level
+     * function).
+     */
+    open val containingItem: MultiplatformItem<*>,
+    protected val containingItemQualifiedName: String,
     protected val identifier: Identifier,
     sourceSetToItem: SourceSetDependent<C?>
 ) : MultiplatformTypeParameterListOwner<C>(sourceSetToItem) {
+    constructor(
+        containingClass: MultiplatformClassItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<C?>
+    ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
+
     /**
      * The parameter types of the callable.
      *
@@ -430,11 +454,11 @@ sealed class MultiplatformCallableItem<C : CallableItem>(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is MultiplatformCallableItem<C>) return false
-        return other.containingClass == containingClass && other.identifier == identifier
+        return other.containingItem == containingItem && other.identifier == identifier
     }
 
     override fun hashCode(): Int {
-        return Objects.hash(containingClass, identifier)
+        return Objects.hash(containingItem, identifier)
     }
 
     /**
@@ -471,30 +495,46 @@ sealed class MultiplatformCallableItem<C : CallableItem>(
     }
 }
 
-/** A method of the [containingClass], identified by [parameterTypes] and [name]. */
-class MultiplatformMethodItem(
-    containingClass: MultiplatformClassItem,
+/** A method of the [containingItem], identified by [parameterTypes] and [name]. */
+class MultiplatformMethodItem
+private constructor(
+    containingItem: MultiplatformItem<*>,
+    containingItemQualifiedName: String,
     identifier: Identifier,
     sourceSetToItem: SourceSetDependent<MethodItem?>
-) : MultiplatformCallableItem<MethodItem>(containingClass, identifier, sourceSetToItem) {
+) :
+    MultiplatformCallableItem<MethodItem>(
+        containingItem,
+        containingItemQualifiedName,
+        identifier,
+        sourceSetToItem
+    ) {
+    constructor(
+        containingClass: MultiplatformClassItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<MethodItem?>
+    ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
+
     /** The name of the method. */
     val name: String
         get() = identifier.name
 
     override fun toString(): String {
-        return "multiplatform method ${containingClass.qualifiedName}#${identifier.name}" +
+        return "multiplatform method $containingItemQualifiedName#${identifier.name}" +
             identifier.parameterDescription()
     }
 }
 
-/** A constructor of the [containingClass], identified by [parameterTypes]. */
+/**
+ * A constructor of the [containingItem] (which must be a class), identified by [parameterTypes].
+ */
 class MultiplatformConstructorItem(
-    containingClass: MultiplatformClassItem,
+    override val containingItem: MultiplatformClassItem,
     identifier: Identifier,
     sourceSetToItem: SourceSetDependent<ConstructorItem?>
-) : MultiplatformCallableItem<ConstructorItem>(containingClass, identifier, sourceSetToItem) {
+) : MultiplatformCallableItem<ConstructorItem>(containingItem, identifier, sourceSetToItem) {
     override fun toString(): String {
-        return "multiplatform constructor ${containingClass.qualifiedName}" +
+        return "multiplatform constructor $containingItemQualifiedName" +
             identifier.parameterDescription()
     }
 }
