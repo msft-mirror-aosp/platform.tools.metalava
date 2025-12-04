@@ -47,19 +47,16 @@ Api Levels Generation:
                                              file. This can happen when generating the XML file for the non-updatable
                                              portions of the module-lib sdk, as those non-updatable portions can
                                              reference classes that are part of an updatable apex.
-  --first-version <api-version>              Sets the first API version to include in the API history file. See
-                                             --current-version for acceptable `<api-version>`s. (default: 1)
   --api-version-range <api-version>:<api-version>
                                              The optional range of historical versions that can be included in the API
                                              version history. The `from` and `to` parts of the range are separated by a
                                              `:` and are both inclusive. See --current-version for acceptable
                                              `<api-version>`s.
 
-                                             If unspecified then this currently falls back to a range from
-                                             `--first-api-version` to `--current-version` (or
-                                             `--api-version-for-sources` if `--current-codename` is set to any value
-                                             other than `REL`). However, in future it will default to allowing every
-                                             historical version.
+                                             If unspecified then this currently falls back to a range from 1 to
+                                             `--current-version` (or `--api-version-for-sources` if `--current-codename`
+                                             is set to any value other than `REL`). However, in future it will default
+                                             to allowing every historical version.
   --sdk-extension-version-range <api-version>:<api-version>
                                              The optional range of historical sdk extensions versions that can be
                                              included in the API version history. The `from` and `to` parts of the range
