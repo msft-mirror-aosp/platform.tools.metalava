@@ -76,7 +76,7 @@ class FlagReportCommand :
             for ((qualifiedName, apiFlag) in report.flagStatuses) {
                 val exportedStatus = if (apiFlag?.isExported == true) "exported" else "unexported"
                 val status =
-                    when (apiFlag?.description) {
+                    when (apiFlag?.action) {
                         ApiFlagAction.KEEP -> "known,kept,$exportedStatus"
                         ApiFlagAction.FINALIZE -> "known,finalized,$exportedStatus"
                         ApiFlagAction.REVERT -> "known,reverted,$exportedStatus"

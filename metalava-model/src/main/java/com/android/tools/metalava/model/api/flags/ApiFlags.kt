@@ -27,10 +27,36 @@ import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.value.asString
 
 /** The action the api flag is accomplishing */
-enum class ApiFlagAction {
-    KEEP,
-    FINALIZE,
-    REVERT
+enum class ApiFlagAction(
+    /**
+     * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
+     * this [ApiFlag].
+     */
+    val showability: Showability,
+
+    /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
+    val annotationTargets: Set<AnnotationTarget>,
+) {
+    /** Keep any associated [Item]s and their `@FlaggedApi` annotation. */
+    KEEP(
+        showability = Showability.NO_EFFECT,
+        annotationTargets = ANNOTATION_IN_ALL_STUBS,
+    ),
+
+    /**
+     * Keep any associated [Item]s but remove their `@FlaggedApi` annotation as this is being (or
+     * has been) finalized.
+     */
+    FINALIZE(
+        showability = Showability.NO_EFFECT,
+        annotationTargets = NO_ANNOTATION_TARGETS,
+    ),
+
+    /** Revert any associated [Item]s. */
+    REVERT(
+        showability = Showability.REVERT_UNSTABLE_API,
+        annotationTargets = NO_ANNOTATION_TARGETS,
+    )
 }
 
 /**
@@ -55,84 +81,57 @@ class ApiFlags(val byQualifiedName: Map<String, ApiFlag>) {
 /** A representation of an [ApiFlag] that is associated with an `@FlaggedApi` annotation. */
 class ApiFlag
 private constructor(
-    /**
-     * The qualified name of the flag.
-     *
-     * Provided for debug purposes only and cannot be relied upon to be the name of an actual flag,
-     * e.g. [REVERT_FLAGGED_API]'s [qualifiedName] is simply `<disabled>`.
-     */
-    val description: ApiFlagAction,
-
-    /**
-     * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
-     * this [ApiFlag].
-     */
-    val showability: Showability,
-
-    /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
-    val annotationTargets: Set<AnnotationTarget>,
+    /** The action that this flag will perform. */
+    val action: ApiFlagAction,
 
     /** Whether the flag is exported */
     val isExported: Boolean
 ) {
+    /**
+     * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
+     * this [ApiFlag].
+     */
+    val showability
+        get() = action.showability
+
+    /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
+    val annotationTargets
+        get() = action.annotationTargets
+
     override fun toString(): String {
-        return "ApiFlag(description='$description', isExported='$isExported')"
+        return "ApiFlag(description='$action', isExported='$isExported')"
     }
 
     companion object {
-        /** Revert any associated [Item]s. */
         private val REVERT_FLAGGED_API_EXPORTED =
             ApiFlag(
                 ApiFlagAction.REVERT,
-                showability = Showability.REVERT_UNSTABLE_API,
-                annotationTargets = NO_ANNOTATION_TARGETS,
                 isExported = true,
             )
 
         private val REVERT_FLAGGED_API_UNEXPORTED =
             ApiFlag(
                 ApiFlagAction.REVERT,
-                showability = Showability.REVERT_UNSTABLE_API,
-                annotationTargets = NO_ANNOTATION_TARGETS,
                 isExported = false,
             )
 
-        /** Keep any associated [Item]s and their `@FlaggedApi` annotation. */
         private val KEEP_FLAGGED_API_EXPORTED =
             ApiFlag(
                 ApiFlagAction.KEEP,
-                showability = Showability.NO_EFFECT,
-                annotationTargets = ANNOTATION_IN_ALL_STUBS,
                 isExported = true,
             )
 
         private val KEEP_FLAGGED_API_UNEXPORTED =
             ApiFlag(
                 ApiFlagAction.KEEP,
-                showability = Showability.NO_EFFECT,
-                annotationTargets = ANNOTATION_IN_ALL_STUBS,
                 isExported = false,
             )
 
-        /**
-         * Keep any associated [Item]s but remove their `@FlaggedApi` annotation as this is being
-         * (or has been) finalized.
-         */
         private val FINALIZE_FLAGGED_API_EXPORTED =
-            ApiFlag(
-                ApiFlagAction.FINALIZE,
-                showability = Showability.NO_EFFECT,
-                annotationTargets = NO_ANNOTATION_TARGETS,
-                isExported = true
-            )
+            ApiFlag(ApiFlagAction.FINALIZE, isExported = true)
 
         private val FINALIZE_FLAGGED_API_UNEXPORTED =
-            ApiFlag(
-                ApiFlagAction.FINALIZE,
-                showability = Showability.NO_EFFECT,
-                annotationTargets = NO_ANNOTATION_TARGETS,
-                isExported = false
-            )
+            ApiFlag(ApiFlagAction.FINALIZE, isExported = false)
 
         fun getFlag(apiFlagAction: ApiFlagAction, isExported: Boolean = true) =
             when (apiFlagAction) {
