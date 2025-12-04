@@ -66,16 +66,16 @@ class ApiFlagsCreatorTest {
                     ),
             )
 
-        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)
+        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)!!
 
         val expected =
-            mapOf(
-                "test.pkg.flag1" to ApiFlag.getFlag(ApiFlagAction.KEEP),
-                "test.pkg.flag2" to ApiFlag.getFlag(ApiFlagAction.REVERT),
-                "test.pkg.flag3" to ApiFlag.getFlag(ApiFlagAction.KEEP),
-                "test.pkg.flag4" to ApiFlag.getFlag(ApiFlagAction.FINALIZE, false),
+            listOf(
+                ApiFlag("test.pkg.flag1", ApiFlagAction.KEEP),
+                ApiFlag("test.pkg.flag2", ApiFlagAction.REVERT),
+                ApiFlag("test.pkg.flag3", ApiFlagAction.KEEP),
+                ApiFlag("test.pkg.flag4", ApiFlagAction.FINALIZE, false),
             )
-        assertEquals(expected, apiFlags!!.byQualifiedName)
+        assertEquals(expected, apiFlags.byQualifiedName.values.toList())
     }
 
     @Test

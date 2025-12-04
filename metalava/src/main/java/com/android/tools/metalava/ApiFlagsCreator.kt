@@ -24,7 +24,6 @@ import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
-import com.android.utils.associateNotNull
 
 /** Create [ApiFlags] from some source of information about the flags. */
 object ApiFlagsCreator {
@@ -33,17 +32,15 @@ object ApiFlagsCreator {
 
     /** Create [ApiFlags] from [ApiFlagsConfig]. */
     private fun ApiFlagsConfig.createApiFlags(): ApiFlags {
-        val byQualifiedName = flags.associateNotNull { config -> config.createApiFlag() }
-        return ApiFlags(byQualifiedName)
+        return ApiFlags(flags.map { config -> config.createApiFlag() })
     }
 
     /** Create [Pair] of qualified flag name and [ApiFlag] from [ApiFlagConfig]. */
-    private fun ApiFlagConfig.createApiFlag(): Pair<String, ApiFlag>? {
+    private fun ApiFlagConfig.createApiFlag(): ApiFlag {
         val action = toApiFlagAction()
 
-        val apiFlag = ApiFlag.getFlag(action, isExported)
         val qualifiedName = "$pkg.$name"
-        return Pair(qualifiedName, apiFlag)
+        return ApiFlag(qualifiedName, action, isExported)
     }
 
     /** Map from [ApiFlagActionConfig] to [ApiFlagAction]. */

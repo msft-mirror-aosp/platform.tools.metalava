@@ -59,19 +59,18 @@ enum class ApiFlagAction(
     )
 }
 
-/**
- * The available set of configured [ApiFlag]s.
- *
- * @param byQualifiedName map from qualified flag name to [ApiFlag].
- */
-class ApiFlags(val byQualifiedName: Map<String, ApiFlag>) {
+/** The available set of configured [ApiFlag]s. */
+class ApiFlags(flags: List<ApiFlag>) {
+    /** Map from qualified flag name to [ApiFlag]. */
+    val byQualifiedName: Map<String, ApiFlag> = flags.associateBy { it.qualifiedName }
+
     /**
      * Get the [ApiFlag] by qualified name.
      *
-     * If no such [ApiFlag] exists then return [ApiFlag.REVERT_FLAGGED_API].
+     * If no such [ApiFlag] exists then return [ApiFlag] with [ApiFlagAction.REVERT].
      */
     operator fun get(qualifiedName: String) =
-        byQualifiedName[qualifiedName] ?: ApiFlag.getFlag(ApiFlagAction.REVERT, true)
+        byQualifiedName[qualifiedName] ?: ApiFlag(qualifiedName, ApiFlagAction.REVERT, true)
 
     override fun toString(): String {
         return "ApiFlags(byQualifiedName=$byQualifiedName)"
@@ -79,13 +78,15 @@ class ApiFlags(val byQualifiedName: Map<String, ApiFlag>) {
 }
 
 /** A representation of an [ApiFlag] that is associated with an `@FlaggedApi` annotation. */
-class ApiFlag
-private constructor(
+data class ApiFlag(
+    /** The qualified name of the flag. */
+    val qualifiedName: String,
+
     /** The action that this flag will perform. */
     val action: ApiFlagAction,
 
     /** Whether the flag is exported */
-    val isExported: Boolean
+    val isExported: Boolean = true,
 ) {
     /**
      * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
@@ -97,53 +98,6 @@ private constructor(
     /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
     val annotationTargets
         get() = action.annotationTargets
-
-    override fun toString(): String {
-        return "ApiFlag(description='$action', isExported='$isExported')"
-    }
-
-    companion object {
-        private val REVERT_FLAGGED_API_EXPORTED =
-            ApiFlag(
-                ApiFlagAction.REVERT,
-                isExported = true,
-            )
-
-        private val REVERT_FLAGGED_API_UNEXPORTED =
-            ApiFlag(
-                ApiFlagAction.REVERT,
-                isExported = false,
-            )
-
-        private val KEEP_FLAGGED_API_EXPORTED =
-            ApiFlag(
-                ApiFlagAction.KEEP,
-                isExported = true,
-            )
-
-        private val KEEP_FLAGGED_API_UNEXPORTED =
-            ApiFlag(
-                ApiFlagAction.KEEP,
-                isExported = false,
-            )
-
-        private val FINALIZE_FLAGGED_API_EXPORTED =
-            ApiFlag(ApiFlagAction.FINALIZE, isExported = true)
-
-        private val FINALIZE_FLAGGED_API_UNEXPORTED =
-            ApiFlag(ApiFlagAction.FINALIZE, isExported = false)
-
-        fun getFlag(apiFlagAction: ApiFlagAction, isExported: Boolean = true) =
-            when (apiFlagAction) {
-                ApiFlagAction.REVERT ->
-                    if (isExported) REVERT_FLAGGED_API_EXPORTED else REVERT_FLAGGED_API_UNEXPORTED
-                ApiFlagAction.KEEP ->
-                    if (isExported) KEEP_FLAGGED_API_EXPORTED else KEEP_FLAGGED_API_UNEXPORTED
-                ApiFlagAction.FINALIZE ->
-                    if (isExported) FINALIZE_FLAGGED_API_EXPORTED
-                    else FINALIZE_FLAGGED_API_UNEXPORTED
-            }
-    }
 }
 
 /**
