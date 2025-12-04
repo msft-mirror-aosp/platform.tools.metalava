@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.config
 
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status
 import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 
@@ -31,18 +33,12 @@ data class ApiFlagsConfig(
     fun validate() {}
 }
 
-data class ApiFlagConfig(
-    /** The flag package name. */
-    @field:JacksonXmlProperty(isAttribute = true, localName = "package") val pkg: String,
-
-    /** The flag name, within [pkg]. */
-    @field:JacksonXmlProperty(isAttribute = true) val name: String,
-
+interface ApiFlagActionConfig {
     /**
      * Whether the flag can be mutated during the lifetime of the platform for which the API is
      * being built.
      */
-    @field:JacksonXmlProperty(isAttribute = true) val mutability: Mutability,
+    val mutability: Mutability
 
     /**
      * The status of the flag.
@@ -50,12 +46,8 @@ data class ApiFlagConfig(
      * If the flag is [Mutability.MUTABLE] then this could change over the lifetime of the platform
      * for which the API is being built.
      */
-    @field:JacksonXmlProperty(isAttribute = true) val status: Status,
+    val status: Status
 
-    /** Whether the flag is exported */
-    @field:JacksonXmlProperty(isAttribute = true, localName = "is-exported")
-    val isExported: Boolean,
-) {
     enum class Mutability {
         MUTABLE,
         IMMUTABLE,
@@ -74,3 +66,17 @@ data class ApiFlagConfig(
         @JsonValue fun forJackson() = name.lowercase()
     }
 }
+
+data class ApiFlagConfig(
+    /** The flag package name. */
+    @field:JacksonXmlProperty(isAttribute = true, localName = "package") val pkg: String,
+
+    /** The flag name, within [pkg]. */
+    @field:JacksonXmlProperty(isAttribute = true) val name: String,
+    @field:JacksonXmlProperty(isAttribute = true) override val mutability: Mutability,
+    @field:JacksonXmlProperty(isAttribute = true) override val status: Status,
+
+    /** Whether the flag is exported */
+    @field:JacksonXmlProperty(isAttribute = true, localName = "is-exported")
+    val isExported: Boolean,
+) : ApiFlagActionConfig

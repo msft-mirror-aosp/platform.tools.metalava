@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.DISABLED
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagConfig
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
-import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
