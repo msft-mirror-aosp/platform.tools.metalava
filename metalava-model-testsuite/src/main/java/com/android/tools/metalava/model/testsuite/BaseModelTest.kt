@@ -289,6 +289,7 @@ abstract class BaseModelTest() :
                             ?: DefaultAnnotationManager(
                                 DefaultAnnotationManager.Config(
                                     apiFlags = apiFlags,
+                                    reporter = recordingReporter,
                                 )
                             ),
                     apiFlags = apiFlags,

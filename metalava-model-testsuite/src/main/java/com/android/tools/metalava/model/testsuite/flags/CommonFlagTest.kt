@@ -102,6 +102,13 @@ class CommonFlagTest : BaseModelTest() {
                 fooClass.showability.revertUnstableApi(),
                 message = "class showability revert"
             )
+
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Foo.java:4: error: Cannot revert class test.pkg.Foo (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                """,
+                message = "reporter issues"
+            )
         }
     }
 
