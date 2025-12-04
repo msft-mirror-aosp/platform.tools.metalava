@@ -62,7 +62,7 @@ enum class ApiFlagAction(
 /** The available set of configured [ApiFlag]s. */
 class ApiFlags(flags: List<ApiFlag>) {
     /** Map from qualified flag name to [ApiFlag]. */
-    val byQualifiedName =
+    private val byQualifiedName =
         mutableMapOf<String, ApiFlag>().also { flags.associateByTo(it) { it.qualifiedName } }
 
     /** All the [ApiFlag]s managed by this. */

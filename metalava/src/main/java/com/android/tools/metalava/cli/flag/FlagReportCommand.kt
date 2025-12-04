@@ -73,16 +73,22 @@ class FlagReportCommand :
         // Output the report file.
         val reportFile = flagReportOptions.flagReportFile
         reportFile.printWriter().use { writer ->
-            for ((qualifiedName, apiFlag) in report.flagStatuses) {
-                val exportedStatus = if (apiFlag?.isExported == true) "exported" else "unexported"
-                val status =
-                    when (apiFlag?.action) {
-                        ApiFlagAction.KEEP -> "known,kept,$exportedStatus"
-                        ApiFlagAction.FINALIZE -> "known,finalized,$exportedStatus"
-                        ApiFlagAction.REVERT -> "known,reverted,$exportedStatus"
-                        else -> "unknown,reverted"
+            for (apiFlag in report.referencedFlags) {
+                val qualifiedName = apiFlag.qualifiedName
+                val knownStatus = if (apiFlag.isKnown) "known" else "unknown"
+                val actionLabel =
+                    when (apiFlag.action) {
+                        ApiFlagAction.KEEP -> "kept"
+                        ApiFlagAction.FINALIZE -> "finalized"
+                        ApiFlagAction.REVERT -> "reverted"
                     }
-                writer.println("$qualifiedName,$status")
+                val exportedStatus =
+                    when {
+                        !apiFlag.isKnown -> ""
+                        apiFlag.isExported -> ",exported"
+                        else -> ",unexported"
+                    }
+                writer.println("$qualifiedName,$knownStatus,$actionLabel$exportedStatus")
             }
         }
     }
