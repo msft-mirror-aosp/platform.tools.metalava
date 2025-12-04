@@ -59,11 +59,8 @@ class FlagReportCommand :
                     "Must provide a $ARG_CONFIG_FILE option that specifies a config file containing an `<api-flags/>` entry"
                 )
 
-        // Create flags; do not prune away any flags that have the default behavior of reverting so
-        // that this can differentiate between known flags that revert and unknown flags that will
-        // revert by default.
-        val apiFlags =
-            ApiFlagsCreator.createFromConfig(apiFlagsConfig, pruneDisabledFlags = false)!!
+        // Create flags.
+        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)!!
 
         // Load the Codebase from the signature files.
         val codebaseConfig = Codebase.Config.NOOP

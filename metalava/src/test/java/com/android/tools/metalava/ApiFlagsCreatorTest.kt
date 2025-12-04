@@ -71,7 +71,7 @@ class ApiFlagsCreatorTest {
         val expected =
             mapOf(
                 "test.pkg.flag1" to ApiFlag.getFlag(ApiFlagAction.KEEP),
-                // No test.pkg.flag2 as that is disabled and ApiFlags will default to disabled.
+                "test.pkg.flag2" to ApiFlag.getFlag(ApiFlagAction.REVERT),
                 "test.pkg.flag3" to ApiFlag.getFlag(ApiFlagAction.KEEP),
                 "test.pkg.flag4" to ApiFlag.getFlag(ApiFlagAction.FINALIZE, false),
             )
