@@ -159,7 +159,8 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            docStubs = true
+            docStubs = true,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -191,18 +192,20 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 """,
             stubFiles =
                 arrayOf(
-                    java("""
-                    package test.pkg;
-                    """),
                     java(
                         """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public abstract class Class1 {
-                    public Class1() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public abstract class Class1 {
+                            public Class1() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
                 ),
         )
     }

@@ -22,10 +22,9 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.FixedFieldValue
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
@@ -51,9 +50,8 @@ import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.FieldValue
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -73,10 +71,10 @@ import com.google.turbine.tree.Tree.AnnoExpr
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.tree.Tree.MethDecl
-import com.google.turbine.tree.Tree.TyDecl
 import com.google.turbine.tree.Tree.VarDecl
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Responsible for creating [ClassItem]s from either source or binary [ClassSymbol] and
@@ -144,7 +142,6 @@ internal class TurbineClassBuilder(
 
         // Create class
         val qualifiedName = classSymbol.qualifiedName
-        val documentation = javadoc(decl)
         val modifierItem =
             createModifiers(
                 typeBoundClass.access(),
@@ -177,7 +174,9 @@ internal class TurbineClassBuilder(
                     }
                 // Interfaces and annotations (which are a form of interface) do not.
                 ClassKind.INTERFACE,
-                ClassKind.ANNOTATION_TYPE -> null
+                ClassKind.ANNOTATION_TYPE,
+                // Turbine does not support typealiases (which only exist in kotlin).
+                ClassKind.TYPEALIAS, -> null
             }
 
         // Set interface types
@@ -188,7 +187,7 @@ internal class TurbineClassBuilder(
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
-                documentationFactory = getCommentedDoc(documentation),
+                documentationFactory = itemDocumentationFactoryForDecl(sourceFile, decl),
                 source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -217,7 +216,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
-        val annotations = annotationFactory.createAnnotations(annoInfos)
+        val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
@@ -393,7 +392,6 @@ internal class TurbineClassBuilder(
                     field.annotations(),
                 )
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
-            val fieldValue = createInitialValue(field)
             val type =
                 typeItemFactory.getFieldType(
                     underlyingType = field.type(),
@@ -403,21 +401,32 @@ internal class TurbineClassBuilder(
                     isInitialValueNonNull = {
                         // The initial value is non-null if the value is a literal which is not
                         // null.
-                        fieldValue.initialValue(false) != null
+                        isInitialValueNonNull(field)
                     }
                 )
 
-            val documentation = javadoc(decl)
+            val constantValueProvider =
+                field.value()?.let { const ->
+                    // In Java fields have to be static and final in order for them to have a
+                    // constant value
+                    if (!fieldModifierItem.isStatic() || !fieldModifierItem.isFinal()) {
+                        return@let null
+                    }
+                    val expr = field.decl()?.init()?.getOrNull()
+                    val turbineValue = TurbineValue(const, expr, fieldResolver)
+                    valueFactory.providerFor(type, turbineValue, ValueUseSite.FIELD)
+                }
+
             val fieldItem =
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = fieldModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
                     isEnumConstant = isEnumConstant,
-                    fieldValue = fieldValue,
+                    constantValueProvider = constantValueProvider,
                 )
 
             classItem.addField(fieldItem)
@@ -446,14 +455,11 @@ internal class TurbineClassBuilder(
                     enclosingClassTypeItemFactory,
                     name,
                 )
-            val documentation = javadoc(decl)
             val defaultValueExpr = getAnnotationDefaultExpression(method)
-            val defaultValue =
+            val defaultTurbineValue =
                 method.defaultValue()?.let { defaultConst ->
                     TurbineValue(defaultConst, defaultValueExpr, fieldResolver)
-                        .getSourceForMethodDefault()
                 }
-                    ?: ""
 
             val parameters = method.parameters()
             val fingerprint = MethodFingerprint(name, parameters.size)
@@ -466,11 +472,16 @@ internal class TurbineClassBuilder(
                     isAnnotationElement = isAnnotationElement,
                 )
 
+            val defaultValueProvider =
+                defaultTurbineValue?.let {
+                    valueFactory.providerFor(returnType, it, ValueUseSite.ANNOTATION)
+                }
+
             val methodItem =
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
@@ -484,7 +495,8 @@ internal class TurbineClassBuilder(
                         )
                     },
                     throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
-                    annotationDefault = defaultValue,
+                    defaultValueProvider = defaultValueProvider,
+                    isExtensionMethod = false, // Java does not support extension methods
                 )
 
             // Ignore enum synthetic methods.
@@ -507,38 +519,46 @@ internal class TurbineClassBuilder(
         // implicit parameters are always at the beginning so the offset from the declared parameter
         // in [parameterDecls] to the corresponding parameter in [parameters] is simply the number
         // of the implicit parameters.
-        val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
-        return parameters.mapIndexed { idx, parameter ->
-            val parameterModifierItem =
-                createModifiers(parameter.access(), parameter.annotations()).toImmutable()
-            val type =
-                typeItemFactory.getMethodParameterType(
-                    underlyingParameterType = parameter.type(),
-                    itemAnnotations = parameterModifierItem.annotations(),
-                    fingerprint = fingerprint,
-                    parameterIndex = idx,
-                    isVarArg = parameterModifierItem.isVarArg(),
-                )
-            // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
-            val decl =
-                if (parameterDecls != null && idx >= declaredParameterOffset)
-                    parameterDecls.get(idx - declaredParameterOffset)
-                else null
+        val ignoreSynthetic = containingCallable is ConstructorItem
+        return buildList {
+            var parameterIndex = 0
+            for (parameter in parameters) {
+                if (ignoreSynthetic && parameter.synthetic()) continue
+                val parameterModifierItem =
+                    createModifiers(parameter.access(), parameter.annotations()).toImmutable()
+                val type =
+                    typeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameter.type(),
+                        itemAnnotations = parameterModifierItem.annotations(),
+                        fingerprint = fingerprint,
+                        parameterIndex = parameterIndex,
+                        isVarArg = parameterModifierItem.isVarArg(),
+                    )
+                // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
+                // [parameterDecls] will be null for a binary class. It will be empty for a
+                // record class.
+                val decl =
+                    if (parameterDecls != null && parameterIndex < parameterDecls.size)
+                        parameterDecls.get(parameterIndex)
+                    else null
 
-            val fileLocation =
-                TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
-            val parameterItem =
-                itemFactory.createParameterItem(
-                    fileLocation = fileLocation,
-                    modifiers = parameterModifierItem,
-                    name = parameter.name(),
-                    publicNameProvider = { null },
-                    containingCallable = containingCallable,
-                    parameterIndex = idx,
-                    type = type,
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
-                )
-            parameterItem
+                val fileLocation =
+                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
+                val parameterItem =
+                    itemFactory.createParameterItem(
+                        fileLocation = fileLocation,
+                        modifiers = parameterModifierItem,
+                        name = parameter.name(),
+                        publicName = null,
+                        containingCallable = containingCallable,
+                        parameterIndex = parameterIndex,
+                        type = type,
+                        // Java parameters can't have default values
+                        hasDefaultValue = false,
+                    )
+                add(parameterItem)
+                parameterIndex += 1
+            }
         }
     }
 
@@ -566,12 +586,11 @@ internal class TurbineClassBuilder(
             val isImplicitDefaultConstructor =
                 (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
             val name = classItem.simpleName()
-            val documentation = javadoc(decl)
             val constructorItem =
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = constructorModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -596,21 +615,6 @@ internal class TurbineClassBuilder(
         }
     }
 
-    private fun javadoc(item: TyDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
-    private fun javadoc(item: VarDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
-    private fun javadoc(item: MethDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
     private fun getThrowsList(
         throwsTypes: List<Type>,
         enclosingTypeItemFactory: TurbineTypeItemFactory
@@ -618,21 +622,20 @@ internal class TurbineClassBuilder(
         return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
     }
 
-    private fun getCommentedDoc(doc: String): ItemDocumentationFactory {
-        return buildString {
-                if (doc != "") {
-                    append("/**")
-                    append(doc)
-                    append("*/")
-                }
-            }
-            .toItemDocumentationFactory()
-    }
+    /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
+    private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
+        itemDocumentationFactoryForDecl(classItem.sourceFile() as? TurbineSourceFile, decl)
 
-    private fun createInitialValue(field: FieldInfo): FieldValue {
+    /**
+     * Check to see whether the initial value for [field] is non-null.
+     *
+     * If it is `non-null` then the field itself can be treated as if it is non-null, i.e. as if it
+     * had an `@NonNull` annotation.
+     */
+    private fun isInitialValueNonNull(field: FieldInfo): Boolean {
         val optExpr = field.decl()?.init()
-        val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
-        val constantValue = field.value()?.getValue()
+        val expr = if (optExpr != null && optExpr.isPresent) optExpr.get() else null
+        val constantValue = field.value()?.value
 
         val initialValueWithoutRequiredConstant =
             when {
@@ -653,7 +656,7 @@ internal class TurbineClassBuilder(
                     }
             }
 
-        return FixedFieldValue(constantValue, initialValueWithoutRequiredConstant)
+        return initialValueWithoutRequiredConstant != null
     }
 
     /**
@@ -661,7 +664,7 @@ internal class TurbineClassBuilder(
      * the method does not have a default value, returns null.
      */
     private fun getAnnotationDefaultExpression(method: MethodInfo) =
-        method.decl()?.defaultValue()?.orElse(null)?.let { defaultTree ->
+        method.decl()?.defaultValue()?.getOrNull()?.let { defaultTree ->
 
             // Turbine stores the default value as a Tree not an Expression so that it can use an
             // Anno class (which is not an Expression). It could wrap the Anno in an AnnoExpr but

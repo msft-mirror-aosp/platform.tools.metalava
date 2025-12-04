@@ -17,14 +17,13 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceLanguage
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.uast.UElement
 
 internal interface PsiItem : Item {
-
-    override val codebase: PsiBasedCodebase
+    val psiCodebase: PsiBasedCodebase
 
     /** The source PSI provided by UAST */
     val sourcePsi
@@ -34,9 +33,9 @@ internal interface PsiItem : Item {
     fun psi(): PsiElement
 }
 
-/** Get the [ItemLanguage] for this [PsiElement]. */
-val PsiElement.itemLanguage
-    get() = if (isKotlin()) ItemLanguage.KOTLIN else ItemLanguage.JAVA
+/** Get the [SourceLanguage] for this [PsiElement]. */
+val PsiElement.sourceLanguage
+    get() = if (isKotlin()) SourceLanguage.KOTLIN else SourceLanguage.JAVA
 
 /** Check whether this [PsiElement] is Kotlin or not. */
 fun PsiElement.isKotlin(): Boolean {

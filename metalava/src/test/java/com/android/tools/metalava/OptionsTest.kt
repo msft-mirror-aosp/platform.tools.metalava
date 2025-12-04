@@ -87,6 +87,7 @@ Sub-commands:
   main                                       The default sub-command that is run if no sub-command is specified.
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
                                              source tree.
+  flag-report                                Generates a flag report
   help                                       Provides help for general metalava concepts.
   jar-to-jdiff                               Convert a jar file into a file in the JDiff XML format.
   merge-signatures                           Merge multiple signature files together into a single file.
@@ -112,11 +113,23 @@ Sub-commands:
         assertEquals(
             """
 
-                metalava version: 1.0.0-alpha13
+                metalava version: 1.0.0-alpha14
 
             """
                 .trimIndent(),
             stdout.toString()
+        )
+    }
+
+    @Test
+    fun `Test K1 and K2`() {
+        val args = listOf(ARG_USE_K1_UAST, ARG_USE_K2_UAST)
+
+        val (stdout, stderr) = runTest(args)
+        assertEquals("", stdout.toString())
+        assertEquals(
+            "Aborting: Cannot specify both --Xuse-k1-uast and --Xuse-k2-uast",
+            stderr.toString().trim()
         )
     }
 }

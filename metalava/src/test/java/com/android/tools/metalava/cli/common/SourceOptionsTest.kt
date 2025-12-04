@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
 val SOURCE_OPTIONS_HELP =
     """
 Sources:
@@ -30,6 +33,9 @@ Sources:
                                              stubs; the --stub-packages name is historical.
 
                                              See `metalava help package-filters` for more information.
+  --compiled-sources <path>                  Jar file with the compiled version of --source-files, loaded in addition to
+                                             the source files. Used to include the bytecode version of Kotlin source
+                                             APIs.
     """
         .trimIndent()
 
@@ -39,4 +45,18 @@ class SourceOptionsTest :
     ) {
 
     override fun createOptions() = SourceOptions()
+
+    @Test
+    fun `Test source model provider - psi`() {
+        runTest(ARG_SOURCE_MODEL_PROVIDER, "psi") {
+            assertThat(options.sourceModelProvider.providerName).isEqualTo("psi")
+        }
+    }
+
+    @Test
+    fun `Test source model provider - turbine`() {
+        runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine") {
+            assertThat(options.sourceModelProvider.providerName).isEqualTo("turbine")
+        }
+    }
 }

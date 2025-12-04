@@ -16,29 +16,18 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.model.parser.FileLocationTracker
+import com.android.tools.metalava.model.parser.ParseException
 import com.android.tools.metalava.reporter.FileLocation
 
 @MetalavaApi
 class ApiParseException(
     message: String,
-    private val location: FileLocation? = null,
-    cause: Exception? = null,
-) : Exception(message, cause) {
+    location: FileLocation? = null,
+) : ParseException(message, location) {
 
     internal constructor(
         message: String,
         fileLocationTracker: FileLocationTracker,
-        cause: Exception? = null,
-    ) : this(message, fileLocationTracker.fileLocation(), cause = cause)
-
-    override val message: String
-        get() {
-            return buildString {
-                location?.appendTo(this)
-                if (isNotEmpty()) {
-                    append(": ")
-                }
-                append(super.message)
-            }
-        }
+    ) : this(message, fileLocationTracker.fileLocation())
 }

@@ -59,8 +59,6 @@ Options:
                                              annotation which is itself annotated with the given meta-annotation.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
-  --migrate-nullness <api file>              Compare nullness information with the previous stable API and mark newly
-                                             annotated APIs as under migration.
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
 
@@ -147,16 +145,16 @@ API sources:
                                              Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>
                                              Sets the source level for Kotlin source files; default is ${DEFAULT_KOTLIN_LANGUAGE_LEVEL}.
+--Xuse-k1-uast
+                                             Specifies that the K1 compiler should be used (K1 is the default).
+--Xuse-k2-uast
+                                             Specifies that the K2 compiler should be used (K1 is the default).
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
                                              Use the given API level
 --jdk-home <dir>
                                              If set, add the Java APIs from the given JDK to the classpath
---subtract-api <api file>
-                                             Subtracts the API in the given signature or jar file from the current API
-                                             being emitted via --api, --stubs, --doc-stubs, etc. Note that the
-                                             subtraction only applies to classes; it does not subtract members.
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
@@ -172,28 +170,12 @@ Extracting Signature Files:
 
 
 Generating Stubs:
---doc-stubs <dir>
-                                             Generate documentation stub source files for the API. Documentation stub
-                                             files are similar to regular stub files, but there are some differences.
-                                             For example, in the stub files, we'll use special annotations like
-                                             @RecentlyNonNull instead of @NonNull to indicate that an element is
-                                             recently marked as non null, whereas in the documentation stubs we'll just
-                                             list this as @NonNull. Another difference is that @doconly elements are
-                                             included in documentation stubs, but not regular stubs, etc.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
 --exclude-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
---enhance-documentation
-                                             Enhance documentation in various ways, for example auto-generating
-                                             documentation based on source annotations present in the code. This is
-                                             implied by --doc-stubs.
---exclude-documentation-from-stubs
-                                             Exclude element documentation (javadoc and kdoc) from the generated stubs.
-                                             (Copyright notices are not affected by this, they are always included.
-                                             Documentation stubs (--doc-stubs) are not affected.)
 
 
 Extracting Annotations:
@@ -204,12 +186,6 @@ Extracting Annotations:
                                              If true, include source-retention annotations in the stub files. Does not
                                              apply to signature files. Source retention annotations are extracted into
                                              the external annotations files instead.
-
-
-Injecting API Levels:
---apply-api-levels <api-versions.xml>
-                                             Reads an XML file containing API level descriptions and merges the
-                                             information into the documentation
 
 
 Environment Variables:
@@ -251,15 +227,18 @@ $EXPECTED_HELP
     @Test
     fun `Test for @file`() {
         val dir = temporaryFolder.newFolder()
-        val files = (1..4).map { TestFiles.source("File$it.java", "File$it").createFile(dir) }
+        val files =
+            (1..4).map {
+                TestFiles.source("File$it.java", "public class File$it {}").createFile(dir)
+            }
         val fileList =
             TestFiles.source(
                 "files.lst",
                 """
-            ${files[0]}
-            ${files[1]} ${files[2]}
-            ${files[3]}
-        """
+                    ${files[0]}
+                    ${files[1]} ${files[2]}
+                    ${files[3]}
+                """
                     .trimIndent()
             )
 

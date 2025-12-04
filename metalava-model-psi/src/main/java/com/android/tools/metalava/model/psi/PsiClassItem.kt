@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -33,12 +34,10 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiCompiledFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UFile
-import org.jetbrains.uast.getParentOfType
 
 internal class PsiClassItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     val psiClass: PsiClass,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -52,9 +51,10 @@ internal constructor(
     interfaceTypes: List<ClassTypeItem>
 ) :
     DefaultClassItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiClass),
-        itemLanguage = psiClass.itemLanguage,
+        sourceLanguage = psiClass.sourceLanguage,
+        targetLanguages = TargetLanguageSet.ALL,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -67,6 +67,8 @@ internal constructor(
         origin = origin,
         superClassType = superClassType,
         interfaceTypes = interfaceTypes,
+        isFileFacade = isFileFacade(psiClass),
+        optionalAliasedType = null,
     ),
     ClassItem,
     PsiItem {
@@ -77,7 +79,7 @@ internal constructor(
         internal set
 
     override fun createClassTypeItemForThis() =
-        codebase.globalTypeItemFactory.getClassTypeForClass(this)
+        psiCodebase.globalTypeItemFactory.getClassTypeForClass(this)
 
     override fun sourceFile(): SourceFile? {
         if (isNestedClass()) {
@@ -90,24 +92,24 @@ internal constructor(
             return null
         }
 
-        val uFile =
-            if (psiClass is UClass) {
-                psiClass.getParentOfType(UFile::class.java)
-            } else {
-                null
-            }
-
-        return PsiSourceFile(codebase, containingFile, uFile)
+        return psiCodebase.sourceFileCache.psiSourceFile(containingFile)
     }
 
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
-        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass, visibility)
+        return PsiConstructorItem.createDefaultConstructor(psiCodebase, this, psiClass, visibility)
     }
 
-    override fun isFileFacade(): Boolean {
-        return psiClass.isKotlin() &&
-            psiClass is UClass &&
-            psiClass.javaPsi is KtLightClassForFacade
+    override fun isMultiFileClass(): Boolean {
+        return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false
+    }
+
+    companion object {
+        /** Whether the [psiClass] is a file-facade class. See [ClassItem.isFileFacade]. */
+        fun isFileFacade(psiClass: PsiClass): Boolean {
+            return psiClass.isKotlin() &&
+                psiClass is UClass &&
+                psiClass.javaPsi is KtLightClassForFacade
+        }
     }
 }

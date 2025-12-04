@@ -102,11 +102,12 @@ class CommonTypeAliasTest : BaseModelTest() {
                     createCommonModuleDescription(arrayOf(commonSource)),
                 ),
         ) {
-            val commonMethod = codebase.assertClass("test.pkg.FooKt").assertMethod("common", "")
+            val commonMethod =
+                codebase.assertClass("test.pkg.FooKt").assertMethod("common", emptyList())
             assertion(commonMethod.returnType())
 
             val androidMethod =
-                codebase.assertClass("test.pkg.Foo_androidKt").assertMethod("android", "")
+                codebase.assertClass("test.pkg.Foo_androidKt").assertMethod("android", emptyList())
             assertion(androidMethod.returnType())
         }
     }
@@ -121,7 +122,7 @@ class CommonTypeAliasTest : BaseModelTest() {
     private fun getClassOrWildcardExtendsBound(typeItem: TypeItem): TypeItem {
         return typeItem as? ClassTypeItem
             ?: (typeItem as? WildcardTypeItem)?.extendsBound
-                ?: error("expected class type or wildcard type with extends bound, was $typeItem")
+            ?: error("expected class type or wildcard type with extends bound, was $typeItem")
     }
 
     @Test

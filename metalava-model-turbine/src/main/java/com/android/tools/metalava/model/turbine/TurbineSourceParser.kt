@@ -16,23 +16,18 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
+import com.google.turbine.diag.TurbineError
 import java.io.File
 
 internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
-    private val allowReadingComments: Boolean
 ) : SourceParser {
-
-    override fun getClassResolver(classPath: List<File>): ClassResolver {
-        TODO("implement it")
-    }
-
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */
@@ -41,8 +36,16 @@ internal class TurbineSourceParser(
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
-        projectDescription: File?
-    ): Codebase {
+        projectDescription: File?,
+        compiledSourceJar: File?,
+    ): Codebase? {
+        if (projectDescription != null) {
+            error("Turbine model does not support --project")
+        }
+        if (compiledSourceJar != null) {
+            error("Turbine model does not support --compiled-jar")
+        }
+
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
         val assembler =
@@ -59,11 +62,15 @@ internal class TurbineSourceParser(
                     )
                 },
                 classpath = classPath,
-                allowReadingComments = allowReadingComments,
             )
 
-        // Initialize the codebase.
-        assembler.initialize(sourceSet, apiPackages)
+        try {
+            // Initialize the codebase.
+            assembler.initialize(sourceSet, apiPackages)
+        } catch (_: TurbineError) {
+            // Processing was aborted so the `codebase` is not valid so return `null`.
+            return null
+        }
 
         // Return the newly created and initialized codebase.
         return assembler.codebase
@@ -71,5 +78,9 @@ internal class TurbineSourceParser(
 
     override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
         TODO("b/299044569 handle this")
+    }
+
+    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+        error("Turbine model does not support multiplatform codebase creation")
     }
 }

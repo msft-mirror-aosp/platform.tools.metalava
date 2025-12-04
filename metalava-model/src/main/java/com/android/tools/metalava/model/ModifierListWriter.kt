@@ -26,32 +26,40 @@ private constructor(
      * [AnnotationTarget.DOC_STUBS_FILE].
      */
     private val target: AnnotationTarget,
-    private val runtimeAnnotationsOnly: Boolean = false,
-    private val skipNullnessAnnotations: Boolean = false,
+    private val annotationFormatter: AnnotationFormatter,
+    private val runtimeAnnotationsOnly: Boolean,
+    private val skipNullnessAnnotations: Boolean,
 ) {
     companion object {
         fun forSignature(
             writer: Writer,
             skipNullnessAnnotations: Boolean,
-        ) =
-            ModifierListWriter(
+        ): ModifierListWriter {
+            val target = AnnotationTarget.SIGNATURE_FILE
+            return ModifierListWriter(
                 writer = writer,
-                target = AnnotationTarget.SIGNATURE_FILE,
+                target = target,
+                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
+                runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = skipNullnessAnnotations,
             )
+        }
 
         fun forStubs(
             writer: Writer,
-            docStubs: Boolean,
+            isDocStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
-        ) =
-            ModifierListWriter(
+        ): ModifierListWriter {
+            val target =
+                if (isDocStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
+            return ModifierListWriter(
                 writer = writer,
-                target =
-                    if (docStubs) AnnotationTarget.DOC_STUBS_FILE
-                    else AnnotationTarget.SDK_STUBS_FILE,
+                target = target,
+                annotationFormatter = AnnotationFormatter.stubFormatter(target),
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
+                skipNullnessAnnotations = false,
             )
+        }
 
         /**
          * Checks whether the `abstract` modifier should be ignored on the method item when
@@ -90,8 +98,12 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item, normalizeFinal: Boolean = false) {
-        writeAnnotations(item)
+    fun write(
+        item: Item,
+        normalizeFinal: Boolean = false,
+        skipRequiresPermission: Boolean = false
+    ) {
+        writeAnnotations(item, skipRequiresPermission)
         writeKeywords(item, normalizeFinal = normalizeFinal)
     }
 
@@ -164,6 +176,12 @@ private constructor(
 
         if (list.isSealed()) {
             writer.write("sealed ")
+
+            if (list.isExhaustive()) {
+                writer.write("exhaustive ")
+            } else {
+                writer.write("nonexhaustive ")
+            }
         }
 
         if (list.isSuspend()) {
@@ -207,7 +225,7 @@ private constructor(
         }
     }
 
-    private fun writeAnnotations(item: Item) {
+    private fun writeAnnotations(item: Item, skipRequiresPermission: Boolean) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =
@@ -222,8 +240,16 @@ private constructor(
 
         val list = item.modifiers
         var annotations = list.annotations()
+        // b/442395516 RequiresPermission is not loaded consistently across codebases hence will be
+        // excluded for now
+        if (skipRequiresPermission) {
+            annotations =
+                annotations.filter { annotation ->
+                    !annotation.qualifiedName.contains("RequiresPermission")
+                }
+        }
 
-        // Do not write deprecate or suppress compatibility annotations on a package.
+        // Do not write deprecate annotations on a package.
         if (item !is PackageItem) {
             val writeDeprecated =
                 when {
@@ -236,11 +262,11 @@ private constructor(
                 writer.write("@Deprecated")
                 writer.write(if (separateLines) "\n" else " ")
             }
+        }
 
-            if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
-                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
-                writer.write(if (separateLines) "\n" else " ")
-            }
+        if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
+            writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
+            writer.write(if (separateLines) "\n" else " ")
         }
 
         // Remove @SuppressCompatibility if it exists (it will for text codebases) because it was
@@ -297,7 +323,7 @@ private constructor(
                     }
                 }
 
-                val source = printAnnotation.toSource(target, showDefaultAttrs = false)
+                val source = annotationFormatter.formatAnnotation(printAnnotation, item)
 
                 if (omitCommonPackages) {
                     writer.write(AnnotationItem.shortenAnnotation(source))
@@ -375,5 +401,5 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it doesn't
  * need to maintain compatibility.
  */
-internal val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
     AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)

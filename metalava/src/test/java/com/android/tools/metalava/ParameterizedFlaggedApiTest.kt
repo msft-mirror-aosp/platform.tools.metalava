@@ -151,6 +151,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                             ApiFlagConfig(
                                 pkg = "test.pkg.flags",
                                 name = "foo_bar",
+                                isExported = true,
                                 mutability = IMMUTABLE,
                                 status = ENABLED,
                             ),
@@ -285,8 +286,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     arrayOf(
                         ARG_GENERATE_API_LEVELS,
                         apiVersionsXmlFile.path,
-                        ARG_FIRST_VERSION,
-                        "30",
+                        ARG_API_VERSION_RANGE,
+                        "30:33",
                         ARG_CURRENT_VERSION,
                         "32",
                         ARG_CURRENT_CODENAME,
@@ -472,7 +473,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                         public Foo() { throw new RuntimeException("Stub!"); }
                                         @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                         public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
-                                        /** @hide */
+                                        /** */
                                         @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                         public void flaggedSystemApi() { throw new RuntimeException("Stub!"); }
                                         }
@@ -853,19 +854,13 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 java(
                                     """
                                     package test.pkg;
-                                    /**
-                                     * @hide
-                                     */
+                                    /** */
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                     public final class Foo {
-                                    /**
-                                     * @hide
-                                     */
+                                    /** */
                                     public Foo() { throw new RuntimeException("Stub!"); }
-                                    /**
-                                     * @hide
-                                     */
+                                    /** */
                                     public void method() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
@@ -909,7 +904,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
-                    public final int field = 2; // 0x2
+                    public final int field;
+                    { field = 0; }
                     }
                 """
                 ),
@@ -990,7 +986,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
-                                    field public final int field = 2; // 0x2
+                                    field public final int field;
                                   }
                                 }
                             """,
@@ -1096,13 +1092,14 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
-                    public final int field = 2; // 0x2
+                    public final int field;
+                    { field = 0; }
                     }
                 """
                 ),
@@ -1112,7 +1109,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class Foo {
                     Foo() { throw new RuntimeException("Stub!"); }
@@ -1187,7 +1184,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
-                                    field public final int field = 2; // 0x2
+                                    field public final int field;
                                   }
                                 }
                             """,
@@ -1264,7 +1261,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public interface Foo {
-                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1; // 0x1
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1;
                         }
                     """
                 ),
@@ -1463,8 +1460,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Foo" since="33">
+                                <api version="3" min="10000">
+                                  <class name="test/pkg/Foo" since="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
@@ -1494,8 +1491,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Foo" since="33">
+                                <api version="3" min="10000">
+                                  <class name="test/pkg/Foo" since="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
@@ -1603,23 +1600,14 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                         package test.pkg;
-                        /**
-                         * A Bar class.
-                         *
-                         */
+                        /** A Bar class. */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class Bar {
-                        /**
-                         * A Bar constructor.
-                         */
+                        /** A Bar constructor. */
                         public Bar() { throw new RuntimeException("Stub!"); }
-                        /**
-                         * A method.
-                         */
+                        /** A method. */
                         public void method() { throw new RuntimeException("Stub!"); }
-                        /**
-                         * A field.
-                         */
+                        /** A field. */
                         public static int field;
                         }
                     """
@@ -1631,6 +1619,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         public class Foo {
                         Foo() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        /** */
                         public static int field;
                         }
                     """
@@ -1698,8 +1687,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     }
                 """
             ),
+            @Suppress("DeprecatedIsStillUsed")
             java(
-                @Suppress("DeprecatedIsStillUsed")
                 """
                     package test.pkg;
 
@@ -1768,20 +1757,20 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Bar" since="33" deprecated="33">
+                                <api version="3" min="10000">
+                                  <class name="test/pkg/Bar" since="10000" deprecated="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                  <class name="test/pkg/Baz" since="10000" deprecated="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Foo" since="33">
+                                  <class name="test/pkg/Foo" since="10000">
                                     <method name="method(Ljava/lang/String;)V"/>
-                                    <field name="field" deprecated="33"/>
+                                    <field name="field" deprecated="10000"/>
                                   </class>
                                 </api>
                             """,
@@ -1813,18 +1802,18 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Bar" since="33">
+                                <api version="3" min="10000">
+                                  <class name="test/pkg/Bar" since="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                  <class name="test/pkg/Baz" since="10000" deprecated="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Foo" since="33">
+                                  <class name="test/pkg/Foo" since="10000">
                                     <method name="method(Ljava/lang/String;)V"/>
                                     <field name="field"/>
                                   </class>

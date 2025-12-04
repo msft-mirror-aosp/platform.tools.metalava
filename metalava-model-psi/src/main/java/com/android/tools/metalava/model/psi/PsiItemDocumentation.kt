@@ -16,14 +16,15 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AbstractItemDocumentation
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.source.AbstractItemDocumentation
+import com.android.tools.metalava.model.source.toItemDocumentationFactory
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
+import com.intellij.psi.JavaDocTokenType
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiComment
@@ -32,6 +33,7 @@ import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiMember
+import com.intellij.psi.PsiPackageStatement
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiWhiteSpace
@@ -43,96 +45,106 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.javadoc.PsiDocToken
 import com.intellij.psi.javadoc.PsiInlineDocTag
-import org.jetbrains.kotlin.kdoc.psi.api.KDoc
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.uast.UElement
-import org.jetbrains.uast.sourcePsiElement
 
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
-    private val item: PsiItem,
+    item: SelectableItem,
+    private val codebase: PsiBasedCodebase,
     private val psi: PsiElement,
-    private val extraDocs: String?,
-) : AbstractItemDocumentation() {
+) : AbstractItemDocumentation(item) {
 
-    /** Lazily initialized backing property for [text]. */
-    private lateinit var _text: String
-
-    override var text: String
-        get() = if (::_text.isInitialized) _text else initializeText()
-        set(value) {
-            _text = value
-        }
-
-    /** Lazy initializer for [_text]. */
-    private fun initializeText(): String {
-        _text = javadoc(psi).let { if (extraDocs != null) it + "\n$extraDocs" else it }
-        return _text
+    override fun initializeTextBackingField() {
+        initializeFromPsiElement(psi)
     }
 
-    override fun duplicate(item: Item) =
-        if (item is PsiItem) PsiItemDocumentation(item, psi, extraDocs)
-        else text.toItemDocumentationFactory()(item)
+    private var psiComment: PsiComment? = null
 
-    override fun snapshot(item: Item) = this
-
-    override fun findTagDocumentation(tag: String, value: String?): String? {
-        if (psi is PsiCompiledElement) {
-            return null
-        }
-        if (text.isBlank()) {
-            return null
+    override val fileLocation: FileLocation
+        get() {
+            // Make sure that the psiComment is initialized by making sure that the text backing
+            // field has been initialized as they are initialized together in
+            // [initializeTextBackingField].
+            ensureTextBackingFieldHasBeenInitialized()
+            return PsiFileLocation.fromPsiElement(psiComment)
         }
 
-        // We can't just use element.docComment here because we may have modified the comment and
-        // then the comment snapshot in PSI isn't up-to-date with our latest changes
-        val docComment = item.codebase.psiAssembler.getComment(text)
-        val tagComment =
-            if (value == null) {
-                docComment.findTagByName(tag)
-            } else {
-                docComment.findTagsByName(tag).firstOrNull { it.valueElement?.text == value }
+    /**
+     * Lazy initializer for [_text] and [psiComment].
+     *
+     * Updates the [_text] field with the text of the document comment associated with [element] and
+     * [psiComment] with the [PsiComment] for the document comment.
+     */
+    private fun initializeFromPsiElement(element: PsiElement) {
+        when (element) {
+            is PsiCompiledElement -> {
+                // Drop through.
             }
-
-        if (tagComment == null) {
-            return null
-        }
-
-        val text = tagComment.text
-        // Trim trailing next line (javadoc *)
-        var index = text.length - 1
-        while (index > 0) {
-            val c = text[index]
-            if (!(c == '*' || c.isWhitespace())) {
-                break
+            is KtDeclaration -> {
+                element.docComment?.let { comment ->
+                    _text = comment.text
+                    psiComment = comment
+                    return
+                }
             }
-            index--
+            is UElement -> {
+                val comments = element.comments
+                if (comments.isNotEmpty()) {
+                    for (comment in comments) {
+                        val text = comment.text
+                        if (text.startsWith("/**")) {
+                            psiComment = comment.sourcePsi
+                            _text = text
+                            return
+                        }
+                    }
+                }
+            }
+            is PsiDocCommentOwner -> {
+                val docComment = element.docComment
+                if (docComment != null) {
+                    val text = docComment.text
+                    // Make sure that the text is a doc comment, i.e. starts with /**.
+                    if (text.startsWith("/**")) {
+                        _text = text
+                        psiComment = docComment
+                        return
+                    }
+                }
+            }
+            is PsiPackageStatement -> {
+                val docComment =
+                    PsiTreeUtil.getPrevSiblingOfType(element, PsiDocComment::class.java)
+                if (docComment != null) {
+                    val text = docComment.text
+                    // Make sure that the text is a doc comment, i.e. starts with /**.
+                    if (text.startsWith("/**")) {
+                        _text = text
+                        psiComment = docComment
+                        return
+                    }
+                }
+            }
         }
-        index++
-        return if (index < text.length) {
-            text.substring(0, index)
-        } else {
-            text
-        }
+
+        _text = ""
+        psiComment = null
     }
 
-    override fun mergeDocumentation(comment: String, tagSection: String?) {
-        text = mergeDocumentation(text, psi, comment, tagSection, append = true)
-    }
+    override fun duplicate(item: SelectableItem) =
+        if (item is PsiItem) PsiItemDocumentation(item, codebase, psi)
+        else text.toItemDocumentationFactory().create(item)!!
 
-    override fun findMainDocumentation(): String {
-        if (text == "") return text
-        val comment = item.codebase.psiAssembler.getComment(text)
-        val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
-        return comment.text.substring(0, end)
-    }
+    override fun snapshot(item: SelectableItem) = this
 
     override fun fullyQualifiedDocumentation(documentation: String): String {
         if (documentation.isBlank() || !containsLinkTags(documentation)) {
             return documentation
         }
 
-        val assembler = item.codebase.psiAssembler
+        val assembler = codebase.psiAssembler
         val comment = assembler.getComment(documentation, psi)
         return buildString(documentation.length) { expand(comment, this) }
     }
@@ -172,7 +184,7 @@ internal class PsiItemDocumentation(
                 val resolved = element.reference?.resolve()
                 if (resolved is PsiMember) {
                     val containingClass = resolved.containingClass
-                    if (containingClass != null && !samePackage(containingClass)) {
+                    if (containingClass != null) {
                         val referenceText = element.reference?.element?.text ?: text
                         if (referenceText.startsWith("#")) {
                             sb.append(text)
@@ -224,7 +236,7 @@ internal class PsiItemDocumentation(
             element is PsiJavaCodeReferenceElement -> {
                 val resolved = element.resolve()
                 if (resolved is PsiClass) {
-                    if (samePackage(resolved) || resolved is PsiTypeParameter) {
+                    if (resolved is PsiTypeParameter) {
                         sb.append(element.text)
                     } else {
                         sb.append(resolved.classQualifiedName)
@@ -268,16 +280,15 @@ internal class PsiItemDocumentation(
 
     private fun handleTag(element: PsiInlineDocTag, sb: StringBuilder): Boolean {
         val name = element.name
-        if (name == "code" || name == "literal") {
-            // @code: don't attempt to rewrite this
-            sb.append(element.text)
-            return true
+        if (name == "code" || name == "literal" || name == "throws") {
+            // Don't attempt to rewrite this
+            return false
         }
 
         val reference = extractReference(element)
         val referenceText = reference?.element?.text ?: element.text
         val customLinkText = extractCustomLinkText(element)
-        val displayText = customLinkText?.text ?: referenceText.replaceFirst('#', '.')
+        val displayText = customLinkText ?: referenceText.replaceFirst('#', '.')
         if (referenceText.startsWith("#")) {
             val suffix = element.text
             if (suffix.contains("(") && suffix.contains(")")) {
@@ -335,11 +346,13 @@ internal class PsiItemDocumentation(
         if (resolved != null) {
             when (resolved) {
                 is PsiClass -> {
-                    val text = element.text
-                    if (samePackage(resolved)) {
-                        sb.append(text)
-                        return true
+                    // No need to handle class references in {@link} and {@linkplain} tags as they
+                    // have been resolved in LinkTagType.
+                    if (element.name == "link" || element.name == "linkplain") {
+                        return false
                     }
+
+                    val text = element.text
                     val qualifiedName =
                         resolved.qualifiedName
                             ?: run {
@@ -379,10 +392,6 @@ internal class PsiItemDocumentation(
                                 sb.append(text)
                                 return true
                             }
-                    if (samePackage(containing)) {
-                        sb.append(text)
-                        return true
-                    }
                     val qualifiedName =
                         containing.qualifiedName
                             ?: run {
@@ -526,27 +535,6 @@ internal class PsiItemDocumentation(
         }
     }
 
-    private fun samePackage(cls: PsiClass): Boolean {
-        if (INCLUDE_SAME_PACKAGE) {
-            // doclava seems to have REAL problems with this
-            return false
-        }
-        val pkg = packageName() ?: return false
-        return cls.qualifiedName == "$pkg.${cls.name}"
-    }
-
-    private fun packageName(): String? {
-        var curr: Item? = item
-        while (curr != null) {
-            if (curr is PackageItem) {
-                return curr.qualifiedName()
-            }
-            curr = curr.parent()
-        }
-
-        return null
-    }
-
     // Copied from UnnecessaryJavaDocLinkInspection and tweaked a bit
     private fun extractReference(tag: PsiDocTag): PsiReference? {
         val valueElement = tag.valueElement
@@ -559,21 +547,74 @@ internal class PsiItemDocumentation(
         if (dataElements.isEmpty()) {
             return null
         }
-        val salientElement: PsiElement =
-            dataElements.firstOrNull { it !is PsiWhiteSpace && it !is PsiDocToken } ?: return null
-        val child = salientElement.firstChild
-        return if (child !is PsiReference) null else child
+        val salientElement = dataElements.firstOrNull { it !is PsiWhiteSpace && it !is PsiDocToken }
+        return salientElement?.firstChild as? PsiReference
     }
 
-    private fun extractCustomLinkText(tag: PsiDocTag): PsiDocToken? {
-        val dataElements = tag.dataElements
-        if (dataElements.isEmpty()) {
-            return null
+    private fun extractCustomLinkText(tag: PsiDocTag): String? {
+        val children = tag.children
+        // The child elements should have the following structure
+        // 1. Inline tag start.
+        // 2. Tag name.
+        // 3. Some white space.
+        // 4. Some non-white space which is the reference.
+        // 5. Some more white space.
+        // 6. The rest of the label.
+        // 7. Inline tag end.
+
+        // 7. Skip inline tag end.
+        val end = children.size - 1
+
+        // 1-3. Find the reference, start from after the tag name.
+        var start = 2
+        while (start < end) {
+            val child = children[start]
+            if (child is PsiDocMethodOrFieldRef || child.firstChild is PsiReference) break
+            start += 1
         }
-        val salientElement: PsiElement =
-            dataElements.lastOrNull { it !is PsiWhiteSpace && it !is PsiDocMethodOrFieldRef }
-                ?: return null
-        return if (salientElement !is PsiDocToken) null else salientElement
+
+        // 4. Skip past the reference.
+        start += 1
+
+        // 5. Skip white space and leading asterisks.
+        while (start < end) {
+            val child = children[start]
+            // Stop at the first non-whitespace, non-leading asterisk element.
+            if (
+                child !is PsiWhiteSpace &&
+                    !(child is PsiDocToken &&
+                        child.tokenType == JavaDocTokenType.DOC_COMMENT_LEADING_ASTERISKS)
+            ) {
+                break
+            }
+            start += 1
+        }
+
+        // Check to see if there is any label.
+        if (start >= end) return null
+
+        // 6. Collect label.
+        return buildString {
+                for (i in start until end) {
+                    val child = children[i]
+
+                    // If the child is a leading asterisk then it must not be added and also any
+                    // leading spaces that have already been appended to this StringBuilder need to
+                    // be removed as per the Javadoc specification on handling leading asterisks.
+                    if (
+                        child is PsiDocToken &&
+                            child.tokenType == JavaDocTokenType.DOC_COMMENT_LEADING_ASTERISKS
+                    ) {
+                        var trimmedIndex = length
+                        while (trimmedIndex > 0 && this[trimmedIndex - 1] != '\n') trimmedIndex -= 1
+                        setLength(trimmedIndex)
+                        continue
+                    }
+
+                    append(child.text)
+                }
+            }
+            .trimStart()
     }
 
     companion object {
@@ -581,9 +622,8 @@ internal class PsiItemDocumentation(
          * Get an [ItemDocumentationFactory] for the [psi].
          *
          * If [PsiBasedCodebase.allowReadingComments] is `true` then this will return a factory that
-         * creates a [PsiItemDocumentation] instance. If [extraDocs] is not-null then this will
-         * return a factory that will create an [ItemDocumentation] wrapper around [extraDocs],
-         * otherwise it will return [ItemDocumentation.NONE_FACTORY].
+         * creates a [PsiItemDocumentation] instance, otherwise it will return
+         * [ItemDocumentation.NONE_FACTORY].
          *
          * @param psi the underlying element from which the documentation will be retrieved.
          *   Although this is usually accessible through the [PsiItem.psi] property, that is not
@@ -593,95 +633,14 @@ internal class PsiItemDocumentation(
         internal fun factory(
             psi: PsiElement,
             codebase: PsiBasedCodebase,
-            extraDocs: String? = null,
         ) =
-            if (codebase.allowReadingComments) {
+            if (codebase.config.allowReadingComments) {
                 // When reading comments provide full access to them.
-                { item ->
-                    val psiItem = item as PsiItem
-                    PsiItemDocumentation(psiItem, psi, extraDocs)
-                }
+                ItemDocumentationFactory { item -> PsiItemDocumentation(item, codebase, psi) }
             } else {
-                // If extraDocs are provided then they most likely contain documentation for the
-                // package from a `package-info.java` or `package.html` file. Make sure that they
-                // are included in the `ItemDocumentation`, otherwise package hiding will not work.
-                extraDocs?.toItemDocumentationFactory()
                 // Otherwise, there is no documentation to use.
-                ?: ItemDocumentation.NONE_FACTORY
+                ItemDocumentation.NONE_FACTORY
             }
-
-        // Gets the javadoc of the current element
-        private fun javadoc(element: PsiElement): String {
-            if (element is PsiCompiledElement) {
-                return ""
-            }
-
-            if (element is KtDeclaration) {
-                return element.docComment?.text.orEmpty()
-            }
-
-            if (element is UElement) {
-                val comments = element.comments
-                if (comments.isNotEmpty()) {
-                    return comments.firstNotNullOfOrNull {
-                        val text = it.text
-                        if (text.startsWith("/**")) text else null
-                    }
-                        ?: ""
-                } else {
-                    // Temporary workaround: UAST seems to not return document nodes
-                    // https://youtrack.jetbrains.com/issue/KT-22135
-                    val first = element.sourcePsiElement?.firstChild
-                    if (first is KDoc) {
-                        return first.text
-                    }
-                }
-            }
-
-            if (element is PsiDocCommentOwner) {
-                val docComment = element.docComment
-                if (docComment != null && docComment !is PsiCompiledElement) {
-                    val text = docComment.text
-                    // Make sure that the text is a doc comment, i.e. starts with /**.
-                    if (text != null) {
-                        if (text.startsWith("/**")) {
-                            return text
-                        } else {
-                            // Workaround for b/391104222.
-                            //
-                            // Scan through the previous nodes for the first real doc comment up to
-                            // the first non-white space node. The latter ensures it does not find a
-                            // doc comment that belongs to another item.
-                            var node = element.node
-                            while (true) {
-                                node = node.treePrev ?: break
-
-                                // Ignore white space or empty marker nodes, e.g. ImportListElement,
-                                // that are inserted to mark semantically significant locations but
-                                // do not actually have any content. They may be added between an
-                                // item like a class and its corresponding doc comment.
-                                if (node is PsiWhiteSpace || node.textLength == 0) continue
-
-                                // Stop searching as soon as the first non PsiComment is found.
-                                val psiComment = node as? PsiComment ?: break
-
-                                // If the comment is not a doc comment (with the correct type AND
-                                // content) then ignore it.
-                                if (
-                                    psiComment !is PsiDocComment ||
-                                        !psiComment.text.startsWith("/**")
-                                )
-                                    continue
-
-                                return psiComment.text
-                            }
-                        }
-                    }
-                }
-            }
-
-            return ""
-        }
     }
 }
 
