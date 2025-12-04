@@ -75,7 +75,7 @@ class ApiFlagsCreatorTest {
                 ApiFlag("test.pkg.flag3", ApiFlagAction.KEEP),
                 ApiFlag("test.pkg.flag4", ApiFlagAction.FINALIZE, false),
             )
-        assertEquals(expected, apiFlags.byQualifiedName.values.toList())
+        assertEquals(expected, apiFlags.allFlags.toList())
     }
 
     @Test

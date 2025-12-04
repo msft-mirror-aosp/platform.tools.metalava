@@ -40,9 +40,13 @@ class ApiFlagsTest {
         assertSame(apiFlag2, apiFlags["test.pkg.flag2"])
         assertSame(apiFlag3, apiFlags["test.pkg.flag3"])
         // Unknown flags default to reverting.
+        val unknownFlag = apiFlags["test.pkg.flag4"]
         assertEquals(
             ApiFlag("test.pkg.flag4", REVERT, isExported = true, isKnown = false),
-            apiFlags["test.pkg.flag4"]
+            unknownFlag
         )
+
+        // Make sure that getting the unknown flag again returns the same instance.
+        assertSame(unknownFlag, apiFlags["test.pkg.flag4"])
     }
 }
