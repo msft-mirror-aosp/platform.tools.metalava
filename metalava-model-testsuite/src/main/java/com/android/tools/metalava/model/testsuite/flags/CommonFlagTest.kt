@@ -95,7 +95,8 @@ class CommonFlagTest : BaseModelTest() {
             val annotation = fooClass.assertAnnotation(ANDROID_FLAGGED_API)
 
             val apiFlag = annotation.apiFlag
-            assertEquals(ApiFlag("test.pkg.flags.flag_name", REVERT), apiFlag, "apiFlag")
+            val expectedApiFlag = ApiFlag("test.pkg.flags.flag_name", REVERT, isKnown = false)
+            assertEquals(expectedApiFlag, apiFlag, "apiFlag")
             assertEquals(Showability.REVERT_UNSTABLE_API, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
         }

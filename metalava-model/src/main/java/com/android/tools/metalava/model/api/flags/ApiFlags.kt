@@ -70,7 +70,8 @@ class ApiFlags(flags: List<ApiFlag>) {
      * If no such [ApiFlag] exists then return [ApiFlag] with [ApiFlagAction.REVERT].
      */
     operator fun get(qualifiedName: String) =
-        byQualifiedName[qualifiedName] ?: ApiFlag(qualifiedName, ApiFlagAction.REVERT, true)
+        byQualifiedName[qualifiedName]
+            ?: ApiFlag(qualifiedName, ApiFlagAction.REVERT, isExported = true, isKnown = false)
 
     override fun toString(): String {
         return "ApiFlags(byQualifiedName=$byQualifiedName)"
@@ -87,6 +88,9 @@ data class ApiFlag(
 
     /** Whether the flag is exported */
     val isExported: Boolean = true,
+
+    /** Whether the flag is known, i.e. was supplied in the configuration. */
+    val isKnown: Boolean = true,
 ) {
     /**
      * The [Showability] of any [Item]s annotated with an `@FlaggedApi` annotation that references
