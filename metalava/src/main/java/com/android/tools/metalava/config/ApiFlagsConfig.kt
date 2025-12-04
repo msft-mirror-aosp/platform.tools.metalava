@@ -22,12 +22,24 @@ import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 
 data class ApiFlagsConfig(
+    @field:JacksonXmlProperty(localName = "unknown-flags", namespace = CONFIG_NAMESPACE)
+    val unknownFlags: UnknownApiFlagsConfig? = null,
     @field:JacksonXmlProperty(localName = "api-flag", namespace = CONFIG_NAMESPACE)
     val flags: List<ApiFlagConfig> = emptyList(),
 ) : CombinableConfig<ApiFlagsConfig> {
 
     /** Combine with another [ApiFlagsConfig] by concatenating the [flags]s. */
-    override fun combineWith(other: ApiFlagsConfig) = ApiFlagsConfig(flags + other.flags)
+    override fun combineWith(other: ApiFlagsConfig) =
+        ApiFlagsConfig(
+            unknownFlags =
+                when {
+                    unknownFlags == null -> other.unknownFlags
+                    other.unknownFlags == null -> unknownFlags
+                    else ->
+                        error("Cannot combine unknownFlag $unknownFlags and ${other.unknownFlags}")
+                },
+            flags = flags + other.flags
+        )
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {}
@@ -66,6 +78,11 @@ interface ApiFlagActionConfig {
         @JsonValue fun forJackson() = name.lowercase()
     }
 }
+
+data class UnknownApiFlagsConfig(
+    @field:JacksonXmlProperty(isAttribute = true) override val mutability: Mutability,
+    @field:JacksonXmlProperty(isAttribute = true) override val status: Status,
+) : ApiFlagActionConfig
 
 data class ApiFlagConfig(
     /** The flag package name. */

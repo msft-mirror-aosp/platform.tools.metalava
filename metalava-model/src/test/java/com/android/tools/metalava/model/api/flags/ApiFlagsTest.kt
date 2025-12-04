@@ -49,4 +49,15 @@ class ApiFlagsTest {
         // Make sure that getting the unknown flag again returns the same instance.
         assertSame(unknownFlag, apiFlags["test.pkg.flag4"])
     }
+
+    @Test
+    fun `Test with unknown action`() {
+        // Treat unknown flags as being kept.
+        val apiFlags = ApiFlags(emptyList(), unknownFlagAction = KEEP)
+        val unknownFlag = apiFlags["test.pkg.unknown"]
+        assertEquals(
+            ApiFlag("test.pkg.unknown", KEEP, isExported = true, isKnown = false),
+            unknownFlag
+        )
+    }
 }

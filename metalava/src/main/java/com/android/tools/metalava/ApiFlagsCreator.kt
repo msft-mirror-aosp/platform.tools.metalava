@@ -32,7 +32,8 @@ object ApiFlagsCreator {
 
     /** Create [ApiFlags] from [ApiFlagsConfig]. */
     private fun ApiFlagsConfig.createApiFlags(): ApiFlags {
-        return ApiFlags(flags.map { config -> config.createApiFlag() })
+        val unknownFlagAction = unknownFlags?.toApiFlagAction() ?: ApiFlagAction.REVERT
+        return ApiFlags(flags.map { config -> config.createApiFlag() }, unknownFlagAction)
     }
 
     /** Create [Pair] of qualified flag name and [ApiFlag] from [ApiFlagConfig]. */

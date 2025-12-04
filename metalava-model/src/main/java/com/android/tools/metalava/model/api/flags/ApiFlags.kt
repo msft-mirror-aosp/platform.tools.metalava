@@ -60,7 +60,10 @@ enum class ApiFlagAction(
 }
 
 /** The available set of configured [ApiFlag]s. */
-class ApiFlags(flags: List<ApiFlag>) {
+class ApiFlags(
+    flags: List<ApiFlag>,
+    private val unknownFlagAction: ApiFlagAction = ApiFlagAction.REVERT,
+) {
     /** Map from qualified flag name to [ApiFlag]. */
     private val byQualifiedName =
         mutableMapOf<String, ApiFlag>().also { flags.associateByTo(it) { it.qualifiedName } }
@@ -76,7 +79,7 @@ class ApiFlags(flags: List<ApiFlag>) {
      */
     operator fun get(qualifiedName: String) =
         byQualifiedName.computeIfAbsent(qualifiedName) {
-            ApiFlag(it, ApiFlagAction.REVERT, isExported = true, isKnown = false)
+            ApiFlag(it, unknownFlagAction, isExported = true, isKnown = false)
         }
 
     override fun toString(): String {
