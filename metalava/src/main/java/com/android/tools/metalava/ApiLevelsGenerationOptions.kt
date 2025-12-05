@@ -119,7 +119,7 @@ class ApiLevelsGenerationOptions(
             )
             .newFile()
 
-    private val apiVersionForSources: ApiVersion? by
+    internal val apiVersionForSources: ApiVersion? by
         option(
                 ARG_API_VERSION_FOR_SOURCES,
                 metavar = "<api-version>",
