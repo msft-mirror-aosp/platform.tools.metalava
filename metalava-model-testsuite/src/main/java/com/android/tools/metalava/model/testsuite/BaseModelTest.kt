@@ -267,14 +267,15 @@ abstract class BaseModelTest() :
         val recordingReporter = RecordingReporter()
 
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
-        val codebaseConfig =
-            Codebase.Config(
-                allowReadingComments = allowReadingComments,
-                annotationManager = annotationManager,
-                apiFlags = apiFlags,
-                apiSurfaces = apiSurfaces,
-                reporter = recordingReporter,
-            )
+        val codebaseConfig
+            get() =
+                Codebase.Config(
+                    allowReadingComments = allowReadingComments,
+                    annotationManager = annotationManager,
+                    apiFlags = apiFlags,
+                    apiSurfaces = apiSurfaces,
+                    reporter = recordingReporter,
+                )
     }
 
     /**
