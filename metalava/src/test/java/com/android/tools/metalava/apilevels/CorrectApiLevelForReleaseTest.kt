@@ -17,7 +17,6 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.doc.getApiLookup
@@ -37,8 +36,6 @@ class CorrectApiLevelForReleaseTest : ApiGeneratorIntegrationTestBase() {
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
-                    ARG_CURRENT_CODENAME,
-                    "REL",
                     ARG_CURRENT_VERSION,
                     MAGIC_VERSION_STR // not real api level
                 ),
