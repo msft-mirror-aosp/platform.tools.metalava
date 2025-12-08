@@ -119,7 +119,7 @@ class ApiLevelsGenerationOptions(
             )
             .newFile()
 
-    private val apiVersionForSources: ApiVersion? by
+    internal val apiVersionForSources: ApiVersion? by
         option(
                 ARG_API_VERSION_FOR_SOURCES,
                 metavar = "<api-version>",
@@ -808,15 +808,7 @@ class ApiLevelsGenerationOptions(
         versionedHistoricalApis: List<VersionedApi>
     ): ApiVersion? {
         val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
-        if (apiVersionForSources != null) {
-            if (lastFinalizedVersion != null && apiVersionForSources!! <= lastFinalizedVersion) {
-                cliError(
-                    "Suspicious $ARG_API_VERSION_FOR_SOURCES $apiVersionForSources, expected a version greater than $lastFinalizedVersion"
-                )
-            }
-
-            return apiVersionForSources
-        }
+        if (apiVersionForSources != null) return apiVersionForSources
 
         optionalCurrentApiVersion?.let { currentApiVersion ->
             if (currentApiVersion.major <= 26) {
