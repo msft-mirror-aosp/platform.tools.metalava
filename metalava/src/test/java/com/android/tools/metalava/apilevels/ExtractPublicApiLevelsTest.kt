@@ -17,7 +17,6 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
@@ -46,8 +45,6 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     "${extensionSdkJars.path}/{version:extension}/public/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    ARG_CURRENT_CODENAME,
-                    "Z",
                     ARG_CURRENT_VERSION,
                     currentVersion.toString() // not real api level of Z
                 ),
@@ -82,7 +79,8 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                 "<field name=\"BIND_CARRIER_MESSAGING_SERVICE\" since=\"22\" deprecated=\"23\"/>"
             )
         )
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
+        // TODO (b/3880582) : Replace --current-version with --api-version-for-sources, then check
+        // the class android/pkg/MyTest was added since $nextVersion
         assertFalse(xml.contains("<implements name=\"java/lang/annotation/Annotation\" removed=\""))
         assertFalse(xml.contains("<extends name=\"java/lang/Enum\" removed=\""))
         assertFalse(xml.contains("<method name=\"append(C)Ljava/lang/AbstractStringBuilder;\""))
@@ -92,10 +90,11 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
 
+        // TODO (b/3880582) : Replace --current-version with --api-version-for-sources then check
+        // that android.pkg.MyTest is added with version $nextVersion
         // Make sure we're really using the correct database, not the SDK one. (This placeholder
         // class is provided as a source file above.)
-        @Suppress("DEPRECATION")
-        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
+        @Suppress("DEPRECATION") assertEquals(-1, apiLookup.getClassVersion("android.pkg.MyTest"))
 
         @Suppress("DEPRECATION") apiLookup.getClassVersion("android.v")
         @Suppress("DEPRECATION")
