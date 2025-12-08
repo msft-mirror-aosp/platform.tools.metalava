@@ -17,16 +17,24 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
+import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.source.SourceModelProvider
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
 
-const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
+const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
+
 const val ARG_SOURCE_PATH = "--source-path"
 
 const val ARG_STUB_PACKAGES = "--stub-packages"
+
+const val ARG_COMPILED_SOURCES = "--compiled-sources"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SOURCE_OPTIONS_GROUP = "Sources"
@@ -40,20 +48,23 @@ class SourceOptions :
         """
                 .trimIndent()
     ) {
-
-    private val commonSourcePathString by
+    /** The name of the source model provider specified on the command line. */
+    private val sourceModelProviderName by
         option(
-            ARG_COMMON_SOURCE_PATH,
-            metavar = "<path>",
-            help =
-                """
-                    A ${File.pathSeparator} separated list of directories containing common source
-                    files (organized in a standard Java package hierarchy). Common source files
-                    are where platform-agnostic `expect` declarations for Kotlin multi-platform code
-                    as well as common business logic are defined.
-                """
-                    .trimIndent(),
-        )
+                ARG_SOURCE_MODEL_PROVIDER,
+                // Hidden from command line help for now.
+                hidden = true,
+            )
+            .choice("psi", "turbine")
+            .default("psi")
+            .deprecated(
+                """WARNING: The turbine model is under work and not usable for now. Eventually this option can be used to set the source model provider to either turbine or psi. The default is psi. """
+                    .trimIndent()
+            )
+
+    /** Get the [SourceModelProvider] corresponding to [sourceModelProviderName]. */
+    val sourceModelProvider: SourceModelProvider
+        get() = SourceModelProvider.getImplementation(sourceModelProviderName)
 
     private val sourcePathString by
         option(
@@ -66,11 +77,6 @@ class SourceOptions :
                 """
                     .trimIndent(),
         )
-
-    internal val commonSourcePath by
-        lazy(LazyThreadSafetyMode.NONE) {
-            getSourcePath(ARG_COMMON_SOURCE_PATH, commonSourcePathString)
-        }
 
     internal val sourcePath by
         lazy(LazyThreadSafetyMode.NONE) { getSourcePath(ARG_SOURCE_PATH, sourcePathString) }
@@ -85,7 +91,7 @@ class SourceOptions :
         } else {
             path.split(File.pathSeparator).map {
                 if (it.endsWith(SdkConstants.DOT_JAVA)) {
-                    throw MetalavaCliException(
+                    cliError(
                         "$argName should point to a source root directory, not a source file ($it)"
                     )
                 }
@@ -110,4 +116,18 @@ class SourceOptions :
                         .trimIndent()
             )
             .convert { PackageFilter.parse(it) }
+
+    val compiledSourceJar by
+        option(
+                ARG_COMPILED_SOURCES,
+                metavar = "<path>",
+                help =
+                    """
+                        Jar file with the compiled version of $ARG_SOURCE_FILES, loaded in addition
+                        to the source files. Used to include the bytecode version of Kotlin source
+                        APIs.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
 }

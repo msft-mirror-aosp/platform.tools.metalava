@@ -16,11 +16,12 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import java.util.Objects
 
 /** Common to [MethodItem] and [ConstructorItem]. */
 @MetalavaApi
-interface CallableItem : MemberItem, TypeParameterListOwner {
+interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameScope {
 
     /** Whether this callable is a constructor or a method. */
     @MetalavaApi fun isConstructor(): Boolean
@@ -34,6 +35,63 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
 
     /** The list of parameters */
     @MetalavaApi fun parameters(): List<ParameterItem>
+
+    override fun describe(capitalize: Boolean) =
+        describeCallableItem(includeParameterTypes = true, capitalize = capitalize)
+
+    fun describeCallableItem(
+        includeParameterNames: Boolean = false,
+        includeParameterTypes: Boolean = false,
+        includeReturnValue: Boolean = false,
+        capitalize: Boolean = false
+    ) = buildString {
+        if (isConstructor()) {
+            append(if (capitalize) "Constructor" else "constructor")
+        } else {
+            append(if (capitalize) "Method" else "method")
+        }
+        append(' ')
+        if (includeReturnValue && !isConstructor()) {
+            append(returnType().toSimpleType())
+            append(' ')
+        }
+        appendCallableSignature(includeParameterNames, includeParameterTypes)
+    }
+
+    fun StringBuilder.appendCallableSignature(
+        includeParameterNames: Boolean,
+        includeParameterTypes: Boolean
+    ) {
+        append(containingClass().qualifiedName())
+        if (!isConstructor()) {
+            append('.')
+            append(name())
+        }
+        if (includeParameterNames || includeParameterTypes) {
+            append('(')
+            var first = true
+            for (parameter in parameters()) {
+                if (first) {
+                    first = false
+                } else {
+                    append(',')
+                    if (includeParameterNames && includeParameterTypes) {
+                        append(' ')
+                    }
+                }
+                if (includeParameterTypes) {
+                    append(parameter.type().toSimpleType())
+                    if (includeParameterNames) {
+                        append(' ')
+                    }
+                }
+                if (includeParameterNames) {
+                    append(parameter.publicName() ?: parameter.name())
+                }
+            }
+            append(')')
+        }
+    }
 
     override fun type() = returnType()
 
@@ -152,7 +210,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                 return false
             }
         }
-        return true
+
+        // Check target languages are equal for methods to be equal
+        return targetLanguages == other.targetLanguages
     }
 
     override fun hashCodeForItem(): Int {
@@ -163,7 +223,8 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /**
      * Returns true if this callable is a signature match for the given callable (e.g. can be
      * overriding if it is a method). This checks that the name and parameter lists match, but
-     * ignores differences in parameter names, return value types and throws list types.
+     * ignores differences in parameter names, return value types and throws list types. It allows
+     * for differences in the target language sets, but requires at least some overlap.
      */
     fun matches(other: CallableItem): Boolean {
         if (this === other) return true
@@ -176,6 +237,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             return false
         }
 
+        // Require at least one shared target language.
+        if (targetLanguages.intersect(other.targetLanguages).isEmpty()) return false
+
         val parameters1 = parameters()
         val parameters2 = other.parameters()
 
@@ -187,7 +251,17 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             val parameter1Type = parameters1[i].type()
             val parameter2Type = parameters2[i].type()
             if (parameter1Type == parameter2Type) continue
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) continue
+            // If these have the same erased type, they're considered equal for bytecode. If this
+            // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
+            // allow for the case that one version has wildcards that the other doesn't (common
+            // when comparing types generated from PSI vs the Kotlin analysis API).
+            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) {
+                if (TargetLanguage.BYTECODE in targetLanguages) {
+                    continue
+                } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {
+                    continue
+                }
+            }
 
             val convertedType =
                 parameter1Type.convertType(other.containingClass(), containingClass())
@@ -234,6 +308,34 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                     superBound?.hasHiddenType(filterReference) == true
             else -> throw IllegalStateException("Unrecognized type: $this")
         }
+    }
+
+    /**
+     * Like [CallableItem.internalName] but is the desc-portion of the internal signature, e.g. for
+     * the method "void create(int x, int y)" the internal name of the constructor is "create" and
+     * the desc is "(II)V"
+     */
+    fun internalDesc(voidConstructorTypes: Boolean = false): String {
+        val sb = StringBuilder()
+        sb.append("(")
+
+        // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
+        // outer type
+        if (
+            isConstructor() &&
+                containingClass().containingClass() != null &&
+                !containingClass().modifiers.isStatic()
+        ) {
+            sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
+        }
+
+        for (parameter in parameters()) {
+            sb.append(parameter.type().internalName())
+        }
+
+        sb.append(")")
+        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
+        return sb.toString()
     }
 
     companion object {

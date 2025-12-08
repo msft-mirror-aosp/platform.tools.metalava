@@ -21,13 +21,96 @@ import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Common tests for implementations of [SourceFile]. */
 class CommonSourceFileTest : BaseModelTest() {
     internal class FilterHidden : FilterPredicate {
         override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
+    }
+
+    @Test
+    fun `Test header comments`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    // Inline comment before package
+
+                    package test.pkg;
+
+                    // Inline comment before class
+
+                    /*
+                     * Multi-line comment
+                     * before class.
+                     */
+
+                    /**
+                     * Main class comment.
+                     */
+                    public class Test {}
+
+                    // Inline comment after class
+
+                    /*
+                     * Multi-line comment
+                     * after class.
+                     */
+                """
+            ),
+            kotlin(
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    // Inline comment before package
+
+                    package test.pkg
+
+                    // Inline comment before class
+
+                    /*
+                     * Multi-line comment
+                     * before class.
+                     */
+
+                    /**
+                     * Main class comment.
+                     */
+                    class Test {}
+
+                    // Inline comment after class
+
+                    /*
+                     * Multi-line comment
+                     * after class.
+                     */
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    // Inline comment before package
+                """
+                    .trimIndent(),
+                sourceFile.getHeaderComments()?.trimEnd()
+            )
+        }
     }
 
     @Test
@@ -38,8 +121,8 @@ class CommonSourceFileTest : BaseModelTest() {
                     """
                         package test.pkg;
 
-                        import test.pkg2.Test1.FIELD;
-                        import test.pkg2.Test1.method;
+                        import static test.pkg2.Test1.FIELD;
+                        import static test.pkg2.Test1.method;
                         import test.pkg1.*;
                         import test.Test.Inner;
                         import test.Test;
@@ -75,6 +158,11 @@ class CommonSourceFileTest : BaseModelTest() {
                         package test.pkg1;
 
                         public class Test1 {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg1;
 
                         public class Test2 {}
                     """
@@ -89,9 +177,11 @@ class CommonSourceFileTest : BaseModelTest() {
                         }
                     """
                 ),
-                java("""
+                java(
+                    """
                         package empty;
-                    """),
+                    """
+                ),
             )
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
@@ -186,6 +276,29 @@ class CommonSourceFileTest : BaseModelTest() {
             val sourceFile = classItem.sourceFile()!!
 
             assertEquals(listOf(classItem, outerClassItem), sourceFile.classes().toList())
+        }
+    }
+
+    @Test
+    fun `Test codebase and containingPackage`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertSame(classItem.codebase, sourceFile.codebase, message = "codebase")
+            assertSame(
+                classItem.containingPackage(),
+                sourceFile.containingPackage,
+                message = "containingPackage"
+            )
         }
     }
 }

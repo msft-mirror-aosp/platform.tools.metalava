@@ -20,23 +20,24 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
+import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
+import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
+import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.KotlinStaticProjectStructureProvider
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
-
-internal val defaultJavaLanguageLevel = LanguageLevel.parse(DEFAULT_JAVA_LANGUAGE_LEVEL)!!
-
-internal val defaultKotlinLanguageLevel = LanguageVersionSettingsImpl.DEFAULT
 
 fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
     val languageLevel =
@@ -60,20 +61,10 @@ internal class PsiSourceParser(
     private val javaLanguageLevel: LanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val useK2Uast: Boolean,
-    private val allowReadingComments: Boolean,
     private val jdkHome: File?,
 ) : SourceParser {
 
     private val reporter = codebaseConfig.reporter
-
-    override fun getClassResolver(classPath: List<File>): ClassResolver {
-        val uastEnvironment = loadUastFromJars(classPath)
-        return PsiBasedClassResolver(
-            uastEnvironment,
-            codebaseConfig,
-            allowReadingComments,
-        )
-    }
 
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
@@ -83,26 +74,29 @@ internal class PsiSourceParser(
      */
     override fun parseSources(
         sourceSet: SourceSet,
-        commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
         projectDescription: File?,
+        compiledSourceJar: File?,
     ): Codebase {
-        return parseAbsoluteSources(
-            sourceSet.absoluteCopy().extractRoots(reporter),
-            commonSourceSet.absoluteCopy().extractRoots(reporter),
-            description,
-            classPath.map { it.absoluteFile },
-            apiPackages,
-            projectDescription,
-        )
+        val codebase =
+            parseAbsoluteSources(
+                sourceSet.absoluteCopy().extractRoots(reporter),
+                description,
+                classPath.map { it.absoluteFile },
+                apiPackages,
+                projectDescription,
+            )
+        if (compiledSourceJar != null) {
+            mergeFromJar(codebase, compiledSourceJar)
+        }
+        return codebase
     }
 
     /** Returns a codebase initialized from the given set of absolute files. */
     private fun parseAbsoluteSources(
         sourceSet: SourceSet,
-        commonSourceSet: SourceSet,
         description: String,
         classpath: List<File>,
         apiPackages: PackageFilter?,
@@ -111,23 +105,12 @@ internal class PsiSourceParser(
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
-        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
-
         when {
             projectDescription != null -> {
                 configureUastEnvironmentFromProjectDescription(config, projectDescription)
             }
-            commonSourceSet.sources.isNotEmpty() -> {
-                configureUastEnvironmentForKMP(
-                    config,
-                    sourceSet.sources,
-                    commonSourceSet.sources,
-                    classpath,
-                    rootDir
-                )
-            }
             else -> {
-                configureUastEnvironment(config, sourceSet.sourcePath, classpath, rootDir)
+                configureUastEnvironment(config, sourceSet.sourcePath, classpath)
             }
         }
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
@@ -142,50 +125,104 @@ internal class PsiSourceParser(
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
+        val location = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
         val assembler =
             PsiCodebaseAssembler(environment) {
                 PsiBasedCodebase(
-                    location = rootDir,
+                    location = location,
                     description = description,
                     config = codebaseConfig,
-                    allowReadingComments = allowReadingComments,
                     assembler = it,
+                    inlineTypeAliasUsages = environment.isKMP,
+                    mainAnalysisModule = findMainAnalysisModule(environment),
                 )
             }
 
         assembler.initializeFromSources(sourceSet, apiPackages)
-        return assembler.codebase
+        return assembler.psiCodebase
+    }
+
+    /** Lists all of the [KaModule]s that exist in this project. */
+    private fun UastEnvironment.findAllSourceModules(): List<KaSourceModule> {
+        return (KotlinProjectStructureProvider.getInstance(ideaProject)
+                as? KotlinStaticProjectStructureProvider)
+            ?.allModules
+            ?.filterIsInstance<KaSourceModule>() ?: emptyList()
+    }
+
+    /**
+     * Attempts to locate the [KaModule] which should be used to create kotlin-only APIs through the
+     * analysis API when creating a regular [Codebase].
+     *
+     * For non-KMP sources, this will be the only module in the project. For KMP sources, this will
+     * be either the androidMain or jvmMain module.
+     *
+     * All platforms are analyzed when using [createMultiplatformCodebase], but only the main module
+     * is used for the [Codebase] created by [parseSources].
+     */
+    private fun findMainAnalysisModule(environment: UastEnvironment): KaSourceModule? {
+        val modules = environment.findAllSourceModules()
+        return modules.singleOrNull()
+            ?: modules.singleOrNull { it.name == "androidMain" }
+            ?: modules.singleOrNull { it.name == "jvmMain" }
     }
 
     private fun isJdkModular(homePath: File): Boolean {
         return File(homePath, "jmods").isDirectory
     }
 
-    override fun loadFromJar(apiJar: File): Codebase {
-        val environment = loadUastFromJars(listOf(apiJar))
+    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
+        val jars = buildList {
+            add(apiJar)
+            addAll(classPath)
+        }
+        val environment = loadUastFromJars(jars)
         val assembler =
             PsiCodebaseAssembler(environment) { assembler ->
                 PsiBasedCodebase(
                     location = apiJar,
                     description = "Codebase loaded from $apiJar",
                     config = codebaseConfig,
-                    allowReadingComments = allowReadingComments,
                     assembler = assembler,
+                    inlineTypeAliasUsages = environment.isKMP,
                 )
             }
-        val codebase = assembler.codebase
+        val codebase = assembler.psiCodebase
         assembler.initializeFromJar(apiJar)
         return codebase
+    }
+
+    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+        if (!useK2Uast) error("Multiplatform codebase creation requires K2 UAST.")
+
+        val config = UastEnvironment.Configuration.create(useFirUast = true)
+        config.javaLanguageLevel = javaLanguageLevel
+        configureUastEnvironmentFromProjectDescription(config, projectDescription)
+        val environment = psiEnvironmentManager.createEnvironment(config)
+
+        return KaCodebaseAssembler.assembleMultiplatform(
+            environment.findAllSourceModules(),
+            projectDescription,
+            codebaseConfig
+        )
+    }
+
+    fun mergeFromJar(existingCodebase: PsiBasedCodebase, jarFile: File) {
+        val bytecodeApis = KotlinBytecodeApis(existingCodebase)
+        val rewrittenJar = bytecodeApis.rewriteJar(jarFile)
+        val jarEnvironment = loadUastFromJars(listOf(rewrittenJar))
+        bytecodeApis.loadPsiFromProject(jarEnvironment.ideaProject)
+        (existingCodebase.assembler as PsiCodebaseAssembler).mergedJarEnvironment = jarEnvironment
     }
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        // Use the empty dir otherwise this will end up scanning the current working directory.
-        configureUastEnvironment(config, listOf(psiEnvironmentManager.emptyDir), apiJars)
+        var sourceRoots = emptyList<File>()
+        configureUastEnvironment(config, sourceRoots, apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
-        environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
+        environment.analyzeFiles(sourceRoots) // Initializes PSI machinery.
         return environment
     }
 
@@ -193,17 +230,21 @@ internal class PsiSourceParser(
         config: UastEnvironment.Configuration,
         sourceRoots: List<File>,
         classpath: List<File>,
-        rootDir: File = sourceRoots.firstOrNull() ?: File("").canonicalFile
     ) {
+        val rootDir = sourceRoots.firstOrNull() ?: psiEnvironmentManager.emptyDir
         val lintClient = MetalavaCliClient()
         // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
         // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
         // `referenceDir` is used to adjust `lib` dir accordingly if needed,
         // but we set `classpath` anyway below.
         val lintProject =
-            Project.create(lintClient, /* dir = */ rootDir, /* referenceDir = */ rootDir)
+            Project.create(lintClient, /* dir= */ rootDir, /* referenceDir= */ rootDir)
         lintProject.kotlinLanguageLevel = kotlinLanguageLevel
-        lintProject.javaSourceFolders.addAll(sourceRoots)
+        if (sourceRoots.isEmpty()) {
+            lintProject.javaSourceFolders.add(psiEnvironmentManager.emptyDir)
+        } else {
+            lintProject.javaSourceFolders.addAll(sourceRoots)
+        }
         lintProject.javaLibraries.addAll(classpath)
         config.addModules(
             listOf(
@@ -219,96 +260,42 @@ internal class PsiSourceParser(
         )
     }
 
-    private fun configureUastEnvironmentForKMP(
-        config: UastEnvironment.Configuration,
-        sourceFiles: List<File>,
-        commonSourceFiles: List<File>,
-        classpath: List<File>,
-        rootDir: File,
-    ) {
-        // TODO(b/322111050): consider providing a nice DSL at Lint level
-        val projectXml = File.createTempFile("project", ".xml")
-        projectXml.deleteOnExit()
-
-        fun describeSources(sources: List<File>) = buildString {
-            for (source in sources) {
-                if (!source.isFile) continue
-                appendLine("    <src file=\"${source.absolutePath}\" />")
-            }
-        }
-
-        fun describeClasspath() = buildString {
-            for (dep in classpath) {
-                // TODO: what other kinds of dependencies?
-                if (dep.extension !in SUPPORTED_CLASSPATH_EXT) continue
-                if (dep.extension == "klib") {
-                    appendLine("    <klib file=\"${dep.absolutePath}\" />")
-                } else {
-                    appendLine("    <classpath ${dep.extension}=\"${dep.absolutePath}\" />")
-                }
-            }
-        }
-
-        // We're about to build the description of Lint's project model.
-        // Alas, no proper documentation is available. Please refer to examples at upstream Lint:
-        // https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:lint/libs/lint-tests/src/test/java/com/android/tools/lint/ProjectInitializerTest.kt
-        //
-        // An ideal project structure would look like:
-        //
-        // <project>
-        //   <root dir="frameworks/support/compose/ui/ui"/>
-        //   <module name="commonMain" android="false">
-        //     <src file="src/commonMain/.../file1.kt" /> <!-- and so on -->
-        //     <klib file="lib/if/any.klib" />
-        //     <classpath jar="/path/to/kotlin/coroutinesCore.jar" />
-        //     ...
-        //   </module>
-        //   <module name="jvmMain" android="false">
-        //     <dep module="commonMain" kind="dependsOn" />
-        //     <src file="src/jvmMain/.../file1.kt" /> <!-- and so on -->
-        //     ...
-        //   </module>
-        //   <module name="androidMain" android="true">
-        //     <dep module="jvmMain" kind="dependsOn" />
-        //     <src file="src/androidMain/.../file1.kt" /> <!-- and so on -->
-        //     ...
-        //   </module>
-        //   ...
-        // </project>
-        //
-        // That is, there are common modules where `expect` declarations and common business logic
-        // reside, along with binary dependencies of several formats, including klib and jar.
-        // Then, platform-specific modules "depend" on common modules, and have their own source set
-        // and binary dependencies.
-        //
-        // For now, with --common-source-path, common source files are isolated, but the project
-        // structure is not fully conveyed. Therefore, we will reuse the same binary dependencies
-        // for all modules (which only(?) cause performance degradation on binary resolution).
-        val description = buildString {
-            appendLine("""<?xml version="1.0" encoding="utf-8"?>""")
-            appendLine("<project>")
-            appendLine("  <root dir=\"${rootDir.absolutePath}\" />")
-            appendLine("  <module name=\"commonMain\" android=\"false\" >")
-            append(describeSources(commonSourceFiles))
-            append(describeClasspath())
-            appendLine("  </module>")
-            appendLine("  <module name=\"app\" >")
-            appendLine("    <dep module=\"commonMain\" kind=\"dependsOn\" />")
-            // NB: While K2 requires separate common / platform-specific source roots, K1 still
-            // needs to receive all source roots at once. Thus, existing usages (e.g., androidx)
-            // often pass all source files, according to compiler configuration.
-            // To make a correct module structure, we need to filter out common source files here.
-            // TODO: once fully switching to K2 and androidx usage is adjusted, we won't need this.
-            append(describeSources(sourceFiles - commonSourceFiles))
-            append(describeClasspath())
-            appendLine("  </module>")
-            appendLine("</project>")
-        }
-        projectXml.writeText(description)
-
-        configureUastEnvironmentFromProjectDescription(config, projectXml)
-    }
-
+    /**
+     * Configures the environment based on an XML description of Lint's project model.
+     *
+     * Alas, no proper documentation is available. Please refer to examples at upstream Lint:
+     * https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:lint/libs/lint-tests/src/test/java/com/android/tools/lint/ProjectInitializerTest.kt
+     *
+     * An ideal project structure would look like:
+     * ```
+     * <project>
+     *     <root dir="frameworks/support/compose/ui/ui"/>
+     *     <module name="commonMain" android="false">
+     *         <src file="src/commonMain/.../file1.kt" /> <!-- and so on -->
+     *         <klib file="lib/if/any.klib" />
+     *         <classpath jar="/path/to/kotlin/coroutinesCore.jar" />
+     *         ...
+     *     </module>
+     *     <module name="jvmMain" android="false">
+     *         <dep module="commonMain" kind="dependsOn" />
+     *         <src file="src/jvmMain/.../file1.kt" /> <!-- and so on -->
+     *         ...
+     *     </module>
+     *     <module name="androidMain" android="true">
+     *         <dep module="jvmMain" kind="dependsOn" />
+     *         <src file="src/androidMain/.../file1.kt" /> <!-- and so on -->
+     *         ...
+     *     </module>
+     *     ...
+     * </project>
+     * ```
+     *
+     * That is, there are common modules where `expect` declarations and common business logic
+     * reside, along with binary dependencies of several formats, including klib and jar.
+     *
+     * Then, platform-specific modules "depend" on common modules, and have their own source set and
+     * binary dependencies.
+     */
     private fun configureUastEnvironmentFromProjectDescription(
         config: UastEnvironment.Configuration,
         projectDescription: File,

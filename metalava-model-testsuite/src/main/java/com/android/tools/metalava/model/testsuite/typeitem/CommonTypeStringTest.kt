@@ -201,7 +201,6 @@ class CommonTypeStringTest : BaseModelTest() {
                     public class Inner<P2> {}
                 }
             """
-                    .trimIndent()
             )
 
         private val libcoreTextPackage =
@@ -249,7 +248,7 @@ class CommonTypeStringTest : BaseModelTest() {
         private val testCases =
             // Test primitives besides void (the test setup puts the type in parameter position, and
             // void can't be a parameter type).
-            PrimitiveTypeItem.Primitive.values()
+            PrimitiveTypeItem.Primitive.entries
                 .filter { it != PrimitiveTypeItem.Primitive.VOID }
                 .map { TypeStringParameters(name = it.primitiveName) } +
                 // Test additional types
@@ -369,7 +368,7 @@ class CommonTypeStringTest : BaseModelTest() {
                             ConfigurationTestCase(
                                 name = "spaced params",
                                 configuration =
-                                    TypeStringConfiguration(spaceBetweenParameters = true),
+                                    TypeStringConfiguration(spaceBetweenTypeArguments = true),
                                 expectedTypeString = "java.util.List<java.lang.String>"
                             ),
                         ),
@@ -396,7 +395,7 @@ class CommonTypeStringTest : BaseModelTest() {
                             ConfigurationTestCase(
                                 name = "spaced params",
                                 configuration =
-                                    TypeStringConfiguration(spaceBetweenParameters = true),
+                                    TypeStringConfiguration(spaceBetweenTypeArguments = true),
                                 expectedTypeString =
                                     "java.util.Map<java.lang.String, java.lang.Number>"
                             )

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.utils.extractSimpleName
 import java.util.Objects
 
 /**
@@ -38,13 +39,14 @@ interface TypeItem {
     fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>)
 
     /**
-     * Whether this type is equal to [other], not considering modifiers.
+     * Whether this type is equal to [other]. If [includeNullability] is false, does not consider
+     * modifiers. If [includeNullability] is true, nullability is considered but not annotations.
      *
      * This is implemented on each sub-interface of [TypeItem] instead of [equals] because
      * interfaces are not allowed to implement [equals]. An [equals] implementation is provided by
      * [DefaultTypeItem].
      */
-    fun equalToType(other: TypeItem?): Boolean
+    fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean
 
     /**
      * Hashcode for the type.
@@ -159,6 +161,28 @@ interface TypeItem {
      * appropriate [TypeTransformer.transform] method.
      */
     fun transform(transformer: TypeTransformer): TypeItem
+
+    /** Whether this type was originally a value class type. Defaults to false if not overridden. */
+    fun isValueClassType(): Boolean = false
+
+    /**
+     * Returns whether this type is SAM convertible or a Kotlin lambda.
+     *
+     * If a final parameter uses a SAM convertible or lambda type, it also means that it could be
+     * called in Kotlin using the trailing lambda syntax.
+     *
+     * Specifically this will attempt to handle the follow cases:
+     * - Java SAM interface = true
+     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
+     * - Kotlin fun interface = true
+     * - Kotlin lambda = true
+     * - Variable type with Kotlin lambda bound = true
+     * - Any other type = false
+     */
+    fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // Overrides are present on ClassTypeItem, LambdaTypeItem, and VariableTypeItem
+        return false
+    }
 
     companion object {
         /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
@@ -404,7 +428,7 @@ abstract class DefaultTypeItem(
 
     override fun equals(other: Any?): Boolean {
         if (other !is TypeItem) return false
-        return equalToType(other)
+        return equalToType(other, includeNullability = false)
     }
 
     override fun hashCode(): Int = hashCodeForType()
@@ -540,7 +564,7 @@ abstract class DefaultTypeItem(
                             appendTypeString(parameter, configuration)
                             if (index != type.arguments.size - 1) {
                                 append(",")
-                                if (configuration.spaceBetweenParameters) {
+                                if (configuration.spaceBetweenTypeArguments) {
                                     append(" ")
                                 }
                             }
@@ -561,8 +585,11 @@ abstract class DefaultTypeItem(
                         typeParameter.asErasedType()?.let { boundsType ->
                             appendTypeString(boundsType, configuration)
                         }
-                        // No explicit bounds were provided so use the default of java.lang.Object.
-                        ?: if (configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS) {
+                            // No explicit bounds were provided so use the default of
+                            // java.lang.Object.
+                            ?: if (
+                                configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS
+                            ) {
                                 append("Object")
                             } else {
                                 append(JAVA_LANG_OBJECT)
@@ -642,8 +669,9 @@ abstract class DefaultTypeItem(
             if (leadingSpace) {
                 append(' ')
             }
+            val annotationFormatter = configuration.annotationFormatter
             annotations.forEachIndexed { index, annotation ->
-                append(annotation.toSource())
+                annotationFormatter.appendFormatAnnotation(this, annotation)
                 if (index != annotations.size - 1) {
                     append(' ')
                 }
@@ -719,6 +747,7 @@ abstract class DefaultTypeItem(
  * Configuration options for how to represent a type as a string.
  *
  * @param annotations Whether to include annotations on the type.
+ * @param annotationFormatter Responsible for formatting type annotations.
  * @param eraseGenerics If `true` then type parameters are ignored and type variables are replaced
  *   with the upper bound of the type parameter.
  * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
@@ -726,17 +755,19 @@ abstract class DefaultTypeItem(
  *   `@Nullable List<String>` would be represented as `List<String!>?`.
  * @param nestedClassSeparator The character that is used to separate a nested class from its
  *   containing class.
- * @param spaceBetweenParameters Whether to include a space between class type params.
+ * @param spaceBetweenTypeArguments Whether to include a space between type arguments of a generic
+ *   type.
  * @param stripJavaLangPrefix Controls how `java.lang.` prefixes are removed from the types.
  * @param treatVarargsAsArray If `false` then a varargs type will use `...` to indicate that it is a
  *   varargs type, otherwise it will use `[]` like a normal array.
  */
 data class TypeStringConfiguration(
     val annotations: Boolean = false,
+    val annotationFormatter: AnnotationFormatter = DEFAULT_ANNOTATION_FORMATTER,
     val eraseGenerics: Boolean = false,
     val kotlinStyleNulls: Boolean = false,
     val nestedClassSeparator: Char = '.',
-    val spaceBetweenParameters: Boolean = false,
+    val spaceBetweenTypeArguments: Boolean = false,
     val stripJavaLangPrefix: StripJavaLangPrefix = StripJavaLangPrefix.NEVER,
     val treatVarargsAsArray: Boolean = false,
 ) {
@@ -749,8 +780,18 @@ data class TypeStringConfiguration(
     val isDefault by lazy(LazyThreadSafetyMode.NONE) { this == DEFAULT }
 
     companion object {
-        /** The default[TypeStringConfiguration]. */
+        /**
+         * The default [AnnotationFormatter] used by [TypeStringConfiguration].
+         *
+         * Must be initialized before [DEFAULT] to avoid a [NullPointerException].
+         */
+        private val DEFAULT_ANNOTATION_FORMATTER = AnnotationFormatter.legacyAnnotationFormatter()
+
+        /** The default [TypeStringConfiguration]. */
         val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
+
+        /** A [TypeStringConfiguration] like [DEFAULT], but with Kotlin-style null suffixes. */
+        val DEFAULT_KOTLIN_NULLS = TypeStringConfiguration(kotlinStyleNulls = true)
     }
 }
 
@@ -852,18 +893,111 @@ interface PrimitiveTypeItem : TypeItem {
     /** The possible kinds of primitives. */
     enum class Primitive(
         val primitiveName: String,
+        val kotlinName: String,
         val defaultValue: Any?,
-        val defaultValueString: String
+        val defaultValueString: String,
+        val wrapperClass: Class<*>,
     ) {
-        BOOLEAN("boolean", false, "false"),
-        BYTE("byte", 0.toByte(), "0"),
-        CHAR("char", 0.toChar(), "0"),
-        DOUBLE("double", 0.0, "0"),
-        FLOAT("float", 0F, "0"),
-        INT("int", 0, "0"),
-        LONG("long", 0L, "0"),
-        SHORT("short", 0.toShort(), "0"),
-        VOID("void", null, "null")
+        BOOLEAN(
+            primitiveName = "boolean",
+            kotlinName = "Boolean",
+            defaultValue = false,
+            defaultValueString = "false",
+            wrapperClass = java.lang.Boolean::class.java,
+        ),
+        BYTE(
+            primitiveName = "byte",
+            kotlinName = "Byte",
+            defaultValue = 0.toByte(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Byte::class.java,
+        ),
+        CHAR(
+            primitiveName = "char",
+            kotlinName = "Char",
+            defaultValue = 0.toChar(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Character::class.java,
+        ),
+        DOUBLE(
+            primitiveName = "double",
+            kotlinName = "Double",
+            defaultValue = 0.0,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Double::class.java,
+        ),
+        FLOAT(
+            primitiveName = "float",
+            kotlinName = "Float",
+            defaultValue = 0F,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Float::class.java,
+        ),
+        INT(
+            primitiveName = "int",
+            kotlinName = "Int",
+            defaultValue = 0,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Integer::class.java,
+        ),
+        LONG(
+            primitiveName = "long",
+            kotlinName = "Long",
+            defaultValue = 0L,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Long::class.java,
+        ),
+        SHORT(
+            primitiveName = "short",
+            kotlinName = "Short",
+            defaultValue = 0.toShort(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Short::class.java,
+        ),
+        VOID(
+            primitiveName = "void",
+            // Unit is not exactly the same as void, but it is what is used in Kotlin when a method
+            // has no return, like void in Java.
+            kotlinName = "Unit",
+            defaultValue = null,
+            defaultValueString = "null",
+            wrapperClass = java.lang.Void::class.java,
+        ),
+        ;
+
+        /**
+         * The name of the Kotlin function that will convert a [Number] to an instance of this type.
+         *
+         * This is `null` for non-numeric [Primitive]s.
+         */
+        val kotlinNumericConversionFunction =
+            if (Number::class.java.isAssignableFrom(wrapperClass)) "to$kotlinName" else null
+
+        companion object {
+            /** Map from [Primitive.wrapperClass]'s name to [Primitive]. */
+            private val wrapperClassNameToKind =
+                Primitive.entries.associateBy { it.wrapperClass.name }
+
+            /**
+             * Get the [Primitive] associated with [wrapperClassName], returning `null`, if it could
+             * not be found.
+             */
+            fun forWrapperClassName(wrapperClassName: String) =
+                wrapperClassNameToKind[wrapperClassName]
+
+            /** Map from [Primitive.kotlinNumericConversionFunction]'s name to [Primitive]. */
+            private val kotlinNumericConversionFunctionNameToKind =
+                Primitive.entries
+                    .filter { it.kotlinNumericConversionFunction != null }
+                    .associateBy { it.kotlinNumericConversionFunction }
+
+            /**
+             * Get the [Primitive] associated with the Kotlin numeric conversion function called
+             * [name], returning `null`, if it could not be found.
+             */
+            fun forKotlinNumericConversionFunctionName(name: String) =
+                kotlinNumericConversionFunctionNameToKind[name]
+        }
     }
 
     override fun defaultValue(): Any? = kind.defaultValue
@@ -896,8 +1030,9 @@ interface PrimitiveTypeItem : TypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
-        return (other as? PrimitiveTypeItem)?.kind == kind
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
+        return (other as? PrimitiveTypeItem)?.kind == kind &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability)
     }
 
     override fun hashCodeForType(): Int = kind.hashCode()
@@ -960,9 +1095,11 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ArrayTypeItem) return false
-        return isVarargs == other.isVarargs && componentType.equalToType(other.componentType)
+        return isVarargs == other.isVarargs &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            componentType.equalToType(other.componentType, includeNullability)
     }
 
     override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
@@ -1084,27 +1221,46 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
             arguments.size == other.arguments.size &&
-            arguments.zip(other.arguments).all { (p1, p2) -> p1.equalToType(p2) } &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            arguments.zip(other.arguments).all { (p1, p2) ->
+                p1.equalToType(p2, includeNullability)
+            } &&
             ((outerClassType == null && other.outerClassType == null) ||
-                outerClassType?.equalToType(other.outerClassType) == true)
+                outerClassType?.equalToType(other.outerClassType, includeNullability) == true)
     }
 
     override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, arguments)
 
+    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g. from the
+        // text model b/437086600)
+        if (classNamePrefix == "kotlin.jvm.functions." && className.startsWith("Function"))
+            return true
+
+        // Check the type to see if it is defined in Kotlin or not.
+        // Interfaces defined in Kotlin do not support SAM conversion, but `fun` interfaces do.
+        // This is a best-effort check, since external dependencies (bytecode) won't appear to
+        // be Kotlin for psi, and won't have a `fun` modifier visible. To resolve this, we could
+        // parse the kotlin.metadata annotation on the bytecode declaration, but in reality the
+        // amount of Java methods with a Kotlin interface with a single abstract method from an
+        // external dependency should be minimal. When using signature files, it also won't be clear
+        // whether a non-fun interface was defined in Java or Kotlin.
+        val cls = asClass() ?: return false
+        if (!cls.isInterface()) return false
+        // The functional modifier will only be present on Kotlin source interfaces
+        if (cls.modifiers.isFunctional()) return true
+        // For Java or unknown source language, check if there is a single abstract method
+        return cls.sourceLanguage != SourceLanguage.KOTLIN &&
+            cls.methods().singleOrNull { it.modifiers.isAbstract() } != null
+    }
+
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
-        fun computeClassName(qualifiedName: String): String {
-            val lastDotIndex = qualifiedName.lastIndexOf('.')
-            return if (lastDotIndex == -1) {
-                qualifiedName
-            } else {
-                qualifiedName.substring(lastDotIndex + 1)
-            }
-        }
+        fun computeClassName(qualifiedName: String) = qualifiedName.extractSimpleName()
     }
 }
 
@@ -1150,6 +1306,11 @@ interface LambdaTypeItem : ClassTypeItem {
 
     override fun transform(transformer: TypeTransformer): LambdaTypeItem {
         return transformer.transform(this)
+    }
+
+    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // This is a Kotlin lambda type
+        return true
     }
 }
 
@@ -1219,11 +1380,25 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
 
-    override fun equalToType(other: TypeItem?): Boolean {
-        return (other as? VariableTypeItem)?.name == name
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
+        return (other as? VariableTypeItem)?.name == name &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability)
     }
 
     override fun hashCodeForType(): Int = name.hashCode()
+
+    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // A variable type can be used with trailing lambda syntax if its bound is a Kotlin
+        // functional type, but not if the bound is a different SAM compatible type.
+        return asTypeParameter.asErasedType().let {
+            it is LambdaTypeItem ||
+                // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g.
+                // from the text model b/437086600)
+                (it is ClassTypeItem) &&
+                    it.classNamePrefix == "kotlin.jvm.functions." &&
+                    it.className.startsWith("Function")
+        }
+    }
 }
 
 /**
@@ -1291,14 +1466,16 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         )
     }
 
-    override fun transform(transformer: TypeTransformer): WildcardTypeItem {
+    // Any [TypeArgumentTypeItem] can be used in any context where a [WildcardTypeItem] is valid.
+    override fun transform(transformer: TypeTransformer): TypeArgumentTypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is WildcardTypeItem) return false
-        return extendsBound?.equalToType(other.extendsBound) != false &&
-            superBound?.equalToType(other.superBound) != false
+        return (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            extendsBound?.equalToType(other.extendsBound, includeNullability) != false &&
+            superBound?.equalToType(other.superBound, includeNullability) != false
     }
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
@@ -1325,6 +1502,35 @@ fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
             )
         }
     }
+
+/**
+ * A [TypeTransformer] which replaces [WildcardTypeItem]s with their bounds. If neither a super nor
+ * extends bound is defined for a wildcard, it leaves the unbounded wildcard in place.
+ */
+private object WildcardFlatteningTransformer : BaseTypeTransformer() {
+    override fun transform(typeItem: WildcardTypeItem): TypeArgumentTypeItem {
+        val bound = typeItem.superBound ?: typeItem.extendsBound
+        return bound?.transform(this) ?: typeItem
+    }
+}
+
+/**
+ * Checks if [type1] and [type2] are equal if any wildcards present in the type are replaced with
+ * their bounds.
+ *
+ * This is meant for comparing Kotlin types generated through PSI and the Kotlin analysis API, which
+ * often differ in whether wildcards are present, in cases where it does not make sense to simply
+ * compared erased types.
+ *
+ * For instance, `List<String>` and `List<? extends String>` would be considered equal, as would
+ * `List<? super String>`. These types are not equal, but considering them equal enables comparing
+ * types generated from UAST and the analysis API.
+ */
+fun equalWithFlattenedWildcards(type1: TypeItem, type2: TypeItem): Boolean {
+    val transformedType1 = type1.transform(WildcardFlatteningTransformer)
+    val transformedType2 = type2.transform(WildcardFlatteningTransformer)
+    return transformedType1 == transformedType2
+}
 
 /**
  * Map the items in this list to a new list if [transform] returns at least one item which is not

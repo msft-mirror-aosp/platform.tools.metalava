@@ -24,14 +24,19 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.DATA
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEPRECATED
 import com.android.tools.metalava.model.ModifierFlags.Companion.EQUIVALENCE_MASK
+import com.android.tools.metalava.model.ModifierFlags.Companion.EXHAUSTIVE
 import com.android.tools.metalava.model.ModifierFlags.Companion.EXPECT
 import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.FUN
 import com.android.tools.metalava.model.ModifierFlags.Companion.INFIX
 import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
+import com.android.tools.metalava.model.ModifierFlags.Companion.INTERNAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
+import com.android.tools.metalava.model.ModifierFlags.Companion.PUBLIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
@@ -43,15 +48,17 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_LEVEL_ENUMS
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_MASK
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
+import com.android.tools.metalava.model.value.Value
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
 /** Default [BaseModifierList]. */
-internal abstract class DefaultBaseModifierList
-constructor(
+internal sealed class DefaultBaseModifierList(
     protected var flags: Int,
     protected var annotations: List<AnnotationItem> = emptyList(),
 ) : BaseModifierList {
+
+    override val keywordList = ModifierKeyword.entries.filter { it.isSetIn(flags) }
 
     protected operator fun set(mask: Int, set: Boolean) {
         flags =
@@ -90,6 +97,10 @@ constructor(
 
     override fun isProtected(): Boolean {
         return getVisibilityLevel() == VisibilityLevel.PROTECTED
+    }
+
+    override fun isInternal(): Boolean {
+        return getVisibilityLevel() == VisibilityLevel.INTERNAL
     }
 
     override fun isPrivate(): Boolean {
@@ -142,6 +153,10 @@ constructor(
 
     override fun isSealed(): Boolean {
         return isSet(SEALED)
+    }
+
+    override fun isExhaustive(): Boolean {
+        return isSet(EXHAUSTIVE)
     }
 
     override fun isFunctional(): Boolean {
@@ -241,8 +256,7 @@ constructor(
     }
 
     override fun toString(): String {
-        val binaryFlags = Integer.toBinaryString(flags)
-        return "ModifierList(flags = 0b$binaryFlags, annotations = $annotations)"
+        return "ModifierList(flags = $keywordList, annotations = $annotations)"
     }
 }
 
@@ -264,7 +278,7 @@ interface ModifierFlags {
          * An internal copy of VisibilityLevel.values() to avoid paying the cost of duplicating the
          * array on every call.
          */
-        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.values()
+        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.entries
 
         // Check that the constants above are consistent with the VisibilityLevel enum, i.e. the
         // mask is large enough
@@ -313,6 +327,10 @@ interface ModifierFlags {
         const val VALUE = 1 shl 23
         const val EXPECT = 1 shl 24
         const val ACTUAL = 1 shl 25
+        const val EXHAUSTIVE = 1 shl 26
+
+        // Add new flags before this line and make sure to add a corresponding enum to
+        // [ModifierKeyword].
 
         /**
          * Modifiers considered significant to include signature files (and similarly to consider
@@ -334,6 +352,62 @@ interface ModifierFlags {
                 SUSPEND or
                 COMPANION
     }
+}
+
+/** An enumeration of all the modifier keywords. */
+enum class ModifierKeyword(
+    /** The bits that represent this keyword in [DefaultBaseModifierList.flags]. */
+    private val bitSet: Int,
+    /**
+     * The mask that selects the bits of [DefaultBaseModifierList.flags] to compare [bitSet]
+     * against.
+     */
+    private val mask: Int,
+) {
+    // Visibility accessors.
+    PACKAGE_PRIVATE_KEYWORD(PACKAGE_PRIVATE, VISIBILITY_MASK),
+    PRIVATE_KEYWORD(PRIVATE, VISIBILITY_MASK),
+    INTERNAL_KEYWORD(INTERNAL, VISIBILITY_MASK),
+    PROTECTED_KEYWORD(PROTECTED, VISIBILITY_MASK),
+    PUBLIC_KEYWORD(PUBLIC, VISIBILITY_MASK),
+
+    // Other flags.
+    STATIC_KEYWORD(STATIC),
+    ABSTRACT_KEYWORD(ABSTRACT),
+    FINAL_KEYWORD(FINAL),
+    NATIVE_KEYWORD(NATIVE),
+    SYNCHRONIZED_KEYWORD(SYNCHRONIZED),
+    STRICT_FP_KEYWORD(STRICT_FP),
+    TRANSIENT_KEYWORD(TRANSIENT),
+    VOLATILE_KEYWORD(VOLATILE),
+    DEFAULT_KEYWORD(DEFAULT),
+    DEPRECATED_KEYWORD(DEPRECATED),
+    VARARG_KEYWORD(VARARG),
+    SEALED_KEYWORD(SEALED),
+    FUN_KEYWORD(FUN),
+    INFIX_KEYWORD(INFIX),
+    OPERATOR_KEYWORD(OPERATOR),
+    INLINE_KEYWORD(INLINE),
+    SUSPEND_KEYWORD(SUSPEND),
+    COMPANION_KEYWORD(COMPANION),
+    CONST_KEYWORD(CONST),
+    DATA_KEYWORD(DATA),
+    VALUE_KEYWORD(VALUE),
+    EXPECT_KEYWORD(EXPECT),
+    ACTUAL_KEYWORD(ACTUAL),
+    EXHAUSTIVE_KEYWORD(EXHAUSTIVE),
+    ;
+
+    /** Special constructor for non-visibility related flags. */
+    constructor(bit: Int) : this(bit, bit)
+
+    /** The string representation of this keyword, used in [toString]. */
+    private val keyword = name.removeSuffix("_KEYWORD").lowercase()
+
+    /** Is this keyword set in [flags]. */
+    fun isSetIn(flags: Int) = (flags and mask == bitSet)
+
+    override fun toString() = keyword
 }
 
 /** Default [MutableModifierList]. */
@@ -394,6 +468,10 @@ internal class DefaultMutableModifierList(
         set(SEALED, sealed)
     }
 
+    override fun setExhaustive(exhaustive: Boolean) {
+        set(EXHAUSTIVE, exhaustive)
+    }
+
     override fun setFunctional(functional: Boolean) {
         set(FUN, functional)
     }
@@ -440,6 +518,10 @@ internal class DefaultMutableModifierList(
 
     override fun setActual(actual: Boolean) {
         set(ACTUAL, actual)
+    }
+
+    override fun setConst(const: Boolean) {
+        set(CONST, const)
     }
 
     override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
@@ -499,19 +581,22 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(
 ) {
     // By policy, include explicit retention policy annotation if missing
     val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-    addAnnotation(
-        codebase.createAnnotation(
-            buildString {
-                append('@')
-                append(Retention::class.qualifiedName)
-                append('(')
-                append(RetentionPolicy::class.qualifiedName)
-                append('.')
-                append(defaultRetentionPolicy.name)
-                append(')')
-            },
+    // Create a reference to the default retention policy enum value.
+    val policyValue =
+        Value.createFieldReferenceValue(
+            codebase,
+            RetentionPolicy::class.qualifiedName!!,
+            defaultRetentionPolicy.name
         )
-    )
+    // Create a retention annotation.
+    val retentionAnnotation =
+        AnnotationItem.createSingleElementAnnotation(
+            codebase,
+            Retention::class.qualifiedName!!,
+            policyValue,
+        )
+    // Add the retention annotation.
+    addAnnotation(retentionAnnotation)
 }
 
 /**

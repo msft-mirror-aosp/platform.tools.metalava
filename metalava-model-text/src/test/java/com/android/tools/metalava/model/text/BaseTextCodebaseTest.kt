@@ -27,7 +27,10 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 abstract class BaseTextCodebaseTest : BaseModelTest() {
 
     /** Run a single signature test with a set of signature files. */
-    fun runSignatureTest(vararg sources: TestFile, test: CodebaseContext.() -> Unit) {
+    fun runSignatureTest(
+        vararg sources: TestFile,
+        test: CodebaseContext.() -> Unit,
+    ) {
         runCodebaseTest(inputSet(*sources), test = test)
     }
 }

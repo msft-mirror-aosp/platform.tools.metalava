@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface PropertyItem : MemberItem {
+interface PropertyItem : MemberItem, TypeParameterListOwner {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
         get() = null
@@ -36,8 +36,16 @@ interface PropertyItem : MemberItem {
     val constructorParameter: ParameterItem?
         get() = null
 
+    override fun describe(capitalize: Boolean) = toString()
+
     /** The type of this property */
     override fun type(): TypeItem
+
+    /** The receiver type of this property, if one exists. */
+    val receiver: TypeItem?
+
+    /** The type parameters of this property. */
+    override val typeParameterList: TypeParameterList
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,
@@ -66,6 +74,16 @@ interface PropertyItem : MemberItem {
     }
 
     override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
+
+    // Inherit deprecation from the getter
+    override val effectivelyDeprecated: Boolean
+        get() =
+            originallyDeprecated ||
+                if (getter == null) {
+                    containingClass().effectivelyDeprecated
+                } else {
+                    getter!!.effectivelyDeprecated
+                }
 
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->

@@ -16,16 +16,17 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import java.io.File
 
 /**
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase {
+interface Codebase : ClassPathResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -40,9 +41,6 @@ interface Codebase {
 
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
-
-    /** The manager of annotations within this codebase. */
-    val annotationManager: AnnotationManager
 
     /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
     val apiSurfaces: ApiSurfaces
@@ -83,7 +81,11 @@ interface Codebase {
      * available). That may include fabricating the [ClassItem] from nothing in the case of models
      * that work with a partial set of classes (like text model).
      */
-    fun resolveClass(className: String): ClassItem?
+    override fun resolveClass(erasedName: String): ClassItem?
+
+    /** The root [PackageItem]. */
+    val rootPackage
+        get() = resolvePackage("")
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
@@ -112,6 +114,35 @@ interface Codebase {
         context: Item? = null,
     ): AnnotationItem?
 
+    /**
+     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
+     * a source representation of the annotation and the calling [createAnnotation].
+     */
+    fun createAnnotationFromAttributes(
+        originalName: String,
+        attributes: List<Pair<String, String>> = emptyList(),
+        context: Item? = null,
+    ): AnnotationItem? {
+        val source = buildString {
+            append("@")
+            append(originalName)
+            if (attributes.isNotEmpty()) {
+                append("(")
+                attributes.forEachIndexed { i, attribute ->
+                    if (i != 0) {
+                        append(", ")
+                    }
+                    append(attribute.first)
+                    append("=")
+                    append(attribute.second)
+                }
+                append(")")
+            }
+        }
+
+        return createAnnotation(source, context)
+    }
+
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing {
         error(
@@ -130,19 +161,41 @@ interface Codebase {
         return getPackages().packages.isEmpty()
     }
 
+    /** Indicates whether this [Codebase] contains a reverted item, or not. */
+    val containsRevertedItem: Boolean
+
+    /** Record that this [Codebase] contains at least one reverted item. */
+    fun markContainsRevertedItem()
+
     /**
      * Contains configuration for [Codebase] that can, or at least could, come from command line
      * options.
      */
     data class Config(
+        /**
+         * Whether to allow reading comments from the sources.
+         *
+         * If `true` then source comments will be read and [SelectableItem.documentation] will not
+         * be `null` (unless the [SelectableItem] is `private`). If `false` then
+         * [SelectableItem.documentation] will always be `null`.
+         */
+        val allowReadingComments: Boolean = true,
+
         /** Determines how annotations will affect the [Codebase]. */
         val annotationManager: AnnotationManager,
+
+        /**
+         * The [ApiFlags] to use in conditional javadoc.
+         *
+         * If set to `null` then it behaves as if all flags are enabled.
+         */
+        val apiFlags: ApiFlags? = null,
 
         /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
 
         /** The reporter to use for issues found during processing of the [Codebase]. */
-        val reporter: Reporter = BasicReporter.ERR,
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
     ) {
         companion object {
             /**
@@ -154,5 +207,22 @@ interface Codebase {
                     annotationManager = noOpAnnotationManager,
                 )
         }
+    }
+
+    companion object {
+        /** Find the corresponding item in the previously released API if available. */
+        fun findPreviouslyReleased(oldCodebase: Codebase?, item: Item?): Item? {
+            return oldCodebase?.let {
+                item?.findCorrespondingItemIn(
+                    oldCodebase,
+                    superMethods = true,
+                    duplicate = true,
+                )
+            }
+        }
+
+        /** Check to see if [item] was previously released. */
+        fun wasPreviouslyReleased(oldCodebase: Codebase?, item: Item?) =
+            findPreviouslyReleased(oldCodebase, item) != null
     }
 }

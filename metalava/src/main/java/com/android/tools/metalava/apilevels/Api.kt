@@ -19,8 +19,14 @@ import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
 
-/** Represents the whole Android API. */
-class Api : ParentApiElement {
+private const val SDK_EXTENSIONS_INTERNAL_NAME = "android/os/ext/SdkExtensions"
+
+/**
+ * Represents the whole Android API.
+ *
+ * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
+ */
+class Api(val useInternalNames: Boolean) : ParentApiElement {
     /**
      * This has to behave as if it exists since before any specific version (so that every class
      * always specifies its `since` attribute.
@@ -56,16 +62,18 @@ class Api : ParentApiElement {
      * @param name the name of the class
      * @param updater the [ApiHistoryUpdater] that will update the element with information about
      *   the version to which it belongs.
-     * @param deprecated whether the class was deprecated in the API version
-     * @return the newly created or a previously existed class
+     * @param deprecated whether the class was deprecated in the API version.
+     * @param isEnum whether the class is an enum class.
+     * @return the newly created or an already existing class.
      */
     fun updateClass(
         name: String,
         updater: ApiHistoryUpdater,
         deprecated: Boolean,
+        isEnum: Boolean,
     ): ApiClass {
         val existing = mClasses[name]
-        val classElement = existing ?: ApiClass(name).apply { mClasses[name] = this }
+        val classElement = existing ?: ApiClass(name, isEnum).apply { mClasses[name] = this }
         updater.update(classElement, deprecated)
         return classElement
     }
@@ -80,6 +88,10 @@ class Api : ParentApiElement {
         removeImplicitInterfaces()
         removeOverridingMethods()
         prunePackagePrivateClasses()
+
+        // Add any class dependent members. This is done here, after creating the API, as they need
+        // to copy the containing class's state and that changes during creation.
+        addClassDependentMembersIfNeeded()
     }
 
     val classes: Collection<ApiClass>
@@ -92,17 +104,19 @@ class Api : ParentApiElement {
      */
     fun patchSdkExtensionsHistory() {
         val sdkExtensions =
-            findClass("android/os/ext/SdkExtensions")
-            // This is either for the module-lib/system-server (null) or for a non-Android API.
-            // Either way it does not need patching.
-            ?: return
+            findClass(SDK_EXTENSIONS_INTERNAL_NAME)
+                // This is either for the module-lib/system-server (null) or for a non-Android API.
+                // Either way it does not need patching.
+                ?: return
 
         val sdk30 = ApiVersion.fromLevel(30)
         val sdk31 = ApiVersion.fromLevel(31)
         val sdk33 = ApiVersion.fromLevel(33)
         val sdkExtensionsSince = sdkExtensions.since
         if (sdkExtensionsSince != sdk30 && sdkExtensionsSince != sdk33) {
-            throw AssertionError("Received unexpected historical data")
+            throw AssertionError(
+                "Received unexpected historical data, first occurrence of $SDK_EXTENSIONS_INTERNAL_NAME was $sdkExtensionsSince, expected $sdk30 or $sdk33"
+            )
         } else if (sdkExtensionsSince == sdk30) {
             // This is the system API db (30). The class does not need patching but the members do.
             // Drop through.
@@ -175,6 +189,18 @@ class Api : ParentApiElement {
         }
     }
 
+    /**
+     * Adds class dependent members, if needed.
+     *
+     * These are members whose history is identical to the containing class, e.g. compiler generated
+     * enum methods.
+     */
+    private fun addClassDependentMembersIfNeeded() {
+        for (cls in mClasses.values) {
+            cls.addClassDependentMembersIfNeeded()
+        }
+    }
+
     fun removeMissingClasses() {
         for (cls in mClasses.values) {
             cls.removeMissingClasses(mClasses)
@@ -197,7 +223,8 @@ class Api : ParentApiElement {
         if (results.isNotEmpty()) {
             var message = ""
             for ((key, value) in results) {
-                message += """
+                message +=
+                    """
   $key referenced by:"""
                 for (referencer in value) {
                     message += "\n    $referencer"
