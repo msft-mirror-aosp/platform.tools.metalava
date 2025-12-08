@@ -15,6 +15,9 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with unknown field[turbine]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test class location (java)[turbine]
+
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
 
