@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.Showability
-import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import com.android.tools.metalava.model.api.flags.ApiFlags
@@ -62,13 +61,8 @@ class CommonFlagTest : BaseModelTest() {
             ),
             testFixture =
                 TestFixture(
-                    annotationManager =
-                        DefaultAnnotationManager(
-                            DefaultAnnotationManager.Config(
-                                apiFlags = apiFlags,
-                            )
-                        ),
                     additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                    apiFlags = apiFlags,
                 ),
             test = test,
         )

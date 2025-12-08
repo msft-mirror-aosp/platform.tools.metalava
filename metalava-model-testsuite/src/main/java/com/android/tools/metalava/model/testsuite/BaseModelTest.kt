@@ -242,8 +242,17 @@ abstract class BaseModelTest() :
          */
         val allowReadingComments: Boolean = true,
 
-        /** The [AnnotationManager] to use when creating a [Codebase]. */
-        val annotationManager: AnnotationManager = DefaultAnnotationManager(),
+        /**
+         * The [AnnotationManager] to use when creating a [Codebase], if `null` then will use
+         * [annotationManagerFactory].
+         */
+        val annotationManager: AnnotationManager? = null,
+
+        /**
+         * The [AnnotationManager] factory to use when creating a [Codebase], if `null` then will
+         * create a [DefaultAnnotationManager].
+         */
+        val annotationManagerFactory: (TestFixture.() -> AnnotationManager)? = null,
 
         /** The [ApiFlags] to use in conditional javadoc. */
         val apiFlags: ApiFlags? = null,
@@ -271,7 +280,17 @@ abstract class BaseModelTest() :
             get() =
                 Codebase.Config(
                     allowReadingComments = allowReadingComments,
-                    annotationManager = annotationManager,
+                    annotationManager =
+                        // Use supplied annotation manager first, if available.
+                        annotationManager
+                            // Otherwise, use the factory, if available.
+                            ?: annotationManagerFactory?.invoke(this)
+                            // Finally, create a default manager.
+                            ?: DefaultAnnotationManager(
+                                DefaultAnnotationManager.Config(
+                                    apiFlags = apiFlags,
+                                )
+                            ),
                     apiFlags = apiFlags,
                     apiSurfaces = apiSurfaces,
                     reporter = recordingReporter,
