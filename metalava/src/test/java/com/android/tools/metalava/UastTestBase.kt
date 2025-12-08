@@ -3095,4 +3095,48 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Usage of expect actual typealias from classpath in a common module`() {
+        val implements = if (isK2) "" else " implements java.lang.AutoCloseable"
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                class Common : kotlin.AutoCloseable {
+                    override fun close() = Unit
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                class Android
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Android {
+                    ctor public Android();
+                  }
+                  public final class Common$implements {
+                    ctor public Common();
+                    method public void close();
+                  }
+                }
+                """
+        )
+    }
 }
