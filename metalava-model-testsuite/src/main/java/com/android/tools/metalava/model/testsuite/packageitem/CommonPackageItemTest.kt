@@ -64,7 +64,7 @@ class CommonPackageItemTest : BaseModelTest() {
                 .cacheIn(testFileCacheRule)
     }
 
-    @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
+    @RequiresCapabilities(Capability.HIDDEN_ITEMS)
     @Test
     fun `Test @hide in package html`() {
         runSourceCodebaseTest(
@@ -148,6 +148,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test nullability annotation in package info`() {
         runSourceCodebaseTest(
@@ -252,6 +253,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test package location (package-info)`() {
         runCodebaseTest(
@@ -282,6 +284,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test package documentation (package-info) without header comment`() {
         runCodebaseTest(
@@ -307,6 +310,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test package documentation (package-info) with header comment`() {
         runCodebaseTest(
@@ -334,6 +338,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test package location (package-html)`() {
         runCodebaseTest(
@@ -368,6 +373,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test package documentation (package-html)`() {
         runCodebaseTest(
@@ -398,6 +404,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test invalid package (package-html)`() {
         runCodebaseTest(
@@ -427,6 +434,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test package documentation (overview-html)`() {
         runCodebaseTest(
@@ -467,6 +475,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test mismatching between package and directory`() {
         runCodebaseTest(
@@ -495,6 +504,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test documentation on empty packages`() {
         runCodebaseTest(
