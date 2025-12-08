@@ -139,4 +139,39 @@ class AnnotationRetentionTest : DriverTest() {
                 """,
         )
     }
+
+    /**
+     * TODO: rename this to "Should write annotation retention on annotation class even when explicitly annotated with non-retention annotation - kotlin source"
+     */
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Don't write annotation retention on annotation class when explicitly annotated with non-retention annotation - kotlin source`() {
+        check(
+            format = FileFormat.V4,
+            extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        annotation class MyMetaAnnotation
+
+                        @MyMetaAnnotation
+                        annotation class MyAnnotation
+                        """
+                    )
+                ),
+            api =
+                // MyAnnotation should have a RUNTIME retention written to it (as that is the Kotlin default)
+                """
+                package test.pkg {
+                  @test.pkg.MyMetaAnnotation public @interface MyAnnotation {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MyMetaAnnotation {
+                  }
+                }
+                """,
+        )
+    }
 }
