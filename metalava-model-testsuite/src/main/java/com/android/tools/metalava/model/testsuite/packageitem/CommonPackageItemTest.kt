@@ -231,6 +231,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.SIGNATURE)
     @Test
     fun `Test package location (signature)`() {
         runCodebaseTest(
