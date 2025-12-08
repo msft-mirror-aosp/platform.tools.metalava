@@ -90,7 +90,7 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         assertTrue(output.isFile)
         val xml = output.readText(Charsets.UTF_8)
         // Sources will always be included with the api level of --api-for-sources when
-        // --api-for-sources is set with a valid value regardless of the codename
+        // --api-for-sources is set with a valid value
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")

@@ -52,7 +52,6 @@ class CorrectApiLevelForReleaseTest : ApiGeneratorIntegrationTestBase() {
         )
 
         assertTrue(output.isFile)
-        // Anything with a REL codename is in the current API level
         val xml = output.readText(Charsets.UTF_8)
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$MAGIC_VERSION_STR\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
