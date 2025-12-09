@@ -68,8 +68,6 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
-  --Xuse-k1-uast                             Specifies whether the K1 compiler is used. (default: K1)
-  --Xuse-k2-uast                             Specifies whether the K2 compiler is used. (default: K1)
   -h, --help                                 Show this message and exit
 
 $SOURCE_OPTIONS_HELP

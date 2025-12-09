@@ -49,7 +49,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
-import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
@@ -64,7 +63,6 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
@@ -168,8 +166,6 @@ const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
-const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_PROJECT = "--project"
 
 class Options(
@@ -548,45 +544,7 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    /** Whether to use the K1 compiler. */
-    private val useK1UastOption by
-        option(
-                ARG_USE_K1_UAST,
-                help = "Specifies whether the K1 compiler is used.",
-            )
-            .flag(default = false, defaultForHelp = "K1")
-
-    /** Whether to use the K2 compiler. */
-    private val useK2UastOption by
-        option(
-                ARG_USE_K2_UAST,
-                help = "Specifies whether the K2 compiler is used.",
-            )
-            .flag(default = false, defaultForHelp = "K1")
-
-    val modelOptions: ModelOptions by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val useK2Uast =
-                when {
-                    useK1UastOption && useK2UastOption ->
-                        cliError("Cannot specify both $ARG_USE_K1_UAST and $ARG_USE_K2_UAST")
-                    useK1UastOption -> false
-                    useK2UastOption -> true
-                    else -> null
-                }
-
-            // If the option was specified on the command line then use [ModelOptions] created from
-            // that
-            useK2Uast?.let { useK2Uast ->
-                ModelOptions.build("from command line") {
-                    this[PsiModelOptions.useK2Uast] = useK2Uast
-                }
-            }
-                // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-                ?: executionEnvironment.testEnvironment?.modelOptions
-                // Otherwise, use the default
-                ?: ModelOptions.empty
-        }
+    val modelOptions: ModelOptions by sourceOptions::modelOptions
 
     fun parse(args: Array<String>) {
         var index = 0
