@@ -24,11 +24,14 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import org.junit.Test
 
 class CommonFlagTest : BaseModelTest() {
@@ -86,6 +89,7 @@ class CommonFlagTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.API_VARIANT_SELECTORS)
     @Test
     fun `Test empty flags`() {
         runFlagsTest(
@@ -99,6 +103,11 @@ class CommonFlagTest : BaseModelTest() {
             assertEquals(expectedApiFlag, apiFlag, "apiFlag")
             assertEquals(Showability.REVERT_UNSTABLE_API, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
+
+            assertTrue(
+                fooClass.showability.revertUnstableApi(),
+                message = "class showability revert"
+            )
         }
     }
 
