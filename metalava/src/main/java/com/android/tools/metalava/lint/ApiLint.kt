@@ -50,6 +50,7 @@ import com.android.tools.metalava.lint.ResourceType.TRANSITION
 import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.SetMinSdkVersion
+import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
@@ -195,15 +196,28 @@ private constructor(
     private val codebase: Codebase,
     oldCodebase: Codebase?,
     reporter: Reporter,
-    private val manifest: Manifest,
     apiPredicateConfig: ApiPredicate.Config,
-    private val allowedAcronyms: List<String>,
+    private val config: Config,
 ) :
     ApiVisitor(
         visitParameterItems = false,
         apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
         targetLanguages = TargetLanguageSet.SOURCE,
     ) {
+
+    data class Config(
+        /** Platform [Manifest] from which */
+        val manifest: Manifest = emptyManifest,
+
+        /** The list of allowed acronyms. */
+        val allowedAcronyms: List<String> = emptyList(),
+    )
+
+    private val manifest
+        get() = config.manifest
+
+    private val allowedAcronyms
+        get() = config.allowedAcronyms
 
     private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
 
@@ -3102,18 +3116,16 @@ private constructor(
             codebase: Codebase,
             oldCodebase: Codebase?,
             reporter: Reporter,
-            manifest: Manifest,
             apiPredicateConfig: ApiPredicate.Config,
-            allowedAcronyms: List<String>,
+            config: Config,
         ) {
             val apiLint =
                 ApiLint(
                     codebase,
                     oldCodebase,
                     reporter,
-                    manifest,
                     apiPredicateConfig,
-                    allowedAcronyms,
+                    config,
                 )
             apiLint.check()
         }

@@ -721,9 +721,11 @@ private fun ActionContext.loadFromSources(
             codebase,
             previouslyReleasedCodebase,
             reporter,
-            options.manifest,
             options.apiPredicateConfig,
-            options.apiLintOptions.allowedAcronyms,
+            ApiLint.Config(
+                manifest = options.manifest,
+                allowedAcronyms = options.apiLintOptions.allowedAcronyms,
+            ),
         )
     }
 
