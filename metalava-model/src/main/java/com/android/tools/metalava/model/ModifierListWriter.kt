@@ -98,8 +98,12 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item, normalizeFinal: Boolean = false) {
-        writeAnnotations(item)
+    fun write(
+        item: Item,
+        normalizeFinal: Boolean = false,
+        skipRequiresPermission: Boolean = false
+    ) {
+        writeAnnotations(item, skipRequiresPermission)
         writeKeywords(item, normalizeFinal = normalizeFinal)
     }
 
@@ -215,7 +219,7 @@ private constructor(
         }
     }
 
-    private fun writeAnnotations(item: Item) {
+    private fun writeAnnotations(item: Item, skipRequiresPermission: Boolean) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =
@@ -230,8 +234,16 @@ private constructor(
 
         val list = item.modifiers
         var annotations = list.annotations()
+        // b/442395516 RequiresPermission is not loaded consistently across codebases hence will be
+        // excluded for now
+        if (skipRequiresPermission) {
+            annotations =
+                annotations.filter { annotation ->
+                    !annotation.qualifiedName.contains("RequiresPermission")
+                }
+        }
 
-        // Do not write deprecate or suppress compatibility annotations on a package.
+        // Do not write deprecate annotations on a package.
         if (item !is PackageItem) {
             val writeDeprecated =
                 when {
@@ -244,11 +256,11 @@ private constructor(
                 writer.write("@Deprecated")
                 writer.write(if (separateLines) "\n" else " ")
             }
+        }
 
-            if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
-                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
-                writer.write(if (separateLines) "\n" else " ")
-            }
+        if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
+            writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
+            writer.write(if (separateLines) "\n" else " ")
         }
 
         // Remove @SuppressCompatibility if it exists (it will for text codebases) because it was
@@ -383,5 +395,5 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it doesn't
  * need to maintain compatibility.
  */
-internal val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
     AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)

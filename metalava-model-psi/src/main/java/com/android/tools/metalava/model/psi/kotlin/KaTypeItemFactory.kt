@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi.kotlin
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
@@ -40,6 +41,8 @@ import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
+import com.android.tools.metalava.model.type.MethodFingerprint
+import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -51,7 +54,6 @@ import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaStarTypeProjection
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeArgumentWithVariance
-import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KaTypeParameterType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeProjection
 import org.jetbrains.kotlin.analysis.api.types.KaUsualClassType
@@ -62,19 +64,19 @@ import org.jetbrains.kotlin.types.Variance
 /** Constructs type items from [KaType]s. */
 internal class KaTypeItemFactory(
     private val codebase: PsiBasedCodebase,
-    private val assembler: KaCodebaseAssembler,
+    private val processor: KaModuleProcessor,
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<KaType, KaTypeItemFactory>(typeParameterScope) {
     constructor(
         codebase: PsiBasedCodebase,
-        assembler: KaCodebaseAssembler,
+        processor: KaModuleProcessor,
         classItem: DefaultClassItem,
-    ) : this(codebase, assembler, TypeParameterScope.from(classItem))
+    ) : this(codebase, processor, TypeParameterScope.from(classItem))
 
     override fun self(): KaTypeItemFactory = this
 
     override fun createNestedFactory(scope: TypeParameterScope): KaTypeItemFactory {
-        return KaTypeItemFactory(codebase, assembler, scope)
+        return KaTypeItemFactory(codebase, processor, scope)
     }
 
     override fun getType(
@@ -111,6 +113,31 @@ internal class KaTypeItemFactory(
         return underlyingType.toTypeItem(mustBoxPrimitives = true) as ClassTypeItem
     }
 
+    // Override to handle Unit returns
+    override fun getMethodReturnType(
+        underlyingReturnType: KaType,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        isAnnotationElement: Boolean
+    ): TypeItem {
+        return analyze(processor.kaModule) {
+            // Convert Unit returns to void
+            if (underlyingReturnType.isUnitType) {
+                DefaultPrimitiveTypeItem(
+                    DefaultTypeModifiers.emptyNonNullModifiers,
+                    PrimitiveTypeItem.Primitive.VOID
+                )
+            } else {
+                super.getMethodReturnType(
+                    underlyingReturnType,
+                    itemAnnotations,
+                    fingerprint,
+                    isAnnotationElement
+                )
+            }
+        }
+    }
+
     /**
      * Creates a [TypeItem] from the [KaType].
      *
@@ -118,17 +145,14 @@ internal class KaTypeItemFactory(
      * boxed when nullable.
      */
     private fun KaType.toTypeItem(mustBoxPrimitives: Boolean): TypeItem {
-        val typeItemNullability =
-            when (nullability) {
-                KaTypeNullability.NULLABLE -> TypeNullability.NULLABLE
-                KaTypeNullability.NON_NULLABLE -> TypeNullability.NONNULL
-                KaTypeNullability.UNKNOWN -> TypeNullability.UNDEFINED
-            }
-        val typeItemAnnotations = annotations.mapNotNull { assembler.createAnnotation(it) }
+        val typeItemNullability = let { kaType ->
+            analyze(processor.kaModule) { typeNullability(kaType) }
+        }
+        val typeItemAnnotations = annotations.mapNotNull { processor.createAnnotation(it) }
         val modifiers = DefaultTypeModifiers.create(typeItemAnnotations, typeItemNullability)
 
         // Expand type aliases
-        val expandedKaType = analyze(assembler.kaModule) { fullyExpandedType }
+        val expandedKaType = analyze(processor.kaModule) { fullyExpandedType }
         // Convert expanded type to a TypeItem
         return when (expandedKaType) {
             is KaUsualClassType -> expandedKaType.toTypeItem(modifiers, mustBoxPrimitives)
@@ -178,19 +202,7 @@ internal class KaTypeItemFactory(
             if (isSuspend) {
                 // Suspend functions have an additional continuation parameter, using the original
                 // return type.
-                val continuationParameter =
-                    DefaultClassTypeItem(
-                        classResolver = codebase,
-                        modifiers = DefaultTypeModifiers.emptyNonNullModifiers,
-                        qualifiedName = KOTLIN_CONTINUATION,
-                        arguments =
-                            listOf(
-                                createWildcardTypeItem(
-                                    superBound = originalReturnType as ReferenceTypeItem
-                                )
-                            ),
-                        outerClassType = null
-                    )
+                val continuationParameter = createContinuationType(originalReturnType)
                 val allParameters = originalParameterTypes + continuationParameter
                 // The return type for a suspend function is an object, now that the continuation
                 // with the original return type is added to the parameter list.
@@ -218,6 +230,26 @@ internal class KaTypeItemFactory(
         )
     }
 
+    /** For suspend functions, create a continuation type which is used as an extra parameter. */
+    internal fun createContinuationType(originalSuspendType: TypeItem): ClassTypeItem {
+        // This type is being used as the bound of a wildcard in the continuation, so if it is a
+        // primitive it needs to be boxed.
+        val suspendType =
+            if (originalSuspendType is PrimitiveTypeItem) {
+                boxType(originalSuspendType)
+            } else {
+                originalSuspendType
+            }
+        return DefaultClassTypeItem(
+            classResolver = codebase,
+            modifiers = DefaultTypeModifiers.emptyNonNullModifiers,
+            qualifiedName = KOTLIN_CONTINUATION,
+            arguments =
+                listOf(createWildcardTypeItem(superBound = suspendType as ReferenceTypeItem)),
+            outerClassType = null
+        )
+    }
+
     /**
      * Creates a [TypeItem] from the [KaUsualClassType]. This might be a class type, an array type,
      * or a primitive type.
@@ -242,7 +274,7 @@ internal class KaTypeItemFactory(
 
         // Otherwise, create a class type.
         val isValueClass =
-            analyze(assembler.kaModule) {
+            analyze(processor.kaModule) {
                 (expandedSymbol as? KaNamedClassSymbol)?.isInline == true
             }
         return DefaultClassTypeItem(
@@ -314,7 +346,7 @@ internal class KaTypeItemFactory(
 
     /** Creates an [ArrayTypeItem], if the [KaUsualClassType] represents an array. */
     private fun KaUsualClassType.maybeToArrayTypeItem(modifiers: TypeModifiers): ArrayTypeItem? {
-        return analyze(assembler.kaModule) {
+        return analyze(processor.kaModule) {
             // If there's an arrayElementType, this is an array type.
             arrayElementType?.let { componentType ->
                 // An array type might be `kotlin.Array`, or it might be `kotlin.IntArray`,
@@ -335,15 +367,19 @@ internal class KaTypeItemFactory(
 
     /** Creates a [WildcardTypeItem] with an object extends bound of the given [nullability]. */
     private fun createObjectWildcardTypeItem(nullability: TypeNullability): WildcardTypeItem {
-        return createWildcardTypeItem(
-            extendsBound =
-                DefaultClassTypeItem(
-                    classResolver = codebase,
-                    modifiers = DefaultTypeModifiers.create(emptyList(), nullability),
-                    qualifiedName = "java.lang.Object",
-                    arguments = emptyList(),
-                    outerClassType = null,
-                )
+        return createWildcardTypeItem(extendsBound = createObjectTypeItem(nullability))
+    }
+
+    /** Creates a [ClassTypeItem] representing java.lang.Object with the given [nullability]. */
+    internal fun createObjectTypeItem(
+        nullability: TypeNullability = TypeNullability.NULLABLE
+    ): ClassTypeItem {
+        return DefaultClassTypeItem(
+            classResolver = codebase,
+            modifiers = DefaultTypeModifiers.create(emptyList(), nullability),
+            qualifiedName = "java.lang.Object",
+            arguments = emptyList(),
+            outerClassType = null,
         )
     }
 
@@ -364,11 +400,11 @@ internal class KaTypeItemFactory(
      * inlined type. Otherwise returns the original type. In the case where a value class's inlined
      * type is itself a value class, this recursively inlines the type.
      */
-    fun inlineTypeIfNeeded(
+    internal fun inlineTypeIfNeeded(
         kaType: KaType,
         type: TypeItem,
     ): TypeItem {
-        return analyze(assembler.kaModule) {
+        return analyze(processor.kaModule) {
             if (type.isValueClassType()) {
                 // Find the inlined type through the constructor of the value class. Value classes
                 // must have a single parameter for the primary constructor
@@ -414,10 +450,13 @@ internal class KaTypeItemFactory(
      * If the [typeItem] is a primitive type but any of the [overrideTypes] it overrides is not,
      * returns the boxed version of the primitive type. Otherwise, returns the original type.
      */
-    fun handleOverrideBoxing(typeItem: TypeItem, overrideTypes: Sequence<KaType>): TypeItem {
+    internal fun handleOverrideBoxing(
+        typeItem: TypeItem,
+        overrideTypes: Sequence<KaType>
+    ): TypeItem {
         return if (
             typeItem is PrimitiveTypeItem &&
-                overrideTypes.any { analyze(assembler.kaModule) { !it.isPrimitive } }
+                overrideTypes.any { analyze(processor.kaModule) { !it.isPrimitive } }
         ) {
             boxType(typeItem)
         } else {
@@ -437,6 +476,23 @@ internal class KaTypeItemFactory(
     }
 
     companion object {
+        /** Determines the [TypeNullability] of a [KaType]. */
+        internal fun KaSession.typeNullability(type: KaType): TypeNullability {
+            return when {
+                // The type is explicitly marked nullable.
+                type.isMarkedNullable -> TypeNullability.NULLABLE
+                // Flexible nullability is platform nullability from java.
+                type.hasFlexibleNullability -> TypeNullability.PLATFORM
+                // This means the type could possibly be null, but isn't explicitly marked as
+                // such. This might be a type variable usage, where the bounds of the type
+                // parameter would allow a nullable type, but it is also possible for a non-null
+                // type to be used. In this case we call the nullability undefined.
+                type.isNullable -> TypeNullability.UNDEFINED
+                // The type cannot be null.
+                else -> TypeNullability.NONNULL
+            }
+        }
+
         /**
          * Converts the qualified name of a
          * [Kotlin mapped type](https://kotlinlang.org/docs/java-interop.html#mapped-types) to the

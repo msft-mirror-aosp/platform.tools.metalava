@@ -24,16 +24,20 @@ import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.SourceOptions
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
+import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.github.ajalt.clikt.core.CliktCommand
@@ -218,6 +222,8 @@ class MainCommand(
         @Suppress("DEPRECATION")
         options = optionGroup
 
+        checkOptionConsistency()
+
         val sourceModelProvider =
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
             executionEnvironment.testEnvironment?.sourceModelProvider
@@ -245,6 +251,17 @@ class MainCommand(
         }
     }
 
+    private fun checkOptionConsistency() {
+        val config = configFileOptions.config
+        if (config.apiFlags != null) {
+            if (compatibilityCheckOptions.previouslyReleasedApi == null) {
+                cliError(
+                    "Inconsistent options: API flags are provided in a $ARG_CONFIG_FILE but no previously released API is provided via $ARG_CHECK_COMPATIBILITY_API_RELEASED or $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED"
+                )
+            }
+        }
+    }
+
     /**
      * Produce a default file name for the baseline. It's normally "baseline.txt", but can be
      * prefixed by show annotations; e.g. @TestApi -> test-baseline.txt, @SystemApi ->
@@ -258,7 +275,7 @@ class MainCommand(
         val sourcePath = sourceOptions.sourcePath
         if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
             fun annotationToPrefix(qualifiedName: String): String {
-                val name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+                val name = qualifiedName.extractSimpleName()
                 return name.lowercase(Locale.US).removeSuffix("api") + "-"
             }
             val sb = StringBuilder()
