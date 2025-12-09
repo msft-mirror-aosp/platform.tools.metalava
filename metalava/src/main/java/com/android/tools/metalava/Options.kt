@@ -551,7 +551,7 @@ class Options(
      * Whether to use the K2 compiler, controlled by [ARG_USE_K2_UAST] and [ARG_USE_K1_UAST]. If
      * neither option is provided, the default is K1.
      */
-    var useK2Uast: Boolean? = null
+    private var useK2Uast: Boolean? = null
         set(value) {
             if (field != null && field != value) {
                 cliError("Cannot specify both $ARG_USE_K1_UAST and $ARG_USE_K2_UAST")
@@ -569,10 +569,7 @@ class Options(
                 }
             }
                 // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-                ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
-                    // Make sure that the [options.useK2Uast] matches the test environment.
-                    useK2Uast = this[PsiModelOptions.useK2Uast]
-                }
+                ?: executionEnvironment.testEnvironment?.modelOptions
                 // Otherwise, use the default
                 ?: ModelOptions.empty
         }
