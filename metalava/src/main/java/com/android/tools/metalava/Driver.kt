@@ -49,6 +49,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
@@ -725,6 +726,7 @@ private fun ActionContext.loadFromSources(
             ApiLint.Config(
                 manifest = options.manifest,
                 allowedAcronyms = options.apiLintOptions.allowedAcronyms,
+                useK2Uast = options.modelOptions[PsiModelOptions.useK2Uast],
             ),
         )
     }
