@@ -26,6 +26,7 @@ import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -141,12 +142,13 @@ internal fun processFlags(
     progressTracker: ProgressTracker,
     options: Options,
     apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+    sourceOptions: SourceOptions,
     stubGenerationOptions: StubGenerationOptions,
 ) {
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
     val codebaseConfig = options.codebaseConfig
-    val modelOptions = options.modelOptions
+    val modelOptions = sourceOptions.modelOptions
     val sourceParser =
         environmentManager.createSourceParser(
             codebaseConfig = codebaseConfig,

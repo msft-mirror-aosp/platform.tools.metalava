@@ -235,6 +235,7 @@ class MainCommand(
                         progressTracker,
                         optionGroup,
                         apiLevelsGenerationOptions,
+                        sourceOptions,
                         stubGenerationOptions,
                     )
                 }
