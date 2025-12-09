@@ -18,7 +18,6 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
-import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
@@ -37,7 +36,7 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     MAGIC_VERSION_STR // not real api level
                 ),
             sourceFiles =
@@ -54,9 +53,9 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
 
         assertTrue(output.isFile)
 
-        // TODO (b/3880582) : Replace --current-version with --api-version-for-sources, then check
-        // the class android/pkg/MyTest was added since $nextVersion
         val nextVersion = 57
+        val xml = output.readText(Charsets.UTF_8)
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
         assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
@@ -95,33 +94,5 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
         assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
-    }
-
-    @Test
-    fun `Throw error when current version is less than 27`() {
-        val currentApiVersion = 27 - 1
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    outputPath,
-                    ARG_ANDROID_JAR_PATTERN,
-                    androidPublicJarsPattern,
-                    ARG_CURRENT_VERSION,
-                    currentApiVersion.toString()
-                ),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.pkg;
-                        public class MyTest {
-                        }
-                        """
-                    )
-                ),
-            expectedFail =
-                "Aborting: Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27"
-        )
     }
 }
