@@ -43,11 +43,13 @@ import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
@@ -555,6 +557,24 @@ class Options(
                 cliError("Cannot specify both $ARG_USE_K1_UAST and $ARG_USE_K2_UAST")
             }
             field = value
+        }
+
+    val modelOptions: ModelOptions by
+        lazy(LazyThreadSafetyMode.NONE) {
+            // If the option was specified on the command line then use [ModelOptions] created from
+            // that
+            useK2Uast?.let { useK2Uast ->
+                ModelOptions.build("from command line") {
+                    this[PsiModelOptions.useK2Uast] = useK2Uast
+                }
+            }
+                // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+                ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
+                    // Make sure that the [options.useK2Uast] matches the test environment.
+                    useK2Uast = this[PsiModelOptions.useK2Uast]
+                }
+                // Otherwise, use the default
+                ?: ModelOptions.empty
         }
 
     fun parse(args: Array<String>) {

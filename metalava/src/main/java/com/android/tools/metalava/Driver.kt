@@ -48,8 +48,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
-import com.android.tools.metalava.model.ModelOptions
-import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
@@ -148,7 +146,7 @@ internal fun processFlags(
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
     val codebaseConfig = options.codebaseConfig
-    val modelOptions = createModelOptions(options, executionEnvironment)
+    val modelOptions = options.modelOptions
     val sourceParser =
         environmentManager.createSourceParser(
             codebaseConfig = codebaseConfig,
@@ -421,24 +419,6 @@ fun createCodeFragmentForSignatureFile(
             )
     }
     return codebaseFragment
-}
-
-/** Create [ModelOptions] object from option flags */
-private fun createModelOptions(
-    options: Options,
-    executionEnvironment: ExecutionEnvironment
-): ModelOptions {
-    // If the option was specified on the command line then use [ModelOptions] created from that
-    return options.useK2Uast?.let { useK2Uast ->
-        ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
-    }
-        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
-            // Make sure that the [options.useK2Uast] matches the test environment.
-            options.useK2Uast = this[PsiModelOptions.useK2Uast]
-        }
-        // Otherwise, use the default
-        ?: ModelOptions.empty
 }
 
 /** Create [Codebase] object from option flags */
