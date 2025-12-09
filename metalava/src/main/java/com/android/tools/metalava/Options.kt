@@ -561,12 +561,7 @@ class Options(
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
                 }
-
-                // TODO: Remove the legacy --merge-annotations flag once it's no longer used to
-                // update P docs
-                ARG_MERGE_QUALIFIER_ANNOTATIONS,
-                "--merge-zips",
-                "--merge-annotations" ->
+                ARG_MERGE_QUALIFIER_ANNOTATIONS ->
                     mutableMergeQualifierAnnotations.addAll(
                         stringToExistingDirsOrFiles(getValue(args, ++index))
                     )
