@@ -17,7 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
@@ -45,8 +45,8 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     "${extensionSdkJars.path}/{version:extension}/public/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    ARG_CURRENT_VERSION,
-                    currentVersion.toString() // not real api level of Z
+                    ARG_API_VERSION_FOR_SOURCES,
+                    currentVersion.toString()
                 ),
             sourceFiles =
                 arrayOf(
@@ -62,25 +62,16 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         assertTrue(output.isFile)
 
-        val xml =
-            output
-                .readText(Charsets.UTF_8)
-                // As this only provides a single MyTest class in the current codebase which is of
-                // version 10000 (b/450531827), the api-versions.xml generator will assume that all
-                // the other classes
-                // it has seen have been removed. That is not true so remove those attributes.
-                .replace(" removed=\"10000\"", "")
-        // TODO (b/450531827) : Until the next prospective SDK information is provided to Metalava,
-        // use 10,000 as a placeholder for the next sdk version
-        val nextVersion = 10000
+        val xml = output.readText(Charsets.UTF_8)
+
+        val nextVersion = 35
         assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"1\">"))
         assertTrue(
             xml.contains(
                 "<field name=\"BIND_CARRIER_MESSAGING_SERVICE\" since=\"22\" deprecated=\"23\"/>"
             )
         )
-        // TODO (b/3880582) : Replace --current-version with --api-version-for-sources, then check
-        // the class android/pkg/MyTest was added since $nextVersion
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         assertFalse(xml.contains("<implements name=\"java/lang/annotation/Annotation\" removed=\""))
         assertFalse(xml.contains("<extends name=\"java/lang/Enum\" removed=\""))
         assertFalse(xml.contains("<method name=\"append(C)Ljava/lang/AbstractStringBuilder;\""))
@@ -90,11 +81,10 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
 
-        // TODO (b/3880582) : Replace --current-version with --api-version-for-sources then check
-        // that android.pkg.MyTest is added with version $nextVersion
         // Make sure we're really using the correct database, not the SDK one. (This placeholder
         // class is provided as a source file above.)
-        @Suppress("DEPRECATION") assertEquals(-1, apiLookup.getClassVersion("android.pkg.MyTest"))
+        @Suppress("DEPRECATION")
+        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
 
         @Suppress("DEPRECATION") apiLookup.getClassVersion("android.v")
         @Suppress("DEPRECATION")
