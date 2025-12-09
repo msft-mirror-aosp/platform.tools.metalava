@@ -19,6 +19,8 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
+import com.android.tools.metalava.cli.common.ARG_JDK_HOME
+import com.android.tools.metalava.cli.common.ARG_SDK_HOME
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -156,8 +158,6 @@ const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
-const val ARG_SDK_HOME = "--sdk-home"
-const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
@@ -509,19 +509,6 @@ class Options(
     var kotlinLanguageLevelAsString: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL
 
     /**
-     * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set when metalava is
-     * used for non-Android projects.
-     */
-    var jdkHome: File? = null
-
-    /**
-     * The JDK to use as a platform, if set with [ARG_SDK_HOME]. If this is set along with
-     * [ARG_COMPILE_SDK_VERSION], metalava will automatically add the platform's android.jar file to
-     * the classpath if it does not already find the android.jar file in the classpath.
-     */
-    private var sdkHome: File? = null
-
-    /**
      * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
      * For R preview, it would be "R".
      */
@@ -601,12 +588,6 @@ class Options(
                 ARG_KOTLIN_SOURCE -> {
                     val value = getValue(args, ++index)
                     kotlinLanguageLevelAsString = value
-                }
-                ARG_JDK_HOME -> {
-                    jdkHome = stringToExistingDir(getValue(args, ++index))
-                }
-                ARG_SDK_HOME -> {
-                    sdkHome = stringToExistingDir(getValue(args, ++index))
                 }
                 ARG_COMPILE_SDK_VERSION -> {
                     compileSdkVersion = getValue(args, ++index)
@@ -715,8 +696,8 @@ class Options(
 
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
-        val sdkHome = sdkHome
-        val jdkHome = jdkHome
+        val sdkHome = sourceOptions.sdkHome
+        val jdkHome = sourceOptions.jdkHome
 
         if (
             sdkHome != null &&
@@ -855,12 +836,8 @@ object OptionsHelp {
                 "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
                 "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
-                "$ARG_SDK_HOME <dir>",
-                "If set, locate the `android.jar` file from the given Android SDK",
                 "$ARG_COMPILE_SDK_VERSION <api>",
                 "Use the given API level",
-                "$ARG_JDK_HOME <dir>",
-                "If set, add the Java APIs from the given JDK to the classpath",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",

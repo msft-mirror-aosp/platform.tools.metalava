@@ -156,7 +156,7 @@ internal fun processFlags(
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
-            jdkHome = options.jdkHome,
+            jdkHome = sourceOptions.jdkHome,
         )
 
     val signatureFileCache = options.signatureFileCache

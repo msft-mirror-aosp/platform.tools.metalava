@@ -145,12 +145,8 @@ API sources:
                                              Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>
                                              Sets the source level for Kotlin source files; default is ${DEFAULT_KOTLIN_LANGUAGE_LEVEL}.
---sdk-home <dir>
-                                             If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
                                              Use the given API level
---jdk-home <dir>
-                                             If set, add the Java APIs from the given JDK to the classpath
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.

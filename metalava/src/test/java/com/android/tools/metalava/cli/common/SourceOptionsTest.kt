@@ -38,6 +38,8 @@ Sources:
   --compiled-sources <path>                  Jar file with the compiled version of --source-files, loaded in addition to
                                              the source files. Used to include the bytecode version of Kotlin source
                                              APIs.
+  --jdk-home <dir>                           If set, add the Java APIs from the given JDK to the classpath.
+  --sdk-home <dir>                           If set, locate the `android.jar` file from the given Android SDK.
   --Xuse-k1-uast                             Specifies whether the K1 compiler is used. (default: K1)
   --Xuse-k2-uast                             Specifies whether the K2 compiler is used. (default: K1)
     """

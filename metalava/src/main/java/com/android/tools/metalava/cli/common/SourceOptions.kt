@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
+import com.android.tools.metalava.ARG_COMPILE_SDK_VERSION
 import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
@@ -41,6 +42,9 @@ const val ARG_COMPILED_SOURCES = "--compiled-sources"
 
 const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
+
+const val ARG_JDK_HOME = "--jdk-home"
+const val ARG_SDK_HOME = "--sdk-home"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SOURCE_OPTIONS_GROUP = "Sources"
@@ -138,6 +142,39 @@ class SourceOptions(
                         .trimIndent(),
             )
             .existingFile()
+
+    /**
+     * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set when metalava is
+     * used for non-Android projects.
+     */
+    val jdkHome by
+        option(
+                ARG_JDK_HOME,
+                metavar = "<dir>",
+                help =
+                    """
+                        If set, add the Java APIs from the given JDK to the classpath.
+                    """
+                        .trimIndent(),
+            )
+            .existingDir()
+
+    /**
+     * The JDK to use as a platform, if set with [ARG_SDK_HOME]. If this is set along with
+     * [ARG_COMPILE_SDK_VERSION], metalava will automatically add the platform's android.jar file to
+     * the classpath if it does not already find the android.jar file in the classpath.
+     */
+    val sdkHome by
+        option(
+                ARG_SDK_HOME,
+                metavar = "<dir>",
+                help =
+                    """
+                        If set, locate the `android.jar` file from the given Android SDK.
+                    """
+                        .trimIndent()
+            )
+            .existingDir()
 
     /** Whether to use the K1 compiler. */
     private val useK1UastOption by
