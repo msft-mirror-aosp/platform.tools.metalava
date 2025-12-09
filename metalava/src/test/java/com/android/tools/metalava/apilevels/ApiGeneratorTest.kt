@@ -20,10 +20,10 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
@@ -91,7 +91,7 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsXml.path,
                     ARG_SDK_INFO_FILE,
                     sdkExtensionsInfo,
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "32",
                     ARG_API_VERSION_LABEL,
                     "32:Foo"
@@ -271,7 +271,7 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_LEVELS,
                     apiVersionsXml.path,
                     ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "32",
                 ),
             sourceFiles =
@@ -311,7 +311,7 @@ class ApiGeneratorTest : DriverTest() {
                     "system",
                     ARG_GENERATE_API_LEVELS,
                     apiVersionsXml.path,
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "32",
                 ),
             sourceFiles =
@@ -346,7 +346,7 @@ class ApiGeneratorTest : DriverTest() {
                     arrayOf(
                         ARG_GENERATE_API_LEVELS,
                         apiVersionsXml.path,
-                        ARG_CURRENT_VERSION,
+                        ARG_API_VERSION_FOR_SOURCES,
                         "32",
                     ),
                 sourceFiles =
@@ -457,7 +457,7 @@ class ApiGeneratorTest : DriverTest() {
                 pastVersions.joinToString(":") { it.absolutePath },
                 ARG_API_VERSION_SIGNATURE_PATTERN,
                 "${temporaryFolder.root}/{version:major.minor.patch}",
-                ARG_CURRENT_VERSION,
+                ARG_API_VERSION_FOR_SOURCES,
                 "1.4.0",
             )
 
@@ -587,7 +587,7 @@ class ApiGeneratorTest : DriverTest() {
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_SIGNATURE_PATTERN,
                     "${temporaryFolder.root}/{version:major.minor.patch}",
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "1.2.0",
                 ),
         )
@@ -630,7 +630,7 @@ class ApiGeneratorTest : DriverTest() {
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
                     output.path,
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "0.0.0-alpha01"
                 )
         )
@@ -660,7 +660,7 @@ class ApiGeneratorTest : DriverTest() {
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
                     output.path,
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "0.0.0-alpha01"
                 )
         )
@@ -725,7 +725,7 @@ class ApiGeneratorTest : DriverTest() {
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_SIGNATURE_PATTERN,
                     "${temporaryFolder.root}/{version:major.minor.patch}",
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "1.2.0",
                 )
         )
@@ -809,7 +809,7 @@ class ApiGeneratorTest : DriverTest() {
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_SIGNATURE_PATTERN,
                     "${temporaryFolder.root}/{version:major.minor.patch}.txt",
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "1.2.0",
                 )
         )
@@ -899,7 +899,7 @@ class ApiGeneratorTest : DriverTest() {
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_SIGNATURE_PATTERN,
                     "${temporaryFolder.root}/{version:major.minor?}",
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "2.0",
                 ),
         )
@@ -1017,7 +1017,7 @@ class ApiGeneratorTest : DriverTest() {
                     "$root/{version:major.minor?}/api.txt",
                     ARG_API_VERSION_SIGNATURE_PATTERN,
                     "$root/extensions/{version:extension}/{module}.txt",
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     "41",
                     ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
                 ),
@@ -1094,18 +1094,15 @@ class ApiGeneratorTest : DriverTest() {
             }
 
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
-
-        val currentVersion =
-            if (includeCurrentSource) {
-                // This will cause the sources to be included as it is greater than the most recent
-                // historical version (39).
-                "40"
-            } else {
-                // This will cause the sources to be excluded as it is NOT greater than the most
-                // recent
-                // historical version (39).
-                "39"
-            }
+        // current sources are only included if --api-versions-for-sources is provided
+        val prospectiveApiVersion = "40"
+        val prospectiveSdkArgs =
+            if (includeCurrentSource)
+                arrayOf(
+                    ARG_API_VERSION_FOR_SOURCES,
+                    prospectiveApiVersion,
+                )
+            else arrayOf()
 
         check(
             sourceFiles =
@@ -1131,14 +1128,11 @@ class ApiGeneratorTest : DriverTest() {
                     "$root/{version:major.minor?}/api.txt",
                     ARG_API_VERSION_SIGNATURE_PATTERN,
                     "$root/extensions/{version:extension}/{module}.txt",
-                    // This will cause the sources to be included as it is greater than the most
-                    // recent historical version (39).
-                    ARG_CURRENT_VERSION,
-                    currentVersion,
                     ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
                     ARG_API_VERSION_FOR_SDK_EXTENSION,
                     apiVersionForSdkExtension,
-                ),
+                    *prospectiveSdkArgs
+                )
         )
 
         return apiVersionsXml
