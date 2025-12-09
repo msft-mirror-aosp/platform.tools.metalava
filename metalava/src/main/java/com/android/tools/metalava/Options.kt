@@ -64,6 +64,7 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
@@ -547,20 +548,33 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    /**
-     * Whether to use the K2 compiler, controlled by [ARG_USE_K2_UAST] and [ARG_USE_K1_UAST]. If
-     * neither option is provided, the default is K1.
-     */
-    private var useK2Uast: Boolean? = null
-        set(value) {
-            if (field != null && field != value) {
-                cliError("Cannot specify both $ARG_USE_K1_UAST and $ARG_USE_K2_UAST")
-            }
-            field = value
-        }
+    /** Whether to use the K1 compiler. */
+    private val useK1UastOption by
+        option(
+                ARG_USE_K1_UAST,
+                help = "Specifies whether the K1 compiler is used.",
+            )
+            .flag(default = false, defaultForHelp = "K1")
+
+    /** Whether to use the K2 compiler. */
+    private val useK2UastOption by
+        option(
+                ARG_USE_K2_UAST,
+                help = "Specifies whether the K2 compiler is used.",
+            )
+            .flag(default = false, defaultForHelp = "K1")
 
     val modelOptions: ModelOptions by
         lazy(LazyThreadSafetyMode.NONE) {
+            val useK2Uast =
+                when {
+                    useK1UastOption && useK2UastOption ->
+                        cliError("Cannot specify both $ARG_USE_K1_UAST and $ARG_USE_K2_UAST")
+                    useK1UastOption -> false
+                    useK2UastOption -> true
+                    else -> null
+                }
+
             // If the option was specified on the command line then use [ModelOptions] created from
             // that
             useK2Uast?.let { useK2Uast ->
@@ -647,8 +661,6 @@ class Options(
                 ARG_COMPILE_SDK_VERSION -> {
                     compileSdkVersion = getValue(args, ++index)
                 }
-                ARG_USE_K2_UAST -> useK2Uast = true
-                ARG_USE_K1_UAST -> useK2Uast = false
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
                 }
@@ -893,10 +905,6 @@ object OptionsHelp {
                 "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
                 "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
-                ARG_USE_K1_UAST,
-                "Specifies that the K1 compiler should be used (K1 is the default).",
-                ARG_USE_K2_UAST,
-                "Specifies that the K2 compiler should be used (K1 is the default).",
                 "$ARG_SDK_HOME <dir>",
                 "If set, locate the `android.jar` file from the given Android SDK",
                 "$ARG_COMPILE_SDK_VERSION <api>",
