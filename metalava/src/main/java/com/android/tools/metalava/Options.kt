@@ -43,7 +43,6 @@ import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
@@ -543,8 +542,6 @@ class Options(
 
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
-
-    val modelOptions: ModelOptions by sourceOptions::modelOptions
 
     fun parse(args: Array<String>) {
         var index = 0

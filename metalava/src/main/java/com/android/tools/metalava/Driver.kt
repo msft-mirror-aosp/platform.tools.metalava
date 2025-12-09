@@ -177,6 +177,7 @@ internal fun processFlags(
     val codebase =
         createCodebaseFromOptions(
             options,
+            sourceOptions,
             classPathResolverProvider,
             signatureFileCache,
             actionContext,
@@ -427,6 +428,7 @@ fun createCodeFragmentForSignatureFile(
 /** Create [Codebase] object from option flags */
 private fun createCodebaseFromOptions(
     options: Options,
+    sourceOptions: SourceOptions,
     classPathResolverProvider: ClassPathResolverProvider,
     signatureFileCache: SignatureFileCache,
     actionContext: ActionContext
@@ -449,7 +451,12 @@ private fun createCodebaseFromOptions(
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
         return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(options, signatureFileCache, classPathResolverProvider)
+        return actionContext.loadFromSources(
+            options,
+            sourceOptions,
+            signatureFileCache,
+            classPathResolverProvider,
+        )
     }
 
     return null
@@ -646,6 +653,7 @@ internal var fastPathCheckResult: Boolean? = null
 
 private fun ActionContext.loadFromSources(
     options: Options,
+    sourceOptions: SourceOptions,
     signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
 ): Codebase? {
@@ -726,7 +734,7 @@ private fun ActionContext.loadFromSources(
             ApiLint.Config(
                 manifest = options.manifest,
                 allowedAcronyms = options.apiLintOptions.allowedAcronyms,
-                useK2Uast = options.modelOptions[PsiModelOptions.useK2Uast],
+                useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
             ),
         )
     }
