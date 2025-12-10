@@ -51,6 +51,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TraversingVisitor
@@ -61,6 +62,7 @@ import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.typeNullability
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -79,12 +81,20 @@ import org.w3c.dom.Element
 import org.xml.sax.SAXParseException
 
 /** Merges annotations into classes already registered in the given [Codebase] */
-@Suppress("DEPRECATION")
 class AnnotationsMerger(
     private val sourceParser: SourceParser,
     private val codebase: Codebase,
     private val reporter: Reporter,
+    private val config: Config,
 ) {
+    data class Config(
+        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
+        val sources: List<File> = emptyList(),
+        val sourcePath: List<File> = emptyList(),
+        val classpath: List<File> = emptyList(),
+        val apiPackageFilter: PackageFilter? = null,
+        val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator? = null,
+    )
 
     /** Merge annotations which will appear in the output API. */
     fun mergeQualifierAnnotationsFromFiles(files: List<File>) {
@@ -124,13 +134,13 @@ class AnnotationsMerger(
                 // Set up class path to contain our main sources such that we can
                 // resolve types in the stubs
                 val roots =
-                    SourceSet(options.sources, options.sourcePath).extractRoots(reporter).sourcePath
+                    SourceSet(config.sources, config.sourcePath).extractRoots(reporter).sourcePath
                 val javaStubsCodebase =
                     sourceParser.parseSources(
                         SourceSet(javaStubFiles, roots),
                         "Codebase loaded from stubs",
-                        classPath = options.classpath,
-                        apiPackages = options.apiPackages,
+                        classPath = config.classpath,
+                        apiPackages = config.apiPackageFilter,
                     )
                 if (javaStubsCodebase != null) {
                     mergeJavaStubsCodebase(javaStubsCodebase)
@@ -253,12 +263,11 @@ class AnnotationsMerger(
         javaStubsCodebase: Codebase
     ) {
         mergeQualifierAnnotationsFromCodebase(javaStubsCodebase)
-        if (options.validateNullabilityFromMergedStubs) {
-            options.nullabilityAnnotationsValidator?.validateAll(
-                codebase,
-                javaStubsCodebase.getTopLevelClassesFromSource().map(ClassItem::qualifiedName)
-            )
-        }
+
+        config.nullabilityAnnotationsValidator?.validateAll(
+            codebase,
+            javaStubsCodebase.getTopLevelClassesFromSource().map(ClassItem::qualifiedName)
+        )
     }
 
     private fun mergeQualifierAnnotationsFromCodebase(externalCodebase: Codebase) {
@@ -594,10 +603,7 @@ class AnnotationsMerger(
 
                         // Attempt to sort in reflection order
                         if (reflectionFields != null) {
-                            val filterEmit =
-                                ApiVisitor.defaultEmitFilter(
-                                    @Suppress("DEPRECATION") options.apiPredicateConfig,
-                                )
+                            val filterEmit = ApiVisitor.defaultEmitFilter(config.apiPredicateConfig)
 
                             // Attempt with reflection
                             var first = true

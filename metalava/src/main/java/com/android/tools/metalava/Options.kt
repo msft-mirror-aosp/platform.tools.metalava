@@ -403,6 +403,17 @@ class Options(
             mergeInclusionAnnotations = mergeInclusionAnnotations,
             allShowAnnotations = allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
+            annotationsMergerConfig =
+                AnnotationsMerger.Config(
+                    apiPredicateConfig = apiPredicateConfig,
+                    sources = sources,
+                    sourcePath = sourcePath,
+                    classpath = classpath,
+                    apiPackageFilter = apiPackages,
+                    nullabilityAnnotationsValidator =
+                        if (validateNullabilityFromMergedStubs) nullabilityAnnotationsValidator
+                        else null,
+                ),
         )
     }
 
