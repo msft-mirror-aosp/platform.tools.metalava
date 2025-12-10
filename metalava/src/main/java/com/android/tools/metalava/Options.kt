@@ -217,7 +217,8 @@ class Options(
                 NullabilityAnnotationsValidator(
                     reporter,
                     nullabilityErrorsFatal,
-                    nullabilityWarningsTxt
+                    nullabilityWarningsTxt,
+                    apiPredicateConfig,
                 )
             } else null
         )
