@@ -48,6 +48,8 @@ const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 
 const val ARG_CLASS_PATH = "--classpath"
 
+const val ARG_PROJECT = "--project"
+
 const val ARG_STUB_PACKAGES = "--stub-packages"
 
 const val ARG_COMPILED_SOURCES = "--compiled-sources"
@@ -200,6 +202,15 @@ class SourceOptions(
 
         return classpath
     }
+
+    /** Lint project description that describes project's module structure in details */
+    val projectDescription by
+        option(
+                ARG_PROJECT,
+                metavar = "<xmlfile>",
+                help = "Project description written in XML according to Lint's project model.",
+            )
+            .existingFile()
 
     val apiPackageFilter by
         option(

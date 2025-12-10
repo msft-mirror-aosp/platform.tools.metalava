@@ -33,6 +33,7 @@ Sources:
   --kotlin-source <level>                    Sets the source level for Kotlin source files. (default: 1.9)
   --classpath <paths>                        One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files.
+  --project <xmlfile>                        Project description written in XML according to Lint's project model.
   --stub-packages <package-list>             List of packages (separated by :) which will be used to filter out
                                              irrelevant classes. If specified, only classes in these packages will be
                                              included in signature files, stubs, etc.. This is not limited to just the

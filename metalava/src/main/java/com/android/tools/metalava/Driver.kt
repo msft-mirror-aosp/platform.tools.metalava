@@ -680,7 +680,7 @@ private fun ActionContext.loadFromSources(
             "Codebase loaded from source folders",
             classPath = sourceOptions.classpath,
             apiPackages = sourceOptions.apiPackageFilter,
-            projectDescription = options.projectDescription,
+            projectDescription = sourceOptions.projectDescription,
             compiledSourceJar = sourceOptions.compiledSourceJar
         ) ?: return null
 

@@ -88,7 +88,6 @@ const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_PROJECT = "--project"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -181,9 +180,6 @@ class Options(
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
-
-    /** Lint project description that describes project's module structure in details */
-    var projectDescription: File? = null
 
     val apiClassResolution by
         enumOption(
@@ -493,9 +489,6 @@ class Options(
                     allowClassesFromClasspath = false
                 }
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
-                ARG_PROJECT -> {
-                    projectDescription = stringToExistingFile(getValue(args, ++index))
-                }
                 else -> {
                     if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
@@ -639,8 +632,6 @@ object OptionsHelp {
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
-                "$ARG_PROJECT <xmlfile>",
-                "Project description written in XML according to Lint's project model.",
                 "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
                 "An external annotations file to merge and overlay " +
                     "the sources, or a directory of such files. Should be used for annotations intended for " +
