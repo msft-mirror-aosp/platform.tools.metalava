@@ -56,6 +56,8 @@ Options:
                                              Suppress compatibility checks for any elements within the scope of an
                                              annotation which is itself annotated with the given meta-annotation.
   --sdk-values <dir>                         Write SDK values files to the given directory.
+  --extract-annotations <zipfile>            Extracts source annotations from the source files and writes them into the
+                                             given zip file.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
   --typedefs-in-signatures [none|ref|inline]
@@ -156,12 +158,6 @@ Generating Stubs:
 --exclude-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
-
-
-Extracting Annotations:
---extract-annotations <zipfile>
-                                             Extracts source annotations from the source files and writes them into the
-                                             given zip file
 
 
 Environment Variables:

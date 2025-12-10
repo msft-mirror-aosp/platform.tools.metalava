@@ -28,6 +28,7 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.newDir
+import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
@@ -364,7 +365,18 @@ class Options(
      * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
      * flag.
      */
-    var externalAnnotationsFile: File? = null
+    val externalAnnotationsFile by
+        option(
+                ARG_EXTRACT_ANNOTATIONS,
+                metavar = "<zipfile>",
+                help =
+                    """
+                Extracts source annotations from the source files and writes them into the given zip
+                file.
+            """
+                        .trimIndent(),
+            )
+            .newFile()
 
     /** An optional manifest [File]. */
     private val manifestFile by
@@ -481,8 +493,6 @@ class Options(
                     allowClassesFromClasspath = false
                 }
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
-                ARG_EXTRACT_ANNOTATIONS ->
-                    externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
                 }
@@ -673,11 +683,6 @@ object OptionsHelp {
                 "$ARG_EXCLUDE_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be stripped from metalava's outputs.",
-                "",
-                "Extracting Annotations:",
-                "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
-                "Extracts source annotations from the source files and writes " +
-                    "them into the given zip file",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
