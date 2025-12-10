@@ -198,7 +198,7 @@ class Options(
     val sourcePath: List<File> by sourceOptions::sourcePath
 
     /** The list of dependency jars */
-    val classpath: List<File> = mutableClassPath
+    val classpath: List<File> by lazy { addSdkOrJdkJarsIfNeeded(mutableClassPath) }
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
@@ -609,8 +609,6 @@ class Options(
                 reporterCompatibilityReleased,
             )
 
-        updateClassPath()
-
         // Make sure that any config files are processed.
         configFileOptions.config
     }
@@ -633,13 +631,13 @@ class Options(
             config = issueReportingOptions.reporterConfig,
         )
 
-    /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
-    private fun updateClassPath() {
+    /** Update [classpath] to insert android.jar or JDK classpath elements if necessary. */
+    private fun addSdkOrJdkJarsIfNeeded(classpath: List<File>): List<File> {
         val sdkHome = sourceOptions.sdkHome
         val jdkHome = sourceOptions.jdkHome
         if (sdkHome == null && jdkHome == null) {
             // Nothing to do.
-            return
+            return classpath
         } else if (sdkHome != null && jdkHome != null) {
             cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
         }
@@ -652,7 +650,7 @@ class Options(
         ) {
             val jar = File(sdkHome, "platforms/android-$compileSdkVersion")
             if (jar.isFile) {
-                mutableClassPath.add(jar)
+                return classpath + jar
             } else {
                 cliError(
                     "Could not find android.jar for API level $compileSdkVersion in SDK $sdkHome: $jar does not exist"
@@ -661,8 +659,10 @@ class Options(
         } else if (jdkHome != null) {
             val isJre = !isJdkFolder(jdkHome)
             val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
-            mutableClassPath.addAll(roots)
+            return classpath + roots
         }
+
+        return classpath
     }
 
     private fun getValue(args: Array<String>, index: Int): String {
