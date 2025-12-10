@@ -162,10 +162,6 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---include-source-retention
-                                             If true, include source-retention annotations in the stub files. Does not
-                                             apply to signature files. Source retention annotations are extracted into
-                                             the external annotations files instead.
 
 
 Environment Variables:

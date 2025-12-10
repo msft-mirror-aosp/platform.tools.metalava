@@ -82,7 +82,6 @@ const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
@@ -679,10 +678,6 @@ object OptionsHelp {
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
                 "Extracts source annotations from the source files and writes " +
                     "them into the given zip file",
-                ARG_INCLUDE_SOURCE_RETENTION,
-                "If true, include source-retention annotations in the stub files. Does " +
-                    "not apply to signature files. Source retention annotations are extracted into the external " +
-                    "annotations files instead.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
