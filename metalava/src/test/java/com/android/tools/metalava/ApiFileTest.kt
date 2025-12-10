@@ -2701,13 +2701,13 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    public class MyClass {
-                        public <T> MyClass(Class<T> klass) { }
-                        public <U> void method1(Function<U> func) { }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            public class MyClass {
+                                public <T> MyClass(Class<T> klass) { }
+                                public <U> void method1(java.util.function.Consumer<U> func) { }
+                            }
+                        """
+                    ),
                 ),
             expectedIssues = "",
             api =
@@ -2715,10 +2715,10 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public class MyClass {
                         ctor public <T> MyClass(Class<T>);
-                        method public <U> void method1(Function<U>);
+                        method public <U> void method1(java.util.function.Consumer<U>);
                       }
                     }
-            """
+                """,
         )
     }
 
