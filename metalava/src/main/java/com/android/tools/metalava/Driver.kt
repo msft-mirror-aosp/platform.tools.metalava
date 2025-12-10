@@ -599,6 +599,8 @@ private fun ActionContext.checkCompatibility(
         options.issueConfiguration,
         options.apiCompatAnnotations,
         apiName,
+        options.apiPredicateConfig,
+        options.showUnannotated,
     )
 }
 
