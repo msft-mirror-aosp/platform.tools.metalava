@@ -55,6 +55,7 @@ Options:
   --suppress-compatibility-meta-annotation <meta-annotation class>
                                              Suppress compatibility checks for any elements within the scope of an
                                              annotation which is itself annotated with the given meta-annotation.
+  --proguard <file>                          Write a ProGuard keep file for the API.
   --sdk-values <dir>                         Write SDK values files to the given directory.
   --extract-annotations <zipfile>            Extracts source annotations from the source files and writes them into the
                                              given zip file.
@@ -142,11 +143,6 @@ API sources:
                                              generated stub files.
 --ignore-comments
                                              Ignore any comments in source files.
-
-
-Extracting Signature Files:
---proguard <file>
-                                             Write a ProGuard keep file for the API
 
 
 Generating Stubs:

@@ -217,7 +217,7 @@ internal fun processFlags(
         reporter
     )
 
-    options.proguard?.let { proguard ->
+    options.proguardFile?.let { proguard ->
         val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))

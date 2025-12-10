@@ -342,7 +342,13 @@ class Options(
         get() = verbosity.verbose
 
     /** Proguard Keep list file to write */
-    var proguard: File? = null
+    val proguardFile by
+        option(
+                ARG_PROGUARD,
+                metavar = "<file>",
+                help = "Write a ProGuard keep file for the API.",
+            )
+            .newFile()
 
     val apiSignatureFile by signatureFileOptions::apiFile
     val removedApiSignatureFile by signatureFileOptions::removedApiFile
@@ -484,7 +490,6 @@ class Options(
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
-                ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
                 }
@@ -661,11 +666,6 @@ object OptionsHelp {
                     "the generated stub files.",
                 ARG_SKIP_READING_COMMENTS,
                 "Ignore any comments in source files.",
-                "",
-                "Extracting Signature Files:",
-                // TODO: Document --show-annotation!
-                "$ARG_PROGUARD <file>",
-                "Write a ProGuard keep file for the API",
                 "",
                 "Generating Stubs:",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
