@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
-import com.android.tools.metalava.ARG_COMPILE_SDK_VERSION
 import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
@@ -45,6 +44,7 @@ const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_SDK_HOME = "--sdk-home"
+const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SOURCE_OPTIONS_GROUP = "Sources"
@@ -175,6 +175,13 @@ class SourceOptions(
                         .trimIndent()
             )
             .existingDir()
+
+    /**
+     * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
+     * For R preview, it would be "R".
+     */
+    val compileSdkVersion: String? by
+        option(ARG_COMPILE_SDK_VERSION, metavar = "<api>", help = "Use the given API level.")
 
     /** Whether to use the K1 compiler. */
     private val useK1UastOption by

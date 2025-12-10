@@ -95,7 +95,6 @@ const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
-const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
@@ -458,12 +457,6 @@ class Options(
     var kotlinLanguageLevelAsString: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL
 
     /**
-     * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
-     * For R preview, it would be "R".
-     */
-    private var compileSdkVersion: String? = null
-
-    /**
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
      */
@@ -537,9 +530,6 @@ class Options(
                 ARG_KOTLIN_SOURCE -> {
                     val value = getValue(args, ++index)
                     kotlinLanguageLevelAsString = value
-                }
-                ARG_COMPILE_SDK_VERSION -> {
-                    compileSdkVersion = getValue(args, ++index)
                 }
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
@@ -654,6 +644,7 @@ class Options(
             cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
         }
 
+        val compileSdkVersion = sourceOptions.compileSdkVersion
         if (
             sdkHome != null &&
                 compileSdkVersion != null &&
@@ -788,8 +779,6 @@ object OptionsHelp {
                 "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
                 "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
-                "$ARG_COMPILE_SDK_VERSION <api>",
-                "Use the given API level",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",

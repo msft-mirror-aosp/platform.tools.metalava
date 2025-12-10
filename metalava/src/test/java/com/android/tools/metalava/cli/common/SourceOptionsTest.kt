@@ -40,6 +40,7 @@ Sources:
                                              APIs.
   --jdk-home <dir>                           If set, add the Java APIs from the given JDK to the classpath.
   --sdk-home <dir>                           If set, locate the `android.jar` file from the given Android SDK.
+  --compile-sdk-version <api>                Use the given API level.
   --Xuse-k1-uast                             Specifies whether the K1 compiler is used. (default: K1)
   --Xuse-k2-uast                             Specifies whether the K2 compiler is used. (default: K1)
     """
