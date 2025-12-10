@@ -226,10 +226,6 @@ class Options(
             }
         }
 
-    /** Packages that we should skip generating even if not hidden; typically only used by tests */
-    val skipEmitPackages
-        get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
-
     private val apiFlags by lazy {
         ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)
     }
@@ -305,6 +301,7 @@ class Options(
 
     /** The configuration options for the [ApiAnalyzer] class. */
     val apiAnalyzerConfig by lazy {
+        val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
         ApiAnalyzer.Config(
             manifest = manifest,
             skipEmitPackages = skipEmitPackages,

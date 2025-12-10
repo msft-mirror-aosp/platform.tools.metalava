@@ -444,7 +444,7 @@ class ApiAnalyzer(
         }
     }
 
-    /** Apply package filters listed in [Options.skipEmitPackages] */
+    /** Apply package filters listed in [Config.skipEmitPackages] */
     private fun skipEmitPackages() {
         for (pkgName in config.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
