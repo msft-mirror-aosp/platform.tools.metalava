@@ -53,13 +53,13 @@ class ExperimentalApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
                   }
-                  @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
                   }
-                  @SuppressCompatibility @test.pkg.SuppressCompatHasRequiresOptIn public @interface SuppressCompatNoRequiresOptIn {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.SuppressCompatHasRequiresOptIn public @interface SuppressCompatNoRequiresOptIn {
                   }
                 }
                     """,
@@ -136,7 +136,7 @@ class ExperimentalApiFileTest : DriverTest() {
             api =
                 """
                 package @SuppressCompatibility test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
                   }
                 }
                 package @SuppressCompatibility test.pkg.sub {
@@ -176,7 +176,7 @@ class ExperimentalApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
                   }
                 }
                 package test.pkg.sub {
@@ -1087,7 +1087,7 @@ class ExperimentalApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalFeature {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalFeature {
                   }
                   public final class Foo {
                     method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalFeature public int getRegularProperty();
