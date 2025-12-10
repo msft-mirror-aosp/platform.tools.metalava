@@ -27,13 +27,17 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
 
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 const val ARG_SOURCE_PATH = "--source-path"
+
+const val ARG_CLASS_PATH = "--classpath"
 
 const val ARG_STUB_PACKAGES = "--stub-packages"
 
@@ -111,6 +115,27 @@ class SourceOptions(
                 stringToExistingDir(it)
             }
         }
+
+    // For now, we don't distinguish between bootclasspath and classpath
+    val classpath: List<File> by
+        option(
+                ARG_CLASS_PATH,
+                metavar = "<paths>",
+                help =
+                    """
+                        One or more directories or jars (separated by `${File.pathSeparator}`)
+                        containing classes that should be on the classpath when parsing the source
+                        files.
+                    """
+                        .trimIndent()
+            )
+            .existingDirOrJar()
+            // Split each option into a list separate by File.pathSeparator
+            .split(File.pathSeparator)
+            // Allow multiple options to be specified producing a list of lists.
+            .multiple()
+            // Flatten the list of lists into a single list.
+            .map { it.flatten() }
 
     val apiPackages by
         option(

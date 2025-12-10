@@ -112,9 +112,6 @@ API sources:
                                              A comma separated list of source files to be parsed. Can also be @ followed
                                              by a path to a text file containing paths to the full set of files to
                                              parse.
---classpath <paths>
-                                             One or more directories or jars (separated by `:`) containing classes that
-                                             should be on the classpath when parsing the source files
 --project <xmlfile>
                                              Project description written in XML according to Lint's project model.
 --merge-qualifier-annotations <file>

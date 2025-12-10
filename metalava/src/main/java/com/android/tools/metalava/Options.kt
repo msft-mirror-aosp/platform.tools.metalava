@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.cli.common.ARG_JDK_HOME
@@ -77,7 +76,6 @@ import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 private const val INDENT_WIDTH = 45
 
-const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
@@ -127,8 +125,6 @@ class Options(
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
-    /** Internal list backing [classpath] */
-    private val mutableClassPath: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
@@ -198,7 +194,7 @@ class Options(
     val sourcePath: List<File> by sourceOptions::sourcePath
 
     /** The list of dependency jars */
-    val classpath: List<File> by lazy { addSdkOrJdkJarsIfNeeded(mutableClassPath) }
+    val classpath: List<File> by lazy { addSdkOrJdkJarsIfNeeded(sourceOptions.classpath) }
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
@@ -476,11 +472,6 @@ class Options(
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
-                // For now, we don't distinguish between bootclasspath and classpath
-                ARG_CLASS_PATH -> {
-                    val path = getValue(args, ++index)
-                    mutableClassPath.addAll(stringToExistingDirsOrJars(path))
-                }
                 ARG_SOURCE_FILES -> {
                     val listString = getValue(args, ++index)
                     listString.split(",").forEach { path ->
@@ -672,18 +663,6 @@ class Options(
         return args[index]
     }
 
-    private fun stringToExistingDirsOrJars(value: String): List<File> {
-        val files = mutableListOf<File>()
-        for (path in value.split(File.pathSeparatorChar)) {
-            val file = fileForPathInner(path)
-            if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
-                cliError("$file is not a jar or directory")
-            }
-            files.add(file)
-        }
-        return files
-    }
-
     private fun stringToExistingDirsOrFiles(value: String): List<File> {
         val files = mutableListOf<File>()
         for (path in value.split(File.pathSeparatorChar)) {
@@ -745,10 +724,6 @@ object OptionsHelp {
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
-                "$ARG_CLASS_PATH <paths>",
-                "One or more directories or jars (separated by " +
-                    "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
-                    "source files",
                 "$ARG_PROJECT <xmlfile>",
                 "Project description written in XML according to Lint's project model.",
                 "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
