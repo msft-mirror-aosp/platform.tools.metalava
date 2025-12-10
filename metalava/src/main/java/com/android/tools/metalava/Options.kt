@@ -39,7 +39,6 @@ import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
@@ -214,17 +213,14 @@ class Options(
     val showUnannotated
         get() = apiSelectionOptions.showUnannotated
 
-    /** Packages to include in the API (if null, include all) */
-    val apiPackages: PackageFilter? by sourceOptions::apiPackages
-
     /**
      * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
-     * [Item]s that do not match the [apiPackages] filter. If no [apiPackages] filter is provided
-     * then this will be `null`.
+     * [Item]s that do not match the [SourceOptions.apiPackageFilter] filter. If no filter is
+     * provided then this will be `null`.
      */
     private val reportableFilter: Predicate<Reportable>? by
         lazy(LazyThreadSafetyMode.NONE) {
-            apiPackages?.let { packageFilter ->
+            sourceOptions.apiPackageFilter?.let { packageFilter ->
                 Predicate { reportable ->
                     // If we are only emitting some packages (--stub-packages), don't report
                     // issues from other packages
@@ -328,7 +324,7 @@ class Options(
                     sources = sources,
                     sourcePath = sourcePath,
                     classpath = sourceOptions.classpath,
-                    apiPackageFilter = apiPackages,
+                    apiPackageFilter = sourceOptions.apiPackageFilter,
                     nullabilityAnnotationsValidator =
                         if (validateNullabilityFromMergedStubs) nullabilityAnnotationsValidator
                         else null,

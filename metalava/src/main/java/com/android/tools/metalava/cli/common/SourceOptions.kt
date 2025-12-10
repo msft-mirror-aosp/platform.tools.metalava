@@ -201,7 +201,7 @@ class SourceOptions(
         return classpath
     }
 
-    val apiPackages by
+    val apiPackageFilter by
         option(
                 ARG_STUB_PACKAGES,
                 metavar = "<package-list>",
