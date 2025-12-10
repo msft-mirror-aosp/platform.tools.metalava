@@ -155,21 +155,21 @@ class ApiLevelsGenerationOptionsTest :
         forAndroidConfig(SignatureFileLoader.THROWING) { error("no codebase fragment") }
 
     @Test
-    fun `Test current version supports major-minor`() {
+    fun `Test api version for sources supports major-minor`() {
         runTest(ARG_API_VERSION_FOR_SOURCES, "1.2") {
             assertThat(options.apiVersionForSources.toString()).isEqualTo("1.2")
         }
     }
 
     @Test
-    fun `Test current version supports major-minor-patch`() {
+    fun `Test api version for sources supports major-minor-patch`() {
         runTest(ARG_API_VERSION_FOR_SOURCES, "1.2.3") {
             assertThat(options.apiVersionForSources.toString()).isEqualTo("1.2.3")
         }
     }
 
     @Test
-    fun `Test current version supports major-minor-patch-preRelease`() {
+    fun `Test api version for sources supports major-minor-patch-preRelease`() {
         runTest(ARG_API_VERSION_FOR_SOURCES, "1.2.3-beta01") {
             assertThat(options.apiVersionForSources.toString()).isEqualTo("1.2.3-beta01")
         }
