@@ -3140,6 +3140,55 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
+    fun `Additional usage of expect actual typealias from classpath in a common module`() {
+        // Listing all packages from the KaModuleProcessor doesn't pick up this typealias.
+        val cancellationException =
+            if (isK2) {
+                "kotlin.coroutines.cancellation.CancellationException"
+            } else {
+                "java.util.concurrent.CancellationException"
+            }
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                interface Common {
+                    fun foo(): kotlin.coroutines.cancellation.CancellationException
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                class Android
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Android {
+                    ctor public Android();
+                  }
+                  public interface Common {
+                    method public $cancellationException foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Test usage of expect actual typealias with unbounded type argument`() {
         val commonSource =
             kotlin(
