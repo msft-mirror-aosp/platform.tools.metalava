@@ -784,7 +784,13 @@ private fun extractAnnotations(
 ) {
     val localTimer = Stopwatch.createStarted()
 
-    ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
+    ExtractAnnotations(
+            codebase,
+            options.reporter,
+            outputFile,
+            options.apiPredicateConfig,
+        )
+        .extractAnnotations()
     if (options.verbose) {
         progressTracker.progress(
             "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
