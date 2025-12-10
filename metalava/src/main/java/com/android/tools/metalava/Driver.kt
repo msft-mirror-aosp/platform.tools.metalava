@@ -450,7 +450,7 @@ private fun createCodebaseFromOptions(
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
         return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
-    } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
+    } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
         return actionContext.loadFromSources(
             options,
             sourceOptions,
@@ -665,12 +665,12 @@ private fun ActionContext.loadFromSources(
         if (options.sources.isEmpty()) {
             if (options.verbose) {
                 options.stdout.println(
-                    "No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})"
+                    "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
                 )
             }
-            SourceSet.createFromSourcePath(options.reporter, options.sourcePath)
+            SourceSet.createFromSourcePath(options.reporter, sourceOptions.sourcePath)
         } else {
-            SourceSet(options.sources, options.sourcePath)
+            SourceSet(options.sources, sourceOptions.sourcePath)
         }
 
     progressTracker.progress("Reading Codebase: ")
@@ -681,7 +681,7 @@ private fun ActionContext.loadFromSources(
             classPath = sourceOptions.classpath,
             apiPackages = sourceOptions.apiPackageFilter,
             projectDescription = options.projectDescription,
-            compiledSourceJar = options.compiledSourceJar
+            compiledSourceJar = sourceOptions.compiledSourceJar
         ) ?: return null
 
     progressTracker.progress("Analyzing API: ")

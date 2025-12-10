@@ -179,17 +179,11 @@ class Options(
      */
     private var allowReadingComments = true
 
-    /** The list of source roots */
-    val sourcePath: List<File> by sourceOptions::sourcePath
-
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
     /** Lint project description that describes project's module structure in details */
     var projectDescription: File? = null
-
-    /** Jar file with the compiled version of the sources from [sources]/[sourcePath]. */
-    val compiledSourceJar: File? by sourceOptions::compiledSourceJar
 
     val apiClassResolution by
         enumOption(
@@ -322,7 +316,7 @@ class Options(
                 AnnotationsMerger.Config(
                     apiPredicateConfig = apiPredicateConfig,
                     sources = sources,
-                    sourcePath = sourcePath,
+                    sourcePath = sourceOptions.sourcePath,
                     classpath = sourceOptions.classpath,
                     apiPackageFilter = sourceOptions.apiPackageFilter,
                     nullabilityAnnotationsValidator =
