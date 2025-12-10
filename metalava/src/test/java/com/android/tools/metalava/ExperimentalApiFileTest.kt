@@ -618,7 +618,7 @@ class ExperimentalApiFileTest : DriverTest() {
                     ctor public MyOuterClass();
                     property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.Companion Companion;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
                   }
                   @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.Companion {
@@ -680,7 +680,7 @@ class ExperimentalApiFileTest : DriverTest() {
                     property public static test.pkg.MyOuterClass.MyInnerClass c;
                     property @SuppressCompatibility @test.pkg.ExperimentalFeature public static test.pkg.MyClassField myField;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.MyCompObjectWithNonDefaultName MyCompObjectWithNonDefaultName;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
                     field public final test.pkg.MyOuterClass.MyInnerClass c;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField myField;
