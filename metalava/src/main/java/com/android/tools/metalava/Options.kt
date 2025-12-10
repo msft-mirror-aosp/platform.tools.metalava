@@ -647,6 +647,12 @@ class Options(
     private fun updateClassPath() {
         val sdkHome = sourceOptions.sdkHome
         val jdkHome = sourceOptions.jdkHome
+        if (sdkHome == null && jdkHome == null) {
+            // Nothing to do.
+            return
+        } else if (sdkHome != null && jdkHome != null) {
+            cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
+        }
 
         if (
             sdkHome != null &&
@@ -660,9 +666,6 @@ class Options(
                 cliError(
                     "Could not find android.jar for API level $compileSdkVersion in SDK $sdkHome: $jar does not exist"
                 )
-            }
-            if (jdkHome != null) {
-                cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
             }
         } else if (jdkHome != null) {
             val isJre = !isJdkFolder(jdkHome)
