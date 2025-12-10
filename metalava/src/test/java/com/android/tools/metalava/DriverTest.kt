@@ -1018,12 +1018,6 @@ abstract class DriverTest :
             arrayOf(
                 ARG_NO_COLOR,
 
-                // Tell metalava where to store temp folder: place them under the
-                // test root folder such that we clean up the output strings referencing
-                // paths to the temp folder
-                "--temp-folder",
-                getOrCreateFolder("temp").path,
-
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
                 ARG_INCLUDE_ANNOTATIONS,

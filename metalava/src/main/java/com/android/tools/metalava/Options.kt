@@ -27,7 +27,6 @@ import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.fileForPathInner
-import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
@@ -447,9 +446,6 @@ class Options(
             key = { it.optionValue },
         )
 
-    /** Temporary folder to use instead of the JDK default, if any */
-    private var tempFolder: File? = null
-
     fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
@@ -498,17 +494,6 @@ class Options(
                     externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
-                }
-                "--temp-folder" -> {
-                    tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
-                }
-
-                // Option only meant for tests (not documented); doesn't work in all cases (to do
-                // that we'd
-                // need JNA to call libc)
-                "--pwd" -> {
-                    val pwd = stringToExistingDir(getValue(args, ++index)).absoluteFile
-                    System.setProperty("user.dir", pwd.path)
                 }
                 else -> {
                     if (arg.startsWith("-")) {
@@ -634,17 +619,6 @@ class Options(
                 }
                 file
             }
-    }
-
-    private fun stringToNewOrExistingDir(value: String): File {
-        val dir = fileForPathInner(value)
-        if (!dir.isDirectory) {
-            val ok = dir.mkdirs()
-            if (!ok) {
-                cliError("Could not create $dir")
-            }
-        }
-        return dir
     }
 }
 
