@@ -1013,10 +1013,6 @@ abstract class DriverTest :
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
-        // Make sure that the options is initialized. Just in case access was disallowed by another
-        // test. The global option will be overridden by the test.
-        options = Options()
-
         val args =
             arrayOf(
                 ARG_NO_COLOR,
