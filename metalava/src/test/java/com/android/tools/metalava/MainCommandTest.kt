@@ -55,6 +55,7 @@ Options:
   --suppress-compatibility-meta-annotation <meta-annotation class>
                                              Suppress compatibility checks for any elements within the scope of an
                                              annotation which is itself annotated with the given meta-annotation.
+  --sdk-values <dir>                         Write SDK values files to the given directory.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
   --typedefs-in-signatures [none|ref|inline]
@@ -146,8 +147,6 @@ API sources:
 Extracting Signature Files:
 --proguard <file>
                                              Write a ProGuard keep file for the API
---sdk-values <dir>
-                                             Write SDK values files to the given directory
 
 
 Generating Stubs:

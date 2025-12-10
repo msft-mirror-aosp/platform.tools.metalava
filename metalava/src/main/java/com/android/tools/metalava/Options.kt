@@ -27,8 +27,8 @@ import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.fileForPathInner
+import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
-import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
@@ -353,7 +353,13 @@ class Options(
     val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Path to directory to write SDK values to */
-    var sdkValueDir: File? = null
+    val sdkValueDir by
+        option(
+                ARG_SDK_VALUES,
+                metavar = "<dir>",
+                help = "Write SDK values files to the given directory.",
+            )
+            .newDir()
 
     /**
      * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
@@ -460,7 +466,6 @@ class Options(
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
-                ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
@@ -661,8 +666,6 @@ object OptionsHelp {
                 // TODO: Document --show-annotation!
                 "$ARG_PROGUARD <file>",
                 "Write a ProGuard keep file for the API",
-                "$ARG_SDK_VALUES <dir>",
-                "Write SDK values files to the given directory",
                 "",
                 "Generating Stubs:",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
