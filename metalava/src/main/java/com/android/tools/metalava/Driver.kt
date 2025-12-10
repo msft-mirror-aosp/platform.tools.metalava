@@ -172,7 +172,7 @@ internal fun processFlags(
         ClassPathResolverProvider(
             sourceParser = sourceParser,
             apiClassResolution = options.apiClassResolution,
-            classpath = options.classpath,
+            classpath = sourceOptions.classpath,
         )
     val codebase =
         createCodebaseFromOptions(
@@ -678,7 +678,7 @@ private fun ActionContext.loadFromSources(
         sourceParser.parseSources(
             sourceSet,
             "Codebase loaded from source folders",
-            classPath = options.classpath,
+            classPath = sourceOptions.classpath,
             apiPackages = options.apiPackages,
             projectDescription = options.projectDescription,
             compiledSourceJar = options.compiledSourceJar

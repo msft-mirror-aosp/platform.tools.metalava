@@ -17,6 +17,8 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
+import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
+import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
@@ -32,6 +34,8 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
+import kotlin.collections.map
+import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
@@ -135,7 +139,44 @@ class SourceOptions(
             // Allow multiple options to be specified producing a list of lists.
             .multiple()
             // Flatten the list of lists into a single list.
-            .map { it.flatten() }
+            .map {
+                val list = it.flatten()
+                addSdkOrJdkJarsIfNeeded(list)
+            }
+
+    /** Update [classpath] to insert android.jar or JDK classpath elements if necessary. */
+    private fun addSdkOrJdkJarsIfNeeded(classpath: List<File>): List<File> {
+        val sdkHome = sdkHome
+        val jdkHome = jdkHome
+        if (sdkHome == null && jdkHome == null) {
+            // Nothing to do.
+            return classpath
+        } else if (sdkHome != null && jdkHome != null) {
+            cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
+        }
+
+        val compileSdkVersion = compileSdkVersion
+        if (
+            sdkHome != null &&
+                compileSdkVersion != null &&
+                classpath.none { it.name == FN_FRAMEWORK_LIBRARY }
+        ) {
+            val jar = File(sdkHome, "platforms/android-$compileSdkVersion")
+            if (jar.isFile) {
+                return classpath + jar
+            } else {
+                cliError(
+                    "Could not find android.jar for API level $compileSdkVersion in SDK $sdkHome: $jar does not exist"
+                )
+            }
+        } else if (jdkHome != null) {
+            val isJre = !isJdkFolder(jdkHome)
+            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
+            return classpath + roots
+        }
+
+        return classpath
+    }
 
     val apiPackages by
         option(
@@ -189,7 +230,7 @@ class SourceOptions(
      * [ARG_COMPILE_SDK_VERSION], metalava will automatically add the platform's android.jar file to
      * the classpath if it does not already find the android.jar file in the classpath.
      */
-    val sdkHome by
+    private val sdkHome by
         option(
                 ARG_SDK_HOME,
                 metavar = "<dir>",
@@ -205,7 +246,7 @@ class SourceOptions(
      * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
      * For R preview, it would be "R".
      */
-    val compileSdkVersion: String? by
+    private val compileSdkVersion: String? by
         option(ARG_COMPILE_SDK_VERSION, metavar = "<api>", help = "Use the given API level.")
 
     /** Whether to use the K1 compiler. */

@@ -16,10 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
-import com.android.tools.lint.detector.api.isJdkFolder
-import com.android.tools.metalava.cli.common.ARG_JDK_HOME
-import com.android.tools.metalava.cli.common.ARG_SDK_HOME
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -72,7 +68,6 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Optional
 import java.util.function.Predicate
-import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 private const val INDENT_WIDTH = 45
 
@@ -192,9 +187,6 @@ class Options(
 
     /** The list of source roots */
     val sourcePath: List<File> by sourceOptions::sourcePath
-
-    /** The list of dependency jars */
-    val classpath: List<File> by lazy { addSdkOrJdkJarsIfNeeded(sourceOptions.classpath) }
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
@@ -340,7 +332,7 @@ class Options(
                     apiPredicateConfig = apiPredicateConfig,
                     sources = sources,
                     sourcePath = sourcePath,
-                    classpath = classpath,
+                    classpath = sourceOptions.classpath,
                     apiPackageFilter = apiPackages,
                     nullabilityAnnotationsValidator =
                         if (validateNullabilityFromMergedStubs) nullabilityAnnotationsValidator
@@ -621,40 +613,6 @@ class Options(
             reportableFilter = reportableFilter,
             config = issueReportingOptions.reporterConfig,
         )
-
-    /** Update [classpath] to insert android.jar or JDK classpath elements if necessary. */
-    private fun addSdkOrJdkJarsIfNeeded(classpath: List<File>): List<File> {
-        val sdkHome = sourceOptions.sdkHome
-        val jdkHome = sourceOptions.jdkHome
-        if (sdkHome == null && jdkHome == null) {
-            // Nothing to do.
-            return classpath
-        } else if (sdkHome != null && jdkHome != null) {
-            cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
-        }
-
-        val compileSdkVersion = sourceOptions.compileSdkVersion
-        if (
-            sdkHome != null &&
-                compileSdkVersion != null &&
-                classpath.none { it.name == FN_FRAMEWORK_LIBRARY }
-        ) {
-            val jar = File(sdkHome, "platforms/android-$compileSdkVersion")
-            if (jar.isFile) {
-                return classpath + jar
-            } else {
-                cliError(
-                    "Could not find android.jar for API level $compileSdkVersion in SDK $sdkHome: $jar does not exist"
-                )
-            }
-        } else if (jdkHome != null) {
-            val isJre = !isJdkFolder(jdkHome)
-            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
-            return classpath + roots
-        }
-
-        return classpath
-    }
 
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
