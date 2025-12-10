@@ -354,10 +354,9 @@ class AnnotationsMerger(
         reporter.report(Issues.INTERNAL_ERROR, reportable = null, message)
     }
 
-    internal fun warning(message: String) {
-        if (options.verbose) {
-            options.stdout.println("Warning: $message")
-        }
+    /** Called when an `item` referenced in an `annotations.xml` file could not be found. */
+    internal fun missingAnnotationsXmlItem(message: String) {
+        reporter.report(Issues.MISSING_ANNOTATIONS_XML_ITEM, reportable = null, message)
     }
 
     @Suppress("PrivatePropertyName")
@@ -385,7 +384,7 @@ class AnnotationsMerger(
             if (matcher.matches()) {
                 val containingClass = matcher.group(1)
                 if (containingClass == null) {
-                    warning("Could not find class for $signature")
+                    missingAnnotationsXmlItem("Could not find class for $signature")
                     continue
                 }
 
@@ -397,7 +396,9 @@ class AnnotationsMerger(
                         continue
                     }
 
-                    warning("Could not find class $containingClass; omitting annotation from merge")
+                    missingAnnotationsXmlItem(
+                        "Could not find class $containingClass; omitting annotation from merge"
+                    )
                     continue
                 }
 
@@ -431,13 +432,15 @@ class AnnotationsMerger(
                         continue
                     }
 
-                    warning("Could not find class $containingClass; omitting annotation from merge")
+                    missingAnnotationsXmlItem(
+                        "Could not find class $containingClass; omitting annotation from merge"
+                    )
                     continue
                 }
 
                 mergeQualifierAnnotationsFromXmlElement(item, classItem)
             } else {
-                warning("No merge match for signature $signature")
+                missingAnnotationsXmlItem("No merge match for signature $signature")
             }
         }
     }
@@ -487,7 +490,7 @@ class AnnotationsMerger(
                 return
             }
 
-            warning(
+            missingAnnotationsXmlItem(
                 "Could not find method $methodName($parameters) in $containingClass; omitting annotation from merge"
             )
             return
@@ -514,7 +517,7 @@ class AnnotationsMerger(
                 return
             }
 
-            warning(
+            missingAnnotationsXmlItem(
                 "Could not find field $fieldName in $containingClass; omitting annotation from merge"
             )
             return

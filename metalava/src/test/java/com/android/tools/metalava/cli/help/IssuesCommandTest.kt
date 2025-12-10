@@ -145,6 +145,7 @@ Available Issues                             |  Category                        
   MethodNameTense                            |  api_lint                             |   warning
   MethodNameUnits                            |  api_lint                             |   error
   MinMaxConstant                             |  api_lint                             |   warning
+  MissingAnnotationsXmlItem                  |  api_lint                             |   hidden
   MissingBuildMethod                         |  api_lint                             |   warning
   MissingColumn                              |  documentation                        |   warning
   MissingEnvironmentsValue                   |  api_lint                             |   error
