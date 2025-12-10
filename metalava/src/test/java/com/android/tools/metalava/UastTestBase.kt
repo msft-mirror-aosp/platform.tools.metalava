@@ -3138,4 +3138,45 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Test usage of expect actual typealias with unbounded type argument`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                expect class ExpectActualTypealias<T>
+                interface Common {
+                    fun foo(): ExpectActualTypealias<*>
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                actual typealias ExpectActualTypealias<T> = List<T>
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public interface Common {
+                    method public java.util.List<? extends java.lang.Object?> foo();
+                  }
+                  public typealias ExpectActualTypealias<T> = java.util.List<T>;
+                }
+                """
+        )
+    }
 }
