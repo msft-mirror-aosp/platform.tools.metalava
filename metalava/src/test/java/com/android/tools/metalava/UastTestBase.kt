@@ -3141,13 +3141,8 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Additional usage of expect actual typealias from classpath in a common module`() {
-        // Listing all packages from the KaModuleProcessor doesn't pick up this typealias.
-        val cancellationException =
-            if (isK2) {
-                "kotlin.coroutines.cancellation.CancellationException"
-            } else {
-                "java.util.concurrent.CancellationException"
-            }
+        // Listing all packages from the KaModuleProcessor doesn't pick up this typealias, it is
+        // necessary to list all packages from psi instead.
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Common.kt",
@@ -3181,7 +3176,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Android();
                   }
                   public interface Common {
-                    method public $cancellationException foo();
+                    method public java.util.concurrent.CancellationException foo();
                   }
                 }
                 """
