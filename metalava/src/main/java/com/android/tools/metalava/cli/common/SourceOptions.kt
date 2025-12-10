@@ -23,6 +23,8 @@ import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
@@ -40,6 +42,9 @@ import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 const val ARG_SOURCE_PATH = "--source-path"
+
+const val ARG_JAVA_SOURCE = "--java-source"
+const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 
 const val ARG_CLASS_PATH = "--classpath"
 
@@ -119,6 +124,24 @@ class SourceOptions(
                 stringToExistingDir(it)
             }
         }
+
+    /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
+    val javaLanguageLevelAsString by
+        option(
+                ARG_JAVA_SOURCE,
+                metavar = "<level>",
+                help = "Sets the source level for Java source files.",
+            )
+            .default(DEFAULT_JAVA_LANGUAGE_LEVEL)
+
+    /** The language level to use for Kotlin files, set with [ARG_KOTLIN_SOURCE] */
+    val kotlinLanguageLevelAsString by
+        option(
+                ARG_KOTLIN_SOURCE,
+                metavar = "<level>",
+                help = "Sets the source level for Kotlin source files."
+            )
+            .default(DEFAULT_KOTLIN_LANGUAGE_LEVEL)
 
     // For now, we don't distinguish between bootclasspath and classpath
     val classpath: List<File> by

@@ -153,8 +153,8 @@ internal fun processFlags(
     val sourceParser =
         environmentManager.createSourceParser(
             codebaseConfig = codebaseConfig,
-            javaLanguageLevel = options.javaLanguageLevelAsString,
-            kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
+            javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
+            kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
             jdkHome = sourceOptions.jdkHome,
         )

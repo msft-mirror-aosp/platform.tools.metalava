@@ -45,8 +45,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
-import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -86,8 +84,6 @@ const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_JAVA_SOURCE = "--java-source"
-const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
@@ -438,12 +434,6 @@ class Options(
     /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
 
-    /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
-    var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
-
-    /** The language level to use for Kotlin files, set with [ARG_KOTLIN_SOURCE] */
-    var kotlinLanguageLevelAsString: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL
-
     /**
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
@@ -506,14 +496,6 @@ class Options(
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
-                ARG_JAVA_SOURCE -> {
-                    val value = getValue(args, ++index)
-                    javaLanguageLevelAsString = value
-                }
-                ARG_KOTLIN_SOURCE -> {
-                    val value = getValue(args, ++index)
-                    kotlinLanguageLevelAsString = value
-                }
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
                 }
@@ -708,10 +690,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "$ARG_JAVA_SOURCE <level>",
-                "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
-                "$ARG_KOTLIN_SOURCE <level>",
-                "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
