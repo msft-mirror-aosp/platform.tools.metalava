@@ -174,7 +174,7 @@ class MainCommand(
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
      */
-    internal val optionGroup by
+    internal val options by
         Options(
             executionEnvironment = executionEnvironment,
             commonOptions = commonOptions,
@@ -192,12 +192,12 @@ class MainCommand(
         // Make sure to flush out the baseline files, close files and write any final messages.
         registerPostCommandAction {
             // Update and close all baseline files.
-            optionGroup.allBaselines.forEach { baseline ->
-                if (optionGroup.verbose) {
-                    baseline.dumpStats(optionGroup.stdout)
+            options.allBaselines.forEach { baseline ->
+                if (options.verbose) {
+                    baseline.dumpStats(options.stdout)
                 }
                 if (baseline.close()) {
-                    if (!optionGroup.quiet) {
+                    if (!options.quiet) {
                         stdout.println(
                             "$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}"
                         )
@@ -208,7 +208,7 @@ class MainCommand(
             issueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
 
             // Show failure messages, if any.
-            optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }
+            options.allReporters.forEach { it.writeErrorMessage(stderr) }
         }
 
         // Perform any necessary initialization.
@@ -228,7 +228,7 @@ class MainCommand(
                         executionEnvironment,
                         it,
                         progressTracker,
-                        optionGroup,
+                        options,
                         apiLevelsGenerationOptions,
                         signatureFileOptions,
                         signatureFormatOptions,
@@ -238,10 +238,10 @@ class MainCommand(
                 }
         } finally {
             // Write all saved reports. Do this even if the previous code threw an exception.
-            optionGroup.allReporters.forEach { it.writeSavedReports() }
+            options.allReporters.forEach { it.writeSavedReports() }
         }
 
-        val allReporters = optionGroup.allReporters
+        val allReporters = options.allReporters
         if (allReporters.any { it.hasErrors() } && !commonBaselineOptions.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
             if (issueReportingOptions.repeatErrorsMax > 0) {
@@ -255,7 +255,7 @@ class MainCommand(
 
     /** Initialize any option groups that require it. */
     private fun initializeOptionGroups() {
-        optionGroup.initialize()
+        options.initialize()
 
         // Make sure that any config files are processed.
         configFileOptions.config
