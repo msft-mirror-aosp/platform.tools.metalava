@@ -44,6 +44,15 @@ Usage: metalava main [options] [flags]...
   The default sub-command that is run if no sub-command is specified.
 
 Options:
+  --nullability-errors-non-fatal             Specifies that errors encountered during validation of nullability
+                                             annotations should not be treated as errors. They will be written out to
+                                             the file specified in --nullability-warnings-txt instead.
+  --nullability-warnings-txt <file>          Specifies where to write warnings encountered during validation of
+                                             nullability annotations. (Does not trigger validation by itself.)
+  --validate-nullability-from-merged-stubs   Triggers validation of nullability annotations for any class where
+                                             --merge-qualifier-annotations includes a Java stub file.
+  --validate-nullability-from-list <file>    Triggers validation of nullability annotations for any class listed in the
+                                             named file (one top-level class per line, # prefix for comment line).
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
                                              files. Any classes that cannot be found will be treated as empty.",
@@ -105,19 +114,6 @@ API sources:
                                              A comma separated list of source files to be parsed. Can also be @ followed
                                              by a path to a text file containing paths to the full set of files to
                                              parse.
---validate-nullability-from-merged-stubs
-                                             Triggers validation of nullability annotations for any class where
-                                             --merge-qualifier-annotations includes a Java stub file.
---validate-nullability-from-list
-                                             Triggers validation of nullability annotations for any class listed in the
-                                             named file (one top-level class per line, # prefix for comment line).
---nullability-warnings-txt <file>
-                                             Specifies where to write warnings encountered during validation of
-                                             nullability annotations. (Does not trigger validation by itself.)
---nullability-errors-non-fatal
-                                             Specifies that errors encountered during validation of nullability
-                                             annotations should not be treated as errors. They will be written out to
-                                             the file specified in --nullability-warnings-txt instead.
 
 
 Environment Variables:

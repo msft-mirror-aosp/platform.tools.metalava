@@ -27,11 +27,10 @@ import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
+import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.stringToExistingFile
-import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
@@ -55,6 +54,7 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
@@ -133,25 +133,70 @@ class Options(
         get() = optionalNullabilityAnnotationsValidator.orElse(null)
 
     /** Whether nullability validation errors should be considered fatal. */
-    private var nullabilityErrorsFatal = true
+    private val nullabilityErrorsNonFatal by
+        option(
+                ARG_NULLABILITY_ERRORS_NON_FATAL,
+                help =
+                    """
+                        Specifies that errors encountered during validation of nullability
+                        annotations should not be treated as errors. They will be written out to the
+                        file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.
+                    """
+                        .trimIndent(),
+            )
+            .flag()
+
+    private val nullabilityErrorsFatal
+        get() = !nullabilityErrorsNonFatal
 
     /**
      * A file to write non-fatal nullability validation issues to. If null, all issues are treated
      * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
      */
-    private var nullabilityWarningsTxt: File? = null
+    private val nullabilityWarningsTxt by
+        option(
+                ARG_NULLABILITY_WARNINGS_TXT,
+                metavar = "<file>",
+                help =
+                    """
+                        Specifies where to write warnings encountered during validation of
+                        nullability annotations. (Does not trigger validation by itself.)
+                    """
+                        .trimIndent(),
+            )
+            .newFile()
 
     /**
      * Whether to validate nullability for all the classes where we are merging annotations from
      * external java stub files. If true, [nullabilityAnnotationsValidator] must be set.
      */
-    var validateNullabilityFromMergedStubs = false
+    val validateNullabilityFromMergedStubs by
+        option(
+                ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS,
+                help =
+                    """
+                        Triggers validation of nullability annotations for any class where
+                        $ARG_MERGE_QUALIFIER_ANNOTATIONS includes a Java stub file.
+                    """
+                        .trimIndent(),
+            )
+            .flag()
 
     /**
      * A file containing a list of classes whose nullability annotations should be validated. If
      * set, [nullabilityAnnotationsValidator] must also be set.
      */
-    private var validateNullabilityFromList: File? = null
+    private val validateNullabilityFromList by
+        option(
+                ARG_VALIDATE_NULLABILITY_FROM_LIST,
+                help =
+                    """
+                        Triggers validation of nullability annotations for any class listed in the
+                        named file (one top-level class per line, # prefix for comment line).
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
@@ -399,15 +444,6 @@ class Options(
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
                 }
-                ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
-                    validateNullabilityFromMergedStubs = true
-                }
-                ARG_VALIDATE_NULLABILITY_FROM_LIST -> {
-                    validateNullabilityFromList = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_NULLABILITY_WARNINGS_TXT ->
-                    nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
-                ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 else -> {
                     if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
@@ -530,19 +566,6 @@ object OptionsHelp {
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
-                ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS,
-                "Triggers validation of nullability annotations " +
-                    "for any class where $ARG_MERGE_QUALIFIER_ANNOTATIONS includes a Java stub file.",
-                ARG_VALIDATE_NULLABILITY_FROM_LIST,
-                "Triggers validation of nullability annotations " +
-                    "for any class listed in the named file (one top-level class per line, # prefix for comment line).",
-                "$ARG_NULLABILITY_WARNINGS_TXT <file>",
-                "Specifies where to write warnings encountered during " +
-                    "validation of nullability annotations. (Does not trigger validation by itself.)",
-                ARG_NULLABILITY_ERRORS_NON_FATAL,
-                "Specifies that errors encountered during validation of " +
-                    "nullability annotations should not be treated as errors. They will be written out to the " +
-                    "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
