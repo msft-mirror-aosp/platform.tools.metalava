@@ -25,12 +25,11 @@ import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
-import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
-import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
@@ -443,7 +442,7 @@ class Options(
                         throw NoSuchOption(givenName = arg)
                     } else {
                         // All args that don't start with "-" are taken to be filenames
-                        mutableSources.addAll(stringToExistingFiles(arg))
+                        mutableSources.add(stringToExistingFile(arg))
                     }
                 }
             }
@@ -522,18 +521,6 @@ class Options(
             reportableFilter = reportableFilter,
             config = issueReportingOptions.reporterConfig,
         )
-
-    private fun stringToExistingFiles(value: String): List<File> {
-        return value
-            .split(File.pathSeparatorChar)
-            .map { fileForPathInner(it) }
-            .map { file ->
-                if (!file.isFile) {
-                    cliError("$file is not a file")
-                }
-                file
-            }
-    }
 }
 
 object OptionsHelp {
