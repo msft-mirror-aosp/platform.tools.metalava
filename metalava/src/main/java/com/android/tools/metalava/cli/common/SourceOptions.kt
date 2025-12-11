@@ -34,7 +34,6 @@ import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
 import kotlin.collections.map
@@ -165,15 +164,8 @@ class SourceOptions(
                         .trimIndent()
             )
             .existingDirOrJar()
-            // Split each option into a list separate by File.pathSeparator
-            .split(File.pathSeparator)
-            // Allow multiple options to be specified producing a list of lists.
-            .multiple()
-            // Flatten the list of lists into a single list.
-            .map {
-                val list = it.flatten()
-                addSdkOrJdkJarsIfNeeded(list)
-            }
+            .splitMultiple(File.pathSeparator)
+            .map { addSdkOrJdkJarsIfNeeded(it) }
 
     /** Update [classpath] to insert android.jar or JDK classpath elements if necessary. */
     private fun addSdkOrJdkJarsIfNeeded(classpath: List<File>): List<File> {

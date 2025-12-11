@@ -32,7 +32,9 @@ import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.RawOption
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
 import kotlin.properties.ReadOnlyProperty
@@ -273,6 +275,18 @@ internal fun stringToNewOrExistingFile(value: String): File {
     }
     return file
 }
+
+/**
+ * Allows multiple options to be supplied, each of which is split into a list based on [delimiter]
+ * and then concatenates the resulting lists together into a single list.
+ */
+fun <EachT : Any, ValueT> NullableOption<EachT, ValueT>.splitMultiple(delimiter: String) =
+    // Split each option into a list separated by delimiter
+    split(delimiter)
+        // Allow multiple options to be specified producing a list of lists.
+        .multiple()
+        // Flatten the list of lists into a single list.
+        .map { it.flatten() }
 
 // Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
 // collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.
