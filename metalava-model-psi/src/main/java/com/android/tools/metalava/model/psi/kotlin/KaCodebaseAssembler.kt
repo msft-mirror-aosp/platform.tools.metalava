@@ -64,6 +64,8 @@ import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.FileLocation
+import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiClass
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -138,6 +140,14 @@ internal class KaCodebaseAssembler(
      */
     fun assemble() {
         mainModuleProcessor.assemble(packages)
+    }
+
+    /**
+     * Searches for a class named [qualifiedName] within the context of the main analysis module for
+     * the project.
+     */
+    fun findClassInModule(finder: JavaPsiFacade, qualifiedName: String): PsiClass? {
+        return analyze(mainModule) { finder.findClass(qualifiedName, analysisScope) }
     }
 
     companion object {
