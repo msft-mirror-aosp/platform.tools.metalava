@@ -41,7 +41,6 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.ApiClassResolution
@@ -79,7 +78,6 @@ const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
@@ -166,15 +164,6 @@ class Options(
      */
     var validateNullabilityFromList: File? = null
 
-    /**
-     * Whether to allow reading comments from the sources.
-     *
-     * If `true` then source comments will be read and [SelectableItem.documentation] will not be
-     * `null` (unless the [SelectableItem] is `private`). If `false` then
-     * [SelectableItem.documentation] will always be `null`.
-     */
-    private var allowReadingComments = true
-
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
@@ -252,7 +241,7 @@ class Options(
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {
             Codebase.Config(
-                allowReadingComments = allowReadingComments,
+                allowReadingComments = sourceOptions.allowReadingComments,
                 annotationManager = annotationManager,
                 apiFlags = apiFlags,
                 apiSurfaces = apiSelectionOptions.apiSurfaces,
@@ -460,7 +449,6 @@ class Options(
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
-                ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path ->
@@ -644,8 +632,6 @@ object OptionsHelp {
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
-                ARG_SKIP_READING_COMMENTS,
-                "Ignore any comments in source files.",
                 "",
                 "Generating Stubs:",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",

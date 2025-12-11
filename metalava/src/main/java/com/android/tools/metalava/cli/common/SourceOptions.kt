@@ -22,6 +22,7 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
@@ -53,6 +54,8 @@ const val ARG_PROJECT = "--project"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 
 const val ARG_COMPILED_SOURCES = "--compiled-sources"
+
+const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 
 const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -282,6 +285,24 @@ class SourceOptions(
      */
     private val compileSdkVersion: String? by
         option(ARG_COMPILE_SDK_VERSION, metavar = "<api>", help = "Use the given API level.")
+
+    /** Determines whether comments are read when processing sources. */
+    private val skipReadingComments by
+        option(
+                ARG_SKIP_READING_COMMENTS,
+                help = "Ignore any comments in source files.",
+            )
+            .flag()
+
+    /**
+     * Whether to allow reading comments from the sources.
+     *
+     * If `true` then source comments will be read and [SelectableItem.documentation] will not be
+     * `null` (unless the [SelectableItem] is `private`). If `false` then
+     * [SelectableItem.documentation] will always be `null`.
+     */
+    val allowReadingComments
+        get() = !skipReadingComments
 
     /** Whether to use the K1 compiler. */
     private val useK1UastOption by
