@@ -21,8 +21,8 @@ import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
@@ -70,10 +70,9 @@ class MainCommand(
 
             // Override the help formatter to add in documentation for the legacy flags.
             helpFormatter =
-                LegacyHelpFormatter(
+                MetalavaHelpFormatter(
                     { terminal },
                     localization,
-                    OptionsHelp::getUsage,
                 )
         }
     }

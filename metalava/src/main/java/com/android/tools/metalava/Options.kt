@@ -22,8 +22,6 @@ import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.SourceOptions
-import com.android.tools.metalava.cli.common.Terminal
-import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
@@ -49,7 +47,6 @@ import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
-import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -58,11 +55,8 @@ import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 import java.io.PrintWriter
-import java.io.StringWriter
 import java.util.Optional
 import java.util.function.Predicate
-
-private const val INDENT_WIDTH = 45
 
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
@@ -495,54 +489,4 @@ class Options(
             reportableFilter = reportableFilter,
             config = issueReportingOptions.reporterConfig,
         )
-}
-
-object OptionsHelp {
-    fun getUsage(terminal: Terminal, width: Int): String {
-        val usage = StringWriter()
-        val printWriter = PrintWriter(usage)
-        usage(printWriter, terminal, width)
-        return usage.toString()
-    }
-
-    private fun usage(out: PrintWriter, terminal: Terminal, width: Int) {
-        val args = emptyArray<String>()
-
-        val indent = " ".repeat(INDENT_WIDTH)
-
-        var i = 0
-        while (i < args.size) {
-            val arg = args[i]
-            if (arg.isEmpty()) {
-                val groupTitle = args[i + 1]
-                out.println("\n")
-                out.println(terminal.colorize(groupTitle, TerminalColor.YELLOW))
-            } else {
-                val description = "\n" + args[i + 1]
-                val formattedArg = terminal.bold(arg)
-                val invisibleChars = formattedArg.length - arg.length
-                // +invisibleChars: the extra chars in the above are counted but don't
-                // contribute to width so allow more space
-                val formatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
-
-                val output =
-                    wrap(
-                        String.format(formatString, formattedArg, description),
-                        width + invisibleChars,
-                        width,
-                        indent
-                    )
-
-                // Remove trailing whitespace
-                val lines = output.lines()
-                lines.forEachIndexed { index, line ->
-                    out.print(line.trimEnd())
-                    if (index < lines.size - 1) {
-                        out.println()
-                    }
-                }
-            }
-            i += 2
-        }
-    }
 }
