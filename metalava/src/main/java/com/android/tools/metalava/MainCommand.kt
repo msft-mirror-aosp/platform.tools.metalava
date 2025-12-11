@@ -25,6 +25,7 @@ import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.SourceOptions
+import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.progressTracker
@@ -191,19 +192,8 @@ class MainCommand(
 
         // Make sure to flush out the baseline files, close files and write any final messages.
         registerPostCommandAction {
-            // Update and close all baseline files.
-            reporterManager.allBaselines.forEach { baseline ->
-                if (options.verbose) {
-                    baseline.dumpStats(options.stdout)
-                }
-                if (baseline.close()) {
-                    if (!options.quiet) {
-                        stdout.println(
-                            "$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}"
-                        )
-                    }
-                }
-            }
+            // Close all the baselines.
+            reporterManager.closeAllBaselines(commonOptions.verbosity, stdout)
 
             issueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
 

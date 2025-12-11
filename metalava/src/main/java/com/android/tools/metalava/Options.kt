@@ -294,10 +294,6 @@ class Options(
 
     private var verbosity: Verbosity = Verbosity.NORMAL
 
-    /** Whether to report warnings and other diagnostics along the way */
-    val quiet: Boolean
-        get() = verbosity.quiet
-
     /**
      * Whether to report extra diagnostics along the way (note that verbose isn't the same as not
      * quiet)
@@ -377,9 +373,6 @@ class Options(
                 sourceOptions,
             )
         }
-
-    val allBaselines
-        get() = reporterManager.allBaselines
 
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration

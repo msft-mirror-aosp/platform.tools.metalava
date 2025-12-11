@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.SourceOptions
+import com.android.tools.metalava.cli.common.Verbosity
+import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.model.Item
@@ -45,7 +47,7 @@ class ReporterManager(
 
     private val allReporters: List<DefaultReporter>
 
-    val allBaselines: List<Baseline>
+    private val allBaselines: List<Baseline>
 
     init {
         val reportableFilter = createReporterPredicate()
@@ -171,6 +173,21 @@ class ReporterManager(
             stderr.println(
                 "${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them."
             )
+        }
+    }
+
+    /** Close all the [Baseline]s. */
+    fun closeAllBaselines(verbosity: Verbosity, stdout: PrintWriter) {
+        // Update and close all baseline files.
+        allBaselines.forEach { baseline ->
+            if (verbosity.verbose) {
+                baseline.dumpStats(stdout)
+            }
+            if (baseline.close()) {
+                if (!verbosity.quiet) {
+                    stdout.println("$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}")
+                }
+            }
         }
     }
 }
