@@ -198,8 +198,6 @@ class Options(
             key = { it.optionValue },
         )
 
-    val allShowAnnotations by apiSelectionOptions::allShowAnnotations
-
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
      * applies to signature files, not stub files.
@@ -235,7 +233,7 @@ class Options(
             DefaultAnnotationManager.Config(
                 reporter = reporter,
                 passThroughAnnotations = apiSelectionOptions.passThroughAnnotations,
-                allShowAnnotations = allShowAnnotations,
+                allShowAnnotations = apiSelectionOptions.allShowAnnotations,
                 showAnnotations = apiSelectionOptions.showAnnotations,
                 showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
                 showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
@@ -296,7 +294,7 @@ class Options(
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
             mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
-            allShowAnnotations = allShowAnnotations,
+            allShowAnnotations = apiSelectionOptions.allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
