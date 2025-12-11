@@ -45,7 +45,6 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
@@ -99,7 +98,6 @@ class Options(
     val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
-    private val signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to. */
@@ -410,15 +408,6 @@ class Options(
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
-
-    /** Whether to include the signature file format version header in removed signature files */
-    val includeSignatureFormatVersionRemoved: EmitFileHeader
-        get() =
-            if (signatureFileOptions.deleteEmptyRemovedSignatures) {
-                EmitFileHeader.IF_NONEMPTY_FILE
-            } else {
-                EmitFileHeader.ALWAYS
-            }
 
     var allBaselines: List<Baseline> = emptyList()
 

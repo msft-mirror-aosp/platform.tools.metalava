@@ -405,7 +405,7 @@ private fun createApiSignatureFilesFromOptions(
         ) { printWriter ->
             SignatureWriter(
                 writer = printWriter,
-                emitHeader = options.includeSignatureFormatVersionRemoved,
+                emitHeader = signatureFileOptions.includeSignatureFormatVersionRemoved,
                 fileFormat = fileFormat,
             )
         }

@@ -182,7 +182,6 @@ class MainCommand(
             apiSelectionOptions = apiSelectionOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
-            signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
         )
 

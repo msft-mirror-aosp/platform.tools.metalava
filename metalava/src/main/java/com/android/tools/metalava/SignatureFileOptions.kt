@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OUTPUT_GROUP
+import com.android.tools.metalava.model.text.EmitFileHeader
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
@@ -72,4 +73,13 @@ class SignatureFileOptions :
                 help = "Deletes removed signature files if they are empty.",
             )
             .flag()
+
+    /** Whether to include the signature file format version header in removed signature files */
+    val includeSignatureFormatVersionRemoved: EmitFileHeader
+        get() =
+            if (deleteEmptyRemovedSignatures) {
+                EmitFileHeader.IF_NONEMPTY_FILE
+            } else {
+                EmitFileHeader.ALWAYS
+            }
 }
