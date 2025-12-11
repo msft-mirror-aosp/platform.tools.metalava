@@ -388,9 +388,6 @@ class Options(
     val reporter
         get() = reporterManager.reporter
 
-    internal val allReporters
-        get() = reporterManager.allReporters
-
     /**
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES

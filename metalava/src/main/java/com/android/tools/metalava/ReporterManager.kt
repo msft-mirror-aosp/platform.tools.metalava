@@ -28,6 +28,7 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ReporterEnvironment
+import java.io.PrintWriter
 import java.util.function.Predicate
 
 /** Managers [Reporter] instances and their corresponding [Baseline]s. */
@@ -42,7 +43,7 @@ class ReporterManager(
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     val reporter: Reporter
 
-    val allReporters: List<DefaultReporter>
+    private val allReporters: List<DefaultReporter>
 
     val allBaselines: List<Baseline>
 
@@ -141,4 +142,35 @@ class ReporterManager(
             reportableFilter = reportableFilter,
             config = issueReportingOptions.reporterConfig,
         )
+
+    /** Write custom error messages for any [Reporter] with errors. */
+    fun writeErrorMessages(stderr: PrintWriter) {
+        allReporters.forEach { it.writeErrorMessage(stderr) }
+    }
+
+    /** Write all the saved reports from all the [Reporter]s. */
+    fun writeSavedReports() {
+        allReporters.forEach { it.writeSavedReports() }
+    }
+
+    /** Return `true` if any [Reporter] has errors. */
+    fun hasAnyErrors() = allReporters.any { it.hasErrors() }
+
+    /** Repeat [max] number of errors to the [stderr]. */
+    fun repeatErrors(stderr: PrintWriter, max: Int) {
+        stderr.println("Error: $PROGRAM_NAME detected the following problems:")
+        val totalErrors = allReporters.sumOf { it.errorCount }
+        var remainingCap = max
+        var totalShown = 0
+        allReporters.forEach {
+            val numShown = it.printErrors(stderr, remainingCap)
+            remainingCap -= numShown
+            totalShown += numShown
+        }
+        if (totalShown < totalErrors) {
+            stderr.println(
+                "${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them."
+            )
+        }
+    }
 }

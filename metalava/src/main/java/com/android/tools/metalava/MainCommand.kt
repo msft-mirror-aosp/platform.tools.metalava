@@ -37,7 +37,6 @@ import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
-import com.android.tools.metalava.reporter.DefaultReporter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -45,7 +44,6 @@ import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
-import java.io.PrintWriter
 import java.util.Locale
 
 /**
@@ -189,10 +187,12 @@ class MainCommand(
         )
 
     override fun run() {
+        val reporterManager = options.reporterManager
+
         // Make sure to flush out the baseline files, close files and write any final messages.
         registerPostCommandAction {
             // Update and close all baseline files.
-            options.allBaselines.forEach { baseline ->
+            reporterManager.allBaselines.forEach { baseline ->
                 if (options.verbose) {
                     baseline.dumpStats(options.stdout)
                 }
@@ -208,7 +208,7 @@ class MainCommand(
             issueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
 
             // Show failure messages, if any.
-            options.allReporters.forEach { it.writeErrorMessage(stderr) }
+            reporterManager.writeErrorMessages(stderr)
         }
 
         // Perform any necessary initialization.
@@ -240,14 +240,13 @@ class MainCommand(
                 }
         } finally {
             // Write all saved reports. Do this even if the previous code threw an exception.
-            options.allReporters.forEach { it.writeSavedReports() }
+            reporterManager.writeSavedReports()
         }
 
-        val allReporters = options.allReporters
-        if (allReporters.any { it.hasErrors() } && !commonBaselineOptions.passBaselineUpdates) {
+        if (reporterManager.hasAnyErrors() && !commonBaselineOptions.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
             if (issueReportingOptions.repeatErrorsMax > 0) {
-                repeatErrors(stderr, allReporters, issueReportingOptions.repeatErrorsMax)
+                reporterManager.repeatErrors(stderr, issueReportingOptions.repeatErrorsMax)
             }
 
             // Make sure that the process exits with an error code.
@@ -293,22 +292,5 @@ class MainCommand(
         } else {
             return null
         }
-    }
-}
-
-private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
-    writer.println("Error: $PROGRAM_NAME detected the following problems:")
-    val totalErrors = reporters.sumOf { it.errorCount }
-    var remainingCap = max
-    var totalShown = 0
-    reporters.forEach {
-        val numShown = it.printErrors(writer, remainingCap)
-        remainingCap -= numShown
-        totalShown += numShown
-    }
-    if (totalShown < totalErrors) {
-        writer.println(
-            "${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them."
-        )
     }
 }
