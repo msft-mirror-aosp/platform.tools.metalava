@@ -370,7 +370,6 @@ abstract class DriverTest :
         } ?: BaselineCheck("", emptyArray(), null, "")
     }
 
-    @Suppress("DEPRECATION")
     protected fun check(
         configFiles: Array<TestFile> = emptyArray(),
         /** Any jars to add to the class path */
