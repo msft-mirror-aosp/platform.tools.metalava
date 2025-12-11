@@ -119,9 +119,6 @@ fun run(
 
     progressTracker.progress("$PROGRAM_NAME started\n")
 
-    // Dump the arguments, and maybe generate a rerun-script.
-    maybeDumpArgv(executionEnvironment, originalArgs, modifiedArgs)
-
     // Actual work begins here.
     val command =
         createMetalavaCommand(
