@@ -85,9 +85,10 @@ class MainCommand(
             )
             .multiple()
 
-    private val sourceOptions by
+    internal val sourceOptions: SourceOptions by
         SourceOptions(
             executionEnvironment = executionEnvironment,
+            additionalSourceFilesProvider = { optionGroup.additionalSourceFiles },
         )
 
     /** Issue reporter configuration. */
@@ -113,7 +114,7 @@ class MainCommand(
         ApiSelectionOptions(
             apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
             checkSurfaceConsistencyProvider = {
-                val sources = optionGroup.sources
+                val sources = sourceOptions.sourceFiles
                 // The --show-unannotated and --show*-annotation options affect the ApiSurfaces that
                 // is used. As do the --api-surface and API surfaces defined in a config file. In
                 // the long term the former will be discarded in favor of the latter but during the

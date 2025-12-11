@@ -441,7 +441,7 @@ private fun createCodebaseFromOptions(
     signatureFileCache: SignatureFileCache,
     actionContext: ActionContext
 ): Codebase? {
-    val sources = options.sources
+    val sources = sourceOptions.sourceFiles
     if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
         // Make sure all the source files have .txt extensions.
         sources
@@ -671,7 +671,7 @@ private fun ActionContext.loadFromSources(
     progressTracker.progress("Processing sources: ")
 
     val sourceSet =
-        if (options.sources.isEmpty()) {
+        if (sourceOptions.sourceFiles.isEmpty()) {
             if (options.verbose) {
                 options.stdout.println(
                     "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
@@ -679,7 +679,7 @@ private fun ActionContext.loadFromSources(
             }
             SourceSet.createFromSourcePath(options.reporter, sourceOptions.sourcePath)
         } else {
-            SourceSet(options.sources, sourceOptions.sourcePath)
+            SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
         }
 
     progressTracker.progress("Reading Codebase: ")

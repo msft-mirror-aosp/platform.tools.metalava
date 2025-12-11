@@ -67,7 +67,6 @@ import java.util.function.Predicate
 
 private const val INDENT_WIDTH = 45
 
-const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
@@ -102,7 +101,7 @@ class Options(
     val stderr: PrintWriter
         get() = executionEnvironment.stderr
 
-    /** Internal list backing [sources] */
+    /** Internal list backing [additionalSourceFiles] */
     private val mutableSources: MutableList<File> = mutableListOf()
 
     /**
@@ -198,8 +197,8 @@ class Options(
             )
             .existingFile()
 
-    /** All source files to parse */
-    var sources: List<File> = mutableSources
+    /** Additional source files passed as arguments not options. */
+    val additionalSourceFiles: List<File> = mutableSources
 
     val apiClassResolution by
         enumOption(
@@ -317,7 +316,7 @@ class Options(
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
                     apiPredicateConfig = apiPredicateConfig,
-                    sources = sources,
+                    sources = sourceOptions.sourceFiles,
                     sourcePath = sourceOptions.sourcePath,
                     classpath = sourceOptions.classpath,
                     apiPackageFilter = sourceOptions.apiPackageFilter,
@@ -438,12 +437,6 @@ class Options(
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
-                ARG_SOURCE_FILES -> {
-                    val listString = getValue(args, ++index)
-                    listString.split(",").forEach { path ->
-                        mutableSources.addAll(stringToExistingFiles(path))
-                    }
-                }
                 else -> {
                     if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
@@ -530,13 +523,6 @@ class Options(
             config = issueReportingOptions.reporterConfig,
         )
 
-    private fun getValue(args: Array<String>, index: Int): String {
-        if (index >= args.size) {
-            cliError("Missing argument for ${args[index - 1]}")
-        }
-        return args[index]
-    }
-
     private fun stringToExistingFiles(value: String): List<File> {
         return value
             .split(File.pathSeparatorChar)
@@ -561,11 +547,6 @@ object OptionsHelp {
     private fun usage(out: PrintWriter, terminal: Terminal, width: Int) {
         val args =
             arrayOf(
-                "",
-                "API sources:",
-                "$ARG_SOURCE_FILES <files>",
-                "A comma separated list of source files to be parsed. Can also be " +
-                    "@ followed by a path to a text file containing paths to the full set of files to parse.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,

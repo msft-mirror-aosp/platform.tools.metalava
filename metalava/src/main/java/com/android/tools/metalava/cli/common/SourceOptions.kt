@@ -19,7 +19,6 @@ package com.android.tools.metalava.cli.common
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
-import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SelectableItem
@@ -36,12 +35,12 @@ import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
-import kotlin.collections.map
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 const val ARG_SOURCE_PATH = "--source-path"
+const val ARG_SOURCE_FILES = "--source-files"
 
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
@@ -71,6 +70,9 @@ const val SOURCE_OPTIONS_GROUP = "Sources"
 
 class SourceOptions(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+
+    /** Provider of additional source files, i.e. those supplied as command line arguments. */
+    private val additionalSourceFilesProvider: () -> List<File> = { emptyList() },
 ) :
     OptionGroup(
         name = SOURCE_OPTIONS_GROUP,
@@ -131,6 +133,22 @@ class SourceOptions(
                 stringToExistingDir(it)
             }
         }
+
+    val sourceFiles by
+        option(
+                ARG_SOURCE_FILES,
+                metavar = "<files>",
+                help =
+                    """
+                A comma separated list of source files to be parsed. Can also be
+                    @ followed by a path to a text file containing paths to the full set of files to parse.,
+        """
+                        .trimIndent()
+            )
+            .existingFile()
+            .splitMultiple(",")
+            // Append any additional source files to the list of sources.
+            .map { it + additionalSourceFilesProvider() }
 
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     val javaLanguageLevelAsString by

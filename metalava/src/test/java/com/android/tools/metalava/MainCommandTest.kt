@@ -109,13 +109,6 @@ Arguments:
   flags                                      See below.
 
 
-API sources:
---source-files <files>
-                                             A comma separated list of source files to be parsed. Can also be @ followed
-                                             by a path to a text file containing paths to the full set of files to
-                                             parse.
-
-
 Environment Variables:
 METALAVA_DUMP_ARGV
                                              Set to true to have metalava emit all the arguments it was invoked with.
@@ -179,7 +172,7 @@ $EXPECTED_HELP
                 fun normalize(f: File): String = f.relativeTo(dir).path
                 Assert.assertEquals(
                     files.map { normalize(it) },
-                    command.optionGroup.sources.map { normalize(it) }
+                    command.sourceOptions.sourceFiles.map { normalize(it) }
                 )
             }
         }

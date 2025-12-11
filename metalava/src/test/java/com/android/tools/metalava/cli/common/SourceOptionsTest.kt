@@ -29,6 +29,9 @@ Sources:
 
   --source-path <path>                       A : separated list of directories containing source files (organized in a
                                              standard Java package hierarchy).
+  --source-files <files>                     A comma separated list of source files to be parsed. Can also be @ followed
+                                             by a path to a text file containing paths to the full set of files to
+                                             parse.,
   --java-source <level>                      Sets the source level for Java source files. (default: 1.8)
   --kotlin-source <level>                    Sets the source level for Kotlin source files. (default: 1.9)
   --classpath <paths>                        One or more directories or jars (separated by `:`) containing classes that
