@@ -29,7 +29,6 @@ import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
@@ -51,7 +50,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
-import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -99,9 +97,6 @@ class Options(
     /** Writer to direct error messages to. */
     val stderr: PrintWriter
         get() = executionEnvironment.stderr
-
-    /** Internal list backing [additionalSourceFiles] */
-    private val mutableSources: MutableList<File> = mutableListOf()
 
     /**
      * Backing property for [nullabilityAnnotationsValidator]
@@ -195,9 +190,6 @@ class Options(
                         .trimIndent(),
             )
             .existingFile()
-
-    /** Additional source files passed as arguments not options. */
-    val additionalSourceFiles: List<File> = mutableSources
 
     val apiClassResolution by
         enumOption(
@@ -432,24 +424,7 @@ class Options(
             key = { it.optionValue },
         )
 
-    fun parse(args: Array<String>) {
-        var index = 0
-        while (index < args.size) {
-            when (val arg = args[index]) {
-                else -> {
-                    if (arg.startsWith("-")) {
-                        // Some other argument: display usage info and exit
-                        throw NoSuchOption(givenName = arg)
-                    } else {
-                        // All args that don't start with "-" are taken to be filenames
-                        mutableSources.add(stringToExistingFile(arg))
-                    }
-                }
-            }
-
-            ++index
-        }
-
+    fun initialize() {
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
         val reporterUnknown =

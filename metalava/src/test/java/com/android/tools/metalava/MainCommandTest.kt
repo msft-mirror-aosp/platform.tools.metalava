@@ -39,7 +39,7 @@ class MainCommandTest :
 
     private val EXPECTED_HELP =
         """
-Usage: metalava main [options] [flags]...
+Usage: metalava main [options] [source-files]...
 
   The default sub-command that is run if no sub-command is specified.
 
@@ -106,7 +106,7 @@ $STUB_GENERATION_OPTIONS_HELP
 $API_LEVELS_GENERATION_OPTIONS_HELP
 
 Arguments:
-  flags                                      See below.
+  source-files                               Additional source files to append to --source-files
 
 
 Environment Variables:

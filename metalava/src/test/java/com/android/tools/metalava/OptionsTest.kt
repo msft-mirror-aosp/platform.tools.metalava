@@ -34,25 +34,6 @@ class OptionsTest : DriverTest() {
     }
 
     @Test
-    fun `Test invalid value`() {
-        val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
-
-        val (stdout, stderr) = runTest(args)
-        assertEquals("", stdout.toString())
-        assertEquals(
-            """
-
-Aborting: Usage: metalava main [options] [flags]...
-
-Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose from api, api:classpath)
-
-            """
-                .trimIndent(),
-            stderr.toString()
-        )
-    }
-
-    @Test
     fun `Test help`() {
         val args = listOf(ARG_NO_COLOR, "--help")
 

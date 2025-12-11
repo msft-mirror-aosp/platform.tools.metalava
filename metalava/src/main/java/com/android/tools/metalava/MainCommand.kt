@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_SOURCE_FILES
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -25,6 +26,7 @@ import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
+import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
@@ -55,7 +57,6 @@ class MainCommand(
 ) :
     CliktCommand(
         help = "The default sub-command that is run if no sub-command is specified.",
-        treatUnknownOptionsAsArgs = true,
     ) {
 
     init {
@@ -78,17 +79,18 @@ class MainCommand(
     }
 
     /** Property into which all the arguments (and unknown options) are gathered. */
-    private val flags by
+    private val additionalSourceFiles by
         argument(
-                name = "flags",
-                help = "See below.",
+                name = "source-files",
+                help = "Additional source files to append to $ARG_SOURCE_FILES",
             )
+            .existingFile()
             .multiple()
 
     internal val sourceOptions: SourceOptions by
         SourceOptions(
             executionEnvironment = executionEnvironment,
-            additionalSourceFilesProvider = { optionGroup.additionalSourceFiles },
+            additionalSourceFilesProvider = { additionalSourceFiles },
         )
 
     /** Issue reporter configuration. */
@@ -209,11 +211,8 @@ class MainCommand(
             optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }
         }
 
-        // Get any remaining arguments/options that were not handled by Clikt.
-        val remainingArgs = flags.toTypedArray()
-
-        // Parse any remaining arguments
-        optionGroup.parse(remainingArgs)
+        // Perform any necessary initialization.
+        optionGroup.initialize()
 
         val sourceModelProvider =
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
