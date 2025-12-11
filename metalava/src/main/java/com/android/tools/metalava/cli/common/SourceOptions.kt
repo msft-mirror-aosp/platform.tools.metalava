@@ -55,6 +55,9 @@ const val ARG_STUB_PACKAGES = "--stub-packages"
 
 const val ARG_COMPILED_SOURCES = "--compiled-sources"
 
+const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
+const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
+
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 
 const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
@@ -285,6 +288,39 @@ class SourceOptions(
      */
     private val compileSdkVersion: String? by
         option(ARG_COMPILE_SDK_VERSION, metavar = "<api>", help = "Use the given API level.")
+
+    /** Existing external annotation files to merge in */
+    val mergeQualifierAnnotations by
+        option(
+                ARG_MERGE_QUALIFIER_ANNOTATIONS,
+                metavar = "<file-or-dir>",
+                help =
+                    """
+                An external annotations file to merge and overlay the sources, or a directory of
+                such files. Should be used for annotations intended for inclusion in the API to be
+                written out, e.g. nullability. Formats supported are: IntelliJ's external
+                annotations database format, .jar or .zip files containing those, Android signature
+                files, and Java stub files.
+            """
+                        .trimIndent(),
+            )
+            .existingDirOrFile()
+            .multiple()
+
+    val mergeInclusionAnnotations by
+        option(
+                ARG_MERGE_INCLUSION_ANNOTATIONS,
+                metavar = "<file-or-dir>",
+                help =
+                    """
+                An external annotations file to merge and overlay the sources, or a directory of
+                such files. Should be used for annotations which determine inclusion in the API to
+                be written out, i.e. show and hide. The only format supported is Java stub files.
+            """
+                        .trimIndent(),
+            )
+            .existingDirOrFile()
+            .multiple()
 
     /** Determines whether comments are read when processing sources. */
     private val skipReadingComments by

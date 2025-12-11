@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -69,8 +70,6 @@ private const val INDENT_WIDTH = 45
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
-const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
-const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
 const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list"
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
@@ -108,10 +107,6 @@ class Options(
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
-    /** Internal list backing [mergeQualifierAnnotations] */
-    private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
-    /** Internal list backing [mergeInclusionAnnotations] */
-    private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -287,8 +282,8 @@ class Options(
         ApiAnalyzer.Config(
             manifest = manifest,
             skipEmitPackages = skipEmitPackages,
-            mergeQualifierAnnotations = mergeQualifierAnnotations,
-            mergeInclusionAnnotations = mergeInclusionAnnotations,
+            mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
+            mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
             allShowAnnotations = allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
             annotationsMergerConfig =
@@ -394,10 +389,6 @@ class Options(
     /** The set of annotation classes that should be treated as API compatibility important */
     val apiCompatAnnotations by compatibilityCheckOptions::apiCompatAnnotations
 
-    /** Existing external annotation files to merge in */
-    private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
-    private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
-
     var allBaselines: List<Baseline> = emptyList()
 
     /** [IssueConfiguration] used by all reporters. */
@@ -432,14 +423,6 @@ class Options(
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
                 }
-                ARG_MERGE_QUALIFIER_ANNOTATIONS ->
-                    mutableMergeQualifierAnnotations.add(
-                        stringToExistingFileOrDir(getValue(args, ++index))
-                    )
-                ARG_MERGE_INCLUSION_ANNOTATIONS ->
-                    mutableMergeInclusionAnnotations.add(
-                        stringToExistingFileOrDir(getValue(args, ++index))
-                    )
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
                 }
@@ -555,14 +538,6 @@ class Options(
         return args[index]
     }
 
-    private fun stringToExistingFileOrDir(value: String): File {
-        val file = fileForPathInner(value)
-        if (!file.exists()) {
-            cliError("$file is not a file or directory")
-        }
-        return file
-    }
-
     private fun stringToExistingFiles(value: String): List<File> {
         return value
             .split(File.pathSeparatorChar)
@@ -592,17 +567,6 @@ object OptionsHelp {
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
-                "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
-                "An external annotations file to merge and overlay " +
-                    "the sources, or a directory of such files. Should be used for annotations intended for " +
-                    "inclusion in the API to be written out, e.g. nullability. Formats supported are: IntelliJ's " +
-                    "external annotations database format, .jar or .zip files containing those, Android signature " +
-                    "files, and Java stub files.",
-                "$ARG_MERGE_INCLUSION_ANNOTATIONS <file>",
-                "An external annotations file to merge and overlay " +
-                    "the sources, or a directory of such files. Should be used for annotations which determine " +
-                    "inclusion in the API to be written out, i.e. show and hide. The only format supported is " +
-                    "Java stub files.",
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS,
                 "Triggers validation of nullability annotations " +
                     "for any class where $ARG_MERGE_QUALIFIER_ANNOTATIONS includes a Java stub file.",

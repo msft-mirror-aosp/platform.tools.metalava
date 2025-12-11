@@ -60,6 +60,11 @@ fun RawArgument.existingDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingDir)
 }
 
+/** Convert the option to a [File] that represents an existing directory or a file. */
+fun RawOption.existingDirOrFile(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDirOrFile)
+}
+
 /** Convert the option to a [File] that represents an existing directory or a jar file. */
 fun RawOption.existingDirOrJar(): NullableOption<File, File> {
     return fileConversion(::stringToExistingDirOrJar)
@@ -143,6 +148,20 @@ internal fun stringToExistingDir(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isDirectory) {
         cliError("$file is not a directory")
+    }
+    return file
+}
+
+/**
+ * Convert a string representing an existing directory or a file to a [File].
+ *
+ * This will fail if:
+ * * The file does not exist.
+ */
+internal fun stringToExistingDirOrFile(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.exists()) {
+        cliError("$file does not exist")
     }
     return file
 }

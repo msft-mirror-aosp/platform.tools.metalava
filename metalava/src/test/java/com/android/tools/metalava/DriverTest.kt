@@ -29,6 +29,8 @@ import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.cli.common.ARG_CLASS_PATH
 import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_MERGE_INCLUSION_ANNOTATIONS
+import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_PROJECT
 import com.android.tools.metalava.cli.common.ARG_QUIET

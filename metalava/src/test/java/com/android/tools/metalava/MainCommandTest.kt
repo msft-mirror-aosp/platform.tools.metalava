@@ -105,17 +105,6 @@ API sources:
                                              A comma separated list of source files to be parsed. Can also be @ followed
                                              by a path to a text file containing paths to the full set of files to
                                              parse.
---merge-qualifier-annotations <file>
-                                             An external annotations file to merge and overlay the sources, or a
-                                             directory of such files. Should be used for annotations intended for
-                                             inclusion in the API to be written out, e.g. nullability. Formats supported
-                                             are: IntelliJ's external annotations database format, .jar or .zip files
-                                             containing those, Android signature files, and Java stub files.
---merge-inclusion-annotations <file>
-                                             An external annotations file to merge and overlay the sources, or a
-                                             directory of such files. Should be used for annotations which determine
-                                             inclusion in the API to be written out, i.e. show and hide. The only format
-                                             supported is Java stub files.
 --validate-nullability-from-merged-stubs
                                              Triggers validation of nullability annotations for any class where
                                              --merge-qualifier-annotations includes a Java stub file.
