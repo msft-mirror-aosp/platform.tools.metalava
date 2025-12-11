@@ -88,16 +88,7 @@ $API_LINT_OPTIONS_HELP
 
 $COMPATIBILITY_CHECK_OPTIONS_HELP
 
-Signature File Output:
-
-  Options controlling the signature file output. The format of the generated file is determined by the options in the
-  `Signature Format Output` section.
-
-  --api <file>                               Output file into which the API signature will be generated. If this is not
-                                             specified then no API signature file will be created.
-  --removed-api <file>                       Output file into which the API signatures for removed APIs will be
-                                             generated. If this is not specified then no removed API signature file will
-                                             be created.
+$SIGNATURE_FILE_OPTIONS_HELP
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
 
