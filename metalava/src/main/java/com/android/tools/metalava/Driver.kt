@@ -161,7 +161,6 @@ internal fun processFlags(
         ActionContext(
             progressTracker = progressTracker,
             reporter = reporter,
-            reporterApiLint = reporter,
             sourceParser = sourceParser,
         )
     val classPathResolverProvider =
@@ -688,7 +687,7 @@ private fun ActionContext.loadFromSources(
 
     progressTracker.progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, options.apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
 
     analyzer.computeApi()
@@ -723,7 +722,7 @@ private fun ActionContext.loadFromSources(
     // General API documentation checks for Android APIs.
     // They are pointless if Javadoc comments are not being read.
     if (codebase.config.allowReadingComments) {
-        AndroidApiChecks(reporterApiLint, options.apiPredicateConfig).check(codebase)
+        AndroidApiChecks(reporter, options.apiPredicateConfig).check(codebase)
     }
 
     runApiChecksFromOptions(
@@ -778,7 +777,7 @@ fun ActionContext.loadFromJarFile(
     val jarCodebaseLoader =
         JarCodebaseLoader.createForSourceParser(
             progressTracker,
-            reporterApiLint,
+            reporter,
             sourceParser,
         )
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
