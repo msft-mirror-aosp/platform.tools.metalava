@@ -433,12 +433,12 @@ class Options(
                     }
                 }
                 ARG_MERGE_QUALIFIER_ANNOTATIONS ->
-                    mutableMergeQualifierAnnotations.addAll(
-                        stringToExistingDirsOrFiles(getValue(args, ++index))
+                    mutableMergeQualifierAnnotations.add(
+                        stringToExistingFileOrDir(getValue(args, ++index))
                     )
                 ARG_MERGE_INCLUSION_ANNOTATIONS ->
-                    mutableMergeInclusionAnnotations.addAll(
-                        stringToExistingDirsOrFiles(getValue(args, ++index))
+                    mutableMergeInclusionAnnotations.add(
+                        stringToExistingFileOrDir(getValue(args, ++index))
                     )
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
@@ -555,19 +555,6 @@ class Options(
         return args[index]
     }
 
-    private fun stringToExistingDirsOrFiles(value: String): List<File> {
-        val files = mutableListOf<File>()
-        for (path in value.split(File.pathSeparatorChar)) {
-            val file = fileForPathInner(path)
-            if (!file.exists()) {
-                cliError("$file does not exist")
-            }
-            files.add(file)
-        }
-        return files
-    }
-
-    @Suppress("unused")
     private fun stringToExistingFileOrDir(value: String): File {
         val file = fileForPathInner(value)
         if (!file.exists()) {
