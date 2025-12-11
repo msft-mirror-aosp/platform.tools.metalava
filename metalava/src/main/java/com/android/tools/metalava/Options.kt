@@ -325,7 +325,6 @@ class Options(
         )
     }
 
-    /** This is set directly by [preprocessArgv]. */
     private var verbosity: Verbosity = Verbosity.NORMAL
 
     /** Whether to report warnings and other diagnostics along the way */
@@ -507,17 +506,7 @@ object OptionsHelp {
     }
 
     private fun usage(out: PrintWriter, terminal: Terminal, width: Int) {
-        val args =
-            arrayOf(
-                "",
-                "Environment Variables:",
-                ENV_VAR_METALAVA_PREPEND_ARGS,
-                "One or more arguments (concatenated by space) to insert into the " +
-                    "command line, before the documentation flags.",
-                ENV_VAR_METALAVA_APPEND_ARGS,
-                "One or more arguments (concatenated by space) to append to the " +
-                    "end of the command line, after the generate documentation flags."
-            )
+        val args = emptyArray<String>()
 
         val indent = " ".repeat(INDENT_WIDTH)
 

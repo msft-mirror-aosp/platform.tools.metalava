@@ -28,7 +28,7 @@ class OptionsTest : DriverTest() {
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
         run(
             executionEnvironment = executionEnvironment,
-            originalArgs = args.toTypedArray(),
+            args = args.toTypedArray(),
         )
         return Pair(stdout, stderr)
     }

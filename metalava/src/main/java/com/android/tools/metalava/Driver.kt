@@ -84,7 +84,7 @@ fun main(args: Array<String>) {
     val executionEnvironment = ExecutionEnvironment()
     var exitCode = 0
     try {
-        exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
+        exitCode = run(executionEnvironment = executionEnvironment, args = args)
     } catch (e: Throwable) {
         exitCode = -1
         e.printStackTrace(executionEnvironment.stderr)
@@ -102,18 +102,14 @@ fun main(args: Array<String>) {
  */
 fun run(
     executionEnvironment: ExecutionEnvironment,
-    originalArgs: Array<String>,
+    args: Array<String>,
 ): Int {
     val stdout = executionEnvironment.stdout
     val stderr = executionEnvironment.stderr
 
-    // Preprocess the arguments by adding any additional arguments specified in environment
-    // variables.
-    val modifiedArgs = preprocessArgv(executionEnvironment, originalArgs)
-
     // Process the early options. This does not consume any arguments, they will be parsed again
     // later. A little inefficient but produces cleaner code.
-    val earlyOptions = EarlyOptions.parse(modifiedArgs)
+    val earlyOptions = EarlyOptions.parse(args)
 
     val progressTracker = ProgressTracker(earlyOptions.verbosity.verbose, stdout)
 
@@ -125,7 +121,7 @@ fun run(
             executionEnvironment,
             progressTracker,
         )
-    val exitCode = command.process(modifiedArgs)
+    val exitCode = command.process(args)
 
     stdout.flush()
     stderr.flush()

@@ -107,15 +107,6 @@ $API_LEVELS_GENERATION_OPTIONS_HELP
 
 Arguments:
   source-files                               Additional source files to append to --source-files
-
-
-Environment Variables:
-METALAVA_PREPEND_ARGS
-                                             One or more arguments (concatenated by space) to insert into the command
-                                             line, before the documentation flags.
-METALAVA_APPEND_ARGS
-                                             One or more arguments (concatenated by space) to append to the end of the
-                                             command line, after the generate documentation flags.
         """
             .trimIndent()
 
