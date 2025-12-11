@@ -256,8 +256,7 @@ internal fun processFlags(
     }
 
     options.externalAnnotationsFile?.let { outputFile ->
-        extractAnnotations(
-            progressTracker,
+        actionContext.extractAnnotations(
             outputFile,
             options,
             codebase,
@@ -669,7 +668,7 @@ private fun ActionContext.loadFromSources(
                     "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
                 )
             }
-            SourceSet.createFromSourcePath(options.reporter, sourceOptions.sourcePath)
+            SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
         } else {
             SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
         }
@@ -783,8 +782,7 @@ fun ActionContext.loadFromJarFile(
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
-private fun extractAnnotations(
-    progressTracker: ProgressTracker,
+private fun ActionContext.extractAnnotations(
     outputFile: File,
     options: Options,
     codebase: Codebase
@@ -793,7 +791,7 @@ private fun extractAnnotations(
 
     ExtractAnnotations(
             codebase,
-            options.reporter,
+            reporter,
             outputFile,
             options.apiPredicateConfig,
         )
