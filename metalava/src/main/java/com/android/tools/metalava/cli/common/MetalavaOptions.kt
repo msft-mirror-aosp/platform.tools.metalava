@@ -123,7 +123,6 @@ fun RawArgument.fileConversion(conversion: (String) -> File): ProcessedArgument<
  * Converts a path to a [File] that represents the absolute path, with the following special
  * behavior:
  * - "~" will be expanded into the home directory path.
- * - If the given path starts with "@", it'll be converted into "@" + [file's absolute path]
  */
 internal fun fileForPathInner(path: String): File {
     // java.io.File doesn't automatically handle ~/ -> home directory expansion.
@@ -133,8 +132,6 @@ internal fun fileForPathInner(path: String): File {
     if (path.startsWith("~/")) {
         val home = System.getProperty("user.home") ?: return File(path)
         return File(home + path.substring(1))
-    } else if (path.startsWith("@")) {
-        return File("@" + File(path.substring(1)).absolutePath)
     }
 
     return File(path).absoluteFile
