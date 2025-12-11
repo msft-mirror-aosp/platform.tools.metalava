@@ -223,18 +223,20 @@ class MainCommand(
         try {
             sourceModelProvider
                 .createEnvironmentManager(executionEnvironment.disableStderrDumping())
-                .use {
-                    processFlags(
-                        executionEnvironment,
-                        it,
-                        progressTracker,
-                        options,
-                        apiLevelsGenerationOptions,
-                        signatureFileOptions,
-                        signatureFormatOptions,
-                        sourceOptions,
-                        stubGenerationOptions,
-                    )
+                .use { environmentManager ->
+                    val driver =
+                        Driver(
+                            executionEnvironment,
+                            progressTracker,
+                            environmentManager,
+                            options,
+                            apiLevelsGenerationOptions,
+                            signatureFileOptions,
+                            signatureFormatOptions,
+                            sourceOptions,
+                            stubGenerationOptions,
+                        )
+                    driver.processFlags()
                 }
         } finally {
             // Write all saved reports. Do this even if the previous code threw an exception.

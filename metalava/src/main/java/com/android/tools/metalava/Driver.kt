@@ -78,7 +78,17 @@ import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
 
-class Driver {
+class Driver(
+    val executionEnvironment: ExecutionEnvironment,
+    val progressTracker: ProgressTracker,
+    val environmentManager: EnvironmentManager,
+    val options: Options,
+    val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+    val signatureFileOptions: SignatureFileOptions,
+    val signatureFormatOptions: SignatureFormatOptions,
+    val sourceOptions: SourceOptions,
+    val stubGenerationOptions: StubGenerationOptions,
+) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
@@ -161,17 +171,7 @@ class Driver {
     }
 }
 
-internal fun processFlags(
-    executionEnvironment: ExecutionEnvironment,
-    environmentManager: EnvironmentManager,
-    progressTracker: ProgressTracker,
-    options: Options,
-    apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
-    signatureFileOptions: SignatureFileOptions,
-    signatureFormatOptions: SignatureFormatOptions,
-    sourceOptions: SourceOptions,
-    stubGenerationOptions: StubGenerationOptions,
-) {
+internal fun Driver.processFlags() {
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
     val codebaseConfig = options.codebaseConfig
