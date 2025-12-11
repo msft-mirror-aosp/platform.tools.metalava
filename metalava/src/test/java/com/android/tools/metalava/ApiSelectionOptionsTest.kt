@@ -46,6 +46,8 @@ Api Selection:
                                              certain kinds of output such as stubs, but not in others, such as the
                                              signature file and API lint.
   --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
+  --exclude-annotation <annotation-classes>  A comma separated list of fully qualified names of annotation classes that
+                                             must be stripped from metalava's outputs.
     """
         .trimIndent()
 

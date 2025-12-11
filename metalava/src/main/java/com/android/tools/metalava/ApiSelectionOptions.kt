@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.map
+import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.config.ApiSurfaceConfig
 import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.annotation.AnnotationFilter
@@ -35,6 +37,8 @@ const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
+
+const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
@@ -176,6 +180,21 @@ class ApiSelectionOptions(
     /** Annotations that mark items which should be treated as hidden. */
     internal val hideAnnotations by
         lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(hideAnnotationValues) }
+
+    /** The set of annotation classes that should be removed from all outputs */
+    internal val excludeAnnotations by
+        option(
+                ARG_EXCLUDE_ANNOTATION,
+                metavar = "<annotation-classes>",
+                help =
+                    """
+                A comma separated list of fully qualified names of annotation classes that must be
+                stripped from metalava's outputs.
+            """
+                        .trimIndent(),
+            )
+            .splitMultiple(",")
+            .map { it.toSet() }
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {

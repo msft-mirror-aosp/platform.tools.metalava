@@ -80,7 +80,6 @@ const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
-const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 
 class Options(
@@ -108,8 +107,6 @@ class Options(
     private val mutableSources: MutableList<File> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
-    /** Internal list backing [excludeAnnotations] */
-    private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
 
     /**
      * Backing property for [nullabilityAnnotationsValidator]
@@ -217,7 +214,7 @@ class Options(
                 showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
                 hideAnnotations = apiSelectionOptions.hideAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
-                excludeAnnotations = excludeAnnotations,
+                excludeAnnotations = apiSelectionOptions.excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
                 previouslyReleasedCodebaseProvider = {
@@ -337,9 +334,9 @@ class Options(
                 metavar = "<zipfile>",
                 help =
                     """
-                Extracts source annotations from the source files and writes them into the given zip
-                file.
-            """
+                        Extracts source annotations from the source files and writes them into the
+                        given zip file.
+                    """
                         .trimIndent(),
             )
             .newFile()
@@ -366,9 +363,6 @@ class Options(
 
     /** The set of annotation classes that should be passed through unchanged */
     private var passThroughAnnotations = mutablePassThroughAnnotations
-
-    /** The set of annotation classes that should be removed from all outputs */
-    private var excludeAnnotations = mutableExcludeAnnotations
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
@@ -424,10 +418,6 @@ class Options(
                     annotations.split(",").forEach { path ->
                         mutablePassThroughAnnotations.add(path)
                     }
-                }
-                ARG_EXCLUDE_ANNOTATION -> {
-                    val annotations = getValue(args, ++index)
-                    annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
                 else -> {
                     if (arg.startsWith("-")) {
@@ -569,9 +559,6 @@ object OptionsHelp {
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be passed through unchanged.",
-                "$ARG_EXCLUDE_ANNOTATION <annotation classes>",
-                "A comma separated list of fully qualified names of " +
-                    "annotation classes that must be stripped from metalava's outputs.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,

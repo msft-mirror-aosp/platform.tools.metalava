@@ -124,9 +124,6 @@ Generating Stubs:
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
---exclude-annotation <annotation classes>
-                                             A comma separated list of fully qualified names of annotation classes that
-                                             must be stripped from metalava's outputs.
 
 
 Environment Variables:
