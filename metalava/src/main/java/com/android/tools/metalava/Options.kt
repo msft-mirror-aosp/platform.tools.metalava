@@ -35,17 +35,12 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.reporter.Baseline
-import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
@@ -56,7 +51,6 @@ import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 import java.io.PrintWriter
 import java.util.Optional
-import java.util.function.Predicate
 
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
@@ -204,25 +198,6 @@ class Options(
      */
     val showUnannotated
         get() = apiSelectionOptions.showUnannotated
-
-    /**
-     * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
-     * [Item]s that do not match the [SourceOptions.apiPackageFilter] filter. If no filter is
-     * provided then this will be `null`.
-     */
-    private val reportableFilter: Predicate<Reportable>? by
-        lazy(LazyThreadSafetyMode.NONE) {
-            sourceOptions.apiPackageFilter?.let { packageFilter ->
-                Predicate { reportable ->
-                    // If we are only emitting some packages (--stub-packages), don't report
-                    // issues from other packages
-                    (reportable as? Item)?.let { item ->
-                        val pkg = (item as? PackageItem) ?: item.containingPackage()
-                        pkg == null || packageFilter.matches(pkg)
-                    } ?: true
-                }
-            }
-        }
 
     private val apiFlags by lazy {
         ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)
@@ -391,16 +366,30 @@ class Options(
     /** The set of annotation classes that should be treated as API compatibility important */
     val apiCompatAnnotations by compatibilityCheckOptions::apiCompatAnnotations
 
-    var allBaselines: List<Baseline> = emptyList()
+    val reporterManager by
+        lazy(LazyThreadSafetyMode.NONE) {
+            ReporterManager(
+                executionEnvironment.reporterEnvironment,
+                apiLintOptions,
+                compatibilityCheckOptions,
+                generalReportingOptions,
+                issueReportingOptions,
+                sourceOptions,
+            )
+        }
+
+    val allBaselines
+        get() = reporterManager.allBaselines
 
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
 
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
-    lateinit var reporter: Reporter
-        private set
+    val reporter
+        get() = reporterManager.reporter
 
-    internal var allReporters: List<DefaultReporter> = emptyList()
+    internal val allReporters
+        get() = reporterManager.allReporters
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
@@ -413,75 +402,5 @@ class Options(
             enumValueHelpGetter = { it.help },
             default = TypedefMode.NONE,
             key = { it.optionValue },
-        )
-
-    fun initialize() {
-        // Initialize the reporters.
-        val baseline = generalReportingOptions.baseline
-        val reporterUnknown =
-            createReporter(
-                executionEnvironment = executionEnvironment,
-                baseline = baseline,
-                errorMessage = null,
-            )
-
-        val reporterApiLint =
-            createReporter(
-                executionEnvironment = executionEnvironment,
-                baseline = apiLintOptions.baseline ?: baseline,
-                errorMessage = apiLintOptions.errorMessage,
-            )
-
-        // [Reporter] for "check-compatibility:*:released".
-        // i.e.
-        //      [ARG_CHECK_COMPATIBILITY_API_RELEASED] and
-        //      [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED].
-        val reporterCompatibilityReleased =
-            createReporter(
-                executionEnvironment = executionEnvironment,
-                baseline = compatibilityCheckOptions.baseline ?: baseline,
-                errorMessage = compatibilityCheckOptions.errorMessage,
-            )
-
-        // A Reporter that will redirect issues to the appropriate reporter based on the issue's
-        // Category.
-        reporter =
-            CategoryRedirectingReporter(
-                defaultReporter = reporterUnknown,
-                apiLintReporter = reporterApiLint,
-                compatibilityReporter = reporterCompatibilityReleased,
-            )
-
-        // Build "all baselines" and "all reporters"
-
-        // Baselines are nullable, so selectively add to the list.
-        allBaselines =
-            listOfNotNull(baseline, apiLintOptions.baseline, compatibilityCheckOptions.baseline)
-
-        // Reporters are non-null.
-        allReporters =
-            listOf(
-                reporterUnknown,
-                reporterApiLint,
-                reporterCompatibilityReleased,
-            )
-    }
-
-    /**
-     * Create a [Reporter] that checks for known issues in [baseline] and prints [errorMessage], if
-     * provided, when errors have been reported.
-     */
-    private fun createReporter(
-        executionEnvironment: ExecutionEnvironment,
-        baseline: Baseline?,
-        errorMessage: String?,
-    ) =
-        DefaultReporter(
-            environment = executionEnvironment.reporterEnvironment,
-            issueConfiguration = issueConfiguration,
-            baseline = baseline,
-            errorMessage = errorMessage,
-            reportableFilter = reportableFilter,
-            config = issueReportingOptions.reporterConfig,
         )
 }

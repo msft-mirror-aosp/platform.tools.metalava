@@ -257,8 +257,6 @@ class MainCommand(
 
     /** Initialize any option groups that require it. */
     private fun initializeOptionGroups() {
-        options.initialize()
-
         // Make sure that any config files are processed.
         configFileOptions.config
     }
