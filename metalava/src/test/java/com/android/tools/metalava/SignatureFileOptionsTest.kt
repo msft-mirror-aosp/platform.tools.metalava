@@ -30,6 +30,7 @@ Signature File Output:
   --removed-api <file>                       Output file into which the API signatures for removed APIs will be
                                              generated. If this is not specified then no removed API signature file will
                                              be created.
+  --delete-empty-removed-signatures          Deletes removed signature files if they are empty.
     """
         .trimIndent()
 

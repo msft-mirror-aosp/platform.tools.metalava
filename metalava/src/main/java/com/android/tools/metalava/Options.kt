@@ -85,7 +85,6 @@ const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 
@@ -100,7 +99,7 @@ class Options(
     val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
-    signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
+    private val signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to. */
@@ -419,7 +418,7 @@ class Options(
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
         get() =
-            if (deleteEmptyRemovedSignatures) {
+            if (signatureFileOptions.deleteEmptyRemovedSignatures) {
                 EmitFileHeader.IF_NONEMPTY_FILE
             } else {
                 EmitFileHeader.ALWAYS
@@ -437,7 +436,7 @@ class Options(
     internal var allReporters: List<DefaultReporter> = emptyList()
 
     /** If generating a removed signature file, and it is empty, delete it */
-    var deleteEmptyRemovedSignatures = false
+    val deleteEmptyRemovedSignatures by signatureFileOptions::deleteEmptyRemovedSignatures
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
@@ -493,7 +492,6 @@ class Options(
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
                 }
-                ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 else -> {
                     if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit

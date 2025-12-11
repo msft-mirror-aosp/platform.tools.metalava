@@ -393,7 +393,7 @@ private fun createApiSignatureFilesFromOptions(
             removedApiCodebaseFragment,
             apiSignatureFile,
             "removed API",
-            options.deleteEmptyRemovedSignatures
+            options.deleteEmptyRemovedSignatures,
         ) { printWriter ->
             SignatureWriter(
                 writer = printWriter,
