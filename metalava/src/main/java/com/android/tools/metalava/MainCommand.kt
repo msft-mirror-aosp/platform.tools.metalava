@@ -42,6 +42,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
+import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
 import java.io.PrintWriter
@@ -211,7 +212,7 @@ class MainCommand(
         }
 
         // Perform any necessary initialization.
-        optionGroup.initialize()
+        initializeOptionGroups()
 
         val sourceModelProvider =
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
@@ -250,6 +251,14 @@ class MainCommand(
             // Make sure that the process exits with an error code.
             throw MetalavaCliException(exitCode = -1)
         }
+    }
+
+    /** Initialize any option groups that require it. */
+    private fun initializeOptionGroups() {
+        optionGroup.initialize()
+
+        // Make sure that any config files are processed.
+        configFileOptions.config
     }
 
     /**

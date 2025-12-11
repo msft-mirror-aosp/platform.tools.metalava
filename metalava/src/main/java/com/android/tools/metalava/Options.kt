@@ -467,9 +467,6 @@ class Options(
                 reporterApiLint,
                 reporterCompatibilityReleased,
             )
-
-        // Make sure that any config files are processed.
-        configFileOptions.config
     }
 
     /**
