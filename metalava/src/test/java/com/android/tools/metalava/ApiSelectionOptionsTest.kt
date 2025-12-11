@@ -48,6 +48,9 @@ Api Selection:
   --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
   --exclude-annotation <annotation-classes>  A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
+  --pass-through-annotation <annotation-classes>
+                                             A comma separated list of fully qualified names of annotation classes that
+                                             must be passed through unchanged.
     """
         .trimIndent()
 

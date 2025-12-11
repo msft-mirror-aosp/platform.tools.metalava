@@ -39,6 +39,7 @@ const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-anno
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
+const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
@@ -190,6 +191,21 @@ class ApiSelectionOptions(
                     """
                 A comma separated list of fully qualified names of annotation classes that must be
                 stripped from metalava's outputs.
+            """
+                        .trimIndent(),
+            )
+            .splitMultiple(",")
+            .map { it.toSet() }
+
+    /** The set of annotation classes that should be passed through unchanged */
+    internal val passThroughAnnotations by
+        option(
+                ARG_PASS_THROUGH_ANNOTATION,
+                metavar = "<annotation-classes>",
+                help =
+                    """
+                A comma separated list of fully qualified names of annotation classes that must be
+                passed through unchanged.
             """
                         .trimIndent(),
             )

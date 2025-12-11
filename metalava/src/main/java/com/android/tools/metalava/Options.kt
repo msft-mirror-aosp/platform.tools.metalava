@@ -79,7 +79,6 @@ const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 
 class Options(
@@ -105,8 +104,6 @@ class Options(
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
-    /** Internal list backing [passThroughAnnotations] */
-    private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
 
     /**
      * Backing property for [nullabilityAnnotationsValidator]
@@ -207,7 +204,7 @@ class Options(
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
                 reporter = reporter,
-                passThroughAnnotations = passThroughAnnotations,
+                passThroughAnnotations = apiSelectionOptions.passThroughAnnotations,
                 allShowAnnotations = allShowAnnotations,
                 showAnnotations = apiSelectionOptions.showAnnotations,
                 showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
@@ -361,9 +358,6 @@ class Options(
      */
     val manifest by lazy { manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest }
 
-    /** The set of annotation classes that should be passed through unchanged */
-    private var passThroughAnnotations = mutablePassThroughAnnotations
-
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
 
@@ -413,12 +407,6 @@ class Options(
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
-                ARG_PASS_THROUGH_ANNOTATION -> {
-                    val annotations = getValue(args, ++index)
-                    annotations.split(",").forEach { path ->
-                        mutablePassThroughAnnotations.add(path)
-                    }
-                }
                 else -> {
                     if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
@@ -554,11 +542,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "",
-                "Generating Stubs:",
-                "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
-                "A comma separated list of fully qualified names of " +
-                    "annotation classes that must be passed through unchanged.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,

@@ -120,12 +120,6 @@ API sources:
                                              the file specified in --nullability-warnings-txt instead.
 
 
-Generating Stubs:
---pass-through-annotation <annotation classes>
-                                             A comma separated list of fully qualified names of annotation classes that
-                                             must be passed through unchanged.
-
-
 Environment Variables:
 METALAVA_DUMP_ARGV
                                              Set to true to have metalava emit all the arguments it was invoked with.
