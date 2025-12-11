@@ -219,6 +219,7 @@ class MainCommand(
                             executionEnvironment,
                             progressTracker,
                             environmentManager,
+                            options.reporter,
                             options,
                             apiLevelsGenerationOptions,
                             signatureFileOptions,

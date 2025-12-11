@@ -82,6 +82,7 @@ class Driver(
     val executionEnvironment: ExecutionEnvironment,
     val progressTracker: ProgressTracker,
     val environmentManager: EnvironmentManager,
+    val reporter: Reporter,
     val options: Options,
     val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     val signatureFileOptions: SignatureFileOptions,
@@ -173,7 +174,6 @@ class Driver(
 
 internal fun Driver.processFlags() {
     val stopwatch = Stopwatch.createStarted()
-    val reporter = options.reporter
     val codebaseConfig = options.codebaseConfig
     val modelOptions = sourceOptions.modelOptions
     val sourceParser =
@@ -275,9 +275,7 @@ internal fun Driver.processFlags() {
     }
 
     for (check in options.compatibilityChecks) {
-        actionContext.checkCompatibility(
-            options,
-            signatureFileOptions,
+        checkCompatibility(
             signatureFileCache,
             classPathResolverProvider,
             codebase,
@@ -286,9 +284,8 @@ internal fun Driver.processFlags() {
     }
 
     options.externalAnnotationsFile?.let { outputFile ->
-        actionContext.extractAnnotations(
+        extractAnnotations(
             outputFile,
-            options,
             codebase,
         )
     }
@@ -576,9 +573,7 @@ private fun generateApiHistoryFromOptions(
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
-private fun ActionContext.checkCompatibility(
-    options: Options,
-    signatureFileOptions: SignatureFileOptions,
+private fun Driver.checkCompatibility(
     signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
     newCodebase: Codebase,
@@ -812,11 +807,7 @@ fun ActionContext.loadFromJarFile(
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
-private fun ActionContext.extractAnnotations(
-    outputFile: File,
-    options: Options,
-    codebase: Codebase
-) {
+private fun Driver.extractAnnotations(outputFile: File, codebase: Codebase) {
     val localTimer = Stopwatch.createStarted()
 
     ExtractAnnotations(
