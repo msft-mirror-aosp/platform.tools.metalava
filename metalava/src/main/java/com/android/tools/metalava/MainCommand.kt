@@ -231,6 +231,8 @@ class MainCommand(
                         progressTracker,
                         optionGroup,
                         apiLevelsGenerationOptions,
+                        signatureFileOptions,
+                        signatureFormatOptions,
                         sourceOptions,
                         stubGenerationOptions,
                     )

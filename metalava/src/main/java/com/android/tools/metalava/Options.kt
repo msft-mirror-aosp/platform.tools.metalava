@@ -322,7 +322,7 @@ class Options(
         ApiPredicate.Config(
             ignoreShown = showUnannotated,
             allowClassesFromClasspath = allowClassesFromClasspath,
-            addAdditionalOverrides = signatureFileFormat.addAdditionalOverrides,
+            addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
         )
     }
 
@@ -348,10 +348,6 @@ class Options(
                 help = "Write a ProGuard keep file for the API.",
             )
             .newFile()
-
-    val apiSignatureFile by signatureFileOptions::apiFile
-    val removedApiSignatureFile by signatureFileOptions::removedApiFile
-    val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Path to directory to write SDK values to */
     val sdkValueDir by
@@ -434,9 +430,6 @@ class Options(
         private set
 
     internal var allReporters: List<DefaultReporter> = emptyList()
-
-    /** If generating a removed signature file, and it is empty, delete it */
-    val deleteEmptyRemovedSignatures by signatureFileOptions::deleteEmptyRemovedSignatures
 
     /**
      * How to handle typedef annotations in signature files; corresponds to

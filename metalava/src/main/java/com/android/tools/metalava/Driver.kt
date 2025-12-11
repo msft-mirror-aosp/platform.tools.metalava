@@ -37,6 +37,7 @@ import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
+import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
@@ -143,6 +144,8 @@ internal fun processFlags(
     progressTracker: ProgressTracker,
     options: Options,
     apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+    signatureFileOptions: SignatureFileOptions,
+    signatureFormatOptions: SignatureFormatOptions,
     sourceOptions: SourceOptions,
     stubGenerationOptions: StubGenerationOptions,
 ) {
@@ -210,6 +213,8 @@ internal fun processFlags(
     // Also run API lint checks on current codebase
     createApiSignatureFilesFromOptions(
         options,
+        signatureFileOptions,
+        signatureFormatOptions,
         codebase,
         progressTracker,
         signatureFileCache,
@@ -250,6 +255,7 @@ internal fun processFlags(
     for (check in options.compatibilityChecks) {
         actionContext.checkCompatibility(
             options,
+            signatureFileOptions,
             signatureFileCache,
             classPathResolverProvider,
             codebase,
@@ -329,13 +335,15 @@ private fun runApiChecksFromOptions(
 /** write api signature to files specified by option flags (e.g. current.txt) */
 private fun createApiSignatureFilesFromOptions(
     options: Options,
+    signatureFileOptions: SignatureFileOptions,
+    signatureFormatOptions: SignatureFormatOptions,
     codebase: Codebase,
     progressTracker: ProgressTracker,
     signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
     reporter: Reporter,
 ) {
-    val fileFormat = options.signatureFileFormat
+    val fileFormat = signatureFormatOptions.fileFormat
     val codebaseFragment =
         createCodeFragmentForSignatureFile(codebase) { delegate ->
             createFilteringVisitorForSignatures(
@@ -361,7 +369,7 @@ private fun createApiSignatureFilesFromOptions(
         codebaseFragment.accept(flaggedApiLintVisitor)
     }
 
-    options.apiSignatureFile?.let { apiSignatureFile ->
+    signatureFileOptions.apiFile?.let { apiSignatureFile ->
         createOutputFileFromCodebaseFragment(
             progressTracker,
             codebaseFragment,
@@ -375,7 +383,7 @@ private fun createApiSignatureFilesFromOptions(
         }
     }
 
-    options.removedApiSignatureFile?.let { apiSignatureFile ->
+    signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
         val removedApiCodebaseFragment =
             createCodeFragmentForSignatureFile(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
@@ -393,7 +401,7 @@ private fun createApiSignatureFilesFromOptions(
             removedApiCodebaseFragment,
             apiSignatureFile,
             "removed API",
-            options.deleteEmptyRemovedSignatures,
+            signatureFileOptions.deleteEmptyRemovedSignatures,
         ) { printWriter ->
             SignatureWriter(
                 writer = printWriter,
@@ -549,6 +557,7 @@ private fun generateApiHistoryFromOptions(
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 private fun ActionContext.checkCompatibility(
     options: Options,
+    signatureFileOptions: SignatureFileOptions,
     signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
     newCodebase: Codebase,
@@ -559,8 +568,8 @@ private fun ActionContext.checkCompatibility(
     val apiType = check.apiType
     val generatedApiFile =
         when (apiType) {
-            ApiType.PUBLIC_API -> options.apiSignatureFile
-            ApiType.REMOVED -> options.removedApiSignatureFile
+            ApiType.PUBLIC_API -> signatureFileOptions.apiFile
+            ApiType.REMOVED -> signatureFileOptions.removedApiFile
             else -> error("unsupported $apiType")
         }
 
