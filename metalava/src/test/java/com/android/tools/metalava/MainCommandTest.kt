@@ -118,9 +118,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---ignore-classes-on-classpath
-                                             Prevents references to classes on the classpath from being added to the
-                                             generated stub files.
 
 
 Generating Stubs:

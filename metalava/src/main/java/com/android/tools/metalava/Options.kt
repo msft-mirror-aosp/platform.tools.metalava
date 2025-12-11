@@ -82,7 +82,6 @@ const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
-const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -265,17 +264,6 @@ class Options(
             .multiple()
             .unique()
 
-    /**
-     * Whether the generated API can contain classes that are not present in the source but are
-     * present on the classpath. Defaults to true for backwards compatibility but is set to false if
-     * any API signatures are imported as they must provide a complete set of all classes required
-     * but not provided by the generated API.
-     *
-     * Once all APIs are either self-contained or imported all the required references this will be
-     * removed and no classes will be allowed from the classpath JARs.
-     */
-    private var allowClassesFromClasspath = true
-
     /** The configuration options for the [ApiAnalyzer] class. */
     val apiAnalyzerConfig by lazy {
         val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
@@ -303,7 +291,6 @@ class Options(
     val apiPredicateConfig by lazy {
         ApiPredicate.Config(
             ignoreShown = showUnannotated,
-            allowClassesFromClasspath = allowClassesFromClasspath,
             addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
         )
     }
@@ -442,9 +429,6 @@ class Options(
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
-                ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
-                    allowClassesFromClasspath = false
-                }
                 else -> {
                     if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
@@ -580,9 +564,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                ARG_IGNORE_CLASSES_ON_CLASSPATH,
-                "Prevents references to classes on the classpath from being added to " +
-                    "the generated stub files.",
                 "",
                 "Generating Stubs:",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
