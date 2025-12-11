@@ -215,10 +215,6 @@ class MainCommand(
         // Parse any remaining arguments
         optionGroup.parse(remainingArgs)
 
-        // Update the global options.
-        @Suppress("DEPRECATION")
-        options = optionGroup
-
         val sourceModelProvider =
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
             executionEnvironment.testEnvironment?.sourceModelProvider

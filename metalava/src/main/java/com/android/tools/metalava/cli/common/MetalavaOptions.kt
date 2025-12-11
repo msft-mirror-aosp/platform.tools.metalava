@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.SdkConstants
 import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.core.GroupableOption
 import com.github.ajalt.clikt.core.ParameterHolder
@@ -57,6 +58,11 @@ fun RawOption.existingDir(): NullableOption<File, File> {
 /** Convert the argument to a [File] that represents an existing directory. */
 fun RawArgument.existingDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingDir)
+}
+
+/** Convert the option to a [File] that represents an existing directory or a jar file. */
+fun RawOption.existingDirOrJar(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDirOrJar)
 }
 
 /** Convert the option to a [File] that represents a new file. */
@@ -137,6 +143,21 @@ internal fun stringToExistingDir(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isDirectory) {
         cliError("$file is not a directory")
+    }
+    return file
+}
+
+/**
+ * Convert a string representing an existing directory or a jar file to a [File].
+ *
+ * This will fail if neither of the following is satisfied:
+ * * The file is not a regular directory.
+ * * The file is not a jar file.
+ */
+internal fun stringToExistingDirOrJar(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
+        cliError("$file is not a jar or directory")
     }
     return file
 }

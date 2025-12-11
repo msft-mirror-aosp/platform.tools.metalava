@@ -853,6 +853,16 @@ internal class PsiCodebaseAssembler(
         }
     }
 
+    /** Lists all packages in the psi project. */
+    private fun allPackages(): Set<String> {
+        fun listPackages(psiPackage: PsiPackage): List<String> {
+            return listOf(psiPackage.qualifiedName) +
+                psiPackage.subPackages.flatMap { listPackages(it) }
+        }
+        val rootPackage = findPsiPackage("") ?: return emptySet()
+        return listPackages(rootPackage).toSet()
+    }
+
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
@@ -872,7 +882,17 @@ internal class PsiCodebaseAssembler(
                 .filterIsInstance<KtFile>()
                 .takeIf { it.isNotEmpty() }
                 ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, psiCodebase) }
-        kaCodebaseAssembler?.createTypeAliases()
+        kaCodebaseAssembler?.let {
+            // Provide a list of all packages when all typealiases are needed in order to inline
+            // usages. If that isn't necessary, just typealiases from source will be processed.
+            val allPackages =
+                if (psiCodebase.inlineTypeAliasUsages) {
+                    allPackages()
+                } else {
+                    null
+                }
+            kaCodebaseAssembler.createTypeAliases(allPackages)
+        }
 
         // Tracker for which source files of `@JvmMultifileClass`es have already been processed.
         val multiFileClasses = HashMap<FqName, Set<PsiFile>>()

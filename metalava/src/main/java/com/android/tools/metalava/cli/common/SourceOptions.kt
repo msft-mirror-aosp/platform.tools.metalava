@@ -17,24 +17,38 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
-import com.android.tools.metalava.ARG_COMPILE_SDK_VERSION
+import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
+import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
+import kotlin.collections.map
+import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 const val ARG_SOURCE_PATH = "--source-path"
+
+const val ARG_JAVA_SOURCE = "--java-source"
+const val ARG_KOTLIN_SOURCE = "--kotlin-source"
+
+const val ARG_CLASS_PATH = "--classpath"
+
+const val ARG_PROJECT = "--project"
 
 const val ARG_STUB_PACKAGES = "--stub-packages"
 
@@ -45,6 +59,7 @@ const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_SDK_HOME = "--sdk-home"
+const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SOURCE_OPTIONS_GROUP = "Sources"
@@ -112,7 +127,92 @@ class SourceOptions(
             }
         }
 
-    val apiPackages by
+    /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
+    val javaLanguageLevelAsString by
+        option(
+                ARG_JAVA_SOURCE,
+                metavar = "<level>",
+                help = "Sets the source level for Java source files.",
+            )
+            .default(DEFAULT_JAVA_LANGUAGE_LEVEL)
+
+    /** The language level to use for Kotlin files, set with [ARG_KOTLIN_SOURCE] */
+    val kotlinLanguageLevelAsString by
+        option(
+                ARG_KOTLIN_SOURCE,
+                metavar = "<level>",
+                help = "Sets the source level for Kotlin source files."
+            )
+            .default(DEFAULT_KOTLIN_LANGUAGE_LEVEL)
+
+    // For now, we don't distinguish between bootclasspath and classpath
+    val classpath: List<File> by
+        option(
+                ARG_CLASS_PATH,
+                metavar = "<paths>",
+                help =
+                    """
+                        One or more directories or jars (separated by `${File.pathSeparator}`)
+                        containing classes that should be on the classpath when parsing the source
+                        files.
+                    """
+                        .trimIndent()
+            )
+            .existingDirOrJar()
+            // Split each option into a list separate by File.pathSeparator
+            .split(File.pathSeparator)
+            // Allow multiple options to be specified producing a list of lists.
+            .multiple()
+            // Flatten the list of lists into a single list.
+            .map {
+                val list = it.flatten()
+                addSdkOrJdkJarsIfNeeded(list)
+            }
+
+    /** Update [classpath] to insert android.jar or JDK classpath elements if necessary. */
+    private fun addSdkOrJdkJarsIfNeeded(classpath: List<File>): List<File> {
+        val sdkHome = sdkHome
+        val jdkHome = jdkHome
+        if (sdkHome == null && jdkHome == null) {
+            // Nothing to do.
+            return classpath
+        } else if (sdkHome != null && jdkHome != null) {
+            cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
+        }
+
+        val compileSdkVersion = compileSdkVersion
+        if (
+            sdkHome != null &&
+                compileSdkVersion != null &&
+                classpath.none { it.name == FN_FRAMEWORK_LIBRARY }
+        ) {
+            val jar = File(sdkHome, "platforms/android-$compileSdkVersion")
+            if (jar.isFile) {
+                return classpath + jar
+            } else {
+                cliError(
+                    "Could not find android.jar for API level $compileSdkVersion in SDK $sdkHome: $jar does not exist"
+                )
+            }
+        } else if (jdkHome != null) {
+            val isJre = !isJdkFolder(jdkHome)
+            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
+            return classpath + roots
+        }
+
+        return classpath
+    }
+
+    /** Lint project description that describes project's module structure in details */
+    val projectDescription by
+        option(
+                ARG_PROJECT,
+                metavar = "<xmlfile>",
+                help = "Project description written in XML according to Lint's project model.",
+            )
+            .existingFile()
+
+    val apiPackageFilter by
         option(
                 ARG_STUB_PACKAGES,
                 metavar = "<package-list>",
@@ -164,7 +264,7 @@ class SourceOptions(
      * [ARG_COMPILE_SDK_VERSION], metalava will automatically add the platform's android.jar file to
      * the classpath if it does not already find the android.jar file in the classpath.
      */
-    val sdkHome by
+    private val sdkHome by
         option(
                 ARG_SDK_HOME,
                 metavar = "<dir>",
@@ -175,6 +275,13 @@ class SourceOptions(
                         .trimIndent()
             )
             .existingDir()
+
+    /**
+     * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
+     * For R preview, it would be "R".
+     */
+    private val compileSdkVersion: String? by
+        option(ARG_COMPILE_SDK_VERSION, metavar = "<api>", help = "Use the given API level.")
 
     /** Whether to use the K1 compiler. */
     private val useK1UastOption by

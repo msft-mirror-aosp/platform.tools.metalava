@@ -153,8 +153,8 @@ internal fun processFlags(
     val sourceParser =
         environmentManager.createSourceParser(
             codebaseConfig = codebaseConfig,
-            javaLanguageLevel = options.javaLanguageLevelAsString,
-            kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
+            javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
+            kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
             jdkHome = sourceOptions.jdkHome,
         )
@@ -172,7 +172,7 @@ internal fun processFlags(
         ClassPathResolverProvider(
             sourceParser = sourceParser,
             apiClassResolution = options.apiClassResolution,
-            classpath = options.classpath,
+            classpath = sourceOptions.classpath,
         )
     val codebase =
         createCodebaseFromOptions(
@@ -217,7 +217,7 @@ internal fun processFlags(
         reporter
     )
 
-    options.proguard?.let { proguard ->
+    options.proguardFile?.let { proguard ->
         val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
@@ -393,7 +393,7 @@ private fun createApiSignatureFilesFromOptions(
             removedApiCodebaseFragment,
             apiSignatureFile,
             "removed API",
-            options.deleteEmptyRemovedSignatures
+            options.deleteEmptyRemovedSignatures,
         ) { printWriter ->
             SignatureWriter(
                 writer = printWriter,
@@ -450,7 +450,7 @@ private fun createCodebaseFromOptions(
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
         return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
-    } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
+    } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
         return actionContext.loadFromSources(
             options,
             sourceOptions,
@@ -665,12 +665,12 @@ private fun ActionContext.loadFromSources(
         if (options.sources.isEmpty()) {
             if (options.verbose) {
                 options.stdout.println(
-                    "No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})"
+                    "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
                 )
             }
-            SourceSet.createFromSourcePath(options.reporter, options.sourcePath)
+            SourceSet.createFromSourcePath(options.reporter, sourceOptions.sourcePath)
         } else {
-            SourceSet(options.sources, options.sourcePath)
+            SourceSet(options.sources, sourceOptions.sourcePath)
         }
 
     progressTracker.progress("Reading Codebase: ")
@@ -678,10 +678,10 @@ private fun ActionContext.loadFromSources(
         sourceParser.parseSources(
             sourceSet,
             "Codebase loaded from source folders",
-            classPath = options.classpath,
-            apiPackages = options.apiPackages,
-            projectDescription = options.projectDescription,
-            compiledSourceJar = options.compiledSourceJar
+            classPath = sourceOptions.classpath,
+            apiPackages = sourceOptions.apiPackageFilter,
+            projectDescription = sourceOptions.projectDescription,
+            compiledSourceJar = sourceOptions.compiledSourceJar
         ) ?: return null
 
     progressTracker.progress("Analyzing API: ")

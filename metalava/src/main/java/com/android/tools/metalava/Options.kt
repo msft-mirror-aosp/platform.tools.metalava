@@ -16,11 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants
-import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
-import com.android.tools.lint.detector.api.isJdkFolder
-import com.android.tools.metalava.cli.common.ARG_JDK_HOME
-import com.android.tools.metalava.cli.common.ARG_SDK_HOME
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -32,9 +27,9 @@ import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.fileForPathInner
-import com.android.tools.metalava.cli.common.stringToExistingDir
+import com.android.tools.metalava.cli.common.newDir
+import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.stringToExistingFile
-import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
@@ -45,13 +40,10 @@ import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
-import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -73,74 +65,9 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Optional
 import java.util.function.Predicate
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
-import org.jetbrains.jps.model.java.impl.JavaSdkUtil
-
-/**
- * A [ReadWriteProperty] that is used as the delegate for [options].
- *
- * It provides read/write methods and also a [disallowAccess] method which when called will cause
- * any attempt to read the [options] property to fail. This allows code to ensure that any code
- * which it calls does not access the deprecated [options] property.
- */
-object OptionsDelegate : ReadWriteProperty<Nothing?, Options> {
-
-    /**
-     * The value of this delegate.
-     *
-     * Is `null` if [setValue] has not been called since the last call to [disallowAccess]. In that
-     * case any attempt to read the value of this delegate will fail.
-     */
-    private var possiblyNullOptions: Options? = Options()
-
-    /**
-     * The stack trace of the last caller to [disallowAccess] (if any) to make it easy to determine
-     * why a read of [options] failed.
-     */
-    private var disallowerStackTrace: Throwable? = null
-
-    /** Prevent all future reads of [options] until the [setValue] method is next called. */
-    fun disallowAccess() {
-        disallowerStackTrace = UnexpectedOptionsAccess("Global options property cleared")
-        possiblyNullOptions = null
-    }
-
-    override fun setValue(thisRef: Nothing?, property: KProperty<*>, value: Options) {
-        disallowerStackTrace = null
-        possiblyNullOptions = value
-    }
-
-    override fun getValue(thisRef: Nothing?, property: KProperty<*>): Options {
-        return possiblyNullOptions
-            ?: throw UnexpectedOptionsAccess("options is not set", disallowerStackTrace!!)
-    }
-}
-
-/** A private class to try and avoid it being caught and ignored. */
-private class UnexpectedOptionsAccess(message: String, cause: Throwable? = null) :
-    RuntimeException(message, cause)
-
-/**
- * Global options for the metadata extraction tool
- *
- * This is an empty options which is created to avoid having a nullable options. It is replaced with
- * the actual options to use, either created from the command line arguments for the main process or
- * with arguments supplied by tests.
- */
-@Deprecated(
-    """
-    Do not add any more usages of this and please remove any existing uses that you find. Global
-    variables tightly couple all the code that uses them making them hard to test, modularize and
-    reuse. Which is why there is an ongoing process to remove usages of global variables and
-    eventually the global variable itself.
-    """
-)
-var options by OptionsDelegate
 
 private const val INDENT_WIDTH = 45
 
-const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
@@ -156,16 +83,10 @@ const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_JAVA_SOURCE = "--java-source"
-const val ARG_KOTLIN_SOURCE = "--kotlin-source"
-const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
-const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
-const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_PROJECT = "--project"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -178,7 +99,7 @@ class Options(
     val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
-    signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
+    private val signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to. */
@@ -191,8 +112,6 @@ class Options(
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
-    /** Internal list backing [classpath] */
-    private val mutableClassPath: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
@@ -258,20 +177,8 @@ class Options(
      */
     private var allowReadingComments = true
 
-    /** The list of source roots */
-    val sourcePath: List<File> by sourceOptions::sourcePath
-
-    /** The list of dependency jars */
-    val classpath: List<File> = mutableClassPath
-
     /** All source files to parse */
     var sources: List<File> = mutableSources
-
-    /** Lint project description that describes project's module structure in details */
-    var projectDescription: File? = null
-
-    /** Jar file with the compiled version of the sources from [sources]/[sourcePath]. */
-    val compiledSourceJar: File? by sourceOptions::compiledSourceJar
 
     val apiClassResolution by
         enumOption(
@@ -295,17 +202,14 @@ class Options(
     val showUnannotated
         get() = apiSelectionOptions.showUnannotated
 
-    /** Packages to include in the API (if null, include all) */
-    val apiPackages: PackageFilter? by sourceOptions::apiPackages
-
     /**
      * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
-     * [Item]s that do not match the [apiPackages] filter. If no [apiPackages] filter is provided
-     * then this will be `null`.
+     * [Item]s that do not match the [SourceOptions.apiPackageFilter] filter. If no filter is
+     * provided then this will be `null`.
      */
     private val reportableFilter: Predicate<Reportable>? by
         lazy(LazyThreadSafetyMode.NONE) {
-            apiPackages?.let { packageFilter ->
+            sourceOptions.apiPackageFilter?.let { packageFilter ->
                 Predicate { reportable ->
                     // If we are only emitting some packages (--stub-packages), don't report
                     // issues from other packages
@@ -316,10 +220,6 @@ class Options(
                 }
             }
         }
-
-    /** Packages that we should skip generating even if not hidden; typically only used by tests */
-    val skipEmitPackages
-        get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     private val apiFlags by lazy {
         ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)
@@ -396,6 +296,7 @@ class Options(
 
     /** The configuration options for the [ApiAnalyzer] class. */
     val apiAnalyzerConfig by lazy {
+        val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
         ApiAnalyzer.Config(
             manifest = manifest,
             skipEmitPackages = skipEmitPackages,
@@ -403,6 +304,17 @@ class Options(
             mergeInclusionAnnotations = mergeInclusionAnnotations,
             allShowAnnotations = allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
+            annotationsMergerConfig =
+                AnnotationsMerger.Config(
+                    apiPredicateConfig = apiPredicateConfig,
+                    sources = sources,
+                    sourcePath = sourceOptions.sourcePath,
+                    classpath = sourceOptions.classpath,
+                    apiPackageFilter = sourceOptions.apiPackageFilter,
+                    nullabilityAnnotationsValidator =
+                        if (validateNullabilityFromMergedStubs) nullabilityAnnotationsValidator
+                        else null,
+                ),
         )
     }
 
@@ -429,20 +341,43 @@ class Options(
         get() = verbosity.verbose
 
     /** Proguard Keep list file to write */
-    var proguard: File? = null
+    val proguardFile by
+        option(
+                ARG_PROGUARD,
+                metavar = "<file>",
+                help = "Write a ProGuard keep file for the API.",
+            )
+            .newFile()
 
     val apiSignatureFile by signatureFileOptions::apiFile
     val removedApiSignatureFile by signatureFileOptions::removedApiFile
     val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Path to directory to write SDK values to */
-    var sdkValueDir: File? = null
+    val sdkValueDir by
+        option(
+                ARG_SDK_VALUES,
+                metavar = "<dir>",
+                help = "Write SDK values files to the given directory.",
+            )
+            .newDir()
 
     /**
      * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
      * flag.
      */
-    var externalAnnotationsFile: File? = null
+    val externalAnnotationsFile by
+        option(
+                ARG_EXTRACT_ANNOTATIONS,
+                metavar = "<zipfile>",
+                help =
+                    """
+                Extracts source annotations from the source files and writes them into the given zip
+                file.
+            """
+                        .trimIndent(),
+            )
+            .newFile()
 
     /** An optional manifest [File]. */
     private val manifestFile by
@@ -483,7 +418,7 @@ class Options(
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
         get() =
-            if (deleteEmptyRemovedSignatures) {
+            if (signatureFileOptions.deleteEmptyRemovedSignatures) {
                 EmitFileHeader.IF_NONEMPTY_FILE
             } else {
                 EmitFileHeader.ALWAYS
@@ -501,19 +436,7 @@ class Options(
     internal var allReporters: List<DefaultReporter> = emptyList()
 
     /** If generating a removed signature file, and it is empty, delete it */
-    var deleteEmptyRemovedSignatures = false
-
-    /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
-    var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
-
-    /** The language level to use for Kotlin files, set with [ARG_KOTLIN_SOURCE] */
-    var kotlinLanguageLevelAsString: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL
-
-    /**
-     * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
-     * For R preview, it would be "R".
-     */
-    private var compileSdkVersion: String? = null
+    val deleteEmptyRemovedSignatures by signatureFileOptions::deleteEmptyRemovedSignatures
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
@@ -528,18 +451,10 @@ class Options(
             key = { it.optionValue },
         )
 
-    /** Temporary folder to use instead of the JDK default, if any */
-    private var tempFolder: File? = null
-
     fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
-                // For now, we don't distinguish between bootclasspath and classpath
-                ARG_CLASS_PATH -> {
-                    val path = getValue(args, ++index)
-                    mutableClassPath.addAll(stringToExistingDirsOrJars(path))
-                }
                 ARG_SOURCE_FILES -> {
                     val listString = getValue(args, ++index)
                     listString.split(",").forEach { path ->
@@ -563,7 +478,6 @@ class Options(
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
-                ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
@@ -575,37 +489,8 @@ class Options(
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
-                ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
-                }
-                ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
-                ARG_EXTRACT_ANNOTATIONS ->
-                    externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
-                ARG_JAVA_SOURCE -> {
-                    val value = getValue(args, ++index)
-                    javaLanguageLevelAsString = value
-                }
-                ARG_KOTLIN_SOURCE -> {
-                    val value = getValue(args, ++index)
-                    kotlinLanguageLevelAsString = value
-                }
-                ARG_COMPILE_SDK_VERSION -> {
-                    compileSdkVersion = getValue(args, ++index)
-                }
-                ARG_PROJECT -> {
-                    projectDescription = stringToExistingFile(getValue(args, ++index))
-                }
-                "--temp-folder" -> {
-                    tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
-                }
-
-                // Option only meant for tests (not documented); doesn't work in all cases (to do
-                // that we'd
-                // need JNA to call libc)
-                "--pwd" -> {
-                    val pwd = stringToExistingDir(getValue(args, ++index)).absoluteFile
-                    System.setProperty("user.dir", pwd.path)
                 }
                 else -> {
                     if (arg.startsWith("-")) {
@@ -671,8 +556,6 @@ class Options(
                 reporterCompatibilityReleased,
             )
 
-        updateClassPath()
-
         // Make sure that any config files are processed.
         configFileOptions.config
     }
@@ -695,51 +578,11 @@ class Options(
             config = issueReportingOptions.reporterConfig,
         )
 
-    /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
-    private fun updateClassPath() {
-        val sdkHome = sourceOptions.sdkHome
-        val jdkHome = sourceOptions.jdkHome
-
-        if (
-            sdkHome != null &&
-                compileSdkVersion != null &&
-                classpath.none { it.name == FN_FRAMEWORK_LIBRARY }
-        ) {
-            val jar = File(sdkHome, "platforms/android-$compileSdkVersion")
-            if (jar.isFile) {
-                mutableClassPath.add(jar)
-            } else {
-                cliError(
-                    "Could not find android.jar for API level $compileSdkVersion in SDK $sdkHome: $jar does not exist"
-                )
-            }
-            if (jdkHome != null) {
-                cliError("Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME")
-            }
-        } else if (jdkHome != null) {
-            val isJre = !isJdkFolder(jdkHome)
-            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
-            mutableClassPath.addAll(roots)
-        }
-    }
-
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
             cliError("Missing argument for ${args[index - 1]}")
         }
         return args[index]
-    }
-
-    private fun stringToExistingDirsOrJars(value: String): List<File> {
-        val files = mutableListOf<File>()
-        for (path in value.split(File.pathSeparatorChar)) {
-            val file = fileForPathInner(path)
-            if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
-                cliError("$file is not a jar or directory")
-            }
-            files.add(file)
-        }
-        return files
     }
 
     private fun stringToExistingDirsOrFiles(value: String): List<File> {
@@ -774,17 +617,6 @@ class Options(
                 file
             }
     }
-
-    private fun stringToNewOrExistingDir(value: String): File {
-        val dir = fileForPathInner(value)
-        if (!dir.isDirectory) {
-            val ok = dir.mkdirs()
-            if (!ok) {
-                cliError("Could not create $dir")
-            }
-        }
-        return dir
-    }
 }
 
 object OptionsHelp {
@@ -803,12 +635,6 @@ object OptionsHelp {
                 "$ARG_SOURCE_FILES <files>",
                 "A comma separated list of source files to be parsed. Can also be " +
                     "@ followed by a path to a text file containing paths to the full set of files to parse.",
-                "$ARG_CLASS_PATH <paths>",
-                "One or more directories or jars (separated by " +
-                    "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
-                    "source files",
-                "$ARG_PROJECT <xmlfile>",
-                "Project description written in XML according to Lint's project model.",
                 "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
                 "An external annotations file to merge and overlay " +
                     "the sources, or a directory of such files. Should be used for annotations intended for " +
@@ -833,24 +659,11 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "$ARG_JAVA_SOURCE <level>",
-                "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
-                "$ARG_KOTLIN_SOURCE <level>",
-                "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
-                "$ARG_COMPILE_SDK_VERSION <api>",
-                "Use the given API level",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
                 ARG_SKIP_READING_COMMENTS,
                 "Ignore any comments in source files.",
-                "",
-                "Extracting Signature Files:",
-                // TODO: Document --show-annotation!
-                "$ARG_PROGUARD <file>",
-                "Write a ProGuard keep file for the API",
-                "$ARG_SDK_VALUES <dir>",
-                "Write SDK values files to the given directory",
                 "",
                 "Generating Stubs:",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
@@ -859,15 +672,6 @@ object OptionsHelp {
                 "$ARG_EXCLUDE_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be stripped from metalava's outputs.",
-                "",
-                "Extracting Annotations:",
-                "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
-                "Extracts source annotations from the source files and writes " +
-                    "them into the given zip file",
-                ARG_INCLUDE_SOURCE_RETENTION,
-                "If true, include source-retention annotations in the stub files. Does " +
-                    "not apply to signature files. Source retention annotations are extracted into the external " +
-                    "annotations files instead.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,

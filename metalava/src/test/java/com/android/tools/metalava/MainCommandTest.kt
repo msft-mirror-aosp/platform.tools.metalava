@@ -25,8 +25,6 @@ import com.android.tools.metalava.cli.common.SOURCE_OPTIONS_HELP
 import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
 import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
-import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import java.io.File
 import org.junit.Assert
 import org.junit.Test
@@ -57,6 +55,10 @@ Options:
   --suppress-compatibility-meta-annotation <meta-annotation class>
                                              Suppress compatibility checks for any elements within the scope of an
                                              annotation which is itself annotated with the given meta-annotation.
+  --proguard <file>                          Write a ProGuard keep file for the API.
+  --sdk-values <dir>                         Write SDK values files to the given directory.
+  --extract-annotations <zipfile>            Extracts source annotations from the source files and writes them into the
+                                             given zip file.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
   --typedefs-in-signatures [none|ref|inline]
@@ -86,16 +88,7 @@ $API_LINT_OPTIONS_HELP
 
 $COMPATIBILITY_CHECK_OPTIONS_HELP
 
-Signature File Output:
-
-  Options controlling the signature file output. The format of the generated file is determined by the options in the
-  `Signature Format Output` section.
-
-  --api <file>                               Output file into which the API signature will be generated. If this is not
-                                             specified then no API signature file will be created.
-  --removed-api <file>                       Output file into which the API signatures for removed APIs will be
-                                             generated. If this is not specified then no removed API signature file will
-                                             be created.
+$SIGNATURE_FILE_OPTIONS_HELP
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
 
@@ -112,11 +105,6 @@ API sources:
                                              A comma separated list of source files to be parsed. Can also be @ followed
                                              by a path to a text file containing paths to the full set of files to
                                              parse.
---classpath <paths>
-                                             One or more directories or jars (separated by `:`) containing classes that
-                                             should be on the classpath when parsing the source files
---project <xmlfile>
-                                             Project description written in XML according to Lint's project model.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -141,24 +129,11 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---java-source <level>
-                                             Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
---kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is ${DEFAULT_KOTLIN_LANGUAGE_LEVEL}.
---compile-sdk-version <api>
-                                             Use the given API level
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
 --ignore-comments
                                              Ignore any comments in source files.
-
-
-Extracting Signature Files:
---proguard <file>
-                                             Write a ProGuard keep file for the API
---sdk-values <dir>
-                                             Write SDK values files to the given directory
 
 
 Generating Stubs:
@@ -168,16 +143,6 @@ Generating Stubs:
 --exclude-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be stripped from metalava's outputs.
-
-
-Extracting Annotations:
---extract-annotations <zipfile>
-                                             Extracts source annotations from the source files and writes them into the
-                                             given zip file
---include-source-retention
-                                             If true, include source-retention annotations in the stub files. Does not
-                                             apply to signature files. Source retention annotations are extracted into
-                                             the external annotations files instead.
 
 
 Environment Variables:
