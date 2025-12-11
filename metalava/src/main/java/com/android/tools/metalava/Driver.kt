@@ -712,11 +712,15 @@ private fun ActionContext.loadFromSources(
     analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
 
     analyzer.mergeExternalQualifierAnnotations()
-    options.nullabilityAnnotationsValidator?.validateAllFrom(
-        codebase,
-        options.validateNullabilityFromList
-    )
-    options.nullabilityAnnotationsValidator?.report()
+
+    options.nullabilityAnnotationsValidator?.let { validator ->
+        // Validate any explicitly specified classes.
+        validator.validateExplicitlySpecifiedClasses(codebase)
+
+        // Report any issues found in the validator. This can include issues found while merging in
+        // annotations.
+        validator.report()
+    }
 
     // Prevent the codebase from being mutated.
     codebase.freezeClasses()

@@ -122,6 +122,7 @@ class Options(
                     nullabilityErrorsFatal,
                     nullabilityWarningsTxt,
                     apiPredicateConfig,
+                    validateNullabilityFromList,
                 )
             } else null
         )
@@ -150,7 +151,7 @@ class Options(
      * A file containing a list of classes whose nullability annotations should be validated. If
      * set, [nullabilityAnnotationsValidator] must also be set.
      */
-    var validateNullabilityFromList: File? = null
+    private var validateNullabilityFromList: File? = null
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
