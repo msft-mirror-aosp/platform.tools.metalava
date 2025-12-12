@@ -17,7 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.Driver
-import com.android.tools.metalava.Options
+import com.android.tools.metalava.MiscellaneousOptions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -45,7 +45,7 @@ class TestEnvironment(
      * completed.
      *
      * This is set by tests to check the state of the objects referenced from [CheckerContext] like
-     * [Codebase] and [Options] that are not easily verifiable through other means.
+     * [Codebase] and [MiscellaneousOptions] that are not easily verifiable through other means.
      */
     val postAnalysisChecker: CheckerFunction? = null,
 )

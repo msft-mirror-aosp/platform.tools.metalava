@@ -44,7 +44,6 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
 import java.util.Locale
@@ -173,12 +172,9 @@ class MainCommand(
             apiSurfacesProvider = { apiSelectionOptions.apiSurfaces },
         )
 
-    /**
-     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
-     * Clikt.
-     */
-    internal val options by
-        Options(
+    /** Miscellaneous options. */
+    internal val miscellaneousOptions by
+        MiscellaneousOptions(
             reporterSupplier = { reporterManager.reporter },
         )
 
@@ -227,7 +223,7 @@ class MainCommand(
                             environmentManager,
                             reporterManager.reporter,
                             commonOptions.verbosity,
-                            options,
+                            miscellaneousOptions,
                             apiLevelsGenerationOptions,
                             apiLintOptions,
                             apiSelectionOptions,

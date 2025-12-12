@@ -89,7 +89,7 @@ class Driver(
     private val environmentManager: EnvironmentManager,
     private val reporter: Reporter,
     private val verbosity: Verbosity,
-    private val options: Options,
+    private val miscellaneousOptions: MiscellaneousOptions,
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     private val apiLintOptions: ApiLintOptions,
     internal val apiSelectionOptions: ApiSelectionOptions,
@@ -289,7 +289,7 @@ class Driver(
     private val apiAnalyzerConfig by lazy {
         val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
         ApiAnalyzer.Config(
-            manifest = options.manifest,
+            manifest = miscellaneousOptions.manifest,
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
             mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
@@ -343,7 +343,7 @@ class Driver(
             codebase,
         )
 
-        options.proguardFile?.let { proguard ->
+        miscellaneousOptions.proguardFile?.let { proguard ->
             val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
             val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
             val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
@@ -368,7 +368,7 @@ class Driver(
             }
         }
 
-        options.sdkValueDir?.let { dir ->
+        miscellaneousOptions.sdkValueDir?.let { dir ->
             dir.mkdirs()
             SdkFileWriter(codebase, dir).generate()
         }
@@ -377,7 +377,7 @@ class Driver(
             checkCompatibility(codebase, check)
         }
 
-        options.externalAnnotationsFile?.let { outputFile ->
+        miscellaneousOptions.externalAnnotationsFile?.let { outputFile ->
             extractAnnotations(
                 outputFile,
                 codebase,
@@ -759,7 +759,7 @@ class Driver(
                 reporter,
                 apiPredicateConfig,
                 ApiLint.Config(
-                    manifest = options.manifest,
+                    manifest = miscellaneousOptions.manifest,
                     allowedAcronyms = apiLintOptions.allowedAcronyms,
                     useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
                 ),

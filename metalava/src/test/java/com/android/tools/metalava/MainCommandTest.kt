@@ -72,7 +72,7 @@ $STUB_GENERATION_OPTIONS_HELP
 
 $API_LEVELS_GENERATION_OPTIONS_HELP
 
-$OPTIONS_HELP
+$MISCELLANEOUS_OPTIONS_HELP
 
 Arguments:
   source-files                               Additional source files to append to --source-files

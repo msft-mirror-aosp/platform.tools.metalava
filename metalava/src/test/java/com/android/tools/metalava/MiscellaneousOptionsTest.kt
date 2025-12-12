@@ -18,7 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 
-val OPTIONS_HELP =
+val MISCELLANEOUS_OPTIONS_HELP =
     """
 Miscellaneous:
 
@@ -33,10 +33,10 @@ Miscellaneous:
     """
         .trimIndent()
 
-class OptionsTest :
-    BaseOptionGroupTest<Options>(
-        OPTIONS_HELP,
+class MiscellaneousOptionsTest :
+    BaseOptionGroupTest<MiscellaneousOptions>(
+        MISCELLANEOUS_OPTIONS_HELP,
     ) {
 
-    override fun createOptions() = Options()
+    override fun createOptions() = MiscellaneousOptions()
 }

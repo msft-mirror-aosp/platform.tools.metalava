@@ -37,7 +37,7 @@ const val ARG_MANIFEST = "--manifest"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val MISCELLANEOUS_OPTIONS_GROUP = "Miscellaneous"
 
-class Options(
+class MiscellaneousOptions(
     private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
 ) : OptionGroup(MISCELLANEOUS_OPTIONS_GROUP, help = "Miscellaneous options.") {
     /** Proguard Keep list file to write */
