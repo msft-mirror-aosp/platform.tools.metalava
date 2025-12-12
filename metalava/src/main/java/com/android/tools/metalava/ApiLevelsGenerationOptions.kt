@@ -336,19 +336,6 @@ class ApiLevelsGenerationOptions(
         apiVersionToLabel[version] ?: version.toString()
 
     /**
-     * Check whether [version] should be included in documentation.
-     *
-     * If no [apiVersionForSources] has been provided then allow any [ApiVersion] level as there is
-     * no way to determine whether the [ApiVersion] is a future API or not.
-     *
-     * Otherwise, it is a release build so ignore any [ApiVersion]s after the current one.
-     */
-    fun includeApiVersionInDocumentation(version: ApiVersion): Boolean {
-        val current = apiVersionForSources ?: return true
-        return version <= current
-    }
-
-    /**
      * Find all historical files that matches the patterns in [patterns] and are in the range from
      * [firstApiVersion] to [lastApiVersion].
      *

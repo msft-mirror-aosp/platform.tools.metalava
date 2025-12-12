@@ -369,8 +369,6 @@ class Driver(
                 // TODO(b/464226866): Move the initialization of these into generatorConfig().
                 .copy(
                     apiVersionLabelProvider = apiLevelsGenerationOptions::getApiVersionLabel,
-                    includeApiLevelInDocumentation =
-                        apiLevelsGenerationOptions::includeApiVersionInDocumentation,
                 )
         StubGenerator(
                 generatorConfig,
