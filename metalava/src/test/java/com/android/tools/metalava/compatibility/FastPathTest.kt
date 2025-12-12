@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.java
-import org.junit.Assert
+import org.junit.Assert.fail
 import org.junit.Test
 
 /** The exact signature contents that would be written out for the [SOURCE_FILE_CONTENTS]. */
@@ -95,41 +95,34 @@ class FastPathTest : DriverTest() {
         val releaseSignatureFilePath = signatureFile.path
         val sourceFiles = arrayOf(sourceFile)
 
-        checkFastPath(expectedFastPathResult = expectedFastPathResult) {
-            when (apiType) {
-                ApiType.PUBLIC_API ->
-                    check(
-                        format = format,
-                        api = strippedContents,
-                        checkCompatibilityApiReleased = releaseSignatureFilePath,
-                        sourceFiles = sourceFiles,
-                    )
-                ApiType.REMOVED ->
-                    check(
-                        format = format,
-                        removedApi = strippedContents,
-                        checkCompatibilityRemovedApiReleased = releaseSignatureFilePath,
-                        sourceFiles = sourceFiles,
-                    )
-                else -> error("unsupported $apiType")
-            }
-        }
-    }
-
-    private fun checkFastPath(
-        expectedFastPathResult: Boolean?,
-        test: () -> Unit,
-    ) {
         // Set the global variable to `null` to detect whether the fast path check was made.
         fastPathCheckResult = null
 
-        test()
+        // Perform the check.
+        when (apiType) {
+            ApiType.PUBLIC_API ->
+                check(
+                    format = format,
+                    api = strippedContents,
+                    checkCompatibilityApiReleased = releaseSignatureFilePath,
+                    sourceFiles = sourceFiles,
+                )
+            ApiType.REMOVED ->
+                check(
+                    format = format,
+                    removedApi = strippedContents,
+                    checkCompatibilityRemovedApiReleased = releaseSignatureFilePath,
+                    sourceFiles = sourceFiles,
+                )
+            else -> error("unsupported $apiType")
+        }
 
+        // Check the result.
         if (expectedFastPathResult != fastPathCheckResult) {
             when (fastPathCheckResult) {
-                null -> Assert.fail("fast path check not performed")
-                false -> Assert.fail("fast path check failed")
-                true -> Assert.fail("fast path check did not fail")
+                null -> fail("fast path check not performed")
+                false -> fail("fast path check failed")
+                true -> fail("fast path check did not fail")
             }
         }
     }
