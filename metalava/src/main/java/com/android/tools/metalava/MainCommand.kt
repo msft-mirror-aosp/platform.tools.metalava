@@ -94,7 +94,10 @@ class MainCommand(
             additionalSourceFilesProvider = { additionalSourceFiles },
         )
 
-    internal val nullabilityValidationOptions by NullabilityValidationOptions()
+    internal val nullabilityValidationOptions by
+        NullabilityValidationOptions(
+            reporterSupplier = { reporterManager.reporter },
+        )
 
     /** Issue reporter configuration. */
     private val issueReportingOptions by IssueReportingOptions(commonOptions)
