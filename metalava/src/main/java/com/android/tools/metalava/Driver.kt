@@ -77,6 +77,7 @@ import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Arrays
+import java.util.Optional
 import java.util.concurrent.TimeUnit.SECONDS
 import kotlin.system.exitProcess
 
@@ -252,11 +253,67 @@ class Driver(
         }
     }
 
-    val apiAnalyzerConfig
-        get() = options.apiAnalyzerConfig
+    /**
+     * Backing property for [nullabilityAnnotationsValidator]
+     *
+     * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
+     * `null` as a special value.
+     *
+     * Creates [NullabilityAnnotationsValidator] lazily as it depends on a number of different
+     * options which may be supplied in different orders.
+     */
+    private val optionalNullabilityAnnotationsValidator by lazy {
+        Optional.ofNullable(
+            if (
+                options.validateNullabilityFromMergedStubs ||
+                    options.validateNullabilityFromList != null
+            ) {
+                NullabilityAnnotationsValidator(
+                    reporter,
+                    options.nullabilityErrorsFatal,
+                    options.nullabilityWarningsTxt,
+                    apiPredicateConfig,
+                    options.validateNullabilityFromList,
+                )
+            } else null
+        )
+    }
 
-    val apiPredicateConfig
-        get() = options.apiPredicateConfig
+    /** Validator for nullability annotations, if validation is enabled. */
+    val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator?
+        get() = optionalNullabilityAnnotationsValidator.orElse(null)
+
+    /** The configuration options for the [ApiAnalyzer] class. */
+    val apiAnalyzerConfig by lazy {
+        val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
+        ApiAnalyzer.Config(
+            manifest = options.manifest,
+            skipEmitPackages = skipEmitPackages,
+            mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
+            mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
+            allShowAnnotations = apiSelectionOptions.allShowAnnotations,
+            apiPredicateConfig = apiPredicateConfig,
+            annotationsMergerConfig =
+                AnnotationsMerger.Config(
+                    apiPredicateConfig = apiPredicateConfig,
+                    sources = sourceOptions.sourceFiles,
+                    sourcePath = sourceOptions.sourcePath,
+                    classpath = sourceOptions.classpath,
+                    apiPackageFilter = sourceOptions.apiPackageFilter,
+                    nullabilityAnnotationsValidator =
+                        if (options.validateNullabilityFromMergedStubs)
+                            nullabilityAnnotationsValidator
+                        else null,
+                ),
+        )
+    }
+
+    val apiPredicateConfig by lazy {
+        ApiPredicate.Config(
+            ignoreShown = apiSelectionOptions.showUnannotated,
+            addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
+        )
+    }
 }
 
 internal fun Driver.processFlags() {
@@ -721,7 +778,7 @@ private fun Driver.loadFromSources(): Codebase? {
 
     analyzer.mergeExternalQualifierAnnotations()
 
-    options.nullabilityAnnotationsValidator?.let { validator ->
+    nullabilityAnnotationsValidator?.let { validator ->
         // Validate any explicitly specified classes.
         validator.validateExplicitlySpecifiedClasses(codebase)
 

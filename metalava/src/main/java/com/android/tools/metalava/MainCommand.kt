@@ -177,10 +177,6 @@ class MainCommand(
      */
     internal val options by
         Options(
-            executionEnvironment = executionEnvironment,
-            sourceOptions = sourceOptions,
-            apiSelectionOptions = apiSelectionOptions,
-            signatureFormatOptions = signatureFormatOptions,
             reporterSupplier = { reporterManager.reporter },
         )
 

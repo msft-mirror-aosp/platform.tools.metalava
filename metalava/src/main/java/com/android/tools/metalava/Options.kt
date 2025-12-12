@@ -17,18 +17,14 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
-import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -39,7 +35,6 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
-import java.util.Optional
 
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
@@ -55,39 +50,8 @@ const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 
 class Options(
-    private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-    private val sourceOptions: SourceOptions = SourceOptions(),
-    private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
-    signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
 ) : OptionGroup() {
-    /**
-     * Backing property for [nullabilityAnnotationsValidator]
-     *
-     * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
-     * `null` as a special value.
-     *
-     * Creates [NullabilityAnnotationsValidator] lazily as it depends on a number of different
-     * options which may be supplied in different orders.
-     */
-    private val optionalNullabilityAnnotationsValidator by lazy {
-        Optional.ofNullable(
-            if (validateNullabilityFromMergedStubs || validateNullabilityFromList != null) {
-                NullabilityAnnotationsValidator(
-                    reporter,
-                    nullabilityErrorsFatal,
-                    nullabilityWarningsTxt,
-                    apiPredicateConfig,
-                    validateNullabilityFromList,
-                )
-            } else null
-        )
-    }
-
-    /** Validator for nullability annotations, if validation is enabled. */
-    val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator?
-        get() = optionalNullabilityAnnotationsValidator.orElse(null)
-
     /** Whether nullability validation errors should be considered fatal. */
     private val nullabilityErrorsNonFatal by
         option(
@@ -102,14 +66,14 @@ class Options(
             )
             .flag()
 
-    private val nullabilityErrorsFatal
+    internal val nullabilityErrorsFatal
         get() = !nullabilityErrorsNonFatal
 
     /**
      * A file to write non-fatal nullability validation issues to. If null, all issues are treated
      * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
      */
-    private val nullabilityWarningsTxt by
+    internal val nullabilityWarningsTxt by
         option(
                 ARG_NULLABILITY_WARNINGS_TXT,
                 metavar = "<file>",
@@ -124,7 +88,7 @@ class Options(
 
     /**
      * Whether to validate nullability for all the classes where we are merging annotations from
-     * external java stub files. If true, [nullabilityAnnotationsValidator] must be set.
+     * external java stub files.
      */
     val validateNullabilityFromMergedStubs by
         option(
@@ -138,11 +102,8 @@ class Options(
             )
             .flag()
 
-    /**
-     * A file containing a list of classes whose nullability annotations should be validated. If
-     * set, [nullabilityAnnotationsValidator] must also be set.
-     */
-    private val validateNullabilityFromList by
+    /** A file containing a list of classes whose nullability annotations should be validated. */
+    internal val validateNullabilityFromList by
         option(
                 ARG_VALIDATE_NULLABILITY_FROM_LIST,
                 help =
@@ -181,37 +142,6 @@ class Options(
             )
             .multiple()
             .unique()
-
-    /** The configuration options for the [ApiAnalyzer] class. */
-    val apiAnalyzerConfig by lazy {
-        val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
-        ApiAnalyzer.Config(
-            manifest = manifest,
-            skipEmitPackages = skipEmitPackages,
-            mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
-            mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
-            allShowAnnotations = apiSelectionOptions.allShowAnnotations,
-            apiPredicateConfig = apiPredicateConfig,
-            annotationsMergerConfig =
-                AnnotationsMerger.Config(
-                    apiPredicateConfig = apiPredicateConfig,
-                    sources = sourceOptions.sourceFiles,
-                    sourcePath = sourceOptions.sourcePath,
-                    classpath = sourceOptions.classpath,
-                    apiPackageFilter = sourceOptions.apiPackageFilter,
-                    nullabilityAnnotationsValidator =
-                        if (validateNullabilityFromMergedStubs) nullabilityAnnotationsValidator
-                        else null,
-                ),
-        )
-    }
-
-    val apiPredicateConfig by lazy {
-        ApiPredicate.Config(
-            ignoreShown = apiSelectionOptions.showUnannotated,
-            addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
-        )
-    }
 
     /** Proguard Keep list file to write */
     val proguardFile by
