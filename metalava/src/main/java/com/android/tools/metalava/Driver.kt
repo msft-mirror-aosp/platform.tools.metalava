@@ -19,6 +19,7 @@ import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CheckerContext
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
@@ -45,11 +46,13 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -178,9 +181,47 @@ class Driver(
         }
     }
 
+    private val apiFlags by lazy {
+        ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)
+    }
+
+    private val annotationManager: AnnotationManager by lazy {
+        DefaultAnnotationManager(
+            DefaultAnnotationManager.Config(
+                reporter = reporter,
+                passThroughAnnotations = apiSelectionOptions.passThroughAnnotations,
+                allShowAnnotations = apiSelectionOptions.allShowAnnotations,
+                showAnnotations = apiSelectionOptions.showAnnotations,
+                showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
+                showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
+                hideAnnotations = apiSelectionOptions.hideAnnotations,
+                suppressCompatibilityMetaAnnotations = options.suppressCompatibilityMetaAnnotations,
+                excludeAnnotations = apiSelectionOptions.excludeAnnotations,
+                typedefMode = options.typedefMode,
+                apiPredicate = ApiPredicate(config = apiPredicateConfig),
+                previouslyReleasedCodebaseProvider = {
+                    compatibilityCheckOptions.previouslyReleasedApi?.load {
+                        signatureFileCache.load(it)
+                    }
+                },
+                apiFlags = apiFlags,
+            )
+        )
+    }
+
+    internal val codebaseConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            Codebase.Config(
+                allowReadingComments = sourceOptions.allowReadingComments,
+                annotationManager = annotationManager,
+                apiFlags = apiFlags,
+                apiSurfaces = apiSelectionOptions.apiSurfaces,
+                reporter = reporter,
+            )
+        }
+
     val sourceParser by
         lazy(LazyThreadSafetyMode.NONE) {
-            val codebaseConfig = options.codebaseConfig
             val modelOptions = sourceOptions.modelOptions
             environmentManager.createSourceParser(
                 codebaseConfig = codebaseConfig,
@@ -191,11 +232,11 @@ class Driver(
             )
         }
 
-    val signatureFileLoader
-        get() = options.signatureFileLoader
+    val signatureFileLoader by
+        lazy(LazyThreadSafetyMode.NONE) { DefaultSignatureFileLoader(codebaseConfig) }
 
-    val signatureFileCache
-        get() = options.signatureFileCache
+    val signatureFileCache by
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
 
     /**
      * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once

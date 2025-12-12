@@ -17,21 +17,16 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
-import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
-import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypedefMode
-import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Issues
@@ -62,9 +57,7 @@ const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
     private val sourceOptions: SourceOptions = SourceOptions(),
-    private val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
     private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
-    private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
 ) : OptionGroup() {
@@ -174,55 +167,8 @@ class Options(
             key = { it.optionValue },
         )
 
-    private val apiFlags by lazy {
-        ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)
-    }
-
-    private val annotationManager: AnnotationManager by lazy {
-        DefaultAnnotationManager(
-            DefaultAnnotationManager.Config(
-                reporter = reporter,
-                passThroughAnnotations = apiSelectionOptions.passThroughAnnotations,
-                allShowAnnotations = apiSelectionOptions.allShowAnnotations,
-                showAnnotations = apiSelectionOptions.showAnnotations,
-                showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
-                showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
-                hideAnnotations = apiSelectionOptions.hideAnnotations,
-                suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
-                excludeAnnotations = apiSelectionOptions.excludeAnnotations,
-                typedefMode = typedefMode,
-                apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebaseProvider = {
-                    previouslyReleasedApi?.load { signatureFileCache.load(it) }
-                },
-                apiFlags = apiFlags,
-            )
-        )
-    }
-
-    /** Make this available for testing purposes. */
-    internal val previouslyReleasedApi
-        get() = compatibilityCheckOptions.previouslyReleasedApi
-
-    internal val codebaseConfig by
-        lazy(LazyThreadSafetyMode.NONE) {
-            Codebase.Config(
-                allowReadingComments = sourceOptions.allowReadingComments,
-                annotationManager = annotationManager,
-                apiFlags = apiFlags,
-                apiSurfaces = apiSelectionOptions.apiSurfaces,
-                reporter = reporter,
-            )
-        }
-
-    internal val signatureFileLoader by
-        lazy(LazyThreadSafetyMode.NONE) { DefaultSignatureFileLoader(codebaseConfig) }
-
-    internal val signatureFileCache by
-        lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
-
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
-    private val suppressCompatibilityMetaAnnotations by
+    internal val suppressCompatibilityMetaAnnotations by
         option(
                 ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
                 help =
@@ -330,7 +276,7 @@ class Options(
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
      */
-    private val typedefMode by
+    internal val typedefMode by
         enumOption(
             ARG_TYPEDEFS_IN_SIGNATURES,
             help = """Whether to include typedef annotations in signature files.""",

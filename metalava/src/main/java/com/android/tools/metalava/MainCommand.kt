@@ -179,9 +179,7 @@ class MainCommand(
         Options(
             executionEnvironment = executionEnvironment,
             sourceOptions = sourceOptions,
-            configFileOptions = configFileOptions,
             apiSelectionOptions = apiSelectionOptions,
-            compatibilityCheckOptions = compatibilityCheckOptions,
             signatureFormatOptions = signatureFormatOptions,
             reporterSupplier = { reporterManager.reporter },
         )
