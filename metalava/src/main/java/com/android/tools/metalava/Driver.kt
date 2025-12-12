@@ -202,6 +202,9 @@ class Driver(
             null
         }
     }
+
+    val apiPredicateConfig
+        get() = options.apiPredicateConfig
 }
 
 internal fun Driver.processFlags() {
@@ -221,9 +224,7 @@ internal fun Driver.processFlags() {
         "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
 
-    val apiPredicateConfig = options.apiPredicateConfig
-
-    generateApiHistoryFromOptions(codebase, apiPredicateConfig)
+    generateApiHistoryFromOptions(codebase)
 
     // Generate signature files based on provided input flags (i.e. if api file locations were
     // provided).
@@ -339,13 +340,13 @@ private fun Driver.createApiSignatureFilesFromOptions(codebase: Codebase) {
                 apiType = ApiType.PUBLIC_API,
                 preFiltered = codebase.preFiltered,
                 showUnannotated = options.showUnannotated,
-                apiPredicateConfig = options.apiPredicateConfig,
+                apiPredicateConfig = apiPredicateConfig,
             )
         }
 
     runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
         val flaggedApiLintVisitor =
-            FlaggedApiLint(previouslyReleasedCodebase, reporter, options.apiPredicateConfig)
+            FlaggedApiLint(previouslyReleasedCodebase, reporter, apiPredicateConfig)
         codebaseFragment.accept(flaggedApiLintVisitor)
     }
 
@@ -372,7 +373,7 @@ private fun Driver.createApiSignatureFilesFromOptions(codebase: Codebase) {
                     apiType = ApiType.REMOVED,
                     preFiltered = false,
                     showUnannotated = options.showUnannotated,
-                    apiPredicateConfig = options.apiPredicateConfig,
+                    apiPredicateConfig = apiPredicateConfig,
                 )
             }
 
@@ -441,7 +442,6 @@ private fun Driver.createCodebaseFromOptions(): Codebase? {
 /** write api history to files specified by option flags (e.g. api-versions.xml) */
 private fun Driver.generateApiHistoryFromOptions(
     codebase: Codebase,
-    apiPredicateConfig: ApiPredicate.Config,
 ) {
     val androidConfigCodeFragmentProvider: () -> CodebaseFragment = {
         var codebaseFragment =
@@ -569,7 +569,7 @@ private fun Driver.checkCompatibility(
         options.issueConfiguration,
         options.apiCompatAnnotations,
         apiName,
-        options.apiPredicateConfig,
+        apiPredicateConfig,
         options.showUnannotated,
     )
 }
@@ -656,7 +656,7 @@ private fun Driver.loadFromSources(): Codebase? {
 
     analyzer.computeApi()
 
-    val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+    val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
     val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
     analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
@@ -686,7 +686,7 @@ private fun Driver.loadFromSources(): Codebase? {
     // General API documentation checks for Android APIs.
     // They are pointless if Javadoc comments are not being read.
     if (codebase.config.allowReadingComments) {
-        AndroidApiChecks(reporter, options.apiPredicateConfig).check(codebase)
+        AndroidApiChecks(reporter, apiPredicateConfig).check(codebase)
     }
 
     runApiChecksFromOptions(codebase) { codebase, previouslyReleasedCodebase ->
@@ -694,7 +694,7 @@ private fun Driver.loadFromSources(): Codebase? {
             codebase,
             previouslyReleasedCodebase,
             reporter,
-            options.apiPredicateConfig,
+            apiPredicateConfig,
             ApiLint.Config(
                 manifest = options.manifest,
                 allowedAcronyms = options.apiLintOptions.allowedAcronyms,
@@ -729,7 +729,7 @@ private fun Driver.extractAnnotations(outputFile: File, codebase: Codebase) {
             codebase,
             reporter,
             outputFile,
-            options.apiPredicateConfig,
+            apiPredicateConfig,
         )
         .extractAnnotations()
     if (verbosity.verbose) {
