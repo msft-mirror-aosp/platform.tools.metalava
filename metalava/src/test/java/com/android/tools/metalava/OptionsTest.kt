@@ -16,72 +16,36 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.ARG_NO_COLOR
-import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import java.io.StringWriter
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 
-class OptionsTest : DriverTest() {
+val OPTIONS_HELP =
+    """
+Miscellaneous:
 
-    private fun runTest(args: List<String>): Pair<StringWriter, StringWriter> {
-        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
-        Driver.run(
-            executionEnvironment = executionEnvironment,
-            args = args.toTypedArray(),
-        )
-        return Pair(stdout, stderr)
-    }
+  Miscellaneous options.
 
-    @Test
-    fun `Test help`() {
-        val args = listOf(ARG_NO_COLOR, "--help")
+  --nullability-errors-non-fatal             Specifies that errors encountered during validation of nullability
+                                             annotations should not be treated as errors. They will be written out to
+                                             the file specified in --nullability-warnings-txt instead.
+  --nullability-warnings-txt <file>          Specifies where to write warnings encountered during validation of
+                                             nullability annotations. (Does not trigger validation by itself.)
+  --validate-nullability-from-merged-stubs   Triggers validation of nullability annotations for any class where
+                                             --merge-qualifier-annotations includes a Java stub file.
+  --validate-nullability-from-list <file>    Triggers validation of nullability annotations for any class listed in the
+                                             named file (one top-level class per line, # prefix for comment line).
+  --proguard <file>                          Write a ProGuard keep file for the API.
+  --sdk-values <dir>                         Write SDK values files to the given directory.
+  --extract-annotations <zipfile>            Extracts source annotations from the source files and writes them into the
+                                             given zip file.
+  --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
+                                             min_sdk_version. (default: no manifest)
+    """
+        .trimIndent()
 
-        val (stdout, stderr) = runTest(args)
-        assertEquals("", stderr.toString())
-        assertEquals(
-            """
+class OptionsTest :
+    BaseOptionGroupTest<Options>(
+        OPTIONS_HELP,
+    ) {
 
-Usage: metalava [options] [flags]... <sub-command>? ...
-
-  Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
-  annotations etc.
-
-Options:
-  --version                                  Show the version and exit
-  --print-stack-trace                        Print the stack trace of any exceptions that will cause metalava to exit.
-                                             (default: no stack trace)
-  --quiet, --verbose                         Set the verbosity of the output.
-                                             --quiet - Only include vital output.
-                                             --verbose - Include extra diagnostic output.
-                                             (default: Neither --quiet or --verbose)
-  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
-                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
-                                             is set)
-  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
-  -h, --help                                 Show this message and exit
-
-Arguments:
-  flags                                      See below.
-
-Sub-commands:
-  main                                       The default sub-command that is run if no sub-command is specified.
-  android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
-                                             source tree.
-  flag-report                                Generates a flag report
-  help                                       Provides help for general metalava concepts.
-  jar-to-jdiff                               Convert a jar file into a file in the JDiff XML format.
-  merge-signatures                           Merge multiple signature files together into a single file.
-  signature-cat                              Cats signature files.
-  signature-to-dex                           Convert API signature files into a file containing a list of DEX
-                                             signatures.
-  signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
-  update-signature-header                    Updates the header of signature files to a different format.
-  version                                    Show the version
-
-            """
-                .trimIndent(),
-            stdout.toString()
-        )
-    }
+    override fun createOptions() = Options()
 }

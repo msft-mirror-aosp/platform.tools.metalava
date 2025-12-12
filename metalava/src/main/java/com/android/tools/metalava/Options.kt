@@ -41,9 +41,12 @@ const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_MANIFEST = "--manifest"
 
+/** The name of the group, can be used in help text to refer to the options in this group. */
+const val MISCELLANEOUS_OPTIONS_GROUP = "Miscellaneous"
+
 class Options(
     private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
-) : OptionGroup() {
+) : OptionGroup(MISCELLANEOUS_OPTIONS_GROUP, help = "Miscellaneous options.") {
     /** Whether nullability validation errors should be considered fatal. */
     private val nullabilityErrorsNonFatal by
         option(
