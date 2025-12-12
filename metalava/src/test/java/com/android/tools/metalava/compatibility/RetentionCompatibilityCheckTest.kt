@@ -17,8 +17,6 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.reporter.Issues
 import org.junit.Test
 
 class RetentionCompatibilityCheckTest : DriverTest() {
@@ -28,7 +26,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = "",
             expectedFail = "",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -51,7 +48,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = "",
             expectedFail = "",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -74,7 +70,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = "",
             expectedFail = "",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -97,7 +92,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = "",
             expectedFail = "",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -120,7 +114,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = "",
             expectedFail = "",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -148,7 +141,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
                     .trimIndent(),
             expectedFail =
                 "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -176,7 +168,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
                     .trimIndent(),
             expectedFail =
                 "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -204,7 +195,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
                     .trimIndent(),
             expectedFail =
                 "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
