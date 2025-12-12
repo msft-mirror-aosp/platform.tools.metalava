@@ -683,35 +683,6 @@ private fun Driver.checkCompatibility(
     )
 }
 
-/** Compare two files to see if they are byte for byte identical. */
-private fun compareFileContents(file1: File, file2: File): Boolean {
-    // First check the lengths, if they are different they cannot be identical.
-    if (file1.length() == file2.length()) {
-        // Then load the contents in chunks to see if they differ.
-        file1.inputStream().buffered().use { stream1 ->
-            file2.inputStream().buffered().use { stream2 ->
-                val buffer1 = ByteArray(DEFAULT_BUFFER_SIZE)
-                val buffer2 = ByteArray(DEFAULT_BUFFER_SIZE)
-                do {
-                    val c1 = stream1.read(buffer1)
-                    val c2 = stream2.read(buffer2)
-                    if (c1 != c2) {
-                        // This should never happen as the files are the same length.
-                        break
-                    }
-                    if (c1 == -1) {
-                        // They have both reached the end of file.
-                        return true
-                    }
-                    // Check the buffer contents, if they differ exit the loop otherwise, continue
-                    // on to read the next chunks.
-                } while (Arrays.equals(buffer1, 0, c1, buffer2, 0, c2))
-            }
-        }
-    }
-    return false
-}
-
 /**
  * Used to store whether the fast path check in the previous method succeeded or not that can be
  * checked by tests.
@@ -878,4 +849,33 @@ fun createOutputFileFromCodebaseFragment(
             "$PROGRAM_NAME wrote $description file $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
     }
+}
+
+/** Compare two files to see if they are byte for byte identical. */
+private fun compareFileContents(file1: File, file2: File): Boolean {
+    // First check the lengths, if they are different they cannot be identical.
+    if (file1.length() == file2.length()) {
+        // Then load the contents in chunks to see if they differ.
+        file1.inputStream().buffered().use { stream1 ->
+            file2.inputStream().buffered().use { stream2 ->
+                val buffer1 = ByteArray(DEFAULT_BUFFER_SIZE)
+                val buffer2 = ByteArray(DEFAULT_BUFFER_SIZE)
+                do {
+                    val c1 = stream1.read(buffer1)
+                    val c2 = stream2.read(buffer2)
+                    if (c1 != c2) {
+                        // This should never happen as the files are the same length.
+                        break
+                    }
+                    if (c1 == -1) {
+                        // They have both reached the end of file.
+                        return true
+                    }
+                    // Check the buffer contents, if they differ exit the loop otherwise, continue
+                    // on to read the next chunks.
+                } while (Arrays.equals(buffer1, 0, c1, buffer2, 0, c2))
+            }
+        }
+    }
+    return false
 }
