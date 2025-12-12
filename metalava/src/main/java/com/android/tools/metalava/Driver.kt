@@ -218,9 +218,7 @@ internal fun Driver.processFlags() {
     val apiPredicateConfig = options.apiPredicateConfig
 
     generateApiHistoryFromOptions(
-        apiLevelsGenerationOptions,
         codebase,
-        progressTracker,
         apiPredicateConfig,
         options.signatureFileLoader,
     )
@@ -229,14 +227,9 @@ internal fun Driver.processFlags() {
     // provided).
     // Also run API lint checks on current codebase
     createApiSignatureFilesFromOptions(
-        options,
-        signatureFileOptions,
-        signatureFormatOptions,
         codebase,
-        progressTracker,
         signatureFileCache,
         classPathResolverProvider,
-        reporter
     )
 
     options.proguardFile?.let { proguard ->
@@ -317,14 +310,11 @@ internal fun Driver.processFlags() {
     )
 }
 
-private fun runApiChecksFromOptions(
-    options: Options,
-    progressTracker: ProgressTracker,
+private fun Driver.runApiChecksFromOptions(
     signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
     codebase: Codebase,
-    reporter: Reporter,
-    apiCheckMethod: (Codebase, Codebase?, Reporter, Options) -> Unit
+    apiCheckMethod: (Codebase, Codebase?) -> Unit
 ) {
     options.apiLintOptions.let { apiLintOptions ->
         if (!apiLintOptions.apiLintEnabled) return@let
@@ -338,7 +328,7 @@ private fun runApiChecksFromOptions(
                 signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
             }
         }
-        apiCheckMethod(codebase, previouslyReleasedCodebase, reporter, options)
+        apiCheckMethod(codebase, previouslyReleasedCodebase)
         progressTracker.progress(
             "$PROGRAM_NAME ran api api-lint in ${localTimer.elapsed(SECONDS)} seconds"
         )
@@ -346,15 +336,10 @@ private fun runApiChecksFromOptions(
 }
 
 /** write api signature to files specified by option flags (e.g. current.txt) */
-private fun createApiSignatureFilesFromOptions(
-    options: Options,
-    signatureFileOptions: SignatureFileOptions,
-    signatureFormatOptions: SignatureFormatOptions,
+private fun Driver.createApiSignatureFilesFromOptions(
     codebase: Codebase,
-    progressTracker: ProgressTracker,
     signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
-    reporter: Reporter,
 ) {
     val fileFormat = signatureFormatOptions.fileFormat
     val codebaseFragment =
@@ -370,13 +355,10 @@ private fun createApiSignatureFilesFromOptions(
         }
 
     runApiChecksFromOptions(
-        options,
-        progressTracker,
         signatureFileCache,
         classPathResolverProvider,
         codebase,
-        reporter
-    ) { _, previouslyReleasedCodebase, reporter, options ->
+    ) { _, previouslyReleasedCodebase ->
         val flaggedApiLintVisitor =
             FlaggedApiLint(previouslyReleasedCodebase, reporter, options.apiPredicateConfig)
         codebaseFragment.accept(flaggedApiLintVisitor)
@@ -425,7 +407,7 @@ private fun createApiSignatureFilesFromOptions(
     }
 }
 
-fun createCodeFragmentForSignatureFile(
+fun Driver.createCodeFragmentForSignatureFile(
     codebase: Codebase,
     fragmentFactory: (DelegatedVisitor) -> ItemVisitor
 ): CodebaseFragment {
@@ -479,10 +461,8 @@ private fun Driver.createCodebaseFromOptions(
 }
 
 /** write api history to files specified by option flags (e.g. api-versions.xml) */
-private fun generateApiHistoryFromOptions(
-    apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+private fun Driver.generateApiHistoryFromOptions(
     codebase: Codebase,
-    progressTracker: ProgressTracker,
     apiPredicateConfig: ApiPredicate.Config,
     signatureFileLoader: SignatureFileLoader,
 ) {
@@ -738,13 +718,10 @@ private fun Driver.loadFromSources(
     }
 
     runApiChecksFromOptions(
-        options,
-        progressTracker,
         signatureFileCache,
         classPathResolverProvider,
         codebase,
-        reporter
-    ) { codebase, previouslyReleasedCodebase, reporter, options ->
+    ) { codebase, previouslyReleasedCodebase ->
         ApiLint.check(
             codebase,
             previouslyReleasedCodebase,
