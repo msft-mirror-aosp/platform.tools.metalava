@@ -54,9 +54,8 @@ Api Levels Generation:
                                              `:` and are both inclusive. See --api-version-for-sources for acceptable
                                              `<api-version>`s.
 
-                                             If unspecified then this currently falls back to a range from 1 to
-                                             `--api-version-for-sources`. However, in future it will default to allowing
-                                             every historical version.
+                                             If unspecified, version history will default to include every historical
+                                             version.
   --sdk-extension-version-range <api-version>:<api-version>
                                              The optional range of historical sdk extensions versions that can be
                                              included in the API version history. The `from` and `to` parts of the range

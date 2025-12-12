@@ -173,9 +173,7 @@ class ApiLevelsGenerationOptions(
                         `:` and are both inclusive. See $ARG_API_VERSION_FOR_SOURCES for acceptable
                         `<api-version>`s.
 
-                        If unspecified then this currently falls back to a range from
-                        1 to `--api-version-for-sources`. However,
-                        in future it will default to allowing every historical version.
+                        If unspecified, version history will default to include every historical version.
                     """
                         .trimIndent()
             )
@@ -363,9 +361,6 @@ class ApiLevelsGenerationOptions(
     ): List<MatchedPatternFile> {
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
-        val firstApiVersion = ApiVersion.fromLevel(1)
-        val lastApiVersion = apiVersionForSources ?: ApiVersion.fromLevel(Int.MAX_VALUE)
-        val versionRange = apiVersionRange ?: firstApiVersion.rangeTo(lastApiVersion)
         val sdkExtensionVersionRange =
             sdkExtensionVersionRange
                 ?: ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(Int.MAX_VALUE))
@@ -373,7 +368,7 @@ class ApiLevelsGenerationOptions(
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = dir,
-                apiVersionFilter = versionRange::contains,
+                apiVersionFilter = apiVersionRange?.let { it::contains },
                 sdkExtensionVersionFilter = sdkExtensionVersionRange::contains,
                 apiSurfaceByName = apiSurfaceByName,
             )
