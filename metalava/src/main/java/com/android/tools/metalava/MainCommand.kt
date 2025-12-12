@@ -37,12 +37,13 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.utils.extractSimpleName
+import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
+import com.android.tools.metalava.reporter.Reporter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
 import java.util.Locale
@@ -91,6 +92,8 @@ class MainCommand(
             executionEnvironment = executionEnvironment,
             additionalSourceFilesProvider = { additionalSourceFiles },
         )
+
+    internal val nullabilityValidationOptions by NullabilityValidationOptions()
 
     /** Issue reporter configuration. */
     private val issueReportingOptions by IssueReportingOptions(commonOptions)
@@ -169,27 +172,26 @@ class MainCommand(
             apiSurfacesProvider = { apiSelectionOptions.apiSurfaces },
         )
 
-    /**
-     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
-     * Clikt.
-     */
-    internal val options by
-        Options(
-            executionEnvironment = executionEnvironment,
-            commonOptions = commonOptions,
-            sourceOptions = sourceOptions,
-            issueReportingOptions = issueReportingOptions,
-            generalReportingOptions = generalReportingOptions,
-            configFileOptions = configFileOptions,
-            apiSelectionOptions = apiSelectionOptions,
-            apiLintOptions = apiLintOptions,
-            compatibilityCheckOptions = compatibilityCheckOptions,
-            signatureFormatOptions = signatureFormatOptions,
+    /** Miscellaneous options. */
+    internal val miscellaneousOptions by
+        MiscellaneousOptions(
+            reporterSupplier = { reporterManager.reporter },
         )
 
-    override fun run() {
-        val reporterManager = options.reporterManager
+    /** Manages the [Reporter]s and [Baseline]s. */
+    val reporterManager by
+        lazy(LazyThreadSafetyMode.NONE) {
+            ReporterManager(
+                executionEnvironment.reporterEnvironment,
+                apiLintOptions,
+                compatibilityCheckOptions,
+                generalReportingOptions,
+                issueReportingOptions,
+                sourceOptions,
+            )
+        }
 
+    override fun run() {
         // Make sure to flush out the baseline files, close files and write any final messages.
         registerPostCommandAction {
             // Close all the baselines.
@@ -219,14 +221,16 @@ class MainCommand(
                             executionEnvironment,
                             progressTracker,
                             environmentManager,
-                            options.reporter,
+                            reporterManager.reporter,
                             commonOptions.verbosity,
-                            options,
+                            miscellaneousOptions,
                             apiLevelsGenerationOptions,
                             apiLintOptions,
                             apiSelectionOptions,
                             compatibilityCheckOptions,
+                            configFileOptions,
                             issueReportingOptions,
+                            nullabilityValidationOptions,
                             signatureFileOptions,
                             signatureFormatOptions,
                             sourceOptions,
