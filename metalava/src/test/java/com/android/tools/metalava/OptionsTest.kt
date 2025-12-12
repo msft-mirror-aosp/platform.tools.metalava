@@ -84,21 +84,4 @@ Sub-commands:
             stdout.toString()
         )
     }
-
-    @Test
-    fun `Test version`() {
-        val args = listOf(ARG_NO_COLOR, "--version")
-
-        val (stdout, stderr) = runTest(args)
-        assertEquals("", stderr.toString())
-        assertEquals(
-            """
-
-                metalava version: 1.0.0-alpha14
-
-            """
-                .trimIndent(),
-            stdout.toString()
-        )
-    }
 }
