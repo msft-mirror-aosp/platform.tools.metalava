@@ -22,7 +22,6 @@ import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.SourceOptions
-import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
@@ -49,7 +48,6 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
-import java.io.PrintWriter
 import java.util.Optional
 
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
@@ -78,14 +76,6 @@ class Options(
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
 ) : OptionGroup() {
-    /** Writer to direct output to. */
-    val stdout: PrintWriter
-        get() = executionEnvironment.stdout
-
-    /** Writer to direct error messages to. */
-    val stderr: PrintWriter
-        get() = executionEnvironment.stderr
-
     /**
      * Backing property for [nullabilityAnnotationsValidator]
      *
@@ -291,15 +281,6 @@ class Options(
             addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
         )
     }
-
-    private var verbosity: Verbosity = Verbosity.NORMAL
-
-    /**
-     * Whether to report extra diagnostics along the way (note that verbose isn't the same as not
-     * quiet)
-     */
-    val verbose: Boolean
-        get() = verbosity.verbose
 
     /** Proguard Keep list file to write */
     val proguardFile by

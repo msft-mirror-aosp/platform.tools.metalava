@@ -24,6 +24,7 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.SourceOptions
+import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -82,6 +83,7 @@ class Driver(
     val progressTracker: ProgressTracker,
     val environmentManager: EnvironmentManager,
     val reporter: Reporter,
+    val verbosity: Verbosity,
     val options: Options,
     val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     val signatureFileOptions: SignatureFileOptions,
@@ -674,8 +676,8 @@ private fun Driver.loadFromSources(
 
     val sourceSet =
         if (sourceOptions.sourceFiles.isEmpty()) {
-            if (options.verbose) {
-                options.stdout.println(
+            if (verbosity.verbose) {
+                executionEnvironment.stdout.println(
                     "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
                 )
             }
@@ -803,7 +805,7 @@ private fun Driver.extractAnnotations(outputFile: File, codebase: Codebase) {
             options.apiPredicateConfig,
         )
         .extractAnnotations()
-    if (options.verbose) {
+    if (verbosity.verbose) {
         progressTracker.progress(
             "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )

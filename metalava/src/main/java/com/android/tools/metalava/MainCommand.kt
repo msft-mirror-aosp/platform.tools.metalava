@@ -220,6 +220,7 @@ class MainCommand(
                             progressTracker,
                             environmentManager,
                             options.reporter,
+                            commonOptions.verbosity,
                             options,
                             apiLevelsGenerationOptions,
                             signatureFileOptions,
