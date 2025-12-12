@@ -655,7 +655,7 @@ private fun Driver.checkCompatibility(
                 compareFileContents(apiFile, signatureFile)
             } ?: false
         // TODO(b/301282006): Remove global variable use when this can be tested properly
-        fastPathCheckResult = compatibilityCheckCanBeSkipped
+        check.fastPathCheckResult = compatibilityCheckCanBeSkipped
         if (compatibilityCheckCanBeSkipped) return
     }
 
@@ -682,26 +682,6 @@ private fun Driver.checkCompatibility(
         apiSelectionOptions.showUnannotated,
     )
 }
-
-/**
- * Used to store whether the fast path check in the previous method succeeded or not that can be
- * checked by tests.
- *
- * The test must initialize it to `null`. Then if the fast path check is run it will set it a
- * non-null to indicate whether the fast path was taken or not. The test can then differentiate
- * between the following states:
- * * `null` - the fast path check was not performed.
- * * `false` - the fast path check was performed and the fast path was not taken.
- * * `true` - the fast path check was performed and the fast path was taken.
- *
- * This is used because there is no nice way to test this code in isolation but the code needs to be
- * updated to deal with some test failures. This is a hack to avoid a catch-22 where this code needs
- * to be refactored to allow it to be tested but it needs to be tested before it can be safely
- * refactored.
- *
- * TODO(b/301282006): Remove this variable when the fast path this can be tested properly
- */
-internal var fastPathCheckResult: Boolean? = null
 
 private fun Driver.loadFromSources(): Codebase? {
     progressTracker.progress("Processing sources: ")

@@ -19,7 +19,8 @@ package com.android.tools.metalava.compatibility
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.fastPathCheckResult
+import com.android.tools.metalava.cli.common.CheckerFunction
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.model.visitors.ApiType
@@ -95,8 +96,11 @@ class FastPathTest : DriverTest() {
         val releaseSignatureFilePath = signatureFile.path
         val sourceFiles = arrayOf(sourceFile)
 
-        // Set the global variable to `null` to detect whether the fast path check was made.
-        fastPathCheckResult = null
+        // Save away a reference to the CompatibilityCheckOptions.
+        var compatibilityCheckOptions: CompatibilityCheckOptions? = null
+        val postAnalysisChecker: CheckerFunction = {
+            compatibilityCheckOptions = driver.compatibilityCheckOptions
+        }
 
         // Perform the check.
         when (apiType) {
@@ -106,6 +110,7 @@ class FastPathTest : DriverTest() {
                     api = strippedContents,
                     checkCompatibilityApiReleased = releaseSignatureFilePath,
                     sourceFiles = sourceFiles,
+                    postAnalysisChecker = postAnalysisChecker,
                 )
             ApiType.REMOVED ->
                 check(
@@ -113,11 +118,16 @@ class FastPathTest : DriverTest() {
                     removedApi = strippedContents,
                     checkCompatibilityRemovedApiReleased = releaseSignatureFilePath,
                     sourceFiles = sourceFiles,
+                    postAnalysisChecker = postAnalysisChecker,
                 )
             else -> error("unsupported $apiType")
         }
 
         // Check the result.
+        val checkRequest =
+            compatibilityCheckOptions?.compatibilityChecks?.singleOrNull { it.apiType == apiType }
+                ?: error("Could not find check request for $apiType")
+        val fastPathCheckResult = checkRequest.fastPathCheckResult
         if (expectedFastPathResult != fastPathCheckResult) {
             when (fastPathCheckResult) {
                 null -> fail("fast path check not performed")
