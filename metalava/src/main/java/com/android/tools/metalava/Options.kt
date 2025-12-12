@@ -17,17 +17,14 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
-import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
-import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
@@ -39,6 +36,7 @@ import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -63,16 +61,12 @@ const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-    private val commonOptions: CommonOptions = CommonOptions(),
     private val sourceOptions: SourceOptions = SourceOptions(),
-    private val issueReportingOptions: IssueReportingOptions =
-        IssueReportingOptions(commonOptions = commonOptions),
-    private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
     private val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
     private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
-    private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
+    private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
 ) : OptionGroup() {
     /**
      * Backing property for [nullabilityAnnotationsValidator]
@@ -328,21 +322,9 @@ class Options(
      */
     val manifest by lazy { manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest }
 
-    val reporterManager by
-        lazy(LazyThreadSafetyMode.NONE) {
-            ReporterManager(
-                executionEnvironment.reporterEnvironment,
-                apiLintOptions,
-                compatibilityCheckOptions,
-                generalReportingOptions,
-                issueReportingOptions,
-                sourceOptions,
-            )
-        }
-
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
-    val reporter
-        get() = reporterManager.reporter
+    private val reporter
+        get() = reporterSupplier()
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
