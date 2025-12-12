@@ -23,10 +23,8 @@ import com.android.tools.metalava.fastPathCheckResult
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import org.junit.Assert
-import org.junit.Ignore
 import org.junit.Test
 
 /** The exact signature contents that would be written out for the [SOURCE_FILE_CONTENTS]. */
@@ -177,23 +175,5 @@ class FastPathTest : DriverTest() {
             // An expected result of `null` indicates that it was not actually checked.
             expectedFastPathResult = false,
         )
-    }
-
-    @Ignore("b/308154836")
-    @Test
-    fun `Check fast path android jar`() {
-        // Loading the current codebase from an android.jar and the previously released "signature"
-        // from the same android.jar will cause an OOM error because the fast path check tries to
-        // load the previously released android.jar as a UTF-8 string which seems to cause
-        // pathological heap growth compared to the size of the file being read. Having the other
-        // codebase in memory is enough to push the test over the 512MB heap size.
-        val androidJar = getAndroidJar()
-        checkFastPath(expectedFastPathResult = false) {
-            check(
-                format = FileFormat.V2,
-                checkCompatibilityApiReleased = androidJar.path,
-                apiJar = androidJar,
-            )
-        }
     }
 }
