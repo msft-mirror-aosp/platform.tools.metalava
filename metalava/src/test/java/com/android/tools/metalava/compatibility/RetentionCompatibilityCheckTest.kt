@@ -93,43 +93,10 @@ class RetentionCompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Should throw compatibility error when annotation retentions are different - source vs binary retention`() {
+    fun `Don't throw compatibility error when annotation retention becomes less restrictive - class to runtime`() {
         check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Class test.pkg.RestrictTo incompatibly changed its retention from SOURCE to BINARY [ChangedAnnotationRetention]
-            """
-                    .trimIndent(),
-            expectedFail =
-                "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
-            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface RestrictTo {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface RestrictTo {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should throw compatibility error when annotation retentions are different - class vs runtime retention`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Class test.pkg.RestrictTo incompatibly changed its retention from CLASS to RUNTIME [ChangedAnnotationRetention]
-            """
-                    .trimIndent(),
-            expectedFail =
-                "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
+            expectedIssues = "",
+            expectedFail = "",
             extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
             checkCompatibilityApiReleased =
                 """
@@ -142,6 +109,113 @@ class RetentionCompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.RUNTIME) public @interface RestrictTo {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Don't throw compatibility error when annotation retention becomes less restrictive - source to runtime`() {
+        check(
+            expectedIssues = "",
+            expectedFail = "",
+            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface RestrictTo {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.RUNTIME) public @interface RestrictTo {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should throw compatibility error when annotation retention becomes more restrictive - binary vs source retention`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:3: error: Class test.pkg.RestrictTo incompatibly changed its retention from BINARY to SOURCE [ChangedAnnotationRetention]
+            """
+                    .trimIndent(),
+            expectedFail =
+                "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
+            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.BINARY) public @interface RestrictTo {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) public @interface RestrictTo {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should throw compatibility error when annotation retentions become more restrictive - runtime vs class retention`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:3: error: Class test.pkg.RestrictTo incompatibly changed its retention from RUNTIME to CLASS [ChangedAnnotationRetention]
+            """
+                    .trimIndent(),
+            expectedFail =
+                "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
+            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface RestrictTo {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.CLASS) public @interface RestrictTo {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should throw compatibility error when annotation retentions become more restrictive - runtime vs source retention`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:3: error: Class test.pkg.RestrictTo incompatibly changed its retention from RUNTIME to SOURCE [ChangedAnnotationRetention]
+            """
+                    .trimIndent(),
+            expectedFail =
+                "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
+            extraArguments = arrayOf(ARG_ERROR, Issues.CHANGED_ANNOTATION_RETENTION.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface RestrictTo {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) public @interface RestrictTo {
                   }
                 }
                 """
