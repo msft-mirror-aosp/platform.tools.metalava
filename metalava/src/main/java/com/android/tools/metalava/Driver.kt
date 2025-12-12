@@ -36,6 +36,7 @@ import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.lint.ApiLintOptions
+import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
@@ -53,6 +54,7 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -96,6 +98,7 @@ class Driver(
     internal val compatibilityCheckOptions: CompatibilityCheckOptions,
     internal val configFileOptions: ConfigFileOptions,
     private val issueReportingOptions: IssueReportingOptions,
+    private val multiplatformOptions: MultiplatformOptions,
     private val nullabilityValidationOptions: NullabilityValidationOptions,
     private val signatureFileOptions: SignatureFileOptions,
     private val signatureFormatOptions: SignatureFormatOptions,
@@ -322,10 +325,13 @@ class Driver(
 
         val codebase = createCodebaseFromOptions() ?: return
 
+        // Create a multiplatform codebase if requested.
+        val multiplatformCodebase = createOptionalMultiplatformCodebase()
+
         // If provided by a test, run some additional checks on the internal state of this.
         executionEnvironment.testEnvironment?.let { testEnvironment ->
             testEnvironment.postAnalysisChecker?.let { function ->
-                val context = CheckerContext(this, codebase)
+                val context = CheckerContext(this, codebase, multiplatformCodebase)
                 context.function()
             }
         }
@@ -547,6 +553,13 @@ class Driver(
         }
 
         return null
+    }
+
+    private fun createOptionalMultiplatformCodebase(): MultiplatformCodebase? {
+        if (!multiplatformOptions.enabled) return null
+        return sourceOptions.projectDescription?.let { projectDescription ->
+            sourceParser.createMultiplatformCodebase(projectDescription)
+        } ?: error("Project description is required to create multiplatform codebase from sources.")
     }
 
     /** write api history to files specified by option flags (e.g. api-versions.xml) */

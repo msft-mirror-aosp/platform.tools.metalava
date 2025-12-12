@@ -35,6 +35,7 @@ import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
+import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.Baseline
@@ -148,6 +149,9 @@ class MainCommand(
             commonBaselineOptions = commonBaselineOptions,
         )
 
+    /** Multiplatform codebase options. */
+    private val multiplatformOptions by MultiplatformOptions()
+
     /** Compatibility check options. */
     private val compatibilityCheckOptions by
         CompatibilityCheckOptions(
@@ -230,6 +234,7 @@ class MainCommand(
                             compatibilityCheckOptions,
                             configFileOptions,
                             issueReportingOptions,
+                            multiplatformOptions,
                             nullabilityValidationOptions,
                             signatureFileOptions,
                             signatureFormatOptions,
