@@ -359,17 +359,7 @@ class Driver(
 
         // Generate the stubs. This must be done as the last operation in this method as it can
         // modify the [codebase].
-        val generatorConfig =
-            stubGenerationOptions
-                .generatorConfig()
-                // Copy some additional config from the [apiLevelsGenerationOptions]. This is
-                // necessary as the config cannot be initialized in `generatorConfig()` as they are
-                // tightly coupled with legacy options in [apiLevelsGenerationOptions]. Once that
-                // has been cleaned up then they should be able to be moved.
-                // TODO(b/464226866): Move the initialization of these into generatorConfig().
-                .copy(
-                    apiVersionLabelProvider = apiLevelsGenerationOptions::getApiVersionLabel,
-                )
+        val generatorConfig = stubGenerationOptions.generatorConfig()
         StubGenerator(
                 generatorConfig,
                 codebase,
