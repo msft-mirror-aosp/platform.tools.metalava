@@ -198,7 +198,7 @@ class Driver(
                 hideAnnotations = apiSelectionOptions.hideAnnotations,
                 suppressCompatibilityMetaAnnotations = options.suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = apiSelectionOptions.excludeAnnotations,
-                typedefMode = options.typedefMode,
+                typedefMode = apiSelectionOptions.typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
                 previouslyReleasedCodebaseProvider = {
                     compatibilityCheckOptions.previouslyReleasedApi?.load {

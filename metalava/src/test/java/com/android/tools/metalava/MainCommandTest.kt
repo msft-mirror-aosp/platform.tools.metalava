@@ -70,15 +70,6 @@ Options:
                                              given zip file.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
-  --typedefs-in-signatures [none|ref|inline]
-                                             Whether to include typedef annotations in signature files.
-
-                                             none (default) - will not include typedef annotations in signature.
-
-                                             ref - will include just a reference to the typedef class, which is not
-                                             itself part of the API and is not included as a class
-
-                                             inline - will include the constants themselves into each usage site
   -h, --help                                 Show this message and exit
 
 $SOURCE_OPTIONS_HELP

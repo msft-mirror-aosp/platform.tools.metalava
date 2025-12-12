@@ -23,7 +23,6 @@ import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
-import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -47,7 +46,6 @@ const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 
 class Options(
     private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
@@ -201,17 +199,4 @@ class Options(
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     private val reporter
         get() = reporterSupplier()
-
-    /**
-     * How to handle typedef annotations in signature files; corresponds to
-     * $ARG_TYPEDEFS_IN_SIGNATURES
-     */
-    internal val typedefMode by
-        enumOption(
-            ARG_TYPEDEFS_IN_SIGNATURES,
-            help = """Whether to include typedef annotations in signature files.""",
-            enumValueHelpGetter = { it.help },
-            default = TypedefMode.NONE,
-            key = { it.optionValue },
-        )
 }
