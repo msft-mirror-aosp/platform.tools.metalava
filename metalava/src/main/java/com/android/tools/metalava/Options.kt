@@ -17,13 +17,11 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
-import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -35,7 +33,6 @@ import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 
-const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
 const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list"
@@ -112,19 +109,6 @@ class Options(
                         .trimIndent(),
             )
             .existingFile()
-
-    val apiClassResolution by
-        enumOption(
-            help =
-                """
-                Determines how class resolution is performed when loading API signature files. Any
-                classes that cannot be found will be treated as empty.",
-            """
-                    .trimIndent(),
-            enumValueHelpGetter = { it.help },
-            default = ApiClassResolution.API_CLASSPATH,
-            key = { it.optionValue },
-        )
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     internal val suppressCompatibilityMetaAnnotations by

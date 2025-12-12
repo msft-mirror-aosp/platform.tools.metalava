@@ -244,7 +244,7 @@ class Driver(
      * created allows it to be reused for the same reason.
      */
     private val classPathResolver: ClassPathResolver? by lazy {
-        var apiClassResolution = options.apiClassResolution
+        var apiClassResolution = sourceOptions.apiClassResolution
         val classpath = sourceOptions.classpath
         if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
             sourceParser.getClassPathResolver(classpath)

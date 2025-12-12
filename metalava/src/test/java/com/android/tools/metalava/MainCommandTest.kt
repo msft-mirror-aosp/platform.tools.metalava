@@ -53,14 +53,6 @@ Options:
                                              --merge-qualifier-annotations includes a Java stub file.
   --validate-nullability-from-list <file>    Triggers validation of nullability annotations for any class listed in the
                                              named file (one top-level class per line, # prefix for comment line).
-  --api-class-resolution [api|api:classpath]
-                                             Determines how class resolution is performed when loading API signature
-                                             files. Any classes that cannot be found will be treated as empty.",
-
-                                             api - will only look for classes in the API signature files.
-
-                                             api:classpath (default) - will look for classes in the API signature files
-                                             first and then in the classpath.
   --suppress-compatibility-meta-annotation <meta-annotation class>
                                              Suppress compatibility checks for any elements within the scope of an
                                              annotation which is itself annotated with the given meta-annotation.
