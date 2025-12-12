@@ -96,6 +96,7 @@ class Driver(
     internal val compatibilityCheckOptions: CompatibilityCheckOptions,
     internal val configFileOptions: ConfigFileOptions,
     private val issueReportingOptions: IssueReportingOptions,
+    private val nullabilityValidationOptions: NullabilityValidationOptions,
     private val signatureFileOptions: SignatureFileOptions,
     private val signatureFormatOptions: SignatureFormatOptions,
     private val sourceOptions: SourceOptions,
@@ -266,15 +267,15 @@ class Driver(
     private val optionalNullabilityAnnotationsValidator by lazy {
         Optional.ofNullable(
             if (
-                options.validateNullabilityFromMergedStubs ||
-                    options.validateNullabilityFromList != null
+                nullabilityValidationOptions.validateNullabilityFromMergedStubs ||
+                    nullabilityValidationOptions.validateNullabilityFromList != null
             ) {
                 NullabilityAnnotationsValidator(
                     reporter,
-                    options.nullabilityErrorsFatal,
-                    options.nullabilityWarningsTxt,
+                    nullabilityValidationOptions.nullabilityErrorsFatal,
+                    nullabilityValidationOptions.nullabilityWarningsTxt,
                     apiPredicateConfig,
-                    options.validateNullabilityFromList,
+                    nullabilityValidationOptions.validateNullabilityFromList,
                 )
             } else null
         )
@@ -302,7 +303,7 @@ class Driver(
                     classpath = sourceOptions.classpath,
                     apiPackageFilter = sourceOptions.apiPackageFilter,
                     nullabilityAnnotationsValidator =
-                        if (options.validateNullabilityFromMergedStubs)
+                        if (nullabilityValidationOptions.validateNullabilityFromMergedStubs)
                             nullabilityAnnotationsValidator
                         else null,
                 ),
