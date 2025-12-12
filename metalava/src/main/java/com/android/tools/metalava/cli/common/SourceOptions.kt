@@ -19,9 +19,9 @@ package com.android.tools.metalava.cli.common
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
-import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
@@ -33,15 +33,14 @@ import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
-import kotlin.collections.map
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 const val ARG_SOURCE_PATH = "--source-path"
+const val ARG_SOURCE_FILES = "--source-files"
 
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
@@ -53,6 +52,11 @@ const val ARG_PROJECT = "--project"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 
 const val ARG_COMPILED_SOURCES = "--compiled-sources"
+
+const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
+const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
+
+const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 
 const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -66,6 +70,9 @@ const val SOURCE_OPTIONS_GROUP = "Sources"
 
 class SourceOptions(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+
+    /** Provider of additional source files, i.e. those supplied as command line arguments. */
+    private val additionalSourceFilesProvider: () -> List<File> = { emptyList() },
 ) :
     OptionGroup(
         name = SOURCE_OPTIONS_GROUP,
@@ -127,6 +134,22 @@ class SourceOptions(
             }
         }
 
+    val sourceFiles by
+        option(
+                ARG_SOURCE_FILES,
+                metavar = "<files>",
+                help =
+                    """
+                A comma separated list of source files to be parsed. Can also be
+                    @ followed by a path to a text file containing paths to the full set of files to parse.,
+        """
+                        .trimIndent()
+            )
+            .existingFile()
+            .splitMultiple(",")
+            // Append any additional source files to the list of sources.
+            .map { it + additionalSourceFilesProvider() }
+
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     val javaLanguageLevelAsString by
         option(
@@ -159,15 +182,8 @@ class SourceOptions(
                         .trimIndent()
             )
             .existingDirOrJar()
-            // Split each option into a list separate by File.pathSeparator
-            .split(File.pathSeparator)
-            // Allow multiple options to be specified producing a list of lists.
-            .multiple()
-            // Flatten the list of lists into a single list.
-            .map {
-                val list = it.flatten()
-                addSdkOrJdkJarsIfNeeded(list)
-            }
+            .splitMultiple(File.pathSeparator)
+            .map { addSdkOrJdkJarsIfNeeded(it) }
 
     /** Update [classpath] to insert android.jar or JDK classpath elements if necessary. */
     private fun addSdkOrJdkJarsIfNeeded(classpath: List<File>): List<File> {
@@ -282,6 +298,57 @@ class SourceOptions(
      */
     private val compileSdkVersion: String? by
         option(ARG_COMPILE_SDK_VERSION, metavar = "<api>", help = "Use the given API level.")
+
+    /** Existing external annotation files to merge in */
+    val mergeQualifierAnnotations by
+        option(
+                ARG_MERGE_QUALIFIER_ANNOTATIONS,
+                metavar = "<file-or-dir>",
+                help =
+                    """
+                An external annotations file to merge and overlay the sources, or a directory of
+                such files. Should be used for annotations intended for inclusion in the API to be
+                written out, e.g. nullability. Formats supported are: IntelliJ's external
+                annotations database format, .jar or .zip files containing those, Android signature
+                files, and Java stub files.
+            """
+                        .trimIndent(),
+            )
+            .existingDirOrFile()
+            .multiple()
+
+    val mergeInclusionAnnotations by
+        option(
+                ARG_MERGE_INCLUSION_ANNOTATIONS,
+                metavar = "<file-or-dir>",
+                help =
+                    """
+                An external annotations file to merge and overlay the sources, or a directory of
+                such files. Should be used for annotations which determine inclusion in the API to
+                be written out, i.e. show and hide. The only format supported is Java stub files.
+            """
+                        .trimIndent(),
+            )
+            .existingDirOrFile()
+            .multiple()
+
+    /** Determines whether comments are read when processing sources. */
+    private val skipReadingComments by
+        option(
+                ARG_SKIP_READING_COMMENTS,
+                help = "Ignore any comments in source files.",
+            )
+            .flag()
+
+    /**
+     * Whether to allow reading comments from the sources.
+     *
+     * If `true` then source comments will be read and [SelectableItem.documentation] will not be
+     * `null` (unless the [SelectableItem] is `private`). If `false` then
+     * [SelectableItem.documentation] will always be `null`.
+     */
+    val allowReadingComments
+        get() = !skipReadingComments
 
     /** Whether to use the K1 compiler. */
     private val useK1UastOption by

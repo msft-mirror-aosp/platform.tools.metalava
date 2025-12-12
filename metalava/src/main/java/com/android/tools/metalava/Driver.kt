@@ -13,30 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:JvmName("Driver")
-
 package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.SourceOptions
+import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
+import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
+import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
@@ -52,7 +53,6 @@ import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
@@ -79,109 +79,145 @@ import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
 
-fun main(args: Array<String>) {
-    val executionEnvironment = ExecutionEnvironment()
-    var exitCode = 0
-    try {
-        exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
-    } catch (e: Throwable) {
-        exitCode = -1
-        e.printStackTrace(executionEnvironment.stderr)
-    } finally {
-        executionEnvironment.stdout.flush()
-        executionEnvironment.stderr.flush()
-
-        exitProcess(exitCode)
-    }
-}
-
-/**
- * The metadata driver is a command line interface to extracting various metadata from a source tree
- * (or existing signature files etc.). Run with --help to see more details.
- */
-fun run(
-    executionEnvironment: ExecutionEnvironment,
-    originalArgs: Array<String>,
-): Int {
-    val stdout = executionEnvironment.stdout
-    val stderr = executionEnvironment.stderr
-
-    // Preprocess the arguments by adding any additional arguments specified in environment
-    // variables.
-    val modifiedArgs = preprocessArgv(executionEnvironment, originalArgs)
-
-    // Process the early options. This does not consume any arguments, they will be parsed again
-    // later. A little inefficient but produces cleaner code.
-    val earlyOptions = EarlyOptions.parse(modifiedArgs)
-
-    val progressTracker = ProgressTracker(earlyOptions.verbosity.verbose, stdout)
-
-    progressTracker.progress("$PROGRAM_NAME started\n")
-
-    // Dump the arguments, and maybe generate a rerun-script.
-    maybeDumpArgv(executionEnvironment, originalArgs, modifiedArgs)
-
-    // Actual work begins here.
-    val command =
-        createMetalavaCommand(
-            executionEnvironment,
-            progressTracker,
-        )
-    val exitCode = command.process(modifiedArgs)
-
-    stdout.flush()
-    stderr.flush()
-
-    progressTracker.progress("$PROGRAM_NAME exiting with exit code $exitCode\n")
-
-    return exitCode
-}
-
-internal fun processFlags(
-    executionEnvironment: ExecutionEnvironment,
-    environmentManager: EnvironmentManager,
-    progressTracker: ProgressTracker,
-    options: Options,
-    apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
-    sourceOptions: SourceOptions,
-    stubGenerationOptions: StubGenerationOptions,
+class Driver(
+    val executionEnvironment: ExecutionEnvironment,
+    val progressTracker: ProgressTracker,
+    val environmentManager: EnvironmentManager,
+    val reporter: Reporter,
+    val verbosity: Verbosity,
+    val options: Options,
+    val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+    val apiLintOptions: ApiLintOptions,
+    val apiSelectionOptions: ApiSelectionOptions,
+    val compatibilityCheckOptions: CompatibilityCheckOptions,
+    val issueReportingOptions: IssueReportingOptions,
+    val signatureFileOptions: SignatureFileOptions,
+    val signatureFormatOptions: SignatureFormatOptions,
+    val sourceOptions: SourceOptions,
+    val stubGenerationOptions: StubGenerationOptions,
 ) {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            val executionEnvironment = ExecutionEnvironment()
+            var exitCode = 0
+            try {
+                exitCode = run(executionEnvironment = executionEnvironment, args = args)
+            } catch (e: Throwable) {
+                exitCode = -1
+                e.printStackTrace(executionEnvironment.stderr)
+            } finally {
+                executionEnvironment.stdout.flush()
+                executionEnvironment.stderr.flush()
+
+                exitProcess(exitCode)
+            }
+        }
+
+        /**
+         * The metadata driver is a command line interface to extracting various metadata from a
+         * source tree (or existing signature files etc.). Run with --help to see more details.
+         */
+        fun run(
+            executionEnvironment: ExecutionEnvironment,
+            args: Array<String>,
+        ): Int {
+            val stdout = executionEnvironment.stdout
+            val stderr = executionEnvironment.stderr
+
+            // Process the early options. This does not consume any arguments, they will be parsed
+            // again later. A little inefficient but produces cleaner code.
+            val earlyOptions = EarlyOptions.parse(args)
+
+            val progressTracker = ProgressTracker(earlyOptions.verbosity.verbose, stdout)
+
+            progressTracker.progress("$PROGRAM_NAME started\n")
+
+            // Actual work begins here.
+            val command =
+                createMetalavaCommand(
+                    executionEnvironment,
+                    progressTracker,
+                )
+            val exitCode = command.process(args)
+
+            stdout.flush()
+            stderr.flush()
+
+            progressTracker.progress("$PROGRAM_NAME exiting with exit code $exitCode\n")
+
+            return exitCode
+        }
+
+        private fun createMetalavaCommand(
+            executionEnvironment: ExecutionEnvironment,
+            progressTracker: ProgressTracker
+        ): MetalavaCommand {
+            val command =
+                MetalavaCommand(
+                    executionEnvironment = executionEnvironment,
+                    progressTracker = progressTracker,
+                    defaultCommandName = "main",
+                )
+            command.subcommands(
+                MainCommand(command.commonOptions, executionEnvironment),
+                AndroidJarsToSignaturesCommand(),
+                FlagReportCommand(),
+                HelpCommand(),
+                JarToJDiffCommand(),
+                MakeAnnotationsPackagePrivateCommand(),
+                MergeSignaturesCommand(),
+                SignatureCatCommand(),
+                SignatureToDexCommand(),
+                SignatureToJDiffCommand(),
+                UpdateSignatureHeaderCommand(),
+                VersionCommand(),
+            )
+            return command
+        }
+    }
+
+    val sourceParser by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val codebaseConfig = options.codebaseConfig
+            val modelOptions = sourceOptions.modelOptions
+            environmentManager.createSourceParser(
+                codebaseConfig = codebaseConfig,
+                javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
+                kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
+                modelOptions = modelOptions,
+                jdkHome = sourceOptions.jdkHome,
+            )
+        }
+
+    val signatureFileLoader
+        get() = options.signatureFileLoader
+
+    val signatureFileCache
+        get() = options.signatureFileCache
+
+    /**
+     * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once
+     * created allows it to be reused for the same reason.
+     */
+    val classPathResolver: ClassPathResolver? by lazy {
+        var apiClassResolution = options.apiClassResolution
+        val classpath = sourceOptions.classpath
+        if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
+            sourceParser.getClassPathResolver(classpath)
+        } else {
+            null
+        }
+    }
+
+    val apiPredicateConfig
+        get() = options.apiPredicateConfig
+}
+
+internal fun Driver.processFlags() {
     val stopwatch = Stopwatch.createStarted()
-    val reporter = options.reporter
-    val codebaseConfig = options.codebaseConfig
-    val modelOptions = sourceOptions.modelOptions
-    val sourceParser =
-        environmentManager.createSourceParser(
-            codebaseConfig = codebaseConfig,
-            javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
-            kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
-            modelOptions = modelOptions,
-            jdkHome = sourceOptions.jdkHome,
-        )
 
-    val signatureFileCache = options.signatureFileCache
-
-    val actionContext =
-        ActionContext(
-            progressTracker = progressTracker,
-            reporter = reporter,
-            reporterApiLint = reporter,
-            sourceParser = sourceParser,
-        )
-    val classPathResolverProvider =
-        ClassPathResolverProvider(
-            sourceParser = sourceParser,
-            apiClassResolution = options.apiClassResolution,
-            classpath = sourceOptions.classpath,
-        )
-    val codebase =
-        createCodebaseFromOptions(
-            options,
-            sourceOptions,
-            classPathResolverProvider,
-            signatureFileCache,
-            actionContext,
-        ) ?: return
+    val codebase = createCodebaseFromOptions() ?: return
 
     // If provided by a test, run some additional checks on the internal state of this.
     executionEnvironment.testEnvironment?.let { testEnvironment ->
@@ -195,26 +231,13 @@ internal fun processFlags(
         "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
 
-    val apiPredicateConfig = options.apiPredicateConfig
-
-    generateApiHistoryFromOptions(
-        apiLevelsGenerationOptions,
-        codebase,
-        progressTracker,
-        apiPredicateConfig,
-        options.signatureFileLoader,
-    )
+    generateApiHistoryFromOptions(codebase)
 
     // Generate signature files based on provided input flags (i.e. if api file locations were
     // provided).
     // Also run API lint checks on current codebase
     createApiSignatureFilesFromOptions(
-        options,
         codebase,
-        progressTracker,
-        signatureFileCache,
-        classPathResolverProvider,
-        reporter
     )
 
     options.proguardFile?.let { proguard ->
@@ -247,21 +270,13 @@ internal fun processFlags(
         SdkFileWriter(codebase, dir).generate()
     }
 
-    for (check in options.compatibilityChecks) {
-        actionContext.checkCompatibility(
-            options,
-            signatureFileCache,
-            classPathResolverProvider,
-            codebase,
-            check,
-        )
+    for (check in compatibilityCheckOptions.compatibilityChecks) {
+        checkCompatibility(codebase, check)
     }
 
     options.externalAnnotationsFile?.let { outputFile ->
         extractAnnotations(
-            progressTracker,
             outputFile,
-            options,
             codebase,
         )
     }
@@ -298,16 +313,11 @@ internal fun processFlags(
     )
 }
 
-private fun runApiChecksFromOptions(
-    options: Options,
-    progressTracker: ProgressTracker,
-    signatureFileCache: SignatureFileCache,
-    classPathResolverProvider: ClassPathResolverProvider,
+private fun Driver.runApiChecksFromOptions(
     codebase: Codebase,
-    reporter: Reporter,
-    apiCheckMethod: (Codebase, Codebase?, Reporter, Options) -> Unit
+    apiCheckMethod: (Codebase, Codebase?) -> Unit
 ) {
-    options.apiLintOptions.let { apiLintOptions ->
+    apiLintOptions.let { apiLintOptions ->
         if (!apiLintOptions.apiLintEnabled) return@let
 
         progressTracker.progress("API Lint: ")
@@ -316,10 +326,10 @@ private fun runApiChecksFromOptions(
         // See if we should provide a previous codebase to provide a delta from?
         val previouslyReleasedCodebase by lazy {
             apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
+                signatureFileCache.load(signatureFiles, classPathResolver)
             }
         }
-        apiCheckMethod(codebase, previouslyReleasedCodebase, reporter, options)
+        apiCheckMethod(codebase, previouslyReleasedCodebase)
         progressTracker.progress(
             "$PROGRAM_NAME ran api api-lint in ${localTimer.elapsed(SECONDS)} seconds"
         )
@@ -327,15 +337,8 @@ private fun runApiChecksFromOptions(
 }
 
 /** write api signature to files specified by option flags (e.g. current.txt) */
-private fun createApiSignatureFilesFromOptions(
-    options: Options,
-    codebase: Codebase,
-    progressTracker: ProgressTracker,
-    signatureFileCache: SignatureFileCache,
-    classPathResolverProvider: ClassPathResolverProvider,
-    reporter: Reporter,
-) {
-    val fileFormat = options.signatureFileFormat
+private fun Driver.createApiSignatureFilesFromOptions(codebase: Codebase) {
+    val fileFormat = signatureFormatOptions.fileFormat
     val codebaseFragment =
         createCodeFragmentForSignatureFile(codebase) { delegate ->
             createFilteringVisitorForSignatures(
@@ -343,25 +346,18 @@ private fun createApiSignatureFilesFromOptions(
                 fileFormat = fileFormat,
                 apiType = ApiType.PUBLIC_API,
                 preFiltered = codebase.preFiltered,
-                showUnannotated = options.showUnannotated,
-                apiPredicateConfig = options.apiPredicateConfig,
+                showUnannotated = apiSelectionOptions.showUnannotated,
+                apiPredicateConfig = apiPredicateConfig,
             )
         }
 
-    runApiChecksFromOptions(
-        options,
-        progressTracker,
-        signatureFileCache,
-        classPathResolverProvider,
-        codebase,
-        reporter
-    ) { _, previouslyReleasedCodebase, reporter, options ->
+    runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
         val flaggedApiLintVisitor =
-            FlaggedApiLint(previouslyReleasedCodebase, reporter, options.apiPredicateConfig)
+            FlaggedApiLint(previouslyReleasedCodebase, reporter, apiPredicateConfig)
         codebaseFragment.accept(flaggedApiLintVisitor)
     }
 
-    options.apiSignatureFile?.let { apiSignatureFile ->
+    signatureFileOptions.apiFile?.let { apiSignatureFile ->
         createOutputFileFromCodebaseFragment(
             progressTracker,
             codebaseFragment,
@@ -375,7 +371,7 @@ private fun createApiSignatureFilesFromOptions(
         }
     }
 
-    options.removedApiSignatureFile?.let { apiSignatureFile ->
+    signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
         val removedApiCodebaseFragment =
             createCodeFragmentForSignatureFile(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
@@ -383,8 +379,8 @@ private fun createApiSignatureFilesFromOptions(
                     fileFormat = fileFormat,
                     apiType = ApiType.REMOVED,
                     preFiltered = false,
-                    showUnannotated = options.showUnannotated,
-                    apiPredicateConfig = options.apiPredicateConfig,
+                    showUnannotated = apiSelectionOptions.showUnannotated,
+                    apiPredicateConfig = apiPredicateConfig,
                 )
             }
 
@@ -393,18 +389,18 @@ private fun createApiSignatureFilesFromOptions(
             removedApiCodebaseFragment,
             apiSignatureFile,
             "removed API",
-            options.deleteEmptyRemovedSignatures,
+            signatureFileOptions.deleteEmptyRemovedSignatures,
         ) { printWriter ->
             SignatureWriter(
                 writer = printWriter,
-                emitHeader = options.includeSignatureFormatVersionRemoved,
+                emitHeader = signatureFileOptions.includeSignatureFormatVersionRemoved,
                 fileFormat = fileFormat,
             )
         }
     }
 }
 
-fun createCodeFragmentForSignatureFile(
+fun Driver.createCodeFragmentForSignatureFile(
     codebase: Codebase,
     fragmentFactory: (DelegatedVisitor) -> ItemVisitor
 ): CodebaseFragment {
@@ -426,14 +422,8 @@ fun createCodeFragmentForSignatureFile(
 }
 
 /** Create [Codebase] object from option flags */
-private fun createCodebaseFromOptions(
-    options: Options,
-    sourceOptions: SourceOptions,
-    classPathResolverProvider: ClassPathResolverProvider,
-    signatureFileCache: SignatureFileCache,
-    actionContext: ActionContext
-): Codebase? {
-    val sources = options.sources
+private fun Driver.createCodebaseFromOptions(): Codebase? {
+    val sources = sourceOptions.sourceFiles
     if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
         // Make sure all the source files have .txt extensions.
         sources
@@ -443,32 +433,22 @@ private fun createCodebaseFromOptions(
                     "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                 )
             }
-        val signatureFileLoader = options.signatureFileLoader
         return signatureFileLoader.load(
             SignatureFile.fromFiles(sources),
-            classPathResolverProvider.classPathResolver,
+            classPathResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-        return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
+        return loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(
-            options,
-            sourceOptions,
-            signatureFileCache,
-            classPathResolverProvider,
-        )
+        return loadFromSources()
     }
 
     return null
 }
 
 /** write api history to files specified by option flags (e.g. api-versions.xml) */
-private fun generateApiHistoryFromOptions(
-    apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+private fun Driver.generateApiHistoryFromOptions(
     codebase: Codebase,
-    progressTracker: ProgressTracker,
-    apiPredicateConfig: ApiPredicate.Config,
-    signatureFileLoader: SignatureFileLoader,
 ) {
     val androidConfigCodeFragmentProvider: () -> CodebaseFragment = {
         var codebaseFragment =
@@ -547,10 +527,7 @@ private fun generateApiHistoryFromOptions(
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
-private fun ActionContext.checkCompatibility(
-    options: Options,
-    signatureFileCache: SignatureFileCache,
-    classPathResolverProvider: ClassPathResolverProvider,
+private fun Driver.checkCompatibility(
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -559,8 +536,8 @@ private fun ActionContext.checkCompatibility(
     val apiType = check.apiType
     val generatedApiFile =
         when (apiType) {
-            ApiType.PUBLIC_API -> options.apiSignatureFile
-            ApiType.REMOVED -> options.removedApiSignatureFile
+            ApiType.PUBLIC_API -> signatureFileOptions.apiFile
+            ApiType.REMOVED -> signatureFileOptions.removedApiFile
             else -> error("unsupported $apiType")
         }
 
@@ -582,13 +559,13 @@ private fun ActionContext.checkCompatibility(
 
     val oldCodebase =
         check.previouslyReleasedApi.load { signatureFiles ->
-            signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
+            signatureFileCache.load(signatureFiles, classPathResolver)
         }
 
     val apiName =
         if (apiType == ApiType.REMOVED) {
             "removed"
-        } else options.apiSelectionOptions.apiSurface
+        } else apiSelectionOptions.apiSurface
 
     // If configured, compares the new API with the previous API and reports any incompatibilities.
     CompatibilityCheck.checkCompatibility(
@@ -596,11 +573,11 @@ private fun ActionContext.checkCompatibility(
         oldCodebase,
         apiType,
         reporter,
-        options.issueConfiguration,
-        options.apiCompatAnnotations,
+        issueReportingOptions.issueConfiguration,
+        compatibilityCheckOptions.apiCompatAnnotations,
         apiName,
-        options.apiPredicateConfig,
-        options.showUnannotated,
+        apiPredicateConfig,
+        apiSelectionOptions.showUnannotated,
     )
 }
 
@@ -653,24 +630,19 @@ private fun compareFileContents(file1: File, file2: File): Boolean {
  */
 internal var fastPathCheckResult: Boolean? = null
 
-private fun ActionContext.loadFromSources(
-    options: Options,
-    sourceOptions: SourceOptions,
-    signatureFileCache: SignatureFileCache,
-    classPathResolverProvider: ClassPathResolverProvider,
-): Codebase? {
+private fun Driver.loadFromSources(): Codebase? {
     progressTracker.progress("Processing sources: ")
 
     val sourceSet =
-        if (options.sources.isEmpty()) {
-            if (options.verbose) {
-                options.stdout.println(
+        if (sourceOptions.sourceFiles.isEmpty()) {
+            if (verbosity.verbose) {
+                executionEnvironment.stdout.println(
                     "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
                 )
             }
-            SourceSet.createFromSourcePath(options.reporter, sourceOptions.sourcePath)
+            SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
         } else {
-            SourceSet(options.sources, sourceOptions.sourcePath)
+            SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
         }
 
     progressTracker.progress("Reading Codebase: ")
@@ -686,12 +658,12 @@ private fun ActionContext.loadFromSources(
 
     progressTracker.progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, options.apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
 
     analyzer.computeApi()
 
-    val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+    val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
     val apiEmitAndReference = ApiPredicate(config = apiPredicateConfigIgnoreShown)
 
     analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)
@@ -703,11 +675,15 @@ private fun ActionContext.loadFromSources(
     analyzer.generateInheritedStubs(apiEmitAndReference, apiEmitAndReference)
 
     analyzer.mergeExternalQualifierAnnotations()
-    options.nullabilityAnnotationsValidator?.validateAllFrom(
-        codebase,
-        options.validateNullabilityFromList
-    )
-    options.nullabilityAnnotationsValidator?.report()
+
+    options.nullabilityAnnotationsValidator?.let { validator ->
+        // Validate any explicitly specified classes.
+        validator.validateExplicitlySpecifiedClasses(codebase)
+
+        // Report any issues found in the validator. This can include issues found while merging in
+        // annotations.
+        validator.report()
+    }
 
     // Prevent the codebase from being mutated.
     codebase.freezeClasses()
@@ -717,25 +693,18 @@ private fun ActionContext.loadFromSources(
     // General API documentation checks for Android APIs.
     // They are pointless if Javadoc comments are not being read.
     if (codebase.config.allowReadingComments) {
-        AndroidApiChecks(reporterApiLint, options.apiPredicateConfig).check(codebase)
+        AndroidApiChecks(reporter, apiPredicateConfig).check(codebase)
     }
 
-    runApiChecksFromOptions(
-        options,
-        progressTracker,
-        signatureFileCache,
-        classPathResolverProvider,
-        codebase,
-        reporter
-    ) { codebase, previouslyReleasedCodebase, reporter, options ->
+    runApiChecksFromOptions(codebase) { codebase, previouslyReleasedCodebase ->
         ApiLint.check(
             codebase,
             previouslyReleasedCodebase,
             reporter,
-            options.apiPredicateConfig,
+            apiPredicateConfig,
             ApiLint.Config(
                 manifest = options.manifest,
-                allowedAcronyms = options.apiLintOptions.allowedAcronyms,
+                allowedAcronyms = apiLintOptions.allowedAcronyms,
                 useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
             ),
         )
@@ -747,53 +716,30 @@ private fun ActionContext.loadFromSources(
     return codebase
 }
 
-/**
- * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once created
- * allows it to be reused for the same reason.
- */
-private class ClassPathResolverProvider(
-    private val sourceParser: SourceParser,
-    private val apiClassResolution: ApiClassResolution,
-    private val classpath: List<File>
-) {
-    val classPathResolver: ClassPathResolver? by lazy {
-        if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-            sourceParser.getClassPathResolver(classpath)
-        } else {
-            null
-        }
-    }
-}
-
-fun ActionContext.loadFromJarFile(
+fun Driver.loadFromJarFile(
     apiJar: File,
     apiAnalyzerConfig: ApiAnalyzer.Config,
 ): Codebase {
     val jarCodebaseLoader =
         JarCodebaseLoader.createForSourceParser(
             progressTracker,
-            reporterApiLint,
+            reporter,
             sourceParser,
         )
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
-private fun extractAnnotations(
-    progressTracker: ProgressTracker,
-    outputFile: File,
-    options: Options,
-    codebase: Codebase
-) {
+private fun Driver.extractAnnotations(outputFile: File, codebase: Codebase) {
     val localTimer = Stopwatch.createStarted()
 
     ExtractAnnotations(
             codebase,
-            options.reporter,
+            reporter,
             outputFile,
-            options.apiPredicateConfig,
+            apiPredicateConfig,
         )
         .extractAnnotations()
-    if (options.verbose) {
+    if (verbosity.verbose) {
         progressTracker.progress(
             "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
@@ -833,31 +779,4 @@ fun createOutputFileFromCodebaseFragment(
             "$PROGRAM_NAME wrote $description file $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
     }
-}
-
-private fun createMetalavaCommand(
-    executionEnvironment: ExecutionEnvironment,
-    progressTracker: ProgressTracker
-): MetalavaCommand {
-    val command =
-        MetalavaCommand(
-            executionEnvironment = executionEnvironment,
-            progressTracker = progressTracker,
-            defaultCommandName = "main",
-        )
-    command.subcommands(
-        MainCommand(command.commonOptions, executionEnvironment),
-        AndroidJarsToSignaturesCommand(),
-        FlagReportCommand(),
-        HelpCommand(),
-        JarToJDiffCommand(),
-        MakeAnnotationsPackagePrivateCommand(),
-        MergeSignaturesCommand(),
-        SignatureCatCommand(),
-        SignatureToDexCommand(),
-        SignatureToJDiffCommand(),
-        UpdateSignatureHeaderCommand(),
-        VersionCommand(),
-    )
-    return command
 }

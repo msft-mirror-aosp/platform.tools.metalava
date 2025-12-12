@@ -39,11 +39,20 @@ class MainCommandTest :
 
     private val EXPECTED_HELP =
         """
-Usage: metalava main [options] [flags]...
+Usage: metalava main [options] [source-files]...
 
   The default sub-command that is run if no sub-command is specified.
 
 Options:
+  --nullability-errors-non-fatal             Specifies that errors encountered during validation of nullability
+                                             annotations should not be treated as errors. They will be written out to
+                                             the file specified in --nullability-warnings-txt instead.
+  --nullability-warnings-txt <file>          Specifies where to write warnings encountered during validation of
+                                             nullability annotations. (Does not trigger validation by itself.)
+  --validate-nullability-from-merged-stubs   Triggers validation of nullability annotations for any class where
+                                             --merge-qualifier-annotations includes a Java stub file.
+  --validate-nullability-from-list <file>    Triggers validation of nullability annotations for any class listed in the
+                                             named file (one top-level class per line, # prefix for comment line).
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
                                              files. Any classes that cannot be found will be treated as empty.",
@@ -97,65 +106,7 @@ $STUB_GENERATION_OPTIONS_HELP
 $API_LEVELS_GENERATION_OPTIONS_HELP
 
 Arguments:
-  flags                                      See below.
-
-
-API sources:
---source-files <files>
-                                             A comma separated list of source files to be parsed. Can also be @ followed
-                                             by a path to a text file containing paths to the full set of files to
-                                             parse.
---merge-qualifier-annotations <file>
-                                             An external annotations file to merge and overlay the sources, or a
-                                             directory of such files. Should be used for annotations intended for
-                                             inclusion in the API to be written out, e.g. nullability. Formats supported
-                                             are: IntelliJ's external annotations database format, .jar or .zip files
-                                             containing those, Android signature files, and Java stub files.
---merge-inclusion-annotations <file>
-                                             An external annotations file to merge and overlay the sources, or a
-                                             directory of such files. Should be used for annotations which determine
-                                             inclusion in the API to be written out, i.e. show and hide. The only format
-                                             supported is Java stub files.
---validate-nullability-from-merged-stubs
-                                             Triggers validation of nullability annotations for any class where
-                                             --merge-qualifier-annotations includes a Java stub file.
---validate-nullability-from-list
-                                             Triggers validation of nullability annotations for any class listed in the
-                                             named file (one top-level class per line, # prefix for comment line).
---nullability-warnings-txt <file>
-                                             Specifies where to write warnings encountered during validation of
-                                             nullability annotations. (Does not trigger validation by itself.)
---nullability-errors-non-fatal
-                                             Specifies that errors encountered during validation of nullability
-                                             annotations should not be treated as errors. They will be written out to
-                                             the file specified in --nullability-warnings-txt instead.
---ignore-classes-on-classpath
-                                             Prevents references to classes on the classpath from being added to the
-                                             generated stub files.
---ignore-comments
-                                             Ignore any comments in source files.
-
-
-Generating Stubs:
---pass-through-annotation <annotation classes>
-                                             A comma separated list of fully qualified names of annotation classes that
-                                             must be passed through unchanged.
---exclude-annotation <annotation classes>
-                                             A comma separated list of fully qualified names of annotation classes that
-                                             must be stripped from metalava's outputs.
-
-
-Environment Variables:
-METALAVA_DUMP_ARGV
-                                             Set to true to have metalava emit all the arguments it was invoked with.
-                                             Helpful when debugging or reproducing under a debugger what the build
-                                             system is doing.
-METALAVA_PREPEND_ARGS
-                                             One or more arguments (concatenated by space) to insert into the command
-                                             line, before the documentation flags.
-METALAVA_APPEND_ARGS
-                                             One or more arguments (concatenated by space) to append to the end of the
-                                             command line, after the generate documentation flags.
+  source-files                               Additional source files to append to --source-files
         """
             .trimIndent()
 
@@ -208,7 +159,7 @@ $EXPECTED_HELP
                 fun normalize(f: File): String = f.relativeTo(dir).path
                 Assert.assertEquals(
                     files.map { normalize(it) },
-                    command.optionGroup.sources.map { normalize(it) }
+                    command.sourceOptions.sourceFiles.map { normalize(it) }
                 )
             }
         }

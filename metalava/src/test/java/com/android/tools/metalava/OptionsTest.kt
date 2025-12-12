@@ -26,30 +26,11 @@ class OptionsTest : DriverTest() {
 
     private fun runTest(args: List<String>): Pair<StringWriter, StringWriter> {
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
-        run(
+        Driver.run(
             executionEnvironment = executionEnvironment,
-            originalArgs = args.toTypedArray(),
+            args = args.toTypedArray(),
         )
         return Pair(stdout, stderr)
-    }
-
-    @Test
-    fun `Test invalid value`() {
-        val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
-
-        val (stdout, stderr) = runTest(args)
-        assertEquals("", stdout.toString())
-        assertEquals(
-            """
-
-Aborting: Usage: metalava main [options] [flags]...
-
-Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose from api, api:classpath)
-
-            """
-                .trimIndent(),
-            stderr.toString()
-        )
     }
 
     @Test

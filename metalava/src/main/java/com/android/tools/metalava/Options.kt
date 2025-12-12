@@ -16,63 +16,40 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.SourceOptions
-import com.android.tools.metalava.cli.common.Terminal
-import com.android.tools.metalava.cli.common.TerminalColor
-import com.android.tools.metalava.cli.common.Verbosity
-import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
-import com.android.tools.metalava.cli.common.fileForPathInner
+import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
-import com.android.tools.metalava.cli.common.stringToExistingFile
-import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.reporter.Baseline
-import com.android.tools.metalava.reporter.DefaultReporter
-import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
-import com.android.utils.SdkUtils.wrap
-import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.util.Optional
-import java.util.function.Predicate
 
-private const val INDENT_WIDTH = 45
-
-const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_SDK_VALUES = "--sdk-values"
-const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
-const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
 const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list"
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
@@ -80,13 +57,9 @@ const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
-const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
-const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
-const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -96,31 +69,11 @@ class Options(
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
     internal val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
-    val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
-    val apiLintOptions: ApiLintOptions = ApiLintOptions(),
+    private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
+    private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
-    private val signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
 ) : OptionGroup() {
-    /** Writer to direct output to. */
-    val stdout: PrintWriter
-        get() = executionEnvironment.stdout
-
-    /** Writer to direct error messages to. */
-    val stderr: PrintWriter
-        get() = executionEnvironment.stderr
-
-    /** Internal list backing [sources] */
-    private val mutableSources: MutableList<File> = mutableListOf()
-    /** Internal list backing [mergeQualifierAnnotations] */
-    private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
-    /** Internal list backing [mergeInclusionAnnotations] */
-    private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
-    /** Internal list backing [passThroughAnnotations] */
-    private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
-    /** Internal list backing [excludeAnnotations] */
-    private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
-
     /**
      * Backing property for [nullabilityAnnotationsValidator]
      *
@@ -138,6 +91,7 @@ class Options(
                     nullabilityErrorsFatal,
                     nullabilityWarningsTxt,
                     apiPredicateConfig,
+                    validateNullabilityFromList,
                 )
             } else null
         )
@@ -148,37 +102,70 @@ class Options(
         get() = optionalNullabilityAnnotationsValidator.orElse(null)
 
     /** Whether nullability validation errors should be considered fatal. */
-    private var nullabilityErrorsFatal = true
+    private val nullabilityErrorsNonFatal by
+        option(
+                ARG_NULLABILITY_ERRORS_NON_FATAL,
+                help =
+                    """
+                        Specifies that errors encountered during validation of nullability
+                        annotations should not be treated as errors. They will be written out to the
+                        file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.
+                    """
+                        .trimIndent(),
+            )
+            .flag()
+
+    private val nullabilityErrorsFatal
+        get() = !nullabilityErrorsNonFatal
 
     /**
      * A file to write non-fatal nullability validation issues to. If null, all issues are treated
      * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
      */
-    private var nullabilityWarningsTxt: File? = null
+    private val nullabilityWarningsTxt by
+        option(
+                ARG_NULLABILITY_WARNINGS_TXT,
+                metavar = "<file>",
+                help =
+                    """
+                        Specifies where to write warnings encountered during validation of
+                        nullability annotations. (Does not trigger validation by itself.)
+                    """
+                        .trimIndent(),
+            )
+            .newFile()
 
     /**
      * Whether to validate nullability for all the classes where we are merging annotations from
      * external java stub files. If true, [nullabilityAnnotationsValidator] must be set.
      */
-    var validateNullabilityFromMergedStubs = false
+    val validateNullabilityFromMergedStubs by
+        option(
+                ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS,
+                help =
+                    """
+                        Triggers validation of nullability annotations for any class where
+                        $ARG_MERGE_QUALIFIER_ANNOTATIONS includes a Java stub file.
+                    """
+                        .trimIndent(),
+            )
+            .flag()
 
     /**
      * A file containing a list of classes whose nullability annotations should be validated. If
      * set, [nullabilityAnnotationsValidator] must also be set.
      */
-    var validateNullabilityFromList: File? = null
-
-    /**
-     * Whether to allow reading comments from the sources.
-     *
-     * If `true` then source comments will be read and [SelectableItem.documentation] will not be
-     * `null` (unless the [SelectableItem] is `private`). If `false` then
-     * [SelectableItem.documentation] will always be `null`.
-     */
-    private var allowReadingComments = true
-
-    /** All source files to parse */
-    var sources: List<File> = mutableSources
+    private val validateNullabilityFromList by
+        option(
+                ARG_VALIDATE_NULLABILITY_FROM_LIST,
+                help =
+                    """
+                        Triggers validation of nullability annotations for any class listed in the
+                        named file (one top-level class per line, # prefix for comment line).
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
 
     val apiClassResolution by
         enumOption(
@@ -193,33 +180,12 @@ class Options(
             key = { it.optionValue },
         )
 
-    val allShowAnnotations by apiSelectionOptions::allShowAnnotations
-
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
      * applies to signature files, not stub files.
      */
     val showUnannotated
         get() = apiSelectionOptions.showUnannotated
-
-    /**
-     * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
-     * [Item]s that do not match the [SourceOptions.apiPackageFilter] filter. If no filter is
-     * provided then this will be `null`.
-     */
-    private val reportableFilter: Predicate<Reportable>? by
-        lazy(LazyThreadSafetyMode.NONE) {
-            sourceOptions.apiPackageFilter?.let { packageFilter ->
-                Predicate { reportable ->
-                    // If we are only emitting some packages (--stub-packages), don't report
-                    // issues from other packages
-                    (reportable as? Item)?.let { item ->
-                        val pkg = (item as? PackageItem) ?: item.containingPackage()
-                        pkg == null || packageFilter.matches(pkg)
-                    } ?: true
-                }
-            }
-        }
 
     private val apiFlags by lazy {
         ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)
@@ -229,14 +195,14 @@ class Options(
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
                 reporter = reporter,
-                passThroughAnnotations = passThroughAnnotations,
-                allShowAnnotations = allShowAnnotations,
+                passThroughAnnotations = apiSelectionOptions.passThroughAnnotations,
+                allShowAnnotations = apiSelectionOptions.allShowAnnotations,
                 showAnnotations = apiSelectionOptions.showAnnotations,
                 showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
                 showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
                 hideAnnotations = apiSelectionOptions.hideAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
-                excludeAnnotations = excludeAnnotations,
+                excludeAnnotations = apiSelectionOptions.excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
                 previouslyReleasedCodebaseProvider = {
@@ -254,7 +220,7 @@ class Options(
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {
             Codebase.Config(
-                allowReadingComments = allowReadingComments,
+                allowReadingComments = sourceOptions.allowReadingComments,
                 annotationManager = annotationManager,
                 apiFlags = apiFlags,
                 apiSurfaces = apiSelectionOptions.apiSurfaces,
@@ -283,31 +249,20 @@ class Options(
             .multiple()
             .unique()
 
-    /**
-     * Whether the generated API can contain classes that are not present in the source but are
-     * present on the classpath. Defaults to true for backwards compatibility but is set to false if
-     * any API signatures are imported as they must provide a complete set of all classes required
-     * but not provided by the generated API.
-     *
-     * Once all APIs are either self-contained or imported all the required references this will be
-     * removed and no classes will be allowed from the classpath JARs.
-     */
-    private var allowClassesFromClasspath = true
-
     /** The configuration options for the [ApiAnalyzer] class. */
     val apiAnalyzerConfig by lazy {
         val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
         ApiAnalyzer.Config(
             manifest = manifest,
             skipEmitPackages = skipEmitPackages,
-            mergeQualifierAnnotations = mergeQualifierAnnotations,
-            mergeInclusionAnnotations = mergeInclusionAnnotations,
-            allShowAnnotations = allShowAnnotations,
+            mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
+            mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
+            allShowAnnotations = apiSelectionOptions.allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
                     apiPredicateConfig = apiPredicateConfig,
-                    sources = sources,
+                    sources = sourceOptions.sourceFiles,
                     sourcePath = sourceOptions.sourcePath,
                     classpath = sourceOptions.classpath,
                     apiPackageFilter = sourceOptions.apiPackageFilter,
@@ -320,25 +275,10 @@ class Options(
 
     val apiPredicateConfig by lazy {
         ApiPredicate.Config(
-            ignoreShown = showUnannotated,
-            allowClassesFromClasspath = allowClassesFromClasspath,
-            addAdditionalOverrides = signatureFileFormat.addAdditionalOverrides,
+            ignoreShown = apiSelectionOptions.showUnannotated,
+            addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
         )
     }
-
-    /** This is set directly by [preprocessArgv]. */
-    private var verbosity: Verbosity = Verbosity.NORMAL
-
-    /** Whether to report warnings and other diagnostics along the way */
-    val quiet: Boolean
-        get() = verbosity.quiet
-
-    /**
-     * Whether to report extra diagnostics along the way (note that verbose isn't the same as not
-     * quiet)
-     */
-    val verbose: Boolean
-        get() = verbosity.verbose
 
     /** Proguard Keep list file to write */
     val proguardFile by
@@ -348,10 +288,6 @@ class Options(
                 help = "Write a ProGuard keep file for the API.",
             )
             .newFile()
-
-    val apiSignatureFile by signatureFileOptions::apiFile
-    val removedApiSignatureFile by signatureFileOptions::removedApiFile
-    val signatureFileFormat by signatureFormatOptions::fileFormat
 
     /** Path to directory to write SDK values to */
     val sdkValueDir by
@@ -372,9 +308,9 @@ class Options(
                 metavar = "<zipfile>",
                 help =
                     """
-                Extracts source annotations from the source files and writes them into the given zip
-                file.
-            """
+                        Extracts source annotations from the source files and writes them into the
+                        given zip file.
+                    """
                         .trimIndent(),
             )
             .newFile()
@@ -399,44 +335,21 @@ class Options(
      */
     val manifest by lazy { manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest }
 
-    /** The set of annotation classes that should be passed through unchanged */
-    private var passThroughAnnotations = mutablePassThroughAnnotations
-
-    /** The set of annotation classes that should be removed from all outputs */
-    private var excludeAnnotations = mutableExcludeAnnotations
-
-    /** The list of compatibility checks to run */
-    val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
-
-    /** The set of annotation classes that should be treated as API compatibility important */
-    val apiCompatAnnotations by compatibilityCheckOptions::apiCompatAnnotations
-
-    /** Existing external annotation files to merge in */
-    private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
-    private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
-
-    /** Whether to include the signature file format version header in removed signature files */
-    val includeSignatureFormatVersionRemoved: EmitFileHeader
-        get() =
-            if (signatureFileOptions.deleteEmptyRemovedSignatures) {
-                EmitFileHeader.IF_NONEMPTY_FILE
-            } else {
-                EmitFileHeader.ALWAYS
-            }
-
-    var allBaselines: List<Baseline> = emptyList()
-
-    /** [IssueConfiguration] used by all reporters. */
-    val issueConfiguration by issueReportingOptions::issueConfiguration
+    val reporterManager by
+        lazy(LazyThreadSafetyMode.NONE) {
+            ReporterManager(
+                executionEnvironment.reporterEnvironment,
+                apiLintOptions,
+                compatibilityCheckOptions,
+                generalReportingOptions,
+                issueReportingOptions,
+                sourceOptions,
+            )
+        }
 
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
-    lateinit var reporter: Reporter
-        private set
-
-    internal var allReporters: List<DefaultReporter> = emptyList()
-
-    /** If generating a removed signature file, and it is empty, delete it */
-    val deleteEmptyRemovedSignatures by signatureFileOptions::deleteEmptyRemovedSignatures
+    val reporter
+        get() = reporterManager.reporter
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
@@ -450,276 +363,4 @@ class Options(
             default = TypedefMode.NONE,
             key = { it.optionValue },
         )
-
-    fun parse(args: Array<String>) {
-        var index = 0
-        while (index < args.size) {
-            when (val arg = args[index]) {
-                ARG_SOURCE_FILES -> {
-                    val listString = getValue(args, ++index)
-                    listString.split(",").forEach { path ->
-                        mutableSources.addAll(stringToExistingFiles(path))
-                    }
-                }
-                ARG_MERGE_QUALIFIER_ANNOTATIONS ->
-                    mutableMergeQualifierAnnotations.addAll(
-                        stringToExistingDirsOrFiles(getValue(args, ++index))
-                    )
-                ARG_MERGE_INCLUSION_ANNOTATIONS ->
-                    mutableMergeInclusionAnnotations.addAll(
-                        stringToExistingDirsOrFiles(getValue(args, ++index))
-                    )
-                ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
-                    validateNullabilityFromMergedStubs = true
-                }
-                ARG_VALIDATE_NULLABILITY_FROM_LIST -> {
-                    validateNullabilityFromList = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_NULLABILITY_WARNINGS_TXT ->
-                    nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
-                ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
-                ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
-                ARG_PASS_THROUGH_ANNOTATION -> {
-                    val annotations = getValue(args, ++index)
-                    annotations.split(",").forEach { path ->
-                        mutablePassThroughAnnotations.add(path)
-                    }
-                }
-                ARG_EXCLUDE_ANNOTATION -> {
-                    val annotations = getValue(args, ++index)
-                    annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
-                }
-                ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
-                    allowClassesFromClasspath = false
-                }
-                else -> {
-                    if (arg.startsWith("-")) {
-                        // Some other argument: display usage info and exit
-                        throw NoSuchOption(givenName = arg)
-                    } else {
-                        // All args that don't start with "-" are taken to be filenames
-                        mutableSources.addAll(stringToExistingFiles(arg))
-                    }
-                }
-            }
-
-            ++index
-        }
-
-        // Initialize the reporters.
-        val baseline = generalReportingOptions.baseline
-        val reporterUnknown =
-            createReporter(
-                executionEnvironment = executionEnvironment,
-                baseline = baseline,
-                errorMessage = null,
-            )
-
-        val reporterApiLint =
-            createReporter(
-                executionEnvironment = executionEnvironment,
-                baseline = apiLintOptions.baseline ?: baseline,
-                errorMessage = apiLintOptions.errorMessage,
-            )
-
-        // [Reporter] for "check-compatibility:*:released".
-        // i.e.
-        //      [ARG_CHECK_COMPATIBILITY_API_RELEASED] and
-        //      [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED].
-        val reporterCompatibilityReleased =
-            createReporter(
-                executionEnvironment = executionEnvironment,
-                baseline = compatibilityCheckOptions.baseline ?: baseline,
-                errorMessage = compatibilityCheckOptions.errorMessage,
-            )
-
-        // A Reporter that will redirect issues to the appropriate reporter based on the issue's
-        // Category.
-        reporter =
-            CategoryRedirectingReporter(
-                defaultReporter = reporterUnknown,
-                apiLintReporter = reporterApiLint,
-                compatibilityReporter = reporterCompatibilityReleased,
-            )
-
-        // Build "all baselines" and "all reporters"
-
-        // Baselines are nullable, so selectively add to the list.
-        allBaselines =
-            listOfNotNull(baseline, apiLintOptions.baseline, compatibilityCheckOptions.baseline)
-
-        // Reporters are non-null.
-        allReporters =
-            listOf(
-                reporterUnknown,
-                reporterApiLint,
-                reporterCompatibilityReleased,
-            )
-
-        // Make sure that any config files are processed.
-        configFileOptions.config
-    }
-
-    /**
-     * Create a [Reporter] that checks for known issues in [baseline] and prints [errorMessage], if
-     * provided, when errors have been reported.
-     */
-    private fun createReporter(
-        executionEnvironment: ExecutionEnvironment,
-        baseline: Baseline?,
-        errorMessage: String?,
-    ) =
-        DefaultReporter(
-            environment = executionEnvironment.reporterEnvironment,
-            issueConfiguration = issueConfiguration,
-            baseline = baseline,
-            errorMessage = errorMessage,
-            reportableFilter = reportableFilter,
-            config = issueReportingOptions.reporterConfig,
-        )
-
-    private fun getValue(args: Array<String>, index: Int): String {
-        if (index >= args.size) {
-            cliError("Missing argument for ${args[index - 1]}")
-        }
-        return args[index]
-    }
-
-    private fun stringToExistingDirsOrFiles(value: String): List<File> {
-        val files = mutableListOf<File>()
-        for (path in value.split(File.pathSeparatorChar)) {
-            val file = fileForPathInner(path)
-            if (!file.exists()) {
-                cliError("$file does not exist")
-            }
-            files.add(file)
-        }
-        return files
-    }
-
-    @Suppress("unused")
-    private fun stringToExistingFileOrDir(value: String): File {
-        val file = fileForPathInner(value)
-        if (!file.exists()) {
-            cliError("$file is not a file or directory")
-        }
-        return file
-    }
-
-    private fun stringToExistingFiles(value: String): List<File> {
-        return value
-            .split(File.pathSeparatorChar)
-            .map { fileForPathInner(it) }
-            .map { file ->
-                if (!file.isFile) {
-                    cliError("$file is not a file")
-                }
-                file
-            }
-    }
-}
-
-object OptionsHelp {
-    fun getUsage(terminal: Terminal, width: Int): String {
-        val usage = StringWriter()
-        val printWriter = PrintWriter(usage)
-        usage(printWriter, terminal, width)
-        return usage.toString()
-    }
-
-    private fun usage(out: PrintWriter, terminal: Terminal, width: Int) {
-        val args =
-            arrayOf(
-                "",
-                "API sources:",
-                "$ARG_SOURCE_FILES <files>",
-                "A comma separated list of source files to be parsed. Can also be " +
-                    "@ followed by a path to a text file containing paths to the full set of files to parse.",
-                "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
-                "An external annotations file to merge and overlay " +
-                    "the sources, or a directory of such files. Should be used for annotations intended for " +
-                    "inclusion in the API to be written out, e.g. nullability. Formats supported are: IntelliJ's " +
-                    "external annotations database format, .jar or .zip files containing those, Android signature " +
-                    "files, and Java stub files.",
-                "$ARG_MERGE_INCLUSION_ANNOTATIONS <file>",
-                "An external annotations file to merge and overlay " +
-                    "the sources, or a directory of such files. Should be used for annotations which determine " +
-                    "inclusion in the API to be written out, i.e. show and hide. The only format supported is " +
-                    "Java stub files.",
-                ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS,
-                "Triggers validation of nullability annotations " +
-                    "for any class where $ARG_MERGE_QUALIFIER_ANNOTATIONS includes a Java stub file.",
-                ARG_VALIDATE_NULLABILITY_FROM_LIST,
-                "Triggers validation of nullability annotations " +
-                    "for any class listed in the named file (one top-level class per line, # prefix for comment line).",
-                "$ARG_NULLABILITY_WARNINGS_TXT <file>",
-                "Specifies where to write warnings encountered during " +
-                    "validation of nullability annotations. (Does not trigger validation by itself.)",
-                ARG_NULLABILITY_ERRORS_NON_FATAL,
-                "Specifies that errors encountered during validation of " +
-                    "nullability annotations should not be treated as errors. They will be written out to the " +
-                    "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                ARG_IGNORE_CLASSES_ON_CLASSPATH,
-                "Prevents references to classes on the classpath from being added to " +
-                    "the generated stub files.",
-                ARG_SKIP_READING_COMMENTS,
-                "Ignore any comments in source files.",
-                "",
-                "Generating Stubs:",
-                "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
-                "A comma separated list of fully qualified names of " +
-                    "annotation classes that must be passed through unchanged.",
-                "$ARG_EXCLUDE_ANNOTATION <annotation classes>",
-                "A comma separated list of fully qualified names of " +
-                    "annotation classes that must be stripped from metalava's outputs.",
-                "",
-                "Environment Variables:",
-                ENV_VAR_METALAVA_DUMP_ARGV,
-                "Set to true to have metalava emit all the arguments it was invoked with. " +
-                    "Helpful when debugging or reproducing under a debugger what the build system is doing.",
-                ENV_VAR_METALAVA_PREPEND_ARGS,
-                "One or more arguments (concatenated by space) to insert into the " +
-                    "command line, before the documentation flags.",
-                ENV_VAR_METALAVA_APPEND_ARGS,
-                "One or more arguments (concatenated by space) to append to the " +
-                    "end of the command line, after the generate documentation flags."
-            )
-
-        val indent = " ".repeat(INDENT_WIDTH)
-
-        var i = 0
-        while (i < args.size) {
-            val arg = args[i]
-            if (arg.isEmpty()) {
-                val groupTitle = args[i + 1]
-                out.println("\n")
-                out.println(terminal.colorize(groupTitle, TerminalColor.YELLOW))
-            } else {
-                val description = "\n" + args[i + 1]
-                val formattedArg = terminal.bold(arg)
-                val invisibleChars = formattedArg.length - arg.length
-                // +invisibleChars: the extra chars in the above are counted but don't
-                // contribute to width so allow more space
-                val formatString = "%1$-" + (INDENT_WIDTH + invisibleChars) + "s%2\$s"
-
-                val output =
-                    wrap(
-                        String.format(formatString, formattedArg, description),
-                        width + invisibleChars,
-                        width,
-                        indent
-                    )
-
-                // Remove trailing whitespace
-                val lines = output.lines()
-                lines.forEachIndexed { index, line ->
-                    out.print(line.trimEnd())
-                    if (index < lines.size - 1) {
-                        out.println()
-                    }
-                }
-            }
-            i += 2
-        }
-    }
 }
