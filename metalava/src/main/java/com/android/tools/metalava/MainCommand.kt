@@ -226,6 +226,7 @@ class MainCommand(
                             apiLintOptions,
                             apiSelectionOptions,
                             compatibilityCheckOptions,
+                            configFileOptions,
                             issueReportingOptions,
                             signatureFileOptions,
                             signatureFormatOptions,

@@ -90,6 +90,7 @@ class Driver(
     val apiLintOptions: ApiLintOptions,
     val apiSelectionOptions: ApiSelectionOptions,
     val compatibilityCheckOptions: CompatibilityCheckOptions,
+    val configFileOptions: ConfigFileOptions,
     val issueReportingOptions: IssueReportingOptions,
     val signatureFileOptions: SignatureFileOptions,
     val signatureFormatOptions: SignatureFormatOptions,
@@ -222,7 +223,7 @@ internal fun Driver.processFlags() {
     // If provided by a test, run some additional checks on the internal state of this.
     executionEnvironment.testEnvironment?.let { testEnvironment ->
         testEnvironment.postAnalysisChecker?.let { function ->
-            val context = CheckerContext(options, codebase)
+            val context = CheckerContext(this, codebase)
             context.function()
         }
     }

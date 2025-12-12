@@ -68,7 +68,7 @@ class Options(
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
-    internal val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
+    private val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
     private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
@@ -179,13 +179,6 @@ class Options(
             default = ApiClassResolution.API_CLASSPATH,
             key = { it.optionValue },
         )
-
-    /**
-     * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
-     * applies to signature files, not stub files.
-     */
-    val showUnannotated
-        get() = apiSelectionOptions.showUnannotated
 
     private val apiFlags by lazy {
         ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.Driver
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
@@ -54,7 +55,7 @@ class TestEnvironment(
  * [TestEnvironment.postAnalysisChecker] lambda.
  */
 class CheckerContext(
-    val options: Options,
+    val driver: Driver,
     val codebase: Codebase,
 )
 
