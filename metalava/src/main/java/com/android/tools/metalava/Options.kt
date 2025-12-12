@@ -27,7 +27,6 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
@@ -38,7 +37,6 @@ import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -71,8 +69,8 @@ class Options(
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
     internal val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
-    val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
-    val apiLintOptions: ApiLintOptions = ApiLintOptions(),
+    private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
+    private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
 ) : OptionGroup() {
@@ -277,7 +275,7 @@ class Options(
 
     val apiPredicateConfig by lazy {
         ApiPredicate.Config(
-            ignoreShown = showUnannotated,
+            ignoreShown = apiSelectionOptions.showUnannotated,
             addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
         )
     }
@@ -337,12 +335,6 @@ class Options(
      */
     val manifest by lazy { manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest }
 
-    /** The list of compatibility checks to run */
-    val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
-
-    /** The set of annotation classes that should be treated as API compatibility important */
-    val apiCompatAnnotations by compatibilityCheckOptions::apiCompatAnnotations
-
     val reporterManager by
         lazy(LazyThreadSafetyMode.NONE) {
             ReporterManager(
@@ -354,9 +346,6 @@ class Options(
                 sourceOptions,
             )
         }
-
-    /** [IssueConfiguration] used by all reporters. */
-    val issueConfiguration by issueReportingOptions::issueConfiguration
 
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     val reporter

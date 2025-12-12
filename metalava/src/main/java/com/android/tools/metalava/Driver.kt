@@ -21,17 +21,20 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
+import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
@@ -84,6 +87,10 @@ class Driver(
     val verbosity: Verbosity,
     val options: Options,
     val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+    val apiLintOptions: ApiLintOptions,
+    val apiSelectionOptions: ApiSelectionOptions,
+    val compatibilityCheckOptions: CompatibilityCheckOptions,
+    val issueReportingOptions: IssueReportingOptions,
     val signatureFileOptions: SignatureFileOptions,
     val signatureFormatOptions: SignatureFormatOptions,
     val sourceOptions: SourceOptions,
@@ -263,7 +270,7 @@ internal fun Driver.processFlags() {
         SdkFileWriter(codebase, dir).generate()
     }
 
-    for (check in options.compatibilityChecks) {
+    for (check in compatibilityCheckOptions.compatibilityChecks) {
         checkCompatibility(codebase, check)
     }
 
@@ -310,7 +317,7 @@ private fun Driver.runApiChecksFromOptions(
     codebase: Codebase,
     apiCheckMethod: (Codebase, Codebase?) -> Unit
 ) {
-    options.apiLintOptions.let { apiLintOptions ->
+    apiLintOptions.let { apiLintOptions ->
         if (!apiLintOptions.apiLintEnabled) return@let
 
         progressTracker.progress("API Lint: ")
@@ -339,7 +346,7 @@ private fun Driver.createApiSignatureFilesFromOptions(codebase: Codebase) {
                 fileFormat = fileFormat,
                 apiType = ApiType.PUBLIC_API,
                 preFiltered = codebase.preFiltered,
-                showUnannotated = options.showUnannotated,
+                showUnannotated = apiSelectionOptions.showUnannotated,
                 apiPredicateConfig = apiPredicateConfig,
             )
         }
@@ -372,7 +379,7 @@ private fun Driver.createApiSignatureFilesFromOptions(codebase: Codebase) {
                     fileFormat = fileFormat,
                     apiType = ApiType.REMOVED,
                     preFiltered = false,
-                    showUnannotated = options.showUnannotated,
+                    showUnannotated = apiSelectionOptions.showUnannotated,
                     apiPredicateConfig = apiPredicateConfig,
                 )
             }
@@ -558,7 +565,7 @@ private fun Driver.checkCompatibility(
     val apiName =
         if (apiType == ApiType.REMOVED) {
             "removed"
-        } else options.apiSelectionOptions.apiSurface
+        } else apiSelectionOptions.apiSurface
 
     // If configured, compares the new API with the previous API and reports any incompatibilities.
     CompatibilityCheck.checkCompatibility(
@@ -566,11 +573,11 @@ private fun Driver.checkCompatibility(
         oldCodebase,
         apiType,
         reporter,
-        options.issueConfiguration,
-        options.apiCompatAnnotations,
+        issueReportingOptions.issueConfiguration,
+        compatibilityCheckOptions.apiCompatAnnotations,
         apiName,
         apiPredicateConfig,
-        options.showUnannotated,
+        apiSelectionOptions.showUnannotated,
     )
 }
 
@@ -697,7 +704,7 @@ private fun Driver.loadFromSources(): Codebase? {
             apiPredicateConfig,
             ApiLint.Config(
                 manifest = options.manifest,
-                allowedAcronyms = options.apiLintOptions.allowedAcronyms,
+                allowedAcronyms = apiLintOptions.allowedAcronyms,
                 useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
             ),
         )
