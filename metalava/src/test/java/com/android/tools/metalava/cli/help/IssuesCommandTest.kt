@@ -138,6 +138,7 @@ Available Issues                             |  Category                        
   KmpExperimentalMismatch                    |  api_lint                             |   error
   KmpHideShowAnnotationMismatch              |  api_lint                             |   error
   KmpModifierMismatch                        |  api_lint                             |   error
+  KmpOriginMismatch                          |  api_lint                             |   error
   KmpReifiedMismatch                         |  api_lint                             |   error
   KmpVisibilityMismatch                      |  api_lint                             |   error
   KotlinDefaultParameterOrder                |  api_lint                             |   error

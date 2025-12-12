@@ -284,6 +284,7 @@ object Issues {
     val KMP_HIDE_SHOW_ANNOTATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_EXPERIMENTAL_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_REIFIED_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_ORIGIN_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
