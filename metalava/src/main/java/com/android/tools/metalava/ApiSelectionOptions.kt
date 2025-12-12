@@ -31,6 +31,7 @@ import com.github.ajalt.clikt.parameters.options.defaultLazy
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
+import com.github.ajalt.clikt.parameters.options.unique
 
 const val ARG_API_SURFACE = "--api-surface"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
@@ -42,6 +43,8 @@ const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
+
+const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 
@@ -215,6 +218,21 @@ class ApiSelectionOptions(
             )
             .splitMultiple(",")
             .map { it.toSet() }
+
+    /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
+    internal val suppressCompatibilityMetaAnnotations by
+        option(
+                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
+                metavar = "<meta-annotation-class>",
+                help =
+                    """
+                       Suppress compatibility checks for any elements within the scope of an
+                       annotation which is itself annotated with the given `meta-annotation-class`.
+                    """
+                        .trimIndent(),
+            )
+            .multiple()
+            .unique()
 
     /**
      * How to handle typedef annotations in signature files; corresponds to

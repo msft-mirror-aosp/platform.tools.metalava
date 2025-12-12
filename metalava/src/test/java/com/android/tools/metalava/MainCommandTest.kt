@@ -53,9 +53,6 @@ Options:
                                              --merge-qualifier-annotations includes a Java stub file.
   --validate-nullability-from-list <file>    Triggers validation of nullability annotations for any class listed in the
                                              named file (one top-level class per line, # prefix for comment line).
-  --suppress-compatibility-meta-annotation <meta-annotation class>
-                                             Suppress compatibility checks for any elements within the scope of an
-                                             annotation which is itself annotated with the given meta-annotation.
   --proguard <file>                          Write a ProGuard keep file for the API.
   --sdk-values <dir>                         Write SDK values files to the given directory.
   --extract-annotations <zipfile>            Extracts source annotations from the source files and writes them into the

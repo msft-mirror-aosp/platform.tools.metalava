@@ -196,7 +196,8 @@ class Driver(
                 showSingleAnnotations = apiSelectionOptions.showSingleAnnotations,
                 showForStubPurposesAnnotations = apiSelectionOptions.showForStubPurposesAnnotations,
                 hideAnnotations = apiSelectionOptions.hideAnnotations,
-                suppressCompatibilityMetaAnnotations = options.suppressCompatibilityMetaAnnotations,
+                suppressCompatibilityMetaAnnotations =
+                    apiSelectionOptions.suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = apiSelectionOptions.excludeAnnotations,
                 typedefMode = apiSelectionOptions.typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),

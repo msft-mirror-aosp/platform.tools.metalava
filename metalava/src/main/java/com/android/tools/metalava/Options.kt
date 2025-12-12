@@ -27,9 +27,7 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
-import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 
@@ -42,7 +40,6 @@ const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_MANIFEST = "--manifest"
-const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 
 class Options(
     private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
@@ -109,21 +106,6 @@ class Options(
                         .trimIndent(),
             )
             .existingFile()
-
-    /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
-    internal val suppressCompatibilityMetaAnnotations by
-        option(
-                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
-                help =
-                    """
-                       Suppress compatibility checks for any elements within the scope of an
-                       annotation which is itself annotated with the given meta-annotation.
-                    """
-                        .trimIndent(),
-                metavar = "<meta-annotation class>",
-            )
-            .multiple()
-            .unique()
 
     /** Proguard Keep list file to write */
     val proguardFile by
