@@ -50,7 +50,6 @@ import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
@@ -189,18 +188,26 @@ class Driver(
 
     val signatureFileCache
         get() = options.signatureFileCache
+
+    /**
+     * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once
+     * created allows it to be reused for the same reason.
+     */
+    val classPathResolver: ClassPathResolver? by lazy {
+        var apiClassResolution = options.apiClassResolution
+        val classpath = sourceOptions.classpath
+        if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
+            sourceParser.getClassPathResolver(classpath)
+        } else {
+            null
+        }
+    }
 }
 
 internal fun Driver.processFlags() {
     val stopwatch = Stopwatch.createStarted()
 
-    val classPathResolverProvider =
-        ClassPathResolverProvider(
-            sourceParser = sourceParser,
-            apiClassResolution = options.apiClassResolution,
-            classpath = sourceOptions.classpath,
-        )
-    val codebase = createCodebaseFromOptions(classPathResolverProvider) ?: return
+    val codebase = createCodebaseFromOptions() ?: return
 
     // If provided by a test, run some additional checks on the internal state of this.
     executionEnvironment.testEnvironment?.let { testEnvironment ->
@@ -223,7 +230,6 @@ internal fun Driver.processFlags() {
     // Also run API lint checks on current codebase
     createApiSignatureFilesFromOptions(
         codebase,
-        classPathResolverProvider,
     )
 
     options.proguardFile?.let { proguard ->
@@ -257,11 +263,7 @@ internal fun Driver.processFlags() {
     }
 
     for (check in options.compatibilityChecks) {
-        checkCompatibility(
-            classPathResolverProvider,
-            codebase,
-            check,
-        )
+        checkCompatibility(codebase, check)
     }
 
     options.externalAnnotationsFile?.let { outputFile ->
@@ -304,7 +306,6 @@ internal fun Driver.processFlags() {
 }
 
 private fun Driver.runApiChecksFromOptions(
-    classPathResolverProvider: ClassPathResolverProvider,
     codebase: Codebase,
     apiCheckMethod: (Codebase, Codebase?) -> Unit
 ) {
@@ -317,7 +318,7 @@ private fun Driver.runApiChecksFromOptions(
         // See if we should provide a previous codebase to provide a delta from?
         val previouslyReleasedCodebase by lazy {
             apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
+                signatureFileCache.load(signatureFiles, classPathResolver)
             }
         }
         apiCheckMethod(codebase, previouslyReleasedCodebase)
@@ -328,10 +329,7 @@ private fun Driver.runApiChecksFromOptions(
 }
 
 /** write api signature to files specified by option flags (e.g. current.txt) */
-private fun Driver.createApiSignatureFilesFromOptions(
-    codebase: Codebase,
-    classPathResolverProvider: ClassPathResolverProvider,
-) {
+private fun Driver.createApiSignatureFilesFromOptions(codebase: Codebase) {
     val fileFormat = signatureFormatOptions.fileFormat
     val codebaseFragment =
         createCodeFragmentForSignatureFile(codebase) { delegate ->
@@ -345,10 +343,7 @@ private fun Driver.createApiSignatureFilesFromOptions(
             )
         }
 
-    runApiChecksFromOptions(
-        classPathResolverProvider,
-        codebase,
-    ) { _, previouslyReleasedCodebase ->
+    runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
         val flaggedApiLintVisitor =
             FlaggedApiLint(previouslyReleasedCodebase, reporter, options.apiPredicateConfig)
         codebaseFragment.accept(flaggedApiLintVisitor)
@@ -419,9 +414,7 @@ fun Driver.createCodeFragmentForSignatureFile(
 }
 
 /** Create [Codebase] object from option flags */
-private fun Driver.createCodebaseFromOptions(
-    classPathResolverProvider: ClassPathResolverProvider,
-): Codebase? {
+private fun Driver.createCodebaseFromOptions(): Codebase? {
     val sources = sourceOptions.sourceFiles
     if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
         // Make sure all the source files have .txt extensions.
@@ -434,14 +427,12 @@ private fun Driver.createCodebaseFromOptions(
             }
         return signatureFileLoader.load(
             SignatureFile.fromFiles(sources),
-            classPathResolverProvider.classPathResolver,
+            classPathResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
         return loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
-        return loadFromSources(
-            classPathResolverProvider,
-        )
+        return loadFromSources()
     }
 
     return null
@@ -530,7 +521,6 @@ private fun Driver.generateApiHistoryFromOptions(
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 private fun Driver.checkCompatibility(
-    classPathResolverProvider: ClassPathResolverProvider,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -562,7 +552,7 @@ private fun Driver.checkCompatibility(
 
     val oldCodebase =
         check.previouslyReleasedApi.load { signatureFiles ->
-            signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
+            signatureFileCache.load(signatureFiles, classPathResolver)
         }
 
     val apiName =
@@ -633,9 +623,7 @@ private fun compareFileContents(file1: File, file2: File): Boolean {
  */
 internal var fastPathCheckResult: Boolean? = null
 
-private fun Driver.loadFromSources(
-    classPathResolverProvider: ClassPathResolverProvider,
-): Codebase? {
+private fun Driver.loadFromSources(): Codebase? {
     progressTracker.progress("Processing sources: ")
 
     val sourceSet =
@@ -701,10 +689,7 @@ private fun Driver.loadFromSources(
         AndroidApiChecks(reporter, options.apiPredicateConfig).check(codebase)
     }
 
-    runApiChecksFromOptions(
-        classPathResolverProvider,
-        codebase,
-    ) { codebase, previouslyReleasedCodebase ->
+    runApiChecksFromOptions(codebase) { codebase, previouslyReleasedCodebase ->
         ApiLint.check(
             codebase,
             previouslyReleasedCodebase,
@@ -722,24 +707,6 @@ private fun Driver.loadFromSources(
     analyzer.performChecks()
 
     return codebase
-}
-
-/**
- * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once created
- * allows it to be reused for the same reason.
- */
-private class ClassPathResolverProvider(
-    private val sourceParser: SourceParser,
-    private val apiClassResolution: ApiClassResolution,
-    private val classpath: List<File>
-) {
-    val classPathResolver: ClassPathResolver? by lazy {
-        if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-            sourceParser.getClassPathResolver(classpath)
-        } else {
-            null
-        }
-    }
 }
 
 fun Driver.loadFromJarFile(
