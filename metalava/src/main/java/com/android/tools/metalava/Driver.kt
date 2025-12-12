@@ -18,7 +18,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -170,29 +169,26 @@ class Driver(
             return command
         }
     }
+
+    val sourceParser by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val codebaseConfig = options.codebaseConfig
+            val modelOptions = sourceOptions.modelOptions
+            environmentManager.createSourceParser(
+                codebaseConfig = codebaseConfig,
+                javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
+                kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
+                modelOptions = modelOptions,
+                jdkHome = sourceOptions.jdkHome,
+            )
+        }
 }
 
 internal fun Driver.processFlags() {
     val stopwatch = Stopwatch.createStarted()
-    val codebaseConfig = options.codebaseConfig
-    val modelOptions = sourceOptions.modelOptions
-    val sourceParser =
-        environmentManager.createSourceParser(
-            codebaseConfig = codebaseConfig,
-            javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
-            kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
-            modelOptions = modelOptions,
-            jdkHome = sourceOptions.jdkHome,
-        )
 
     val signatureFileCache = options.signatureFileCache
 
-    val actionContext =
-        ActionContext(
-            progressTracker = progressTracker,
-            reporter = reporter,
-            sourceParser = sourceParser,
-        )
     val classPathResolverProvider =
         ClassPathResolverProvider(
             sourceParser = sourceParser,
@@ -201,11 +197,8 @@ internal fun Driver.processFlags() {
         )
     val codebase =
         createCodebaseFromOptions(
-            options,
-            sourceOptions,
             classPathResolverProvider,
             signatureFileCache,
-            actionContext,
         ) ?: return
 
     // If provided by a test, run some additional checks on the internal state of this.
@@ -452,12 +445,9 @@ fun createCodeFragmentForSignatureFile(
 }
 
 /** Create [Codebase] object from option flags */
-private fun createCodebaseFromOptions(
-    options: Options,
-    sourceOptions: SourceOptions,
+private fun Driver.createCodebaseFromOptions(
     classPathResolverProvider: ClassPathResolverProvider,
     signatureFileCache: SignatureFileCache,
-    actionContext: ActionContext
 ): Codebase? {
     val sources = sourceOptions.sourceFiles
     if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
@@ -475,11 +465,9 @@ private fun createCodebaseFromOptions(
             classPathResolverProvider.classPathResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-        return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
+        return loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(
-            options,
-            sourceOptions,
+        return loadFromSources(
             signatureFileCache,
             classPathResolverProvider,
         )
@@ -678,9 +666,7 @@ private fun compareFileContents(file1: File, file2: File): Boolean {
  */
 internal var fastPathCheckResult: Boolean? = null
 
-private fun ActionContext.loadFromSources(
-    options: Options,
-    sourceOptions: SourceOptions,
+private fun Driver.loadFromSources(
     signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
 ): Codebase? {
@@ -794,7 +780,7 @@ private class ClassPathResolverProvider(
     }
 }
 
-fun ActionContext.loadFromJarFile(
+fun Driver.loadFromJarFile(
     apiJar: File,
     apiAnalyzerConfig: ApiAnalyzer.Config,
 ): Codebase {
