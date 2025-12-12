@@ -252,6 +252,9 @@ class Driver(
         }
     }
 
+    val apiAnalyzerConfig
+        get() = options.apiAnalyzerConfig
+
     val apiPredicateConfig
         get() = options.apiPredicateConfig
 }
@@ -480,7 +483,7 @@ private fun Driver.createCodebaseFromOptions(): Codebase? {
             classPathResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-        return loadFromJarFile(sources[0], options.apiAnalyzerConfig)
+        return loadFromJarFile(sources[0])
     } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
         return loadFromSources()
     }
@@ -700,7 +703,7 @@ private fun Driver.loadFromSources(): Codebase? {
 
     progressTracker.progress("Analyzing API: ")
 
-    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, options.apiAnalyzerConfig)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
 
     analyzer.computeApi()
@@ -758,10 +761,7 @@ private fun Driver.loadFromSources(): Codebase? {
     return codebase
 }
 
-fun Driver.loadFromJarFile(
-    apiJar: File,
-    apiAnalyzerConfig: ApiAnalyzer.Config,
-): Codebase {
+fun Driver.loadFromJarFile(apiJar: File): Codebase {
     val jarCodebaseLoader =
         JarCodebaseLoader.createForSourceParser(
             progressTracker,
