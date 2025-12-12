@@ -18,7 +18,6 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.run
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands

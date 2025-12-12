@@ -26,7 +26,7 @@ class OptionsTest : DriverTest() {
 
     private fun runTest(args: List<String>): Pair<StringWriter, StringWriter> {
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
-        run(
+        Driver.run(
             executionEnvironment = executionEnvironment,
             args = args.toTypedArray(),
         )

@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:JvmName("Driver")
-
 package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_JAR
@@ -80,55 +78,87 @@ import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
 
-fun main(args: Array<String>) {
-    val executionEnvironment = ExecutionEnvironment()
-    var exitCode = 0
-    try {
-        exitCode = run(executionEnvironment = executionEnvironment, args = args)
-    } catch (e: Throwable) {
-        exitCode = -1
-        e.printStackTrace(executionEnvironment.stderr)
-    } finally {
-        executionEnvironment.stdout.flush()
-        executionEnvironment.stderr.flush()
+class Driver {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            val executionEnvironment = ExecutionEnvironment()
+            var exitCode = 0
+            try {
+                exitCode = run(executionEnvironment = executionEnvironment, args = args)
+            } catch (e: Throwable) {
+                exitCode = -1
+                e.printStackTrace(executionEnvironment.stderr)
+            } finally {
+                executionEnvironment.stdout.flush()
+                executionEnvironment.stderr.flush()
 
-        exitProcess(exitCode)
+                exitProcess(exitCode)
+            }
+        }
+
+        /**
+         * The metadata driver is a command line interface to extracting various metadata from a
+         * source tree (or existing signature files etc.). Run with --help to see more details.
+         */
+        fun run(
+            executionEnvironment: ExecutionEnvironment,
+            args: Array<String>,
+        ): Int {
+            val stdout = executionEnvironment.stdout
+            val stderr = executionEnvironment.stderr
+
+            // Process the early options. This does not consume any arguments, they will be parsed
+            // again later. A little inefficient but produces cleaner code.
+            val earlyOptions = EarlyOptions.parse(args)
+
+            val progressTracker = ProgressTracker(earlyOptions.verbosity.verbose, stdout)
+
+            progressTracker.progress("$PROGRAM_NAME started\n")
+
+            // Actual work begins here.
+            val command =
+                createMetalavaCommand(
+                    executionEnvironment,
+                    progressTracker,
+                )
+            val exitCode = command.process(args)
+
+            stdout.flush()
+            stderr.flush()
+
+            progressTracker.progress("$PROGRAM_NAME exiting with exit code $exitCode\n")
+
+            return exitCode
+        }
+
+        private fun createMetalavaCommand(
+            executionEnvironment: ExecutionEnvironment,
+            progressTracker: ProgressTracker
+        ): MetalavaCommand {
+            val command =
+                MetalavaCommand(
+                    executionEnvironment = executionEnvironment,
+                    progressTracker = progressTracker,
+                    defaultCommandName = "main",
+                )
+            command.subcommands(
+                MainCommand(command.commonOptions, executionEnvironment),
+                AndroidJarsToSignaturesCommand(),
+                FlagReportCommand(),
+                HelpCommand(),
+                JarToJDiffCommand(),
+                MakeAnnotationsPackagePrivateCommand(),
+                MergeSignaturesCommand(),
+                SignatureCatCommand(),
+                SignatureToDexCommand(),
+                SignatureToJDiffCommand(),
+                UpdateSignatureHeaderCommand(),
+                VersionCommand(),
+            )
+            return command
+        }
     }
-}
-
-/**
- * The metadata driver is a command line interface to extracting various metadata from a source tree
- * (or existing signature files etc.). Run with --help to see more details.
- */
-fun run(
-    executionEnvironment: ExecutionEnvironment,
-    args: Array<String>,
-): Int {
-    val stdout = executionEnvironment.stdout
-    val stderr = executionEnvironment.stderr
-
-    // Process the early options. This does not consume any arguments, they will be parsed again
-    // later. A little inefficient but produces cleaner code.
-    val earlyOptions = EarlyOptions.parse(args)
-
-    val progressTracker = ProgressTracker(earlyOptions.verbosity.verbose, stdout)
-
-    progressTracker.progress("$PROGRAM_NAME started\n")
-
-    // Actual work begins here.
-    val command =
-        createMetalavaCommand(
-            executionEnvironment,
-            progressTracker,
-        )
-    val exitCode = command.process(args)
-
-    stdout.flush()
-    stderr.flush()
-
-    progressTracker.progress("$PROGRAM_NAME exiting with exit code $exitCode\n")
-
-    return exitCode
 }
 
 internal fun processFlags(
@@ -836,31 +866,4 @@ fun createOutputFileFromCodebaseFragment(
             "$PROGRAM_NAME wrote $description file $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
     }
-}
-
-private fun createMetalavaCommand(
-    executionEnvironment: ExecutionEnvironment,
-    progressTracker: ProgressTracker
-): MetalavaCommand {
-    val command =
-        MetalavaCommand(
-            executionEnvironment = executionEnvironment,
-            progressTracker = progressTracker,
-            defaultCommandName = "main",
-        )
-    command.subcommands(
-        MainCommand(command.commonOptions, executionEnvironment),
-        AndroidJarsToSignaturesCommand(),
-        FlagReportCommand(),
-        HelpCommand(),
-        JarToJDiffCommand(),
-        MakeAnnotationsPackagePrivateCommand(),
-        MergeSignaturesCommand(),
-        SignatureCatCommand(),
-        SignatureToDexCommand(),
-        SignatureToJDiffCommand(),
-        UpdateSignatureHeaderCommand(),
-        VersionCommand(),
-    )
-    return command
 }

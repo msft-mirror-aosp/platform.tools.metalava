@@ -169,7 +169,7 @@ abstract class DriverTest :
                     reporterEnvironment = reporterEnvironment,
                     testEnvironment = testEnvironment,
                 )
-            val exitCode = run(executionEnvironment, args)
+            val exitCode = Driver.run(executionEnvironment, args)
             if (exitCode == 0) {
                 assertTrue(
                     "Test expected to fail but didn't. Expected failure: $expectedFail",
