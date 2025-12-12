@@ -259,7 +259,7 @@ class Driver(
     }
 
     /**
-     * Backing property for [nullabilityAnnotationsValidator]
+     * Underlying [NullabilityAnnotationsValidator].
      *
      * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
      * `null` as a special value.
@@ -284,9 +284,16 @@ class Driver(
         )
     }
 
-    /** Validator for nullability annotations, if validation is enabled. */
-    private val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator?
+    /** Validator for nullability annotations in sources, if validation is enabled. */
+    private val nullabilityAnnotationsValidatorForSources
         get() = optionalNullabilityAnnotationsValidator.orElse(null)
+
+    /** Validator for nullability annotations for merging, if validation is enabled. */
+    private val nullabilityAnnotationsValidatorForMerging
+        get() =
+            if (nullabilityValidationOptions.validateNullabilityFromMergedStubs)
+                nullabilityAnnotationsValidatorForSources
+            else null
 
     /** The configuration options for the [ApiAnalyzer] class. */
     private val apiAnalyzerConfig by lazy {
@@ -305,10 +312,7 @@ class Driver(
                     sourcePath = sourceOptions.sourcePath,
                     classpath = sourceOptions.classpath,
                     apiPackageFilter = sourceOptions.apiPackageFilter,
-                    nullabilityAnnotationsValidator =
-                        if (nullabilityValidationOptions.validateNullabilityFromMergedStubs)
-                            nullabilityAnnotationsValidator
-                        else null,
+                    nullabilityAnnotationsValidator = nullabilityAnnotationsValidatorForMerging,
                 ),
         )
     }
@@ -745,7 +749,7 @@ class Driver(
 
         analyzer.mergeExternalQualifierAnnotations()
 
-        nullabilityAnnotationsValidator?.let { validator ->
+        nullabilityAnnotationsValidatorForSources?.let { validator ->
             // Validate any explicitly specified classes.
             validator.validateExplicitlySpecifiedClasses(codebase)
 
