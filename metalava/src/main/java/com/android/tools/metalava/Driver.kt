@@ -22,7 +22,6 @@ import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.VersionCommand
@@ -184,12 +183,16 @@ class Driver(
                 jdkHome = sourceOptions.jdkHome,
             )
         }
+
+    val signatureFileLoader
+        get() = options.signatureFileLoader
+
+    val signatureFileCache
+        get() = options.signatureFileCache
 }
 
 internal fun Driver.processFlags() {
     val stopwatch = Stopwatch.createStarted()
-
-    val signatureFileCache = options.signatureFileCache
 
     val classPathResolverProvider =
         ClassPathResolverProvider(
@@ -197,11 +200,7 @@ internal fun Driver.processFlags() {
             apiClassResolution = options.apiClassResolution,
             classpath = sourceOptions.classpath,
         )
-    val codebase =
-        createCodebaseFromOptions(
-            classPathResolverProvider,
-            signatureFileCache,
-        ) ?: return
+    val codebase = createCodebaseFromOptions(classPathResolverProvider) ?: return
 
     // If provided by a test, run some additional checks on the internal state of this.
     executionEnvironment.testEnvironment?.let { testEnvironment ->
@@ -217,18 +216,13 @@ internal fun Driver.processFlags() {
 
     val apiPredicateConfig = options.apiPredicateConfig
 
-    generateApiHistoryFromOptions(
-        codebase,
-        apiPredicateConfig,
-        options.signatureFileLoader,
-    )
+    generateApiHistoryFromOptions(codebase, apiPredicateConfig)
 
     // Generate signature files based on provided input flags (i.e. if api file locations were
     // provided).
     // Also run API lint checks on current codebase
     createApiSignatureFilesFromOptions(
         codebase,
-        signatureFileCache,
         classPathResolverProvider,
     )
 
@@ -264,7 +258,6 @@ internal fun Driver.processFlags() {
 
     for (check in options.compatibilityChecks) {
         checkCompatibility(
-            signatureFileCache,
             classPathResolverProvider,
             codebase,
             check,
@@ -311,7 +304,6 @@ internal fun Driver.processFlags() {
 }
 
 private fun Driver.runApiChecksFromOptions(
-    signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
     codebase: Codebase,
     apiCheckMethod: (Codebase, Codebase?) -> Unit
@@ -338,7 +330,6 @@ private fun Driver.runApiChecksFromOptions(
 /** write api signature to files specified by option flags (e.g. current.txt) */
 private fun Driver.createApiSignatureFilesFromOptions(
     codebase: Codebase,
-    signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
 ) {
     val fileFormat = signatureFormatOptions.fileFormat
@@ -355,7 +346,6 @@ private fun Driver.createApiSignatureFilesFromOptions(
         }
 
     runApiChecksFromOptions(
-        signatureFileCache,
         classPathResolverProvider,
         codebase,
     ) { _, previouslyReleasedCodebase ->
@@ -431,7 +421,6 @@ fun Driver.createCodeFragmentForSignatureFile(
 /** Create [Codebase] object from option flags */
 private fun Driver.createCodebaseFromOptions(
     classPathResolverProvider: ClassPathResolverProvider,
-    signatureFileCache: SignatureFileCache,
 ): Codebase? {
     val sources = sourceOptions.sourceFiles
     if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
@@ -443,7 +432,6 @@ private fun Driver.createCodebaseFromOptions(
                     "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                 )
             }
-        val signatureFileLoader = options.signatureFileLoader
         return signatureFileLoader.load(
             SignatureFile.fromFiles(sources),
             classPathResolverProvider.classPathResolver,
@@ -452,7 +440,6 @@ private fun Driver.createCodebaseFromOptions(
         return loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
         return loadFromSources(
-            signatureFileCache,
             classPathResolverProvider,
         )
     }
@@ -464,7 +451,6 @@ private fun Driver.createCodebaseFromOptions(
 private fun Driver.generateApiHistoryFromOptions(
     codebase: Codebase,
     apiPredicateConfig: ApiPredicate.Config,
-    signatureFileLoader: SignatureFileLoader,
 ) {
     val androidConfigCodeFragmentProvider: () -> CodebaseFragment = {
         var codebaseFragment =
@@ -544,7 +530,6 @@ private fun Driver.generateApiHistoryFromOptions(
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
 private fun Driver.checkCompatibility(
-    signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
     newCodebase: Codebase,
     check: CheckRequest,
@@ -649,7 +634,6 @@ private fun compareFileContents(file1: File, file2: File): Boolean {
 internal var fastPathCheckResult: Boolean? = null
 
 private fun Driver.loadFromSources(
-    signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
 ): Codebase? {
     progressTracker.progress("Processing sources: ")
@@ -718,7 +702,6 @@ private fun Driver.loadFromSources(
     }
 
     runApiChecksFromOptions(
-        signatureFileCache,
         classPathResolverProvider,
         codebase,
     ) { codebase, previouslyReleasedCodebase ->
