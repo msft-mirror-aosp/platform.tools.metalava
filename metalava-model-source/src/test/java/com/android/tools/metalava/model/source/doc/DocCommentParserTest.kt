@@ -163,10 +163,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
             docComment.assertStructure(
                 """
                     text: 'Some text'
-                    blockTag: see
-                      text: 'something'
-                      blockTag: see
-                      text: 'other thing'
+                    blockTag: see LabeledRefTagData(sourceReference=something, resolvedReference=null)
+                    blockTag: see LabeledRefTagData(sourceReference=other, resolvedReference=null)
+                      text: 'thing'
                 """
             )
         }
@@ -408,9 +407,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /**
                      * An inline tag.
-                     *
-                     * @see Something
-                     * {@hide}
+                     * @see Something {@hide}
                      */
                 """,
         )
@@ -927,19 +924,17 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see Reference
                      */
                 """,
-            // TODO(b/447588621): Resolve references in @see tag so this will have an effect.
             referenceResolver = { ClassReference("resolved.$it") },
             expectedString =
                 """
                     description: <<>>
                     @see <<Reference>>
                 """,
-            expectedPrintOutput = """/** @see Reference */""",
+            expectedPrintOutput = """/** @see resolved.Reference Reference */""",
         ) {
             docComment.assertStructure(
                 """
-                    blockTag: see
-                      text: 'Reference'
+                    blockTag: see LabeledRefTagData(sourceReference=Reference, resolvedReference=ClassReference(qualifiedName=resolved.Reference))
                 """
             )
         }
@@ -954,19 +949,18 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see Reference Label
                      */
                 """,
-            // TODO(b/447588621): Resolve references in @see tag so this will have an effect.
             referenceResolver = { ClassReference("resolved.$it") },
             expectedString =
                 """
                     description: <<>>
                     @see <<Reference Label>>
                 """,
-            expectedPrintOutput = """/** @see Reference Label */""",
+            expectedPrintOutput = """/** @see resolved.Reference Label */""",
         ) {
             docComment.assertStructure(
                 """
-                    blockTag: see
-                      text: 'Reference Label'
+                    blockTag: see LabeledRefTagData(sourceReference=Reference, resolvedReference=ClassReference(qualifiedName=resolved.Reference))
+                      text: 'Label'
                 """
             )
         }

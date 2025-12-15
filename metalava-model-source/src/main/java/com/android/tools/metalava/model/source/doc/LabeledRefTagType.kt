@@ -20,9 +20,12 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
-/** [TagType] for labeled reference tags, e.g. `@link` and `@linkplain` inline tags. */
-internal class LabeledRefTagType(name: String) : TagType<LabeledRefTagData>(name) {
-    /** Link tags can only contain */
+/**
+ * [TagType] for labeled reference tags, e.g. `@link` and `@linkplain` inline tags and `@see` block
+ * tag.
+ */
+internal open class LabeledRefTagType(name: String) : TagType<LabeledRefTagData>(name) {
+    /** Link tags can only contain text */
     override val containsTextOnly: Boolean
         get() = true
 
@@ -156,7 +159,10 @@ internal fun CharSequence.findEndOfReference(startInclusive: Int): Int {
     return length
 }
 
-/** Encapsulates information about a labeled reference tag, e.g. `@link` and `@linkplain` tags. */
+/**
+ * Encapsulates information about a labeled reference tag, e.g. `@link` and `@linkplain` inline tags
+ * and `@see` block tag.
+ */
 internal data class LabeledRefTagData(
     /** The reference from the source; used as the label if necessary. */
     val sourceReference: String,

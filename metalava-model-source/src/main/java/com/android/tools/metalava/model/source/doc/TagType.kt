@@ -200,6 +200,7 @@ internal open class BaseTagTypes {
  */
 internal object BlockTagTypes : BaseTagTypes() {
     val PARAM = register(ParamTagType("param"))
+    val SEE = register(SeeTagType())
     val THROWS = register(ThrowsTagType())
 
     init {
