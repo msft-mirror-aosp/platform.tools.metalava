@@ -77,9 +77,9 @@ internal class FindPossiblyImportedTypeReferencesVisitor(private val importedTyp
     override fun visit(inlineTag: JavadocInlineTag) = inlineTag.requiresImportBeKept()
 
     override fun visit(text: JavadocText) =
-        // TODO(b/447588621): Use of an imported name in the text should not keep the corresponding
-        //  import as the name is never resolved against the import.
-        text.contents.containsWord(importedTypeName)
+        // Use of an imported name in the text does not keep the corresponding import as the name is
+        // never resolved against the import.
+        false
 
     override fun visit(blockTagSection: BlockTagSection) = blockTagSection.requiresImportBeKept()
 }

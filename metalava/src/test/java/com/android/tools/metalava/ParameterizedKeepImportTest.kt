@@ -64,7 +64,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                 TestData(
                     name = "in plain text",
                     classDoc = "Using ImportedName in plain text",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
                 TestData(
                     name = "in @see reference",
@@ -75,7 +75,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                 TestData(
                     name = "in @see label",
                     classDoc = """@see "Something" use ImportedName in see description""",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
                 TestData(
                     name = "in @param name",
@@ -85,7 +85,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                 TestData(
                     name = "in @param description",
                     methodDoc = "@param p use ImportedName in param description",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
                 TestData(
                     name = "in @throws reference",
@@ -98,7 +98,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                     methodDoc = "@throws RuntimeException use ImportedName in throws description",
                     expectedMethodDoc =
                         "@throws java.lang.RuntimeException use ImportedName in throws description",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
                 TestData(
                     name = "in @link reference",
@@ -109,7 +109,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                 TestData(
                     name = "in @link label",
                     classDoc = "{@link java.util.List use ImportedName in link label}",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
                 TestData(
                     name = "in @link field reference",
