@@ -53,9 +53,9 @@ internal class FindPossiblyImportedTypeReferencesVisitor(private val importedTyp
             // @link, @linkplain and @see tags may contain references to imported types.
             // TODO(b/447588621): This should not affect imports if the type has been resolved.
             is LabeledRefTagData -> sourceReference.containsWord(importedTypeName)
-            // TODO(b/447588621): Parameter names should not cause an import of the same name to be
-            //  kept as they are not resolved against imported names.
-            is ParamTagData -> name.containsWord(importedTypeName)
+            // Parameter names should not cause an import of the same name to be kept as they are
+            // not resolved against imported names.
+            is ParamTagData -> false
             // TODO(b/447588621): Throwable classes are fully resolved by Metalava so should not
             //  cause the imported name to be kept.
             is ThrowsTagData -> throwableType.displayName.containsWord(importedTypeName)

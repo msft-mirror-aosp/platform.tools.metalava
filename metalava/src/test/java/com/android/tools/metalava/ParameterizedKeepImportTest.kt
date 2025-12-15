@@ -80,7 +80,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                 TestData(
                     name = "in @param name",
                     methodDoc = "@param ImportedName",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
                 TestData(
                     name = "in @param description",
