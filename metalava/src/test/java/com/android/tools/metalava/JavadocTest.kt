@@ -155,7 +155,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                     package test.pkg1;
-                    import java.io.IOException;
                     import test.pkg2.OtherClass;
                     /**
                      * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
@@ -366,7 +365,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.io.IOException;
                 import test.pkg2.OtherClass;
                 /**
                  * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.

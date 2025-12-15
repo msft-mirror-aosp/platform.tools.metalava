@@ -91,7 +91,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                     name = "in @throws reference",
                     methodDoc = "@throws ImportedName",
                     expectedMethodDoc = "@throws other.pkg.ImportedName",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
                 TestData(
                     name = "in @throws description",

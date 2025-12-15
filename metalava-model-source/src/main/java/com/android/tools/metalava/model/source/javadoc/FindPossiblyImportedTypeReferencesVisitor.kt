@@ -56,9 +56,9 @@ internal class FindPossiblyImportedTypeReferencesVisitor(private val importedTyp
             // Parameter names should not cause an import of the same name to be kept as they are
             // not resolved against imported names.
             is ParamTagData -> false
-            // TODO(b/447588621): Throwable classes are fully resolved by Metalava so should not
-            //  cause the imported name to be kept.
-            is ThrowsTagData -> throwableType.displayName.containsWord(importedTypeName)
+            // Throwable classes are fully resolved by Metalava so should not cause the imported
+            // name to be kept.
+            is ThrowsTagData -> false
             else -> error("unknown tag data $this")
         }
 
