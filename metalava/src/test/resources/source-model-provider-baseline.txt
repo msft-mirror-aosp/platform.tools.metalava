@@ -32,6 +32,10 @@ com.android.tools.metalava.JavadocTest
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
 
+com.android.tools.metalava.ParameterizedKeepImportTest
+  Test import kept[turbine,in @link field reference]
+  Test import kept[turbine,in @link method reference]
+
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
   Test VarHandle[turbine]
