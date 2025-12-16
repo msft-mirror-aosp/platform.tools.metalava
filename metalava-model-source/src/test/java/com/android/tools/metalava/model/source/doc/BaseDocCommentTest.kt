@@ -17,9 +17,11 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.ExprContext
+import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 import kotlin.test.assertEquals
+import org.junit.Before
 
 abstract class BaseDocCommentTest {
     val reporter = CollatingDocumentationIssueReporter()
@@ -53,6 +55,12 @@ abstract class BaseDocCommentTest {
     ) {
         var actualPrintOutput = docComment.asJavadocCommentString().trim()
         assertEquals(expectedPrintOutput.trimIndent(), actualPrintOutput, message)
+    }
+
+    @Before
+    fun initializeTestTagTypes() {
+        // Make sure that the test tag types are registered.
+        TestTagTypes
     }
 }
 

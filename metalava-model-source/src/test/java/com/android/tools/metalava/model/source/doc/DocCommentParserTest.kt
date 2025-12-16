@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.BarTagData
 import com.android.tools.metalava.model.source.javadoc.JavadocText
-import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import com.android.tools.metalava.model.source.javadoc.dumpContentStructure
 import junit.framework.TestCase.assertFalse
@@ -660,8 +659,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
 
     @Test
     fun `Test block tag data`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkDocComment(
             input =
                 """
