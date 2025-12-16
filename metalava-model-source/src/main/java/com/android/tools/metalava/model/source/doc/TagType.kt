@@ -209,7 +209,6 @@ internal object BlockTagTypes : BaseTagTypes() {
     }
 
     val DEPRECATED = tagTypeOf("deprecated")
-    val HIDE = tagTypeOf("hide")
 }
 
 /** Collection of all the inline [TagType]s that have been created. */
