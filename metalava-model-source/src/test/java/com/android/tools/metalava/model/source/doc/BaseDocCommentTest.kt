@@ -40,6 +40,11 @@ abstract class BaseDocCommentTest {
                 input.trimIndent(),
                 reporter,
             )
+
+        // Parse all the descriptions
+        docComment.description
+        docComment.blockTagSections.forEach { it.description }
+
         reporter.assertJavadocParserIssues(expectedIssues)
         return docComment
     }

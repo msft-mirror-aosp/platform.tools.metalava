@@ -641,6 +641,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** {@code unclosed} */
                 """,
+            expectedIssues = "2:6: unclosed inline '@code' tag [UnclosedInlineTag]",
         )
     }
 
@@ -675,13 +676,11 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** @bar foo block after */
                 """,
+            expectedIssues =
+                "2:9: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]",
         ) {
             val barBlockTagSection = docComment.blockTagSections.single()
             assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
-
-            reporter.assertJavadocParserIssues(
-                "2:9: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]"
-            )
         }
     }
 
