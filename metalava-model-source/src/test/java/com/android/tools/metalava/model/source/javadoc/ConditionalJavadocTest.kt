@@ -310,7 +310,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             expectedStructure =
                 """
                     text: 'Before '
-                    inlineTag: link LinkTagData(sourceReference=ref2, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=ref2, resolvedReference=null)
                       text: 'label'
                     text: ' after.'
                 """,
@@ -332,7 +332,7 @@ class ConditionalJavadocTest : BaseJavadocTest() {
             expectedStructure =
                 """
                     text: 'Before '
-                    inlineTag: link LinkTagData(sourceReference=ref1, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=ref1, resolvedReference=null)
                       text: 'label'
                     text: ' after.'
                 """,
