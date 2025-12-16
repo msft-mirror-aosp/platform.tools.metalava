@@ -278,6 +278,13 @@ object Issues {
     // target Java
     val FACADE_CLASS_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
 
+    val KMP_DEPRECATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_VISIBILITY_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_MODIFIER_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_HIDE_SHOW_ANNOTATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_EXPERIMENTAL_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_REIFIED_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
     }
