@@ -183,6 +183,9 @@ internal open class BaseTagTypes {
         return tagType
     }
 
+    /** Register a [DefaultTagType] called [name]. */
+    fun registerDefaultTagType(name: String) = register(DefaultTagType(name))
+
     /**
      * Get a [TagType] for [name].
      *
@@ -208,12 +211,12 @@ internal object BlockTagTypes : BaseTagTypes() {
         register(THROWS, alias = "exception")
     }
 
-    val DEPRECATED = tagTypeOf("deprecated")
+    val DEPRECATED = registerDefaultTagType("deprecated")
 }
 
 /** Collection of all the inline [TagType]s that have been created. */
 internal object InlineTagTypes : BaseTagTypes() {
-    val INHERIT_DOC = tagTypeOf("inheritDoc")
+    val INHERIT_DOC = registerDefaultTagType("inheritDoc")
 
     init {
         register(LabeledRefTagType("link"))
