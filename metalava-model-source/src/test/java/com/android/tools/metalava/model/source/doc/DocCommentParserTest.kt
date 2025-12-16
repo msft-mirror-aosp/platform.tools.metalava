@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.source.javadoc.BarTagData
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
-import com.android.tools.metalava.model.source.javadoc.assertStructure
+import com.android.tools.metalava.model.source.javadoc.dumpContentStructure
 import junit.framework.TestCase.assertFalse
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -48,6 +48,28 @@ class DocCommentParserTest : BaseDocCommentTest() {
         }
 
         DocCommentContext(docComment).checker()
+    }
+
+    /** Dump the internal structure of this [DocComment]. */
+    private fun DocComment.dumpStructure(): String = buildString {
+        description?.let { append(it.dumpContentStructure()) }
+        for (section in blockTagSections) {
+            append("blockTag: ")
+            append(section.tagType)
+            section.tagData?.let { tagData ->
+                append(" ")
+                append(tagData)
+            }
+            append("\n")
+            section.description?.let { append(it.dumpContentStructure().prependIndent("  ")) }
+        }
+    }
+
+    /** Check the model structure of this [DocComment]. */
+    internal fun DocComment.assertStructure(expected: String, message: String? = null) {
+        // Generate a string representation of the model structure.
+        val actualStructure = dumpStructure()
+        assertEquals(expected.trimIndent(), actualStructure.trimEnd(), message)
     }
 
     @Test
@@ -135,7 +157,17 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see other thing
                      */
                 """,
-        )
+        ) {
+            docComment.assertStructure(
+                """
+                    text: 'Some text'
+                    blockTag: see
+                      text: 'something'
+                      blockTag: see
+                      text: 'other thing'
+                """
+            )
+        }
     }
 
     @Test
@@ -236,6 +268,31 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      */
                 """,
         )
+    }
+
+    @Test
+    fun `Test @throws block tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @throws SomeException reason
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @throws <<SomeException reason>>
+                """,
+            expectedPrintOutput = "/** @throws SomeException reason */",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=SomeException))
+                      text: 'reason'
+                """
+            )
+        }
     }
 
     @Test
@@ -708,7 +765,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /** some {@code text} to append */
                 """,
             )
-            docComment.description.assertStructure(
+            docComment.assertStructure(
                 """
                     text: 'some '
                     inlineTag: code
@@ -746,7 +803,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      */
                 """,
             )
-            docComment.description.assertStructure(
+            docComment.assertStructure(
                 """
                     text: 'existing'
                     text: '.'
