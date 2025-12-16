@@ -218,11 +218,11 @@ internal object BlockTagTypes : BaseTagTypes() {
 internal object InlineTagTypes : BaseTagTypes() {
     val INHERIT_DOC = registerDefaultTagType("inheritDoc")
 
+    val CODE = register(TextOnlyInlineTagType("code"))
+    val LITERAL = register(TextOnlyInlineTagType("literal"))
+
     init {
         register(LabeledRefTagType("link"))
         register(LabeledRefTagType("linkplain"))
-
-        register(TextOnlyInlineTagType("code"))
-        register(TextOnlyInlineTagType("literal"))
     }
 }

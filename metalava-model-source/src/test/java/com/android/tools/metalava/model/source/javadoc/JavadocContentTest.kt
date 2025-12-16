@@ -52,8 +52,8 @@ class JavadocContentTest : BaseDocCommentTest() {
 
     @Test
     fun `Test add JavadocContent mixture`() {
-        val codeTagType = InlineTagTypes.tagTypeOf("code")
-        val literalTagType = InlineTagTypes.tagTypeOf("literal")
+        val codeTagType = InlineTagTypes.CODE
+        val literalTagType = InlineTagTypes.LITERAL
         checkConcatenate(
             "first",
             "second {@code inline}",
