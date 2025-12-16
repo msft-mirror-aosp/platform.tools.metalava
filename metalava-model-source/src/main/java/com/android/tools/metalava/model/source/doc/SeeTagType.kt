@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /** [TagType] for `@throws` block tag. */
-internal class SeeTagType() : LabeledRefTagType("see") {
+internal class SeeTagType() : LabeledRefTagType("see", TagTypeForm.BLOCK) {
 
     override fun extractData(
         context: DocCommentContext,

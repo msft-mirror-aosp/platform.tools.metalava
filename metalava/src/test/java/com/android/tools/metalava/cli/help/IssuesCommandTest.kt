@@ -133,6 +133,7 @@ Available Issues                             |  Category                        
   InvalidNullabilityOverride                 |  api_lint                             |   error
   InvalidPackage                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
+  InvalidTagForm                             |  documentation                        |   warning_error_when_new
   IoError                                    |  unknown                              |   error
   KmpDeprecationMismatch                     |  api_lint                             |   error
   KmpExperimentalMismatch                    |  api_lint                             |   error

@@ -973,6 +973,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
             expectedString = """description: <<\n * {@throws Exception}>>""",
             expectedPrintOutput = """/** {@throws Exception} */""",
+            expectedIssues = "2:6: Cannot use 'throws' as an inline tag [InvalidTagForm]",
         ) {
             docComment.assertStructure(
                 """
@@ -997,6 +998,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     @link <<String>>
                 """,
             expectedPrintOutput = """/** @link String */""",
+            expectedIssues = "2:5: Cannot use 'link' as a block tag [InvalidTagForm]",
         ) {
             docComment.assertStructure(
                 """

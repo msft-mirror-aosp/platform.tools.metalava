@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.reporter.Issues
 import java.util.regex.Pattern
 import kotlin.text.isWhitespace
 
@@ -139,6 +140,15 @@ internal object DocCommentParser {
 
                 // Map it to a [TagType].
                 blockTagType = TagTypes.tagTypeOf(tagTypeName)
+                if (!blockTagType.form.supportsBlockTag) {
+                    val position = matcher.start(BLOCK_TAG_TYPE_GROUP_INDEX)
+                    reporter.report(
+                        Issues.INVALID_TAG_FORM,
+                        "Cannot use '$tagTypeName' as a block tag",
+                        text.lineOffsetFor(position),
+                        text.characterOffsetFor(position),
+                    )
+                }
 
                 // The start of the block tag description is the end of the match (which excludes
                 // any white space after the block tag name).

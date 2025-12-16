@@ -20,11 +20,9 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
-/**
- * [TagType] for labeled reference tags, e.g. `@link` and `@linkplain` inline tags and `@see` block
- * tag.
- */
-internal open class LabeledRefTagType(name: String) : TagType<LabeledRefTagData>(name) {
+/** [TagType] for labeled reference tags, e.g. `@link` and `@linkplain` inline tags. */
+internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
+    TagType<LabeledRefTagData>(name, form) {
     /** Link tags can only contain text */
     override val containsTextOnly: Boolean
         get() = true

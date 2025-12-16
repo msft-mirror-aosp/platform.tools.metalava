@@ -47,6 +47,21 @@ internal interface TagData : Comparable<TagData> {
     fun textMatches(predicate: (String) -> Boolean): Boolean = false
 }
 
+/** Enumerates the possible forms a [TagType] supports. */
+enum class TagTypeForm(
+    internal val supportsBlockTag: Boolean = false,
+    internal val supportsInlineTag: Boolean = false,
+) {
+    /** Can be used as an inline tag. */
+    INLINE(supportsInlineTag = true),
+
+    /** Can be used as a block tag. */
+    BLOCK(supportsBlockTag = true),
+
+    /** Can be used as a block tag or an inline tag. */
+    BOTH(supportsBlockTag = true, supportsInlineTag = true),
+}
+
 /** Provides tag type specific functionality for block and inline tags. */
 internal abstract class TagType<D : TagData>(
     /**
@@ -54,6 +69,9 @@ internal abstract class TagType<D : TagData>(
      * `link` for `{@link Class}` inline tags.
      */
     val name: String,
+
+    /** The form that this tag type takes. */
+    val form: TagTypeForm,
 ) {
     /**
      * The ordinal of this tag type, defining its order within all tag types.
@@ -145,7 +163,7 @@ internal data class ExtractDataResult<D : TagData>(
 )
 
 /** The default [TagType] used for all tags that do not have special behavior. */
-internal class DefaultTagType(name: String) : TagType<TagData>(name) {
+internal class DefaultTagType(name: String, form: TagTypeForm) : TagType<TagData>(name, form) {
     override fun extractData(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
@@ -184,16 +202,22 @@ internal object TagTypes {
     }
 
     /** Register a [DefaultTagType] called [name]. */
-    fun registerDefaultTagType(name: String) = register(DefaultTagType(name))
+    fun registerDefaultTagType(name: String, form: TagTypeForm) =
+        register(DefaultTagType(name, form))
 
     /**
      * Get a [TagType] for [name].
      *
      * If no such [TagType] has been registered then creates a [DefaultTagType] and caches that.
      */
-    fun tagTypeOf(name: String): TagType<*> {
-        return tagTypes.computeIfAbsent(name, ::DefaultTagType)
-    }
+    fun tagTypeOf(name: String) =
+        tagTypes.computeIfAbsent(name) { name ->
+            DefaultTagType(
+                name,
+                // Default to supporting both forms.
+                TagTypeForm.BOTH
+            )
+        }
 
     // All the block [TagType]s that have specialized behavior.
     //
@@ -209,19 +233,19 @@ internal object TagTypes {
         }
     }
 
-    val DEPRECATED = registerDefaultTagType("deprecated")
+    val DEPRECATED = registerDefaultTagType("deprecated", TagTypeForm.BLOCK)
 
     // Inline [TagType]s that have specialized behavior.
     //
     // Strictly speaking `inheritDoc` is an inline tag but there are block tag uses in the Android
     // source.
-    val INHERIT_DOC = registerDefaultTagType("inheritDoc")
+    val INHERIT_DOC = registerDefaultTagType("inheritDoc", TagTypeForm.BOTH)
 
     val CODE = register(TextOnlyInlineTagType("code"))
     val LITERAL = register(TextOnlyInlineTagType("literal"))
 
     init {
-        register(LabeledRefTagType("link"))
-        register(LabeledRefTagType("linkplain"))
+        register(LabeledRefTagType("link", TagTypeForm.INLINE))
+        register(LabeledRefTagType("linkplain", TagTypeForm.INLINE))
     }
 }

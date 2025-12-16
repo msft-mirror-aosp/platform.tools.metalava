@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.source.doc.ExtractDataResult
 import com.android.tools.metalava.model.source.doc.JavadocContentPrinter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
+import com.android.tools.metalava.model.source.doc.TagTypeForm
 import com.android.tools.metalava.model.source.doc.TagTypes
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
@@ -34,7 +35,7 @@ internal object TestTagTypes {
         }
 }
 
-internal class BarTagType : TagType<BarTagData>("bar") {
+internal class BarTagType : TagType<BarTagData>("bar", TagTypeForm.BOTH) {
     override fun extractData(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
