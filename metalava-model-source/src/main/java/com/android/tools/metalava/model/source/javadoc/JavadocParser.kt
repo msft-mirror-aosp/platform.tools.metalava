@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
-import com.android.tools.metalava.model.source.doc.InlineTagTypes
+import com.android.tools.metalava.model.source.doc.TagTypes
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
@@ -474,7 +474,7 @@ private class JavadocContentBuilder(
         trimLeadingWhitespace = false
 
         val tagTypeName = ctx.INLINE_TAG_NAME().text
-        val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
+        val tagType = TagTypes.tagTypeOf(tagTypeName)
 
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
         // report the issue.

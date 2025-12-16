@@ -974,11 +974,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedString = """description: <<\n * {@throws Exception}>>""",
             expectedPrintOutput = """/** {@throws Exception} */""",
         ) {
-            // TODO(b/469362503): Should use ThrowsTagData
             docComment.assertStructure(
                 """
-                    inlineTag: throws
-                      text: 'Exception'
+                    inlineTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=Exception))
                 """
             )
         }
@@ -1000,11 +998,9 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
             expectedPrintOutput = """/** @link String */""",
         ) {
-            // TODO(b/469362503): Should use LabeledRefTagData
             docComment.assertStructure(
                 """
-                    blockTag: link
-                      text: 'String'
+                    blockTag: link LabeledRefTagData(sourceReference=String, resolvedReference=null)
                 """
             )
         }

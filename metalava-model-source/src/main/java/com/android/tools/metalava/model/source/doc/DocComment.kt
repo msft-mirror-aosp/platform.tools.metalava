@@ -165,7 +165,7 @@ internal class DefaultDocComment(
         blockTagSections.any { it.tagType.name == tagTypeName }
 
     override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?) {
-        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        val tagType = TagTypes.tagTypeOf(tagTypeName)
         val blockTagSection =
             DefaultBlockTagSection(
                 context,
@@ -197,7 +197,7 @@ internal class DefaultDocComment(
         tagTypeName: String,
         description: JavadocContent?
     ): DocContentOwner {
-        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        val tagType = TagTypes.tagTypeOf(tagTypeName)
         return PendingBlockTagSection(this, context, tagType, description.toSupplier())
     }
 

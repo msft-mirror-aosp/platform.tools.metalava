@@ -162,7 +162,7 @@ internal class DefaultTagType(name: String) : TagType<TagData>(name) {
  * the set of tag types that could be used in a specific invocation of Metalava is small. It will
  * consist of a fixed number of standard tag types and a small set of custom tags.
  */
-internal open class BaseTagTypes {
+internal object TagTypes {
     /**
      * Cache from [TagType.name] to [TagType].
      *
@@ -194,28 +194,27 @@ internal open class BaseTagTypes {
     fun tagTypeOf(name: String): TagType<*> {
         return tagTypes.computeIfAbsent(name, ::DefaultTagType)
     }
-}
 
-/**
- * Collection of all the block [TagType]s that have been created.
- *
- * Must be in the same order as [BlockTagOrder].
- */
-internal object BlockTagTypes : BaseTagTypes() {
+    // All the block [TagType]s that have specialized behavior.
+    //
+    // Must be in the same order as [BlockTagOrder].
+
     val PARAM = register(ParamTagType("param"))
     val SEE = register(SeeTagType())
-    val THROWS = register(ThrowsTagType())
 
     init {
-        // @exception as an alias for @throws
-        register(THROWS, alias = "exception")
+        register(ThrowsTagType()).also { throwsTagType ->
+            // @exception as an alias for @throws
+            register(throwsTagType, alias = "exception")
+        }
     }
 
     val DEPRECATED = registerDefaultTagType("deprecated")
-}
 
-/** Collection of all the inline [TagType]s that have been created. */
-internal object InlineTagTypes : BaseTagTypes() {
+    // Inline [TagType]s that have specialized behavior.
+    //
+    // Strictly speaking `inheritDoc` is an inline tag but there are block tag uses in the Android
+    // source.
     val INHERIT_DOC = registerDefaultTagType("inheritDoc")
 
     val CODE = register(TextOnlyInlineTagType("code"))

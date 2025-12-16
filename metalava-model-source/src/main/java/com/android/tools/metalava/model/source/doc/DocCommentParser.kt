@@ -138,7 +138,7 @@ internal object DocCommentParser {
                 val tagTypeName = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!
 
                 // Map it to a [TagType].
-                blockTagType = BlockTagTypes.tagTypeOf(tagTypeName)
+                blockTagType = TagTypes.tagTypeOf(tagTypeName)
 
                 // The start of the block tag description is the end of the match (which excludes
                 // any white space after the block tag name).

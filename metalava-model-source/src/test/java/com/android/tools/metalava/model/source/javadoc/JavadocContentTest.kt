@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
-import com.android.tools.metalava.model.source.doc.InlineTagTypes
+import com.android.tools.metalava.model.source.doc.TagTypes
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -52,8 +52,8 @@ class JavadocContentTest : BaseDocCommentTest() {
 
     @Test
     fun `Test add JavadocContent mixture`() {
-        val codeTagType = InlineTagTypes.CODE
-        val literalTagType = InlineTagTypes.LITERAL
+        val codeTagType = TagTypes.CODE
+        val literalTagType = TagTypes.LITERAL
         checkConcatenate(
             "first",
             "second {@code inline}",
