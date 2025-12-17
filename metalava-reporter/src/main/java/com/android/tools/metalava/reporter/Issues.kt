@@ -43,9 +43,9 @@ object Issues {
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val ADDED_CLASS by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
-    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
+    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val SEALED_CLASS_EXHAUSTIVITY_CHANGED by
-        Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
+        Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     // Adding an abstract method is breaking, but that is a separate issue.
     val ADDED_METHOD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     // Note that this may be breaking if the class/interface can be implemented, but the reporter
@@ -75,6 +75,7 @@ object Issues {
     val CHANGED_NATIVE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val CHANGED_CLASS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_DEPRECATED by Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
+    val CHANGED_ANNOTATION_RETENTION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val ADDED_FINAL_UNINSTANTIABLE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val REMOVED_FINAL by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
     val REMOVED_FINAL_STRICT by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
@@ -91,8 +92,10 @@ object Issues {
 
     // Issues in javadoc generation
     val INVALID_JAVADOC by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
+    val INVALID_IF_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val INVALID_JAVADOC_EXPR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MALFORMED_DOC_REFERENCE by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
-    val INVALID_HIDE_DOC_TAG by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
+    val INVALID_BLOCK_TAG_USE by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNCLOSED_INLINE_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNRESOLVED_LINK by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
@@ -131,8 +134,11 @@ object Issues {
     val INTERNAL_ERROR by Issue(Severity.ERROR)
     val RETURNING_UNEXPECTED_CONSTANT by Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML by Issue(Severity.WARNING, Category.DOCUMENTATION)
+
+    val MISSING_ANNOTATIONS_XML_ITEM by Issue(Severity.HIDDEN, Category.API_LINT)
     val UNMATCHED_MERGE_ANNOTATION by Issue(Severity.ERROR, Category.API_LINT)
     val INCONSISTENT_MERGE_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
     val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN, Category.API_LINT)
@@ -254,9 +260,13 @@ object Issues {
     val ASYNC_SUFFIX_FUTURE by Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS by Issue(Severity.ERROR, Category.API_LINT)
     val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT)
+
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
     val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val UNEXPORTED_FLAGGED_API by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+
+    val NO_PREVIOUSLY_RELEASED_API by Issue(Severity.ERROR, Category.API_LINT)
+
     val GETTER_SETTER_NULLABILITY by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED by Issue(Severity.HIDDEN, Category.API_LINT)
     val VALUE_CLASS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)

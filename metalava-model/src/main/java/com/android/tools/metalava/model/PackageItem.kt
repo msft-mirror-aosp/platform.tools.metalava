@@ -49,6 +49,11 @@ interface PackageItem : SelectableItem, ReferencableItem, ReferencableNameScope 
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }
 
+    override fun describe(capitalize: Boolean): String {
+        val suffix = qualifiedName().let { if (it.isEmpty()) "<root>" else it }
+        return "${if (capitalize) "Package" else "package"} $suffix"
+    }
+
     override fun type(): TypeItem? = null
 
     override fun setType(type: TypeItem) =
