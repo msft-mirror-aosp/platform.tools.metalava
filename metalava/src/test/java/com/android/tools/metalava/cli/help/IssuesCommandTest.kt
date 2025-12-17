@@ -134,6 +134,12 @@ Available Issues                             |  Category                        
   InvalidPackage                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
   IoError                                    |  unknown                              |   error
+  KmpDeprecationMismatch                     |  api_lint                             |   error
+  KmpExperimentalMismatch                    |  api_lint                             |   error
+  KmpHideShowAnnotationMismatch              |  api_lint                             |   error
+  KmpModifierMismatch                        |  api_lint                             |   error
+  KmpReifiedMismatch                         |  api_lint                             |   error
+  KmpVisibilityMismatch                      |  api_lint                             |   error
   KotlinDefaultParameterOrder                |  api_lint                             |   error
   KotlinKeyword                              |  api_lint                             |   error
   KotlinOperator                             |  api_lint                             |   info
