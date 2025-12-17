@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
+import com.android.tools.metalava.cli.common.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -486,7 +486,7 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Outer {
                     public Outer() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass1 {
                     public MyClass1() { throw new RuntimeException("Stub!"); }
@@ -495,9 +495,9 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass2 {
                     public MyClass2() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     public int myMethod() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     public int myField;
                     }
                     }

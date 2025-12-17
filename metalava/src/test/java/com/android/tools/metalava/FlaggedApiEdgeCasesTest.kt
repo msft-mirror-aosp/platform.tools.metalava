@@ -17,7 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -51,8 +53,12 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            expectedFail =
-                "Aborting: Inconsistent options: API flags are provided in a --config-file but no previously released API is provided via --check-compatibility:api:released or --check-compatibility:removed:released",
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                """,
         )
     }
 
@@ -120,6 +126,65 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Test reverting class with --show-single-annotation`() {
+        check(
+            // Use an empty api flags which defaults all flags to disabled.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_SINGLE_ANNOTATION,
+                    "android.annotation.SystemApi",
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                            * @hide
+                            */
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            @$ANDROID_SYSTEM_API
+                            public class Test {
+                                // A member of a class that is annotated with a show annotation but
+                                // is not marked as @hide. Usually, that would usually report an
+                                // error but the show annotation is a --show-single-annotation
+                                // so the @hide is not required.
+                                @$ANDROID_SYSTEM_API
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                    systemApiSource,
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        method public void method();
+                      }
+                    }
+                """,
         )
     }
 

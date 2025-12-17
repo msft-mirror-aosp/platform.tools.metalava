@@ -47,7 +47,7 @@ Available Issues                             |  Category                        
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
   AddedReified                               |  binary_compatibility_only            |   error
-  AddedSubclassToSealedClass                 |  source_compatibility_only            |   hidden
+  AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
   AndroidUri                                 |  api_lint                             |   error
   AnnotationExtraction                       |  unknown                              |   error
@@ -64,6 +64,7 @@ Available Issues                             |  Category                        
   CallbackMethodName                         |  api_lint                             |   error
   CallbackName                               |  api_lint                             |   warning
   ChangedAbstract                            |  binary_and_source_compatibility      |   error
+  ChangedAnnotationRetention                 |  other_compatibility                  |   error
   ChangedClass                               |  binary_and_source_compatibility      |   error
   ChangedDefault                             |  binary_and_source_compatibility      |   error
   ChangedDeprecated                          |  source_compatibility_only            |   hidden
@@ -121,9 +122,11 @@ Available Issues                             |  Category                        
   InternalClasses                            |  api_lint                             |   error
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
+  InvalidBlockTagUse                         |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
-  InvalidHideDocTag                          |  documentation                        |   warning_error_when_new
+  InvalidIfTag                               |  documentation                        |   error
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
+  InvalidJavadocExpr                         |  documentation                        |   error
   InvalidNullConversion                      |  source_compatibility_only            |   error
   InvalidNullabilityAnnotation               |  unknown                              |   error
   InvalidNullabilityAnnotationWarning        |  unknown                              |   warning
@@ -143,6 +146,7 @@ Available Issues                             |  Category                        
   MethodNameTense                            |  api_lint                             |   warning
   MethodNameUnits                            |  api_lint                             |   error
   MinMaxConstant                             |  api_lint                             |   warning
+  MissingAnnotationsXmlItem                  |  api_lint                             |   hidden
   MissingBuildMethod                         |  api_lint                             |   warning
   MissingColumn                              |  documentation                        |   warning
   MissingEnvironmentsValue                   |  api_lint                             |   error
@@ -156,6 +160,7 @@ Available Issues                             |  Category                        
   MutableBareField                           |  api_lint                             |   error
   NoByteOrShort                              |  api_lint                             |   warning
   NoClone                                    |  api_lint                             |   error
+  NoPreviouslyReleasedApi                    |  api_lint                             |   error
   NoSettingsProvider                         |  api_lint                             |   hidden
   NotCloseable                               |  api_lint                             |   warning
   Nullable                                   |  documentation                        |   hidden
@@ -204,7 +209,7 @@ Available Issues                             |  Category                        
   ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
-  SealedClassExhaustivityChanged             |  source_compatibility_only            |   hidden
+  SealedClassExhaustivityChanged             |  source_compatibility_only            |   error
   ServiceName                                |  api_lint                             |   error
   SetterReturnsThis                          |  api_lint                             |   warning
   ShowingMemberInHiddenClass                 |  api_lint                             |   error

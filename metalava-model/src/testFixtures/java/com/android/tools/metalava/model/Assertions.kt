@@ -16,6 +16,14 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformConstructorItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformElement
+import com.android.tools.metalava.model.multiplatform.MultiplatformMethodItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
+import com.android.tools.metalava.model.multiplatform.MultiplatformPropertyItem
+import com.android.tools.metalava.model.multiplatform.SourceSetDependent
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
@@ -253,14 +261,14 @@ interface Assertions {
     /** Make sure when the documentation for [this] is printed that it matches [expectedOutput]. */
     fun SelectableItem.assertPrintedDocumentation(expectedOutput: String, message: String? = null) {
         val stringWriter = StringWriter()
-        PrintWriter(stringWriter).use { documentation.print(it) }
+        PrintWriter(stringWriter).use { documentation?.print(it) }
         val actualOutput = stringWriter.toString()
         assertEquals("$expectedOutput\n".trimIndent(), actualOutput, message)
     }
 
     /** Make sure the documentation text for [this] matches [expectedOutput]. */
     fun SelectableItem.assertDocumentationText(expectedOutput: String, message: String? = null) {
-        assertEquals(expectedOutput.trimIndent(), documentation.text.trim(), message)
+        assertEquals(expectedOutput.trimIndent(), documentation?.text?.trim(), message)
     }
 
     /**
@@ -373,6 +381,151 @@ interface Assertions {
      */
     fun TypeItem?.assertWildcardItem(body: (WildcardTypeItem.() -> Unit)? = null) {
         assertIsInstanceOf(body ?: {})
+    }
+
+    /** Checks that the element exists in exactly the source sets of [expectedSourceSets]. */
+    fun MultiplatformElement<*>.assertSourceSets(vararg expectedSourceSets: String) {
+        assertThat(sourceSets).containsExactly(*expectedSourceSets)
+    }
+
+    /** Finds the package in the [MultiplatformCodebase], failing if it does not exist. */
+    fun MultiplatformCodebase.assertPackage(qualifiedName: String): MultiplatformPackageItem {
+        val packageItem = findPackage(qualifiedName)
+        assertNotNull(packageItem, "Expected package $qualifiedName to be defined")
+        return packageItem
+    }
+
+    /** Finds the class in the [MultiplatformCodebase], failing if it does not exist. */
+    fun MultiplatformCodebase.assertClass(qualifiedName: String): MultiplatformClassItem {
+        val classItem = findClass(qualifiedName)
+        assertNotNull(classItem, "Expected class $qualifiedName to be defined")
+        return classItem
+    }
+
+    /** Assert that the source set to value mapping contains exactly the expected pairs. */
+    fun <V> SourceSetDependent<V>.assertSourceSetValues(vararg expectedValues: Pair<String, V>) {
+        assertThat(this).isEqualTo(expectedValues.toMap())
+    }
+
+    /**
+     * Finds the property by [name] and [receiverType] in the [MultiplatformClassItem], failing if
+     * it does not exist.
+     *
+     * [receiverType] is expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformClassItem.assertProperty(
+        name: String,
+        receiverType: String? = null
+    ): MultiplatformPropertyItem {
+        val propertyItem =
+            properties.singleOrNull { property ->
+                property.name == name &&
+                    property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
+                        receiverType
+            }
+        assertNotNull(
+            propertyItem,
+            "Expected property ${receiverType?.let { "$it." } ?: "" }$name to be defined in $this"
+        )
+        return propertyItem
+    }
+
+    /**
+     * Finds the property by [name] and [receiverType] in the [MultiplatformClassItem], failing if
+     * it does not exist.
+     *
+     * [receiverType] is expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformPackageItem.assertProperty(
+        name: String,
+        receiverType: String? = null
+    ): MultiplatformPropertyItem {
+        val propertyItem =
+            topLevelProperties.singleOrNull { property ->
+                property.name == name &&
+                    property.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
+                        receiverType
+            }
+        assertNotNull(
+            propertyItem,
+            "Expected property ${receiverType?.let { "$it." } ?: "" }$name to be defined in $this"
+        )
+        return propertyItem
+    }
+
+    /**
+     * Finds the constructor by [parameterTypes] in the [MultiplatformClassItem], failing if it does
+     * not exist.
+     *
+     * The [parameterTypes] are expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformClassItem.assertConstructor(
+        parameterTypes: List<String>
+    ): MultiplatformConstructorItem {
+        val constructorItem =
+            constructors.singleOrNull { ctor ->
+                ctor.parameterTypes.map { type ->
+                    type.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                } == parameterTypes
+            }
+        assertNotNull(
+            constructorItem,
+            "Expected constructor $qualifiedName(${parameterTypes.joinToString()}) to be defined in $this"
+        )
+        return constructorItem
+    }
+
+    /**
+     * Finds the method by [name] and [parameterTypes] in the [MultiplatformClassItem], failing if
+     * it does not exist.
+     *
+     * The [parameterTypes] are expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformClassItem.assertMethod(
+        name: String,
+        parameterTypes: List<String>
+    ): MultiplatformMethodItem {
+        val methodItem =
+            methods.singleOrNull { method ->
+                method.name == name &&
+                    method.parameterTypes.map { type ->
+                        type.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                    } == parameterTypes
+            }
+        assertNotNull(
+            methodItem,
+            "Expected method $name(${parameterTypes.joinToString()}) to be defined in $this"
+        )
+        return methodItem
+    }
+
+    /**
+     * Finds the method by [name] and [parameterTypes] in the [MultiplatformPackageItem], failing if
+     * it does not exist.
+     *
+     * The [parameterTypes] are expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun MultiplatformPackageItem.assertMethod(
+        name: String,
+        parameterTypes: List<String>,
+    ): MultiplatformMethodItem {
+        val methodItem =
+            topLevelFunctions.singleOrNull { method ->
+                method.name == name &&
+                    method.parameterTypes.map { type ->
+                        type.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                    } == parameterTypes
+            }
+        assertNotNull(
+            methodItem,
+            "Expected method $name(${parameterTypes.joinToString()}) to be defined in $this"
+        )
+        return methodItem
     }
 
     companion object : Assertions {}
