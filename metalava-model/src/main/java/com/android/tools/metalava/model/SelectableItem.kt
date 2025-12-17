@@ -116,16 +116,22 @@ interface SelectableItem : Item {
     override var targetLanguages: Set<TargetLanguage>
 
     /**
-     * The javadoc/KDoc comment for this code element, if any. This is the original content of the
-     * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
-     * qualified references to classes.
+     * An abstract representation of the underlying javadoc/KDoc comment for this code element, if
+     * any.
      */
-    val documentation: ItemDocumentation
+    val documentation: ItemDocumentation?
+
+    /** Get the [ItemDocumentation], failing if it is `null`. */
+    val requiredDocumentation: ItemDocumentation
+        get() =
+            documentation
+                ?: error(
+                    "Cannot access documentation of $this as it does not support documentation"
+                )
 
     override val description: DocContent?
-        get() = documentation.mainDescription
+        get() = documentation?.mainDescription
 
     override val descriptionOwner: DocContentOwner
-        get() = documentation.mainDescriptionOwner
+        get() = requiredDocumentation.mainDescriptionOwner
 }

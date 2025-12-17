@@ -47,11 +47,11 @@ private constructor(
 
         fun forStubs(
             writer: Writer,
-            docStubs: Boolean,
+            isDocStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
         ): ModifierListWriter {
             val target =
-                if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
+                if (isDocStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
             return ModifierListWriter(
                 writer = writer,
                 target = target,
