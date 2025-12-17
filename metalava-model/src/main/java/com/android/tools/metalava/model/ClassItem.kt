@@ -101,10 +101,10 @@ interface ClassItem :
 
     /**
      * This stores only the direct classes that inherit from this class, and not any indirect
-     * classes. This stores subclasses for both regular classes and interfaces (for interfaces, it
+     * classes. This stores subclasses for only sealed classes and interfaces (for interfaces, it
      * stores all the classes that implement that interface)
      */
-    fun subClasses(): List<ClassItem>
+    fun sealedClassDirectSubclasses(): List<ClassItem>
 
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
@@ -203,6 +203,24 @@ interface ClassItem :
      * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
      */
     fun isMultiFileClass() = false
+
+    override fun describe(capitalize: Boolean): String {
+        val descriptor =
+            if (classKind == ClassKind.TYPEALIAS) {
+                if (capitalize) {
+                    "Typealias"
+                } else {
+                    "typealias"
+                }
+            } else {
+                if (capitalize) {
+                    "Class"
+                } else {
+                    "class"
+                }
+            }
+        return "$descriptor ${qualifiedName()}"
+    }
 
     /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
@@ -459,6 +477,12 @@ interface ClassItem :
      * This must only be called when [ClassItem.classKind] is [ClassKind.ANNOTATION_TYPE].
      */
     val annotationClass: AnnotationClass
+
+    /**
+     * For a typealias, the underlying type for which this typealias is an alternative name. Null if
+     * this is not a typealias.
+     */
+    val optionalAliasedType: TypeItem?
 
     /**
      * For a typealias, the underlying type for which this typealias is an alternative name
@@ -755,11 +779,6 @@ interface ClassItem :
                 } else {
                     it
                 }
-                // Although a `ClassTypeItem`'s arguments can be `WildcardTypeItem`s as well as
-                // `ReferenceTypeItem`s, a `ClassTypeItem` used in an extends or implements list
-                // cannot have a `WildcardTypeItem` as an argument so this cast is safe. See
-                // https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
-                as ReferenceTypeItem
             }
         return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
     }

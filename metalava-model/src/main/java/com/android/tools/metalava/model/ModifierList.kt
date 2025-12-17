@@ -17,6 +17,13 @@
 package com.android.tools.metalava.model
 
 interface BaseModifierList {
+    /**
+     * List of [ModifierList]s contained within this.
+     *
+     * Created on demand, useful for testing.
+     */
+    val keywordList: List<ModifierKeyword>
+
     fun annotations(): List<AnnotationItem>
 
     fun getVisibilityLevel(): VisibilityLevel
