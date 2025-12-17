@@ -167,6 +167,9 @@ internal data class LabeledRefTagData(
     /** The resolved reference, subclasses identify the specific part of the API it references. */
     val resolvedReference: ResolvedReference?,
 ) : TagData {
+    /** Check whether the [sourceReference] was fully resolved. */
+    fun wasReferenceFullyResolved(): Boolean = resolvedReference == null
+
     /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
      * optional label.

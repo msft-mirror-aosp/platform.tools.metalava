@@ -710,7 +710,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.content;
-                import android.os.OperationCanceledException;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
@@ -1197,7 +1196,6 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    import test.pkg.bar.Bar;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
@@ -1209,8 +1207,6 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package test.pkg.bar;
-                    import test.pkg.Foo;
-                    import test.pkg.baz.Baz;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Bar {
                     public Bar() { throw new RuntimeException("Stub!"); }
