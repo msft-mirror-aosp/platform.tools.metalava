@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -224,8 +225,8 @@ abstract class AbstractItemDocumentation(
         return when (resolved) {
             is ClassItem -> ClassReference(resolved.qualifiedName())
             is TypeParameterItem -> TypeParameterReference(resolved.name())
-            null -> {
-                reporter.report(Issues.UNRESOLVED_LINK, "Could not resolve $typeName")
+            is InvalidReferencableItem -> {
+                reporter.report(Issues.UNRESOLVED_LINK, resolved.message)
                 null
             }
             else -> {
