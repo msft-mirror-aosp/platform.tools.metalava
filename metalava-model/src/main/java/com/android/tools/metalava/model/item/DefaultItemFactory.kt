@@ -64,11 +64,13 @@ class DefaultItemFactory(
         containingPackage: PackageItem?,
         overviewDocumentation: ResourceFile?,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-    ): DefaultPackageItem {
+    ): PackageItem {
         return DefaultPackageItem(
             codebase,
             fileLocation,
-            defaultSourceLanguage,
+            // Treat all packages as being Java as Kotlin does not currently provide an equivalent
+            // to `package-info.java`.
+            SourceLanguage.JAVA,
             targetLanguages,
             modifiers,
             documentationFactory,
@@ -96,6 +98,7 @@ class DefaultItemFactory(
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
         optionalAliasedType: TypeItem? = null,
+        isFileFacade: Boolean = false,
     ) =
         DefaultClassItem(
             codebase,
@@ -114,7 +117,7 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
-            isFileFacade = false,
+            isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
         )
 
@@ -282,12 +285,12 @@ class DefaultItemFactory(
         fileLocation: FileLocation,
         modifiers: BaseModifierList,
         qualifiedName: String,
-        containingPackage: DefaultPackageItem,
+        containingPackage: PackageItem,
         aliasedType: TypeItem,
         typeParameterList: TypeParameterList,
         origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
-    ): ClassItem =
+    ): DefaultClassItem =
         DefaultClassItem.createTypeAlias(
             codebase,
             fileLocation,

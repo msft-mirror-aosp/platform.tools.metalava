@@ -51,13 +51,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments =
-                arrayOf(
-                    "--error",
-                    Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name,
-                    "--error",
-                    Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED.name
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -90,13 +83,6 @@ class CompatibilityCheckTest : DriverTest() {
             """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments =
-                arrayOf(
-                    "--error",
-                    Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name,
-                    "--error",
-                    Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED.name
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -124,7 +110,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Don't raise issue when adding subclass to nonexhaustive sealed class`() {
         check(
             expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -160,7 +145,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -196,7 +180,6 @@ class CompatibilityCheckTest : DriverTest() {
             """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -232,7 +215,6 @@ class CompatibilityCheckTest : DriverTest() {
             """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -265,7 +247,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Should not raise issue when comparing against sealed interface without any exhaustivity modifier`() {
         check(
             expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -296,7 +277,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Should not raise issue when comparing against sealed class without any exhaustivity modifier`() {
         check(
             expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -1258,8 +1238,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
-                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
+                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo(String s1) [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4(boolean b, String s1) [DefaultValueChange]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -1423,7 +1403,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package test.pkg {
-                  public @interface ExportedProperty {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExportedProperty {
                     method public abstract boolean resolveId() default false;
                     method public abstract float floating() default 1.0f;
                     method public abstract String! prefix() default "";
@@ -3727,7 +3707,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package androidx.room {
-                  public @interface Relation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Relation {
                   }
                 }
                 """,
@@ -3864,7 +3844,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
-                  public @interface UseExperimental {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface UseExperimental {
                     method public abstract Class<? extends java.lang.Object!> markerClass();
                   }
                 }
@@ -4587,12 +4567,12 @@ class CompatibilityCheckTest : DriverTest() {
                 error: Binary breaking change: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add(E p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll(java.util.Collection<? extends E> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove(Object p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll(java.util.Collection<?> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll(java.util.Collection<?> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray(T[] p) [ParameterNameChange]
                 load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
@@ -5019,8 +4999,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional [DefaultValueChange]
-                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional(int p0, boolean p1) [DefaultValueChange]
+                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1) [DefaultValueChange]
                 """,
             checkCompatibilityApiReleased =
                 """

@@ -1413,13 +1413,16 @@ class CommonAnnotationItemTest : BaseModelTest() {
             ),
             testFixture =
                 TestFixture(
-                    DefaultAnnotationManager(
-                        config =
-                            DefaultAnnotationManager.Config(
-                                allShowAnnotations = showFilter,
-                                showAnnotations = showFilter,
-                            )
-                    )
+                    annotationManagerFactory = {
+                        DefaultAnnotationManager(
+                            config =
+                                DefaultAnnotationManager.Config(
+                                    allShowAnnotations = showFilter,
+                                    apiFlags = apiFlags,
+                                    showAnnotations = showFilter,
+                                )
+                        )
+                    }
                 ),
         ) {
             // This should be defined.

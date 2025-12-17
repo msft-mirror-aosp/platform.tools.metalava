@@ -31,7 +31,7 @@ dependencies {
         constraints {
             implementation(libs.errorProneAnnotations) {
                 because(
-                    "It requires 2.37.0 but that is not available in prebuilts/androidx/external but 2.38.0 is."
+                    "It requires 2.42.0 but that is not available in prebuilts/androidx/external but 2.44.0 is."
                 )
             }
         }

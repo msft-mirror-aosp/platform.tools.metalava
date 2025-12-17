@@ -2165,8 +2165,8 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public class MyInterface extends AutoCloseable {
-                        public void close() {}
+                    public interface MyInterface extends AutoCloseable {
+                        void close();
                     }
                     """
                     ),
@@ -3463,6 +3463,40 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/Foo.kt:2: error: Exposing data classes as public API is discouraged because they are difficult to update while maintaining binary compatibility. [DataClassDefinition]"
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `ExecutorRegistration check is skipped for suspend functions`() {
+        check(
+            apiLint = "", // enabled
+            // We expect a warning ONLY for the normal function, not the suspend one.
+            expectedIssues =
+                """
+            src/android/pkg/Registration.kt:8: warning: Registration methods should have overload that accepts delivery Executor: `registerNormalCallback` [ExecutorRegistration]
+            """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                package android.pkg
+
+                class Registration {
+                    // This is a suspend function, so it should NOT trigger a warning.
+                    suspend fun registerSuspendCallback(callback: MyCallback) { }
+
+                    // This is a normal function, so it SHOULD trigger a warning.
+                    fun registerNormalCallback(callback: MyCallback) { }
+
+                    // The unregister methods are needed to satisfy the PairedRegistration check.
+                    fun unregisterSuspendCallback(callback: MyCallback) { }
+                    fun unregisterNormalCallback(callback: MyCallback) { }
+                }
+                abstract class MyCallback
+                """
+                    )
+                )
         )
     }
 
