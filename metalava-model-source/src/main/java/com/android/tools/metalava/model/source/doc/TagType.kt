@@ -224,9 +224,10 @@ internal object TagTypes {
     // Must be in the same order as [BlockTagOrder].
 
     val PARAM = register(ParamTagType("param"))
-    val SEE = register(SeeTagType())
 
     init {
+        register(SeeTagType())
+
         register(ThrowsTagType()).also { throwsTagType ->
             // @exception as an alias for @throws
             register(throwsTagType, alias = "exception")
