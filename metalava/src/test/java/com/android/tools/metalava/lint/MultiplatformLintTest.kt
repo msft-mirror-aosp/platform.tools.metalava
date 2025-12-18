@@ -212,6 +212,57 @@ class MultiplatformLintTest : DriverTest() {
     }
 
     @Test
+    fun `Test elements of internal class without explicit visibility`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/InternalClass.kt",
+                        """
+                        package test.pkg
+                        internal expect class InternalClass internal constructor() {
+                            internal fun internalClassFun(): Unit
+                            internal val internalClassVal: Int
+                        }
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/InternalClass_android.kt",
+                        """
+                        package test.pkg
+                        internal actual class InternalClass internal actual constructor() {
+                            internal actual fun internalClassFun() = Unit
+                            internal actual val internalClassVal: Int = 0
+                        }
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/InternalClass_native.kt",
+                        """
+                        package test.pkg
+                        internal actual class InternalClass actual constructor() {
+                            actual fun internalClassFun() = Unit
+                            actual val internalClassVal: Int = 0
+                        }
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                commonMain/src/test/pkg/InternalClass.kt:2: error: Multiplatform multiplatform constructor test.pkg.InternalClass() has different visibilities in different source sets: internal in [commonMain, androidMain], public in [nativeMain] [KmpVisibilityMismatch]
+                commonMain/src/test/pkg/InternalClass.kt:3: error: Multiplatform multiplatform method test.pkg.InternalClass#internalClassFun() has different visibilities in different source sets: internal in [commonMain, androidMain], public in [nativeMain] [KmpVisibilityMismatch]
+                commonMain/src/test/pkg/InternalClass.kt:4: error: Multiplatform multiplatform property test.pkg.InternalClass#internalClassVal has different visibilities in different source sets: internal in [commonMain, androidMain], public in [nativeMain] [KmpVisibilityMismatch]
+                """,
+        )
+    }
+
+    @Test
     fun `Test mismatched show and hide annotations`() {
         checkLint(
             commonSource =
