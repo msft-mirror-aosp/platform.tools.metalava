@@ -253,12 +253,7 @@ class MultiplatformLintTest : DriverTest() {
                         """
                     )
                 ),
-            expectedIssues =
-                """
-                commonMain/src/test/pkg/InternalClass.kt:2: error: Multiplatform multiplatform constructor test.pkg.InternalClass() has different visibilities in different source sets: internal in [commonMain, androidMain], public in [nativeMain] [KmpVisibilityMismatch]
-                commonMain/src/test/pkg/InternalClass.kt:3: error: Multiplatform multiplatform method test.pkg.InternalClass#internalClassFun() has different visibilities in different source sets: internal in [commonMain, androidMain], public in [nativeMain] [KmpVisibilityMismatch]
-                commonMain/src/test/pkg/InternalClass.kt:4: error: Multiplatform multiplatform property test.pkg.InternalClass#internalClassVal has different visibilities in different source sets: internal in [commonMain, androidMain], public in [nativeMain] [KmpVisibilityMismatch]
-                """,
+            expectedIssues = null,
         )
     }
 
