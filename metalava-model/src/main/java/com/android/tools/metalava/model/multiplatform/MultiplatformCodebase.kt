@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -203,9 +204,17 @@ sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSet
 sealed class MultiplatformItem<I : Item>(sourceSetToItem: SourceSetDependent<I?>) :
     MultiplatformElement<I>(sourceSetToItem), Reportable {
     /**
-     * A mapping from source set where the [Item] to the modifiers of the [Item] in that source set.
+     * A mapping from source set where the [Item] is defined to the modifiers of the [Item] in that
+     * source set.
      */
     val modifiers: SourceSetDependent<BaseModifierList> = sourceSetDependentValue { it.modifiers }
+
+    /**
+     * A mapping from source set where the [Item] is defined to the [Item.effectiveVisibility] in
+     * that source set.
+     */
+    val effectiveVisibility: SourceSetDependent<VisibilityLevel>
+        get() = sourceSetDependentValue { it.effectiveVisibility() }
 
     abstract fun accept(visitor: MultiplatformItemVisitor)
 
@@ -775,4 +784,15 @@ class MultiplatformTypeParameterItem(
     override fun hashCode(): Int {
         return Objects.hash(owner, typeParameterIndex)
     }
+}
+
+/**
+ * The effective visibility an item, which may be lower than the defined visibility if it is
+ * contained in a less visible class. For instance, elements of an internal class may have a public
+ * visibility modifier, but they are effectively internal.
+ */
+fun Item.effectiveVisibility(): VisibilityLevel {
+    return containingClass()?.let { containingClass ->
+        minOf(containingClass.effectiveVisibility(), modifiers.getVisibilityLevel())
+    } ?: modifiers.getVisibilityLevel()
 }

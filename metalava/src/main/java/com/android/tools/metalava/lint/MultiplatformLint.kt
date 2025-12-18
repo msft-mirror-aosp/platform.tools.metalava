@@ -117,7 +117,9 @@ class MultiplatformLint(val reporter: Reporter) : BaseMultiplatformItemVisitor()
             KMP_DEPRECATION_MISMATCH,
         )
 
-        val visibilityByPlatform = item.modifiers.valueToSourceSet { it.getVisibilityLevel() }
+        // Use the effective visibility to avoid reporting an issue if one version just doesn't have
+        // an explicit visibility modifier.
+        val visibilityByPlatform = item.effectiveVisibility.valueToSourceSet { it }
         if (visibilityByPlatform.size > 1) {
             val visibilityDescriptions =
                 visibilityByPlatform.entries.joinToString { (visibility, sourceSets) ->
