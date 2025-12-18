@@ -17,6 +17,7 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
@@ -25,9 +26,12 @@ import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.standardProjectXmlClasspath
 import org.junit.Test
 
 @RequiresCapabilities(Capability.KOTLIN, Capability.MULTIPLATFORM)
@@ -527,5 +531,88 @@ class MultiplatformLintTest : DriverTest() {
                 commonMain/src/test/pkg/Foo.kt:3: error: multiplatform type parameter #0 of multiplatform method test.pkg.Foo#foo() is reified in source sets [commonMain] but not reified in source sets [androidMain, nativeMain] [KmpReifiedMismatch]
                 """
         )
+    }
+
+    @Test
+    fun `Test mismatched class origin`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                class Common
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Mismatch.kt",
+                """
+                package test.pkg
+                class Mismatch
+                """
+            )
+        val jvmSource =
+            kotlin(
+                "jvmMain/src/test/pkg/Jvm.kt",
+                """
+                package test.pkg
+                class Jvm
+                """
+            )
+
+        /*
+        Generated from the following source:
+        package test.pkg
+        class Mismatch
+         */
+        val jvmClasspathJar =
+            base64gzip(
+                "jvmClasspath.jar",
+                // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                "" +
+                    "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                    "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                    "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9OBCX" +
+                    "pBaX6Bdkp+v7ZhbnJpYkZ+gl5yQWF6cGnvZjchRYI5kwUfTpU+aauVebuY/M" +
+                    "Pubi62MWaRJ4uPXyhpyEhJmmZxxsPun+a1QX5m+r+LK4Z6/2vD0hq1ZV71pt" +
+                    "HH//vTyD38bzAUaNZucur3i/ZYkc92P+TQk8RxfO4FQXWfX+Tml7Y/4mD8OI" +
+                    "50GexQcnWNlkPZ/YmKrcq+N8i2dJ2oqK/8vmXuTKF5kZoLVcVOKisNuE48c3" +
+                    "i7gmGD5JYmCWnvhfJzlU/Vq2gYzOs21nV9955prUXVlqmP/Javepmn0Re048" +
+                    "XqfWfX/dv7fWkpJdxbJfmdqa1EMLrGXLm08uftH2ZMreE+KJ0T4pa6Yv+yvg" +
+                    "q15XoJwcuHu+lvJxx+gsz6veS5WUe3qmuDHPWReb1tuvvmZSkRBvSt/9DZ+8" +
+                    "Wha7ZaiqHedL/Led0fJG5/bZD8y+Tcpf8CPkdPmEoo3Pku66Mrou0tipsfgS" +
+                    "4+UbB9Sumub06vK+ZgdFifPeLbZ+jAwMhxnxRYk0EMNTRG5iZp5edn5JTmZe" +
+                    "fG5+SmlOanJCQkIaELMk+bFpBCRdSGIAR/dXpT17hYE6JcDRzcgkwoAwHTkp" +
+                    "gNIbKsCV+tBNQXa9OIoJ9bgTEbohyM6URjFEiAmvtwO8WdlAypiB8AqQzmMC" +
+                    "8QDE3l5IWAMAAA=="
+            )
+
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource, jvmSource),
+            classpath = arrayOf(jvmClasspathJar),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createModuleDescription(
+                        moduleName = "jvmMain",
+                        android = false,
+                        kotlinPlatforms = defaultJvmPlatforms,
+                        sourceFiles = arrayOf(jvmSource),
+                        classpathXml =
+                            standardProjectXmlClasspath +
+                                "<classpath file=\"${jvmClasspathJar.targetRelativePath}\"/>",
+                    )
+                ),
+            enableMultiplatform = true,
+            apiLint = "", // enabled
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                androidMain/src/test/pkg/Mismatch.kt:2: error: multiplatform class test.pkg.Mismatch has different origins in different source sets: COMMAND_LINE in [androidMain], CLASS_PATH in [jvmMain] [KmpOriginMismatch]
+                """,
+        ) {
+            multiplatformCodebase!!.resolveClass("test.pkg.Mismatch")
+        }
     }
 }
