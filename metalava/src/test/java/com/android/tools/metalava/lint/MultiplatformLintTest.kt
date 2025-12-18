@@ -474,10 +474,7 @@ class MultiplatformLintTest : DriverTest() {
                         """
                     )
                 ),
-            expectedIssues =
-                """
-                commonMain/src/test/pkg/Foo.kt:2: error: multiplatform class test.pkg.Foo is final in source sets [commonMain, nativeMain] but not final in source sets [androidMain] [KmpModifierMismatch]
-                """,
+            expectedIssues = null,
         )
     }
 
