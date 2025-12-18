@@ -206,7 +206,7 @@ class MultiplatformLintTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                commonMain/src/test/pkg/Foo.kt:3: error: Multiplatform multiplatform method test.pkg.Foo#foo() has different visibilities in different source sets: internal in [commonMain], public in [androidMain], protected in [nativeMain] [KmpVisibilityMismatch]
+                commonMain/src/test/pkg/Foo.kt:3: error: multiplatform method test.pkg.Foo#foo() has different visibilities in different source sets: internal in [commonMain], public in [androidMain], protected in [nativeMain] [KmpVisibilityMismatch]
                 """,
         )
     }

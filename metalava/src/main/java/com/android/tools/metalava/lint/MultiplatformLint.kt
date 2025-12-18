@@ -129,7 +129,7 @@ class MultiplatformLint(val reporter: Reporter) : BaseMultiplatformItemVisitor()
             reporter.report(
                 KMP_VISIBILITY_MISMATCH,
                 item,
-                "Multiplatform $item has different visibilities in different source sets: $visibilityDescriptions"
+                "$item has different visibilities in different source sets: $visibilityDescriptions"
             )
         }
 
