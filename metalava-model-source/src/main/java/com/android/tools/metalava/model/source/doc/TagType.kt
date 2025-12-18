@@ -237,10 +237,7 @@ internal object TagTypes {
     val DEPRECATED = registerDefaultTagType("deprecated", TagTypeForm.BLOCK)
 
     // Inline [TagType]s that have specialized behavior.
-    //
-    // Strictly speaking `inheritDoc` is an inline tag but there are block tag uses in the Android
-    // source.
-    val INHERIT_DOC = registerDefaultTagType("inheritDoc", TagTypeForm.BOTH)
+    val INHERIT_DOC = registerDefaultTagType("inheritDoc", TagTypeForm.INLINE)
 
     val CODE = register(TextOnlyInlineTagType("code"))
     val LITERAL = register(TextOnlyInlineTagType("literal"))
