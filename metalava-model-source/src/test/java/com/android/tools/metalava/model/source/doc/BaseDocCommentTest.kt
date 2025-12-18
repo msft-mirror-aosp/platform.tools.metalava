@@ -146,7 +146,8 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
 
     var referenceResolver: (String) -> ResolvedReference? = { null }
 
-    override fun resolveReference(sourceReference: String) = referenceResolver(sourceReference)
+    override fun resolveReference(reporter: LocationSpecificReporter, sourceReference: String) =
+        referenceResolver(sourceReference)
 
     override val containingClassItem: ClassItem?
         get() = null

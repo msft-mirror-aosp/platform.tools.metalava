@@ -48,7 +48,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         // that whitespace is normalized consistently.
         val resolvedReference =
             if (validateReference(sourceReference)) {
-                context.resolveReference(sourceReference)?.also { resolved ->
+                context.resolveReference(reporter, sourceReference)?.also { resolved ->
 
                     // Resolving can handle references which are not valid, e.g. a qualified field
                     // reference without a #. Make sure that the source reference is a valid form

@@ -239,11 +239,16 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Unknown#field",
                     expectedResolvedReference = "Unknown#field",
                     expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve 'Unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
                 TestParams(
                     name = "Imported.field.other#member",
                     expectedResolvedReference = "Imported.field.other#member",
                     expectedLinkLabel = null,
+                    // TODO(b/447588621): the error message is wrong.
+                    expectedIssues =
+                        "warning: Could not resolve 'Imported.field.other' as 'class another.pkg.Imported' is not a package or class (ErrorWhenNew) [UnresolvedLink]",
                 ),
 
                 // Reference a member of another class in the same package.

@@ -226,6 +226,11 @@ abstract class AbstractItemDocumentation(
     private fun FieldItem.toResolvedReference() =
         FieldReference(containingClass().qualifiedName(), name())
 
+    /** Report the information encapsulated within this [InvalidReferencableItem] to [reporter]. */
+    private fun InvalidReferencableItem.reportIssue(reporter: LocationSpecificReporter) {
+        reporter.report(Issues.UNRESOLVED_LINK, message)
+    }
+
     override fun resolveThrowableType(
         reporter: LocationSpecificReporter,
         typeName: String
@@ -235,7 +240,7 @@ abstract class AbstractItemDocumentation(
             is ClassItem -> resolved.toResolvedReference()
             is TypeParameterItem -> resolved.toResolvedReference()
             is InvalidReferencableItem -> {
-                reporter.report(Issues.UNRESOLVED_LINK, resolved.message)
+                resolved.reportIssue(reporter)
                 null
             }
             else -> {
@@ -248,7 +253,10 @@ abstract class AbstractItemDocumentation(
         }
     }
 
-    override fun resolveReference(sourceReference: String): ResolvedReference? {
+    override fun resolveReference(
+        reporter: LocationSpecificReporter,
+        sourceReference: String
+    ): ResolvedReference? {
         // Check to see if this is a member reference.
         val hashIndex = sourceReference.indexOf('#')
         if (hashIndex != -1) {
@@ -260,7 +268,16 @@ abstract class AbstractItemDocumentation(
                 } else {
                     // Else resolve the class reference.
                     val classReference = sourceReference.substring(0, hashIndex)
-                    item.resolveReferencableItem(classReference) as? ClassItem
+                    val resolved = item.resolveReferencableItem(classReference)
+                    when (resolved) {
+                        is ClassItem -> resolved
+                        is InvalidReferencableItem -> {
+                            resolved.reportIssue(reporter)
+                            null
+                        }
+                        // Ignore any non-class references.
+                        else -> null
+                    }
                 }
             classItem ?: return null
 
