@@ -442,6 +442,43 @@ class MultiplatformLintTest : DriverTest() {
     }
 
     @Test
+    fun `Test final lint check for typealias`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/Foo.kt",
+                        """
+                        package test.pkg
+                        expect class Foo
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Foo_android.kt",
+                        """
+                        package test.pkg
+                        actual typealias Foo = String
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/Foo_native.kt",
+                        """
+                        package test.pkg
+                        actual class Foo
+                        """
+                    )
+                ),
+            expectedIssues = null,
+        )
+    }
+
+    @Test
     fun `Test mismatched operator`() {
         checkLint(
             commonSource =

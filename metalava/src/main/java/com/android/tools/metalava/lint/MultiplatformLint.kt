@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.lint
 
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.multiplatform.BaseMultiplatformItemVisitor
 import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
@@ -163,12 +164,20 @@ class MultiplatformLint(val reporter: Reporter) : BaseMultiplatformItemVisitor()
     }
 
     override fun visitClassItem(classItem: MultiplatformClassItem) {
-        checkTrueFalseMismatch(
-            classItem.modifiers.valueToSourceSet { it.isFinal() },
-            classItem,
-            "final",
-            KMP_MODIFIER_MISMATCH,
-        )
+        // Skip typealiases for the final mismatch check because typealiases themselves can't be
+        // modified as final/open.
+        val nonTypeAliasModifiers =
+            classItem.modifiers.filterKeys { sourceSet ->
+                classItem.classKind[sourceSet] != ClassKind.TYPEALIAS
+            }
+        if (nonTypeAliasModifiers.keys.size > 1) {
+            checkTrueFalseMismatch(
+                nonTypeAliasModifiers.valueToSourceSet { it.isFinal() },
+                classItem,
+                "final",
+                KMP_MODIFIER_MISMATCH,
+            )
+        }
     }
 
     override fun visitMethodItem(methodItem: MultiplatformMethodItem) {
