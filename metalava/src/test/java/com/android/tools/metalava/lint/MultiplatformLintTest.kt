@@ -698,4 +698,44 @@ class MultiplatformLintTest : DriverTest() {
             multiplatformCodebase!!.resolveClass("test.pkg.Mismatch")
         }
     }
+
+    @Test
+    fun `Test signature clash in unrelated platforms`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/Common.kt",
+                        """
+                        package test.pkg
+                        class Common
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Clash_android.kt",
+                        """
+                        package test.pkg
+                        class Clash
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/Clash_native.kt",
+                        """
+                        package test.pkg
+                        class Clash
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                androidMain/src/test/pkg/Clash_android.kt:2: error: multiplatform class test.pkg.Clash is not an expect/actual and is defined with the same signature in unrelated source sets ([androidMain, nativeMain]) [KmpSignatureClash]
+                """
+        )
+    }
 }
