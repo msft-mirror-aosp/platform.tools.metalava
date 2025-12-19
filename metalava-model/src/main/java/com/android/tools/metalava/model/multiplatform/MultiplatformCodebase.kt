@@ -223,11 +223,16 @@ sealed class MultiplatformItem<I : Item>(sourceSetToItem: SourceSetDependent<I?>
         return sourceSetToElement.values.flatMap { it?.suppressedIssues() ?: emptyList() }.toSet()
     }
 
+    /**
+     * A mapping from source set where this item is defined and has a known file location to that
+     * known file location.
+     */
+    val fileLocations =
+        sourceSetDependentValue { it.fileLocation }.filter { it.value != FileLocation.UNKNOWN }
+
     // Pick one known file location.
     override val fileLocation: FileLocation =
-        sourceSetDependentValue { it.fileLocation }
-            .values
-            .firstOrNull { it != FileLocation.UNKNOWN } ?: FileLocation.UNKNOWN
+        fileLocations.values.firstOrNull() ?: FileLocation.UNKNOWN
 
     /** The element ID for the [baselineKey] of this item. */
     abstract fun elementId(): String
