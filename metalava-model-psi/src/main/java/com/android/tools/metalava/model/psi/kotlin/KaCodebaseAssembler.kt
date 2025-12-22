@@ -85,6 +85,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPackageSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaPropertyAccessorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaReceiverParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
@@ -692,8 +693,7 @@ private constructor(
     ) {
         // Skip callables loaded from the classpath.
         if (callableSymbol.origin == KaSymbolOrigin.LIBRARY) return
-        // TODO(b/421201575): currently, private properties need to be processed in order to reset
-        //  the visibility of the property accessors due to a uast bug for value class types
+        if (callableSymbol.visibility == KaSymbolVisibility.PRIVATE) return
 
         when (callableSymbol) {
             is KaPropertySymbol ->
@@ -895,34 +895,6 @@ private constructor(
 
         val receiverType = propertySymbol.receiverType?.let { typeFactory.getGeneralType(it) }
 
-        // Private properties currently still need to be processed when they use a value class type
-        // to reset incorrect nullability on the accessors from psi. But other private properties
-        // can be skipped since they aren't part of the API surface.
-        if (
-            propertySymbol.visibility == KaSymbolVisibility.PRIVATE &&
-                !type.isValueClassType() &&
-                receiverType?.isValueClassType() != true
-        )
-            return
-
-        // To find the accessors of the property, use the inlined type if this property has a value
-        // class type. This is needed for now because the property accessors are being created with
-        // psi, which inlines the type.
-        val typeForAccessor = typeFactory.inlineTypeIfNeeded(propertySymbol.returnType, type)
-        val possiblyInlinedReceiverType =
-            receiverType?.let {
-                typeFactory.inlineTypeIfNeeded(propertySymbol.receiverType!!, receiverType)
-            }
-        // Similar to above, but due to b/385148821, if a property is an extension on a value class
-        // type or is deprecated level hidden, the psi accessors drop the receiver entirely, so only
-        // use the receiver type to find accessors if it is not a value class type or hidden.
-        val receiverTypeForAccessor =
-            if (receiverType?.isValueClassType() == true || propertySymbol.isDeprecatedHidden()) {
-                null
-            } else {
-                possiblyInlinedReceiverType
-            }
-
         val getter =
             propertySymbol.getter?.let {
                 // javaGetterName does not work for annotation property accessors, which should have
@@ -934,10 +906,13 @@ private constructor(
                         @OptIn(KaExperimentalApi::class) propertySymbol.javaGetterName.identifier
                     }
                 findAccessor(
+                    propertySymbol,
+                    it,
+                    typeFactory,
                     getterName,
                     containingClass,
-                    typeForAccessor,
-                    receiverTypeForAccessor,
+                    type,
+                    receiverType,
                     isGetter = true,
                     it.visibility,
                 )
@@ -945,10 +920,13 @@ private constructor(
         val setter =
             propertySymbol.setter?.let {
                 findAccessor(
+                    propertySymbol,
+                    it,
+                    typeFactory,
                     @OptIn(KaExperimentalApi::class) propertySymbol.javaSetterName!!.identifier,
                     containingClass,
-                    typeForAccessor,
-                    receiverTypeForAccessor,
+                    type,
+                    receiverType,
                     isGetter = false,
                     it.visibility,
                 )
@@ -1005,6 +983,8 @@ private constructor(
                 backingField = backingField,
                 receiver = receiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
+                setterVisibility =
+                    propertySymbol.setter?.let { kaModifierFactory.getVisibilityLevel(it) }
             )
         getter?.property = propertyItem
         setter?.property = propertyItem
@@ -1143,6 +1123,9 @@ private constructor(
      * [propertyType] and [receiverType].
      */
     private fun findAccessor(
+        property: KaPropertySymbol,
+        accessor: KaPropertyAccessorSymbol,
+        typeItemFactory: KaTypeItemFactory,
         name: String,
         containingClass: ClassItem,
         propertyType: TypeItem,
@@ -1150,15 +1133,35 @@ private constructor(
         isGetter: Boolean,
         visibility: KaSymbolVisibility,
     ): PsiMethodItem? {
+        // Generally, properties using a value class type cannot be accessed from Java. However, if
+        // JvmName is used, they can be, but the inlined type needs to be used to find the accessor
+        // instead of the value class type.
+        val (possiblyInlinedPropertyType, possiblyInlinedReceiverType) =
+            if (propertyType.isValueClassType() || receiverType?.isValueClassType() == true) {
+                if (accessor.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) {
+                    typeItemFactory.inlineTypeIfNeeded(property.returnType, propertyType) to
+                        receiverType?.let {
+                            typeItemFactory.inlineTypeIfNeeded(
+                                property.receiverType!!,
+                                receiverType
+                            )
+                        }
+                } else {
+                    return null
+                }
+            } else {
+                propertyType to receiverType
+            }
+
         val parameters =
             listOfNotNull(
                     // Both the getter and setter have the receiver as the first parameter
-                    receiverType,
+                    possiblyInlinedReceiverType,
                     // The setter also has the property type as a parameter
                     if (isGetter) {
                         null
                     } else {
-                        propertyType
+                        possiblyInlinedPropertyType
                     }
                 )
                 // Compare types by erased string to work around differences like `List<String>` vs
@@ -1172,9 +1175,6 @@ private constructor(
                 (visibility == KaSymbolVisibility.INTERNAL &&
                     methodItem.name().startsWith("$name\$"))) &&
                 methodItem.isKotlinProperty() &&
-                // Due to value class type inlining, some accessors might end up with identical
-                // signatures. Pick one for each matching property.
-                methodItem.property == null &&
                 methodItem.parameters().map { it.type().toErasedTypeString() } == parameters
         } as? PsiMethodItem
     }

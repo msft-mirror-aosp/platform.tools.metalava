@@ -1664,6 +1664,9 @@ private constructor(
                 type = type,
                 receiver = receiverNamePair.first,
                 typeParameterList = typeParameterList,
+                // There isn't any information about whether a setter exists or its visibility if it
+                // does in API files currently.
+                setterVisibility = null,
             )
         property.markForMainApiSurface()
         cl.addProperty(property)

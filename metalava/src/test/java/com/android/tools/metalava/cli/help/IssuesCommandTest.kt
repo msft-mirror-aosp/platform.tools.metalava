@@ -251,6 +251,8 @@ Available Issues                             |  Category                        
   UserHandle                                 |  api_lint                             |   warning
   UserHandleName                             |  api_lint                             |   warning
   ValueClassDefinition                       |  api_lint                             |   error
+  ValueClassUsageFromConstructor             |  api_lint                             |   hidden
+  ValueClassUsageWithoutJvmName              |  api_lint                             |   hidden
   VarargRemoval                              |  binary_and_source_compatibility      |   error
   VisiblySynchronized                        |  api_lint                             |   error
 """
