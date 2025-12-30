@@ -42,18 +42,14 @@ import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
 
-    /**
-     * TODO: this should be called "Should raise issue when adding abstract method to
-     *   non-effectively final effectively sealed class"
-     */
     @Test
-    fun `Should not raise issue when adding abstract method to non-effectively final explicitly sealed class`() {
-        // TODO: there should be compatibility issues raised on adding myFun to both
-        //  MyNonFinalSealedClassWithNonSealedChild and MyNonFinalSealedClassWithNonSealedGrandchild
+    fun `Should raise issue when adding abstract method to non-effectively final explicitly sealed class`() {
         check(
             expectedIssues =
                 """
-            """
+                    load-api.txt:6: error: Binary breaking change: Added method test.pkg.MyNonFinalSealedClassWithNonSealedChild.myFun() [AddedAbstractMethod]
+                    load-api.txt:9: error: Binary breaking change: Added method test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild.myFun() [AddedAbstractMethod]
+                """
                     .trimIndent(),
             checkCompatibilityApiReleased =
                 """
@@ -94,18 +90,14 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
-    /**
-     * TODO: this should be called "Should raise issue when adding abstract method to
-     *   non-effectively final effectively sealed class"
-     */
     @Test
-    fun `Should not raise issue when adding abstract method to non-effectively final effectively sealed class`() {
-        // TODO: there should be compatibility issues raised on adding myFun to both
-        //  MyNonFinalSealedClassWithNonSealedChild and MyNonFinalSealedClassWithNonSealedGrandchild
+    fun `Should raise issue when adding abstract method to non-effectively final effectively sealed class`() {
         check(
             expectedIssues =
                 """
-            """
+                    load-api.txt:6: error: Binary breaking change: Added method test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild.myFun() [AddedAbstractMethod]
+                    load-api.txt:9: error: Binary breaking change: Added method test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild.myFun() [AddedAbstractMethod]
+                """
                     .trimIndent(),
             checkCompatibilityApiReleased =
                 """
@@ -146,20 +138,10 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
-    /**
-     * TODO: this should be called "Should not raise issue when adding abstract method to
-     *   non-effectively final effectively sealed interface"
-     */
     @Test
-    fun `Should raise issue when adding abstract method to non-effectively final effectively sealed interface`() {
-        // TODO: there should not be compatibility issues, as this is a sealed interface
-        //  that can't be extended externally
+    fun `Should not raise issue when adding abstract method to non-effectively final effectively sealed interface`() {
         check(
-            expectedIssues =
-                """
-                    load-api.txt:4: error: Binary breaking change: Added method test.pkg.SealedEffectivelyFinalInterface.myFun() [AddedAbstractMethod]
-                """
-                    .trimIndent(),
+            expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
