@@ -738,4 +738,63 @@ class MultiplatformLintTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Check API lint issues are reported for all source sets`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/commonBadClassName.kt",
+                        """
+                        package test.pkg
+                        class commonBadClassName
+                        """
+                    ),
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/androidBadClassName.kt",
+                        """
+                        package test.pkg
+                        class androidBadClassName
+                        """
+                    ),
+                    kotlin(
+                        "androidMain/src/test/pkg/clashingBadClassName.kt",
+                        """
+                        package test.pkg
+                        class clashingBadClassName
+                        """
+                    ),
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/nativeBadClassName.kt",
+                        """
+                        package test.pkg
+                        class nativeBadClassName
+                        """
+                    ),
+                    kotlin(
+                        "nativeMain/src/test/pkg/clashingBadClassName.kt",
+                        """
+                        package test.pkg
+                        class clashingBadClassName
+                        """
+                    ),
+                ),
+            expectedIssues =
+                // Each class name is only reported once.
+                """
+                androidMain/src/test/pkg/androidBadClassName.kt:2: error: Class must start with uppercase char: androidBadClassName [StartWithUpper]
+                androidMain/src/test/pkg/clashingBadClassName.kt:2: error: multiplatform class test.pkg.clashingBadClassName is not an expect/actual and is defined with the same signature in unrelated source sets ([androidMain, nativeMain]) [KmpSignatureClash]
+                androidMain/src/test/pkg/clashingBadClassName.kt:2: error: Class must start with uppercase char: clashingBadClassName [StartWithUpper]
+                commonMain/src/test/pkg/commonBadClassName.kt:2: error: Class must start with uppercase char: commonBadClassName [StartWithUpper]
+                nativeMain/src/test/pkg/nativeBadClassName.kt:2: error: Class must start with uppercase char: nativeBadClassName [StartWithUpper]
+                """,
+        )
+    }
 }

@@ -247,8 +247,8 @@ private constructor(
         val allCallables = methods.asSequence() + constructors.asSequence()
         filteredReporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
+            kotlinInterop.checkClass(cls, allCallables + fields)
         }
-        kotlinInterop.checkClass(cls, allCallables + fields)
     }
 
     override fun visitCallable(callable: CallableItem) {
@@ -466,6 +466,9 @@ private constructor(
     }
 
     private fun checkClassNames(cls: ClassItem) {
+        // Don't check the name for the class generated to hold top level declarations, which isn't
+        // a real class.
+        if (cls.simpleName() == "\$TopLevelDeclarations") return
         // Existing violations
         val qualifiedName = cls.qualifiedName()
         if (
