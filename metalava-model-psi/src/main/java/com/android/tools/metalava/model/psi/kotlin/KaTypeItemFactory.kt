@@ -177,11 +177,13 @@ internal class KaTypeItemFactory(
                 )
             // A flexible type has an upper and lower bound. This is used to represent types with
             // Java platform nullability, so construct the type through one bound and then swap in
-            // the correct nullability.
-            is KaFlexibleType ->
-                expandedKaType.lowerBound
-                    .toTypeItem(mustBoxPrimitives)
-                    .substitute(TypeNullability.PLATFORM)
+            // the correct nullability (unless the type already has nullability from an annotation).
+            is KaFlexibleType -> {
+                val nullability =
+                    modifiers.annotations.map { it.typeNullability }.firstOrNull()
+                        ?: TypeNullability.PLATFORM
+                expandedKaType.lowerBound.toTypeItem(mustBoxPrimitives).substitute(nullability)
+            }
             is KaDefinitelyNotNullType ->
                 expandedKaType.original
                     .toTypeItem(mustBoxPrimitives)
