@@ -646,6 +646,7 @@ private constructor(
                     typeParameterListAndFactory.factory
                 )
             }
+        val qualifiedClassName = pkg.qualifiedName() + "." + name
 
         token = tokenizer.requireToken()
         if ("=" != token) {
@@ -659,6 +660,23 @@ private constructor(
         }
 
         val type = typeItemFactory.getGeneralType(typeString)
+
+        // Check for the existing class from a previously parsed file. If it was found then use that
+        // and return. If it could not be found then drop through to create it.
+        val classCharacteristics =
+            ClassCharacteristics(
+                fileLocation = location,
+                qualifiedName = qualifiedClassName,
+                fullName = name,
+                classKind = ClassKind.TYPEALIAS,
+                modifiers = modifiers.toImmutable(),
+                superClassType = null,
+                optionalAliasedType = type,
+            )
+        if (checkForExistingClass(classCharacteristics, tokenizer)) {
+            return
+        }
+
         itemFactory.createTypeAliasItem(
             fileLocation = location,
             modifiers = modifiers,
@@ -793,6 +811,7 @@ private constructor(
                 classKind = classKind,
                 modifiers = modifiers.toImmutable(),
                 superClassType = superClassType,
+                optionalAliasedType = null,
             )
         if (checkForExistingClass(classCharacteristics, tokenizer)) {
             return
@@ -851,8 +870,11 @@ private constructor(
         val existingClass =
             codebase.findClassInCodebase(classCharacteristics.qualifiedName) ?: return false
 
-        // Parse the class body adding each member created to the existing class.
-        parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
+        // Parse the class body adding each member created to the existing class (typealiases do not
+        // have a class body).
+        if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
+            parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
+        }
 
         // Although the class was first defined in a separate file it is being modified in the
         // current file so that may include it in the main API surface.
@@ -907,6 +929,15 @@ private constructor(
                 "Incompatible $existingClass definitions",
                 newClassCharacteristics.fileLocation
             )
+        }
+
+        // Handle the transition to typealias (other class kind changes are not allowed)
+        if (
+            existingClass.classKind != ClassKind.TYPEALIAS &&
+                newClassCharacteristics.classKind == ClassKind.TYPEALIAS
+        ) {
+            existingClass.classKind = ClassKind.TYPEALIAS
+            existingClass.optionalAliasedType = newClassCharacteristics.optionalAliasedType
         }
 
         // Add new annotations to the existing class
