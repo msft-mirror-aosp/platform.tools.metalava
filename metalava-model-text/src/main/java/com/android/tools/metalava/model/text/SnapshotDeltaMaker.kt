@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 
@@ -148,6 +149,11 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
                         return@let
                     }
                 }
+
+                // Check if there are changes in type parameters that require emitting the callable.
+                if (!equivalentTypeParameters(baseCallable, callable)) {
+                    return@let
+                }
             }
 
             return
@@ -171,6 +177,11 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
             if (checkMemberItemEquivalence) {
                 // Check if a change in modifiers requires emitting the property.
                 if (!equivalentModifiers(baseProperty, property)) return@let
+
+                // Check if there are changes in type parameters that require emitting the property.
+                if (!equivalentTypeParameters(baseProperty, property)) {
+                    return@let
+                }
             }
 
             return
@@ -191,6 +202,21 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
     private fun equivalentModifiers(baseItem: Item, extensionItem: Item): Boolean {
         if (!baseItem.modifiers.equivalentTo(baseItem, extensionItem.modifiers)) return false
         return equivalentAnnotations(baseItem, extensionItem)
+    }
+
+    /**
+     * Checks if the type parameter lists on the two owners should be considered equivalent. They
+     * are not equivalent if any type parameters differ in whether they are reified.
+     */
+    private fun equivalentTypeParameters(
+        baseOwner: TypeParameterListOwner,
+        extensionOwner: TypeParameterListOwner,
+    ): Boolean {
+        val zippedParameters = baseOwner.typeParameterList.zip(extensionOwner.typeParameterList)
+        for ((baseParameter, callableParameter) in zippedParameters) {
+            if (baseParameter.isReified() != callableParameter.isReified()) return false
+        }
+        return true
     }
 
     companion object {

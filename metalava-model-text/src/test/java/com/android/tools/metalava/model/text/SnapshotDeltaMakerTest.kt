@@ -647,6 +647,40 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                     checkMemberItemEquivalence = true,
                 ),
+                TestParams(
+                    name = "type parameter reified",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public inline <reified T> void changeMethodReified(T);
+                                property public inline <reified T> int T.changePropertyReified;
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public inline <T> void changeMethodReified(T);
+                                property public inline <T> int T.changePropertyReified;
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public inline <T> void changeMethodReified(T);
+                                property public inline <T> int T.changePropertyReified;
+                              }
+                            }
+                        """,
+                    checkMemberItemEquivalence = true,
+                ),
             )
     }
 
