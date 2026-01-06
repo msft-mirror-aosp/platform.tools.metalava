@@ -19,15 +19,13 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import java.io.File
-import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Rule
@@ -60,7 +58,7 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
         projectDir = temporaryFolder.newFolder()
         PsiEnvironmentManager().use { environmentManager ->
             outputWriter = StringWriter()
-            reporter = BasicReporter(PrintWriter(outputWriter))
+            reporter = BasicReporter(outputWriter)
             val codebase =
                 createTestCodebase(
                     environmentManager,
@@ -73,19 +71,20 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
     }
 
     private fun createTestCodebase(
-        environmentManager: EnvironmentManager,
+        environmentManager: PsiEnvironmentManager,
         directory: File,
         sources: List<TestFile>,
         reporter: Reporter,
     ): Codebase {
         return environmentManager
             .createSourceParser(
-                reporter,
-                noOpAnnotationManager,
+                codebaseConfig =
+                    Codebase.Config(
+                        reporter = reporter,
+                    ),
             )
             .parseSources(
                 createSourceSet(sources, directory),
-                SourceSet.empty(),
                 description = "Test Codebase",
                 classPath = emptyList(),
             )
@@ -153,6 +152,27 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
                     .trimIndent(),
                 output
             )
+        }
+    }
+
+    @Test
+    fun `Regression test for 359909520`() {
+        // Regression test for 359909520: Handle kotlin packages that have `` in them.
+        testCodebase(
+            kotlin(
+                "com/google/receiver/Test.kt",
+                """
+                        package com.google.`receiver`
+                        class Test
+                    """
+            ),
+        ) {
+            val src = listOf(projectDir.resolve("src"))
+            val sourceSet = SourceSet.createFromSourcePath(reporter, src)
+            val roots = sourceSet.extractRoots(reporter).sourcePath
+            assertEquals(1, roots.size)
+            assertEquals(src[0].path, roots[0].path)
+            assertEquals("", output)
         }
     }
 }

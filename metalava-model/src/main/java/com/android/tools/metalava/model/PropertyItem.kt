@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface PropertyItem : MemberItem {
+interface PropertyItem : MemberItem, TypeParameterListOwner {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
         get() = null
@@ -36,25 +36,31 @@ interface PropertyItem : MemberItem {
     val constructorParameter: ParameterItem?
         get() = null
 
+    override fun describe(capitalize: Boolean) = toString()
+
     /** The type of this property */
     override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
+    /** The receiver type of this property, if one exists. */
+    val receiver: TypeItem?
+
+    /** The type parameters of this property. */
+    override val typeParameterList: TypeParameterList
+
+    /**
+     * The visibility of the property's setter, or null if the property has no setter (or the
+     * visibility is unknown).
+     */
+    val setterVisibility: VisibilityLevel?
+
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) =
         containingClass().findCorrespondingItemIn(codebase)?.properties()?.find {
             it.name() == name()
         }
-
-    /** [PropertyItem]s are never inherited. */
-    override val inheritedFrom: ClassItem?
-        get() = null
-
-    /**
-     * Duplicates this property item.
-     *
-     * Override to specialize the return type.
-     */
-    override fun duplicate(targetContainingClass: ClassItem): PropertyItem =
-        codebase.unsupported("Not needed yet")
 
     override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
 
@@ -62,19 +68,28 @@ interface PropertyItem : MemberItem {
         visitor.visit(this)
     }
 
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PropertyItem) return false
+
+        return name() == other.name() && containingClass() == other.containingClass()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
+    }
+
     override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
 
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        return type() !is PrimitiveTypeItem
-    }
+    // Inherit deprecation from the getter
+    override val effectivelyDeprecated: Boolean
+        get() =
+            originallyDeprecated ||
+                if (getter == null) {
+                    containingClass().effectivelyDeprecated
+                } else {
+                    getter!!.effectivelyDeprecated
+                }
 
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->

@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -28,11 +30,11 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.psi.CodePrinter
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.utils.XmlUtils
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 /**
  * Writes out an XML format in the JDiff schema: See $ANDROID/external/jdiff/src/api.xsd (though
@@ -45,22 +47,9 @@ import java.util.function.Predicate
  */
 class JDiffXmlWriter(
     private val writer: PrintWriter,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
-    private val preFiltered: Boolean,
     private val apiName: String? = null,
-    showUnannotated: Boolean,
-    config: Config,
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = false,
-        inlineInheritedFields = true,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
-        showUnannotated = showUnannotated,
-        config = config,
-    ) {
+) : DelegatedVisitor {
+
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
 
@@ -123,7 +112,7 @@ class JDiffXmlWriter(
     }
 
     fun deprecation(item: Item): String {
-        return if (item.deprecated) {
+        return if (item.originallyDeprecated) {
             "deprecated"
         } else {
             "not deprecated"
@@ -166,12 +155,6 @@ class JDiffXmlWriter(
 
     override fun visitField(field: FieldItem) {
         val modifiers = field.modifiers
-        val initialValue = field.initialValue(true)
-        val value =
-            if (initialValue != null) {
-                XmlUtils.toXmlAttributeValue(CodePrinter.constantToSource(initialValue))
-            } else null
-
         writer.print("<field name=\"")
         writer.print(field.name())
         writer.print("\"\n type=\"")
@@ -180,7 +163,9 @@ class JDiffXmlWriter(
         writer.print(modifiers.isTransient())
         writer.print("\"\n volatile=\"")
         writer.print(modifiers.isVolatile())
-        if (value != null) {
+        field.constantValue?.asLiteralValue()?.let { literalValue ->
+            val value = XmlUtils.toXmlAttributeValue(literalValue.toValueString())
+
             writer.print("\"\n value=\"")
             writer.print(value)
         }
@@ -239,9 +224,7 @@ class JDiffXmlWriter(
     }
 
     private fun writeSuperClassAttribute(cls: ClassItem) {
-        val superClass =
-            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
-
+        val superClass = cls.superClassType()
         val superClassString =
             when {
                 cls.isAnnotationType() -> JAVA_LANG_ANNOTATION
@@ -261,12 +244,9 @@ class JDiffXmlWriter(
     }
 
     private fun writeInterfaceList(cls: ClassItem) {
-        val interfaces =
-            if (preFiltered) cls.interfaceTypes().asSequence()
-            else cls.filteredInterfaceTypes(filterReference).asSequence()
-
-        if (interfaces.any()) {
-            interfaces.sortedWith(TypeItem.totalComparator).forEach { item ->
+        val interfaces = cls.interfaceTypes()
+        if (interfaces.isNotEmpty()) {
+            interfaces.forEach { item ->
                 writer.print("<implements name=\"")
                 val type = item.toTypeString()
                 writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))
@@ -275,8 +255,8 @@ class JDiffXmlWriter(
         }
     }
 
-    private fun writeParameterList(method: MethodItem) {
-        method.parameters().asSequence().forEach { parameter ->
+    private fun writeParameterList(callable: CallableItem) {
+        callable.parameters().asSequence().forEach { parameter ->
             // NOTE: We report parameter name as "null" rather than the real name to match
             // doclava's behavior
             writer.print("<parameter name=\"null\" type=\"")
@@ -294,13 +274,9 @@ class JDiffXmlWriter(
         return typeString.replace(",", ", ").replace(",  ", ", ")
     }
 
-    private fun writeThrowsList(method: MethodItem) {
-        val throws =
-            when {
-                preFiltered -> method.throwsTypes().asSequence()
-                else -> method.filteredThrowsTypes(filterReference).asSequence()
-            }
-        if (throws.any()) {
+    private fun writeThrowsList(callable: CallableItem) {
+        val throws = callable.throwsTypes()
+        if (throws.isNotEmpty()) {
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
                 @Suppress("DEPRECATION") writer.print(type.fullName())
@@ -312,3 +288,25 @@ class JDiffXmlWriter(
         }
     }
 }
+
+/**
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
+ * parameters and in a manner appropriate for writing JDiff files, e.g. not nesting classes. It will
+ * delegate any visitor calls that pass through its filter to [delegate].
+ */
+fun createFilteringVisitorForJDiffWriter(
+    delegate: DelegatedVisitor,
+    apiFilters: ApiFilters,
+    preFiltered: Boolean,
+    showUnannotated: Boolean,
+    filterSuperClassType: Boolean = true,
+): ApiVisitor =
+    FilteringApiVisitor(
+        delegate,
+        inlineInheritedFields = true,
+        interfaceListComparator = TypeItem.totalComparator,
+        apiFilters = apiFilters,
+        preFiltered = preFiltered,
+        filterSuperClassType = filterSuperClassType,
+        showUnannotated = showUnannotated,
+    )
