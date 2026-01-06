@@ -47,24 +47,52 @@ internal object ReferencableNameResolver {
         scope: ReferencableNameScope,
         referencableName: String
     ): ReferencableItem? {
-        // If the name contains a '.' then it must either be fully qualified or a nested class. The
-        // part before the '.' could be either a package or another class. If there is no '.' then
-        // it is a simple name.
-        val dotIndex = referencableName.lastIndexOf('.')
-        if (dotIndex == -1) {
-            return searchEnclosingScopes(scope, referencableName)
-        } else {
-            val containingPackageOrClassName = referencableName.substring(0, dotIndex)
-            val referencableNameScope =
-                resolveReferencableItem(scope, containingPackageOrClassName) as? QualifiedNameScope
-                    ?: return null
+        val length = referencableName.length
 
-            val simpleName = referencableName.substring(dotIndex + 1)
-            return referencableNameScope.resolveReferencableItemBySimpleName(
-                simpleName,
-                isFirstSimpleName = false,
-            )
-            return null
+        // The scope being searched.
+        var currentScope = scope
+
+        // The start index of the next simple name to find.
+        var startIndex = 0
+
+        // Loop over all simple names within the possibly qualified referencableName, resolving each
+        // against the scope resulting from the resolving the previous name, starting with the
+        // supplied scope. Returns the result of resolving the last simple name.
+        while (true) {
+            // Find the '.' that terminates the next simple name, if any.
+            val dotIndex = referencableName.indexOf('.', startIndex)
+
+            // Compute the end of the next simple name.
+            val endIndex = if (dotIndex == -1) length else dotIndex
+
+            // Extract the next simple name. The implementation optimizes the case when the whole
+            // string will be returned so this does not have to do that.
+            val simpleName = referencableName.substring(startIndex, endIndex)
+
+            // Resolve the simple name against the current scope.
+            val resolved =
+                if (startIndex == 0) {
+                    // If this is the first name to be resolved then search all the enclosing scopes
+                    // of the current scope.
+                    searchEnclosingScopes(currentScope, simpleName)
+                } else {
+                    // Otherwise, only search the current scope for the simple name.
+                    currentScope.resolveReferencableItemBySimpleName(
+                        simpleName,
+                        isFirstSimpleName = false,
+                    )
+                }
+
+            // If that was the last simple name to search then return the result.
+            if (dotIndex == -1) {
+                return resolved
+            }
+
+            // Otherwise, if possible treat the resolved item as the next scope to search.
+            currentScope = resolved as? QualifiedNameScope ?: return null
+
+            // Move onto the next simple name to find.
+            startIndex = endIndex + 1
         }
     }
 
