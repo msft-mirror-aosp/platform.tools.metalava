@@ -224,8 +224,15 @@ abstract class AbstractItemDocumentation(
         return when (resolved) {
             is ClassItem -> ClassReference(resolved.qualifiedName())
             is TypeParameterItem -> TypeParameterReference(resolved.name())
-            else -> {
+            null -> {
                 reporter.report(Issues.UNRESOLVED_LINK, "Could not resolve $typeName")
+                null
+            }
+            else -> {
+                reporter.report(
+                    Issues.INVALID_DOC_THROWS_TYPE,
+                    "Invalid @throws type '$typeName': it should reference a class but it resolves to $resolved"
+                )
                 null
             }
         }

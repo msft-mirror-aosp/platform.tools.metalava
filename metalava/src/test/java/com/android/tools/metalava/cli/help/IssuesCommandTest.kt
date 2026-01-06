@@ -123,6 +123,7 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
+  InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
   InvalidIfTag                               |  documentation                        |   error
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
