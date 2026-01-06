@@ -105,7 +105,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
                 TestParams(
-                    name = "SourceFile - resolve imported",
+                    name = "SourceFile - resolve imported class",
                     imports =
                         """
                             import java.io.IOException;
@@ -115,7 +115,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
                 TestParams(
-                    name = "SourceFile - resolve static imported",
+                    name = "SourceFile - resolve static imported class",
                     imports =
                         """
                             import static java.util.Map.Entry;
@@ -123,6 +123,17 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "Entry",
                     expectedItemGetter = { codebase.assertResolvedClass("java.util.Map.Entry") }
+                ),
+                TestParams(
+                    name = "SourceFile - resolve static imported field",
+                    imports =
+                        """
+                            import static java.lang.System.out;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "out",
+                    // TODO(b/447588621): Should reference the System.out field.
+                    expectedItemGetter = { null }
                 ),
                 TestParams(
                     name = "SourceFile - resolve class in same file",
