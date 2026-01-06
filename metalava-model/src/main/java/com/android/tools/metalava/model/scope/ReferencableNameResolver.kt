@@ -56,8 +56,8 @@ internal object ReferencableNameResolver {
         } else {
             val containingPackageOrClassName = referencableName.substring(0, dotIndex)
             val referencableNameScope =
-                resolveReferencableItem(scope, containingPackageOrClassName)
-                    as? ReferencableNameScope ?: return null
+                resolveReferencableItem(scope, containingPackageOrClassName) as? QualifiedNameScope
+                    ?: return null
 
             val simpleName = referencableName.substring(dotIndex + 1)
             return referencableNameScope.resolveReferencableItemBySimpleName(
