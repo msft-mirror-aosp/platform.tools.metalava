@@ -72,6 +72,7 @@ abstract class AbstractSourceFile() : SourceFile {
         // properly during snapshotting.
         // TODO(b/474319264): Check nested classes instead.
         codebase.resolveClass("${qualifiedName()}.$memberName")
+            ?: fields().find { it.name() == memberName }
 
     override val containingScope: ReferencableNameScope?
         get() =

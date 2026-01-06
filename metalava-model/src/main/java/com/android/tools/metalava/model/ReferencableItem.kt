@@ -23,5 +23,6 @@ package com.android.tools.metalava.model
  * * [PackageItem]
  * * [ClassItem]
  * * [TypeParameterItem]
+ * * [FieldItem]
  */
 sealed interface ReferencableItem

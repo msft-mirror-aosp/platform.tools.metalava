@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem, InheritableItem, ReferencableNameScope {
+interface FieldItem : MemberItem, InheritableItem, ReferencableItem, ReferencableNameScope {
     /** The property this field backs; inverse of [PropertyItem.backingField] */
     val property: PropertyItem?
         get() = null

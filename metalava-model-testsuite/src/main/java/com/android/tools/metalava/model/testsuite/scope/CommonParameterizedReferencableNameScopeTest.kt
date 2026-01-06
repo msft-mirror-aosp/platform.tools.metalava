@@ -132,8 +132,9 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                         """,
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "out",
-                    // TODO(b/447588621): Should reference the System.out field.
-                    expectedItemGetter = { null }
+                    expectedItemGetter = {
+                        codebase.assertResolvedClass("java.lang.System").assertField("out")
+                    }
                 ),
                 TestParams(
                     name = "SourceFile - resolve class in same file",
