@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FieldItem
@@ -110,6 +111,14 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
             val annotations = cls.modifiers.annotations().normalize()
             val baseAnnotations = baseClass.modifiers.annotations().normalize()
             if (annotations != baseAnnotations) {
+                return@let
+            }
+
+            // If the class has changed to a typealias then drop out to emit it (no other class kind
+            // changes are allowed).
+            if (
+                baseClass.classKind != ClassKind.TYPEALIAS && cls.classKind == ClassKind.TYPEALIAS
+            ) {
                 return@let
             }
 
