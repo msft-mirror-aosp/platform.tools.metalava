@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultPropertyItem(
@@ -47,6 +48,7 @@ open class DefaultPropertyItem(
     override val backingField: FieldItem?,
     override val receiver: TypeItem?,
     override val typeParameterList: TypeParameterList,
+    override val setterVisibility: VisibilityLevel?,
 ) :
     DefaultMemberItem(
         codebase,
