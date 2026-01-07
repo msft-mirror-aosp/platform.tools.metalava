@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
@@ -153,8 +154,11 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
-    override fun resolveItemReference(sourceReference: String): ReferencableItem {
-        return item.resolveReferencableItem(sourceReference)
+    override fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem {
+        return item.resolveReferencableItem(sourceReference, nameClassification)
     }
 
     /** Implements [ExprContext.isFlagEnabled]. */
@@ -235,7 +239,7 @@ abstract class AbstractItemDocumentation(
         reporter: LocationSpecificReporter,
         typeName: String
     ): TypeReference? {
-        val resolved = item.resolveReferencableItem(typeName)
+        val resolved = item.resolveReferencableItem(typeName, NameClassification.AMBIGUOUS)
         return when (resolved) {
             is ClassItem -> resolved.toResolvedReference()
             is TypeParameterItem -> resolved.toResolvedReference()
@@ -268,7 +272,8 @@ abstract class AbstractItemDocumentation(
                 } else {
                     // Else resolve the class reference.
                     val classReference = sourceReference.substring(0, hashIndex)
-                    val resolved = item.resolveReferencableItem(classReference)
+                    val resolved =
+                        item.resolveReferencableItem(classReference, NameClassification.AMBIGUOUS)
                     when (resolved) {
                         is ClassItem -> resolved
                         is InvalidReferencableItem -> {
@@ -286,7 +291,7 @@ abstract class AbstractItemDocumentation(
         }
 
         // Resolve the reference.
-        val resolved = item.resolveReferencableItem(sourceReference)
+        val resolved = item.resolveReferencableItem(sourceReference, NameClassification.AMBIGUOUS)
         return when (resolved) {
             is ClassItem -> resolved.toResolvedReference()
             is PackageItem -> resolved.toResolvedReference()

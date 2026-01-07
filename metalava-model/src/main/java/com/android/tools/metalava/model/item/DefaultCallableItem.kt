@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -111,6 +112,7 @@ abstract class DefaultCallableItem(
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
+        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ) =
         // Check for type parameters.

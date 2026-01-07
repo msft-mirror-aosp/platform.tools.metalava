@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.value.Value
@@ -126,7 +127,10 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     /** A map from flage name to enabled status. */
     var flags: Map<String, Boolean> = emptyMap()
 
-    override fun resolveItemReference(sourceReference: String): ReferencableItem {
+    override fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem {
         return mock<FieldItem>(stubOnly = true) {
             on { constantValue } doReturn Value.createLiteralValue(null, sourceReference)
         }

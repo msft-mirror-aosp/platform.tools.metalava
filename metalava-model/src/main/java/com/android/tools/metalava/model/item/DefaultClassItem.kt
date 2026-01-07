@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.utils.extractSimpleName
@@ -349,6 +350,7 @@ open class DefaultClassItem(
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
+        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ) =
         // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
@@ -362,10 +364,20 @@ open class DefaultClassItem(
                 // Then, check to see if it matches a nested class and if it does then return that.
                 ?: mutableNestedClasses.find { it.simpleName() == simpleName }
                 // Then, check to see if it matches a class defined in a super class.
-                ?: superClass()?.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
+                ?: superClass()
+                    ?.resolveReferencableItemBySimpleName(
+                        simpleName,
+                        nameClassification,
+                        isFirstSimpleName
+                    )
                 // Then, check to see if it matches a class defined in a super interface.
                 ?: interfaceTypes().firstNotNullOfOrNull {
-                    it.asClass()?.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
+                    it.asClass()
+                        ?.resolveReferencableItemBySimpleName(
+                            simpleName,
+                            nameClassification,
+                            isFirstSimpleName
+                        )
                 }
 
     /** Cache value of [annotationClass]. */
