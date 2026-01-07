@@ -21,10 +21,13 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.reporter.FileLocation
@@ -32,19 +35,37 @@ import com.android.tools.metalava.reporter.FileLocation
 abstract class DefaultSelectableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
+    override var targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultItem(
         codebase,
         fileLocation,
-        itemLanguage,
+        sourceLanguage,
         modifiers,
-        documentationFactory,
     ),
     SelectableItem {
+    /**
+     * Create a [ItemDocumentation] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     *
+     * If this is private then it cannot be included in an API so its documentation is irrelevant.
+     * In that case this ignores its [ItemDocumentationFactory] and uses `null` instead.
+     */
+    final override val documentation =
+        if (modifiers.isPrivate()) null
+        else @Suppress("LeakingThis") documentationFactory.create(this)
+
+    init {
+        if (!modifiers.isDeprecated() && documentation?.hasBlockTagOfType("deprecated") == true) {
+            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
+        }
+    }
 
     final override var selectedApiVariants: ApiVariantSet = codebase.apiSurfaces.emptyVariantSet
 
@@ -54,9 +75,8 @@ abstract class DefaultSelectableItem(
         selectedApiVariants = mutable.toImmutable()
     }
 
-    final override var emit =
-        // Do not emit expect declarations in APIs.
-        !modifiers.isExpect()
+    // Default to true, may be updated later
+    final override var emit = true
 
     /**
      * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].

@@ -152,6 +152,31 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                 ),
                 TestParams(
+                    name = "class - changed to typealias",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public typealias Foo = String;
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public typealias Foo = String;
+                            }
+                        """,
+                ),
+                TestParams(
                     name = "constructors",
                     baseSignature =
                         """

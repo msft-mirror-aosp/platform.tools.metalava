@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.JDiffXmlWriter
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
@@ -25,7 +24,7 @@ import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.createFilteringVisitorForJDiffWriter
-import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FilterPredicate
@@ -121,10 +120,6 @@ class SignatureToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =
             Codebase.Config(
@@ -170,7 +165,12 @@ class SignatureToJDiffCommand :
 
         // See JDiff's XMLToAPI#nameAPI
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(progressTracker, outputFragment, xmlFile, "JDiff File") { printWriter ->
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            outputFragment,
+            xmlFile,
+            "JDiff File"
+        ) { printWriter ->
             JDiffXmlWriter(
                 writer = printWriter,
                 apiName = apiName,

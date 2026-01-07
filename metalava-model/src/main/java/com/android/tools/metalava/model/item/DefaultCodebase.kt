@@ -20,8 +20,8 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -58,10 +58,17 @@ open class DefaultCodebase(
         description += " [disposed]"
     }
 
+    final override var containsRevertedItem: Boolean = false
+        private set
+
+    override fun markContainsRevertedItem() {
+        containsRevertedItem = true
+    }
+
     override val reporter: Reporter = config.reporter
 
-    /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker(assembler::createPackageItem)
+    /** Tracks [PackageItem] use in this [Codebase]. */
+    val packageTracker = PackageTracker(assembler)
 
     final override fun getPackages() = packageTracker.getPackages()
 
@@ -69,10 +76,7 @@ open class DefaultCodebase(
 
     final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
-    fun findOrCreatePackage(
-        packageName: String,
-        packageDocs: PackageDocs = PackageDocs.EMPTY,
-    ) = packageTracker.findOrCreatePackage(packageName, packageDocs)
+    fun findOrCreatePackage(packageName: String) = packageTracker.findOrCreatePackage(packageName)
 
     /**
      * Map from fully qualified name to [DefaultClassItem] for every class created by this.
@@ -153,24 +157,31 @@ open class DefaultCodebase(
      * Looks for an existing class in this [Codebase] and if that cannot be found then delegate to
      * the [assembler] to see if it can create a class from the underlying model.
      */
-    final override fun resolveClass(className: String): ClassItem? {
-        findClass(className)?.let {
+    final override fun resolveClass(erasedName: String): ClassItem? {
+        findClass(erasedName)?.let {
             return it
         }
-        val created = assembler.createClassFromUnderlyingModel(className) ?: return null
+        val created = assembler.createClassFromUnderlyingModel(erasedName) ?: return null
         // If the returned class was not created as part of this Codebase then register it as an
         // external class so that findClass(...) will find it next time.
         if (created.codebase !== this) {
             // Register as an external class.
-            externalClassesByName[className] = created
+            externalClassesByName[erasedName] = created
         }
         return created
+    }
+
+    final override fun resolvePackage(pkgName: String): PackageItem? {
+        findPackage(pkgName)?.let {
+            return it
+        }
+        return assembler.createPackageFromUnderlyingModel(pkgName)
     }
 
     override fun createAnnotation(
         source: String,
         context: Item?,
     ): AnnotationItem? {
-        return DefaultAnnotationItem.create(this, source)
+        return AnnotationItem.createFromSource(this, source)
     }
 }

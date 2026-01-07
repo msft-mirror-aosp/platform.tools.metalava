@@ -21,9 +21,9 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.reporter.FileLocation
@@ -31,21 +31,20 @@ import com.android.tools.metalava.reporter.FileLocation
 open class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     private val name: String,
-    protected val publicNameProvider: PublicNameProvider,
+    protected val publicName: String?,
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    defaultValueFactory: DefaultValueFactory,
+    private val hasDefaultValue: Boolean,
 ) :
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
         modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
     ),
     ParameterItem {
 
@@ -54,15 +53,9 @@ open class DefaultParameterItem(
         type.let { if (it is ArrayTypeItem && it.isVarargs) mutateModifiers { setVarArg(true) } }
     }
 
-    /**
-     * Create the [DefaultValue] during initialization of this parameter to allow it to contain an
-     * immutable reference to this object.
-     */
-    final override val defaultValue = defaultValueFactory(this)
-
     final override fun name(): String = name
 
-    final override fun publicName(): String? = publicNameProvider(this)
+    final override fun publicName(): String? = publicName
 
     final override fun containingCallable(): CallableItem = containingCallable
 
@@ -72,11 +65,9 @@ open class DefaultParameterItem(
         this.type = type
     }
 
-    final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
+    final override fun hasDefaultValue(): Boolean = hasDefaultValue
 
-    final override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
-
-    final override fun defaultValueAsString(): String? = defaultValue.value()
+    override var property: PropertyItem? = null
 
     override fun duplicate(
         containingCallable: CallableItem,
@@ -85,13 +76,13 @@ open class DefaultParameterItem(
         DefaultParameterItem(
             codebase,
             fileLocation,
-            itemLanguage,
+            sourceLanguage,
             modifiers,
             name(),
-            publicNameProvider,
+            publicName,
             containingCallable,
             parameterIndex,
             type().convertType(typeVariableMap),
-            defaultValue::duplicate,
+            hasDefaultValue(),
         )
 }

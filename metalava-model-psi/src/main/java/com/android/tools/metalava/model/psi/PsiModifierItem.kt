@@ -16,12 +16,10 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
-import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.ACTUAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.COMPANION
@@ -54,6 +52,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.isRetention
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -72,27 +71,26 @@ import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
-import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtObjectDeclaration
+import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
-import org.jetbrains.kotlin.psi.psiUtil.isTopLevelKtOrJavaMember
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
+import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
 
 internal object PsiModifierItem {
@@ -106,7 +104,11 @@ internal object PsiModifierItem {
             } else {
                 createFromPsiElement(codebase, element)
             }
-
+        // Set exhaustivity as true until proven otherwise either by an inaccessible subclass
+        // or by a "nonexhaustive" keyword when parsing signature files.
+        if (modifiers.isSealed()) {
+            modifiers.setExhaustive(true)
+        }
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
         // that it should not, so this removes them.
         if (shouldRemoveNullnessAnnotations(modifiers)) {
@@ -118,82 +120,6 @@ internal object PsiModifierItem {
                 // Check for @Deprecated on sourcePsi
                 isDeprecatedFromSourcePsi(element)
         ) {
-            modifiers.setDeprecated(true)
-        }
-
-        return modifiers
-    }
-
-    /**
-     * Creates modifiers for the property represented by [ktDeclaration] using the [KtModifierList]
-     * and from the property. Uses annotations from the [getter] if it exists in addition to
-     * property annotations because property modifiers used to be created just from the getter and
-     * some places rely on the old behavior for annotations (@RestrictTo in AndroidX is only
-     * applicable to accessors, not properties themselves).
-     */
-    fun createForProperty(
-        codebase: PsiBasedCodebase,
-        ktDeclaration: KtDeclaration,
-        getter: PsiMethodItem?,
-        setter: PsiMethodItem?,
-    ): MutableModifierList {
-        val ktModifierList = ktDeclaration.modifierList
-        val visibilityFlags =
-            visibilityFlags(
-                psiModifierList = null,
-                ktModifierList = ktModifierList,
-                element = ktDeclaration,
-                sourcePsi = ktDeclaration
-            )
-        val kotlinFlags = kotlinFlags { token ->
-            ktModifierList?.hasModifier(token) ?: ktDeclaration.hasModifier(token)
-        }
-        val javaFlags = javaFlagsForKotlinElement(ktDeclaration)
-        val flags = visibilityFlags or kotlinFlags or javaFlags
-
-        // Use the flags computed from the property, and the getter annotations, if they exist.
-        val modifiers =
-            createMutableModifiers(
-                flags,
-                // Filter deprecated annotations: the property will pull effectivelyDeprecated
-                // status from its getter, but the originallyDeprecated value should reflect
-                // the property itself, to avoid propagating deprecation from getter to property to
-                // setter. The setter should only inherit deprecation from the property itself.
-                getter?.modifiers?.annotations()?.filter { !isDeprecatedAnnotation(it) }
-                    ?: emptyList()
-            )
-
-        // Correct visibility of accessors (work around K2 bugs with value class type properties)
-        // https://youtrack.jetbrains.com/issue/KT-74205
-        // The getter must have the same visibility as the property
-        val propertyVisibility = modifiers.getVisibilityLevel()
-        if (getter != null && getter.modifiers.getVisibilityLevel() != propertyVisibility) {
-            getter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
-        }
-        // The setter cannot be more visible than the property
-        if (setter != null && setter.modifiers.getVisibilityLevel() > propertyVisibility) {
-            setter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
-        }
-
-        // Annotations whose target is property won't be bound to anywhere in LC/UAST, if the
-        // property doesn't need a backing field. Same for unspecified use-site target.
-        // Add all annotations applied to the property by examining source PSI directly.
-        for (ktAnnotationEntry in ktDeclaration.annotationEntries) {
-            val useSiteTarget = ktAnnotationEntry.useSiteTarget?.getAnnotationUseSiteTarget()
-            if (useSiteTarget == null || useSiteTarget == AnnotationUseSiteTarget.PROPERTY) {
-                val uAnnotation = ktAnnotationEntry.toUElement() as? UAnnotation ?: continue
-                val annotationItem = UAnnotationItem.create(codebase, uAnnotation) ?: continue
-                if (annotationItem !in modifiers.annotations()) {
-                    modifiers.addAnnotation(annotationItem)
-                }
-                // Make sure static definitions are marked
-                if (annotationItem.qualifiedName == JVM_STATIC) {
-                    modifiers.setStatic(true)
-                }
-            }
-        }
-
-        if (hasDeprecatedAnnotation(modifiers)) {
             modifiers.setDeprecated(true)
         }
 
@@ -219,11 +145,7 @@ internal object PsiModifierItem {
 
     private fun isDeprecatedAnnotation(annotationItem: AnnotationItem): Boolean =
         annotationItem.qualifiedName.let { qualifiedName ->
-            qualifiedName == "Deprecated" ||
-                qualifiedName.endsWith(".Deprecated") ||
-                // DeprecatedForSdk that do not apply to this API surface have been filtered
-                // out so if any are left then treat it as a standard Deprecated annotation.
-                qualifiedName == ANDROID_DEPRECATED_FOR_SDK
+            qualifiedName == "Deprecated" || qualifiedName.endsWith(".Deprecated")
         }
 
     private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
@@ -236,41 +158,11 @@ internal object PsiModifierItem {
         }
         return ((element as? UElement)?.sourcePsi as? KtAnnotated)?.annotationEntries?.any {
             it.shortName?.toString() == "Deprecated"
-        }
-            ?: false
+        } ?: false
     }
 
     private fun computeFlag(element: PsiModifierListOwner, modifierList: PsiModifierList): Int {
-        var flags = 0
-        if (modifierList.hasModifierProperty(PsiModifier.STATIC)) {
-            flags = flags or STATIC
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.ABSTRACT)) {
-            flags = flags or ABSTRACT
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.FINAL)) {
-            flags = flags or FINAL
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.NATIVE)) {
-            flags = flags or NATIVE
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.SYNCHRONIZED)) {
-            flags = flags or SYNCHRONIZED
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.STRICTFP)) {
-            flags = flags or STRICT_FP
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.TRANSIENT)) {
-            flags = flags or TRANSIENT
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.VOLATILE)) {
-            flags = flags or VOLATILE
-        }
-        if (modifierList.hasModifierProperty(PsiModifier.DEFAULT)) {
-            flags = flags or DEFAULT
-        }
-
-        // Look for special Kotlin keywords
+        // Look for a KtModifierList to compute visibility and Kotlin-specific modifiers.
         var ktModifierList: KtModifierList? = null
         val sourcePsi = (element as? UElement)?.sourcePsi
         when (modifierList) {
@@ -284,9 +176,10 @@ internal object PsiModifierItem {
             }
         }
 
-        // Merge in the visibility flags.
-        val visibilityFlags = visibilityFlags(modifierList, ktModifierList, element, sourcePsi)
-        flags = flags or visibilityFlags
+        // Compute flags that exist in java and merge in the visibility flags.
+        var flags =
+            javaFlags(modifierList) or
+                visibilityFlags(modifierList, ktModifierList, element, sourcePsi)
 
         // Merge in kotlin flags
         if (ktModifierList != null) {
@@ -312,16 +205,6 @@ internal object PsiModifierItem {
                         ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) -> PRIVATE
                         ktModifierList.hasModifier(KtTokens.PROTECTED_KEYWORD) -> PROTECTED
                         ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD) -> INTERNAL
-                        else -> PUBLIC
-                    }
-                // UAST workaround: fake light method for inline/hidden function may not have a
-                // concrete modifier list, but overrides `hasModifierProperty` to mimic
-                // modifiers.
-                element is KotlinUMethodWithFakeLightDelegateBase<*> ->
-                    when {
-                        element.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
-                        element.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
-                        element.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
                         else -> PUBLIC
                     }
                 sourcePsi is KtModifierListOwner ->
@@ -354,6 +237,22 @@ internal object PsiModifierItem {
                     }
                 }
             }
+
+            // With K2, the source psi of a data class copy method is the primary constructor, so
+            // that gets used to determine internal visibility above. That works if the data class
+            // is annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated
+            // with @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should
+            // be public. If the copy method is supposed to be internal, it will get a mangled name
+            // (`copy$<module name>`), so if the name is just plain "copy", that means it should not
+            // be internal. Reset the visibility to public in that case.
+            if (
+                sourcePsi is KtPrimaryConstructor &&
+                    (element as? PsiMethod)?.name == "copy" &&
+                    sourcePsi.containingClass()?.hasModifier(KtTokens.DATA_KEYWORD) == true &&
+                    visibilityFlags == INTERNAL
+            ) {
+                visibilityFlags = PUBLIC
+            }
         }
 
         if (ktModifierList?.hasModifier(KtTokens.INLINE_KEYWORD) == true) {
@@ -384,6 +283,42 @@ internal object PsiModifierItem {
         }
 
         return visibilityFlags
+    }
+
+    /**
+     * Computes flags that exist in Java, excluding visibility flags. These are for both Java and
+     * Kotlin source elements.
+     */
+    private fun javaFlags(modifierList: PsiModifierList): Int {
+        var flags = 0
+        if (modifierList.hasModifierProperty(PsiModifier.STATIC)) {
+            flags = flags or STATIC
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.ABSTRACT)) {
+            flags = flags or ABSTRACT
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.FINAL)) {
+            flags = flags or FINAL
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.NATIVE)) {
+            flags = flags or NATIVE
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.SYNCHRONIZED)) {
+            flags = flags or SYNCHRONIZED
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.STRICTFP)) {
+            flags = flags or STRICT_FP
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.TRANSIENT)) {
+            flags = flags or TRANSIENT
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.VOLATILE)) {
+            flags = flags or VOLATILE
+        }
+        if (modifierList.hasModifierProperty(PsiModifier.DEFAULT)) {
+            flags = flags or DEFAULT
+        }
+        return flags
     }
 
     /** Computes Kotlin-specific flags. */
@@ -431,58 +366,6 @@ internal object PsiModifierItem {
         return flags
     }
 
-    /** Creates Java-equivalent flags for the Kotlin element. */
-    private fun javaFlagsForKotlinElement(ktDeclaration: KtDeclaration): Int {
-        // const values are static, and anything in a file-facade class (which top level KtElements
-        // are) is also static
-        return if (
-            ktDeclaration.hasModifier(KtTokens.CONST_KEYWORD) ||
-                ktDeclaration.isTopLevelKtOrJavaMember()
-        ) {
-            FINAL or STATIC
-        } else if (ktDeclaration.hasModifier(KtTokens.FINAL_KEYWORD)) {
-            FINAL
-        } else if (ktDeclaration.isAbstractProperty()) {
-            // Declarations with the abstract keyword are abstract, and so are annotation class
-            // properties.
-            ABSTRACT
-        } else if (
-            ktDeclaration.isFromInterface() &&
-                ktDeclaration is KtProperty &&
-                ktDeclaration.getter?.hasBody() == true
-        ) {
-            // Interface properties can't have backing fields, so they are abstract unless there is
-            // a defined getter. If there is a defined getter, there's a default implementation.
-            DEFAULT
-        } else if (
-            !ktDeclaration.hasModifier(KtTokens.OPEN_KEYWORD) &&
-                !ktDeclaration.hasModifier(KtTokens.OVERRIDE_KEYWORD) &&
-                !ktDeclaration.isFromInterface()
-        ) {
-            // Kotlin elements are final unless declared otherwise.
-            FINAL
-        } else {
-            0
-        }
-    }
-
-    private fun KtDeclaration.isFromInterface(): Boolean {
-        // Can't use containingClass() here -- don't count definitions in interface companions
-        return (containingClassOrObject as? KtClass)?.isInterface() == true
-    }
-
-    /**
-     * Checks if the [KtDeclaration] needs the abstract modifier:
-     * - if the definition used the abstract modifier
-     * - if the definition is an annotation property
-     * - if the definition is an interface property without a defined getter
-     */
-    private fun KtDeclaration.isAbstractProperty(): Boolean {
-        return hasModifier(KtTokens.ABSTRACT_KEYWORD) ||
-            (containingClassOrObject as? KtClass)?.isAnnotation() == true ||
-            (this is KtProperty && isFromInterface() && getter?.hasBody() != true)
-    }
-
     /**
      * Returns a list of the targets this annotation is defined to apply to, as qualified names
      * (e.g. "java.lang.annotation.ElementType.TYPE_USE").
@@ -494,8 +377,7 @@ internal object PsiModifierItem {
             ?.annotations
             ?.firstOrNull { it.hasQualifiedName(JAVA_LANG_ANNOTATION_TARGET) }
             ?.findAttributeValue("value")
-            ?.targets()
-            ?: emptyList()
+            ?.targets() ?: emptyList()
     }
 
     /**
@@ -564,7 +446,6 @@ internal object PsiModifierItem {
                     // Remove any type-use annotations that psi incorrectly applied to the item.
                     .filterIncorrectTypeUseAnnotations(element)
                     .mapNotNull { PsiAnnotationItem.create(codebase, it) }
-                    .filter { !it.isDeprecatedForSdk() }
             createMutableModifiers(flags, annotations)
         }
     }
@@ -576,15 +457,56 @@ internal object PsiModifierItem {
     ): MutableModifierList {
         val modifierList =
             element.modifierList ?: return createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE)
-        val uAnnotations = annotated.uAnnotations
+        val uAnnotations =
+            if (annotated is UField && annotated.sourcePsi is KtObjectDeclaration) {
+                    // UAST is adding annotations on object declarations to the UField representing
+                    // the instance of the object, but the compiler does not apply annotations to
+                    // instance fields. Keep the annotation added for the field nullability.
+                    annotated.uAnnotations.filter { it.isKotlinNullabilityAnnotation }
+                } else {
+                    annotated.uAnnotations
+                }
+                .toMutableList()
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
-                    ?: PsiAnnotation.EMPTY_ARRAY
+                ?: PsiAnnotation.EMPTY_ARRAY
 
         var flags = computeFlag(element, modifierList)
 
-        return if (uAnnotations.isEmpty()) {
+        // The below code remedies a problem where companion objects as fields don't have
+        // annotations in signature files (b/401235591). This code takes the annotations
+        // from the companion class and applies them to the field.
+        if (element is UField) {
+            val companionObjectClass = (element.sourcePsi.toUElement())
+
+            // The following checks if the field is indeed a companion object. Companion objects
+            // are the only case where there is a field that has sourcePsi being a UClass, and
+            // that UClass's sourcePsi is a KtObjectDeclaration. Other field types (e.g.
+            // primitives, lambdas, etc) don't have this property.
+            if (
+                companionObjectClass is UClass &&
+                    companionObjectClass.sourcePsi is KtObjectDeclaration &&
+                    (companionObjectClass.sourcePsi as KtObjectDeclaration).hasModifier(
+                        KtTokens.COMPANION_KEYWORD
+                    )
+            ) {
+                companionObjectClass.uAnnotations.forEach { newAnnotation ->
+                    // prevent duplicate annotations from being copied over
+                    if (
+                        uAnnotations.none { existingAnnotation ->
+                            existingAnnotation.qualifiedName.equals(newAnnotation.qualifiedName)
+                        }
+                    ) {
+                        uAnnotations.add(newAnnotation)
+                    }
+                }
+            }
+        }
+
+        // Only use the psi annotations when there are no uAnnotations present (either ones added or
+        // originally present in UAST).
+        return if (uAnnotations.isEmpty() && annotated.uAnnotations.isEmpty()) {
             if (psiAnnotations.isNotEmpty()) {
                 val annotations =
                     psiAnnotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
@@ -604,7 +526,7 @@ internal object PsiModifierItem {
                             !it.isKotlinNullabilityAnnotation
                     }
                     .mapNotNull { UAnnotationItem.create(codebase, it) }
-                    .filter { !it.isDeprecatedForSdk() }
+                    .toMutableList()
 
             if (!isPrimitiveVariable) {
                 if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
@@ -614,36 +536,26 @@ internal object PsiModifierItem {
                         }
                     ktNullAnnotation?.let {
                         PsiAnnotationItem.create(codebase, it)?.let { annotationItem ->
-                            annotations =
-                                annotations.toMutableList().run {
-                                    add(annotationItem)
-                                    toList()
-                                }
+                            annotations.add(annotationItem)
                         }
                     }
                 }
             }
 
+            // if there are no retention annotations defined for this annotation class, we should
+            // add one so that it can be explicitly written in signature files
+            if (
+                (element as? UClass)?.isAnnotationType == true &&
+                    annotations.none { it.isRetention() }
+            ) {
+                psiAnnotations
+                    .firstOrNull { isRetention(it.qualifiedName) }
+                    ?.let { psiAnnotation -> PsiAnnotationItem.create(codebase, psiAnnotation) }
+                    ?.let { annotationItem -> annotations.add(annotationItem) }
+            }
+
             createMutableModifiers(flags, annotations)
         }
-    }
-
-    /** Returns whether this is a `@DeprecatedForSdk` annotation **that should be skipped**. */
-    private fun AnnotationItem.isDeprecatedForSdk(): Boolean {
-        if (qualifiedName != ANDROID_DEPRECATED_FOR_SDK) {
-            return false
-        }
-
-        val allowIn = findAttribute(ATTR_ALLOW_IN) ?: return false
-
-        for (api in allowIn.leafValues()) {
-            val annotationName = api.value() as? String ?: continue
-            if (codebase.annotationManager.isShowAnnotationName(annotationName)) {
-                return true
-            }
-        }
-
-        return false
     }
 
     private val NOT_NULL = NotNull::class.qualifiedName
@@ -652,5 +564,3 @@ internal object PsiModifierItem {
     private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
         get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE
 }
-
-private const val ATTR_ALLOW_IN = "allowIn"

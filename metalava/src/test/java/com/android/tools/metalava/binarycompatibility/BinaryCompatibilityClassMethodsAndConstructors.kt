@@ -25,8 +25,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -51,8 +51,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -77,8 +77,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -103,8 +103,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed return type from void to int [ChangedType]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed return type from void to int [ChangedType]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -129,8 +129,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -155,8 +155,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -197,17 +197,18 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
-    /*
-    Decrease access; that is, from protected access to default or private access,
-    or from public access to protected, default, or private access
+
+    /**
+     * Decrease access; that is, from protected access to default or private access, or from public
+     * access to protected, default, or private access
      */
     @Test
     fun `Decrease access(Incompatible)`() {
         check(
             expectedIssues =
                 """
-               load-api.txt:4: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
-            """,
+               load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -276,8 +277,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
-            """,
+               load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -303,7 +304,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             expectedIssues =
                 """
                load-api.txt:4: error: Method test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinalStrict]
-            """,
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -350,7 +351,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:5: error: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
+               load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
             """,
             signatureSource =
                 """
@@ -378,8 +379,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -404,8 +405,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -659,8 +660,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
-            """,
+                load-api.txt:4: error: Binary breaking change: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
+                """,
             signatureSource =
                 """
                 package test.pkg {

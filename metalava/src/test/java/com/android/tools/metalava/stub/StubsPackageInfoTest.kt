@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.restrictToSource
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -51,8 +50,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     """
                     ),
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             warnings = "",
             api =
@@ -162,7 +159,8 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            docStubs = true
+            docStubs = true,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -183,8 +181,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }"""),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -196,18 +192,20 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                 """,
             stubFiles =
                 arrayOf(
-                    java("""
-                    package test.pkg;
-                    """),
                     java(
                         """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public abstract class Class1 {
-                    public Class1() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public abstract class Class1 {
+                            public Class1() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
                 ),
         )
     }

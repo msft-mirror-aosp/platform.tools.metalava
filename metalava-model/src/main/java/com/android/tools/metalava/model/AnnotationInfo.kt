@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlags
+
 /**
  * Encapsulates information that metalava needs to know about a specific annotation type.
  *
@@ -41,6 +44,15 @@ interface AnnotationInfo {
      * if so how.
      */
     val showability: Showability
+
+    /**
+     * The [ApiFlag] referenced by the annotation.
+     *
+     * This will be `null` if no [ApiFlags] have been provided or the annotation type is not
+     * [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
+     * [ApiFlag.REVERT_FLAGGED_API].
+     */
+    val apiFlag: ApiFlag?
 
     val suppressCompatibility: Boolean
 }
@@ -146,9 +158,9 @@ data class Showability(
      * `--show-annotation`, but not `--show-single-annotation`, or
      * `--show-for-stub-purposes-annotation`.
      *
-     * If [ShowOrHide.hide] is `true` then the contents of the annotated [Item] will be included in
-     * the API unless overridden by a closer annotation. That is the case for annotations that match
-     * `--hide-annotation`.
+     * If [ShowOrHide.hide] is `true` then the contents of the annotated [Item] will NOT be included
+     * in the API unless overridden by a closer annotation. That is the case for annotations that
+     * match `--hide-annotation`.
      */
     private val recursive: ShowOrHide,
 
@@ -208,10 +220,9 @@ data class Showability(
     /**
      * Check whether the annotated item is part of an unstable API that needs to be reverted.
      *
-     * Returns `true` if the annotation matches `--hide-annotation android.annotation.FlaggedApi` or
-     * if this is on an item then when the item is annotated with such an annotation or is a method
-     * that overrides such an item or is contained within a class that is annotated with such an
-     * annotation.
+     * Returns `true` if the annotation is an [ANDROID_FLAGGED_API] annotation or if this is on an
+     * item then when the item is annotated with such an annotation or is a method that overrides
+     * such an item or is contained within a class that is annotated with such an annotation.
      */
     fun revertUnstableApi() = show == ShowOrHide.REVERT_UNSTABLE_API
 
@@ -220,8 +231,22 @@ data class Showability(
         // Show wins over not showing.
         val newShow = show.highestPriority(other.show)
 
-        // Recursive wins over not recursive.
-        val newRecursive = recursive.highestPriority(other.recursive)
+        // Recursive wins over not recursive. Reverting has the following behavior:
+        // * If this is not recursive (i.e. [ShowOrHide.NO_EFFECT] then reverting it will not change
+        //   that.
+        // * If this is recursive then reverting it could change that, depending on whether the
+        //   reverted item exists or not. That is exactly the same as how revert affects [show].
+        val newRecursive =
+            if (
+                recursive == ShowOrHide.NO_EFFECT &&
+                    other.recursive == ShowOrHide.REVERT_UNSTABLE_API
+            ) {
+                // This is not recursive so ignore whether it was reverted.
+                recursive
+            } else {
+                // This is recursive so treat it the same as [show].
+                recursive.highestPriority(other.recursive)
+            }
 
         // For everything wins over only for stubs.
         val forStubsOnly =
@@ -241,6 +266,17 @@ data class Showability(
                 show = ShowOrHide.NO_EFFECT,
                 recursive = ShowOrHide.NO_EFFECT,
                 forStubsOnly = ShowOrHide.NO_EFFECT
+            )
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val REVERT_UNSTABLE_API =
+            Showability(
+                show = ShowOrHide.REVERT_UNSTABLE_API,
+                recursive = ShowOrHide.REVERT_UNSTABLE_API,
+                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
             )
     }
 }
