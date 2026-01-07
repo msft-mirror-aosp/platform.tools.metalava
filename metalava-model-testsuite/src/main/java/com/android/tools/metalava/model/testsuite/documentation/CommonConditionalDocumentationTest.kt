@@ -265,13 +265,11 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             testClass.assertPrintedDocumentation(
-                // TODO(b/429966515): Should use the enabled content but imported `FLAG` is not
-                //  resolved correctly.
                 expectedOutput =
                     """
                         /**
                          * Summary.
-                         * Content when flag disabled.
+                         * Content when flag enabled.
                          */
                     """,
             )

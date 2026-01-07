@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
@@ -48,7 +47,6 @@ import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
-import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -270,25 +268,9 @@ abstract class AbstractItemDocumentation(
         // e.g. properties.
         val scope = item as? ReferencableNameScope ?: return null
 
-        // Split the reference into optional class name and simple field name.
-        val (className, fieldName) = sourceReference.splitIntoOptionalQualifierAndSimpleName()
-
-        // Determine the scope to search.
-        // TODO(b/429965593): Take into account static imports of constant fields.
-        val classScope =
-            if (className != null) {
-                scope.resolveReferencableItem(className) as? ClassItem ?: return null
-            } else {
-                when (item) {
-                    is ClassItem -> item
-                    is MemberItem -> item.containingClass()
-                    else -> return null
-                }
-            }
-
-        // Find the field.
-        // TODO(b/429965593): Check for fields in super classes and interfaces.
-        return classScope.findField(fieldName)
+        // TODO(b/429966515): Report errors with the reference, e.g. unknown flag.
+        val resolved = scope.resolveReferencableItem(sourceReference)
+        return resolved as? FieldItem
     }
 
     override val isDocOnly
