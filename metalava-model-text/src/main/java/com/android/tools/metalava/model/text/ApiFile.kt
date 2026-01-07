@@ -671,6 +671,7 @@ private constructor(
                 classKind = ClassKind.TYPEALIAS,
                 modifiers = modifiers.toImmutable(),
                 superClassType = null,
+                interfaceTypes = emptySet(),
                 optionalAliasedType = type,
             )
         if (checkForExistingClass(classCharacteristics, tokenizer)) {
@@ -811,6 +812,7 @@ private constructor(
                 classKind = classKind,
                 modifiers = modifiers.toImmutable(),
                 superClassType = superClassType,
+                interfaceTypes = interfaceTypes,
                 optionalAliasedType = null,
             )
         if (checkForExistingClass(classCharacteristics, tokenizer)) {
@@ -957,6 +959,16 @@ private constructor(
             // Duplicate class with conflicting superclass names are found. Since the class
             // definition found later should be prioritized, overwrite the superclass type.
             existingClass.setSuperClassType(newSuperClassType)
+        }
+
+        // If the interface types in the new definition are set, overwrite the original interface
+        // types since the later definition should be prioritized.
+        val newInterfaceTypes = newClassCharacteristics.interfaceTypes
+        if (
+            newInterfaceTypes.isNotEmpty() &&
+                newInterfaceTypes != existingCharacteristics.interfaceTypes
+        ) {
+            existingClass.setInterfaceTypes(newInterfaceTypes.toList())
         }
     }
 
