@@ -33,6 +33,8 @@ import com.android.tools.metalava.model.TypeParameterItem
  *   that can qualify another name, i.e. [PackageItem] or [ClassItem]s.
  * * in `@throws <reference>`, the `<reference>` can refer only to a named type, i.e. [ClassItem] or
  *   [TypeParameterItem] so is classified as [NameClassification.TYPE].
+ * * in `{@if (flag(<reference>)) ...}`, the `<reference>` can refer only to a [FieldItem] so is
+ *   classified as [NameClassification.FIELD].
  */
 enum class NameClassification(
     val packages: Boolean = false,
@@ -65,6 +67,12 @@ enum class NameClassification(
         classes = true,
         typeParameters = true,
         nameDescriptionPrefix = "a class or type parameter called ",
+    ),
+
+    /** A field name, i.e. one that can only reference a [FieldItem]. */
+    FIELD(
+        fields = true,
+        nameDescriptionPrefix = "a field called ",
     ),
     ;
 
