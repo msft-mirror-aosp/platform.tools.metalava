@@ -251,6 +251,23 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                         codebase.assertClass("test.pkg.Test.Nested").assertTypeParameter("S")
                     }
                 ),
+                TestParams(
+                    name = "ClassItem - resolve simple field reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "field",
+                    // TODO(b/447588621): Should reference `test.pkg.Test.field`.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage = "Could not resolve 'field' in 'class test.pkg.Test'",
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified field reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.field",
+                    // TODO(b/447588621): Should reference `test.pkg.Test.field`.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Test.field' as could not find 'field' in 'class test.pkg.Test'",
+                ),
 
                 // ConstructorItem related tests.
                 TestParams(
