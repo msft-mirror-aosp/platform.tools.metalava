@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
-import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
@@ -218,8 +217,7 @@ abstract class AbstractItemDocumentation(
         reporter: LocationSpecificReporter,
         typeName: String
     ): TypeReference? {
-        val scope = item as? ReferencableNameScope ?: return null
-        val resolved = scope.resolveReferencableItem(typeName)
+        val resolved = item.resolveReferencableItem(typeName)
         return when (resolved) {
             is ClassItem -> ClassReference(resolved.qualifiedName())
             is TypeParameterItem -> TypeParameterReference(resolved.name())
@@ -238,16 +236,12 @@ abstract class AbstractItemDocumentation(
     }
 
     override fun resolveReference(sourceReference: String): ResolvedReference? {
-        // Not all items that have documentation currently support resolving references from it,
-        // e.g. properties and type aliases.
-        val scope = item as? ReferencableNameScope ?: return null
-
         // Ignore references to members for now.
         val hashIndex = sourceReference.indexOf('#')
         if (hashIndex != -1) return null
 
         // Resolve the reference.
-        val resolved = scope.resolveReferencableItem(sourceReference)
+        val resolved = item.resolveReferencableItem(sourceReference)
         return when (resolved) {
             is ClassItem -> ClassReference(resolved.qualifiedName())
             is PackageItem -> PackageReference(resolved.qualifiedName())
@@ -264,12 +258,8 @@ abstract class AbstractItemDocumentation(
      *   `Class.Nested.FIELD` or fully qualified, e.g. `package.Class.FIELD`.
      */
     fun resolveConstantFieldReference(sourceReference: String): FieldItem? {
-        // Not all items that have documentation currently support resolving references from it,
-        // e.g. properties.
-        val scope = item as? ReferencableNameScope ?: return null
-
         // TODO(b/429966515): Report errors with the reference, e.g. unknown flag.
-        val resolved = scope.resolveReferencableItem(sourceReference)
+        val resolved = item.resolveReferencableItem(sourceReference)
         return resolved as? FieldItem
     }
 
