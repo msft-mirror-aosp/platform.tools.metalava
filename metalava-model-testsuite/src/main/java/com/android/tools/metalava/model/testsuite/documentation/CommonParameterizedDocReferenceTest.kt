@@ -205,13 +205,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
 
                 // The # is optional when referencing members of the current class. The following
-                // tests verify the behavior for field.
-                // TODO(b/447588621): The result should have a leading # as that will ensure
-                //  consistent behavior in tools that consume generated documentation stubs and may
-                //  not handle a missing # correctly.
+                // tests verify the behavior. Note, the result must have a leading # as that will
+                // ensure consistent behavior in tools that consume generated documentation stubs
+                // and may not handle a missing # correctly.
                 TestParams(
                     name = "field",
-                    expectedResolvedReference = "field",
+                    expectedResolvedReference = "#field",
                     expectedLinkLabel = null,
                 ),
 

@@ -274,6 +274,7 @@ abstract class AbstractItemDocumentation(
             is ClassItem -> resolved.toResolvedReference()
             is PackageItem -> resolved.toResolvedReference()
             is TypeParameterItem -> resolved.toResolvedReference()
+            is FieldItem -> resolved.toResolvedReference()
             else -> null
         }
     }

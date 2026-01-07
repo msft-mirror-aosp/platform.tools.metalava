@@ -232,8 +232,17 @@ internal data class LabeledRefTagData(
             return
         }
 
-        // Use the source reference as the label.
+        // If the source reference and formatted reference would evaluate to the same label then
+        // there is no point in using source reference as the label. This is needed as multiple
+        // references can map to the same label, e.g. `#field` and `field` both map to a label of
+        // `field`.
         val sourceReferenceAsLabel = sourceReference.referenceAsLabel()
+        val formattedReferenceAsLabel = formattedReference.referenceAsLabel()
+        if (formattedReferenceAsLabel == sourceReferenceAsLabel) {
+            return
+        }
+
+        // Use the source reference as the label.
         writer.print(" ")
         writer.print(sourceReferenceAsLabel)
     }
