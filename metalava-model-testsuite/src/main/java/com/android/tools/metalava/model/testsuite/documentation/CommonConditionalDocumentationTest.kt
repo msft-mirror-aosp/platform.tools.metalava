@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
@@ -24,8 +25,12 @@ import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class CommonConditionalDocumentationTest : BaseModelTest() {
-    @Test
-    fun `Test conditional javadoc no flag field defined`() {
+    /**
+     * Check the behavior of an invalid flags field.
+     *
+     * @param flagsFile the definition of the `Flags` class.
+     */
+    private fun checkInvalidFlagsField(flagsFile: TestFile) {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -44,6 +49,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                         }
                     """
                 ),
+                flagsFile,
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
@@ -57,6 +63,65 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                     """,
             )
         }
+    }
+
+    @Test
+    fun `Test conditional javadoc no flag field defined`() {
+        checkInvalidFlagsField(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Flags {
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test conditional javadoc flag field has no constant value`() {
+        checkInvalidFlagsField(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Flags {
+                        public static final String FLAG = "flag".toUpperCase();
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test conditional javadoc flag field value is not a string`() {
+        checkInvalidFlagsField(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Flags {
+                        public static final int FLAG = 10;
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test conditional javadoc flag field reference does not refer to a field`() {
+        checkInvalidFlagsField(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Flags {
+                        public static class FLAG {}
+                    }
+                """
+            ),
+        )
     }
 
     @Test
