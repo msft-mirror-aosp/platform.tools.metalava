@@ -26,6 +26,7 @@ class PropertyCompatibilityTest : DriverTest() {
     @Test
     fun `Unchanged property`() {
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -77,6 +78,7 @@ class PropertyCompatibilityTest : DriverTest() {
     @Test
     fun `Removed property`() {
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -103,6 +105,7 @@ class PropertyCompatibilityTest : DriverTest() {
     fun `Changed property type`() {
         // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -127,8 +130,8 @@ class PropertyCompatibilityTest : DriverTest() {
 
     @Test
     fun `Added property receiver`() {
-        // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -147,14 +150,18 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                """
+                load-api.txt:4: error: Added property test.pkg.Foo#java.lang.String.foo [AddedProperty]
+                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#foo [RemovedProperty]
+                """,
         )
     }
 
     @Test
     fun `Removed property receiver`() {
-        // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -173,14 +180,18 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                """
+                load-api.txt:4: error: Added property test.pkg.Foo#foo [AddedProperty]
+                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#java.lang.String.foo [RemovedProperty]
+                """,
         )
     }
 
     @Test
     fun `Changed property receiver type`() {
-        // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -199,13 +210,18 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                """
+                load-api.txt:4: error: Added property test.pkg.Foo#java.lang.Number.foo [AddedProperty]
+                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#java.lang.String.foo [RemovedProperty]
+                """,
         )
     }
 
     @Test
     fun `Changed property type nullability`() {
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -238,6 +254,7 @@ class PropertyCompatibilityTest : DriverTest() {
     fun `Changed property receiver type nullability`() {
         // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -266,6 +283,7 @@ class PropertyCompatibilityTest : DriverTest() {
     fun `Changed bounds of property type parameter`() {
         // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -290,7 +308,9 @@ class PropertyCompatibilityTest : DriverTest() {
 
     @Test
     fun `Changed name of property type parameter`() {
+        // TODO(b/279394828): this should not fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -309,7 +329,11 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                """
+                load-api.txt:4: error: Added property test.pkg.Foo#N.foo [AddedProperty]
+                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#T.foo [RemovedProperty]
+                """,
         )
     }
 
@@ -317,6 +341,7 @@ class PropertyCompatibilityTest : DriverTest() {
     fun `Change property visibility`() {
         // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -345,6 +370,7 @@ class PropertyCompatibilityTest : DriverTest() {
     fun `Change property between open and final`() {
         // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -373,6 +399,7 @@ class PropertyCompatibilityTest : DriverTest() {
     fun `Change property between final and abstract`() {
         // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0
@@ -401,6 +428,7 @@ class PropertyCompatibilityTest : DriverTest() {
     fun `Change property between default and abstract`() {
         // TODO(b/300126192): this should fail
         check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 5.0

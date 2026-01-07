@@ -571,7 +571,20 @@ class CodebaseComparator {
                             item1.name().compareTo((item2 as FieldItem).name())
                         }
                         is PropertyItem -> {
-                            item1.name().compareTo((item2 as PropertyItem).name())
+                            var delta = item1.name().compareTo((item2 as PropertyItem).name())
+                            if (delta == 0) {
+                                // If the properties have the same name, additionally check the
+                                // receiver types.
+                                delta =
+                                    item1.receiver?.let { receiver1 ->
+                                        item2.receiver?.let { receiver2 ->
+                                            receiver1
+                                                .toTypeString()
+                                                .compareTo(receiver2.toTypeString())
+                                        } ?: -1
+                                    } ?: 1
+                            }
+                            delta
                         }
                         else -> error("Unexpected item $item1 of ${item1.javaClass}")
                     }
