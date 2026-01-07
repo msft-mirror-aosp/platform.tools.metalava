@@ -282,7 +282,7 @@ class CodebaseComparator {
         oldParent: SelectableItem?,
         visitor: ComparisonVisitor,
     ) {
-        // If it's a method, we may not have added a new method,
+        // If it's a method/property, we may not have added a new method/property,
         // we may simply have inherited it previously and overriding
         // it now (or in the case of signature files, identical overrides
         // are not explicitly listed and therefore not added to the model)
@@ -294,6 +294,10 @@ class CodebaseComparator {
                         includeSuperClasses = true,
                         includeInterfaces = true
                     )
+                    ?.duplicate(oldParent)
+            } else if (new is PropertyItem && oldParent is ClassItem) {
+                oldParent
+                    .findProperty(new, includeSuperClasses = true, includeInterfaces = true)
                     ?.duplicate(oldParent)
             } else {
                 null
@@ -385,6 +389,17 @@ class CodebaseComparator {
             dispatchToCompare(visitor, old, inheritedField)
             return
         }
+
+        // A property may have been moved to a superclass.
+        if (old is PropertyItem && newParent is ClassItem) {
+            val superProperty =
+                newParent.findProperty(old, includeSuperClasses = true, includeInterfaces = true)
+            if (superProperty != null && (filter == null || filter.test(superProperty))) {
+                dispatchToCompare(visitor, old, superProperty.duplicate(newParent))
+                return
+            }
+        }
+
         dispatchToRemoved(visitor, old, newParent)
     }
 

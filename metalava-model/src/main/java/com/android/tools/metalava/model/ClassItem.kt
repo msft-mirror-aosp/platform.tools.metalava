@@ -406,6 +406,41 @@ interface ClassItem :
     }
 
     /**
+     * Searches for a property with the [template]'s name and receiver in the class, including
+     * searching super classes and interfaces if specified.
+     */
+    fun findProperty(
+        template: PropertyItem,
+        includeSuperClasses: Boolean = false,
+        includeInterfaces: Boolean = false,
+    ): PropertyItem? {
+        properties()
+            .firstOrNull {
+                it.name() == template.name() &&
+                    PropertyItem.equalReceivers(template.receiver, it.receiver)
+            }
+            ?.let {
+                return it
+            }
+
+        if (includeSuperClasses) {
+            superClass()?.findProperty(template, true, includeInterfaces)?.let {
+                return it
+            }
+        }
+
+        if (includeInterfaces) {
+            for (itf in interfaceTypes()) {
+                val cls = itf.asClass() ?: continue
+                cls.findProperty(template, includeSuperClasses, true)?.let {
+                    return it
+                }
+            }
+        }
+        return null
+    }
+
+    /**
      * Find the [MethodItem] in this.
      *
      * It will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].

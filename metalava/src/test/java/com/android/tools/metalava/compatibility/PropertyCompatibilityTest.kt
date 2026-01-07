@@ -81,7 +81,6 @@ class PropertyCompatibilityTest : DriverTest() {
 
     @Test
     fun `Change in whether inherited property is listed`() {
-        // TODO: this should not fail
         check(
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
@@ -110,11 +109,7 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues =
-                """
-                load-api.txt:4: error: Added property test.pkg.Foo#addToFoo [AddedProperty]
-                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#removeFromFoo [RemovedProperty]
-                """,
+            expectedIssues = "",
         )
     }
 
