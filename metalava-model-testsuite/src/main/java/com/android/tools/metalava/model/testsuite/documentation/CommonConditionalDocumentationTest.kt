@@ -29,8 +29,12 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
      * Check the behavior of an invalid flags field.
      *
      * @param flagsFile the definition of the `Flags` class.
+     * @param expectedIssues the expected issues that will be reported.
      */
-    private fun checkInvalidFlagsField(flagsFile: TestFile) {
+    private fun checkInvalidFlagsField(
+        flagsFile: TestFile,
+        expectedIssues: String,
+    ) {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -62,6 +66,8 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                          */
                     """,
             )
+
+            assertAndRemoveReportedIssues(expectedIssues)
         }
     }
 
@@ -76,6 +82,8 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+            expectedIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: Could not resolve 'Flags.FLAG' as could not find 'FLAG' in 'class test.pkg.Flags' [InvalidJavadocExpr]"
         )
     }
 
@@ -91,6 +99,8 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+            expectedIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: invalid flag field 'Flags.FLAG', it does not have a constant value [InvalidJavadocExpr]"
         )
     }
 
@@ -106,6 +116,8 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+            expectedIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: invalid flag field 'Flags.FLAG', expected a string value, found 10 of type int [InvalidJavadocExpr]"
         )
     }
 
@@ -121,6 +133,8 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
+            expectedIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: invalid item found for 'Flags.FLAG', expected field, found class test.pkg.Flags.FLAG [InvalidJavadocExpr]"
         )
     }
 

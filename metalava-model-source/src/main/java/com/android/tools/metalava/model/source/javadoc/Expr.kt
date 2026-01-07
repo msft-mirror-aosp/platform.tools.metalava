@@ -100,8 +100,53 @@ internal class ExprBuilder(
         // Resolve the field reference.
         val resolved = context.resolveItemReference(fieldReference)
 
+        // Get the Token to use for reporting errors in the flag reference.
+        val fieldSymbol = fieldReferenceContext.IDENTIFIER(0).symbol
+
         // Determine the flag name, use `null` if no name could be determined.
-        val flagName = ((resolved as? FieldItem)?.constantValue as? StringValue)?.underlyingValue
+        val flagName =
+            when (resolved) {
+                is FieldItem -> {
+                    // Check the constant value.
+                    val value = resolved.constantValue
+                    when (value) {
+                        is StringValue -> value.underlyingValue
+                        else -> {
+                            when (value) {
+                                null -> {
+                                    reporter.report(
+                                        fieldSymbol,
+                                        Issues.INVALID_JAVADOC_EXPR,
+                                        "invalid flag field '$fieldReference', it does not have a constant value"
+                                    )
+                                }
+                                else -> {
+                                    reporter.report(
+                                        fieldSymbol,
+                                        Issues.INVALID_JAVADOC_EXPR,
+                                        "invalid flag field '$fieldReference', expected a string value, found ${value.toValueString()} of type ${value.kind}"
+                                    )
+                                }
+                            }
+                            null
+                        }
+                    }
+                }
+                // Did not find any item.
+                is InvalidReferencableItem -> {
+                    reporter.report(fieldSymbol, Issues.INVALID_JAVADOC_EXPR, resolved.message)
+                    null
+                }
+                else -> {
+                    // Found an item but it was not a field.
+                    reporter.report(
+                        fieldSymbol,
+                        Issues.INVALID_JAVADOC_EXPR,
+                        "invalid item found for '$fieldReference', expected field, found $resolved"
+                    )
+                    null
+                }
+            }
 
         // Create the flag function call expression. If `flagName` is `null` then this will always
         // evaluate to false.
