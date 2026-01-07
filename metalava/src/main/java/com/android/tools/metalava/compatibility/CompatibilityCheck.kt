@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
@@ -1266,6 +1267,10 @@ class CompatibilityCheck(
         handleAdded(Issues.ADDED_FIELD, new)
     }
 
+    override fun addedPropertyItem(new: PropertyItem) {
+        handleAdded(Issues.ADDED_PROPERTY, new)
+    }
+
     override fun removedPackageItem(old: PackageItem, from: PackageItem?) {
         handleRemoved(Issues.REMOVED_PACKAGE, old)
     }
@@ -1310,6 +1315,10 @@ class CompatibilityCheck(
                 else Issues.REMOVED_FIELD
             handleRemoved(error, old)
         }
+    }
+
+    override fun removedPropertyItem(old: PropertyItem, from: ClassItem) {
+        handleRemoved(Issues.REMOVED_PROPERTY, old)
     }
 
     /**

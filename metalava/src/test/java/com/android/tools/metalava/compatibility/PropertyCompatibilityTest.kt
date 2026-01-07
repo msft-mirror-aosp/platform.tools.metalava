@@ -17,6 +17,7 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import kotlin.test.Test
 
 // These tests do not include property accessors in the signature files to specifically test the
@@ -48,8 +49,33 @@ class PropertyCompatibilityTest : DriverTest() {
     }
 
     @Test
+    fun `Added property`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    property public final int foo;
+                  }
+                }
+                """,
+            expectedIssues =
+                "load-api.txt:4: error: Added property test.pkg.Foo#foo [AddedProperty]",
+        )
+    }
+
+    @Test
     fun `Removed property`() {
-        // TODO(b/300126192): this should fail
         check(
             checkCompatibilityApiReleased =
                 """
@@ -68,7 +94,8 @@ class PropertyCompatibilityTest : DriverTest() {
                   }
                 }
                 """,
-            expectedIssues = "",
+            expectedIssues =
+                "released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#foo [RemovedProperty]",
         )
     }
 
