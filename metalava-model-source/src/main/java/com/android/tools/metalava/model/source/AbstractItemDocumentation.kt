@@ -18,11 +18,11 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
@@ -46,7 +46,6 @@ import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
-import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 import java.io.PrintWriter
@@ -151,10 +150,12 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
+    override fun resolveItemReference(sourceReference: String): ReferencableItem {
+        return item.resolveReferencableItem(sourceReference)
+    }
+
     /** Implements [ExprContext.isFlagEnabled]. */
-    override fun isFlagEnabled(flagFieldReference: String): Boolean {
-        val field = resolveConstantFieldReference(flagFieldReference) ?: return false
-        val flagName = (field.constantValue as? StringValue)?.underlyingValue ?: return false
+    override fun isFlagEnabled(flagName: String): Boolean {
         val apiFlags = item.codebase.config.apiFlags ?: return true
         return apiFlags[flagName].action != ApiFlagAction.REVERT
     }
@@ -248,19 +249,6 @@ abstract class AbstractItemDocumentation(
             is TypeParameterItem -> TypeParameterReference(resolved.name())
             else -> null
         }
-    }
-
-    /**
-     * Resolve a constant field reference to the [FieldItem], if possible.
-     *
-     * @param sourceReference the reference to a field as it would be represented in source code.
-     *   e.g. it can be unqualified `FIELD`, qualified with a class `Class.FIELD`, or
-     *   `Class.Nested.FIELD` or fully qualified, e.g. `package.Class.FIELD`.
-     */
-    fun resolveConstantFieldReference(sourceReference: String): FieldItem? {
-        // TODO(b/429966515): Report errors with the reference, e.g. unknown flag.
-        val resolved = item.resolveReferencableItem(sourceReference)
-        return resolved as? FieldItem
     }
 
     override val isDocOnly
