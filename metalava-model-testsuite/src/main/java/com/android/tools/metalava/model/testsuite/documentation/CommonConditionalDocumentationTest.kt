@@ -216,4 +216,65 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test conditional javadoc flag field using statically imported flag field`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import static test.pkg.Flags.FLAG;
+
+                        /**
+                         * Summary.
+                         * {@if (flag(FLAG))
+                         *     {Content when flag enabled.}
+                         * else
+                         *     {Content when flag disabled.}
+                         * }
+                         */
+                        public class Test {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Flags {
+                            public static final String FLAG = "flag";
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag(
+                                    "flag",
+                                    ApiFlagAction.KEEP,
+                                    isExported = true,
+                                )
+                            )
+                        )
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                // TODO(b/429966515): Should use the enabled content but imported `FLAG` is not
+                //  resolved correctly.
+                expectedOutput =
+                    """
+                        /**
+                         * Summary.
+                         * Content when flag disabled.
+                         */
+                    """,
+            )
+        }
+    }
 }
