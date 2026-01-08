@@ -89,15 +89,16 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
  * [Item]s that would cause issues when taking a snapshot.
  */
 sealed interface ResolvedReference : Comparable<ResolvedReference> {
-    /** The display name of the referenced type. */
-    val displayName: String
+    /** The fully qualified form of the referenced type. */
+    val fullyQualifiedForm: String
 
-    override fun compareTo(other: ResolvedReference) = displayName.compareTo(other.displayName)
+    override fun compareTo(other: ResolvedReference) =
+        fullyQualifiedForm.compareTo(other.fullyQualifiedForm)
 }
 
 /** A reference to a [PackageItem]. */
-data class PackageReference(val qualifiedName: String) : ResolvedReference {
-    override val displayName: String
+data class PackageReference(private val qualifiedName: String) : ResolvedReference {
+    override val fullyQualifiedForm: String
         get() = qualifiedName
 }
 
@@ -105,13 +106,13 @@ data class PackageReference(val qualifiedName: String) : ResolvedReference {
 sealed interface TypeReference : ResolvedReference
 
 /** A reference to a [ClassItem]. */
-data class ClassReference(val qualifiedName: String) : TypeReference {
-    override val displayName: String
+data class ClassReference(private val qualifiedName: String) : TypeReference {
+    override val fullyQualifiedForm: String
         get() = qualifiedName
 }
 
 /** A reference to a [TypeParameterItem]. */
-data class TypeParameterReference(val name: String) : TypeReference {
-    override val displayName: String
+data class TypeParameterReference(private val name: String) : TypeReference {
+    override val fullyQualifiedForm: String
         get() = name
 }
