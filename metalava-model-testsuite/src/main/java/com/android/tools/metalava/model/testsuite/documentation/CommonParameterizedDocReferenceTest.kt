@@ -151,9 +151,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 // means they are effectively unchanged.
                 TestParams(
                     name = "#field",
-                    // TODO(b/447588621): This should not be qualified by the class or have a label.
-                    expectedResolvedReference = "test.pkg.Test#field",
-                    expectedLinkLabel = "field",
+                    expectedResolvedReference = "#field",
+                    expectedLinkLabel = null,
                 ),
                 TestParams(
                     name = "#Test",

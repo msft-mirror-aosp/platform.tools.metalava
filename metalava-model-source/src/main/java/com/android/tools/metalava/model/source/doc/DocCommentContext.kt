@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
@@ -80,6 +81,16 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      * constructor, method, or field) to a [ResolvedReference], if possible.
      */
     fun resolveReference(sourceReference: String): ResolvedReference?
+
+    /**
+     * The optional [ClassItem] that contains this documentation.
+     *
+     * The value returned depends on the [SelectableItem] this documents:
+     * * For a [PackageItem] this will return `null`.
+     * * For a [ClassItem] this will just return the [ClassItem] itself.
+     * * For a [MemberItem] this will return [MemberItem.containingClass].
+     */
+    val containingClassItem: ClassItem?
 }
 
 /**

@@ -615,7 +615,7 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
-                    /** Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION} */
+                    /** Requires {@link #ACCESS_COARSE_LOCATION} */
                     public void test1() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                     }
@@ -698,7 +698,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * <br>
-                     * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
+                     * Requires {@link #ACCESS_COARSE_LOCATION}
                      */
                     public int test1() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
@@ -746,7 +746,7 @@ class DocAnalyzerTest : DriverTest() {
                      * This is the existing documentation.
                      * Multiple lines of it.
                      * <br>
-                     * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
+                     * Requires {@link #ACCESS_COARSE_LOCATION}
                      */
                     public int test1() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
@@ -796,7 +796,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * <br>
-                     * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
+                     * Requires {@link #ACCESS_COARSE_LOCATION}
                      *
                      * @param parameter1 docs for parameter1
                      * @param parameter2 docs for parameter2

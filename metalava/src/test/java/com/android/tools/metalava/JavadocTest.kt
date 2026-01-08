@@ -161,7 +161,7 @@ class JavadocTest : DriverTest() {
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
                      *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
                      *  And relative method reference {@link #baz()}.
-                     *  And relative field reference {@link test.pkg1.SomeClass#importance importance}.
+                     *  And relative field reference {@link #importance}.
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
@@ -371,7 +371,7 @@ class JavadocTest : DriverTest() {
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
                  *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
                  *  And relative method reference {@link #baz()}.
-                 *  And relative field reference {@link test.pkg1.SomeClass#importance importance}.
+                 *  And relative field reference {@link #importance}.
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *

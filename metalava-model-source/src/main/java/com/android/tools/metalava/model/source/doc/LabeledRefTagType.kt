@@ -182,7 +182,10 @@ internal data class LabeledRefTagData(
     override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
         val writer = contentPrinter.writer
         writer.print(" ")
-        val formattedReference = resolvedReference?.fullyQualifiedForm ?: sourceReference
+        val formattedReference =
+            resolvedReference?.formatForTagReference(contentPrinter.containingClassName)
+                ?: sourceReference
+
         writer.print(formattedReference)
 
         // The content is the label of the link tag, print it if it exists.
@@ -206,8 +209,26 @@ internal data class LabeledRefTagData(
 
         // If the formatted reference is the same as the source reference then there is no point in
         // duplicating the source reference as the label. This will also be the case if resolved
-        // reference is `null`.
-        if (formattedReference == sourceReference) {
+        // reference is `null`. It is explicitly checked here to allow the remaining code to take
+        // advantage of smart casting.
+        if (formattedReference == sourceReference || resolvedReference == null) {
+            return
+        }
+
+        // If the fully qualified reference is the same as the source reference then there is no
+        // point in duplicating the source reference as the label. That is because if the formatted
+        // version is not the same as the source reference (checked above) but the fully qualified
+        // form is the same as the source reference then the formatted reference must be a shortened
+        // form of the source reference. The shortening rules implemented here are those mandated by
+        // Javadoc when determining how to display absolute references so the shortened form and the
+        // fully qualified form will have identical representation in the final documentation.
+        // e.g. if the source reference is `test.pkg.Class#FIELD` and it is in the `test.pkg.Class`
+        // then `{@link test.pkg.Class#FIELD}` and `{@link #FIELD}` are identical and will behave as
+        // `{@link test.pkg.Class#FIELD FIELD}`. Using the shorter version saves space and matches
+        // the legacy behavior of the Psi specific qualification process so reduces insignificant
+        // differences in the generated documentation making it easier to see any significant
+        // differences.
+        if (resolvedReference.fullyQualifiedForm == sourceReference) {
             return
         }
 

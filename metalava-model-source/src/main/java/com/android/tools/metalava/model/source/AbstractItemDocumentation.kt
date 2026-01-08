@@ -287,15 +287,7 @@ abstract class AbstractItemDocumentation(
         return classItem.findField(memberReference)?.toResolvedReference()
     }
 
-    /**
-     * The optional [ClassItem] that contains this documentation.
-     *
-     * The value returned depends on the [SelectableItem] this documents:
-     * * For a [PackageItem] this will return `null`.
-     * * For a [ClassItem] this will just return the [ClassItem] itself.
-     * * For a [MemberItem] this will return [MemberItem.containingClass].
-     */
-    val containingClassItem: ClassItem?
+    override val containingClassItem: ClassItem?
         get() =
             when (item) {
                 is ClassItem -> item
