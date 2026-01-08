@@ -106,6 +106,15 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
                 return@let
             }
 
+            // If the interface types are set and different from the base class then drop out to
+            // emit this class.
+            if (
+                cls.interfaceTypes().isNotEmpty() &&
+                    cls.interfaceTypes().toSet() != baseClass.interfaceTypes().toSet()
+            ) {
+                return@let
+            }
+
             // If this class has different annotations to the base class then drop out to emit
             // this class.
             val annotations = cls.modifiers.annotations().normalize()

@@ -328,6 +328,8 @@ open class DefaultClassItem(
         else
         // Then check to see type parameters.
         typeParameterList.find { it.name() == simpleName }
+                // Then, check to see if it is a field of this class.
+                ?: mutableFields.find { it.name() == simpleName }
                 // Then, check to see if it matches a nested class and if it does then return that.
                 ?: mutableNestedClasses.find { it.simpleName() == simpleName }
                 // Then, check to see if it matches a class defined in a super class.
