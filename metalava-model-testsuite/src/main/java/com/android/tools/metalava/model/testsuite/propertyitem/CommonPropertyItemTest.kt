@@ -1306,21 +1306,22 @@ class CommonPropertyItemTest : BaseModelTest() {
             val noReceiver = fooClass.assertProperty("foo")
             assertThat(noReceiver).isEqualTo(noReceiver)
             val noReceiverHashCode = noReceiver.hashCode()
-            assertThat(noReceiver.toString()).isEqualTo("property Foo#foo")
+            assertThat(noReceiver.toString()).isEqualTo("property test.pkg.Foo#foo")
             assertThat(noReceiver.baselineKey.elementId()).isEqualTo("test.pkg.Foo#foo")
 
             val stringReceiver =
                 fooClass.assertProperty("foo", receiverTypeString = "java.lang.String")
             assertThat(stringReceiver).isEqualTo(stringReceiver)
             val stringReceiverHashCode = stringReceiver.hashCode()
-            assertThat(stringReceiver.toString()).isEqualTo("property Foo#java.lang.String.foo")
+            assertThat(stringReceiver.toString())
+                .isEqualTo("property test.pkg.Foo#java.lang.String.foo")
             assertThat(stringReceiver.baselineKey.elementId())
                 .isEqualTo("test.pkg.Foo#java.lang.String.foo")
 
             val typeParamReceiver = fooClass.assertProperty("foo", receiverTypeString = "T")
             assertThat(typeParamReceiver).isEqualTo(typeParamReceiver)
             val typeParamReceiverHashCode = typeParamReceiver.hashCode()
-            assertThat(typeParamReceiver.toString()).isEqualTo("property Foo#T.foo")
+            assertThat(typeParamReceiver.toString()).isEqualTo("property test.pkg.Foo#T.foo")
             assertThat(typeParamReceiver.baselineKey.elementId()).isEqualTo("test.pkg.Foo#T.foo")
 
             assertThat(noReceiver).isNotEqualTo(stringReceiver)

@@ -90,7 +90,7 @@ interface PropertyItem : MemberItem, TypeParameterListOwner {
     }
 
     override fun toStringForItem(): String =
-        "property ${containingClass().fullName()}#${receiverString()}${name()}"
+        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}"
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
