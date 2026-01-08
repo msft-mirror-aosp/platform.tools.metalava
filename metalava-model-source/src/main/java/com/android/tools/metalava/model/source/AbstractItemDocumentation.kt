@@ -214,14 +214,20 @@ abstract class AbstractItemDocumentation(
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
 
+    private fun PackageItem.toResolvedReference() = PackageReference(qualifiedName())
+
+    private fun ClassItem.toResolvedReference() = ClassReference(qualifiedName())
+
+    private fun TypeParameterItem.toResolvedReference() = TypeParameterReference(name())
+
     override fun resolveThrowableType(
         reporter: LocationSpecificReporter,
         typeName: String
     ): TypeReference? {
         val resolved = item.resolveReferencableItem(typeName)
         return when (resolved) {
-            is ClassItem -> ClassReference(resolved.qualifiedName())
-            is TypeParameterItem -> TypeParameterReference(resolved.name())
+            is ClassItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
             is InvalidReferencableItem -> {
                 reporter.report(Issues.UNRESOLVED_LINK, resolved.message)
                 null
@@ -244,9 +250,9 @@ abstract class AbstractItemDocumentation(
         // Resolve the reference.
         val resolved = item.resolveReferencableItem(sourceReference)
         return when (resolved) {
-            is ClassItem -> ClassReference(resolved.qualifiedName())
-            is PackageItem -> PackageReference(resolved.qualifiedName())
-            is TypeParameterItem -> TypeParameterReference(resolved.name())
+            is ClassItem -> resolved.toResolvedReference()
+            is PackageItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
             else -> null
         }
     }
