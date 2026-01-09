@@ -180,15 +180,15 @@ internal data class LabeledRefTagData(
     override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
         val writer = contentPrinter.writer
         writer.print(" ")
-        val resolvedText = resolvedReference?.fullyQualifiedForm ?: sourceReference
-        writer.print(resolvedText)
+        val formattedReference = resolvedReference?.fullyQualifiedForm ?: sourceReference
+        writer.print(formattedReference)
 
         // The content is the label of the link tag so check it if exists.
         if (content == null) {
-            // If the label is not specified and the resolved text is different to the source
+            // If the label is not specified and the formatted reference is different to the source
             // reference then use the source reference as the label to try and preserve the
             // developer's original intent.
-            if (resolvedText != sourceReference) {
+            if (formattedReference != sourceReference) {
                 writer.print(" ")
                 writer.print(sourceReference)
             }
