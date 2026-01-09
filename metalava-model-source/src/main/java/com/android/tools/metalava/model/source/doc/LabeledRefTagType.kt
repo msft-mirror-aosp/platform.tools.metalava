@@ -183,20 +183,29 @@ internal data class LabeledRefTagData(
         val formattedReference = resolvedReference?.fullyQualifiedForm ?: sourceReference
         writer.print(formattedReference)
 
-        // The content is the label of the link tag so check it if exists.
-        if (content == null) {
-            // If the label is not specified and the formatted reference is different to the source
-            // reference then use the source reference as the label to try and preserve the
-            // developer's original intent.
-            if (formattedReference != sourceReference) {
-                writer.print(" ")
-                writer.print(sourceReference)
-            }
-        } else {
+        // The content is the label of the link tag, print it if it exists.
+        if (content != null) {
             // Print the remaining content. Always preceded by a space as any leading whitespace has
             // been trimmed from it.
             content.printWithLeadingSpaceTo(contentPrinter)
+
+            // Return immediately.
+            return
         }
+
+        // Check to see whether it is necessary to add a label to try and preserve the developer's
+        // original intent.
+
+        // If the formatted reference is the same as the source reference then there is no point in
+        // duplicating the source reference as the label. This will also be the case if resolved
+        // reference is `null`.
+        if (formattedReference == sourceReference) {
+            return
+        }
+
+        // Use the source reference as the label.
+        writer.print(" ")
+        writer.print(sourceReference)
     }
 
     /**
