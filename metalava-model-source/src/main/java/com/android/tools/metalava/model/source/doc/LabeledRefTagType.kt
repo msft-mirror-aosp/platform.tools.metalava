@@ -58,7 +58,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             }
 
         return ExtractDataResult(
-            LabeledRefTagData(sourceReference, resolvedReference),
+            LabeledRefTagData(name, sourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
             consumedContent = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
@@ -162,6 +162,8 @@ internal fun CharSequence.findEndOfReference(startInclusive: Int): Int {
  * and `@see` block tag.
  */
 internal data class LabeledRefTagData(
+    /** The tag type for which this was created. */
+    private val tagType: String,
     /** The reference from the source; used as the label if necessary. */
     val sourceReference: String,
     /** The resolved reference, subclasses identify the specific part of the API it references. */
@@ -193,6 +195,12 @@ internal data class LabeledRefTagData(
             return
         }
 
+        // Do not add custom labels to @see tags. This matches the behavior of the Psi reference
+        // resolution code and keeping them consistent simplifies migration to this reference
+        // resolving code.
+        // TODO(b/447588621): Remove once this replaces the Psi reference resolving code completely.
+        if (tagType == "see") return
+
         // Check to see whether it is necessary to add a label to try and preserve the developer's
         // original intent.
 
@@ -213,4 +221,7 @@ internal data class LabeledRefTagData(
      * the content.
      */
     override fun textMatches(predicate: (String) -> Boolean) = predicate(sourceReference)
+
+    override fun toString() =
+        "LabeledRefTagData(sourceReference=$sourceReference, resolvedReference=$resolvedReference)"
 }

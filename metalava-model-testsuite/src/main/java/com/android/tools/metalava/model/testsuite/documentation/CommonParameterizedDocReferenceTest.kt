@@ -45,20 +45,19 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
         };
 
         /** Determine whether a link label is expected. */
-        private fun requiresLinkLabel(reference: String, linkLabel: String?) =
+        private fun requiresLinkLabel(linkLabel: String?) =
             when {
                 linkLabel == null -> false
-                // Ignore link labels for @see references to members. Needed because neither the
-                // model independent resolving, nor the model specific resolving (where implemented)
-                // currently adds link labels for @see references to members.
-                this == SEE && reference.contains("#") -> false
+                // Ignore link labels for @see references. That matches the Psi specific resolving
+                // behavior.
+                this == SEE -> false
                 else -> true
             }
 
         /** Combine [reference] and the optional [linkLabel]. */
         protected fun referenceAndLabel(reference: String, linkLabel: String?) = buildString {
             append(reference)
-            if (requiresLinkLabel(reference, linkLabel)) {
+            if (requiresLinkLabel(linkLabel)) {
                 append(" ")
                 append(linkLabel)
             }

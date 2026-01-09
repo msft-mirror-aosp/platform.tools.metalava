@@ -69,7 +69,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                 TestData(
                     name = "in @see reference",
                     classDoc = "@see ImportedName",
-                    expectedClassDoc = "@see other.pkg.ImportedName ImportedName",
+                    expectedClassDoc = "@see other.pkg.ImportedName",
                     shouldKeepImportedName = false,
                 ),
                 TestData(
