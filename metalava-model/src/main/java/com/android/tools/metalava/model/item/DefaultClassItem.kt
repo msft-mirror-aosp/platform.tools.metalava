@@ -120,8 +120,10 @@ open class DefaultClassItem(
     private lateinit var sealedClassSubclasses: List<ClassItem>
 
     final override fun sealedClassDirectSubclasses(): List<ClassItem> {
-        if (!modifiers.isSealed()) {
-            error("Computing subclasses is only available for sealed classes and interfaces")
+        if (!isEffectivelySealed()) {
+            error(
+                "Computing subclasses is only available for effectively sealed classes and interfaces"
+            )
         }
         if (!::sealedClassSubclasses.isInitialized) {
             sealedClassSubclasses =

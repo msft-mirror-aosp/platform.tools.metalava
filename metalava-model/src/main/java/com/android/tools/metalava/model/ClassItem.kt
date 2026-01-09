@@ -96,6 +96,18 @@ interface ClassItem :
     fun superClassType(): ClassTypeItem?
 
     /**
+     * A class is effectively sealed if it is either explicitly marked sealed, is a non-public
+     * interface, or an abstract class with no publicly accessible constructors. For more
+     * information, see b/220960090
+     */
+    fun isEffectivelySealed(): Boolean {
+        return modifiers.isSealed() ||
+            (isInterface() && !isPublic) ||
+            ((isClass() && modifiers.isAbstract()) &&
+                (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
+    }
+
+    /**
      * This stores only the direct classes that inherit from this class, and not any indirect
      * classes. This stores subclasses for only sealed classes and interfaces (for interfaces, it
      * stores all the classes that implement that interface)
