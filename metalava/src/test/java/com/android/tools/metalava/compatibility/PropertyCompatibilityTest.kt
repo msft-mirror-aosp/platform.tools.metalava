@@ -116,7 +116,6 @@ class PropertyCompatibilityTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Change in whether inherited property from classpath is listed`() {
-        // TODO: this should not fail
         check(
             apiClassResolution = ApiClassResolution.API_CLASSPATH,
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
@@ -172,11 +171,7 @@ class PropertyCompatibilityTest : DriverTest() {
                             "vFnZQMqYgfAykP7JBOIBAHyVkPHiAwAA"
                     )
                 ),
-            expectedIssues =
-                """
-                load-api.txt:4: error: Added property test.pkg.Foo#addToFoo [AddedProperty]
-                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#removeFromFoo [RemovedProperty]
-                """
+            expectedIssues = ""
         )
     }
 
