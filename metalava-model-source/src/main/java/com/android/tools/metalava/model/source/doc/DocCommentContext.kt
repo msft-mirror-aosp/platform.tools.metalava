@@ -92,6 +92,9 @@ sealed interface ResolvedReference : Comparable<ResolvedReference> {
     /** The fully qualified form of the referenced type. */
     val fullyQualifiedForm: String
 
+    /** Format [this] for use as the reference in a reference tag, e.g. `@link`, `@see`. */
+    fun formatForTagReference(containingClassName: String?) = fullyQualifiedForm
+
     override fun compareTo(other: ResolvedReference) =
         fullyQualifiedForm.compareTo(other.fullyQualifiedForm)
 }
