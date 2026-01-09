@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -118,4 +119,18 @@ data class ClassReference(private val qualifiedName: String) : TypeReference {
 data class TypeParameterReference(private val name: String) : TypeReference {
     override val fullyQualifiedForm: String
         get() = name
+}
+
+/** Base for references to class members, i.e. fields, constructors, methods. */
+sealed interface MemberReference : ResolvedReference
+
+/** A reference to a [FieldItem]. */
+data class FieldReference(
+    private val qualifiedClassName: String,
+    private val memberName: String,
+) : MemberReference {
+    override val fullyQualifiedForm = "$qualifiedClassName#$memberName"
+
+    override fun formatForTagReference(containingClassName: String?) =
+        if (qualifiedClassName == containingClassName) "#$memberName" else fullyQualifiedForm
 }
