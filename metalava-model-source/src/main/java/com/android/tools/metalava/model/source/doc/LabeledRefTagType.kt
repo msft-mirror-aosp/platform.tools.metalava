@@ -168,7 +168,7 @@ internal data class LabeledRefTagData(
     val resolvedReference: ResolvedReference?,
 ) : TagData {
     /** Check whether the [sourceReference] was fully resolved. */
-    fun wasReferenceFullyResolved(): Boolean = resolvedReference == null
+    fun wasReferenceFullyResolved(): Boolean = resolvedReference != null
 
     /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
