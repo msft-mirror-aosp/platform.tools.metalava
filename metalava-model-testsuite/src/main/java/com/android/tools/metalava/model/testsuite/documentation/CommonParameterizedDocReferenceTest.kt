@@ -214,6 +214,13 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = null,
                 ),
 
+                // Use invalid reference without a #. It will work but should also be reported.
+                // TODO(b/447588621): Report an issue.
+                TestParams(
+                    name = "Other.field",
+                    expectedResolvedReference = "test.pkg.Other#field",
+                ),
+
                 // Reference a member of another class in the same package.
                 TestParams(
                     name = "Other#field",
