@@ -48,7 +48,29 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         // that whitespace is normalized consistently.
         val resolvedReference =
             if (validateReference(sourceReference)) {
-                context.resolveReference(sourceReference)
+                context.resolveReference(sourceReference)?.also { resolved ->
+
+                    // Resolving can handle references which are not valid, e.g. a qualified field
+                    // reference without a #. Make sure that the source reference is a valid form
+                    // for the resolved item.
+                    when (resolved) {
+                        is FieldReference -> {
+                            // Check if the source reference was qualified.
+                            val lastDotIndex = sourceReference.lastIndexOf('.')
+                            if (lastDotIndex > -1) {
+                                // The source reference was qualified so must have a '#'
+                                val hashIndex = sourceReference.indexOf('#', lastDotIndex)
+                                if (hashIndex == -1) {
+                                    reporter.report(
+                                        Issues.MALFORMED_DOC_REFERENCE,
+                                        "Malformed reference `$sourceReference`, missing '#', should be '${sourceReference.replaceRange(lastDotIndex, lastDotIndex + 1, "#")}"
+                                    )
+                                }
+                            }
+                        }
+                        else -> {}
+                    }
+                }
             } else {
                 reporter.report(
                     Issues.MALFORMED_DOC_REFERENCE,

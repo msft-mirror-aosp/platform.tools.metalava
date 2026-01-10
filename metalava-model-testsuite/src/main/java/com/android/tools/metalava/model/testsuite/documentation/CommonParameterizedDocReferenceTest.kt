@@ -22,6 +22,7 @@ import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -30,16 +31,23 @@ import org.junit.runners.Parameterized
 class CommonParameterizedDocReferenceTest : BaseModelTest() {
 
     /** Set of tags that handle the references. */
-    enum class TestTagType {
-        LINK {
+    enum class TestTagType(
+        /**
+         * The prefix for issues that are reported with the link test. Needed because each tag type
+         * has a different prefix before the reference which results in a different character
+         * position being reported.
+         */
+        internal val issuePrefix: String,
+    ) {
+        LINK(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:12: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** {@link ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
-        LINKPLAIN {
+        LINKPLAIN(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:17: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** {@linkplain ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
-        SEE {
+        SEE(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:10: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** @see ${referenceAndLabel(reference, linkLabel)} */\n"
         };
@@ -99,6 +107,9 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
          * Defaults to [reference] with `#` replaced with `.`.
          */
         val expectedLinkLabel: String? = reference.replace('#', '.'),
+
+        /** The expected issues that will be reported. */
+        val expectedIssues: String = "",
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -214,11 +225,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = null,
                 ),
 
-                // Use invalid reference without a #. It will work but should also be reported.
-                // TODO(b/447588621): Report an issue.
+                // Use invalid reference without a #. It will work but will be reported as an issue.
                 TestParams(
                     name = "Other.field",
                     expectedResolvedReference = "test.pkg.Other#field",
+                    expectedIssues =
+                        "warning: Malformed reference `Other.field`, missing '#', should be 'Other#field (ErrorWhenNew) [MalformedDocReference]",
                 ),
 
                 // Reference a member of another class in the same package.
@@ -448,6 +460,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     params.expectedLinkLabel
                 )
             testClass.assertPrintedDocumentation(expectedComment)
+
+            // Verify that the reported issues, if any, are expected.
+            // First, remove the tag type specific prefixes.
+            val reportedIssues = removeReportedIssues().replace(testTagType.issuePrefix, "")
+            // Then, check the expected issues.
+            assertEquals(params.expectedIssues, reportedIssues)
         }
     }
 }
