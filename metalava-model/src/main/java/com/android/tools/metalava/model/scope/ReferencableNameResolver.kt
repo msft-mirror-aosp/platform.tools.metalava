@@ -103,7 +103,7 @@ internal object ReferencableNameResolver {
                     // resolve a qualified name.
                     ?: return InvalidReferencableItem(
                         unresolvedReferenceName = referencableName,
-                        failingScopeName = currentScope.toString(),
+                        failingScopeName = resolved.toString(),
                         failingSimpleName = simpleName,
                         reason = InvalidReferencableItem.Reason.NOT_QUALIFIED_SCOPE,
                     )
