@@ -763,7 +763,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 classPathResolver = classPathResolver,
             )
 
-        val current = buildList {
+        // Check the parts of the codebase that will be emitted.
+        val currentEmit = buildList {
             codebase.accept(
                 object : BaseItemVisitor(visitParameterItems = false) {
                     override fun visitSelectableItem(item: SelectableItem) {
@@ -774,7 +775,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 }
             )
         }
-
         assertEquals(
             """
                 package test.pkg
@@ -787,7 +787,40 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
                 .trimIndent(),
-            current.joinToString("\n")
+            currentEmit.joinToString("\n"),
+            "emittable items"
+        )
+
+        // Check the entire codebase, to make sure there are no incorrect elements that aren't part
+        // of the emittable codebase.
+        val currentAll = buildList {
+            codebase.accept(
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
+                        add(item)
+                    }
+                }
+            )
+        }
+        assertEquals(
+            """
+                package test.pkg
+                class test.pkg.Foo
+                constructor test.pkg.Foo.Foo()
+                constructor test.pkg.Foo.Foo(int)
+                method test.pkg.Foo.method(int)
+                method test.pkg.Foo.extensibleMethod(int)
+                method test.pkg.Foo.currentMethod(int)
+                field Foo.field
+                field Foo.currentField
+                class test.pkg.Outer
+                class test.pkg.Outer.Middle
+                class test.pkg.Outer.Middle.Inner
+                method test.pkg.Outer.Middle.Inner.currentInnerMethod()
+            """
+                .trimIndent(),
+            currentAll.joinToString("\n"),
+            "all items"
         )
     }
 
