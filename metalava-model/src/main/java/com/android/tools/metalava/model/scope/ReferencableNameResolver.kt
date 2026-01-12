@@ -95,14 +95,19 @@ internal object ReferencableNameResolver {
                     )
                 }
                     // If the simple name could not be found then it is an error.
-                    ?: return InvalidReferencableItem(
-                        unresolvedReferenceName = referencableName,
-                        unresolvedNameClassification = nameClassification,
-                        failingScopeName = currentScope.toString(),
-                        failingSimpleName = simpleName,
-                        failingSimpleNameClassification = simpleNameClassification,
-                        reason = InvalidReferencableItem.Reason.NOT_FOUND,
-                    )
+                    ?: run {
+                        // Use a shorter message for unqualified references that avoids duplicating
+                        // the reference multiple times in the message.
+                        val unqualifiedName = startIndex == 0 && dotIndex == -1
+                        val message =
+                            if (unqualifiedName) {
+                                "Could not resolve ${simpleNameClassification.describeName(simpleName)} in '$currentScope'"
+                            } else {
+                                "Could not resolve ${nameClassification.describeName(referencableName)} as could not find ${simpleNameClassification.describeName(simpleName)} in '$currentScope'"
+                            }
+
+                        return InvalidReferencableItem(message)
+                    }
 
             // If that was the last simple name to search then return the result.
             if (dotIndex == -1) {

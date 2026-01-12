@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.scope.NameClassification
-
 /**
  * Effectively forms a union type of all referencable [Item]s that extend this.
  *
@@ -30,34 +28,4 @@ import com.android.tools.metalava.model.scope.NameClassification
 sealed interface ReferencableItem
 
 /** Provides details about an invalid reference and why it could not be resolved. */
-data class InvalidReferencableItem(
-    /** The qualified name of the reference that could not be resolved. */
-    private val unresolvedReferenceName: String,
-    /** The [NameClassification] of [unresolvedNameClassification]. */
-    private val unresolvedNameClassification: NameClassification,
-    /** The name of the scope where an issue was encountered. */
-    private val failingScopeName: String,
-    /** The simple name of the item being searched for in [failingScopeName]. */
-    private val failingSimpleName: String,
-    /** The [NameClassification] of [failingSimpleName]. */
-    private val failingSimpleNameClassification: NameClassification,
-    /** The reason for the failure. */
-    private val reason: Reason,
-) : ReferencableItem {
-    val message
-        get(): String = reason.run { format() }
-
-    enum class Reason {
-        NOT_FOUND {
-            override fun InvalidReferencableItem.format() =
-                if (unresolvedReferenceName == failingSimpleName) {
-                    "Could not resolve ${failingSimpleNameClassification.describeName(failingSimpleName)} in '$failingScopeName'"
-                } else {
-                    "Could not resolve ${unresolvedNameClassification.describeName(unresolvedReferenceName)} as could not find ${failingSimpleNameClassification.describeName(failingSimpleName)} in '$failingScopeName'"
-                }
-        },
-        ;
-
-        abstract fun InvalidReferencableItem.format(): String
-    }
-}
+data class InvalidReferencableItem(val message: String) : ReferencableItem
