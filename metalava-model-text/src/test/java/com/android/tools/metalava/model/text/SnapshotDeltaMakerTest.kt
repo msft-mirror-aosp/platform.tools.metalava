@@ -414,6 +414,7 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                                 property @Deprecated public int changeDeprecatedFrom;
                                 property public int changeDeprecatedTo;
                                 property public final int changeFinal;
+                                property public int changeInline;
                                 property protected int changeVisibility;
                               }
                             }
@@ -426,6 +427,7 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                                 property public int changeDeprecatedFrom;
                                 property @Deprecated public int changeDeprecatedTo;
                                 property public int changeFinal;
+                                property public inline int changeInline;
                                 property public int changeVisibility;
                               }
                             }
@@ -438,6 +440,7 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                                 property public int changeDeprecatedFrom;
                                 property @Deprecated public int changeDeprecatedTo;
                                 property public int changeFinal;
+                                property public inline int changeInline;
                                 property public int changeVisibility;
                               }
                             }
@@ -493,6 +496,7 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                                 method @Deprecated public void changeDeprecatedFrom();
                                 method public void changeDeprecatedTo();
                                 method public void changeInfix();
+                                method public void changeInline();
                                 method public void changeOperator();
                               }
                             }
@@ -505,6 +509,7 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                                 method public void changeDeprecatedFrom();
                                 method @Deprecated public void changeDeprecatedTo();
                                 method public infix void changeInfix();
+                                method public inline void changeInline();
                                 method public operator void changeOperator();
                               }
                             }
@@ -517,6 +522,7 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                                 method public void changeDeprecatedFrom();
                                 method @Deprecated public void changeDeprecatedTo();
                                 method public infix void changeInfix();
+                                method public inline void changeInline();
                                 method public operator void changeOperator();
                               }
                             }
