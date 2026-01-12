@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.source.javadoc.ExprContext
@@ -146,4 +147,7 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     var referenceResolver: (String) -> ResolvedReference? = { null }
 
     override fun resolveReference(sourceReference: String) = referenceResolver(sourceReference)
+
+    override val containingClassItem: ClassItem?
+        get() = null
 }
