@@ -116,5 +116,5 @@ abstract class DefaultCallableItem(
         isFirstSimpleName: Boolean
     ) =
         // Check for type parameters.
-        typeParameterList.find { it.name() == simpleName }
+        nameClassification.findTypeParameter { typeParameterList.find { it.name() == simpleName } }
 }

@@ -79,8 +79,8 @@ abstract class AbstractSourceFile() : SourceFile {
         // name and resolving it. That is necessary because the nested classes may not be created
         // properly during snapshotting.
         // TODO(b/474319264): Check nested classes instead.
-        codebase.resolveClass("${qualifiedName()}.$memberName")
-            ?: fields().find { it.name() == memberName }
+        nameClassification.findClass { codebase.resolveClass("${qualifiedName()}.$memberName") }
+            ?: nameClassification.findField { fields().find { it.name() == memberName } }
 
     override val containingScope: ReferencableNameScope?
         get() =
@@ -94,7 +94,7 @@ abstract class AbstractSourceFile() : SourceFile {
         isFirstSimpleName: Boolean
     ) =
         // First, check for other top level classes in the same file.
-        classes().find { it.simpleName() == simpleName }
+        nameClassification.findClass { classes().find { it.simpleName() == simpleName } }
             // Then check for named imports first.
             ?: importedItem(simpleName, onDemand = false, nameClassification)
             // Then check the containing package.
