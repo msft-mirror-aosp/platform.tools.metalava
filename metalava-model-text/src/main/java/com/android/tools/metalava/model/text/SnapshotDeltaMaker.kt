@@ -140,6 +140,14 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
             if (checkMemberItemEquivalence) {
                 // Check if a change in modifiers requires emitting the callable.
                 if (!equivalentModifiers(baseCallable, callable)) return@let
+
+                // Check if a change in a parameter requires emitting the callable.
+                val zippedParameters = baseCallable.parameters().zip(callable.parameters())
+                for ((baseParameter, callableParameter) in zippedParameters) {
+                    if (!equivalentModifiers(baseParameter, callableParameter)) {
+                        return@let
+                    }
+                }
             }
 
             return

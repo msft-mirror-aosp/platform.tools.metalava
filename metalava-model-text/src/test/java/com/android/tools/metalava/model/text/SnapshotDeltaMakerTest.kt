@@ -605,6 +605,48 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                     checkMemberItemEquivalence = true,
                 ),
+                TestParams(
+                    name = "callable parameter annotations",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public class Foo {
+                                ctor public Foo(@test.pkg.BaseAnnotation int);
+                                method public void foo(@test.pkg.BaseAnnotation int);
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface ExtendsAnnotation {
+                              }
+                              public class Foo {
+                                ctor public Foo(@test.pkg.ExtendsAnnotation int);
+                                method public void foo(@test.pkg.ExtendsAnnotation int);
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public @interface ExtendsAnnotation {
+                              }
+                              public class Foo {
+                                ctor public Foo(@test.pkg.ExtendsAnnotation int);
+                                method public void foo(@test.pkg.ExtendsAnnotation int);
+                              }
+                            }
+                        """,
+                    checkMemberItemEquivalence = true,
+                ),
             )
     }
 
