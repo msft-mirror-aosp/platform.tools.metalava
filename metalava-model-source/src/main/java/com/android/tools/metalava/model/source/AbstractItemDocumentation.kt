@@ -239,7 +239,8 @@ abstract class AbstractItemDocumentation(
         reporter: LocationSpecificReporter,
         typeName: String
     ): TypeReference? {
-        val resolved = item.resolveReferencableItem(typeName, NameClassification.AMBIGUOUS)
+        val resolved = item.resolveReferencableItem(typeName, NameClassification.TYPE)
+        // TODO(b/447588621): Ensure that the resolved type is a Throwable.
         return when (resolved) {
             is ClassItem -> resolved.toResolvedReference()
             is TypeParameterItem -> resolved.toResolvedReference()
@@ -247,13 +248,9 @@ abstract class AbstractItemDocumentation(
                 resolved.reportIssue(reporter)
                 null
             }
-            else -> {
-                reporter.report(
-                    Issues.INVALID_DOC_THROWS_TYPE,
-                    "Invalid @throws type '$typeName': it should reference a class but it resolves to $resolved"
-                )
-                null
-            }
+            // This should never happen as passing in NameClassification.TYPE above should limit the
+            // returned types to ClassItem, TypeParameterItem or InvalidReferencableItem
+            else -> error("type '$typeName' was resolved to an unknown type $resolved")
         }
     }
 
