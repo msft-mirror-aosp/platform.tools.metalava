@@ -783,6 +783,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             """
                 package test.pkg
                 class test.pkg.Foo
+                constructor test.pkg.Foo.Foo(String)
                 constructor test.pkg.Foo.Foo(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
@@ -817,7 +818,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 method test.pkg.Foo.method(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
-                property test.pkg.Foo#prop
                 property test.pkg.Foo#prop
                 field Foo.field
                 field Foo.currentField

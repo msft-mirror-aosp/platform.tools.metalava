@@ -264,6 +264,15 @@ open class DefaultClassItem(
         mutableItems += item
     }
 
+    /**
+     * If there is already a constructor with the same signature as [constructor], replaces the
+     * existing version with the new one. If there is not a matching constructor, just adds
+     * [constructor] to the list of constructors.
+     */
+    fun replaceOrAddConstructor(constructor: ConstructorItem) {
+        replaceOrAddItem(constructor, mutableConstructors)
+    }
+
     override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
             codebase = codebase,
@@ -313,6 +322,15 @@ open class DefaultClassItem(
     fun addProperty(property: PropertyItem) {
         ensureNotFrozen()
         mutableProperties += property
+    }
+
+    /**
+     * If there is already a property with the same signature as [property], replaces the existing
+     * version with the new one. If there is not a matching property, just adds [property] to the
+     * list of properties.
+     */
+    fun replaceOrAddProperty(property: PropertyItem) {
+        replaceOrAddItem(property, mutableProperties)
     }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */

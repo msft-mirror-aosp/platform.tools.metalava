@@ -1297,7 +1297,12 @@ private constructor(
             )
         method.markForMainApiSurface()
 
-        if (!containingClass.constructors().contains(method)) {
+        if (appending) {
+            // If there is already a constructor with the same signature from a previous file,
+            // replaces the old version with this one, otherwise just adds the constructor.
+            containingClass.replaceOrAddConstructor(method)
+        } else {
+            // Just add the constructor to the class.
             containingClass.addConstructor(method)
         }
     }
@@ -1724,7 +1729,15 @@ private constructor(
                 setterVisibility = null,
             )
         property.markForMainApiSurface()
-        cl.addProperty(property)
+
+        if (appending) {
+            // If there is already a property with the same signature from a previous file, replaces
+            // the old version with this one, otherwise just adds the property.
+            cl.replaceOrAddProperty(property)
+        } else {
+            // Just add the property to the class.
+            cl.addProperty(property)
+        }
     }
 
     /**
