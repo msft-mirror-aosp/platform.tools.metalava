@@ -134,7 +134,9 @@ internal open class DescriptionOwner(
             DocComment.createDocComment(
                 context,
                 qualified,
-                DocumentationIssueReporter.THROWING,
+                // Use the null reporter as any issues found in this block tag will have been
+                // reported elsewhere.
+                DocumentationIssueReporter.NULL,
             )
 
         // Return the main description as the comment.
