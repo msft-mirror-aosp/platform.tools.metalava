@@ -136,11 +136,16 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
     }
 
     override fun visitCallable(callable: CallableItem) {
-        callable.findCorrespondingItemIn(base)?.let {
+        callable.findCorrespondingItemIn(base)?.let { baseCallable ->
+            if (checkMemberItemEquivalence) {
+                // Check if a change in modifiers requires emitting the callable.
+                if (!equivalentModifiers(baseCallable, callable)) return@let
+            }
+
             return
         }
 
-        // The callable is new.
+        // The callable is new or changed.
         callable.markEmit()
     }
 

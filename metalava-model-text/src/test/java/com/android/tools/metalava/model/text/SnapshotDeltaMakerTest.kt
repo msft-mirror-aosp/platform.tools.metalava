@@ -444,6 +444,161 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                     checkMemberItemEquivalence = true,
                 ),
+                TestParams(
+                    name = "method annotations",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public class Foo {
+                                method @test.pkg.BaseAnnotation public void foo();
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface ExtendsAnnotation {
+                              }
+                              public class Foo {
+                                method @test.pkg.ExtendsAnnotation public void foo();
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public @interface ExtendsAnnotation {
+                              }
+                              public class Foo {
+                                method @test.pkg.ExtendsAnnotation public void foo();
+                              }
+                            }
+                        """,
+                    checkMemberItemEquivalence = true,
+                ),
+                TestParams(
+                    name = "method modifiers",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method @Deprecated public void changeDeprecatedFrom();
+                                method public void changeDeprecatedTo();
+                                method public void changeInfix();
+                                method public void changeOperator();
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void changeDeprecatedFrom();
+                                method @Deprecated public void changeDeprecatedTo();
+                                method public infix void changeInfix();
+                                method public operator void changeOperator();
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void changeDeprecatedFrom();
+                                method @Deprecated public void changeDeprecatedTo();
+                                method public infix void changeInfix();
+                                method public operator void changeOperator();
+                              }
+                            }
+                        """,
+                    checkMemberItemEquivalence = true,
+                ),
+                TestParams(
+                    name = "constructor annotations",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public class Foo {
+                                ctor @test.pkg.BaseAnnotation public Foo();
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface ExtendsAnnotation {
+                              }
+                              public class Foo {
+                                ctor @test.pkg.ExtendsAnnotation public Foo();
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public @interface ExtendsAnnotation {
+                              }
+                              public class Foo {
+                                ctor @test.pkg.ExtendsAnnotation public Foo();
+                              }
+                            }
+                        """,
+                    checkMemberItemEquivalence = true,
+                ),
+                TestParams(
+                    name = "constructor modifiers",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor protected Foo();
+                                ctor @Deprecated public Foo(int);
+                                ctor public Foo(String);
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                ctor public Foo(int);
+                                ctor @Deprecated public Foo(String);
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                ctor public Foo(int);
+                                ctor @Deprecated public Foo(String);
+                              }
+                            }
+                        """,
+                    checkMemberItemEquivalence = true,
+                ),
             )
     }
 
