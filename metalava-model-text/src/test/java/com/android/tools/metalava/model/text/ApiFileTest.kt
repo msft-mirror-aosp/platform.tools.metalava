@@ -711,9 +711,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo();
+                                ctor public Foo(String notCurrent);
                                 method public void method(int notCurrent);
                                 method public void extensibleMethod(int parameter) throws Throwable;
                                 field public int field;
+                                property public int prop;
                             }
                             public class Outer {
                             }
@@ -731,9 +733,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo(int currentCtorParameter);
+                                ctor public Foo(String currentCtorParameter);
                                 method public void extensibleMethod(int parameter) throws Exception;
                                 method public void currentMethod(int currentMethodParameter);
                                 field public int currentField;
+                                property public int prop;
                             }
                             public class Outer.Middle.Inner {
                                 method public void currentInnerMethod();
@@ -782,6 +786,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 constructor test.pkg.Foo.Foo(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
                 field Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
@@ -807,10 +812,13 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo()
+                constructor test.pkg.Foo.Foo(String)
                 constructor test.pkg.Foo.Foo(int)
                 method test.pkg.Foo.method(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
+                property test.pkg.Foo#prop
                 field Foo.field
                 field Foo.currentField
                 class test.pkg.Outer
