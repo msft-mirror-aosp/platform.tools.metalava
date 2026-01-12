@@ -80,6 +80,42 @@ class PropertyCompatibilityTest : DriverTest() {
     }
 
     @Test
+    fun `Added abstract property`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public abstract class AbstractClass {
+                    ctor public AbstractClass();
+                  }
+                  public abstract sealed exhaustive class SealedClass {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public abstract class AbstractClass {
+                    ctor public AbstractClass();
+                    property public abstract int needsExternalOverride;
+                  }
+                  public abstract sealed exhaustive class SealedClass {
+                    property public abstract int cannotHaveExternalOverride;
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:5: error: Source breaking change: Added property test.pkg.AbstractClass#needsExternalOverride [AddedAbstractProperty]
+                load-api.txt:8: error: Added property test.pkg.SealedClass#cannotHaveExternalOverride [AddedProperty]
+                """,
+        )
+    }
+
+    @Test
     fun `Change in whether inherited property is listed`() {
         check(
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),

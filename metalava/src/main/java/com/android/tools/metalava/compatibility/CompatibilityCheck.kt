@@ -1324,7 +1324,19 @@ class CompatibilityCheck(
     }
 
     override fun addedPropertyItem(new: PropertyItem) {
-        handleAdded(Issues.ADDED_PROPERTY, new)
+        val issue =
+            // Report this as an added abstract property if external clients may now need to
+            // override the property. If it doesn't need to be externally overridden, use the normal
+            // added property issue.
+            if (
+                new.modifiers.isAbstract() &&
+                    !new.containingClass().cannotContainExternallyOverridableAbstractMethods()
+            ) {
+                Issues.ADDED_ABSTRACT_PROPERTY
+            } else {
+                Issues.ADDED_PROPERTY
+            }
+        handleAdded(issue, new)
     }
 
     override fun removedPackageItem(old: PackageItem, from: PackageItem?) {
