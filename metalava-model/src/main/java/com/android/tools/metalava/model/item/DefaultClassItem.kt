@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
@@ -246,6 +247,32 @@ open class DefaultClassItem(
         mutableConstructors += constructor
     }
 
+    /**
+     * If there is a version of [item] already in [mutableItems], replaces the existing version with
+     * [item]. Otherwise, adds [item] to the end of [mutableItems].
+     */
+    private fun <I : Item> replaceOrAddItem(item: I, mutableItems: MutableList<I>) {
+        ensureNotFrozen()
+        val iterator = mutableItems.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == item) {
+                iterator.set(item)
+                return
+            }
+        }
+        mutableItems += item
+    }
+
+    /**
+     * If there is already a constructor with the same signature as [constructor], replaces the
+     * existing version with the new one. If there is not a matching constructor, just adds
+     * [constructor] to the list of constructors.
+     */
+    fun replaceOrAddConstructor(constructor: ConstructorItem) {
+        replaceOrAddItem(constructor, mutableConstructors)
+    }
+
     override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
             codebase = codebase,
@@ -272,16 +299,7 @@ open class DefaultClassItem(
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem) {
-        ensureNotFrozen()
-        val iterator = mutableMethods.listIterator()
-        while (iterator.hasNext()) {
-            val existing = iterator.next()
-            if (existing == method) {
-                iterator.set(method)
-                return
-            }
-        }
-        mutableMethods += method
+        replaceOrAddItem(method, mutableMethods)
     }
 
     /** The mutable list of [FieldItem] that backs [fields]. */
@@ -304,6 +322,15 @@ open class DefaultClassItem(
     fun addProperty(property: PropertyItem) {
         ensureNotFrozen()
         mutableProperties += property
+    }
+
+    /**
+     * If there is already a property with the same signature as [property], replaces the existing
+     * version with the new one. If there is not a matching property, just adds [property] to the
+     * list of properties.
+     */
+    fun replaceOrAddProperty(property: PropertyItem) {
+        replaceOrAddItem(property, mutableProperties)
     }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
