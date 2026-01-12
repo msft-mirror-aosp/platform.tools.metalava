@@ -56,10 +56,6 @@ data class InvalidReferencableItem(
                     "Could not resolve ${unresolvedNameClassification.describeName(unresolvedReferenceName)} as could not find ${failingSimpleNameClassification.describeName(failingSimpleName)} in '$failingScopeName'"
                 }
         },
-        NOT_QUALIFIED_SCOPE {
-            override fun InvalidReferencableItem.format() =
-                "Could not resolve '$unresolvedReferenceName' as '$failingScopeName' is not a package or class"
-        },
         ;
 
         abstract fun InvalidReferencableItem.format(): String

@@ -76,9 +76,9 @@ internal object ReferencableNameResolver {
             val simpleName = referencableName.substring(startIndex, endIndex)
 
             // If this is searching for the last simple name then use the classification supplied to
-            // this method, otherwise just look for any item
+            // this method, otherwise just look for items that can qualify other names.
             val simpleNameClassification =
-                if (dotIndex == -1) nameClassification else NameClassification.AMBIGUOUS
+                if (dotIndex == -1) nameClassification else NameClassification.QUALIFIER
 
             // Resolve the simple name against the current scope.
             val resolved =
@@ -109,19 +109,11 @@ internal object ReferencableNameResolver {
                 return resolved
             }
 
-            // Otherwise, if possible treat the resolved item as the next scope to search.
-            currentScope =
-                resolved as? QualifiedNameScope
-                    // It is an error for a containing name to resolve to something that cannot
-                    // resolve a qualified name.
-                    ?: return InvalidReferencableItem(
-                        unresolvedReferenceName = referencableName,
-                        unresolvedNameClassification = nameClassification,
-                        failingScopeName = resolved.toString(),
-                        failingSimpleName = simpleName,
-                        failingSimpleNameClassification = simpleNameClassification,
-                        reason = InvalidReferencableItem.Reason.NOT_QUALIFIED_SCOPE,
-                    )
+            // Otherwise, treat the resolved item as the next scope to search. At this point
+            // `resolved` will always be an instance of [QualifiedNameScope] as `resolved` is the
+            // result of resolving `simpleName` using [NameClassification.QUALIFIER] and that will
+            // always return either `null` (handled above), `PackageItem`, or `ClassItem`.
+            currentScope = resolved as QualifiedNameScope
 
             // Move onto the next simple name to find.
             startIndex = endIndex + 1

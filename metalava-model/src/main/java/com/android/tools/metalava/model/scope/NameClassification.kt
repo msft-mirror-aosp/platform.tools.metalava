@@ -31,10 +31,6 @@ import com.android.tools.metalava.model.TypeParameterItem
  *   as [NameClassification.AMBIGUOUS].
  * * in `@see <qualifier>.<simple-name>`, the `<qualifier>` can refer only to [ReferencableItem]s
  *   that can qualify another name, i.e. [PackageItem] or [ClassItem]s.
- * * in `@throws <reference>`, the `<reference>` can refer only to a named type, i.e. [ClassItem] or
- *   [TypeParameterItem] so is classified as [NameClassification.TYPE].
- * * in `{@if (flag(<reference>)) ...}`, the `<reference>` can refer only to a [FieldItem] so is
- *   classified as [NameClassification.FIELD].
  */
 enum class NameClassification(
     val packages: Boolean = false,
@@ -50,6 +46,16 @@ enum class NameClassification(
         typeParameters = true,
         fields = true,
         nameDescriptionPrefix = "",
+    ),
+
+    /**
+     * The name is being used to qualify another name, e.g. before the `.` in a qualified name. That
+     * means that it must refer to either a [PackageItem] or a [ClassItem].
+     */
+    QUALIFIER(
+        packages = true,
+        classes = true,
+        nameDescriptionPrefix = "a package or class called ",
     ),
     ;
 
