@@ -41,6 +41,7 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
         val baseSignature: String,
         val extendsSignature: String,
         val combinedSignature: String,
+        val checkMemberItemEquivalence: Boolean = false,
     ) {
         override fun toString(): String {
             return name
@@ -364,6 +365,85 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                             }
                         """,
                 ),
+                TestParams(
+                    name = "property annotations",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public class Foo {
+                                property @test.pkg.BaseAnnotation public int foo;
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface ExtendsAnnotation {
+                              }
+                              public class Foo {
+                                property @test.pkg.ExtendsAnnotation public int foo;
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public @interface ExtendsAnnotation {
+                              }
+                              public class Foo {
+                                property @test.pkg.ExtendsAnnotation public int foo;
+                              }
+                            }
+                        """,
+                    checkMemberItemEquivalence = true,
+                ),
+                TestParams(
+                    name = "property modifiers",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                property @Deprecated public int changeDeprecatedFrom;
+                                property public int changeDeprecatedTo;
+                                property public final int changeFinal;
+                                property protected int changeVisibility;
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                property public int changeDeprecatedFrom;
+                                property @Deprecated public int changeDeprecatedTo;
+                                property public int changeFinal;
+                                property public int changeVisibility;
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                property public int changeDeprecatedFrom;
+                                property @Deprecated public int changeDeprecatedTo;
+                                property public int changeFinal;
+                                property public int changeVisibility;
+                              }
+                            }
+                        """,
+                    checkMemberItemEquivalence = true,
+                ),
             )
     }
 
@@ -427,7 +507,8 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
         val deltaCodebase =
             SnapshotDeltaMaker.createDelta(
                     baseCodebase,
-                    CodebaseFragment.create(combinedCodebase, ::NonFilteringDelegatingVisitor)
+                    CodebaseFragment.create(combinedCodebase, ::NonFilteringDelegatingVisitor),
+                    testData.checkMemberItemEquivalence,
                 )
                 .codebase
         deltaCodebase.assertSignatureFile(

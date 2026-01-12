@@ -40,8 +40,13 @@ import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
  *
  * This can be used to create deltas that can be used when class nesting is not maintained as it
  * does not emit a class just because a nested class needs emitting.
+ *
+ * If [checkMemberItemEquivalence] is true, then [MemberItem]s are emitted when there is a change
+ * between the base and extension members. If it is false, [MemberItem]s are not emitted when they
+ * are present in both the base and extension, even if there is some difference between them.
  */
-class SnapshotDeltaMaker private constructor(private val base: Codebase) :
+class SnapshotDeltaMaker
+private constructor(private val base: Codebase, private val checkMemberItemEquivalence: Boolean) :
     BaseItemVisitor(
         preserveClassNesting = true,
         visitParameterItems = false,
@@ -110,9 +115,7 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
 
             // If this class has different annotations to the base class then drop out to emit
             // this class.
-            val annotations = cls.modifiers.annotations().toSet()
-            val baseAnnotations = baseClass.modifiers.annotations().toSet()
-            if (annotations != baseAnnotations) {
+            if (!equivalentAnnotations(baseClass, cls)) {
                 return@let
             }
 
@@ -151,12 +154,30 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
     }
 
     override fun visitProperty(property: PropertyItem) {
-        property.findCorrespondingItemIn(base)?.let {
+        property.findCorrespondingItemIn(base)?.let { baseProperty ->
+            if (checkMemberItemEquivalence) {
+                // Check if a change in modifiers requires emitting the property.
+                if (!equivalentModifiers(baseProperty, property)) return@let
+            }
+
             return
         }
 
-        // The property is new.
+        // The property is new or changed.
         property.markEmit()
+    }
+
+    /** Checks if the two items have the same set of annotations. */
+    private fun equivalentAnnotations(baseItem: Item, extensionItem: Item): Boolean {
+        val baseAnnotations = baseItem.modifiers.annotations().toSet()
+        val extensionAnnotations = extensionItem.modifiers.annotations().toSet()
+        return extensionAnnotations == baseAnnotations
+    }
+
+    /** Checks whether the two items have equivalent modifiers and annotations. */
+    private fun equivalentModifiers(baseItem: Item, extensionItem: Item): Boolean {
+        if (!baseItem.modifiers.equivalentTo(baseItem, extensionItem.modifiers)) return false
+        return equivalentAnnotations(baseItem, extensionItem)
     }
 
     companion object {
@@ -176,13 +197,16 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
          * * The modifiers are not [ModifierList.equivalentTo] each other.
          * * The [ClassItem.superClassType]s are not the same.
          *
-         * Note: A [MemberItem] that exists in both will not be emitted even if they differ in some
-         * way, e.g. annotations, extends list. That is because [ApiFile] has no mechanism to
-         * combine them and does not even throw an error if it encounters duplicates.
+         * If [checkMemberItemEquivalence] is false, a [MemberItem] that exists in both will not be
+         * emitted even if they differ in some way, e.g. annotations, extends list. If it is true,
+         * then [MemberItem]s will be emitted if they differ. When being parsed back by [ApiFile],
+         * the definition from the extension file will be used and the [base] definition will be
+         * ignored.
          */
         fun createDelta(
             base: Codebase,
             codebaseFragment: CodebaseFragment,
+            checkMemberItemEquivalence: Boolean,
         ): CodebaseFragment {
             // Take a snapshot.
             val snapshotFragment =
@@ -204,7 +228,7 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
             // Mark those items that are new (or different) to be emitted. Also, marks their
             // containers, e.g. class members and nested classes will mark their containing class,
             // classes will mark their containing package.
-            val deltaMaker = SnapshotDeltaMaker(base)
+            val deltaMaker = SnapshotDeltaMaker(base, checkMemberItemEquivalence)
             snapshot.accept(deltaMaker)
 
             return CodebaseFragment.create(snapshot, ::EmittableDelegatingVisitor)
