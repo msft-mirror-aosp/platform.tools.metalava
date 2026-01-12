@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.scope.NameClassification
+
 /**
  * Effectively forms a union type of all referencable [Item]s that extend this.
  *
@@ -31,10 +33,14 @@ sealed interface ReferencableItem
 data class InvalidReferencableItem(
     /** The qualified name of the reference that could not be resolved. */
     private val unresolvedReferenceName: String,
+    /** The [NameClassification] of [unresolvedNameClassification]. */
+    private val unresolvedNameClassification: NameClassification,
     /** The name of the scope where an issue was encountered. */
     private val failingScopeName: String,
     /** The simple name of the item being searched for in [failingScopeName]. */
     private val failingSimpleName: String,
+    /** The [NameClassification] of [failingSimpleName]. */
+    private val failingSimpleNameClassification: NameClassification,
     /** The reason for the failure. */
     private val reason: Reason,
 ) : ReferencableItem {
@@ -45,9 +51,9 @@ data class InvalidReferencableItem(
         NOT_FOUND {
             override fun InvalidReferencableItem.format() =
                 if (unresolvedReferenceName == failingSimpleName) {
-                    "Could not resolve '$failingSimpleName' in '$failingScopeName'"
+                    "Could not resolve ${failingSimpleNameClassification.describeName(failingSimpleName)} in '$failingScopeName'"
                 } else {
-                    "Could not resolve '$unresolvedReferenceName' as could not find '$failingSimpleName' in '$failingScopeName'"
+                    "Could not resolve ${unresolvedNameClassification.describeName(unresolvedReferenceName)} as could not find ${failingSimpleNameClassification.describeName(failingSimpleName)} in '$failingScopeName'"
                 }
         },
         NOT_QUALIFIED_SCOPE {

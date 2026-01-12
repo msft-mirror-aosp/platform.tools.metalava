@@ -97,8 +97,10 @@ internal object ReferencableNameResolver {
                     // If the simple name could not be found then it is an error.
                     ?: return InvalidReferencableItem(
                         unresolvedReferenceName = referencableName,
+                        unresolvedNameClassification = nameClassification,
                         failingScopeName = currentScope.toString(),
                         failingSimpleName = simpleName,
+                        failingSimpleNameClassification = simpleNameClassification,
                         reason = InvalidReferencableItem.Reason.NOT_FOUND,
                     )
 
@@ -114,8 +116,10 @@ internal object ReferencableNameResolver {
                     // resolve a qualified name.
                     ?: return InvalidReferencableItem(
                         unresolvedReferenceName = referencableName,
+                        unresolvedNameClassification = nameClassification,
                         failingScopeName = resolved.toString(),
                         failingSimpleName = simpleName,
+                        failingSimpleNameClassification = simpleNameClassification,
                         reason = InvalidReferencableItem.Reason.NOT_QUALIFIED_SCOPE,
                     )
 

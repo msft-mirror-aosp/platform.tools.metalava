@@ -41,6 +41,7 @@ enum class NameClassification(
     val classes: Boolean = false,
     val typeParameters: Boolean = false,
     val fields: Boolean = false,
+    val nameDescriptionPrefix: String,
 ) {
     /** The name is ambiguous and could refer to any [ReferencableItem]. */
     AMBIGUOUS(
@@ -48,6 +49,7 @@ enum class NameClassification(
         classes = true,
         typeParameters = true,
         fields = true,
+        nameDescriptionPrefix = "",
     ),
     ;
 
@@ -81,4 +83,7 @@ enum class NameClassification(
      * Used by code that resolves names to control whether it searches for fields or not.
      */
     inline fun findField(body: () -> FieldItem?) = if (fields) body() else null
+
+    /** Describe the name. */
+    fun describeName(name: String) = "$nameDescriptionPrefix'$name'"
 }
