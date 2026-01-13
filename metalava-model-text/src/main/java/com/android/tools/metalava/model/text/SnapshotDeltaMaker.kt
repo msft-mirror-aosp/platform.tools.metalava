@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -26,7 +25,6 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
@@ -92,11 +90,6 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
     /** Override to skip any non-public or protected items. */
     override fun skip(item: Item): Boolean = !item.modifiers.isPublicOrProtected()
 
-    /** Convert a list of [AnnotationItem]s into a list of [String]s for comparison. */
-    // TODO(b/354633349): Use equality once value abstraction provides consistent behavior across
-    //   models.
-    private fun List<AnnotationItem>.normalize() = map { it.toString() }.sorted()
-
     override fun visitClass(cls: ClassItem) {
         cls.findCorrespondingItemIn(base)?.let { baseClass ->
             // If super class type is set and is different to the base class then drop out to emit
@@ -117,8 +110,8 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
 
             // If this class has different annotations to the base class then drop out to emit
             // this class.
-            val annotations = cls.modifiers.annotations().normalize()
-            val baseAnnotations = baseClass.modifiers.annotations().normalize()
+            val annotations = cls.modifiers.annotations().toSet()
+            val baseAnnotations = baseClass.modifiers.annotations().toSet()
             if (annotations != baseAnnotations) {
                 return@let
             }
