@@ -1178,33 +1178,37 @@ private constructor(
     private fun getAnnotationSource(tokenizer: Tokenizer, startingToken: String): String? {
         var token = startingToken
         if (token.startsWith('@')) {
-            // Annotation
-            var annotation = token
+            return buildString {
+                // Restore annotations that were shortened on export
+                val annotationClassName = unshortenAnnotation(token)
+                append(annotationClassName)
 
-            // Restore annotations that were shortened on export
-            annotation = unshortenAnnotation(annotation)
-            token = tokenizer.requireToken()
-            if (token == "(") {
-                // Annotation arguments; potentially nested
-                var balance = 0
-                val start = tokenizer.offset() - 1
-                while (true) {
-                    if (token == "(") {
-                        balance++
-                    } else if (token == ")") {
-                        balance--
-                        if (balance == 0) {
-                            break
+                token = tokenizer.requireToken()
+                if (token == "(") {
+                    // Annotation arguments; potentially nested
+                    var balance = 0
+                    val start = tokenizer.offset() - 1
+                    while (true) {
+                        if (token == "(") {
+                            balance++
+                        } else if (token == ")") {
+                            balance--
+                            if (balance == 0) {
+                                break
+                            }
                         }
+                        token = tokenizer.requireToken()
                     }
-                    token = tokenizer.requireToken()
+
+                    // Append the tokenizer arguments.
+                    tokenizer.appendStringFromOffsetTo(this, start)
+
+                    // Move the tokenizer so that when the method returns it points to the token
+                    // after
+                    // the end of the annotation.
+                    tokenizer.requireToken()
                 }
-                annotation += tokenizer.getStringFromOffset(start)
-                // Move the tokenizer so that when the method returns it points to the token after
-                // the end of the annotation.
-                tokenizer.requireToken()
             }
-            return annotation
         } else {
             return null
         }
