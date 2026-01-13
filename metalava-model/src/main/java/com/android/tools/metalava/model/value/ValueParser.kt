@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -380,6 +379,7 @@ class ValueParser(
         val annotationItem =
             parseAnnotationItem(
                 tokenizer,
+                tokenizer.requireToken(),
                 unshorten,
             )
 
@@ -396,14 +396,14 @@ class ValueParser(
     /**
      * Parse stream of tokens produced by [tokenizer] to create an [AnnotationItem], if possible.
      *
-     * On entry [tokenizer] next token must be the annotation's class name, optionally prefixed with
-     * an `@`. On exit, the next token will be the one after the annotation, if any.
+     * On entry [startingToken] must be the annotation's class name, optionally prefixed with an
+     * `@`. On exit, the next token will be the one after the annotation, if any..
      */
-    private fun parseAnnotationItem(
+    fun parseAnnotationItem(
         tokenizer: Tokenizer,
+        startingToken: String,
         unshorten: Boolean,
     ): AnnotationItem? {
-        val startingToken = tokenizer.requireToken()
         // May start with an '@', the remainder is the annotation class name which may have been
         // shortened.
         val possiblyShortenedAnnotationClassName =
