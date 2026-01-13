@@ -279,8 +279,6 @@ private constructor(
         }
 
         if (annotations.isNotEmpty()) {
-            // Omit common packages in signature files.
-            val omitCommonPackages = target == AnnotationTarget.SIGNATURE_FILE
             var index = -1
             for (annotation in annotations) {
                 index++
@@ -329,12 +327,8 @@ private constructor(
                         AnnotationPurpose.ITEM,
                         item
                     )
+                writer.write(source)
 
-                if (omitCommonPackages) {
-                    writer.write(AnnotationItem.shortenAnnotation(source))
-                } else {
-                    writer.write(source)
-                }
                 if (separateLines) {
                     writer.write("\n")
                 } else {

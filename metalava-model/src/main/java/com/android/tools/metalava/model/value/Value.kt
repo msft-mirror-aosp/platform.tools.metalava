@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.javaEscapeString
-import com.android.tools.metalava.model.value.Value.Companion.toString
 import java.util.EnumSet
 import java.util.Objects
 import kotlin.reflect.KClass
@@ -271,7 +270,10 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 data class ValueStringConfiguration(
     val annotationAttributeNameValueSeparator: AnnotationAttributeNameValueSeparator =
         AnnotationAttributeNameValueSeparator.WITH_SPACES,
-    val annotationQualifiedNameGetter: (AnnotationItem) -> String = { it.qualifiedName },
+    val annotationQualifiedNameGetter: (AnnotationItem, AnnotationPurpose) -> String =
+        { annotationItem, _ ->
+            annotationItem.qualifiedName
+        },
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val inlineFieldReferenceChecker: ((FieldReferenceValue) -> Boolean)? = null,
     val showKotlinCompanionClass: Boolean = false,

@@ -248,15 +248,22 @@ class LegacyValueFormatter(
     /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
     private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
 
-    /** Format the [annotationItem] name for [target]. */
+    /** Format the [annotationItem] name for [target] for [purpose]. */
     private fun formatAnnotationClassName(
         annotationItem: AnnotationItem,
-        target: AnnotationTarget
+        target: AnnotationTarget,
+        purpose: AnnotationPurpose,
     ) =
-        annotationItem.annotationContext.annotationManager.normalizeOutputName(
-            annotationItem.qualifiedName,
-            target
-        )
+        annotationItem.annotationContext.annotationManager
+            .normalizeOutputName(annotationItem.qualifiedName, target)
+            .let { name ->
+                // Annotations on items that are being formatted for the signature file are
+                // shortened by removing common package prefixes. This intentionally does not do
+                // that for type and value annotations as that would break legacy behavior.
+                if (purpose == AnnotationPurpose.ITEM && target == AnnotationTarget.SIGNATURE_FILE)
+                    AnnotationItem.shortenAnnotation("@$name").substring(1)
+                else name
+            }
 
     /** Get the annotation specific settings that incorporate [target] and [alwaysInlineFields]. */
     private fun annotationSpecificSetting(
@@ -272,7 +279,9 @@ class LegacyValueFormatter(
                 // as the `boundConfiguration` is identical to `valueStringConfiguration` apart from
                 // the `nestedValueAppender` and that will be updated by [Settings]'s initializer.
                 settings.boundConfiguration.copy(
-                    annotationQualifiedNameGetter = { formatAnnotationClassName(it, target) }
+                    annotationQualifiedNameGetter = { annotationItem, purpose ->
+                        formatAnnotationClassName(annotationItem, target, purpose)
+                    }
                 ),
             inlineFields =
                 if (alwaysInlineFields) InlineFieldValue.ALWAYS else settings.inlineFields,

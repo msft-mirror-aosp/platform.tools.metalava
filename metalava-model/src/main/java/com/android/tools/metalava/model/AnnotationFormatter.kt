@@ -86,7 +86,7 @@ sealed interface AnnotationFormatter {
             ValueStringConfiguration(
                 annotationAttributeNameValueSeparator =
                     AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
-                annotationQualifiedNameGetter = { annotationItem ->
+                annotationQualifiedNameGetter = { annotationItem, _ ->
                     annotationItem.annotationContext.annotationManager.normalizeOutputName(
                         annotationItem.qualifiedName,
                         target
