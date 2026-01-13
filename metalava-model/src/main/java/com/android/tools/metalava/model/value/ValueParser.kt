@@ -373,11 +373,15 @@ class ValueParser(
     }
 
     /** Parse [text] to produce an [AnnotationItem], if possible. */
-    fun parseAnnotationItem(text: String): AnnotationItem? {
+    fun parseAnnotationItem(text: String, unshorten: Boolean = false): AnnotationItem? {
         val tokenizer = tokenizerOf(text)
 
         // Parse the annotation item from the tokenizer.
-        val annotationItem = parseAnnotationItem(tokenizer)
+        val annotationItem =
+            parseAnnotationItem(
+                tokenizer,
+                unshorten,
+            )
 
         // Make sure that all the significant text was consumed.
         tokenizer.getToken()?.let { token ->
@@ -395,12 +399,20 @@ class ValueParser(
      * On entry [tokenizer] next token must be the annotation's class name, optionally prefixed with
      * an `@`. On exit, the next token will be the one after the annotation, if any.
      */
-    private fun parseAnnotationItem(tokenizer: Tokenizer): AnnotationItem? {
-        // May start with an '@', the remainder is the annotation class name.
+    private fun parseAnnotationItem(
+        tokenizer: Tokenizer,
+        unshorten: Boolean,
+    ): AnnotationItem? {
+        val startingToken = tokenizer.requireToken()
+        // May start with an '@', the remainder is the annotation class name which may have been
+        // shortened.
+        val possiblyShortenedAnnotationClassName =
+            if (startingToken[0] == '@') startingToken.substring(1) else startingToken
+
+        // Unshorten, if necessary.
         val annotationClassName =
-            tokenizer.requireToken().let { token ->
-                if (token[0] == '@') token.substring(1) else token
-            }
+            if (unshorten) AnnotationItem.unshortenAnnotation(possiblyShortenedAnnotationClassName)
+            else possiblyShortenedAnnotationClassName
 
         val token = tokenizer.getToken()
         val attributes =
