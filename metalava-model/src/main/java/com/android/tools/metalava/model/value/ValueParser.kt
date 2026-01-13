@@ -393,7 +393,7 @@ class ValueParser(
      * Parse stream of tokens produced by [tokenizer] to create an [AnnotationItem], if possible.
      *
      * On entry [tokenizer] next token must be the annotation's class name, optionally prefixed with
-     * an `@`. On exit, the next token will be the one after the annotation.
+     * an `@`. On exit, the next token will be the one after the annotation, if any.
      */
     private fun parseAnnotationItem(tokenizer: Tokenizer): AnnotationItem? {
         // May start with an '@', the remainder is the annotation class name.
@@ -410,6 +410,9 @@ class ValueParser(
                         require(tokenizer.current == ")") {
                             "Expected ')' but found ${tokenizer.current}"
                         }
+
+                        // Get the next token, if any, after the ')'.
+                        tokenizer.getToken()
                     }
                 }
                 else -> emptyList()
