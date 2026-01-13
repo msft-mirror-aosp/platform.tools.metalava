@@ -47,31 +47,51 @@ class AnnotationItemTest {
         expected: String,
         annotationItem: AnnotationItem,
         configuration: ValueStringConfiguration,
-        annotationIsValue: Boolean,
+        purpose: AnnotationPurpose,
     ) {
         val actual = buildString {
-            annotationItem.appendAnnotationStringTo(this, configuration, annotationIsValue)
+            annotationItem.appendAnnotationStringTo(this, configuration, purpose)
         }
         assertEquals(expected, actual)
     }
 
     @Test
-    fun `Test non-value annotation for java`() {
+    fun `Test item annotation for java`() {
         checkAppendAnnotationStringTo(
             "@test.pkg.Anno",
             annotationItem("test.pkg.Anno"),
             configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.JAVA),
-            annotationIsValue = false,
+            AnnotationPurpose.ITEM,
         )
     }
 
     @Test
-    fun `Test non-value annotation for kotlin`() {
+    fun `Test type annotation for kotlin`() {
         checkAppendAnnotationStringTo(
             "@test.pkg.Anno",
             annotationItem("test.pkg.Anno"),
             configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN),
-            annotationIsValue = false,
+            AnnotationPurpose.TYPE,
+        )
+    }
+
+    @Test
+    fun `Test type annotation for java`() {
+        checkAppendAnnotationStringTo(
+            "@test.pkg.Anno",
+            annotationItem("test.pkg.Anno"),
+            configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.JAVA),
+            AnnotationPurpose.TYPE,
+        )
+    }
+
+    @Test
+    fun `Test item annotation for kotlin`() {
+        checkAppendAnnotationStringTo(
+            "@test.pkg.Anno",
+            annotationItem("test.pkg.Anno"),
+            configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN),
+            AnnotationPurpose.ITEM,
         )
     }
 
@@ -81,7 +101,7 @@ class AnnotationItemTest {
             "@test.pkg.Anno",
             annotationItem("test.pkg.Anno"),
             configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.JAVA),
-            annotationIsValue = true,
+            AnnotationPurpose.VALUE,
         )
     }
 
@@ -91,7 +111,7 @@ class AnnotationItemTest {
             "test.pkg.Anno()",
             annotationItem("test.pkg.Anno"),
             configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN),
-            annotationIsValue = true,
+            AnnotationPurpose.VALUE,
         )
     }
 }

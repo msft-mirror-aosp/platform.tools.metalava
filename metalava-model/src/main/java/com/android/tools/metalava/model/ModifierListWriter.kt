@@ -323,7 +323,12 @@ private constructor(
                     }
                 }
 
-                val source = annotationFormatter.formatAnnotation(printAnnotation, item)
+                val source =
+                    annotationFormatter.formatAnnotation(
+                        printAnnotation,
+                        AnnotationPurpose.ITEM,
+                        item
+                    )
 
                 if (omitCommonPackages) {
                     writer.write(AnnotationItem.shortenAnnotation(source))

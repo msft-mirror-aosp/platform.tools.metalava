@@ -52,6 +52,18 @@ fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
     return qualifiedName == JVM_SYNTHETIC
 }
 
+/** Enumeration of the possible purposes of an [AnnotationItem]. */
+enum class AnnotationPurpose {
+    /** Annotates an [Item]. */
+    ITEM,
+
+    /** A [Value]. */
+    VALUE,
+
+    /** Annotates a [TypeItem]. */
+    TYPE,
+}
+
 sealed interface AnnotationItem {
     val annotationContext: AnnotationContext
 
@@ -83,27 +95,28 @@ sealed interface AnnotationItem {
 
     /**
      * Append the string representation of this annotation to the [builder] according to
-     * [configuration] and [annotationIsValue].
+     * [configuration] and [purpose].
      *
-     * If [annotationIsValue] is `true` then this is being written out as a value, i.e. either
-     * nested within another [AnnotationItem] or as [MethodItem.defaultValue]. In that case
+     * If [purpose] is [AnnotationPurpose.VALUE] then this is being written out as a value, i.e.
+     * either nested within another [AnnotationItem] or as [MethodItem.defaultValue]. In that case
      * [ValueStringConfiguration.valueLanguage] affects the representation of the annotation as
      * follows:
      * * Kotlin does not use a leading `@` for annotation values but Java does.
      * * Parentheses are optional everywhere for an annotation with an empty attributes list except
      *   when used as a Kotlin annotation value where they are required.
      *
-     * Otherwise, if [annotationIsValue] is `false` then this uses the [ValueLanguage.JAVA]
-     * representation as that is the same as Kotlin.
+     * Otherwise, this uses the [ValueLanguage.JAVA] representation as that is the same as Kotlin.
      */
     fun appendAnnotationStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration,
-        annotationIsValue: Boolean,
+        purpose: AnnotationPurpose,
     ) {
         // While top level annotations use the Java syntax for Kotlin and Java, nested annotations
         // use different syntax for each one.
-        val language = if (annotationIsValue) configuration.valueLanguage else ValueLanguage.JAVA
+        val language =
+            if (purpose == AnnotationPurpose.VALUE) configuration.valueLanguage
+            else ValueLanguage.JAVA
         builder.append(language.annotationClassPrefix)
 
         // Get the annotation class name.
@@ -532,8 +545,9 @@ internal abstract class BaseAnnotationItem(
         appendAnnotationStringTo(
             this,
             ValueStringConfiguration.DEFAULT,
-            // This method is never used for values.
-            annotationIsValue = false,
+            // Assume that the annotation is for an item. That should be safe as this is only used
+            // for debugging and testing purposes.
+            AnnotationPurpose.ITEM,
         )
     }
 }

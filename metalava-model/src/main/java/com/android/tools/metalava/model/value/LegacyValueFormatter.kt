@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationPurpose
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
@@ -280,6 +281,7 @@ class LegacyValueFormatter(
     fun appendFormatAnnotation(
         builder: StringBuilder,
         annotationItem: AnnotationItem,
+        purpose: AnnotationPurpose,
         target: AnnotationTarget,
         context: Item?
     ) {
@@ -296,7 +298,7 @@ class LegacyValueFormatter(
         annotationItem.appendAnnotationStringTo(
             builder,
             annotationSpecificSetting.boundConfiguration,
-            annotationIsValue = false
+            purpose,
         )
     }
 

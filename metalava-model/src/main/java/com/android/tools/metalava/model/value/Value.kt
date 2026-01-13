@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationPurpose
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
@@ -747,7 +748,7 @@ sealed interface AnnotationValue : ArrayElementValue {
         annotationItem.appendAnnotationStringTo(
             builder,
             configuration,
-            annotationIsValue = true,
+            AnnotationPurpose.VALUE,
         )
 }
 
