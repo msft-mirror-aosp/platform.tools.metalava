@@ -25,22 +25,30 @@ import org.junit.Test
 class AnnotationItemTest {
 
     fun checkShortenAnnotation(expected: String, source: String) {
-        assertEquals(expected, AnnotationItem.shortenAnnotation(source))
-        assertEquals(source, AnnotationItem.unshortenAnnotation(expected))
+        assertEquals(
+            expected,
+            AnnotationItem.shortenAnnotation(source),
+            message = "shortened is incorrect"
+        )
+        assertEquals(
+            source,
+            AnnotationItem.unshortenAnnotation(expected),
+            message = "unshortened is incorrect"
+        )
     }
 
     @Test
     fun `Test shortenAnnotation and unshortenAnnotation`() {
-        checkShortenAnnotation("@Nullable", "@android.annotation.Nullable")
-        checkShortenAnnotation("@Deprecated", "@java.lang.Deprecated")
-        checkShortenAnnotation("@SystemService", "@android.annotation.SystemService")
-        checkShortenAnnotation("@TargetApi", "@android.annotation.TargetApi")
-        checkShortenAnnotation("@SuppressLint", "@android.annotation.SuppressLint")
-        checkShortenAnnotation("@FlaggedApi", "@android.annotation.FlaggedApi")
-        checkShortenAnnotation("@Unknown", "@androidx.annotation.Unknown")
-        checkShortenAnnotation("@Unknown.Nested", "@androidx.annotation.Unknown.Nested")
-        checkShortenAnnotation("@my.Annotation", "@my.Annotation")
-        checkShortenAnnotation("@m.Annotation", "@m.Annotation")
+        checkShortenAnnotation("Nullable", "android.annotation.Nullable")
+        checkShortenAnnotation("Deprecated", "java.lang.Deprecated")
+        checkShortenAnnotation("SystemService", "android.annotation.SystemService")
+        checkShortenAnnotation("TargetApi", "android.annotation.TargetApi")
+        checkShortenAnnotation("SuppressLint", "android.annotation.SuppressLint")
+        checkShortenAnnotation("FlaggedApi", "android.annotation.FlaggedApi")
+        checkShortenAnnotation("Unknown", "androidx.annotation.Unknown")
+        checkShortenAnnotation("Unknown.Nested", "androidx.annotation.Unknown.Nested")
+        checkShortenAnnotation("my.Annotation", "my.Annotation")
+        checkShortenAnnotation("m.Annotation", "m.Annotation")
     }
 
     fun checkAppendAnnotationStringTo(

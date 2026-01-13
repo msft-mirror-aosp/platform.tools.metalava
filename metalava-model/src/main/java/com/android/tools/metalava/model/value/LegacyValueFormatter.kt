@@ -261,7 +261,7 @@ class LegacyValueFormatter(
                 // shortened by removing common package prefixes. This intentionally does not do
                 // that for type and value annotations as that would break legacy behavior.
                 if (purpose == AnnotationPurpose.ITEM && target == AnnotationTarget.SIGNATURE_FILE)
-                    AnnotationItem.shortenAnnotation("@$name").substring(1)
+                    AnnotationItem.shortenAnnotation(name)
                 else name
             }
 

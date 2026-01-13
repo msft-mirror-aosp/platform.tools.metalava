@@ -1179,8 +1179,10 @@ private constructor(
         var token = startingToken
         if (token.startsWith('@')) {
             return buildString {
+                append('@')
+
                 // Restore annotations that were shortened on export
-                val annotationClassName = unshortenAnnotation(token)
+                val annotationClassName = unshortenAnnotation(token.substring(1))
                 append(annotationClassName)
 
                 token = tokenizer.requireToken()
