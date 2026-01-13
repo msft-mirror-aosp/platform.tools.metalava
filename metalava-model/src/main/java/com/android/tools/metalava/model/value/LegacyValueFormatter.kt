@@ -247,6 +247,16 @@ class LegacyValueFormatter(
     /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
     private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
 
+    /** Format the [annotationItem] name for [target]. */
+    private fun formatAnnotationClassName(
+        annotationItem: AnnotationItem,
+        target: AnnotationTarget
+    ) =
+        annotationItem.annotationContext.annotationManager.normalizeOutputName(
+            annotationItem.qualifiedName,
+            target
+        )
+
     /** Get the annotation specific settings that incorporate [target] and [alwaysInlineFields]. */
     private fun annotationSpecificSetting(
         settings: Settings,
@@ -261,12 +271,7 @@ class LegacyValueFormatter(
                 // as the `boundConfiguration` is identical to `valueStringConfiguration` apart from
                 // the `nestedValueAppender` and that will be updated by [Settings]'s initializer.
                 settings.boundConfiguration.copy(
-                    annotationQualifiedNameGetter = { annotationItem ->
-                        annotationItem.annotationContext.annotationManager.normalizeOutputName(
-                            annotationItem.qualifiedName,
-                            target
-                        )
-                    },
+                    annotationQualifiedNameGetter = { formatAnnotationClassName(it, target) }
                 ),
             inlineFields =
                 if (alwaysInlineFields) InlineFieldValue.ALWAYS else settings.inlineFields,
