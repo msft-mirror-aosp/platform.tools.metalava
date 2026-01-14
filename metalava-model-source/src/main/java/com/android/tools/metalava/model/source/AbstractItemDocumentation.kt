@@ -34,19 +34,16 @@ import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.doc.BlockTagSection
-import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
-import com.android.tools.metalava.model.source.doc.FieldReference
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
-import com.android.tools.metalava.model.source.doc.PackageReference
 import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TagTypes
-import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
+import com.android.tools.metalava.model.source.doc.toResolvedReference
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
@@ -221,17 +218,8 @@ abstract class AbstractItemDocumentation(
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
 
-    private fun PackageItem.toResolvedReference() = PackageReference(qualifiedName())
-
-    private fun ClassItem.toResolvedReference() = ClassReference(qualifiedName())
-
-    private fun TypeParameterItem.toResolvedReference() = TypeParameterReference(name())
-
-    private fun FieldItem.toResolvedReference() =
-        FieldReference(containingClass().qualifiedName(), name())
-
     /** Report the information encapsulated within this [InvalidReferencableItem] to [reporter]. */
-    private fun InvalidReferencableItem.reportIssue(reporter: LocationSpecificReporter) {
+    internal fun InvalidReferencableItem.reportIssue(reporter: LocationSpecificReporter) {
         reporter.report(Issues.UNRESOLVED_LINK, message)
     }
 
