@@ -114,7 +114,7 @@ internal open class DescriptionOwner(
         PrintWriter(stringWriter).use { writer ->
             writer.print("/**\n")
             writer.print(" * ")
-            val printer = JavadocContentPrinter(writer)
+            val printer = JavadocContentPrinter(writer, context)
             printer.print(content)
             writer.print("\n */")
         }

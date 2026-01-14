@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
@@ -1198,11 +1199,10 @@ class CompatibilityCheck(
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
             } else null
 
-        // It is ok to add a new abstract method to a class that has no public constructors
+        // It is ok to add a new abstract method to a class that cannot be extended externally
         if (
-            new.containingClass().isClass() &&
-                !new.containingClass().constructors().any { it.isPublic && !it.hidden } &&
-                new.modifiers.isAbstract()
+            new.modifiers.isAbstract() &&
+                new.containingClass().cannotContainExternallyOverridableAbstractMethods()
         ) {
             return
         }
@@ -1232,8 +1232,43 @@ class CompatibilityCheck(
         }
     }
 
+    /**
+     * Determines if it is possible for the class to have externally overridable abstract methods.
+     */
+    private fun ClassItem.cannotContainExternallyOverridableAbstractMethods(): Boolean {
+        // if the class is concrete then it cannot contain externally overridable abstract methods
+        if (!modifiers.isAbstract() && !isInterface()) {
+            return true
+        }
+
+        // if the class is directly publicly extensible (and not concrete) then it can contain
+        // externally overridable abstract methods
+        if (
+            !modifiers.isSealed() &&
+                ((isInterface() && isPublic) ||
+                    (isClass() &&
+                        constructors().any { (it.isPublic || it.isProtected) && !it.hidden }))
+        ) {
+            return false
+        }
+
+        // Special case for annotation classes. Java annotation classes can have methods
+        // and also be implemented, so we need to check for that case
+        if (isAnnotationType() && isPublic) {
+            return false
+        }
+
+        return sealedClassDirectSubclasses().all { cls: ClassItem ->
+            cls.cannotContainExternallyOverridableAbstractMethods()
+        }
+    }
+
     override fun addedFieldItem(new: FieldItem) {
         handleAdded(Issues.ADDED_FIELD, new)
+    }
+
+    override fun addedPropertyItem(new: PropertyItem) {
+        handleAdded(Issues.ADDED_PROPERTY, new)
     }
 
     override fun removedPackageItem(old: PackageItem, from: PackageItem?) {
@@ -1280,6 +1315,10 @@ class CompatibilityCheck(
                 else Issues.REMOVED_FIELD
             handleRemoved(error, old)
         }
+    }
+
+    override fun removedPropertyItem(old: PropertyItem, from: ClassItem) {
+        handleRemoved(Issues.REMOVED_PROPERTY, old)
     }
 
     /**

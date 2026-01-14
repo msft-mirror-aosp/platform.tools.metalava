@@ -46,6 +46,7 @@ Available Issues                             |  Category                        
   AddedInterface                             |  other_compatibility                  |   hidden
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
+  AddedProperty                              |  other_compatibility                  |   hidden
   AddedReified                               |  binary_compatibility_only            |   error
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
@@ -210,6 +211,7 @@ Available Issues                             |  Category                        
   RemovedJvmDefaultWithCompatibility         |  binary_compatibility_only            |   error
   RemovedMethod                              |  binary_and_source_compatibility      |   error
   RemovedPackage                             |  binary_and_source_compatibility      |   error
+  RemovedProperty                            |  source_compatibility_only            |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error
