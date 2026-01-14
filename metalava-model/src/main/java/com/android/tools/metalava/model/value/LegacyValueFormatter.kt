@@ -386,12 +386,6 @@ class LegacyValueFormatter(
                         // Use Kotlin formatting of values.
                         valueLanguage = ValueLanguage.KOTLIN,
                     ),
-                stringReplacement =
-                    mapOf(
-                        // Ignore an empty array as that is the legacy behavior for method default
-                        // values created from Kotlin sources.
-                        Value.createArrayValue(emptyList()) to "",
-                    ),
 
                 // Method default values from Kotlin sources do not add a type suffix character for
                 // long or float.

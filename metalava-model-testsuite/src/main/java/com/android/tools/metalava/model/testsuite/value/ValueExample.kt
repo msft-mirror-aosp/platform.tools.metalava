@@ -1713,11 +1713,6 @@ constructor(
                     // Literal arrays are only allowed in annotations not fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
                     expectedLegacySource = expectations { common = "{}" },
-                    expectedKotlinLegacySource =
-                        expectations {
-                            // TODO(b/354633349): Fix this, it should not be an empty string.
-                            attributeDefaultValue = ""
-                        },
                     expectedValue = expectations { common = arrayValueFromAny() },
                 ),
                 ValueExample(
