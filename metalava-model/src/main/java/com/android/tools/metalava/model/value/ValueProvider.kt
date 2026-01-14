@@ -51,15 +51,7 @@ interface OptionalValueProvider {
     val optionalValue: Value?
 }
 
-/**
- * A special [RuntimeException] that indicates a problem with a [ValueProvider].
- *
- * These exceptions will be ignored by [Value] tests during development of the [Value] model to
- * avoid having to keep updating the baseline files which become a source of conflicts when changed
- * frequently.
- *
- * TODO(b/354633349): Stop ignoring exceptions.
- */
+/** A special [RuntimeException] that indicates a problem with a [ValueProvider]. */
 class ValueProviderException(message: String) : RuntimeException(message)
 
 /** A combination of both [ValueProvider] and [OptionalValueProvider]. */

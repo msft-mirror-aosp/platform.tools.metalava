@@ -24,12 +24,10 @@ import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
-import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestClass
-import com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest.Companion.testParameters
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
@@ -479,7 +477,7 @@ abstract class BaseCommonParameterizedValueTest(
         runTestOnCodebase {
             // Get the expected value.
             val expectation = testCase.valueExample.expectedValue
-            expectation.expectationFor(producerKind, legacyValueUseSite).runValueTest { expected ->
+            expectation.expectationFor(producerKind, legacyValueUseSite).let { expected ->
                 // Make sure the expected value is valid for this test.
                 skipTestIfNotValidForExpectedValue(expected)
 
