@@ -270,7 +270,7 @@ abstract class AbstractItemDocumentation(
                     // Else resolve the class reference.
                     val classReference = sourceReference.substring(0, hashIndex)
                     val resolved =
-                        item.resolveReferencableItem(classReference, NameClassification.AMBIGUOUS)
+                        item.resolveReferencableItem(classReference, NameClassification.CLASS)
                     when (resolved) {
                         is ClassItem -> resolved
                         is InvalidReferencableItem -> {

@@ -69,6 +69,12 @@ enum class NameClassification(
         nameDescriptionPrefix = "a class or type parameter called ",
     ),
 
+    /** A class name, i.e. one that can only reference to a [ClassItem]. */
+    CLASS(
+        classes = true,
+        nameDescriptionPrefix = "a class called ",
+    ),
+
     /** A field name, i.e. one that can only reference a [FieldItem]. */
     FIELD(
         fields = true,
