@@ -33,7 +33,7 @@ import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Compani
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.Value
-import com.android.tools.metalava.model.value.ValueKind
+import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
@@ -44,8 +44,8 @@ import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.fail
 import org.junit.Assert.assertArrayEquals
-import org.junit.AssumptionViolatedException
 import org.junit.Rule
 import org.junit.runners.Parameterized
 
@@ -410,9 +410,31 @@ abstract class BaseCommonParameterizedValueTest(
 
     /** Run a test on the [Codebase] produced by [codebaseProducer]. */
     private fun runTestOnCodebase(function: TestCaseContext.() -> Unit) {
-        val thisClass = this
-        with(codebaseProducer) {
-            thisClass.runCodebaseProducerTest(testFileCache, testCase, function)
+        val expectedException =
+            if (
+                inputFormat == InputFormat.SIGNATURE &&
+                    legacyValueUseSite.valueUseSite == ValueUseSite.FIELD
+            )
+                testCase.valueExample.expectedSignatureFieldException
+            else null
+
+        try {
+            val thisClass = this
+            with(codebaseProducer) {
+                thisClass.runCodebaseProducerTest(testFileCache, testCase, function)
+            }
+
+            // Make sure that if an exception was expected that it was thrown.
+            if (expectedException != null) {
+                fail("Expected this test to fail with '$expectedException'")
+            }
+        } catch (e: ValueProviderException) {
+            // Make sure that if an exception was thrown then it was expected.
+            if (expectedException == null) {
+                throw e
+            } else {
+                assertEquals(expectedException, e.message)
+            }
         }
     }
 
@@ -430,13 +452,6 @@ abstract class BaseCommonParameterizedValueTest(
         actualGetter: TestCaseContext.() -> T,
     ) {
         runTestOnCodebase {
-            // If a test is not valid for the expected value then it is not valid for any other
-            // tests from the same example so check to make sure that it is valid, skipping if it is
-            // not.
-            skipTestIfNotValidForExpectedValue(
-                testCase.valueExample.expectedValue.expectationForTest()
-            )
-
             // Get the actual value.
             val actual = actualGetter()
 
@@ -485,9 +500,6 @@ abstract class BaseCommonParameterizedValueTest(
             // Get the expected value.
             val expectation = testCase.valueExample.expectedValue
             expectation.expectationForTest().let { expected ->
-                // Make sure the expected value is valid for this test.
-                skipTestIfNotValidForExpectedValue(expected)
-
                 // Filter the expected value for fields. FieldItem.constantValue can only be a
                 // constant value, i.e. a primitive or String literal. However, the source can be
                 // given a non-constant value, e.g. an array, field reference, etc. A reference to
@@ -521,30 +533,6 @@ abstract class BaseCommonParameterizedValueTest(
                     )
                 }
             }
-        }
-    }
-
-    /**
-     * Check to make sure that the test is valid for the combination of [expectedValue],
-     * [inputFormat] and [legacyValueUseSite].
-     *
-     * These tests cannot be filtered out by the [ParameterFilter] as that only has access to the
-     * first two.
-     */
-    private fun skipTestIfNotValidForExpectedValue(expectedValue: Value?) {
-        // Null expected values are ok.
-        if (expectedValue == null) return
-
-        // Only fields have special restrictions.
-        if (legacyValueUseSite.valueUseSite != ValueUseSite.FIELD) return
-
-        // Signature file fields only use literal values in their initializers. So, using any other
-        // kind is invalid.
-        val kind = expectedValue.kind
-        if (inputFormat == InputFormat.SIGNATURE && kind !in ValueKind.LITERAL_KINDS) {
-            throw AssumptionViolatedException(
-                "Using value `$expectedValue` as an initializer for a field in a signature file is invalid; ignoring"
-            )
         }
     }
 }
