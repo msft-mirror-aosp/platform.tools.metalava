@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.model.scope
 
 /**
- * Effectively forms a union type of all referencable [Item]s that extend this.
- *
- * Currently, the union contains:
- * * [PackageItem]
- * * [ClassItem]
- * * [TypeParameterItem]
- * * [FieldItem]
+ * Defines the scope of names that can be qualified, e.g. package names, class names and member
+ * names.
  */
-sealed interface ReferencableItem
-
-/** Provides details about an invalid reference and why it could not be resolved. */
-data class InvalidReferencableItem(val message: String) : ReferencableItem
+interface QualifiedNameScope : ReferencableNameScope

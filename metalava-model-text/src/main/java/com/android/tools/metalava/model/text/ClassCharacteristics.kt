@@ -52,7 +52,9 @@ internal data class ClassCharacteristics(
 
     /** The super class type . */
     val superClassType: ClassTypeItem?,
-    // TODO(b/323168612): Add interface type strings.
+
+    /** The interface types. */
+    val interfaceTypes: Set<ClassTypeItem>,
 
     /** The aliased type. Should be non-null only when [classKind] is [ClassKind.TYPEALIAS]. */
     val optionalAliasedType: TypeItem?,
@@ -85,6 +87,7 @@ internal data class ClassCharacteristics(
                 classKind = classItem.classKind,
                 modifiers = classItem.modifiers,
                 superClassType = classItem.superClassType(),
+                interfaceTypes = classItem.interfaceTypes().toSet(),
                 optionalAliasedType = classItem.optionalAliasedType,
             )
     }

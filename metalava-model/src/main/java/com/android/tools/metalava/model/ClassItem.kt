@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.annotation.AnnotationClass
-import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.scope.QualifiedNameScope
 
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
@@ -27,11 +27,7 @@ import com.android.tools.metalava.model.scope.ReferencableNameScope
  */
 @MetalavaApi
 interface ClassItem :
-    ClassContentItem,
-    SelectableItem,
-    TypeParameterListOwner,
-    ReferencableItem,
-    ReferencableNameScope {
+    ClassContentItem, SelectableItem, TypeParameterListOwner, ReferencableItem, QualifiedNameScope {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
@@ -98,6 +94,18 @@ interface ClassItem :
      * java.util.List<java.lang.String>.
      */
     fun superClassType(): ClassTypeItem?
+
+    /**
+     * A class is effectively sealed if it is either explicitly marked sealed, is a non-public
+     * interface, or an abstract class with no publicly accessible constructors. For more
+     * information, see b/220960090
+     */
+    fun isEffectivelySealed(): Boolean {
+        return modifiers.isSealed() ||
+            (isInterface() && !isPublic) ||
+            ((isClass() && modifiers.isAbstract()) &&
+                (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
+    }
 
     /**
      * This stores only the direct classes that inherit from this class, and not any indirect
@@ -390,6 +398,41 @@ interface ClassItem :
             for (itf in interfaceTypes()) {
                 val cls = itf.asClass() ?: continue
                 cls.findField(fieldName, includeSuperClasses, true)?.let {
+                    return it
+                }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Searches for a property with the [template]'s name and receiver in the class, including
+     * searching super classes and interfaces if specified.
+     */
+    fun findProperty(
+        template: PropertyItem,
+        includeSuperClasses: Boolean = false,
+        includeInterfaces: Boolean = false,
+    ): PropertyItem? {
+        properties()
+            .firstOrNull {
+                it.name() == template.name() &&
+                    PropertyItem.equalReceivers(template.receiver, it.receiver)
+            }
+            ?.let {
+                return it
+            }
+
+        if (includeSuperClasses) {
+            superClass()?.findProperty(template, true, includeInterfaces)?.let {
+                return it
+            }
+        }
+
+        if (includeInterfaces) {
+            for (itf in interfaceTypes()) {
+                val cls = itf.asClass() ?: continue
+                cls.findProperty(template, includeSuperClasses, true)?.let {
                     return it
                 }
             }
