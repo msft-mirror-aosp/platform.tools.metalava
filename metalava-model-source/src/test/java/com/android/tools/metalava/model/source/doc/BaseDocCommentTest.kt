@@ -135,11 +135,22 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override fun resolveItemReference(
         sourceReference: String,
         nameClassification: NameClassification
-    ): ReferencableItem {
-        return mock<FieldItem>(stubOnly = true) {
-            on { constantValue } doReturn Value.createLiteralValue(null, sourceReference)
+    ): ReferencableItem =
+        when (nameClassification) {
+            NameClassification.FIELD -> {
+                mock<FieldItem>(stubOnly = true) {
+                    on { constantValue } doReturn Value.createLiteralValue(null, sourceReference)
+                }
+            }
+            NameClassification.TYPE -> {
+                val qualifiedName = qualifySourceReference(sourceReference)
+                mock<ClassItem>(stubOnly = true) { on { qualifiedName() } doReturn qualifiedName }
+            }
+            else ->
+                error(
+                    "referencableItemResolver did not return an item for ${nameClassification.describeName(sourceReference)}"
+                )
         }
-    }
 
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String) = flags[flagName] ?: false
@@ -149,9 +160,6 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override fun isOverridingMethod() = false
 
     override fun fullyQualifyComment(comment: String) = comment
-
-    override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
-        ClassReference(qualifySourceReference(typeName))
 
     override fun resolveReference(
         reporter: LocationSpecificReporter,

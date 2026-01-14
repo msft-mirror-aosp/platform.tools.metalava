@@ -42,7 +42,6 @@ import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
 import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TagTypes
-import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.doc.reportIssue
 import com.android.tools.metalava.model.source.doc.toResolvedReference
 import com.android.tools.metalava.model.source.javadoc.ExprContext
@@ -218,25 +217,6 @@ abstract class AbstractItemDocumentation(
 
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
-
-    override fun resolveThrowableType(
-        reporter: LocationSpecificReporter,
-        typeName: String
-    ): TypeReference? {
-        val resolved = resolveItemReference(typeName, NameClassification.TYPE)
-        // TODO(b/447588621): Ensure that the resolved type is a Throwable.
-        return when (resolved) {
-            is ClassItem -> resolved.toResolvedReference()
-            is TypeParameterItem -> resolved.toResolvedReference()
-            is InvalidReferencableItem -> {
-                resolved.reportIssue(reporter)
-                null
-            }
-            // This should never happen as passing in NameClassification.TYPE above should limit the
-            // returned types to ClassItem, TypeParameterItem or InvalidReferencableItem
-            else -> error("type '$typeName' was resolved to an unknown type $resolved")
-        }
-    }
 
     override fun resolveReference(
         reporter: LocationSpecificReporter,

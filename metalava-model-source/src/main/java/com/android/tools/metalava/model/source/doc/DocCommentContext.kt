@@ -68,12 +68,6 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
     fun fullyQualifyComment(comment: String): String
 
     /**
-     * Resolve [typeName] (which may be a reference to a class or a type parameter) to a
-     * [TypeReference], if possible.
-     */
-    fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String): TypeReference?
-
-    /**
      * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
      * constructor, method, or field) to a [ResolvedReference], if possible.
      */
