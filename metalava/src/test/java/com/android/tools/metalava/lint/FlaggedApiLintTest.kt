@@ -708,7 +708,7 @@ class FlaggedApiLintTest : DriverTest() {
             api =
                 """
                   package test.pkg {
-                    @RequiresPermission(test.pkg.Manifest.permission.MY_PERMISSION) public class Foo {
+                    public class Foo {
                     }
                     public class Manifest {
                     }
@@ -739,7 +739,6 @@ class FlaggedApiLintTest : DriverTest() {
 
                             import android.annotation.RequiresPermission;
 
-                            @RequiresPermission(Manifest.permission.MY_PERMISSION)
                             public class Foo {
                                 Foo() {}
                             }
