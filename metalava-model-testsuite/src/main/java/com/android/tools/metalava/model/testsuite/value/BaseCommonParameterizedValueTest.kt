@@ -124,7 +124,7 @@ abstract class BaseCommonParameterizedValueTest(
             legacyValueUseSite: LegacyValueUseSite,
             test: TestCaseContext.() -> Unit
         ) {
-            val testCaseContext = TestCaseContext(this, testCase, kind, legacyValueUseSite)
+            val testCaseContext = TestCaseContext(this, testCase, legacyValueUseSite)
             testCaseContext.test()
         }
 
@@ -394,7 +394,6 @@ abstract class BaseCommonParameterizedValueTest(
     class TestCaseContext(
         delegate: CodebaseContext,
         private val testCase: TestCase,
-        val producerKind: ProducerKind,
         private val legacyValueUseSite: LegacyValueUseSite,
     ) : CodebaseContext by delegate {
         /** Get the [ClassItem] to be tested from this [Codebase]. */
@@ -435,14 +434,14 @@ abstract class BaseCommonParameterizedValueTest(
             // tests from the same example so check to make sure that it is valid, skipping if it is
             // not.
             skipTestIfNotValidForExpectedValue(
-                testCase.valueExample.expectedValue.expectationFor(producerKind, legacyValueUseSite)
+                testCase.valueExample.expectedValue.expectationForTest()
             )
 
             // Get the actual value.
             val actual = actualGetter()
 
             // Get the expected value.
-            val expected = expectation.expectationFor(producerKind, legacyValueUseSite)
+            val expected = expectation.expectationForTest()
 
             // Compare the two.
             if (expected is Array<*> && actual is Array<*>) {
@@ -469,6 +468,14 @@ abstract class BaseCommonParameterizedValueTest(
     }
 
     /**
+     * Get the expected value from [Expectation] for this test.
+     *
+     * Considers the [ProducerKind] and the [LegacyValueUseSite].
+     */
+    fun <T> Expectation<T>.expectationForTest() =
+        expectationFor(codebaseProducer.kind, legacyValueUseSite)
+
+    /**
      * Check the [ValueExample.expectedValue] against the [Value] returned by [actualValueGetter].
      */
     protected fun checkExpectedValue(
@@ -477,7 +484,7 @@ abstract class BaseCommonParameterizedValueTest(
         runTestOnCodebase {
             // Get the expected value.
             val expectation = testCase.valueExample.expectedValue
-            expectation.expectationFor(producerKind, legacyValueUseSite).let { expected ->
+            expectation.expectationForTest().let { expected ->
                 // Make sure the expected value is valid for this test.
                 skipTestIfNotValidForExpectedValue(expected)
 
