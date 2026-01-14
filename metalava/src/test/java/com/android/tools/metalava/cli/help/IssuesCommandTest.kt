@@ -38,6 +38,7 @@ Available Issues                             |  Category                        
   ActionValue                                |  api_lint                             |   error
   AddSealed                                  |  source_compatibility_only            |   error
   AddedAbstractMethod                        |  binary_and_source_compatibility      |   error
+  AddedAbstractProperty                      |  source_compatibility_only            |   error
   AddedAnnotation                            |  other_compatibility                  |   error
   AddedClass                                 |  other_compatibility                  |   hidden
   AddedField                                 |  other_compatibility                  |   hidden

@@ -125,6 +125,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
     companion object {
         private val params =
             listOf(
+                // Class references
                 TestParams(
                     name = "String",
                     expectedResolvedReference = "java.lang.String",
@@ -231,6 +232,22 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "test.pkg.Other#field",
                     expectedIssues =
                         "warning: Malformed reference `Other.field`, missing '#', should be 'Other#field (ErrorWhenNew) [MalformedDocReference]",
+                ),
+
+                // Invalid reference qualifiers
+                TestParams(
+                    name = "Unknown#field",
+                    expectedResolvedReference = "Unknown#field",
+                    expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve 'Unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                ),
+                TestParams(
+                    name = "Imported.field.other#member",
+                    expectedResolvedReference = "Imported.field.other#member",
+                    expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve 'Imported.field.other' as could not find a package or class called 'field' in 'class another.pkg.Imported' (ErrorWhenNew) [UnresolvedLink]",
                 ),
 
                 // Reference a member of another class in the same package.

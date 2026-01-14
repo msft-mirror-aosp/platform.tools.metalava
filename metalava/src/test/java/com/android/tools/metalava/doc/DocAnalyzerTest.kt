@@ -1785,4 +1785,48 @@ class DocAnalyzerTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Invalid classDoc`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @classDoc {@code unclosed
+                             */
+                            public @interface Anno { }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @Anno
+                            public class Test {
+                            }
+                        """
+                    )
+                ),
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** {@code unclosed} */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @test.pkg.Anno
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                "src/test/pkg/Anno.java:3: error: unclosed inline '@code' tag [UnclosedInlineTag]",
+        )
+    }
 }
