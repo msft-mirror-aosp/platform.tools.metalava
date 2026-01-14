@@ -239,7 +239,7 @@ abstract class AbstractItemDocumentation(
         reporter: LocationSpecificReporter,
         typeName: String
     ): TypeReference? {
-        val resolved = item.resolveReferencableItem(typeName, NameClassification.TYPE)
+        val resolved = resolveItemReference(typeName, NameClassification.TYPE)
         // TODO(b/447588621): Ensure that the resolved type is a Throwable.
         return when (resolved) {
             is ClassItem -> resolved.toResolvedReference()
@@ -269,8 +269,7 @@ abstract class AbstractItemDocumentation(
                 } else {
                     // Else resolve the class reference.
                     val classReference = sourceReference.substring(0, hashIndex)
-                    val resolved =
-                        item.resolveReferencableItem(classReference, NameClassification.CLASS)
+                    val resolved = resolveItemReference(classReference, NameClassification.CLASS)
                     when (resolved) {
                         is ClassItem -> resolved
                         is InvalidReferencableItem -> {
@@ -288,7 +287,7 @@ abstract class AbstractItemDocumentation(
         }
 
         // Resolve the reference.
-        val resolved = item.resolveReferencableItem(sourceReference, NameClassification.AMBIGUOUS)
+        val resolved = resolveItemReference(sourceReference, NameClassification.AMBIGUOUS)
         return when (resolved) {
             is ClassItem -> resolved.toResolvedReference()
             is PackageItem -> resolved.toResolvedReference()
