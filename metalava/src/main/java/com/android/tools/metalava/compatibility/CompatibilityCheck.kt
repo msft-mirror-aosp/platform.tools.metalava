@@ -1026,7 +1026,7 @@ class CompatibilityCheck(
                 val message =
                     "${new.describe(capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message, oldItem = old)
-            } else if (!old.hasSameConstantValue(new)) {
+            } else if (old.constantValue != new.constantValue) {
                 val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
                 val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
                 val message =
