@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.scope.NameClassification
@@ -427,9 +428,7 @@ internal sealed interface ParsedReference {
     fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedReference? =
-        // TODO(b/447588621): Remove default after implementing in all sub-classes.
-        null
+    ): ResolvedReference?
 }
 
 /** An ambiguous reference to something by [name]. */
@@ -559,6 +558,37 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         append('(')
         parameters.joinTo(this, ",") { it.type.toTypeString() }
         append(')')
+    }
+
+    /**
+     * Resolve [name] reference to a method directly within [context].
+     *
+     * This differs from [findIn] as that finds a method within a class that has already been
+     * resolved but this resolves the name directly within the containing scope. The key difference
+     * is that the former uses `#` to unambiguously separate the class from the method but the
+     * latter does not.
+     *
+     * e.g. [findIn] is used for references like `{@link #method()}` and {@link Class#method()}`
+     * while this is used for references like `{@link method()}` and `{@link Class.method()}`.
+     */
+    override fun resolveReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter
+    ): ResolvedReference? {
+        val resolved = context.resolveItemReference(name, NameClassification.METHOD_SET)
+        return when (resolved) {
+            is ReferencableMethodSet ->
+                // TODO(b/447588621): Try and find a method that matches the resolved [parameters].
+                createMethodReference(context, reporter, resolved.containingClass)
+            // Report an error and return `null`.
+            is InvalidReferencableItem -> {
+                resolved.reportIssue(reporter)
+                null
+            }
+            // This should never happen as passing in NameClassification.METHOD above should limit
+            // the returned types to MethodItemSet or InvalidReferencableItem.
+            else -> error("method name '$name' was resolved to an unknown type $resolved")
+        }
     }
 
     override fun findIn(

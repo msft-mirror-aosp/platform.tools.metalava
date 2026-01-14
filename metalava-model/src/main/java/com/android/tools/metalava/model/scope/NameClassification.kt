@@ -83,6 +83,12 @@ enum class NameClassification(
         fields = true,
         nameDescriptionPrefix = "a field called ",
     ),
+
+    /** A method name, i.e. one that can only reference a [ReferencableMethodItemSet]. */
+    METHOD_SET(
+        methods = true,
+        nameDescriptionPrefix = "a method called ",
+    ),
     ;
 
     /**

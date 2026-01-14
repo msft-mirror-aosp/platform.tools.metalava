@@ -232,8 +232,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "intMethod(int)",
-                    // TODO(b/447588621): Should start with #
-                    expectedResolvedReference = "intMethod(int)",
+                    expectedResolvedReference = "#intMethod(int)",
                     expectedLinkLabel = null,
                 ),
 
@@ -247,10 +246,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "staticallyImportedCollectionMethod(Collection)",
-                    // TODO(b/447588621): Should start with # and Collection should be fully
-                    //  qualified.
-                    expectedResolvedReference = "staticallyImportedCollectionMethod(Collection)",
-                    expectedLinkLabel = null,
+                    expectedResolvedReference =
+                        "another.pkg.Imported#staticallyImportedCollectionMethod(java.util.Collection)",
                 ),
 
                 // Use invalid reference without a #. It will work but will be reported as an issue.
@@ -262,17 +259,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Other.intMethod(int)",
-                    // TODO(b/447588621): Other should be fully qualified and the class and method
-                    //  name should be separated by a #
-                    expectedResolvedReference = "Other.intMethod(int)",
-                    expectedLinkLabel = null,
+                    expectedResolvedReference = "test.pkg.Other#Other.intMethod(int)",
                 ),
                 TestParams(
                     name = "Other.collectionMethod(Collection)",
-                    // TODO(b/447588621): Other and Collection should be fully qualified and the
-                    //  class and method name should be separated by a #
-                    expectedResolvedReference = "Other.collectionMethod(Collection)",
-                    expectedLinkLabel = null,
+                    expectedResolvedReference =
+                        "test.pkg.Other#Other.collectionMethod(java.util.Collection)",
                 ),
 
                 // Invalid reference qualifiers
