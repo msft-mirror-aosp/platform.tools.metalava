@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkarou
 import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TagTypes
 import com.android.tools.metalava.model.source.doc.TypeReference
+import com.android.tools.metalava.model.source.doc.reportIssue
 import com.android.tools.metalava.model.source.doc.toResolvedReference
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.JavadocText
@@ -217,11 +218,6 @@ abstract class AbstractItemDocumentation(
 
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
-
-    /** Report the information encapsulated within this [InvalidReferencableItem] to [reporter]. */
-    internal fun InvalidReferencableItem.reportIssue(reporter: LocationSpecificReporter) {
-        reporter.report(Issues.UNRESOLVED_LINK, message)
-    }
 
     override fun resolveThrowableType(
         reporter: LocationSpecificReporter,
