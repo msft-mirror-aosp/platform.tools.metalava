@@ -41,10 +41,13 @@ interface ValueProvider {
 }
 
 /** Return a provider for this [Value]. */
-fun Value.provider(): ValueProvider = FixedValueProvider(this)
+fun Value?.provider(): CombinedValueProvider = FixedValueProvider(this)
 
 /** A [ValueProvider] that simply returns [value]. */
-private class FixedValueProvider(override val value: Value) : ValueProvider
+private class FixedValueProvider(override val optionalValue: Value?) : CombinedValueProvider {
+    override val value: Value
+        get() = optionalValue ?: error("No value provided")
+}
 
 /** Like [ValueProvider] but allows a `null` [Value] to be returned. */
 interface OptionalValueProvider {

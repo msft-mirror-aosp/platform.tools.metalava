@@ -639,17 +639,8 @@ internal class DefaultAnnotationAttribute(
         get() = valueProvider.value
 
     override fun snapshot(targetContext: AnnotationContext): DefaultAnnotationAttribute {
-        // Defer retrieval of the value until it is needed as it could throw an exception.
-        // This makes it easier to incrementally expand the Value model without breaking
-        // existing snapshot tests.
-        // TODO(b/354633349): Stop deferring retrieval.
-        val valueProvider =
-            object : ValueProvider {
-                override val value: Value
-                    get() = this@DefaultAnnotationAttribute.value.snapshot(targetContext)
-            }
-
-        return DefaultAnnotationAttribute(name, valueProvider)
+        val valueSnapshot = value.snapshot(targetContext)
+        return DefaultAnnotationAttribute(name, valueSnapshot.provider())
     }
 
     override fun toString(): String {
