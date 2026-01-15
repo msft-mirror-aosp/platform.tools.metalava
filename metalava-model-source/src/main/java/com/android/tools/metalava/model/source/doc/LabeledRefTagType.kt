@@ -189,6 +189,9 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          */
         private const val QUALIFIED_NAME = """(?:$SIMPLE_NAME(?:\.$SIMPLE_NAME)*)"""
 
+        /** A list of parameters. */
+        private const val PARAMETERS = """(?:\([^)]*\))"""
+
         /**
          * A member.
          *
@@ -196,7 +199,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          * * `<simple-name>`
          * * `<simple-name>(...)`
          */
-        private const val MEMBER = """$SIMPLE_NAME(?:\([^)]*\))?"""
+        private const val MEMBER = """$SIMPLE_NAME(?:$PARAMETERS)?"""
 
         /** A URI fragment, consists of most characters except `#` and white spaces. */
         private const val FRAGMENT = """[^ #]+"""
@@ -206,6 +209,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          *
          * Can be one of:
          * * `<qualified-name>`
+         * * `<qualified-name>(<parameters>)`
          * * `<qualified-name>#<member>`
          * * `#<member>`
          * * `<member>`
@@ -214,7 +218,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          */
         private val VALID_REFERENCE =
             Regex(
-                """$QUALIFIED_NAME|$QUALIFIED_NAME#$MEMBER|#$MEMBER|$MEMBER|$QUALIFIED_NAME##$FRAGMENT|##$FRAGMENT"""
+                """$QUALIFIED_NAME|$QUALIFIED_NAME$PARAMETERS|$QUALIFIED_NAME#$MEMBER|#$MEMBER|$QUALIFIED_NAME##$FRAGMENT|##$FRAGMENT"""
             )
 
         /** Validate [sourceReference], returning `true` if it is valid, `false` otherwise. */

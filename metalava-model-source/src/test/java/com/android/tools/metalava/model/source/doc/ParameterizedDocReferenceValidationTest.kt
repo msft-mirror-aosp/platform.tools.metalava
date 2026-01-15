@@ -102,9 +102,6 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     // Not strictly valid (no # separating class and method) but still supported.
                     name = "java.lang.String.toLowerCase(Locale)",
-                    // TODO(b/447588621): This should be supported even though it is not strictly
-                    //  valid.
-                    valid = false,
                 ),
                 TestParams(
                     name = "#toLowerCase(Locale)",
@@ -120,9 +117,6 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     // Not strictly valid (no # separating class and method) but still supported.
                     name = "java.lang.String.toLowerCase(Locale locale)",
-                    // TODO(b/447588621): This should be supported even though it is not strictly
-                    //  valid.
-                    valid = false,
                 ),
                 TestParams(
                     name = "#toLowerCase(Locale locale)",
