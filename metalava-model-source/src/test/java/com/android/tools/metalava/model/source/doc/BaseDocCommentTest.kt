@@ -127,6 +127,11 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     /** A map from flage name to enabled status. */
     var flags: Map<String, Boolean> = emptyMap()
 
+    /** Qualify [sourceReference], if needed. */
+    private fun qualifySourceReference(sourceReference: String): String =
+        if (sourceReference.contains(".") || sourceReference.startsWith("#")) sourceReference
+        else "resolved.$sourceReference"
+
     override fun resolveItemReference(
         sourceReference: String,
         nameClassification: NameClassification
@@ -146,15 +151,13 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override fun fullyQualifyComment(comment: String) = comment
 
     override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
-        ClassReference(typeName)
+        ClassReference(qualifySourceReference(typeName))
 
     override fun resolveReference(
         reporter: LocationSpecificReporter,
         sourceReference: String
     ): ClassReference {
-        val qualifiedName =
-            if (sourceReference.contains(".") || sourceReference.startsWith("#")) sourceReference
-            else "resolved.$sourceReference"
+        val qualifiedName = qualifySourceReference(sourceReference)
         return ClassReference(qualifiedName)
     }
 

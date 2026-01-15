@@ -282,11 +282,11 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     description: <<>>
                     @throws <<SomeException reason>>
                 """,
-            expectedPrintOutput = "/** @throws SomeException reason */",
+            expectedPrintOutput = "/** @throws resolved.SomeException reason */",
         ) {
             docComment.assertStructure(
                 """
-                    blockTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=SomeException))
+                    blockTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=resolved.SomeException))
                       text: 'reason'
                 """
             )
@@ -482,8 +482,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @param
                      * @return something
                      * @attr ref xml-thing
-                     * @throws Exception
-                     * @throws Throwable
+                     * @throws resolved.Exception
+                     * @throws resolved.Throwable
                      * @throws
                      * @see #field
                      * @see #Class()
@@ -967,12 +967,12 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      */
                 """,
             expectedString = """description: <<\n * {@throws Exception}>>""",
-            expectedPrintOutput = """/** {@throws Exception} */""",
+            expectedPrintOutput = """/** {@throws resolved.Exception} */""",
             expectedIssues = "2:6: Cannot use 'throws' as an inline tag [InvalidTagForm]",
         ) {
             docComment.assertStructure(
                 """
-                    inlineTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=Exception))
+                    inlineTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=resolved.Exception))
                 """
             )
         }
