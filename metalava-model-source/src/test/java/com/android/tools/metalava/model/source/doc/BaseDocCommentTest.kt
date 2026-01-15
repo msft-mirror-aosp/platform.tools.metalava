@@ -148,10 +148,15 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
         ClassReference(typeName)
 
-    var referenceResolver: (String) -> ResolvedReference? = { null }
-
-    override fun resolveReference(reporter: LocationSpecificReporter, sourceReference: String) =
-        referenceResolver(sourceReference)
+    override fun resolveReference(
+        reporter: LocationSpecificReporter,
+        sourceReference: String
+    ): ClassReference {
+        val qualifiedName =
+            if (sourceReference.contains(".") || sourceReference.startsWith("#")) sourceReference
+            else "resolved.$sourceReference"
+        return ClassReference(qualifiedName)
+    }
 
     override val containingClassItem: ClassItem?
         get() = null

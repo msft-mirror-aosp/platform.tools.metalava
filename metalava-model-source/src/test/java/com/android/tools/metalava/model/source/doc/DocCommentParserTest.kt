@@ -32,13 +32,11 @@ class DocCommentParserTest : BaseDocCommentTest() {
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
     private fun checkDocComment(
         input: String,
-        referenceResolver: ((String) -> ResolvedReference?)? = null,
         expectedString: String? = null,
         expectedPrintOutput: String? = null,
         expectedIssues: String = "",
         checker: DocCommentContext.() -> Unit = {},
     ) {
-        if (referenceResolver != null) context.referenceResolver = referenceResolver
         val docComment = createTestDocComment(input, expectedIssues)
         if (expectedString != null) {
             assertEquals(expectedString.trimIndent(), docComment.toString())
@@ -129,7 +127,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
             expectedPrintOutput =
                 """
-                    /** @see something */
+                    /** @see resolved.something */
                 """,
         )
     }
@@ -154,16 +152,16 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /**
                      * Some text
                      *
-                     * @see something
-                     * @see other thing
+                     * @see resolved.something
+                     * @see resolved.other thing
                      */
                 """,
         ) {
             docComment.assertStructure(
                 """
                     text: 'Some text'
-                    blockTag: see LabeledRefTagData(sourceReference=something, resolvedReference=null)
-                    blockTag: see LabeledRefTagData(sourceReference=other, resolvedReference=null)
+                    blockTag: see LabeledRefTagData(sourceReference=something, resolvedReference=ClassReference(qualifiedName=resolved.something))
+                    blockTag: see LabeledRefTagData(sourceReference=other, resolvedReference=ClassReference(qualifiedName=resolved.other))
                       text: 'thing'
                 """
             )
@@ -192,8 +190,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /**
                      * Some text
                      *
-                     * @see something
-                     * @see other thing
+                     * @see resolved.something
+                     * @see resolved.other thing
                      */
                 """,
         )
@@ -406,7 +404,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /**
                      * An inline tag.
-                     * @see Something {@hide}
+                     * @see resolved.Something {@hide}
                      */
                 """,
         )
@@ -869,7 +867,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see <a href="link.html">Label</a>
                      */
                 """,
-            referenceResolver = { error("should never be called") },
             expectedString =
                 """
                     description: <<>>
@@ -895,7 +892,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see "literal string"
                      */
                 """,
-            referenceResolver = { error("should never be called") },
             expectedString =
                 """
                     description: <<>>
@@ -921,7 +917,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see Reference
                      */
                 """,
-            referenceResolver = { ClassReference("resolved.$it") },
             expectedString =
                 """
                     description: <<>>
@@ -946,7 +941,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see Reference Label
                      */
                 """,
-            referenceResolver = { ClassReference("resolved.$it") },
             expectedString =
                 """
                     description: <<>>
@@ -998,12 +992,12 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     description: <<>>
                     @link <<String>>
                 """,
-            expectedPrintOutput = """/** @link String */""",
+            expectedPrintOutput = """/** @link resolved.String String */""",
             expectedIssues = "2:5: Cannot use 'link' as a block tag [InvalidTagForm]",
         ) {
             docComment.assertStructure(
                 """
-                    blockTag: link LabeledRefTagData(sourceReference=String, resolvedReference=null)
+                    blockTag: link LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
                 """
             )
         }
