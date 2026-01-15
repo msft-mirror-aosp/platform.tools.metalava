@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -114,8 +115,9 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         reporter: LocationSpecificReporter,
         sourceReference: String
     ): ResolvedReference? {
-        // Validate that the source reference matches the expected pattern.
-        if (!validateReference(sourceReference)) {
+        // Parse the source reference matches the expected pattern.
+        val parsedReference = parseReference(sourceReference)
+        if (parsedReference == null) {
             reporter.report(
                 Issues.MALFORMED_DOC_REFERENCE,
                 "Malformed reference `$sourceReference`"
@@ -227,18 +229,127 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          * * `<method>(<parameters>)` - overlaps with `<qualified>(<parameters>)`
          *
          * This can also match an empty string and `(<parameters>)` but they are excluded by the
-         * [validateReference] method as that keeps the pattern as simple as possible.
+         * [parseReference] method as that keeps the pattern as simple as possible.
          */
         private val VALID_REFERENCE =
             Regex("""($QUALIFIED)?(#$MEMBER|(?:#$METHOD)?$PARAMETERS|##$FRAGMENT)?""")
 
-        /** Validate [sourceReference], returning `true` if it is valid, `false` otherwise. */
-        internal fun validateReference(sourceReference: String): Boolean =
-            sourceReference != "" &&
-                sourceReference[0] != '(' &&
-                VALID_REFERENCE.matches(sourceReference)
+        /** The index of the qualified name group in [VALID_REFERENCE]. */
+        private const val QUALIFIED_INDEX = 1
+
+        /**
+         * The index of the relative name group in [VALID_REFERENCE], i.e. anything that can come
+         * after [QUALIFIED] in [VALID_REFERENCE].
+         */
+        private const val RELATIVE_INDEX = 2
+
+        /** Parse [sourceReference], to a [ParsedReference], or `null` if it was not valid. */
+        internal fun parseReference(sourceReference: String): ParsedReference? {
+            // Check some edge cases that are not caught by the pattrern.
+            if (sourceReference == "" || sourceReference[0] == '(') return null
+
+            // Apply the pattern and extract the qualified and relative parts.
+            val result = VALID_REFERENCE.matchEntire(sourceReference) ?: return null
+            val qualified = result.groups[QUALIFIED_INDEX]?.value
+            val relative = result.groups[RELATIVE_INDEX]?.value
+
+            // Construct the appropriate [ParsedReference] instance, if possible.
+            val parsedReference =
+                when {
+                    relative == null -> {
+                        // qualified cannot be `null` as the only way for relative and qualified to
+                        // be `null` is if sourceReference is empty but that is rejected above.
+                        AmbiguousSourceReference(qualified!!)
+                    }
+                    relative[0] == '(' -> {
+                        // qualified cannot be `null` as the only way for relative to start with `(`
+                        // and qualified to be `null` is if sourceReference starts with '(' but that
+                        // is rejected above.
+                        MethodSourceReference(qualified!!, parameters = relative)
+                    }
+                    relative.last() == ')' -> {
+                        require(relative[0] == '#') {
+                            // This should never happen as the pattern will only match a trailing
+                            // ')' if there was a starting '('.
+                            "internal error: inconsistency between reference pattern definition and use: relative '$relative' should have started with a #"
+                        }
+                        val index = relative.indexOf('(')
+                        require(index != -1) {
+                            // This should never happen as the pattern will only match a trailing
+                            // ')' if there was a starting '('.
+                            "internal error: inconsistency between reference pattern definition and use: relative '$relative' should have contained a ("
+                        }
+
+                        val methodName = relative.substring(1, index)
+                        val parameters = relative.substring(index)
+
+                        MethodSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
+                    }
+                    relative.startsWith("##") -> {
+                        UriFragmentSourceReference(relative).qualifyIfNeeded(qualified)
+                    }
+                    relative[0] == '#' -> {
+                        AmbiguousMemberSourceReference(relative.substring(1))
+                            .qualifyIfNeeded(qualified)
+                    }
+                    else ->
+                        error(
+                            "internal error: could not handle qualified='$qualified' and relative='$relative'"
+                        )
+                }
+
+            return parsedReference
+        }
     }
 }
+
+/**
+ * Represents a reference that was parsed from a source reference and which can be resolved within a
+ * [ReferencableNameScope].
+ */
+internal sealed interface ParsedReference
+
+/** An ambiguous reference to something by [name]. */
+internal data class AmbiguousSourceReference(val name: String) : ParsedReference
+
+/** A [ParsedReference] that qualifies a [member] reference by [className]. */
+internal data class QualifyingClassSourceReference(
+    val className: String,
+    val member: ClassMemberSourceReference
+) : ParsedReference
+
+/** A [ParsedReference] that qualifies a [member] reference to the current class. */
+internal data class CurrentClassSourceReference(val member: ClassMemberSourceReference) :
+    ParsedReference
+
+/**
+ * A reference that is resolved relative to either [QualifyingClassSourceReference] or
+ * [CurrentClassSourceReference].
+ */
+internal sealed interface ClassMemberSourceReference {
+    /**
+     * Will wrap this in a [QualifyingClassSourceReference] if [className] is not-null otherwise
+     * will wrap this in [CurrentClassSourceReference].
+     */
+    fun qualifyIfNeeded(className: String?): ParsedReference =
+        className?.let { QualifyingClassSourceReference(it, this) }
+            ?: CurrentClassSourceReference(this)
+}
+
+/** A reference to a member called [name], which could be a field or a method. */
+internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemberSourceReference
+
+/**
+ * A reference to a method called [name] with [parameters]. This is both a
+ * [ClassMemberSourceReference] because it can be resolved relative to a class, and
+ * [ParsedReference] because it can be resolved within a [ReferencableNameScope].
+ */
+internal data class MethodSourceReference(val name: String, val parameters: String) :
+    ClassMemberSourceReference, ParsedReference
+
+/** A reference to a [uriFragment]. */
+internal data class UriFragmentSourceReference(val uriFragment: String) :
+    ClassMemberSourceReference
 
 /**
  * Find the end of the reference.
