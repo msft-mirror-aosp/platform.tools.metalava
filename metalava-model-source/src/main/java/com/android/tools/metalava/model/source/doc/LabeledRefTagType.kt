@@ -177,29 +177,33 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         private val SOME_WHITESPACE = Regex("""\s+""")
 
         /** A simple, unqualified, java name. */
-        private const val SIMPLE_NAME =
-            """(?:\p{javaJavaIdentifierStart}\p{javaJavaIdentifierPart}*)"""
+        private const val SIMPLE = """(?:\p{javaJavaIdentifierStart}\p{javaJavaIdentifierPart}*)"""
+
+        /**
+         * A member name.
+         *
+         * An alias for [SIMPLE] to help clarify the meaning of [VALID_REFERENCE].
+         */
+        private const val MEMBER = SIMPLE
+
+        /**
+         * A method name.
+         *
+         * An alias for [SIMPLE] to help clarify the meaning of [VALID_REFERENCE].
+         */
+        private const val METHOD = SIMPLE
 
         /**
          * A qualified name.
          *
          * Can be one of:
-         * * `<simple-name>`
-         * * `<qualified-name>.<simple-name>`
+         * * `<simple>`
+         * * `<qualified>.<simple>`
          */
-        private const val QUALIFIED_NAME = """(?:$SIMPLE_NAME(?:\.$SIMPLE_NAME)*)"""
+        private const val QUALIFIED = """(?:$SIMPLE(?:\.$SIMPLE)*)"""
 
         /** A list of parameters. */
         private const val PARAMETERS = """(?:\([^)]*\))"""
-
-        /**
-         * A member.
-         *
-         * Can be one of:
-         * * `<simple-name>`
-         * * `<simple-name>(...)`
-         */
-        private const val MEMBER = """$SIMPLE_NAME(?:$PARAMETERS)?"""
 
         /** A URI fragment, consists of most characters except `#` and white spaces. */
         private const val FRAGMENT = """[^ #]+"""
@@ -208,22 +212,31 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          * A valid reference.
          *
          * Can be one of:
-         * * `<qualified-name>`
-         * * `<qualified-name>(<parameters>)`
-         * * `<qualified-name>#<member>`
+         * * `<qualified>`
+         * * `<qualified>(<parameters>)`
+         * * `<qualified>#<member>`
+         * * `<qualified>#<method>(<parameters>)`
+         * * `<qualified>##<uri-fragment>`
          * * `#<member>`
-         * * `<member>`
-         * * `<qualified-name>##<uri-fragment>`
+         * * `#<method>(<parameters>)`
          * * `##<uri-fragment>`
+         *
+         * The following do not have their own pattern in the above list as they overlap with one of
+         * the others:
+         * * `<member>` - overlaps with `<qualified>`
+         * * `<method>(<parameters>)` - overlaps with `<qualified>(<parameters>)`
+         *
+         * This can also match an empty string and `(<parameters>)` but they are excluded by the
+         * [validateReference] method as that keeps the pattern as simple as possible.
          */
         private val VALID_REFERENCE =
-            Regex(
-                """$QUALIFIED_NAME|$QUALIFIED_NAME$PARAMETERS|$QUALIFIED_NAME#$MEMBER|#$MEMBER|$QUALIFIED_NAME##$FRAGMENT|##$FRAGMENT"""
-            )
+            Regex("""($QUALIFIED)?(#$MEMBER|(?:#$METHOD)?$PARAMETERS|##$FRAGMENT)?""")
 
         /** Validate [sourceReference], returning `true` if it is valid, `false` otherwise. */
         internal fun validateReference(sourceReference: String): Boolean =
-            VALID_REFERENCE.matches(sourceReference)
+            sourceReference != "" &&
+                sourceReference[0] != '(' &&
+                VALID_REFERENCE.matches(sourceReference)
     }
 }
 
