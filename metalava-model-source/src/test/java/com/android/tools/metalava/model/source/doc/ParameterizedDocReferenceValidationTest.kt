@@ -64,6 +64,7 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "java.util",
                 ),
+
                 // Classes
                 TestParams(
                     name = "java.util.Map",
@@ -71,6 +72,7 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "java.util.Map.Entry",
                 ),
+
                 // Fields (or maybe methods, no parentheses is ambiguous).
                 TestParams(
                     name = "java.lang.Integer#MAX_VALUE",
@@ -81,6 +83,7 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "MAX_VALUE",
                 ),
+
                 // Methods with no parameters.
                 TestParams(
                     name = "java.lang.Character#isWhitespace()",
@@ -91,9 +94,17 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "isWhitespace()",
                 ),
+
                 // Methods with one parameter (no name).
                 TestParams(
                     name = "java.lang.String#toLowerCase(Locale)",
+                ),
+                TestParams(
+                    // Not strictly valid (no # separating class and method) but still supported.
+                    name = "java.lang.String.toLowerCase(Locale)",
+                    // TODO(b/447588621): This should be supported even though it is not strictly
+                    //  valid.
+                    valid = false,
                 ),
                 TestParams(
                     name = "#toLowerCase(Locale)",
@@ -101,9 +112,17 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "toLowerCase(Locale)",
                 ),
+
                 // Methods with one parameter (with name).
                 TestParams(
                     name = "java.lang.String#toLowerCase(Locale locale)",
+                ),
+                TestParams(
+                    // Not strictly valid (no # separating class and method) but still supported.
+                    name = "java.lang.String.toLowerCase(Locale locale)",
+                    // TODO(b/447588621): This should be supported even though it is not strictly
+                    //  valid.
+                    valid = false,
                 ),
                 TestParams(
                     name = "#toLowerCase(Locale locale)",
@@ -111,6 +130,7 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "toLowerCase(Locale locale)",
                 ),
+
                 // Methods with two parameters (no names).
                 TestParams(
                     name = "java.util.Map#put(K, V)",
@@ -121,6 +141,7 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "#put(K, V)",
                 ),
+
                 // Methods with two parameters (with names).
                 TestParams(
                     name = "java.util.Map#put(K key, V value)",
@@ -131,10 +152,12 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "put(K key, V value)",
                 ),
+
                 // Methods with generic parameter types.
                 TestParams(
                     name = "java.util.Collection#addAll(Collection<? extends E>)",
                 ),
+
                 // Fragment reference
                 TestParams(
                     name = "java.util.Collection##optional-restrictions",
@@ -142,6 +165,7 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "##optional-restrictions",
                 ),
+
                 // Invalid references
                 TestParams(
                     name = "<empty>",
@@ -164,6 +188,21 @@ class ParameterizedDocReferenceValidationTest {
                 TestParams(
                     name = "trailing-junk",
                     reference = "#method(int),",
+                    valid = false,
+                ),
+                TestParams(
+                    name = "missing-method",
+                    reference = "#()",
+                    valid = false,
+                ),
+                TestParams(
+                    name = "just-empty-parentheses",
+                    reference = "()",
+                    valid = false,
+                ),
+                TestParams(
+                    name = "just-parentheses",
+                    reference = "(blah)",
                     valid = false,
                 ),
             )
