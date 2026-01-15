@@ -57,20 +57,8 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         // Resolve the source reference, if it failed then still return a non-null result to ensure
         // that whitespace is normalized consistently.
         val resolvedReference =
-            if (validateReference(sourceReference)) {
-                resolveReference(context, reporter, sourceReference)?.also { resolved ->
-                    checkSourceReferenceValidForResolvedReference(
-                        reporter,
-                        sourceReference,
-                        resolved
-                    )
-                }
-            } else {
-                reporter.report(
-                    Issues.MALFORMED_DOC_REFERENCE,
-                    "Malformed reference `$sourceReference`"
-                )
-                null
+            resolveReference(context, reporter, sourceReference)?.also { resolved ->
+                checkSourceReferenceValidForResolvedReference(reporter, sourceReference, resolved)
             }
 
         return ExtractDataResult(
@@ -126,6 +114,15 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         reporter: LocationSpecificReporter,
         sourceReference: String
     ): ResolvedReference? {
+        // Validate that the source reference matches the expected pattern.
+        if (!validateReference(sourceReference)) {
+            reporter.report(
+                Issues.MALFORMED_DOC_REFERENCE,
+                "Malformed reference `$sourceReference`"
+            )
+            return null
+        }
+
         // Check to see if this is a member reference.
         val hashIndex = sourceReference.indexOf('#')
         if (hashIndex != -1) {
