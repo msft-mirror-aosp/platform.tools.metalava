@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.utils.extractSimpleName
 import java.util.Objects
 
 /**
@@ -38,13 +39,14 @@ interface TypeItem {
     fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>)
 
     /**
-     * Whether this type is equal to [other], not considering modifiers.
+     * Whether this type is equal to [other]. If [includeNullability] is false, does not consider
+     * modifiers. If [includeNullability] is true, nullability is considered but not annotations.
      *
      * This is implemented on each sub-interface of [TypeItem] instead of [equals] because
      * interfaces are not allowed to implement [equals]. An [equals] implementation is provided by
      * [DefaultTypeItem].
      */
-    fun equalToType(other: TypeItem?): Boolean
+    fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean
 
     /**
      * Hashcode for the type.
@@ -369,18 +371,17 @@ enum class StripJavaLangPrefix {
 }
 
 /**
- * A mapping from one class's type parameters to the types provided for those type parameters in a
- * possibly indirect subclass.
+ * A mapping from type parameters to types which should be substituted for these type parameters.
+ *
+ * The primary use case for the is to map from one class's type parameters to the types provided for
+ * those type parameters in a possibly indirect subclass. It can also be used for a mapping from a
+ * typealias's type parameters to the types provided for those type parameters in a usage of that
+ * typealias.
  *
  * e.g. Given `Map<K, V>` and a subinterface `StringToIntMap extends Map<String, Integer>` then this
  * would contain a mapping from `K -> String` and `V -> Integer`.
- *
- * Although a `ClassTypeItem`'s arguments can be `WildcardTypeItem`s as well as
- * `ReferenceTypeItem`s, a `ClassTypeItem` used in an extends or implements list cannot have a
- * `WildcardTypeItem` as an argument so this cast is safe. See
- * https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
  */
-typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
+typealias TypeParameterBindings = Map<TypeParameterItem, TypeArgumentTypeItem>
 
 abstract class DefaultTypeItem(
     final override val modifiers: TypeModifiers,
@@ -426,7 +427,7 @@ abstract class DefaultTypeItem(
 
     override fun equals(other: Any?): Boolean {
         if (other !is TypeItem) return false
-        return equalToType(other)
+        return equalToType(other, includeNullability = false)
     }
 
     override fun hashCode(): Int = hashCodeForType()
@@ -669,7 +670,7 @@ abstract class DefaultTypeItem(
             }
             val annotationFormatter = configuration.annotationFormatter
             annotations.forEachIndexed { index, annotation ->
-                annotationFormatter.appendFormatAnnotation(this, annotation)
+                annotationFormatter.appendFormatAnnotation(this, annotation, AnnotationPurpose.TYPE)
                 if (index != annotations.size - 1) {
                     append(' ')
                 }
@@ -785,8 +786,11 @@ data class TypeStringConfiguration(
          */
         private val DEFAULT_ANNOTATION_FORMATTER = AnnotationFormatter.legacyAnnotationFormatter()
 
-        /** The default[TypeStringConfiguration]. */
+        /** The default [TypeStringConfiguration]. */
         val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
+
+        /** A [TypeStringConfiguration] like [DEFAULT], but with Kotlin-style null suffixes. */
+        val DEFAULT_KOTLIN_NULLS = TypeStringConfiguration(kotlinStyleNulls = true)
     }
 }
 
@@ -812,9 +816,6 @@ interface TypeArgumentTypeItem : TypeItem {
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-ReferenceType.
  */
 interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
-    /** Override to specialize the return type. */
-    override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem
-
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
 
@@ -951,8 +952,9 @@ interface PrimitiveTypeItem : TypeItem {
         ),
         VOID(
             primitiveName = "void",
-            // Kotlin does not really have a name for this but Nothing is closest.
-            kotlinName = "Nothing",
+            // Unit is not exactly the same as void, but it is what is used in Kotlin when a method
+            // has no return, like void in Java.
+            kotlinName = "Unit",
             defaultValue = null,
             defaultValueString = "null",
             wrapperClass = java.lang.Void::class.java,
@@ -1024,8 +1026,9 @@ interface PrimitiveTypeItem : TypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
-        return (other as? PrimitiveTypeItem)?.kind == kind
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
+        return (other as? PrimitiveTypeItem)?.kind == kind &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability)
     }
 
     override fun hashCodeForType(): Int = kind.hashCode()
@@ -1088,9 +1091,11 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ArrayTypeItem) return false
-        return isVarargs == other.isVarargs && componentType.equalToType(other.componentType)
+        return isVarargs == other.isVarargs &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            componentType.equalToType(other.componentType, includeNullability)
     }
 
     override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
@@ -1212,13 +1217,16 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
             arguments.size == other.arguments.size &&
-            arguments.zip(other.arguments).all { (p1, p2) -> p1.equalToType(p2) } &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            arguments.zip(other.arguments).all { (p1, p2) ->
+                p1.equalToType(p2, includeNullability)
+            } &&
             ((outerClassType == null && other.outerClassType == null) ||
-                outerClassType?.equalToType(other.outerClassType) == true)
+                outerClassType?.equalToType(other.outerClassType, includeNullability) == true)
     }
 
     override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, arguments)
@@ -1248,14 +1256,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
-        fun computeClassName(qualifiedName: String): String {
-            val lastDotIndex = qualifiedName.lastIndexOf('.')
-            return if (lastDotIndex == -1) {
-                qualifiedName
-            } else {
-                qualifiedName.substring(lastDotIndex + 1)
-            }
-        }
+        fun computeClassName(qualifiedName: String) = qualifiedName.extractSimpleName()
     }
 }
 
@@ -1340,7 +1341,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     override fun substitute(modifiers: TypeModifiers): VariableTypeItem =
         if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
 
-    override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
+    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem {
         val nullability = modifiers.nullability
         return typeParameterBindings[asTypeParameter]?.let { replacement ->
             val replacementNullability =
@@ -1360,7 +1361,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             if (replacementNullability == null) {
                 replacement
             } else {
-                replacement.substitute(replacementNullability) as ReferenceTypeItem
+                replacement.substitute(replacementNullability) as TypeArgumentTypeItem
             }
         }
             ?:
@@ -1375,8 +1376,9 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
 
-    override fun equalToType(other: TypeItem?): Boolean {
-        return (other as? VariableTypeItem)?.name == name
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
+        return (other as? VariableTypeItem)?.name == name &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability)
     }
 
     override fun hashCodeForType(): Int = name.hashCode()
@@ -1455,19 +1457,30 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
         return substitute(
             modifiers,
-            extendsBound?.convertType(typeParameterBindings),
-            superBound?.convertType(typeParameterBindings)
+            // The converted bounds should always end up as ReferenceTypeItems.
+            // When convertType is used for superclasses, although a `ClassTypeItem`'s arguments can
+            // be `WildcardTypeItem`s as well as `ReferenceTypeItem`s, a `ClassTypeItem` used in an
+            // extends or implements list cannot have a `WildcardTypeItem` as an argument so this
+            // cast will always succeed.
+            // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
+            // When convertType is used for typealiases, it is possible for a `WildcardTypeItem` to
+            // be used as an argument. However, that should never end up as the bounds for another
+            // `WildcardTypeItem`.
+            extendsBound?.convertType(typeParameterBindings) as? ReferenceTypeItem,
+            superBound?.convertType(typeParameterBindings) as? ReferenceTypeItem,
         )
     }
 
-    override fun transform(transformer: TypeTransformer): WildcardTypeItem {
+    // Any [TypeArgumentTypeItem] can be used in any context where a [WildcardTypeItem] is valid.
+    override fun transform(transformer: TypeTransformer): TypeArgumentTypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is WildcardTypeItem) return false
-        return extendsBound?.equalToType(other.extendsBound) != false &&
-            superBound?.equalToType(other.superBound) != false
+        return (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            extendsBound?.equalToType(other.extendsBound, includeNullability) != false &&
+            superBound?.equalToType(other.superBound, includeNullability) != false
     }
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
@@ -1494,6 +1507,35 @@ fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
             )
         }
     }
+
+/**
+ * A [TypeTransformer] which replaces [WildcardTypeItem]s with their bounds. If neither a super nor
+ * extends bound is defined for a wildcard, it leaves the unbounded wildcard in place.
+ */
+private object WildcardFlatteningTransformer : BaseTypeTransformer() {
+    override fun transform(typeItem: WildcardTypeItem): TypeArgumentTypeItem {
+        val bound = typeItem.superBound ?: typeItem.extendsBound
+        return bound?.transform(this) ?: typeItem
+    }
+}
+
+/**
+ * Checks if [type1] and [type2] are equal if any wildcards present in the type are replaced with
+ * their bounds.
+ *
+ * This is meant for comparing Kotlin types generated through PSI and the Kotlin analysis API, which
+ * often differ in whether wildcards are present, in cases where it does not make sense to simply
+ * compared erased types.
+ *
+ * For instance, `List<String>` and `List<? extends String>` would be considered equal, as would
+ * `List<? super String>`. These types are not equal, but considering them equal enables comparing
+ * types generated from UAST and the analysis API.
+ */
+fun equalWithFlattenedWildcards(type1: TypeItem, type2: TypeItem): Boolean {
+    val transformedType1 = type1.transform(WildcardFlatteningTransformer)
+    val transformedType2 = type2.transform(WildcardFlatteningTransformer)
+    return transformedType1 == transformedType2
+}
 
 /**
  * Map the items in this list to a new list if [transform] returns at least one item which is not

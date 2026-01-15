@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -29,6 +30,7 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiMethod
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
@@ -52,10 +54,18 @@ internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
     config: Codebase.Config,
-    val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
-    val isMultiplatform: Boolean,
+    /**
+     * Whether types should be checked to see if there are any references to typealiases, and have
+     * the references replaced with the aliased type.
+     *
+     * This is necessary when processing multiplatform sources with K2. With K1 psi, all typealiases
+     * are already replaced by the aliased type, but with K2 typealias usages may not have been
+     * replaced with the aliased type, particularly if the typealias is defined in a different
+     * module from the usage.
+     */
+    val inlineTypeAliasUsages: Boolean,
     /** The KaModule to use for adding kotlin-only APIs to the codebase. */
     val mainAnalysisModule: KaModule? = null,
 ) :
@@ -93,6 +103,12 @@ internal class PsiBasedCodebase(
         psiAssembler.dispose()
         super.dispose()
     }
+
+    /**
+     * Cache from [PsiFile] to [PsiSourceFile] to ensure that every [PsiClass] within a single
+     * [PsiFile] use the same [PsiSourceFile] instance.
+     */
+    internal val sourceFileCache = PsiSourceFileCache(this)
 
     fun findClass(psiClass: PsiClass): ClassItem? {
         val qualifiedName: String = psiClass.classQualifiedName
@@ -206,5 +222,14 @@ internal class PsiBasedCodebase(
         }
 
         return AnnotationDefaults.EMPTY
+    }
+
+    /**
+     * Returns a typealias identified by fully qualified name, if in the codebase.
+     *
+     * If there is a [ClassItem] with the [qualifiedName] that is not a typealias, returns null.
+     */
+    fun findTypeAlias(qualifiedName: String): ClassItem? {
+        return findClass(qualifiedName)?.takeIf { it.classKind == ClassKind.TYPEALIAS }
     }
 }

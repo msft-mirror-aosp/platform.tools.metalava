@@ -39,75 +39,34 @@ options {
     tokenVocab = AntlrJavadocLexer;
 }
 
-documentation
-    : skipWhitespace* EOF
-    | skipWhitespace* JAVADOC_START skipWhitespace* documentationContent skipWhitespace* JAVADOC_END skipWhitespace* EOF
-    | skipWhitespace* documentationContent skipWhitespace* EOF
-    ;
-
-documentationContent
-    : description
-    | tagSection
-    | description NEWLINE+ skipWhitespace* tagSection
-    ;
-
-skipWhitespace
-    : SPACE
-    | NEWLINE
-    ;
-
 description
-    : descriptionLine (descriptionNewline+ descriptionLine)*
+    : descriptionLine (newline+ descriptionLine)* EOF
     ;
 
 descriptionLine
     : descriptionLineElement*
     ;
 
-descriptionLineNoSpaceNoAt
-    : TEXT_CONTENT
-    | NAME
-    | STAR
-    | SLASH
-    | BRACE_OPEN
-    | BRACE_CLOSE
-    | JAVADOC_START
-    ;
-
 descriptionLineElement
     : inlineTag
-    | descriptionLineText
+    | inlineIfTag
+    | textContent
     ;
 
-descriptionLineText
-    : (descriptionLineNoSpaceNoAt | SPACE | AT)+
+textContent
+    : TEXT_CONTENT
+    | SPACE
     ;
 
-descriptionNewline
+// Newline requires special handling when constructing the model.
+newline
     : NEWLINE
-    ;
-
-tagSection
-    : blockTag+
-    ;
-
-blockTag
-    : SPACE? AT blockTagName SPACE? description
-    ;
-
-blockTagName
-    : NAME
     ;
 
 inlineTag
     // Make BRACE_CLOSE optional to support inline tags without a closing brace.
     // TODO(b/429965593): Fix broken javadoc and make BRACE_CLOSE required.
-    // TODO(b/429965593): Fix broken javadoc and remove SPACE* between INLINE_TAG_START and inlineTagName
-    : INLINE_TAG_START SPACE* inlineTagName SPACE* inlineTagContent? BRACE_CLOSE?
-    ;
-
-inlineTagName
-    : NAME
+    : INLINE_TAG_START INLINE_TAG_NAME SPACE* inlineTagContent? BRACE_CLOSE?
     ;
 
 inlineTagContent
@@ -120,16 +79,28 @@ braceExpression
 
 braceContent
     : braceExpression
-    | braceText (NEWLINE* braceText)*
+    | textContent
+    | inlineTag
+    | inlineIfTag
+    | newline
     ;
 
-braceText
-    : TEXT_CONTENT
-    | NAME
-    | SPACE
-    | STAR
-    | SLASH
-    | NEWLINE
-    | AT
-    | inlineTag
+// Inline `{@if (expr) {...} (else {...})?}` tag.
+inlineIfTag
+    : INLINE_IF_TAG_START PAREN_OPEN expr PAREN_CLOSE braceExpression (IF_TAG_ELSE braceExpression)? BRACE_CLOSE
+    ;
+
+// An expression, limited to a function call at the moment.
+expr
+    : functionCall
+    ;
+
+// A function call, limited to a single field reference argument at the moment.
+functionCall
+    : IDENTIFIER PAREN_OPEN fieldReference PAREN_CLOSE
+    ;
+
+// A reference to a field, possibly qualified.
+fieldReference
+    : (IDENTIFIER DOT)* IDENTIFIER
     ;

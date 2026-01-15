@@ -39,16 +39,11 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
-
-/**
- * A lambda that when passed the [Item] will return the public name, or null if there is not one.
- */
-typealias PublicNameProvider = (Item) -> String?
 
 /** A factory for creating [Item] instances suitable for use by many models. */
 class DefaultItemFactory(
@@ -70,11 +65,13 @@ class DefaultItemFactory(
         containingPackage: PackageItem?,
         overviewDocumentation: ResourceFile?,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-    ): DefaultPackageItem {
+    ): PackageItem {
         return DefaultPackageItem(
             codebase,
             fileLocation,
-            defaultSourceLanguage,
+            // Treat all packages as being Java as Kotlin does not currently provide an equivalent
+            // to `package-info.java`.
+            SourceLanguage.JAVA,
             targetLanguages,
             modifiers,
             documentationFactory,
@@ -85,7 +82,7 @@ class DefaultItemFactory(
         )
     }
 
-    /** Create a [ConstructorItem]. */
+    /** Create a [ClassItem]. */
     fun createClassItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
@@ -101,6 +98,8 @@ class DefaultItemFactory(
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
+        optionalAliasedType: TypeItem? = null,
+        isFileFacade: Boolean = false,
     ) =
         DefaultClassItem(
             codebase,
@@ -119,6 +118,8 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
+            isFileFacade = isFileFacade,
+            optionalAliasedType = optionalAliasedType,
         )
 
     /** Create a [ConstructorItem]. */
@@ -227,11 +228,11 @@ class DefaultItemFactory(
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         modifiers: BaseModifierList,
         name: String,
-        publicNameProvider: PublicNameProvider,
+        publicName: String?,
         containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
-        defaultValueFactory: ParameterDefaultValueFactory,
+        hasDefaultValue: Boolean,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
@@ -239,11 +240,11 @@ class DefaultItemFactory(
             sourceLanguage,
             modifiers,
             name,
-            publicNameProvider,
+            publicName,
             containingCallable,
             parameterIndex,
             type,
-            defaultValueFactory,
+            hasDefaultValue,
         )
 
     /** Create a [PropertyItem]. */
@@ -257,6 +258,7 @@ class DefaultItemFactory(
         type: TypeItem,
         receiver: TypeItem?,
         typeParameterList: TypeParameterList,
+        setterVisibility: VisibilityLevel?,
         getter: MethodItem? = null,
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
@@ -278,19 +280,21 @@ class DefaultItemFactory(
             backingField,
             receiver,
             typeParameterList,
+            setterVisibility,
         )
 
-    /** Create a [TypeAliasItem]. */
+    /** Create a [ClassItem] which is a typealias. */
     fun createTypeAliasItem(
         fileLocation: FileLocation,
         modifiers: BaseModifierList,
         qualifiedName: String,
-        containingPackage: DefaultPackageItem,
+        containingPackage: PackageItem,
         aliasedType: TypeItem,
         typeParameterList: TypeParameterList,
+        origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
-    ): TypeAliasItem =
-        DefaultTypeAliasItem(
+    ): DefaultClassItem =
+        DefaultClassItem.createTypeAlias(
             codebase,
             fileLocation,
             modifiers,
@@ -299,7 +303,8 @@ class DefaultItemFactory(
             aliasedType,
             qualifiedName,
             typeParameterList,
-            containingPackage
+            containingPackage,
+            origin,
         )
 
     /**

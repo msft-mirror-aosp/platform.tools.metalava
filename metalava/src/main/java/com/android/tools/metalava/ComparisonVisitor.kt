@@ -29,7 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TypeAliasItem
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
@@ -62,8 +62,6 @@ open class ComparisonVisitor {
 
     open fun compareParameterItems(old: ParameterItem, new: ParameterItem) {}
 
-    open fun compareTypeAliasItems(old: TypeAliasItem, new: TypeAliasItem) {}
-
     open fun addedPackageItem(new: PackageItem) {}
 
     open fun addedClassItem(new: ClassItem) {}
@@ -78,8 +76,6 @@ open class ComparisonVisitor {
 
     open fun addedPropertyItem(new: PropertyItem) {}
 
-    open fun addedTypeAliasItem(new: TypeAliasItem) {}
-
     open fun removedPackageItem(old: PackageItem, from: PackageItem?) {}
 
     open fun removedClassItem(old: ClassItem, from: SelectableItem) {}
@@ -93,8 +89,6 @@ open class ComparisonVisitor {
     open fun removedFieldItem(old: FieldItem, from: ClassItem) {}
 
     open fun removedPropertyItem(old: PropertyItem, from: ClassItem) {}
-
-    open fun removedTypeAliasItem(old: TypeAliasItem, from: PackageItem) {}
 }
 
 /** Simple stack type built on top of an [ArrayList]. */
@@ -288,7 +282,7 @@ class CodebaseComparator {
         oldParent: SelectableItem?,
         visitor: ComparisonVisitor,
     ) {
-        // If it's a method, we may not have added a new method,
+        // If it's a method/property, we may not have added a new method/property,
         // we may simply have inherited it previously and overriding
         // it now (or in the case of signature files, identical overrides
         // are not explicitly listed and therefore not added to the model)
@@ -300,6 +294,10 @@ class CodebaseComparator {
                         includeSuperClasses = true,
                         includeInterfaces = true
                     )
+                    ?.duplicate(oldParent)
+            } else if (new is PropertyItem && oldParent is ClassItem) {
+                oldParent
+                    .findProperty(new, includeSuperClasses = true, includeInterfaces = true)
                     ?.duplicate(oldParent)
             } else {
                 null
@@ -327,7 +325,6 @@ class CodebaseComparator {
             is MethodItem -> visitor.addedMethodItem(item)
             is FieldItem -> visitor.addedFieldItem(item)
             is PropertyItem -> visitor.addedPropertyItem(item)
-            is TypeAliasItem -> visitor.addedTypeAliasItem(item)
             else -> error("unexpected addition of $item")
         }
     }
@@ -392,6 +389,17 @@ class CodebaseComparator {
             dispatchToCompare(visitor, old, inheritedField)
             return
         }
+
+        // A property may have been moved to a superclass.
+        if (old is PropertyItem && newParent is ClassItem) {
+            val superProperty =
+                newParent.findProperty(old, includeSuperClasses = true, includeInterfaces = true)
+            if (superProperty != null && (filter == null || filter.test(superProperty))) {
+                dispatchToCompare(visitor, old, superProperty.duplicate(newParent))
+                return
+            }
+        }
+
         dispatchToRemoved(visitor, old, newParent)
     }
 
@@ -414,7 +422,6 @@ class CodebaseComparator {
             is MethodItem -> visitor.removedMethodItem(item, from as ClassItem)
             is FieldItem -> visitor.removedFieldItem(item, from as ClassItem)
             is PropertyItem -> visitor.removedPropertyItem(item, from as ClassItem)
-            is TypeAliasItem -> visitor.removedTypeAliasItem(item, from as PackageItem)
             else -> error("unexpected removal of $item")
         }
     }
@@ -439,7 +446,6 @@ class CodebaseComparator {
             is MethodItem -> visitor.compareMethodItems(old, new as MethodItem)
             is FieldItem -> visitor.compareFieldItems(old, new as FieldItem)
             is PropertyItem -> visitor.comparePropertyItems(old, new as PropertyItem)
-            is TypeAliasItem -> visitor.compareTypeAliasItems(old, new as TypeAliasItem)
             else -> error("unexpected comparison of $old and $new")
         }
 
@@ -462,7 +468,6 @@ class CodebaseComparator {
                 is FieldItem -> 3
                 is ClassItem -> 4
                 is PropertyItem -> 5
-                is TypeAliasItem -> 6
                 else -> error("Unexpected item $item of ${item.javaClass}")
             }
         }
@@ -547,6 +552,31 @@ class CodebaseComparator {
                                             }
                                         }
                                     }
+                                    if (delta == 0) {
+                                        // Also compare the target languages. As long as there is a
+                                        // common target language, it makes sense to compare the
+                                        // items, but if there are no common target language, treat
+                                        // these items as not the same.
+                                        if (
+                                            item1.targetLanguages
+                                                .intersect(item2.targetLanguages)
+                                                .isEmpty()
+                                        ) {
+                                            // If there is no intersection between the target
+                                            // language sets, exactly one of them must contain
+                                            // Kotlin (because Java implies bytecode, and the
+                                            // possible non-overlapping sets are bytecode|kotlin or
+                                            // bytecode,java|kotlin).
+                                            delta =
+                                                if (
+                                                    TargetLanguage.KOTLIN in item1.targetLanguages
+                                                ) {
+                                                    1
+                                                } else {
+                                                    -1
+                                                }
+                                        }
+                                    }
                                 }
                             }
                             // The method names are different, return the result of the compareTo
@@ -556,10 +586,20 @@ class CodebaseComparator {
                             item1.name().compareTo((item2 as FieldItem).name())
                         }
                         is PropertyItem -> {
-                            item1.name().compareTo((item2 as PropertyItem).name())
-                        }
-                        is TypeAliasItem -> {
-                            item1.qualifiedName.compareTo((item2 as TypeAliasItem).qualifiedName)
+                            var delta = item1.name().compareTo((item2 as PropertyItem).name())
+                            if (delta == 0) {
+                                // If the properties have the same name, additionally check the
+                                // receiver types.
+                                delta =
+                                    item1.receiver?.let { receiver1 ->
+                                        item2.receiver?.let { receiver2 ->
+                                            receiver1
+                                                .toTypeString()
+                                                .compareTo(receiver2.toTypeString())
+                                        } ?: -1
+                                    } ?: 1
+                            }
+                            delta
                         }
                         else -> error("Unexpected item $item1 of ${item1.javaClass}")
                     }

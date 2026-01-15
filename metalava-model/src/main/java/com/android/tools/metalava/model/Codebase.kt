@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -25,7 +26,7 @@ import java.io.File
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase : ClassResolver, AnnotationContext {
+interface Codebase : ClassPathResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -82,11 +83,12 @@ interface Codebase : ClassResolver, AnnotationContext {
      */
     override fun resolveClass(erasedName: String): ClassItem?
 
+    /** The root [PackageItem]. */
+    val rootPackage
+        get() = resolvePackage("")
+
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
-
-    /** Returns a typealias identified by fully qualified name, if in the codebase */
-    fun findTypeAlias(typeAliasName: String): TypeAliasItem?
 
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean
@@ -170,8 +172,24 @@ interface Codebase : ClassResolver, AnnotationContext {
      * options.
      */
     data class Config(
+        /**
+         * Whether to allow reading comments from the sources.
+         *
+         * If `true` then source comments will be read and [SelectableItem.documentation] will not
+         * be `null` (unless the [SelectableItem] is `private`). If `false` then
+         * [SelectableItem.documentation] will always be `null`.
+         */
+        val allowReadingComments: Boolean = true,
+
         /** Determines how annotations will affect the [Codebase]. */
-        val annotationManager: AnnotationManager,
+        val annotationManager: AnnotationManager = noOpAnnotationManager,
+
+        /**
+         * The [ApiFlags] to use in conditional javadoc.
+         *
+         * If set to `null` then it behaves as if all flags are enabled.
+         */
+        val apiFlags: ApiFlags? = null,
 
         /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
@@ -184,10 +202,24 @@ interface Codebase : ClassResolver, AnnotationContext {
              * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
              * reporter.
              */
-            val NOOP =
-                Config(
-                    annotationManager = noOpAnnotationManager,
-                )
+            val NOOP = Config()
         }
+    }
+
+    companion object {
+        /** Find the corresponding item in the previously released API if available. */
+        fun findPreviouslyReleased(oldCodebase: Codebase?, item: Item?): Item? {
+            return oldCodebase?.let {
+                item?.findCorrespondingItemIn(
+                    oldCodebase,
+                    superMethods = true,
+                    duplicate = true,
+                )
+            }
+        }
+
+        /** Check to see if [item] was previously released. */
+        fun wasPreviouslyReleased(oldCodebase: Codebase?, item: Item?) =
+            findPreviouslyReleased(oldCodebase, item) != null
     }
 }

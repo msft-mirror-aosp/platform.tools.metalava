@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -26,12 +28,12 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -115,14 +117,20 @@ class SignatureWriter(
         write("\n")
     }
 
-    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
+    /**
+     * Writes the signature for the [typeAlias], which is formatted differently from all other
+     * [ClassItem]s.
+     *
+     * This should only be called if [typeAlias] is a typealias.
+     */
+    fun visitTypeAlias(typeAlias: ClassItem) {
         write("  ")
 
         writeModifiers(typeAlias)
 
         write("typealias ")
 
-        write(typeAlias.simpleName)
+        write(typeAlias.simpleName())
         writeTypeParameterList(typeAlias.typeParameterList, addSpace = false)
 
         write(" = ")
@@ -189,6 +197,11 @@ class SignatureWriter(
     }
 
     override fun visitClass(cls: ClassItem) {
+        // Typealiases are written in a different format than any other class.
+        if (cls.classKind == ClassKind.TYPEALIAS) {
+            visitTypeAlias(cls)
+            return
+        }
         write("  ")
 
         writeModifiers(cls)
@@ -207,12 +220,51 @@ class SignatureWriter(
         writeTypeParameterList(cls.typeParameterList, addSpace = false)
         writeSuperClassStatement(cls)
         writeInterfaceList(cls)
+        propagateSuppressAnnotationsToSubclasses(cls)
 
         write(" {\n")
     }
 
+    /**
+     * This method takes annotations that suppress compatibility checks and propagates them down to
+     * nested classes, enums, and interfaces so that in the final Metalava text file generated, the
+     * inner classes are also marked with the annotation. For more details, see b/292090022
+     */
+    private fun propagateSuppressAnnotationsToSubclasses(cls: ClassItem) {
+        val annotationsToPassDown: List<AnnotationItem> =
+            cls.modifiers.annotations().filter { it.isSuppressCompatibilityAnnotation() }
+        val addAnnotationsMutator: MutableModifierList.() -> Unit = {
+            annotationsToPassDown.forEach { newAnnotation ->
+                if (
+                    !this.annotations().any { existingAnnotation ->
+                        existingAnnotation.qualifiedName.equals(newAnnotation.qualifiedName)
+                    }
+                ) {
+                    this.addAnnotation(newAnnotation)
+                }
+            }
+        }
+        cls.nestedClasses().forEach { nestedClass ->
+            // The reason we want to prevent class annotations from being passed down to
+            // inner annotations is because adding an experimental annotation to the inner
+            // annotation definition makes usages of the inner annotation on methods/parameters
+            // get labeled as experimental. This can make the resulting signature files bloated
+            // when these annotations are attached to methods and parameters
+            if (nestedClass.classKind != ClassKind.ANNOTATION_TYPE) {
+                try {
+                    nestedClass.mutateModifiers(addAnnotationsMutator)
+                } catch (e: IllegalStateException) {
+                    // the inner class is frozen - don't do anything
+                }
+            }
+        }
+    }
+
     override fun afterVisitClass(cls: ClassItem) {
-        write("  }\n\n")
+        // Typealiases are written differently from any other class, and don't have an opening `{`.
+        if (cls.classKind != ClassKind.TYPEALIAS) {
+            write("  }\n\n")
+        }
     }
 
     private fun writeModifiers(item: Item) {
@@ -222,7 +274,8 @@ class SignatureWriter(
 
     private fun writeTargetLanguage(item: SelectableItem) {
         // Properties and type aliases are always only for Kotlin use, so don't bother writing it.
-        if (item is PropertyItem || item is TypeAliasItem) return
+        if (item is PropertyItem || (item is ClassItem && item.classKind == ClassKind.TYPEALIAS))
+            return
 
         val modifier =
             TargetLanguageSet.targetLanguageSetToSignatureFileRepresentation[item.targetLanguages]

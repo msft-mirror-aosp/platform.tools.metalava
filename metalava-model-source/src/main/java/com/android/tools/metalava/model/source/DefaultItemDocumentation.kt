@@ -16,28 +16,37 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.reporter.FileLocation
 
 /** A default [com.android.tools.metalava.model.ItemDocumentation] containing JavaDoc/KDoc. */
-internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
+internal class DefaultItemDocumentation(
+    item: SelectableItem,
+    text: String,
+    override val fileLocation: FileLocation = FileLocation.UNKNOWN,
+) : AbstractItemDocumentation(item) {
 
-    override fun duplicate(item: Item) = DefaultItemDocumentation(text)
-
-    override fun snapshot(item: Item) = text.toItemDocumentation()
-
-    override fun mergeDocumentation(comment: String, tagSection: String?) {
-        TODO("Not yet implemented")
+    init {
+        // Initialize _text from the text constructor parameter.
+        _text = text
     }
 
-    override fun findMainDocumentation(): String {
-        TODO("Not yet implemented")
+    /** Should never be called as _text has been initialized above. */
+    override fun initializeTextBackingField() {
+        error("Internal Error: _text backing field is uninitialized")
     }
 }
 
 /** Wrap a [String] in an [ItemDocumentationFactory]. */
-fun String.toItemDocumentationFactory(): ItemDocumentationFactory = { toItemDocumentation() }
+fun String.toItemDocumentationFactory(): ItemDocumentationFactory = ItemDocumentationFactory {
+    toItemDocumentation(it)
+}
 
 /** Wrap a [String] in an [ItemDocumentation] instance. */
-private fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
+private fun String.toItemDocumentation(item: SelectableItem): ItemDocumentation =
+    DefaultItemDocumentation(item, this)
+
+/** Creates a [DefaultItemDocumentation] for an item without any source comment. */
+val NO_SOURCE_COMMENT_FACTORY = "".toItemDocumentationFactory()

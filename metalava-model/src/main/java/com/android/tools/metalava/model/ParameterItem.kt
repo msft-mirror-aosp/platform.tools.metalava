@@ -16,12 +16,26 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.ParameterDefaultValue
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
 
 @MetalavaApi
 interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
+
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Parameter" else "parameter")
+        append(' ')
+        append(name())
+        append(" in ")
+        with(containingCallable()) {
+            appendCallableSignature(
+                includeParameterNames = true,
+                includeParameterTypes = true,
+            )
+        }
+    }
 
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
@@ -59,9 +73,6 @@ interface ParameterItem : ClassContentItem, Item {
      */
     fun hasDefaultValue(): Boolean
 
-    /** The default value of this [ParameterItem]. */
-    val defaultValue: ParameterDefaultValue
-
     /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean = modifiers.isVarArg()
 
@@ -95,6 +106,12 @@ interface ParameterItem : ClassContentItem, Item {
         containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings,
     ): ParameterItem
+
+    override val description: DocContent?
+        get() = containingCallable().documentation?.paramTagDescription(name())
+
+    override val descriptionOwner: DocContentOwner
+        get() = containingCallable().requiredDocumentation.paramTagDescriptionOwner(name())
 
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
