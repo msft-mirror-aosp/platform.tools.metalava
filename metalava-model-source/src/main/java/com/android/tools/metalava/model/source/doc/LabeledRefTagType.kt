@@ -43,6 +43,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         val referenceEndExclusive = text.findEndOfReference(referenceStart)
         if (referenceEndExclusive == 0) return null
 
+        // Find the start of the label.
+        val labelStart = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
+
+        // Get the source reference from the text.
         val sourceReference =
             text
                 .substring(referenceStart, referenceEndExclusive)
@@ -55,27 +59,11 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         val resolvedReference =
             if (validateReference(sourceReference)) {
                 resolveReference(context, reporter, sourceReference)?.also { resolved ->
-
-                    // Resolving can handle references which are not valid, e.g. a qualified field
-                    // reference without a #. Make sure that the source reference is a valid form
-                    // for the resolved item.
-                    when (resolved) {
-                        is FieldReference -> {
-                            // Check if the source reference was qualified.
-                            val lastDotIndex = sourceReference.lastIndexOf('.')
-                            if (lastDotIndex > -1) {
-                                // The source reference was qualified so must have a '#'
-                                val hashIndex = sourceReference.indexOf('#', lastDotIndex)
-                                if (hashIndex == -1) {
-                                    reporter.report(
-                                        Issues.MALFORMED_DOC_REFERENCE,
-                                        "Malformed reference `$sourceReference`, missing '#', should be '${sourceReference.replaceRange(lastDotIndex, lastDotIndex + 1, "#")}"
-                                    )
-                                }
-                            }
-                        }
-                        else -> {}
-                    }
+                    checkSourceReferenceValidForResolvedReference(
+                        reporter,
+                        sourceReference,
+                        resolved
+                    )
                 }
             } else {
                 reporter.report(
@@ -89,8 +77,44 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             LabeledRefTagData(name, sourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
-            consumedContent = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
+            consumedContent = labelStart
         )
+    }
+
+    /**
+     * Check to make sure that the [sourceReference] is valid for [resolved].
+     *
+     * Resolving can handle references which are not valid, e.g. a qualified field reference without
+     * a #. Make sure that the source reference is a valid form for the resolved item.
+     */
+    private fun checkSourceReferenceValidForResolvedReference(
+        reporter: LocationSpecificReporter,
+        sourceReference: String,
+        resolved: ResolvedReference
+    ) {
+        when (resolved) {
+            is FieldReference -> {
+                // Check if the source reference was qualified.
+                val lastDotIndex = sourceReference.lastIndexOf('.')
+                if (lastDotIndex > -1) {
+                    // The source reference was qualified so must have a '#'
+                    val hashIndex = sourceReference.indexOf('#', lastDotIndex)
+                    if (hashIndex == -1) {
+                        reporter.report(
+                            Issues.MALFORMED_DOC_REFERENCE,
+                            "Malformed reference `$sourceReference`, missing '#', should be '${
+                                sourceReference.replaceRange(
+                                    lastDotIndex,
+                                    lastDotIndex + 1,
+                                    "#"
+                                )
+                            }"
+                        )
+                    }
+                }
+            }
+            else -> {}
+        }
     }
 
     /**
