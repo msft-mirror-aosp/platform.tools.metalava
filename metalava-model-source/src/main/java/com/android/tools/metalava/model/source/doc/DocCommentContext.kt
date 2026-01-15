@@ -80,7 +80,10 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
      * constructor, method, or field) to a [ResolvedReference], if possible.
      */
-    fun resolveReference(sourceReference: String): ResolvedReference?
+    fun resolveReference(
+        reporter: LocationSpecificReporter,
+        sourceReference: String
+    ): ResolvedReference?
 
     /**
      * The optional [ClassItem] that contains this documentation.

@@ -1178,33 +1178,38 @@ private constructor(
     private fun getAnnotationSource(tokenizer: Tokenizer, startingToken: String): String? {
         var token = startingToken
         if (token.startsWith('@')) {
-            // Annotation
-            var annotation = token
+            return buildString {
+                append('@')
 
-            // Restore annotations that were shortened on export
-            annotation = unshortenAnnotation(annotation)
-            token = tokenizer.requireToken()
-            if (token == "(") {
-                // Annotation arguments; potentially nested
-                var balance = 0
-                val start = tokenizer.offset() - 1
-                while (true) {
-                    if (token == "(") {
-                        balance++
-                    } else if (token == ")") {
-                        balance--
-                        if (balance == 0) {
-                            break
+                // Restore annotations that were shortened on export
+                val annotationClassName = unshortenAnnotation(token.substring(1))
+                append(annotationClassName)
+
+                token = tokenizer.requireToken()
+                if (token == "(") {
+                    // Annotation arguments; potentially nested
+                    var balance = 0
+                    val start = tokenizer.offset() - 1
+                    while (true) {
+                        if (token == "(") {
+                            balance++
+                        } else if (token == ")") {
+                            balance--
+                            if (balance == 0) {
+                                break
+                            }
                         }
+                        token = tokenizer.requireToken()
                     }
-                    token = tokenizer.requireToken()
+
+                    // Append the tokenizer arguments.
+                    tokenizer.appendStringFromOffsetTo(this, start)
+
+                    // Move the tokenizer so that when the method returns it points to the token
+                    // after the end of the annotation.
+                    tokenizer.requireToken()
                 }
-                annotation += tokenizer.getStringFromOffset(start)
-                // Move the tokenizer so that when the method returns it points to the token after
-                // the end of the annotation.
-                tokenizer.requireToken()
             }
-            return annotation
         } else {
             return null
         }
@@ -1219,13 +1224,17 @@ private constructor(
     private fun getAnnotations(tokenizer: Tokenizer, startingToken: String) = buildList {
         var token = startingToken
         while (true) {
-            val annotationSource = getAnnotationSource(tokenizer, token) ?: break
-            token = tokenizer.current
-            // TODO(b/354633349): Look at just passing the tokenizer through to
-            //  parseAnnotationItem(Tokenizer) to save some time.
-            valueParser.parseAnnotationItem(annotationSource)?.let { annotationItem ->
+            // If the token does not start with '@' then it is not an annotation so break out.
+            if (!token.startsWith('@')) break
+
+            // Parse the annotation from the tokenizer. If it was not `null`
+            valueParser.parseAnnotationItem(tokenizer, token, unshorten = true)?.let {
+                annotationItem ->
                 add(annotationItem)
             }
+
+            // Get the token after the annotation.
+            token = tokenizer.current
         }
     }
 
