@@ -363,7 +363,12 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
  * [ParsedReference] because it can be resolved within a [ReferencableNameScope].
  */
 internal data class MethodSourceReference(val name: String, val parameters: String) :
-    ClassMemberSourceReference, ParsedReference
+    ClassMemberSourceReference, ParsedReference {
+
+    override fun findIn(classItem: ClassItem) =
+        // Return a method reference that uses the fully qualified name of the containing class.
+        MethodReference(classItem.qualifiedName(), "$name$parameters")
+}
 
 /** A reference to a [uriFragment]. */
 internal data class UriFragmentSourceReference(val uriFragment: String) :
