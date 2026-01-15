@@ -18,9 +18,13 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.testing.getAndroidTxt
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
@@ -30,7 +34,7 @@ import org.junit.Test
 class TextTypeParserCacheTest : BaseTextCodebaseTest() {
 
     private data class Context(
-        val codebase: TextCodebase,
+        val codebase: Codebase,
         val parser: TextTypeParser,
         val emptyScope: TypeParameterScope,
         val nonEmptyScope: TypeParameterScope,
@@ -48,16 +52,15 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val textCodebase = codebase as TextCodebase
             val parser =
                 TextTypeParser(
-                    textCodebase,
+                    codebase,
                     kotlinStyleNulls = false,
                 )
             val nonEmptyScope = TypeParameterScope.from(codebase.assertClass("test.pkg.Generic"))
             val context =
                 Context(
-                    textCodebase,
+                    codebase,
                     parser,
                     TypeParameterScope.empty,
                     nonEmptyScope,
@@ -67,20 +70,46 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test loading previously released public API`() {
+    fun `Test load Android public API to measure cache behavior for kotlinStyleNulls=no`() {
         val androidTxtFiles =
             listOf("public", "system", "module-lib").map { surface -> getAndroidTxt(34, surface) }
         ApiFile.parseApi(
-            androidTxtFiles,
+            SignatureFile.fromFiles(androidTxtFiles),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
                         ApiFile.Stats(
                             totalClasses = 7315,
-                            typeCacheRequests = 179041,
-                            typeCacheSkip = 9383,
-                            typeCacheHit = 161407,
-                            typeCacheSize = 8251,
+                            typeCacheRequests = 190875,
+                            typeCacheSkip = 0,
+                            typeCacheHit = 179355,
+                            typeCacheSize = 11520,
+                        )
+                    )
+            }
+        )
+    }
+
+    @Test
+    fun `Test load AndroidX public API to measure cache behavior for kotlinStyleNulls=yes`() {
+        val testFile = temporaryFolder.newFile("core-api-1.12.0-beta-1.txt")
+        testFile.outputStream().use {
+            val resourceName = "core/api/1.12.0-beta01.txt"
+            javaClass.getResourceAsStream(resourceName)?.copyTo(it)
+                ?: error("Cannot load resource $resourceName")
+        }
+
+        ApiFile.parseApi(
+            SignatureFile.fromFiles(testFile),
+            apiStatsConsumer = { stats ->
+                assertThat(stats)
+                    .isEqualTo(
+                        ApiFile.Stats(
+                            totalClasses = 306,
+                            typeCacheRequests = 7245,
+                            typeCacheSkip = 0,
+                            typeCacheHit = 6532,
+                            typeCacheSize = 713,
                         )
                     )
             }
@@ -98,22 +127,22 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test non-empty scope is not cached but could be`() {
+    fun `Test non-type parameter based type in a non-empty scope is cached`() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("int", nonEmptyScope)
             val second = parser.obtainTypeFromString("int", nonEmptyScope)
 
-            assertThat(first).isNotSameInstanceAs(second)
+            assertThat(first).isSameInstanceAs(second)
         }
     }
 
     @Test
-    fun `Test type that references a type parameter is not cached`() {
+    fun `Test type that references a type parameter is cached`() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("T", nonEmptyScope)
             val second = parser.obtainTypeFromString("T", nonEmptyScope)
 
-            assertThat(first).isNotSameInstanceAs(second)
+            assertThat(first).isSameInstanceAs(second)
         }
     }
 
@@ -183,6 +212,37 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     }
 
     @Test
+    fun `Test caching of type variables collide with int`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar1(int);
+                        method public <int> void bar2(int);
+                        method public void bar3(int);
+                      }
+                    }
+                """
+            ),
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo")
+
+            // Get the type of the parameter of all the methods.
+            val (bar1Param, bar2Param, bar3Param) = foo.methods().map { it.parameters()[0].type() }
+
+            // Even though all the method's parameter types are the same string representation they
+            // have two different types.
+            assertThat(bar1Param).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat(bar2Param).isInstanceOf(VariableTypeItem::class.java)
+            assertThat(bar3Param).isInstanceOf(PrimitiveTypeItem::class.java)
+
+            assertThat(bar1Param).isSameInstanceAs(bar3Param)
+        }
+    }
+
+    @Test
     fun `Test caching of array components`() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("String", emptyScope)
@@ -240,8 +300,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
             assertWithMessage(
                     "string representation of withAnno1.deepestComponent() and withAnno1TwoDims.deepestComponent()"
                 )
-                .that(withAnno1TwoDims.deepestComponent().toTypeString(annotations = true))
-                .isEqualTo(withAnno1.deepestComponent().toTypeString(annotations = true))
+                .that(withAnno1TwoDims.deepestComponent().testTypeString(annotations = true))
+                .isEqualTo(withAnno1.deepestComponent().testTypeString(annotations = true))
 
             // But they are different instances as types with annotations are not cached..
             assertWithMessage(
@@ -256,7 +316,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     fun `Test caching of generic type arguments`() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
-            val second = parser.obtainTypeFromString("List<Number>", emptyScope) as ClassTypeItem
+            val second =
+                parser.obtainTypeFromString("java.util.List<Number>", emptyScope) as ClassTypeItem
 
             assertThat(second.arguments[0]).isSameInstanceAs(first)
         }
@@ -267,7 +328,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
             val second =
-                parser.obtainTypeFromString("List<? extends Number>", emptyScope) as ClassTypeItem
+                parser.obtainTypeFromString("java.util.List<? extends Number>", emptyScope)
+                    as ClassTypeItem
 
             assertThat((second.arguments[0] as WildcardTypeItem).extendsBound)
                 .isSameInstanceAs(first)
@@ -279,9 +341,47 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
             val second =
-                parser.obtainTypeFromString("List<? super Number>", emptyScope) as ClassTypeItem
+                parser.obtainTypeFromString("java.util.List<? super Number>", emptyScope)
+                    as ClassTypeItem
 
             assertThat((second.arguments[0] as WildcardTypeItem).superBound).isSameInstanceAs(first)
+        }
+    }
+
+    @Test
+    fun `Test same string, same type, different scopes`() {
+        // Tests that two types which have the same string and
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public class Foo<T> {
+                      }
+                      public class Foo.Inner1<U> {
+                        method public String bar1();
+                        method public int bar2();
+                        method public T bar3();
+                      }
+                      public class Foo.Inner2<U> {
+                        method public String bar1();
+                        method public int bar2();
+                        method public T bar3();
+                      }
+                    }
+                """
+            ),
+        ) {
+            val inner1 = codebase.assertClass("test.pkg.Foo.Inner1")
+            val inner2 = codebase.assertClass("test.pkg.Foo.Inner2")
+
+            // Make sure that all the methods of inner1 and inner2 use the same type even though
+            // they have a different set of type parameters in scope.
+            for ((method1, method2) in inner1.methods().zip(inner2.methods())) {
+                assertWithMessage("method ${method1.name()}")
+                    .that(method1.returnType())
+                    .isSameInstanceAs(method2.returnType())
+            }
         }
     }
 }

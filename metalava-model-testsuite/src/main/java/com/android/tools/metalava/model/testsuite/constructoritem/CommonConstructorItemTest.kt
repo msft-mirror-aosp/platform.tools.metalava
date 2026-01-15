@@ -20,12 +20,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem]. */
-@RunWith(Parameterized::class)
 class CommonConstructorItemTest : BaseModelTest() {
 
     @Test
@@ -74,8 +74,7 @@ class CommonConstructorItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val constructorType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
@@ -86,6 +85,71 @@ class CommonConstructorItemTest : BaseModelTest() {
                     .type()
 
             constructorType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
+    fun `Test constructor of inner class has no implicit parameter`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer {
+                      }
+                      public class Outer.Inner {
+                        ctor public Inner();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer {
+                        private Outer() {}
+
+                        public class Inner {
+                            public Inner() {}
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer private constructor() {
+                        inner class Inner() {}
+                    }
+                """
+            ),
+        ) {
+            val testConstructor =
+                codebase.assertClass("test.pkg.Outer.Inner").constructors().single()
+
+            assertEquals("constructor test.pkg.Outer.Inner()", testConstructor.describe())
+        }
+    }
+
+    @Test
+    fun `Test Kotlin primary constructor`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo(i: Int, s: String?) {
+                        constructor(i: Int) : this(i, null)
+                    }
+                """
+            )
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Foo")
+            val primaryCtor = classItem.assertConstructor(listOf("int", "java.lang.String"))
+            assertTrue(primaryCtor.isPrimary, "primary constructor")
+            val secondaryCtor = classItem.assertConstructor(listOf("int"))
+            assertFalse(secondaryCtor.isPrimary, "secondary constructor")
         }
     }
 }

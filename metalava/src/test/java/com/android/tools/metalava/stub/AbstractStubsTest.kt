@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 
-open class AbstractStubsTest : DriverTest() {
+abstract class AbstractStubsTest : DriverTest() {
     protected fun checkStubs(
         // source is a wrapper for stubFiles. When passing multiple stub Java files to test,
         // use stubFiles.
@@ -35,11 +35,13 @@ open class AbstractStubsTest : DriverTest() {
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
-        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
+        skipEmitPackages: List<String>? = null,
         format: FileFormat = FileFormat.LATEST,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
-        checkTextStubEquivalence: Boolean = false
+        checkCompilation: Boolean = true,
+        checkTextStubEquivalence: Boolean = false,
+        filterBlankLinesFromStubFiles: Boolean = true,
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
         check(
@@ -48,12 +50,13 @@ open class AbstractStubsTest : DriverTest() {
             showAnnotations = showAnnotations,
             stubFiles = stubFilesArr,
             expectedIssues = warnings,
-            checkCompilation = true,
+            checkCompilation = checkCompilation,
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,
-            format = format
+            format = format,
+            filterBlankLinesFromStubFiles = filterBlankLinesFromStubFiles,
         )
         if (checkTextStubEquivalence) {
             if (stubFilesArr.isEmpty()) {
@@ -71,11 +74,11 @@ open class AbstractStubsTest : DriverTest() {
                 return
             }
             check(
-                signatureSources = arrayOf(readFile(getApiFile())),
+                signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
                 stubFiles = stubFilesArr,
                 expectedIssues = warnings,
-                checkCompilation = true,
+                checkCompilation = checkCompilation,
                 extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
                 skipEmitPackages = skipEmitPackages,
                 format = format

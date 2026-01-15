@@ -16,19 +16,40 @@
 
 package com.android.tools.metalava.model
 
-import java.util.function.Predicate
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 
 /** Represents a Kotlin/Java source file */
-interface SourceFile {
+interface SourceFile : ReferencableNameScope {
+    /** The [Codebase] to which this [SourceFile] belongs. */
+    val codebase: Codebase
+
+    /** The [PackageItem] to which this [SourceFile] belongs. */
+    val containingPackage: PackageItem
+
     /** Top level classes contained in this file */
     fun classes(): Sequence<ClassItem>
 
     fun getHeaderComments(): String? = null
 
-    fun getImports(predicate: Predicate<Item>): Collection<Import> = emptyList()
+    /**
+     * Get all the Java imports, no filtering, no sorting, includes static and on demand.
+     *
+     * Returns an empty list for Kotlin as this will be used for resolving references in Javadoc
+     * comments that are written to the stubs, which is only done for Java APIs.
+     */
+    fun allJavaImports(): List<JavaImport>
+
+    /** Get all the imports. */
+    fun getImports() = getImports { true }
+
+    /** Get only those imports that reference [Item]s for which [predicate] returns `true`. */
+    fun getImports(predicate: FilterPredicate): Collection<Import> = emptyList()
+
+    fun snapshot(targetCodebase: Codebase): SourceFile
 }
 
 /** Encapsulates information about the imports used in a [SourceFile]. */
+@ConsistentCopyVisibility
 data class Import
 internal constructor(
     /**
@@ -70,3 +91,20 @@ internal constructor(
         true,
     )
 }
+
+/** Encapsulates information about the imports used in a Java [SourceFile]. */
+data class JavaImport(
+    /**
+     * The qualified name of the import.
+     *
+     * If [onDemand] is `true` then this is everything before the `.*`. Otherwise, this is the
+     * qualified name of the imported item(s).
+     */
+    val qualifiedName: String,
+
+    /** `true` if the import used a wildcard, i.e. ended with `.*`. */
+    val onDemand: Boolean,
+
+    /** `true` if the import used the `static` keyword. */
+    val static: Boolean,
+)

@@ -17,23 +17,32 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNullableSource
+import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
-@RunWith(Parameterized::class)
 class CommonClassItemTest : BaseModelTest() {
 
     @Test
@@ -63,7 +72,6 @@ class CommonClassItemTest : BaseModelTest() {
             assertEquals("Test", testClass.fullName())
             assertEquals("test/pkg/Test", testClass.internalName())
             assertEquals("test.pkg.Test", testClass.qualifiedName())
-            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarInnerClasses())
             assertEquals(1, testClass.constructors().size)
             assertEquals(emptyList(), testClass.methods())
             assertEquals(emptyList(), testClass.fields())
@@ -99,14 +107,42 @@ class CommonClassItemTest : BaseModelTest() {
 
             // This should not find the method as `findMethod` splits parameters by `,` so it looks
             // for one parameter of type `java.util.Map<String` and one of type `Integer>`.
-            val foundMethod = fooClass.findMethod("foo", "java.util.Map<String, Integer>")
+            val foundMethod = fooClass.findBytecodeMethod("foo", "java.util.Map<String, Integer>")
             assertNull(
                 foundMethod,
                 message = "unexpectedly found method with multiple type parameters"
             )
 
             // This should find the method.
-            assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
+            assertSame(fooMethod, fooClass.findBytecodeMethod("foo", "java.util.Map"))
+        }
+    }
+
+    @Test
+    fun `Find method by multiple erased types`() {
+        runCodebaseTest(
+            java(
+                """
+                package test.pkg;
+                import java.util.List;
+                import java.util.Map;
+                public class Foo {
+                    public void multipleSimpleParams(int i, float f, String s) {}
+                    public <T1, T2 extends Integer> void multipleVariableParams(T1 t1, T2 t2, List<T1> t1s, Map<T2, T1> map) {}
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertNotNull(
+                fooClass.findBytecodeMethod("multipleSimpleParams", "int,float,java.lang.String")
+            )
+            assertNotNull(
+                fooClass.findBytecodeMethod(
+                    "multipleVariableParams",
+                    "java.lang.Object,java.lang.Integer,java.util.List,java.util.Map"
+                )
+            )
         }
     }
 
@@ -153,13 +189,11 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val extendsType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
-                    .typeParameterList()
-                    .typeParameters()
+                    .typeParameterList
                     .first()
                     .typeBounds()
                     .first()
@@ -221,8 +255,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val extendsType = codebase.assertClass("test.pkg.Outer.Middle.Inner").superClassType()!!
             val typeArgument = extendsType.arguments.single()
 
@@ -282,8 +315,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val implementsType =
                 codebase.assertClass("test.pkg.Outer.Middle.Inner").interfaceTypes().single()
             val typeArgument = implementsType.arguments.single()
@@ -309,6 +341,13 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     public interface Foo {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface Foo
                 """
             ),
         ) {
@@ -353,6 +392,16 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface Foo extends A, B, C {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface A
+                    interface B
+                    interface C
+                    interface Foo: A, B, C
+                """
+            ),
         ) {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
@@ -389,6 +438,13 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo
+                """
+            ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
@@ -396,7 +452,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fooSuperClass = fooClass.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, fooSuperClass)
 
@@ -428,6 +484,14 @@ class CommonClassItemTest : BaseModelTest() {
 
                     public class Bar {}
                     public class Foo extends Bar {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    open class Bar
+                    class Foo: Bar()
                 """
             ),
         ) {
@@ -473,6 +537,16 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo implements A, B, C {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface A
+                    interface B
+                    interface C
+                    class Foo: A, B, C
+                """
+            ),
         ) {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
@@ -483,7 +557,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fooSuperClass = fooClass.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, fooSuperClass)
 
@@ -526,6 +600,17 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo extends Bar implements A, B, C {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    open class Bar
+                    interface A
+                    interface B
+                    interface C
+                    class Foo: Bar(), A, B, C
+                """
+            ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val interfaceA = codebase.assertClass("test.pkg.A")
@@ -545,6 +630,160 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test class super class generic type`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 4.0
+                        package test.pkg {
+                          public class Generic<T, U> {
+                          }
+                          public class Foo extends test.pkg.Generic<String?, Integer> {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Generic<T, U> {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Foo extends Generic<@Nullable String, @NonNull Integer> {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        open class Generic<T, U>
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo: Generic<String?, Integer>()
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val superClassType = fooClass.superClassType()!!
+            assertEquals(
+                "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
+                superClassType.testTypeString(kotlinStyleNulls = true)
+            )
+        }
+    }
+
+    @Test
+    fun `Test class super interface generic type`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 4.0
+                        package test.pkg {
+                          public interface Generic<T, U> {
+                          }
+                          public class Foo implements test.pkg.Generic<String?, Integer> {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public interface Generic<T, U> {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Foo implements Generic<@Nullable String, @NonNull Integer> {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        interface Generic<T, U>
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo: Generic<String?, Integer>
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val superClassType = fooClass.interfaceTypes().single()
+            assertEquals(
+                "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
+                superClassType.testTypeString(kotlinStyleNulls = true)
+            )
+        }
+    }
+
+    @Test
+    fun `Test class Object has no super class type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package java.lang {
+                      public class Object {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package java.lang;
+
+                    public class Object {}
+                """
+            ),
+        ) {
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            // Must have no super class type, otherwise it could lead to stack overflows when
+            // recursing up the hierarchy.
+            assertNull(objectClass.superClassType())
+        }
+    }
+
+    @Test
     fun `Test deprecated class by javadoc tag`() {
         runCodebaseTest(
             java(
@@ -552,6 +791,7 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     /**
+                     * @noinspection DeprecatedIsStillUsed
                      * @deprecated
                      */
                     public class Bar {}
@@ -559,8 +799,48 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.deprecated)
-            assertEquals(true, barClass.originallyDeprecated)
+            barClass.assertExplicitlyDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is not treated as deprecated by @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertNotDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is treated as deprecated if @deprecated comes after @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     * @deprecated Really deprecated
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -580,6 +860,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
+                    /** @noinspection DeprecatedIsStillUsed */
                     @Deprecated
                     public class Bar {}
                 """
@@ -594,8 +875,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.deprecated)
-            assertEquals(true, barClass.originallyDeprecated)
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -627,8 +907,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(false, barClass.deprecated)
-            assertEquals(false, barClass.originallyDeprecated)
+            barClass.assertNotDeprecated()
         }
     }
 
@@ -641,14 +920,12 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Parent<M, N> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> extends Parent<X, Y> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -662,7 +939,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -672,17 +948,16 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Parent<M, N>
                         class Child<X, Y> : Parent<X, Y>()
                     """
-                        .trimIndent()
                 )
             )
         ) {
             val parent = codebase.assertClass("test.pkg.Parent")
-            val parentTypeParams = parent.typeParameterList().typeParameters()
+            val parentTypeParams = parent.typeParameterList
             val m = parentTypeParams[0]
             val n = parentTypeParams[1]
 
             val child = codebase.assertClass("test.pkg.Child")
-            val childTypeParams = child.typeParameterList().typeParameters()
+            val childTypeParams = child.typeParameterList
             val x = childTypeParams[0].type()
             val y = childTypeParams[1].type()
 
@@ -703,28 +978,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Class4<I> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class3<G, H> extends Class4<G> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class2<D, E, F> extends Class3<D, F> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class1<A, B, C> extends Class2<B, C, A> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -742,7 +1013,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -754,21 +1024,20 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Class2<D, E, F> : Class3<D, F>
                         class Class1<A, B, C> : Class2<B, C, A>
                     """
-                        .trimIndent()
                 )
             )
         ) {
             val c4 = codebase.assertClass("test.pkg.Class4")
-            val i = c4.typeParameterList().typeParameters()[0]
+            val i = c4.typeParameterList[0]
 
             val c3 = codebase.assertClass("test.pkg.Class3")
-            val c3TypeParams = c3.typeParameterList().typeParameters()
+            val c3TypeParams = c3.typeParameterList
             val g = c3TypeParams[0]
             val gType = g.type()
             val h = c3TypeParams[1]
 
             val c2 = codebase.assertClass("test.pkg.Class2")
-            val c2TypeParams = c2.typeParameterList().typeParameters()
+            val c2TypeParams = c2.typeParameterList
             val d = c2TypeParams[0]
             val dType = d.type()
             val e = c2TypeParams[1]
@@ -776,7 +1045,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fType = f.type()
 
             val c1 = codebase.assertClass("test.pkg.Class1")
-            val c1TypeParams = c1.typeParameterList().typeParameters()
+            val c1TypeParams = c1.typeParameterList
             val aType = c1TypeParams[0].type()
             val bType = c1TypeParams[1].type()
             val cType = c1TypeParams[2].type()
@@ -801,21 +1070,18 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Grandparent<A, B> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Parent<T> extends Grandparent<T, Parent<T>> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child extends Parent<Child> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -831,7 +1097,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -842,22 +1107,26 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Parent<T> : Grandparent<T, Parent<T>>
                         class Child : Parent<Child>
                     """
-                        .trimIndent()
                 )
             )
         ) {
             val grandparent = codebase.assertClass("test.pkg.Grandparent")
-            val grandparentTypeParams = grandparent.typeParameterList().typeParameters()
+            val grandparentTypeParams = grandparent.typeParameterList
             val a = grandparentTypeParams[0]
             val b = grandparentTypeParams[1]
 
             val parent = codebase.assertClass("test.pkg.Parent")
-            val t = parent.typeParameterList().typeParameters()[0]
+            val t = parent.typeParameterList[0]
             val tType = t.type()
 
             val child = codebase.assertClass("test.pkg.Child")
 
-            val erasedParentType = parent.type().duplicate(null, emptyList())
+            val parentType = parent.type()
+            val erasedParentType =
+                parentType.substitute(
+                    outerClassType = null,
+                    arguments = emptyList(),
+                )
             assertEquals(
                 mapOf(a to tType, b to erasedParentType),
                 parent.mapTypeVariables(grandparent)
@@ -879,28 +1148,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public interface Interface3<G, H> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface2<E, F> extends Interface3<E, F> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface1<C, D> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class<A, B> implements Interface1<A, B>, Interface2<B, A>{}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -918,7 +1183,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -930,29 +1194,28 @@ class CommonClassItemTest : BaseModelTest() {
                         interface Interface1<C, D>
                         class Class<A, B> : Interface1<A, B>, Interface2<B, A>
                     """
-                        .trimIndent()
                 )
             )
         ) {
             val i3 = codebase.assertClass("test.pkg.Interface3")
-            val i3TypeParams = i3.typeParameterList().typeParameters()
+            val i3TypeParams = i3.typeParameterList
             val g = i3TypeParams[0]
             val h = i3TypeParams[1]
 
             val i2 = codebase.assertClass("test.pkg.Interface2")
-            val i2TypeParams = i2.typeParameterList().typeParameters()
+            val i2TypeParams = i2.typeParameterList
             val e = i2TypeParams[0]
             val eType = e.type()
             val f = i2TypeParams[1]
             val fType = f.type()
 
             val i1 = codebase.assertClass("test.pkg.Interface1")
-            val i1TypeParams = i1.typeParameterList().typeParameters()
+            val i1TypeParams = i1.typeParameterList
             val c = i1TypeParams[0]
             val d = i1TypeParams[1]
 
             val cls = codebase.assertClass("test.pkg.Class")
-            val clsTypeParams = cls.typeParameterList().typeParameters()
+            val clsTypeParams = cls.typeParameterList
             val aType = clsTypeParams[0].type()
             val bType = clsTypeParams[1].type()
 
@@ -973,28 +1236,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public interface Root<T> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface1<T1> extends Root<T1> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface2<T2> extends Root<T2> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> implements Interface1<X>, Interface2<Y> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1012,7 +1271,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1024,23 +1282,22 @@ class CommonClassItemTest : BaseModelTest() {
                         interface Interface2<T2> : Root<T2>
                         class Child<X, Y> : Interface1<X>, Interface2<Y>
                     """
-                        .trimIndent()
                 )
             )
         ) {
             val root = codebase.assertClass("test.pkg.Root")
-            val t = root.typeParameterList().typeParameters()[0]
+            val t = root.typeParameterList[0]
 
             val i1 = codebase.assertClass("test.pkg.Interface1")
-            val t1 = i1.typeParameterList().typeParameters()[0]
+            val t1 = i1.typeParameterList[0]
             val t1Type = t1.type()
 
             val i2 = codebase.assertClass("test.pkg.Interface2")
-            val t2 = i2.typeParameterList().typeParameters()[0]
+            val t2 = i2.typeParameterList[0]
             val t2Type = t2.type()
 
             val child = codebase.assertClass("test.pkg.Child")
-            val childParameterList = child.typeParameterList().typeParameters()
+            val childParameterList = child.typeParameterList
             val xType = childParameterList[0].type()
             val yType = childParameterList[1].type()
 
@@ -1062,7 +1319,7 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test inheritMethodFromNonApiAncestor`() {
+    fun `Test duplicate without type substitutions`() {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -1080,14 +1337,176 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                 ),
             ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        internal open class HiddenClass {
+                            fun foo() {}
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class PublicClass: HiddenClass()
+                    """
+                ),
+            ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
             val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
-            val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
+            val inheritedMethod = hiddenClassMethod.duplicate(publicClass)
             assertSame(hiddenClass, inheritedMethod.inheritedFrom)
             assertTrue(inheritedMethod.inheritedFromAncestor)
+
+            assertEquals("fun foo(): void", inheritedMethod.kotlinLikeDescription())
+        }
+    }
+
+    @Test
+    fun `Test duplicate with type substitutions`() {
+        runSourceCodebaseTest(
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        import type.use.only.*;
+                        class HiddenClass<T extends @Nullable Object, S extends @Nullable Object> {
+                            public void t(T t) {}
+                            public void optionalT(@Nullable T optionalT) {}
+                            public void listOfT(@NonNull List<? extends T> listOfT) {}
+                            public void listOfOptionalT(@NonNull List<? extends @Nullable T>listOfOptionalT) {}
+
+                            public void s(S s) {}
+                            public void optionalS(@Nullable S optionalS) {}
+                            public void listOfS(@NonNull List<? extends S> listOfS) {}
+                            public void listOfOptionalS(@NonNull List<? extends @Nullable S> listOfOptionalS) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class PublicClass extends HiddenClass<@NonNull String, @Nullable Integer> {}
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        internal class HiddenClass<T, S> {
+                            fun t(t: T) {}
+                            fun optionalT(optionalT: T?) {}
+                            fun listOfT(listOfT: List<T>) {}
+                            fun listOfOptionalT(listOfOptionalT: List<T?>) {}
+
+                            fun s(s: S) {}
+                            fun optionalS(optionalS: S?) {}
+                            fun listOfS(listOfS: List<S>) {}
+                            fun listOfOptionalS(listOfOptionalS: List<S?>) {}
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class PublicClass: HiddenClass<String, Integer?>()
+                    """
+                ),
+            ),
+        ) {
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+
+            val expectedTypes =
+                mapOf(
+                    "t" to "java.lang.String",
+                    "optionalT" to "java.lang.String?",
+                    "listOfT" to "java.util.List<? extends java.lang.String>",
+                    "listOfOptionalT" to "java.util.List<? extends java.lang.String?>",
+                    "s" to "java.lang.Integer?",
+                    "optionalS" to "java.lang.Integer?",
+                    "listOfS" to "java.util.List<? extends java.lang.Integer?>",
+                    "listOfOptionalS" to "java.util.List<? extends java.lang.Integer?>",
+                )
+
+            for (method in hiddenClass.methods().sortedBy { it.name() }) {
+                val name = method.name()
+                val inheritedMethod = method.duplicate(publicClass)
+                assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+                assertTrue(inheritedMethod.inheritedFromAncestor)
+
+                val parameterType = inheritedMethod.parameters().single().type()
+                assertWithMessage("testing type of $name")
+                    .that(parameterType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedTypes[name])
+            }
+        }
+    }
+
+    @Test
+    fun `Test duplicate with type substitutions and not type use nullability annotations`() {
+        // Test for behavior of MethodItem.duplicate(ClassItem) in Java when the type parameter is
+        // used in the return type and is either unannotated, or annotated with a non-type use
+        // nullability annotation.
+        runSourceCodebaseTest(
+            inputSet(
+                notTypeUseNonNullSource,
+                notTypeUseNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        import not.type.use.*;
+                        abstract class HiddenClass<T> {
+                            public T t();
+                            @NonNull public T nonNullT();
+                            @Nullable public T nullableT();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public abstract class PublicClass extends HiddenClass<String> {}
+                    """
+                ),
+            ),
+        ) {
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+
+            val expectedTypesAndNullability =
+                mapOf(
+                    "t" to Pair("java.lang.String!", TypeNullability.PLATFORM),
+                    "nonNullT" to Pair("java.lang.String", TypeNullability.NONNULL),
+                    "nullableT" to Pair("java.lang.String?", TypeNullability.NULLABLE),
+                )
+
+            for (method in hiddenClass.methods().sortedBy { it.name() }) {
+                val name = method.name()
+                val inheritedMethod = method.duplicate(publicClass)
+                assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+                assertTrue(inheritedMethod.inheritedFromAncestor)
+
+                val returnType = inheritedMethod.returnType()
+                val (expectedType, expectedNullability) = expectedTypesAndNullability[name]!!
+                assertWithMessage("testing type of $name")
+                    .that(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+
+                assertWithMessage("testing type nullability of $name")
+                    .that(returnType.modifiers.nullability)
+                    .isEqualTo(expectedNullability)
+            }
         }
     }
 
@@ -1116,7 +1535,7 @@ class CommonClassItemTest : BaseModelTest() {
         ) {
             val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
             val outerClass = codebase.assertClass("test.pkg.Outer")
-            val outerClassParameter = outerClass.typeParameterList().typeParameters().single()
+            val outerClassParameter = outerClass.typeParameterList.single()
 
             val innerType = innerClass.type()
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
@@ -1159,13 +1578,498 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val genericClass = codebase.assertClass("test.pkg.Generic")
-            val typeParameter = genericClass.typeParameterList().typeParameters().single()
+            val typeParameter = genericClass.typeParameterList.single()
 
             assertThat(genericClass).isInstanceOf(ClassItem::class.java)
             assertThat(genericClass).isNotInstanceOf(TypeParameterItem::class.java)
 
             assertThat(typeParameter).isInstanceOf(TypeParameterItem::class.java)
             assertThat(typeParameter).isNotInstanceOf(ClassItem::class.java)
+        }
+    }
+
+    @Test
+    fun `Check pathological type parameter conflicting with primitive type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public abstract class Generic<int> {
+                        method public abstract int method();
+                      }
+                    }
+                """
+            ),
+            // Java does not support using a primitive type name as a type parameter name.
+            kotlin(
+                """
+                    package test.pkg
+                    abstract class Generic<Int> {
+                        abstract fun method(): Int
+                    }
+                """
+            )
+        ) {
+            val genericClass = codebase.assertClass("test.pkg.Generic")
+            val typeParameter = genericClass.typeParameterList.single()
+
+            val methodReturnType = genericClass.methods().single().returnType()
+            methodReturnType.assertReferencesTypeParameter(typeParameter)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability and annotations of ClassItem type()`() {
+        val typeUseAnnotation =
+            java(
+                """
+                    package test.pkg;
+                    import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Target;
+
+                    @Target(ElementType.TYPE_USE)
+                    @interface TypeUse {}
+                """
+            )
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @test.pkg.TypeUse public class Foo {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseAnnotation,
+                java(
+                    """
+                        package test.pkg;
+
+                        @TypeUse
+                        public class Foo {}
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseAnnotation,
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo
+                    """
+                ),
+            ),
+        ) {
+            val classType = codebase.assertClass("test.pkg.Foo").type()
+            val modifiers = classType.modifiers
+
+            // Class types are always non-null without needing an annotation
+            assertThat(modifiers.nullability).isEqualTo(TypeNullability.NONNULL)
+
+            // Class types do not have any annotations.
+            assertThat(modifiers.annotations).isEmpty()
+        }
+    }
+
+    private fun CodebaseContext.checkClassOrigin(
+        name: String,
+        expectedOrigin: ClassOrigin,
+    ) {
+        // Make sure to resolve any class requested just in case it is on the class path.
+        val testClass =
+            codebase.assertResolvedClass(
+                name,
+                expectedEmit = expectedOrigin == ClassOrigin.COMMAND_LINE,
+            )
+        assertEquals(expectedOrigin, testClass.origin, message = "$name origin")
+    }
+
+    @Test
+    fun `Test origin`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+        ) {
+            checkClassOrigin(
+                "test.pkg.Test",
+                expectedOrigin = ClassOrigin.COMMAND_LINE,
+            )
+            checkClassOrigin(
+                "java.lang.String",
+                expectedOrigin = ClassOrigin.CLASS_PATH,
+            )
+
+            // Some models may not return an unknown class but those that do should treat it as
+            // coming from the class path.
+            codebase.resolveClass("Unknown")?.let { testClass ->
+                assertEquals(ClassOrigin.CLASS_PATH, testClass.origin, message = "Unknown")
+            }
+        }
+    }
+
+    @Test
+    fun `Test origin source path`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class SourcePathClass {}
+                            """
+                        )
+                    ),
+            )
+        ) {
+            checkClassOrigin(
+                "test.pkg.SourcePathClass",
+                expectedOrigin = ClassOrigin.SOURCE_PATH,
+            )
+        }
+    }
+
+    @Test
+    fun `Test class on source path`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class SourcePathClass {}
+                            """
+                        )
+                    ),
+            )
+        ) {
+            // Make sure that a class defined on the source class path can be resolved but is not
+            // emitted.
+            codebase.assertResolvedClass("test.pkg.SourcePathClass")
+        }
+    }
+
+    @Test
+    fun `Test class excluded by package filter`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.excluded.pkg;
+
+                        public class Excluded {
+                            private Excluded() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            // Make sure that a class defined excluded by a package filter can be resolved but is
+            // not emitted.
+            codebase.assertResolvedClass("test.excluded.pkg.Excluded")
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test class location (java)`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.java:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test class location (kotlin)`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Test private constructor() {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.kt:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.SIGNATURE)
+    @Test
+    fun `Test class location (signature)`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/api.txt:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
+        }
+    }
+
+    /**
+     * This test is to make sure that older signature files without any exhaustivity modifiers are
+     * read as non-exhaustive.
+     */
+    @Test
+    fun `modifiers show nonexhaustive when no exhaustivity modifier is present in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed class SealedClass {
+                      }
+                      public sealed interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+                    public sealed interface SealedInterface {}
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(false, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show exhaustive when class or interface is marked as exhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed exhaustive class SealedClass {
+                      }
+                      public sealed exhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    public sealed interface SealedInterface {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(true, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(true, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show nonexhaustive when class or interface is marked as nonexhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed nonexhaustive class SealedClass {
+                      }
+                      public sealed nonexhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+
+                    public sealed interface SealedInterface
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `subclasses are populated correctly for sealed classes and interfaces, and indirect subclasses aren't tracked`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class MyIndirectInterfaceImplementor extends test.pkg.MyInterfaceImplementorA {
+                        ctor public MyIndirectInterfaceImplementor();
+                      }
+                      public final class MyIndirectSubclass extends test.pkg.MySubclassA {
+                        ctor public MyIndirectSubclass();
+                      }
+                      public abstract sealed exhaustive class MyInterfaceImplementorA implements test.pkg.ParentInterface {
+                      }
+                      public final class MyInterfaceImplementorB implements test.pkg.ParentInterface {
+                        ctor public MyInterfaceImplementorB();
+                      }
+                      public abstract sealed exhaustive class MySubclassA extends test.pkg.ParentClass {
+                      }
+                      public final class MySubclassB extends test.pkg.ParentClass {
+                        ctor public MySubclassB();
+                      }
+                      public abstract sealed exhaustive class ParentClass {
+                      }
+                      public sealed exhaustive interface ParentInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    sealed class ParentClass
+                    sealed class MySubclassA : ParentClass()
+                    class MySubclassB : ParentClass()
+                    class MyIndirectSubclass : MySubclassA()
+
+                    sealed interface ParentInterface
+                    sealed class MyInterfaceImplementorA : ParentInterface
+                    class MyInterfaceImplementorB : ParentInterface
+                    class MyIndirectInterfaceImplementor : MyInterfaceImplementorA()
+                """
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.ParentClass")
+            assertEquals(2, testClass.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MySubclassA" in
+                    testClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+            assertTrue(
+                "test.pkg.MySubclassB" in
+                    testClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val testInterface = codebase.assertClass("test.pkg.ParentInterface")
+            assertEquals(2, testInterface.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyInterfaceImplementorA" in
+                    testInterface.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+            assertTrue(
+                "test.pkg.MyInterfaceImplementorB" in
+                    testInterface.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val subClass = codebase.assertClass("test.pkg.MySubclassA")
+            assertEquals(1, subClass.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyIndirectSubclass" in
+                    subClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val ifaceImplementor = codebase.assertClass("test.pkg.MyInterfaceImplementorA")
+            assertEquals(1, ifaceImplementor.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyIndirectInterfaceImplementor" in
+                    ifaceImplementor.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
         }
     }
 }

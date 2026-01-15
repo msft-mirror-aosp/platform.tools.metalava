@@ -18,21 +18,19 @@ package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Assert.assertEquals
 import org.junit.Assume
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
-@RunWith(Parameterized::class)
 class CommonInternalNameTest : BaseModelTest() {
 
-    @Parameter(1) lateinit var params: TestParams
+    @Parameter(0) lateinit var params: TestParams
 
     data class TestParams(
         val javaType: String,
@@ -155,16 +153,12 @@ class CommonInternalNameTest : BaseModelTest() {
                 ),
                 TestParams(
                     javaType = "java.util.List<java.lang.Number>[]",
-                    kotlinType = "Array<java.util.List<java.lang.Number>[]>",
+                    kotlinType = "Array<java.util.List<java.lang.Number>>",
                     internalName = "[Ljava/util/List;",
                 ),
             )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun data(): Collection<Array<Any>> {
-            return crossProduct(params)
-        }
+        @JvmStatic @Parameterized.Parameters fun params() = params
     }
 
     @Test

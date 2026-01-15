@@ -17,6 +17,8 @@
 package com.android.tools.metalava.binarycompatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -51,9 +53,8 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:5: error: Removed package test.pkg.removed [RemovedPackage]
-            """
-                    .trimIndent(),
+                released-api.txt:5: error: Binary breaking change: Removed package test.pkg.removed [RemovedPackage]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -102,9 +103,8 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed class test.pkg.Bar [RemovedClass]
-            """
-                    .trimIndent(),
+                released-api.txt:4: error: Binary breaking change: Removed class test.pkg.Bar [RemovedClass]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -124,6 +124,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add non-public (non-API) type to API package (Compatible)`() {
         check(
@@ -154,9 +155,8 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
-            """
-                    .trimIndent(),
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -182,20 +182,19 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:12: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:14: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:13: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:5: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:3: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
-                load-api.txt:4: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:8: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:6: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:7: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                load-api.txt:11: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
-                load-api.txt:9: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
-                load-api.txt:10: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
-            """
-                    .trimIndent(),
+                load-api.txt:3: error: Binary breaking change: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:4: error: Binary breaking change: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:5: error: Binary breaking change: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:6: error: Binary breaking change: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:7: error: Binary breaking change: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:8: error: Binary breaking change: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:9: error: Binary breaking change: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:10: error: Binary breaking change: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:11: error: Binary breaking change: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:12: error: Binary breaking change: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:13: error: Binary breaking change: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:14: error: Binary breaking change: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
+                """,
             signatureSource =
                 """
                 package test.pkg {
