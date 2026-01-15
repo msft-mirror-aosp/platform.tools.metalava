@@ -125,46 +125,8 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             return null
         }
 
-        // Check to see if this is a member reference.
-        val hashIndex = sourceReference.indexOf('#')
-        if (hashIndex != -1) {
-            // The reference is to a class member so first resolve the class.
-            val classItem =
-                if (hashIndex == 0) {
-                    // Use this documentation's containing class.
-                    context.containingClassItem
-                } else {
-                    // Else resolve the class reference.
-                    val classReference = sourceReference.substring(0, hashIndex)
-                    val resolved =
-                        context.resolveItemReference(classReference, NameClassification.CLASS)
-                    when (resolved) {
-                        is ClassItem -> resolved
-                        is InvalidReferencableItem -> {
-                            resolved.reportIssue(reporter)
-                            null
-                        }
-                        // Ignore any non-class references.
-                        else -> null
-                    }
-                }
-            classItem ?: return null
-
-            var memberReference = sourceReference.substring(hashIndex + 1)
-            return resolveMember(classItem, memberReference)
-        }
-
         // Resolve the reference.
         return parsedReference.resolveReference(context, reporter)
-    }
-
-    private fun resolveMember(classItem: ClassItem, memberReference: String): ResolvedReference? {
-        val openParenthesisIndex = memberReference.indexOf('(')
-
-        // Ignore methods and constructors for now.
-        if (openParenthesisIndex != -1) return null
-
-        return classItem.findField(memberReference)?.toResolvedReference()
     }
 
     companion object {
@@ -333,11 +295,42 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
 internal data class QualifyingClassSourceReference(
     val className: String,
     val member: ClassMemberSourceReference
-) : ParsedReference
+) : ParsedReference {
+    override fun resolveReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter
+    ): ResolvedReference? {
+        val resolved = context.resolveItemReference(className, NameClassification.CLASS)
+        val classItem =
+            when (resolved) {
+                is ClassItem -> resolved
+                is InvalidReferencableItem -> {
+                    resolved.reportIssue(reporter)
+                    return null
+                }
+                // This should never happen as passing in NameClassification.CLASS above should
+                // limit
+                // the returned types to ClassItem and InvalidReferencableItem.
+                else -> error("type '$className' was resolved to an unknown type $resolved")
+            }
+
+        return member.findIn(classItem)
+    }
+}
 
 /** A [ParsedReference] that qualifies a [member] reference to the current class. */
 internal data class CurrentClassSourceReference(val member: ClassMemberSourceReference) :
-    ParsedReference
+    ParsedReference {
+    override fun resolveReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter
+    ): ResolvedReference? {
+        // TODO(b/447588621): Report issue when no class is available, member references are not
+        //  allowed in packages.
+        val classItem = context.containingClassItem ?: return null
+        return member.findIn(classItem)
+    }
+}
 
 /**
  * A reference that is resolved relative to either [QualifyingClassSourceReference] or
@@ -351,10 +344,18 @@ internal sealed interface ClassMemberSourceReference {
     fun qualifyIfNeeded(className: String?): ParsedReference =
         className?.let { QualifyingClassSourceReference(it, this) }
             ?: CurrentClassSourceReference(this)
+
+    /** Find this in [classItem]. */
+    fun findIn(classItem: ClassItem): ResolvedReference? =
+        // TODO(b/447588621): Remove default after implementing in all sub-classes.
+        null
 }
 
 /** A reference to a member called [name], which could be a field or a method. */
-internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemberSourceReference
+internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemberSourceReference {
+    override fun findIn(classItem: ClassItem): ResolvedReference? =
+        classItem.findField(name)?.toResolvedReference()
+}
 
 /**
  * A reference to a method called [name] with [parameters]. This is both a
