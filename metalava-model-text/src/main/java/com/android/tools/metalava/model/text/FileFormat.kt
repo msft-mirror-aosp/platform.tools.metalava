@@ -16,9 +16,12 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
+import java.nio.file.Path
 import java.util.Locale
 
 /**
@@ -71,6 +74,32 @@ data class FileFormat(
      */
     val language: Language? = null,
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
+
+    /**
+     * Whether to include type-use annotations in the signature file. Type-use annotations can only
+     * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
+     * whether an annotation is type-use.
+     */
+    val includeTypeUseAnnotations: Boolean = false,
+
+    /**
+     * Whether to order the names and types of APIs using Kotlin-style syntax (`name: type`) or
+     * Java-style syntax (`type name`).
+     *
+     * When Kotlin ordering is used, all method parameters without public names will be given the
+     * placeholder name of `_`, which cannot be used as a Java identifier.
+     *
+     * For example, the following is an example of a method signature with Kotlin ordering:
+     * ```
+     * method public foo(_: int, _: char, _: String[]): String;
+     * ```
+     *
+     * And the following is the equivalent Java ordering:
+     * ```
+     * method public String foo(int, char, String[]);
+     * ```
+     */
+    val kotlinNameTypeOrder: Boolean = false,
     val kotlinStyleNulls: Boolean,
     /**
      * If non-null then it indicates that the file format is being used to migrate a signature file
@@ -89,8 +118,36 @@ data class FileFormat(
      * `\n` (because it is the terminator of the signature format line).
      */
     val migrating: String? = null,
-    val conciseDefaultValues: Boolean,
+    val includeDefaultParameterValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
+
+    /** See [CustomizableProperty.NORMALIZE_FINAL_MODIFIER]. */
+    val specifiedNormalizeFinalModifier: Boolean? = null,
+
+    /**
+     * Indicates whether the whole extends list for an interface is sorted.
+     *
+     * Previously, the first type in the extends list was used as the super type and if it was
+     * present in the API then it would always be output first to the signature files. The code has
+     * been refactored so that is no longer necessary but the previous behavior is maintained to
+     * avoid churn in the API signature files.
+     *
+     * By default, this property preserves the previous behavior but if set to `true` then it will
+     * stop treating the first interface specially and just sort all the interface types. The
+     * sorting is by the full name (without the package) of the class.
+     */
+    val specifiedSortWholeExtendsList: Boolean? = null,
+
+    /**
+     * Indicates which of the possible approaches to `java.lang.` prefix stripping available in
+     * [StripJavaLangPrefix] is used when outputting types to signature files.
+     */
+    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null,
+
+    /**
+     * Indicates how type arguments should be formatted when outputting types to signature files.
+     */
+    val specifiedTypeArgumentSpacing: TypeArgumentSpacing? = null,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -101,6 +158,12 @@ data class FileFormat(
 
         validateIdentifier(name, "name")
         validateIdentifier(surface, "surface")
+
+        if (includeTypeUseAnnotations && !kotlinNameTypeOrder) {
+            throw IllegalStateException(
+                "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set"
+            )
+        }
     }
 
     /** Check that the supplied identifier is valid. */
@@ -136,10 +199,34 @@ data class FileFormat(
     val addAdditionalOverrides
         get() = effectiveValue({ specifiedAddAdditionalOverrides }, false)
 
-    /** The base version of the file format. */
+    // This defaults to false but can be overridden on the command line.
+    val normalizeFinalModifier
+        get() = effectiveValue({ specifiedNormalizeFinalModifier }, false)
+
+    // This defaults to false but can be overridden on the command line.
+    val sortWholeExtendsList
+        get() = effectiveValue({ specifiedSortWholeExtendsList }, default = false)
+
+    // This defaults to LEGACY but can be overridden on the command line.
+    val stripJavaLangPrefix
+        get() = effectiveValue({ specifiedStripJavaLangPrefix }, StripJavaLangPrefix.LEGACY)
+
+    // This defaults to LEGACY but can be overridden on the command line.
+    val typeArgumentSpacing
+        get() = effectiveValue({ specifiedTypeArgumentSpacing }, TypeArgumentSpacing.LEGACY)
+
+    /**
+     * The base version of the file format.
+     *
+     * There is a cycle in the creation of [Version] and [FileFormat] and care must be taken not to
+     * initialize this class before [FileFormat] and its companion. That means you must not access
+     * [Version.entries] directly. Use [FileFormat.versions] instead.
+     */
     enum class Version(
         /** The version number of this as a string, e.g. "3.0". */
-        internal val versionNumber: String,
+        val versionNumber: String,
+        /** The optional legacy alias used on the command line, for the `--format` option. */
+        val legacyCommandLineAlias: String? = null,
 
         /** Indicates whether the version supports properties fully or just for migrating. */
         internal val propertySupport: PropertySupport = PropertySupport.FOR_MIGRATING_ONLY,
@@ -149,36 +236,50 @@ data class FileFormat(
          * version.
          */
         factory: (Version) -> FileFormat,
+        /** Help text to use on the command line. */
+        val help: String,
     ) {
         V2(
             versionNumber = "2.0",
+            legacyCommandLineAlias = "v2",
             factory = { version ->
                 FileFormat(
                     version = version,
                     kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                 )
-            }
+            },
+            help =
+                """
+                    This is the base version (more details in `FORMAT.md`) on which all the others
+                    are based. It sets the properties as follows:
+                    ```
+                    + kotlin-style-nulls = no
+                    + include-default-parameter-values = no
+                    ```
+                """,
         ),
-        V3(
-            versionNumber = "3.0",
+        V4(
+            versionNumber = "4.0",
+            legacyCommandLineAlias = "v4",
             factory = { version ->
                 V2.defaults.copy(
                     version = version,
                     // This adds kotlinStyleNulls = true
                     kotlinStyleNulls = true,
-                )
-            }
-        ),
-        V4(
-            versionNumber = "4.0",
-            factory = { version ->
-                V3.defaults.copy(
-                    version = version,
                     // This adds conciseDefaultValues = true
-                    conciseDefaultValues = true,
+                    includeDefaultParameterValues = true,
                 )
-            }
+            },
+            help =
+                """
+                    This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes`
+                    giving the following properties:
+                    ```
+                    + kotlin-style-nulls = yes
+                    + include-default-parameter-values = yes
+                    ```
+                """,
         ),
         V5(
             versionNumber = "5.0",
@@ -189,7 +290,14 @@ data class FileFormat(
                     version = version,
                     // This does not add any property defaults, just full property support.
                 )
-            }
+            },
+            help =
+                """
+                    This is the first version that has full support for properties in the signature
+                    header. As such it does not add any new defaults to `4.0`. The intent is that
+                    properties will be explicitly defined in the signature file avoiding reliance on
+                    version specific defaults.
+                """,
         );
 
         /**
@@ -198,7 +306,7 @@ data class FileFormat(
          * It is initialized via a factory to break the cycle where the [Version] constructor
          * depends on the [FileFormat] constructor and vice versa.
          */
-        internal val defaults = factory(this)
+        val defaults = factory(this)
 
         /**
          * Get the version defaults plus any language defaults, if available.
@@ -236,15 +344,15 @@ data class FileFormat(
      * This is independent of the [Version].
      */
     enum class Language(
-        private val conciseDefaultValues: Boolean,
+        private val includeDefaultParameterValues: Boolean,
         private val kotlinStyleNulls: Boolean,
     ) {
-        JAVA(conciseDefaultValues = false, kotlinStyleNulls = false),
-        KOTLIN(conciseDefaultValues = true, kotlinStyleNulls = true);
+        JAVA(includeDefaultParameterValues = false, kotlinStyleNulls = false),
+        KOTLIN(includeDefaultParameterValues = true, kotlinStyleNulls = true);
 
         internal fun applyLanguageDefaults(builder: Builder) {
-            if (builder.conciseDefaultValues == null) {
-                builder.conciseDefaultValues = conciseDefaultValues
+            if (builder.includeDefaultParameterValues == null) {
+                builder.includeDefaultParameterValues = includeDefaultParameterValues
             }
             if (builder.kotlinStyleNulls == null) {
                 builder.kotlinStyleNulls = kotlinStyleNulls
@@ -252,12 +360,27 @@ data class FileFormat(
         }
     }
 
-    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
+    enum class OverloadedMethodOrder(val comparator: Comparator<CallableItem>) {
         /** Sort overloaded methods according to source order. */
-        SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
+        SOURCE(CallableItem.sourceOrderForOverloadedMethodsComparator),
 
         /** Sort overloaded methods by their signature. */
-        SIGNATURE(MethodItem.comparator)
+        SIGNATURE(CallableItem.comparator)
+    }
+
+    /** Different ways of spacing out type arguments in [TypeItem.toTypeString]. */
+    enum class TypeArgumentSpacing {
+        /** No spacing added between type arguments. */
+        NONE,
+
+        /**
+         * No spacing added between type arguments unless they are in the bounds of a type
+         * parameter.
+         */
+        LEGACY,
+
+        /** A single space added after the comma that separates type arguments. */
+        SPACE,
     }
 
     /**
@@ -314,7 +437,7 @@ data class FileFormat(
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
         val defaults = version.defaultsIncludingLanguage(language)
         if (this@FileFormat != defaults) {
-            CustomizableProperty.values().forEach { prop ->
+            CustomizableProperty.entries.forEach { prop ->
                 // Get the string value of this property, if null then it was not specified so skip
                 // the property.
                 val thisValue = prop.stringFromFormat(this@FileFormat) ?: return@forEach
@@ -357,15 +480,12 @@ data class FileFormat(
     }
 
     companion object {
-        private val allDefaults = Version.values().map { it.defaults }.toList()
+        private val allDefaults = Version.entries.map { it.defaults }.toList()
 
-        private val versionByNumber = Version.values().associateBy { it.versionNumber }
+        private val versionByNumber = Version.entries.associateBy { it.versionNumber }
 
         // The defaults associated with version 2.0.
         val V2 = Version.V2.defaults
-
-        // The defaults associated with version 3.0.
-        val V3 = Version.V3.defaults
 
         // The defaults associated with version 4.0.
         val V4 = Version.V4.defaults
@@ -375,6 +495,9 @@ data class FileFormat(
 
         // The defaults associated with the latest version.
         val LATEST = allDefaults.last()
+
+        /** The list of all [Version] instances. */
+        val versions: List<Version> = Version.entries
 
         const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
 
@@ -388,24 +511,31 @@ data class FileFormat(
         /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
          *
+         * @param path the [Path] of the file from which the content is being read.
+         * @param reader the reader to use to read the file contents.
+         * @param formatForLegacyFiles the optional format to use if the file uses a legacy, and now
+         *   unsupported file format.
          * @return the [FileFormat] or null if the reader was blank.
          */
-        fun parseHeader(filename: String, reader: Reader): FileFormat? {
+        fun parseHeader(
+            path: Path,
+            reader: Reader,
+            formatForLegacyFiles: FileFormat? = null
+        ): FileFormat? {
             val lineNumberReader =
                 if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
 
             try {
-                return parseHeader(lineNumberReader)
+                return parseHeader(lineNumberReader, formatForLegacyFiles)
             } catch (cause: ApiParseException) {
                 // Wrap the exception and add contextual information to help user identify and fix
                 // the problem. This is done here instead of when throwing the exception as the
                 // original thrower does not have that context.
                 throw ApiParseException(
-                    "Signature format error - ${cause.message}",
-                    filename,
-                    lineNumberReader.lineNumber,
-                    cause,
-                )
+                        "Signature format error - ${cause.message}",
+                        FileLocation.createLocation(path, lineNumberReader.lineNumber),
+                    )
+                    .apply { initCause(cause) }
             }
         }
 
@@ -417,7 +547,14 @@ data class FileFormat(
          *
          * @return the [FileFormat] or null if the reader was blank.
          */
-        private fun parseHeader(reader: LineNumberReader): FileFormat? {
+        private fun parseHeader(
+            reader: LineNumberReader,
+            formatForLegacyFiles: FileFormat?
+        ): FileFormat? {
+            // Remember the starting position of the reader just in case it is necessary to reset
+            // it back to this point.
+            reader.mark(BUFFER_SIZE)
+
             // This reads the minimal amount to determine whether this is likely to be a
             // signature file.
             val prefixLength = SIGNATURE_FORMAT_PREFIX.length
@@ -443,6 +580,16 @@ data class FileFormat(
                     // If the line is null then te whole file is blank which is handled specially.
                     if (line == null) {
                         return null
+                    }
+                }
+
+                // If formatForLegacyFiles has been provided then check to see if the file adheres
+                // to a legacy format and if it does behave as if it was formatForLegacyFiles.
+                if (formatForLegacyFiles != null) {
+                    // Check for version 1.0, i.e. no header at all.
+                    if (prefix.startsWith("package ")) {
+                        reader.reset()
+                        return formatForLegacyFiles
                     }
                 }
 
@@ -493,8 +640,8 @@ data class FileFormat(
          */
         fun parseSpecifier(
             specifier: String,
-            migratingAllowed: Boolean,
-            extraVersions: Set<String>,
+            migratingAllowed: Boolean = false,
+            extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val versionNumber = specifierParts[0]
@@ -573,7 +720,7 @@ data class FileFormat(
         private fun parseProperties(reader: LineNumberReader, version: Version): FileFormat {
             val builder = Builder(version.defaults)
             do {
-                reader.mark(1024)
+                reader.mark(BUFFER_SIZE)
                 val line = reader.readLine() ?: break
                 if (line.startsWith("package ")) {
                     reader.reset()
@@ -615,7 +762,7 @@ data class FileFormat(
          * Get the names of the [CustomizableProperty] that are [CustomizableProperty.defaultable].
          */
         fun defaultableProperties(): List<String> {
-            return CustomizableProperty.values()
+            return CustomizableProperty.entries
                 .filter { it.defaultable }
                 .map { it.propertyName }
                 .sorted()
@@ -626,34 +773,58 @@ data class FileFormat(
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
     internal class Builder(private val base: FileFormat) {
         var addAdditionalOverrides: Boolean? = null
-        var conciseDefaultValues: Boolean? = null
+        var includeDefaultParameterValues: Boolean? = null
+        var includeTypeUseAnnotations: Boolean? = null
+        var kotlinNameTypeOrder: Boolean? = null
         var kotlinStyleNulls: Boolean? = null
         var language: Language? = null
         var migrating: String? = null
         var name: String? = null
+        var normalizeFinalModifier: Boolean? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
+        var sortWholeExtendsList: Boolean? = null
+        var stripJavaLangPrefix: StripJavaLangPrefix? = null
+        var typeArgumentSpacing: TypeArgumentSpacing? = null
         var surface: String? = null
 
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
             language?.applyLanguageDefaults(this)
             return base.copy(
-                conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
+                includeDefaultParameterValues =
+                    includeDefaultParameterValues ?: base.includeDefaultParameterValues,
+                includeTypeUseAnnotations =
+                    includeTypeUseAnnotations ?: base.includeTypeUseAnnotations,
+                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
                 kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
                 language = language ?: base.language,
                 migrating = migrating ?: base.migrating,
                 name = name ?: base.name,
-                specifiedAddAdditionalOverrides = addAdditionalOverrides
-                        ?: base.specifiedAddAdditionalOverrides,
-                specifiedOverloadedMethodOrder = overloadedMethodOrder
-                        ?: base.specifiedOverloadedMethodOrder,
+                specifiedAddAdditionalOverrides =
+                    addAdditionalOverrides ?: base.specifiedAddAdditionalOverrides,
+                specifiedNormalizeFinalModifier =
+                    normalizeFinalModifier ?: base.specifiedNormalizeFinalModifier,
+                specifiedOverloadedMethodOrder =
+                    overloadedMethodOrder ?: base.specifiedOverloadedMethodOrder,
+                specifiedSortWholeExtendsList =
+                    sortWholeExtendsList ?: base.specifiedSortWholeExtendsList,
+                specifiedStripJavaLangPrefix =
+                    stripJavaLangPrefix ?: base.specifiedStripJavaLangPrefix,
+                specifiedTypeArgumentSpacing =
+                    typeArgumentSpacing ?: base.specifiedTypeArgumentSpacing,
                 surface = surface ?: base.surface,
             )
         }
     }
 
     /** Information about the different customizable properties in [FileFormat]. */
-    private enum class CustomizableProperty(val defaultable: Boolean = false) {
+    enum class CustomizableProperty(
+        val defaultable: Boolean = false,
+        /** Syntax of command line values. */
+        val valueSyntax: String = "",
+        /** Help text to use on the command line. */
+        val help: String = "",
+    ) {
         // The order of values in this is significant as it determines the order of the properties
         // in signature headers. The values in this block are not in alphabetical order because it
         // is important that they are at the start of the signature header.
@@ -694,17 +865,55 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedAddAdditionalOverrides?.let { yesNo(it) }
         },
-        /** concise-default-values=[yes|no] */
-        CONCISE_DEFAULT_VALUES {
+        /** include-default-parameter-values=[yes|no] */
+        INCLUDE_DEFAULT_PARAMETER_VALUES(
+            valueSyntax = "yes|no",
+            help =
+                """
+                    If `no` then the signature file will not include any information about default
+                    parameter values. If `yes` then it will use the pseudo modifier `optional` to
+                    indicate a parameter that has a default value.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
-                builder.conciseDefaultValues = yesNo(value)
+                builder.includeDefaultParameterValues = yesNo(value)
             }
 
             override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.conciseDefaultValues)
+                yesNo(format.includeDefaultParameterValues)
+        },
+        /** include-type-use-annotations=[yes|no] */
+        INCLUDE_TYPE_USE_ANNOTATIONS {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.includeTypeUseAnnotations = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.includeTypeUseAnnotations)
+        },
+        /** kotlin-name-type-order=[yes|no] */
+        KOTLIN_NAME_TYPE_ORDER {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.kotlinNameTypeOrder = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.kotlinNameTypeOrder)
         },
         /** kotlin-style-nulls=[yes|no] */
-        KOTLIN_STYLE_NULLS {
+        KOTLIN_STYLE_NULLS(
+            valueSyntax = "yes|no",
+            help =
+                """
+                    If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
+                    to indicate that the annotated item accepts `null` and does not accept `null`
+                    respectively and neither indicates that it's not defined.
+
+                    If `yes` then the signature file will use a type suffix of `?`, no type suffix
+                    and a type suffix of `!` to indicate the that the type accepts `null`, does not
+                    accept `null` or it's not defined respectively.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.kotlinStyleNulls = yesNo(value)
             }
@@ -719,15 +928,92 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? = format.migrating
         },
+        NORMALIZE_FINAL_MODIFIER(
+            defaultable = true,
+            valueSyntax = "yes|no",
+            help =
+                """
+                    Specifies how the `final` modifier is handled on `final` methods. If this is
+                    `yes` and the method's containing class is `final` then the `final` modifier is
+                    not written out, otherwise it is.
+                """,
+        ) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.normalizeFinalModifier = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedNormalizeFinalModifier?.let { yesNo(it) }
+        },
         /** overloaded-method-other=[source|signature] */
-        OVERLOADED_METHOD_ORDER(defaultable = true) {
+        OVERLOADED_METHOD_ORDER(
+            defaultable = true,
+            valueSyntax = "source|signature",
+            help =
+                """
+                    Specifies the order of overloaded methods in signature files. Applies to the
+                    contents of the files specified on `--api` and `--removed-api`.
+
+                    `source` - preserves the order in which overloaded methods appear in the source
+                    files. This means that refactorings of the source files which change the order
+                    but not the API can cause unnecessary changes in the API signature files.
+
+                    `signature` (default) - sorts overloaded methods by their signature. This means
+                    that refactorings of the source files which change the order but not the API
+                    will have no effect on the API signature files.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.overloadedMethodOrder = enumFromString<OverloadedMethodOrder>(value)
             }
 
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedOverloadedMethodOrder?.stringFromEnum()
-        };
+        },
+        SORT_WHOLE_EXTENDS_LIST(defaultable = true) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.sortWholeExtendsList = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedSortWholeExtendsList?.let { yesNo(it) }
+        },
+        STRIP_JAVA_LANG_PREFIX(defaultable = true) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.stripJavaLangPrefix = enumFromString<StripJavaLangPrefix>(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedStripJavaLangPrefix?.stringFromEnum()
+        },
+        TYPE_ARGUMENT_SPACING(
+            defaultable = true,
+            valueSyntax = "legacy|none|space",
+            help =
+                """
+                    Specifies the spacing between the type arguments of a generic type. e.g.
+                    `Map<String, Integer>`. The default is `legacy`.
+
+                    `legacy` - adds no spaces between type arguments except those used in the bounds
+                    of a type parameter. e.g. `Map<String,Integer>` will have no space except in
+                    `class Foo<M extends Map<String, Integer>`.
+
+                    `none` - adds no spaces between any type arguments.
+
+                    `space` - adds a single space between every type argument.
+
+                    Note: This does not affect the spacing of type parameters in a type parameter
+                    list, e.g. `interface Map<K, V>`. They always have a space separator.
+                """,
+        ) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.typeArgumentSpacing = enumFromString<TypeArgumentSpacing>(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedTypeArgumentSpacing?.stringFromEnum()
+        },
+        ;
 
         /** The property name in the [parseSpecifier] input. */
         val propertyName: String = name.lowercase(Locale.US).replace("_", "-")
@@ -736,13 +1022,13 @@ data class FileFormat(
          * Set the corresponding property in the supplied [Builder] to the value corresponding to
          * the string representation [value].
          */
-        abstract fun setFromString(builder: Builder, value: String)
+        internal abstract fun setFromString(builder: Builder, value: String)
 
         /**
          * Get the string representation of the corresponding property from the supplied
          * [FileFormat].
          */
-        abstract fun stringFromFormat(format: FileFormat): String?
+        internal abstract fun stringFromFormat(format: FileFormat): String?
 
         /** Inline function to map from a string value to an enum value of the required type. */
         inline fun <reified T : Enum<T>> enumFromString(value: String): T {
@@ -792,7 +1078,7 @@ data class FileFormat(
         fun yesNo(value: Boolean): String = if (value) "yes" else "no"
 
         companion object {
-            val byPropertyName = values().associateBy { it.propertyName }
+            val byPropertyName = entries.associateBy { it.propertyName }
 
             /**
              * Get the [CustomizableProperty] by name, throwing an [ApiParseException] if it could

@@ -22,8 +22,6 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":metalava-model"))
-    implementation(libs.kotlinReflect)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)

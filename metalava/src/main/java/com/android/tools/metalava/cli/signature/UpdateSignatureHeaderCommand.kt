@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stderr
@@ -83,10 +82,6 @@ class UpdateSignatureHeaderCommand :
             .multiple(required = true)
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val outputFormat = formatOptions.fileFormat
 
         files.forEach { updateHeader(outputFormat, it) }
@@ -97,7 +92,7 @@ class UpdateSignatureHeaderCommand :
             LineNumberReader(file.reader()).use { reader ->
                 // Read the format from the file. That will consume the header (and only the header)
                 // from the reader so that it can be used to read the rest of the content.
-                val currentFormat = parseHeader(file.path, reader)
+                val currentFormat = parseHeader(file.toPath(), reader)
 
                 // If the format is not changing then do nothing.
                 if (outputFormat == currentFormat) {

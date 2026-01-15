@@ -18,10 +18,19 @@ package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import java.io.File
 import org.intellij.lang.annotations.Language
 
 fun source(to: String, source: String): TestFile {
     return TestFiles.source(to, source.trimIndent())
+}
+
+fun html(to: String, @Language("HTML") source: String): TestFile {
+    return TestFiles.source(to, source.trimIndent())
+}
+
+fun xml(to: String, @Language("XML") source: String): TestFile {
+    return TestFiles.xml(to, source.trimIndent())
 }
 
 fun java(to: String, @Language("JAVA") source: String): TestFile {
@@ -39,3 +48,17 @@ fun kotlin(@Language("kotlin") source: String): TestFile {
 fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
     return TestFiles.kotlin(to, source.trimIndent())
 }
+
+/**
+ * Create a signature [TestFile] with the supplied [contents] in a file with a path of `api.txt`.
+ */
+fun signature(contents: String): TestFile {
+    return signature("api.txt", contents)
+}
+
+/** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
+fun signature(to: String, contents: String): TestFile {
+    return source(to, contents.trimIndent())
+}
+
+fun List<TestFile>.createFiles(dir: File): List<File> = map { it.createFile(dir) }

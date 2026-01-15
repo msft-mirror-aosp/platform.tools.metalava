@@ -44,17 +44,17 @@ class ApiFromTextTest : DriverTest() {
     fun `Handle lambdas as default values`() {
         val source =
             """
-            // Signature format: 3.0
+            // Signature format: 4.0
             package androidx.collection {
               public final class LruCacheKt {
                 ctor public LruCacheKt();
-                method public static <K, V> androidx.collection.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { null as V? }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ -> });
+                method public static <K, V> androidx.collection.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
               }
             }
         """
 
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             signatureSource = source,
             api = source,
         )
@@ -64,16 +64,16 @@ class ApiFromTextTest : DriverTest() {
     fun `Invoking function with multiple parameters as parameter default value`() {
         val source =
             """
-            // Signature format: 3.0
+            // Signature format: 4.0
             package abc {
               public final class PopupKt {
-                method public static void DropdownPopup(Type ident = SomeFunc(SomeVal, SomeVal));
+                method public static void DropdownPopup(optional String ident);
               }
             }
         """
 
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             signatureSource = source,
             api = source,
         )
@@ -83,58 +83,58 @@ class ApiFromTextTest : DriverTest() {
     fun `Handle enum constants as default values`() {
         val source =
             """
-            // Signature format: 3.0
+            // Signature format: 4.0
             package test.pkg {
               public final class Foo {
                 ctor public Foo();
-                method public android.graphics.Bitmap? drawToBitmap(android.view.View, android.graphics.Bitmap.Config config = android.graphics.Bitmap.Config.ARGB_8888);
-                method public void emptyLambda(kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf = {});
-                method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
-                method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                method public void method3(String str, int p, int int2 = double(int) + str.length);
+                method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
+                method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
+                method public void method1(optional int p, optional Integer? int2, optional int p1, optional String str, java.lang.String... args);
+                method public void method2(int p, optional int int2);
+                method public void method3(String str, int p, optional int int2);
                 field public static final test.pkg.Foo.Companion! Companion;
               }
               public static final class Foo.Companion {
                 method public int double(int p);
-                method public void print(test.pkg.Foo foo = test.pkg.Foo());
+                method public void print(optional test.pkg.Foo foo);
               }
               public final class LruCacheKt {
                 ctor public LruCacheKt();
-                method public static <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (V)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                method public static <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
               }
             }
             """
 
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, api = source)
     }
 
     @Test
     fun `Handle complex expressions as default values`() {
         val source =
             """
-            // Signature format: 3.0
+            // Signature format: 4.0
             package androidx.paging {
               public final class PagedListConfigKt {
                 ctor public PagedListConfigKt();
-                method public static androidx.paging.PagedList.Config Config(int pageSize, int prefetchDistance = pageSize, boolean enablePlaceholders = true, int initialLoadSizeHint = pageSize * PagedList.Config.Builder.DEFAULT_INITIAL_PAGE_MULTIPLIER, int maxSize = PagedList.Config.MAX_SIZE_UNBOUNDED);
+                method public static androidx.paging.PagedList.Config Config(int pageSize, optional int prefetchDistance, optional boolean enablePlaceholders, optional int initialLoadSizeHint, optional int maxSize);
               }
               public final class PagedListKt {
                 ctor public PagedListKt();
-                method public static <Key, Value> androidx.paging.PagedList<Value> PagedList(androidx.paging.DataSource<Key,Value> dataSource, androidx.paging.PagedList.Config config, java.util.concurrent.Executor notifyExecutor, java.util.concurrent.Executor fetchExecutor, androidx.paging.PagedList.BoundaryCallback<Value>? boundaryCallback = null, Key? initialKey = null);
+                method public static <Key, Value> androidx.paging.PagedList<Value> PagedList(androidx.paging.DataSource<Key,Value> dataSource, androidx.paging.PagedList.Config config, java.util.concurrent.Executor notifyExecutor, java.util.concurrent.Executor fetchExecutor, optional androidx.paging.PagedList.BoundaryCallback<Value>? boundaryCallback, optional Key? initialKey);
               }
             }
             package test.pkg {
               public final class Foo {
                 ctor public Foo();
-                method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
-                method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                method public void method3(str: String = "unbalanced), string", str2: String = ",");
+                method public void method1(optional int p, optional Integer? int2, optional int p1, optional String str, java.lang.String... args);
+                method public void method2(int p, optional int int2);
+                method public void method3(optional String str, optional String str2);
               }
             }
         """
 
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             signatureSource = source,
             api = source,
         )
@@ -196,56 +196,37 @@ class ApiFromTextTest : DriverTest() {
     }
 
     @Test
-    fun `Type use annotations`() {
+    fun `Type use annotations are not printed in formats that shouldn't include them`() {
         check(
             format = FileFormat.V2,
             signatureSource =
                 """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+                // - include-type-use-annotations=yes
+                // - kotlin-style-nulls=no
                 package test.pkg {
                   public class MyTest {
-                    method public static int codePointAt(char @NonNull [], int);
-                    method @NonNull public java.util.Set<java.util.Map.@NonNull Entry<K,V>> entrySet();
-                    method @NonNull public java.lang.annotation.@NonNull Annotation @NonNull [] getAnnotations();
-                    method @NonNull public abstract java.lang.annotation.@NonNull Annotation @NonNull [] @NonNull [] getParameterAnnotations();
-                    method @NonNull public @NonNull String @NonNull [] split(@NonNull String, int);
-                    method public static char @NonNull [] toChars(int);
+                    method public static codePointAt(_: char @NonNull [], _: int): int;
+                    method @NonNull public <K,V> entrySet(): java.util.Set<java.util.Map.@NonNull Entry<K,V>>;
+                    method @NonNull public getAnnotations(): java.lang.annotation.@NonNull Annotation @NonNull [];
+                    method @NonNull public abstract getParameterAnnotations(): java.lang.annotation.@NonNull Annotation @NonNull [] @NonNull [];
+                    method @NonNull public split(@NonNull _: String, _: int): @NonNull String @NonNull [];
+                    method public static toChars(_: int): char @NonNull [];
                   }
                 }
                 """,
+            // Type use annotations are removed, method and parameter annotations remain
             api =
                 """
                 package test.pkg {
                   public class MyTest {
-                    method public static int codePointAt(char @NonNull [], int);
-                    method @NonNull public java.util.Set<java.util.Map.@NonNull Entry<K,V>> entrySet();
-                    method @NonNull public java.lang.annotation.Annotation @NonNull [] getAnnotations();
-                    method @NonNull public abstract java.lang.annotation.Annotation @NonNull [] @NonNull [] getParameterAnnotations();
-                    method @NonNull public String @NonNull [] split(@NonNull String, int);
-                    method public static char @NonNull [] toChars(int);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Type use annotations and Kotlin nullability`() {
-        check(
-            format = FileFormat.V4,
-            signatureSource =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                  public class MyTest {
-                    method public abstract java.lang.annotation.Annotation? @A [] @B []! getParameterAnnotations();
-                  }
-                }
-                """,
-            api =
-                """
-                package test.pkg {
-                  public class MyTest {
-                    method public abstract java.lang.annotation.Annotation? @A [] @B []! getParameterAnnotations();
+                    method public static int codePointAt(char[], int);
+                    method @NonNull public <K, V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
+                    method @NonNull public java.lang.annotation.Annotation[] getAnnotations();
+                    method @NonNull public abstract java.lang.annotation.Annotation[][] getParameterAnnotations();
+                    method @NonNull public String[] split(@NonNull String, int);
+                    method public static char[] toChars(int);
                   }
                 }
             """
@@ -259,7 +240,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public void error(int p = "42", Integer int2 = "null", int p1 = "42", vararg String args);
+                    method public void error(optional int p, optional Integer int2, optional int p1, vararg String args);
                   }
                 }
                 """
@@ -334,8 +315,6 @@ class ApiFromTextTest : DriverTest() {
               public enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(String);
-                method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }
@@ -354,7 +333,7 @@ class ApiFromTextTest : DriverTest() {
               public final class Test<T> {
                 ctor public Test();
                 method public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T);
-                method public static <T & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
+                method public static <T extends java.lang.Object & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
                 method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws java.lang.Throwable;
                 field public static java.util.List<java.lang.String> LIST;
               }
@@ -396,6 +375,7 @@ class ApiFromTextTest : DriverTest() {
     fun `Test inner classes`() {
         val source =
             """
+                // Signature format: 5.0
                 package test.pkg {
                   public abstract class Foo {
                     ctor public Foo();
@@ -403,17 +383,17 @@ class ApiFromTextTest : DriverTest() {
                     method @Deprecated public static final void method2();
                   }
                   @Deprecated protected static final class Foo.Inner1 {
-                    ctor protected Foo.Inner1();
+                    ctor @Deprecated protected Foo.Inner1();
                   }
                   @Deprecated protected abstract static class Foo.Inner2 {
-                    ctor protected Foo.Inner2();
+                    ctor @Deprecated protected Foo.Inner2();
                   }
                   @Deprecated protected static interface Foo.Inner3 {
-                    method public default void method3();
-                    method public abstract static void method4(int);
+                    method @Deprecated public default void method3();
+                    method @Deprecated public static void method4(int);
                   }
                 }
-                """
+            """
 
         check(signatureSource = source, api = source)
     }
@@ -438,7 +418,7 @@ class ApiFromTextTest : DriverTest() {
         @Language("TEXT")
         val source =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @UiThread public class MyTest {
                     ctor public MyTest();
@@ -449,7 +429,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, api = source)
     }
 
     @Test
@@ -539,38 +519,38 @@ class ApiFromTextTest : DriverTest() {
         @Language("TEXT")
         val source =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public final void error(int p = 42, Integer? int2 = null);
+                    method public final void error(optional int p, optional Integer? int2);
                   }
                   public class Foo2 {
                     ctor public Foo2();
-                    method public void foo(String! = null, String! = "(Hello) World", int = 42);
+                    method public void foo(optional String!, optional String!, optional int);
                   }
                 }
                 """
 
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, api = source)
     }
 
     @Test
     fun `Signatures with default annotation method values`() {
         val source =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package libcore.util {
                   public @interface NonNull {
                     method public abstract int from() default java.lang.Integer.MIN_VALUE;
-                    method public abstract double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
+                    method public abstract double fromWithCast() default java.lang.Double.NEGATIVE_INFINITY;
                     method public abstract String myString() default "This is a \"string\"";
                     method public abstract int to() default java.lang.Integer.MAX_VALUE;
                   }
                 }
                 """
 
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, api = source)
     }
 
     @Test
@@ -618,7 +598,7 @@ class ApiFromTextTest : DriverTest() {
     fun `Deprecated enum constant`() {
         val source =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
                     method public abstract androidx.annotation.RestrictTo.Scope[] value();
@@ -633,14 +613,14 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, api = source)
     }
 
     @Test
-    fun `Type parameters in v3 format`() {
+    fun `Type parameters in v4 format`() {
         val source =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.collection {
                   public class Constants {
                     field public static final String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
@@ -663,7 +643,7 @@ class ApiFromTextTest : DriverTest() {
                     method public abstract <ToValue> androidx.paging.DataSource<Key,ToValue> mapByPage(androidx.arch.core.util.Function<java.util.List<Value>,java.util.List<ToValue>>);
                     method @AnyThread public void removeInvalidatedCallback(androidx.paging.DataSource.InvalidatedCallback);
                   }
-                  public abstract class ItemKeyedDataSource<Key, Value> extends androidx.paging.DataSource<Key, Value> {
+                  public abstract class ItemKeyedDataSource<Key, Value> extends androidx.paging.DataSource<Key,Value> {
                     method public abstract Key getKey(Value);
                     method public boolean isContiguous();
                     method public abstract void loadAfter(androidx.paging.ItemKeyedDataSource.LoadParams<Key>, androidx.paging.ItemKeyedDataSource.LoadCallback<Value>);
@@ -674,7 +654,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(format = FileFormat.V3, signatureSource = source, api = source)
+        check(format = FileFormat.V4, signatureSource = source, api = source)
     }
 
     @Test

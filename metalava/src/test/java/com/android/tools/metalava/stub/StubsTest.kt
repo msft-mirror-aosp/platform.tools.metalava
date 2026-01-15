@@ -17,14 +17,9 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
-import com.android.tools.metalava.ARG_KOTLIN_STUBS
-import com.android.tools.metalava.deprecatedForSdkSource
+import com.android.tools.metalava.cli.common.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.supportParameterName
-import com.android.tools.metalava.systemApiSource
-import com.android.tools.metalava.testApiSource
 import com.android.tools.metalava.testing.java
-import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL")
@@ -82,14 +77,14 @@ class StubsTest : AbstractStubsTest() {
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
-                public static final char HEX_INPUT = 61184; // 0xef00 '\uef00'
+                public static final char HEX_INPUT = '\uef00';
                 protected int field00;
                 public static final boolean field01 = true;
-                public static final int field02 = 42; // 0x2a
-                public static final long field03 = 42L; // 0x2aL
-                public static final short field04 = 5; // 0x5
-                public static final byte field05 = 5; // 0x5
-                public static final char field06 = 99; // 0x0063 'c'
+                public static final int field02 = 42;
+                public static final long field03 = 42L;
+                public static final short field04 = 5;
+                public static final byte field05 = 5;
+                public static final char field06 = 'c';
                 public static final float field07 = 98.5f;
                 public static final double field08 = 98.5;
                 public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";
@@ -384,48 +379,19 @@ class StubsTest : AbstractStubsTest() {
                     /*
                     My header 1
                      */
+
                     /*
                     My header 2
                      */
+
                     // My third comment
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class HeaderComments {
                     public HeaderComments() { throw new RuntimeException("Stub!"); }
                     }
-                    """
-        )
-    }
-
-    @Test
-    fun `Parameter Names in Java`() {
-        // Java code which explicitly specifies parameter names: make sure stub uses
-        // parameter name
-        checkStubs(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.ParameterName;
-
-                    public class Foo {
-                        public void foo(int javaParameter1, @ParameterName("publicParameterName") int javaParameter2) {
-                        }
-                    }
-                    """
-                    ),
-                    supportParameterName
-                ),
-            source =
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Foo {
-                public Foo() { throw new RuntimeException("Stub!"); }
-                public void foo(int javaParameter1, int publicParameterName) { throw new RuntimeException("Stub!"); }
-                }
-                 """
+                    """,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -520,7 +486,7 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Outer {
                     public Outer() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass1 {
                     public MyClass1() { throw new RuntimeException("Stub!"); }
@@ -529,9 +495,9 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass2 {
                     public MyClass2() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     public int myMethod() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     public int myField;
                     }
                     }
@@ -540,61 +506,11 @@ class StubsTest : AbstractStubsTest() {
     }
 
     @Test
-    fun `Check resolving override equivalent signatures`() {
-        // getAttributeNamespace in XmlResourceParser does not exist in the intermediate text file
-        // created.
-        checkStubs(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    public interface XmlResourceParser extends test.pkg.XmlPullParser, test.pkg.AttributeSet {
-                        public void close();
-                        String getAttributeNamespace (int arg1);
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    public interface XmlPullParser {
-                        String getAttributeNamespace (int arg1);
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    public interface AttributeSet {
-                        default String getAttributeNamespace (int arg1) { }
-                    }
-                    """
-                    )
-                ),
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public interface XmlResourceParser extends test.pkg.XmlPullParser,  test.pkg.AttributeSet {
-                    public void close();
-                    public java.lang.String getAttributeNamespace(int arg1);
-                    }
-                    """
-                    )
-                ),
-            checkTextStubEquivalence = true
-        )
-    }
-
-    @Test
     fun `Picking super class throwables`() {
         // Like previous test, but without compatibility mode: ensures that we
         // use super classes of filtered throwables
         checkStubs(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -607,10 +523,12 @@ class StubsTest : AbstractStubsTest() {
 
                     @SuppressWarnings({"RedundantThrows", "WeakerAccess"})
                     public class Generics {
+                        @SuppressWarnings("HiddenSuperclass") // HiddenParent is not public
                         public class MyClass<X, Y extends Number> extends HiddenParent<X, Y> implements PublicInterface<X, Y> {
                         }
 
                         class HiddenParent<M, N extends Number> extends PublicParent<M, N> {
+                            @SuppressWarnings("ReferencesHidden") // MyThrowable is not public
                             public Map<M, Map<N, String>> createMap(List<M> list) throws MyThrowable {
                                 return null;
                             }
@@ -638,12 +556,12 @@ class StubsTest : AbstractStubsTest() {
             warnings = "",
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class Generics {
                     ctor public Generics();
                   }
-                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X!,Y!> implements test.pkg.Generics.PublicInterface<X!,Y!> {
                     ctor public Generics.MyClass();
                     method public java.util.Map<X!,java.util.Map<Y!,java.lang.String!>!>! createMap(java.util.List<X!>!) throws java.io.IOException;
                     method protected java.util.List<X!>! foo();
@@ -666,8 +584,8 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     public MyClass() { throw new RuntimeException("Stub!"); }
-                    protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                     public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                    protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface PublicInterface<A, B> {
@@ -972,7 +890,7 @@ class StubsTest : AbstractStubsTest() {
                     public Properties() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class IntProperty<T> extends test.pkg.Properties.Property<T,java.lang.Integer> {
-                    public IntProperty(java.lang.String name) { super((java.lang.Class)null, (java.lang.String)null); throw new RuntimeException("Stub!"); }
+                    public IntProperty(java.lang.String name) { super((java.lang.Class)null, ""); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class Property<T, V> {
@@ -998,6 +916,8 @@ class StubsTest : AbstractStubsTest() {
 
                     package test.pkg;
 
+                    import java.util.List;
+
                     /** This is the documentation for the class */
                     public class Foo {
 
@@ -1006,8 +926,9 @@ class StubsTest : AbstractStubsTest() {
 
                         /**
                          * Method documentation.
+                         * @see List
                          */
-                        protected static void onCreate(String parameter1) {
+                        protected static void onCreate(List<String> parameter1) {
                             // This is not in the stub
                             System.out.println(parameter1);
                         }
@@ -1025,7 +946,7 @@ class StubsTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
-                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
+                protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }
                 """
@@ -1046,6 +967,8 @@ class StubsTest : AbstractStubsTest() {
 
                     package test.pkg;
 
+                    import java.util.List;
+
                     /** This is the documentation for the class */
                     public class Foo {
 
@@ -1054,8 +977,9 @@ class StubsTest : AbstractStubsTest() {
 
                         /**
                          * Method documentation.
+                         * @see List
                          */
-                        protected static void onCreate(String parameter1) {
+                        protected static void onCreate(List<String> parameter1) {
                             // This is not in the stub
                             System.out.println(parameter1);
                         }
@@ -1077,8 +1001,9 @@ class StubsTest : AbstractStubsTest() {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 /**
                  * Method documentation.
+                 * @see java.util.List
                  */
-                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
+                protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 /** My field doc */
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }
@@ -1141,7 +1066,7 @@ class StubsTest : AbstractStubsTest() {
             api =
                 """
                 package test.pkg {
-                  public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
+                  public class Alpha extends test.pkg.Charlie<test.pkg.Orange!> {
                   }
                   public class Charlie<T> {
                   }
@@ -1167,84 +1092,6 @@ class StubsTest : AbstractStubsTest() {
                     public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
                     Alpha() { throw new RuntimeException("Stub!"); }
                     }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Basic Kotlin stubs`() {
-        check(
-            extraArguments = arrayOf(ARG_KOTLIN_STUBS),
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    /* My file header */
-                    // Another comment
-                    @file:JvmName("Driver")
-                    package test.pkg
-                    /** My class doc */
-                    class Kotlin(
-                        val property1: String = "Default Value",
-                        arg2: Int
-                    ) : Parent() {
-                        override fun method() = "Hello World"
-                        /** My method doc */
-                        fun otherMethod(ok: Boolean, times: Int) {
-                        }
-
-                        /** property doc */
-                        var property2: String? = null
-
-                        /** @hide */
-                        var hiddenProperty: String? = "hidden"
-
-                        private var someField = 42
-                        @JvmField
-                        var someField2 = 42
-                    }
-
-                    /** Parent class doc */
-                    open class Parent {
-                        open fun method(): String? = null
-                        open fun method2(value1: Boolean, value2: Boolean?): String? = null
-                        open fun method3(value1: Int?, value2: Int): Int = null
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-                    open class ExtendableClass<T>
-                """
-                    )
-                ),
-            stubFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        /* My file header */
-                        // Another comment
-                        package test.pkg
-                        /** My class doc */
-                        @file:Suppress("ALL")
-                        class Kotlin : test.pkg.Parent() {
-                        open fun Kotlin(open property1: java.lang.String!, open arg2: int): test.pkg.Kotlin! = error("Stub!")
-                        open fun method(): java.lang.String = error("Stub!")
-                        /** My method doc */
-                        open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
-                        }
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package test.pkg
-                        @file:Suppress("ALL")
-                        open class ExtendableClass<T> {
-                        open fun ExtendableClass(): test.pkg.ExtendableClass<T!>! = error("Stub!")
-                        }
                     """
                     )
                 )
@@ -1282,251 +1129,6 @@ class StubsTest : AbstractStubsTest() {
                     """
                     )
                 )
-        )
-    }
-
-    @Test
-    fun `Translate DeprecatedForSdk to Deprecated`() {
-        // See b/144111352
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/PublicApi.java:30: error: Method test.pkg.PublicApi.method4(): Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk [DeprecationMismatch]
-            """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package test.pkg;
-                    import android.annotation.DeprecatedForSdk;
-                    import android.annotation.DeprecatedForSdk.*;
-
-                    public class PublicApi {
-                        private PublicApi() { }
-                        // Normal deprecation:
-                        /** @deprecated My deprecation reason 1 */
-                        @Deprecated
-                        public static void method1() { }
-
-                        // Deprecated in the SDK. No comment; make sure annotation comment
-                        // shows up in the doc stubs.
-                        @DeprecatedForSdk("My deprecation reason 2")
-                        public static void method2() { }
-
-                        // Deprecated in the SDK, and has comment: Make sure comments merged
-                        // in the doc stubs.
-                        /**
-                         * My docs here.
-                         * @return the value
-                         */
-                        @DeprecatedForSdk("My deprecation reason 3")
-                        public static void method3() { } // warn about missing annotation
-
-                        // Already implicitly deprecated everywhere (because of @deprecated
-                        // comment; complain if combined with @DeprecatedForSdk
-                        /** @deprecated Something */
-                        @DeprecatedForSdk("Something")
-                        public static void method4() { }
-
-                        // Test @DeprecatedForSdk with specific exemptions; none of these are
-                        // the current public SDK so make sure it's deprecated there.
-                        // A different test will check whath appens when generating the
-                        // system API or test API.
-                        @DeprecatedForSdk(value = "Explanation", allowIn = { SYSTEM_API, TEST_API })
-                        public static void method5() { }
-                    }
-                    """
-                        )
-                        .indented(),
-                    deprecatedForSdkSource
-                ),
-            api =
-                """
-                package test.pkg {
-                  public class PublicApi {
-                    method @Deprecated public static void method1();
-                    method @Deprecated public static void method2();
-                    method @Deprecated public static void method3();
-                    method @Deprecated public static void method4();
-                    method @Deprecated public static void method5();
-                  }
-                }
-                """,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class PublicApi {
-                    PublicApi() { throw new RuntimeException("Stub!"); }
-                    /** @deprecated My deprecation reason 1 */
-                    @Deprecated
-                    public static void method1() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @deprecated My deprecation reason 2
-                     */
-                    @Deprecated
-                    public static void method2() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * My docs here.
-                     * @deprecated My deprecation reason 3
-                     * @return the value
-                     */
-                    @Deprecated
-                    public static void method3() { throw new RuntimeException("Stub!"); }
-                    /** @deprecated Something */
-                    @Deprecated
-                    public static void method4() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @deprecated Explanation
-                     */
-                    @Deprecated
-                    public static void method5() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
-                ),
-            docStubs = true
-        )
-    }
-
-    @Test
-    fun `Translate DeprecatedForSdk with API Filtering`() {
-        // See b/144111352.
-        // Remaining: don't include @deprecated in the docs for allowed platforms!
-        check(
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package test.pkg;
-
-                    import android.annotation.SystemApi;
-                    import android.annotation.TestApi;
-                    import android.annotation.DeprecatedForSdk;
-
-                    public class PublicApi2 {
-                        private PublicApi2() {
-                        }
-
-                        // This method should be deprecated in the SDK but *not* here in
-                        // the system API (this test runs with --show-annotations SystemApi)
-                        @DeprecatedForSdk(value = "My deprecation reason 1", allowIn = {SystemApi.class, TestApi.class})
-                        public static void method1() {
-                        }
-
-                        // Same as method 1 (here we're just using a different annotation
-                        // initializer form to test we're handling both types): *not* deprecated.
-
-                        /**
-                         * My docs.
-                         */
-                        @DeprecatedForSdk(value = "My deprecation reason 2", allowIn = SystemApi.class)
-                        public static void method2() {
-                        }
-
-                        // Finally, this method *is* deprecated in the system API and should
-                        // show up as such.
-
-                        /**
-                         * My docs.
-                         */
-                        @DeprecatedForSdk(value = "My deprecation reason 3", allowIn = TestApi.class)
-                        public static void method3() {
-                        }
-                    }
-                    """
-                        )
-                        .indented(),
-                    // Include some Kotlin files too to make sure we correctly handle
-                    // annotation lookup for Kotlin (which uses UAST instead of plain Java PSI
-                    // behind the scenes), even if android.util.ArrayMap is really implemented in
-                    // Java
-                    kotlin(
-                            """
-                    package android.util
-                    import android.annotation.DeprecatedForSdk
-                    import android.annotation.SystemApi;
-                    import android.annotation.TestApi;
-
-                    @DeprecatedForSdk(value = "Use androidx.collection.ArrayMap")
-                    class ArrayMap
-
-                    @DeprecatedForSdk(value = "Use androidx.collection.ArrayMap", allowIn = [SystemApi::class])
-                    class SystemArrayMap
-
-                    @DeprecatedForSdk("Use android.Manifest.permission.ACCESS_FINE_LOCATION instead")
-                    const val FINE_LOCATION =  "android.permission.ACCESS_FINE_LOCATION"
-                    """
-                        )
-                        .indented(),
-                    deprecatedForSdkSource,
-                    systemApiSource,
-                    testApiSource
-                ),
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class PublicApi2 {
-                    PublicApi2() { throw new RuntimeException("Stub!"); }
-                    public static void method1() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * My docs.
-                     */
-                    public static void method2() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * My docs.
-                     * @deprecated My deprecation reason 3
-                     */
-                    @Deprecated
-                    public static void method3() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.util;
-                    /**
-                     * @deprecated Use androidx.collection.ArrayMap
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @Deprecated
-                    public final class ArrayMap {
-                    @Deprecated
-                    public ArrayMap() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    ),
-                    // SystemArrayMap is like ArrayMap, but has allowedIn=SystemApi::class, so
-                    // it should not be deprecated here in the system api stubs
-                    java(
-                        """
-                    package android.util;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public final class SystemArrayMap {
-                    public SystemArrayMap() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.util;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public final class ArrayMapKt {
-                    /**
-                     * @deprecated Use android.Manifest.permission.ACCESS_FINE_LOCATION instead
-                     */
-                    @Deprecated @androidx.annotation.NonNull public static final java.lang.String FINE_LOCATION = "android.permission.ACCESS_FINE_LOCATION";
-                    }
-                    """
-                    )
-                ),
-            docStubs = true
         )
     }
 
@@ -1592,6 +1194,177 @@ class StubsTest : AbstractStubsTest() {
                     """
                     ),
                 ),
+        )
+    }
+
+    @Test
+    fun `Ensure that when generating stubs from signature files the constructors are setup correctly`() {
+        check(
+            format = FileFormat.V2,
+            signatureSources =
+                arrayOf(
+                    """
+            // Signature format: 2.0
+            package test.pkg {
+              public abstract class Parent {
+                ctor protected Parent(String);
+              }
+              public static class Child extends test.pkg.Parent {
+                ctor protected Child(String);
+              }
+            }
+            """,
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public abstract class Parent {
+                    protected Parent(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                    // class test.pkg.Parent does not have a default constructor but has a
+                    // constructor that takes a String argument as an input. Therefore, the
+                    // constructor in the class test.pkg.Child must call the super constructor with
+                    // a String argument to avoid a compiler error.
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public static class Child extends test.pkg.Parent {
+                    protected Child(java.lang.String arg1) { super(""); throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_API_CLASS_RESOLUTION,
+                    "api:classpath",
+                ),
+        )
+    }
+
+    @Test
+    fun `Compilable stubs are not generated when inheriting class exists in jar passed via classpath`() {
+        check(
+            format = FileFormat.V2,
+            signatureSources =
+                arrayOf(
+                    """
+            // Signature format: 2.0
+            package java.text {
+              public abstract class Format implements java.lang.Cloneable java.io.Serializable {
+                ctor protected Format();
+              }
+              public static class Format.Field extends java.text.AttributedCharacterIterator.Attribute {
+                ctor protected Format.Field(String);
+              }
+            }
+            """,
+                ),
+            stubFiles =
+                arrayOf(
+                    // class java.text.AttributedCharacterIterator.Attribute is included in
+                    // android.jar, which is passed as classpath in DriverTest. The class does not
+                    // have a default constructor but has a constructor that takes a String argument
+                    // as an input. Therefore, the constructor in the class java.text.Format.Field
+                    // must call the super constructor with a String argument to avoid compile
+                    // error.
+                    java(
+                        """
+                    package java.text;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public abstract class Format implements java.lang.Cloneable, java.io.Serializable {
+                    protected Format() { throw new RuntimeException("Stub!"); }
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public static class Field extends java.text.AttributedCharacterIterator.Attribute {
+                    protected Field(java.lang.String arg1) { super(""); throw new RuntimeException("Stub!"); }
+                    }
+                    }
+                    """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_API_CLASS_RESOLUTION,
+                    "api:classpath",
+                ),
+        )
+    }
+
+    @Test
+    fun `Type-use annotations are not included in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                            public @interface TypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
+                            public @interface MethodAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE})
+                            public @interface MethodAndTypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                @MethodAnnotation
+                                @MethodAndTypeAnnotation
+                                public @TypeAnnotation List<@TypeAnnotation String> foo() {}
+                            }
+                        """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            @test.pkg.MethodAndTypeAnnotation
+                            @test.pkg.MethodAnnotation
+                            public java.util.List<java.lang.String> foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            format = FileFormat.V2,
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method @test.pkg.MethodAndTypeAnnotation @test.pkg.MethodAnnotation public java.util.List<java.lang.String> foo();
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE}) public @interface MethodAndTypeAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD) public @interface MethodAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE) public @interface TypeAnnotation {
+                      }
+                    }
+                """
         )
     }
 }

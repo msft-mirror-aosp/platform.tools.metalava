@@ -16,32 +16,47 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import java.io.LineNumberReader
 import java.io.StringReader
+import java.nio.file.Path
 import kotlin.test.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
+val DEFAULTABLE_PROPERTY_NAMES =
+    listOf(
+        "add-additional-overrides",
+        "normalize-final-modifier",
+        "overloaded-method-order",
+        "sort-whole-extends-list",
+        "strip-java-lang-prefix",
+        "type-argument-spacing",
+    )
+
+val DEFAULTABLE_PROPERTIES = DEFAULTABLE_PROPERTY_NAMES.joinToString { "'$it'" }
+
 class FileFormatTest {
     private fun checkParseHeader(
         apiText: String,
+        formatForLegacyFiles: FileFormat? = null,
         expectedFormat: FileFormat? = null,
         expectedError: String? = null,
         expectedNextLine: String? = null
     ) {
         val reader = LineNumberReader(StringReader(apiText.trimIndent()))
+        val parseHeader = {
+            FileFormat.parseHeader(Path.of("api.txt"), reader, formatForLegacyFiles)
+        }
         if (expectedError == null) {
-            val format = FileFormat.parseHeader("api.txt", reader)
+            val format = parseHeader()
             assertEquals(expectedFormat, format)
             val nextLine = reader.readLine()
             assertEquals(expectedNextLine, nextLine, "next line mismatch")
         } else {
             assertNull("cannot specify both expectedFormat and expectedError", expectedFormat)
-            val e =
-                assertThrows(ApiParseException::class.java) {
-                    FileFormat.parseHeader("api.txt", reader)
-                }
+            val e = assertThrows(ApiParseException::class.java) { parseHeader() }
             assertEquals(expectedError, e.message)
         }
     }
@@ -60,7 +75,7 @@ class FileFormatTest {
         val reader = LineNumberReader(StringReader(header.trimIndent()))
         assertEquals(
             format,
-            FileFormat.parseHeader("api.txt", reader),
+            FileFormat.parseHeader(Path.of("api.txt"), reader),
             message = "format parsed from header does not match"
         )
         val nextLine = reader.readLine()
@@ -118,6 +133,22 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check format parsing (v1 + legacy format)`() {
+        checkParseHeader(
+            """
+                package test.pkg {
+                  public class MyTest {
+                    ctor public MyTest();
+                  }
+                }
+            """,
+            formatForLegacyFiles = FileFormat.V2,
+            expectedFormat = FileFormat.V2,
+            expectedNextLine = "package test.pkg {",
+        )
+    }
+
+    @Test
     fun `Check format parsing (unknown version)`() {
         checkParseHeader(
             """
@@ -129,7 +160,7 @@ class FileFormatTest {
                 }
                 """,
             expectedError =
-                "api.txt:1: Signature format error - invalid version, found '3.14', expected one of '2.0', '3.0', '4.0', '5.0'",
+                "api.txt:1: Signature format error - invalid version, found '3.14', expected one of '2.0', '4.0', '5.0'",
         )
     }
 
@@ -151,17 +182,17 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v3)`() {
+    fun `Check format parsing (v4)`() {
         checkParseHeader(
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.collection {
                   public final class LruCacheKt {
                     ctor public LruCacheKt();
                   }
                 }
             """,
-            expectedFormat = FileFormat.V3,
+            expectedFormat = FileFormat.V4,
             expectedNextLine = "package androidx.collection {",
         )
     }
@@ -239,29 +270,29 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v3 + kotlin-style-nulls=no but no migrating)`() {
+    fun `Check format parsing (v4 + kotlin-style-nulls=no but no migrating)`() {
         checkParseHeader(
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 // - kotlin-style-nulls=no
             """,
             expectedError =
-                "api.txt:2: Signature format error - must provide a 'migrating' property when customizing version 3.0",
+                "api.txt:2: Signature format error - must provide a 'migrating' property when customizing version 4.0",
         )
     }
 
     @Test
-    fun `Check header and specifier (v3 + kotlin-style-nulls=no,migrating=test)`() {
+    fun `Check header and specifier (v4 + kotlin-style-nulls=no,migrating=test)`() {
         headerAndSpecifierTest(
             header =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 // - kotlin-style-nulls=no
                 // - migrating=test
 
             """,
-            specifier = "3.0:kotlin-style-nulls=no,migrating=test",
-            format = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test"),
+            specifier = "4.0:kotlin-style-nulls=no,migrating=test",
+            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
         )
     }
 
@@ -283,10 +314,11 @@ class FileFormatTest {
     @Test
     fun `Check header and specifier (v5)`() {
         headerAndSpecifierTest(
-            header = """
-                // Signature format: 5.0
+            header =
+                """
+                    // Signature format: 5.0
 
-            """,
+                """,
             specifier = "5.0",
             format = FileFormat.V5,
         )
@@ -333,10 +365,11 @@ class FileFormatTest {
     @Test
     fun `Check header and specifier (v2)`() {
         headerAndSpecifierTest(
-            header = """
-                // Signature format: 2.0
+            header =
+                """
+                    // Signature format: 2.0
 
-            """,
+                """,
             specifier = "2.0",
             format = FileFormat.V2,
         )
@@ -358,17 +391,17 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v3 + kotlin-style-nulls=no)`() {
+    fun `Check header and specifier (v4 + kotlin-style-nulls=no)`() {
         headerAndSpecifierTest(
             header =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 // - kotlin-style-nulls=no
                 // - migrating=test
 
             """,
-            specifier = "3.0:kotlin-style-nulls=no,migrating=test",
-            format = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test"),
+            specifier = "4.0:kotlin-style-nulls=no,migrating=test",
+            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
         )
     }
 
@@ -433,6 +466,25 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check header and specifier (v5 + strip-java-lang-prefix=always)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                    // Signature format: 5.0
+                    // - migrating=test
+                    // - strip-java-lang-prefix=always
+
+                """,
+            specifier = "5.0:migrating=test,strip-java-lang-prefix=always",
+            format =
+                FileFormat.V5.copy(
+                    specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                    migrating = "test",
+                ),
+        )
+    }
+
+    @Test
     fun `Check header and specifier (v5 + language=java)`() {
         headerAndSpecifierTest(
             header =
@@ -445,7 +497,7 @@ class FileFormatTest {
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.JAVA,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                     kotlinStyleNulls = false,
                 ),
         )
@@ -465,7 +517,7 @@ class FileFormatTest {
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.JAVA,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                     kotlinStyleNulls = true,
                 ),
         )
@@ -489,21 +541,73 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + concise-default-values=no,language=kotlin)`() {
+    fun `Check header and specifier (v5 + include-default-parameter-values=no,language=kotlin)`() {
         headerAndSpecifierTest(
             header =
                 """
                 // Signature format: 5.0
                 // - language=kotlin
-                // - concise-default-values=no
+                // - include-default-parameter-values=no
 
             """,
-            specifier = "5.0:language=kotlin,concise-default-values=no",
+            specifier = "5.0:language=kotlin,include-default-parameter-values=no",
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.KOTLIN,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                 ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + kotlinNameTypeOrder=yes)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+
+            """,
+            specifier = "5.0:kotlin-name-type-order=yes",
+            format =
+                FileFormat.V5.copy(
+                    kotlinNameTypeOrder = true,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + kotlin-name-type-order=yes,kotlin-name-type-order=yes)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - include-type-use-annotations=yes
+                // - kotlin-name-type-order=yes
+
+            """,
+            specifier = "5.0:include-type-use-annotations=yes,kotlin-name-type-order=yes",
+            format =
+                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+        )
+    }
+
+    @Test
+    fun `Check that include-type-use-annotations=yes cannot be set without kotlin-name-type-order=yes`() {
+        val e =
+            assertThrows(IllegalStateException::class.java) {
+                checkParseHeader(
+                    """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=no
+                    // - include-type-use-annotations=yes
+                """
+                        .trimIndent()
+                )
+            }
+        assertEquals(
+            "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set",
+            e.message
         )
     }
 
@@ -593,10 +697,7 @@ class FileFormatTest {
 
     @Test
     fun `Check defaultable properties`() {
-        assertEquals(
-            listOf("add-additional-overrides", "overloaded-method-order"),
-            FileFormat.defaultableProperties()
-        )
+        assertEquals(DEFAULTABLE_PROPERTY_NAMES, FileFormat.defaultableProperties())
     }
 
     @Test
@@ -615,7 +716,7 @@ class FileFormatTest {
                 FileFormat.parseDefaults("kotlin-style-nulls=yes")
             }
         assertEquals(
-            "unknown format property name `kotlin-style-nulls`, expected one of 'add-additional-overrides', 'overloaded-method-order'",
+            "unknown format property name `kotlin-style-nulls`, expected one of $DEFAULTABLE_PROPERTIES",
             e.message
         )
     }
@@ -624,7 +725,7 @@ class FileFormatTest {
     fun `Check parseDefaults foo=bar`() {
         val e = assertThrows(ApiParseException::class.java) { FileFormat.parseDefaults("foo=bar") }
         assertEquals(
-            "unknown format property name `foo`, expected one of 'add-additional-overrides', 'overloaded-method-order'",
+            "unknown format property name `foo`, expected one of $DEFAULTABLE_PROPERTIES",
             e.message
         )
     }
