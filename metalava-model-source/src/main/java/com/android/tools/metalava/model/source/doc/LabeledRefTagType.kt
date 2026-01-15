@@ -16,6 +16,12 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -48,7 +54,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         // that whitespace is normalized consistently.
         val resolvedReference =
             if (validateReference(sourceReference)) {
-                context.resolveReference(reporter, sourceReference)?.also { resolved ->
+                resolveReference(context, reporter, sourceReference)?.also { resolved ->
 
                     // Resolving can handle references which are not valid, e.g. a qualified field
                     // reference without a #. Make sure that the source reference is a valid form
@@ -85,6 +91,64 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             // they are part of [LinkTagData].
             consumedContent = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
         )
+    }
+
+    /**
+     * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
+     * constructor, method, or field) to a [ResolvedReference], if possible.
+     */
+    private fun resolveReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        sourceReference: String
+    ): ResolvedReference? {
+        // Check to see if this is a member reference.
+        val hashIndex = sourceReference.indexOf('#')
+        if (hashIndex != -1) {
+            // The reference is to a class member so first resolve the class.
+            val classItem =
+                if (hashIndex == 0) {
+                    // Use this documentation's containing class.
+                    context.containingClassItem
+                } else {
+                    // Else resolve the class reference.
+                    val classReference = sourceReference.substring(0, hashIndex)
+                    val resolved =
+                        context.resolveItemReference(classReference, NameClassification.CLASS)
+                    when (resolved) {
+                        is ClassItem -> resolved
+                        is InvalidReferencableItem -> {
+                            resolved.reportIssue(reporter)
+                            null
+                        }
+                        // Ignore any non-class references.
+                        else -> null
+                    }
+                }
+            classItem ?: return null
+
+            var memberReference = sourceReference.substring(hashIndex + 1)
+            return resolveMember(classItem, memberReference)
+        }
+
+        // Resolve the reference.
+        val resolved = context.resolveItemReference(sourceReference, NameClassification.AMBIGUOUS)
+        return when (resolved) {
+            is ClassItem -> resolved.toResolvedReference()
+            is PackageItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
+            is FieldItem -> resolved.toResolvedReference()
+            else -> null
+        }
+    }
+
+    private fun resolveMember(classItem: ClassItem, memberReference: String): ResolvedReference? {
+        val openParenthesisIndex = memberReference.indexOf('(')
+
+        // Ignore methods and constructors for now.
+        if (openParenthesisIndex != -1) return null
+
+        return classItem.findField(memberReference)?.toResolvedReference()
     }
 
     companion object {

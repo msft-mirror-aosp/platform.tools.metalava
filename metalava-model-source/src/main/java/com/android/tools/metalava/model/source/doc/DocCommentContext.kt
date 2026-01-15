@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.javadoc.ExprBuilderContext
 import com.android.tools.metalava.model.source.javadoc.ExprContext
-import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Provides contextual information from the surrounding model for use when processing a
@@ -66,15 +65,6 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
 
     /** Fully qualify the Javadoc [comment]. */
     fun fullyQualifyComment(comment: String): String
-
-    /**
-     * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
-     * constructor, method, or field) to a [ResolvedReference], if possible.
-     */
-    fun resolveReference(
-        reporter: LocationSpecificReporter,
-        sourceReference: String
-    ): ResolvedReference?
 
     /**
      * The optional [ClassItem] that contains this documentation.
