@@ -16,6 +16,12 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -37,6 +43,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         val referenceEndExclusive = text.findEndOfReference(referenceStart)
         if (referenceEndExclusive == 0) return null
 
+        // Find the start of the label.
+        val labelStart = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
+
+        // Get the source reference from the text.
         val sourceReference =
             text
                 .substring(referenceStart, referenceEndExclusive)
@@ -47,44 +57,119 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         // Resolve the source reference, if it failed then still return a non-null result to ensure
         // that whitespace is normalized consistently.
         val resolvedReference =
-            if (validateReference(sourceReference)) {
-                context.resolveReference(reporter, sourceReference)?.also { resolved ->
-
-                    // Resolving can handle references which are not valid, e.g. a qualified field
-                    // reference without a #. Make sure that the source reference is a valid form
-                    // for the resolved item.
-                    when (resolved) {
-                        is FieldReference -> {
-                            // Check if the source reference was qualified.
-                            val lastDotIndex = sourceReference.lastIndexOf('.')
-                            if (lastDotIndex > -1) {
-                                // The source reference was qualified so must have a '#'
-                                val hashIndex = sourceReference.indexOf('#', lastDotIndex)
-                                if (hashIndex == -1) {
-                                    reporter.report(
-                                        Issues.MALFORMED_DOC_REFERENCE,
-                                        "Malformed reference `$sourceReference`, missing '#', should be '${sourceReference.replaceRange(lastDotIndex, lastDotIndex + 1, "#")}"
-                                    )
-                                }
-                            }
-                        }
-                        else -> {}
-                    }
-                }
-            } else {
-                reporter.report(
-                    Issues.MALFORMED_DOC_REFERENCE,
-                    "Malformed reference `$sourceReference`"
-                )
-                null
+            resolveReference(context, reporter, sourceReference)?.also { resolved ->
+                checkSourceReferenceValidForResolvedReference(reporter, sourceReference, resolved)
             }
 
         return ExtractDataResult(
             LabeledRefTagData(name, sourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
-            consumedContent = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
+            consumedContent = labelStart
         )
+    }
+
+    /**
+     * Check to make sure that the [sourceReference] is valid for [resolved].
+     *
+     * Resolving can handle references which are not valid, e.g. a qualified field reference without
+     * a #. Make sure that the source reference is a valid form for the resolved item.
+     */
+    private fun checkSourceReferenceValidForResolvedReference(
+        reporter: LocationSpecificReporter,
+        sourceReference: String,
+        resolved: ResolvedReference
+    ) {
+        when (resolved) {
+            is FieldReference -> {
+                // Check if the source reference was qualified.
+                val lastDotIndex = sourceReference.lastIndexOf('.')
+                if (lastDotIndex > -1) {
+                    // The source reference was qualified so must have a '#'
+                    val hashIndex = sourceReference.indexOf('#', lastDotIndex)
+                    if (hashIndex == -1) {
+                        reporter.report(
+                            Issues.MALFORMED_DOC_REFERENCE,
+                            "Malformed reference `$sourceReference`, missing '#', should be '${
+                                sourceReference.replaceRange(
+                                    lastDotIndex,
+                                    lastDotIndex + 1,
+                                    "#"
+                                )
+                            }"
+                        )
+                    }
+                }
+            }
+            else -> {}
+        }
+    }
+
+    /**
+     * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
+     * constructor, method, or field) to a [ResolvedReference], if possible.
+     */
+    private fun resolveReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        sourceReference: String
+    ): ResolvedReference? {
+        // Validate that the source reference matches the expected pattern.
+        if (!validateReference(sourceReference)) {
+            reporter.report(
+                Issues.MALFORMED_DOC_REFERENCE,
+                "Malformed reference `$sourceReference`"
+            )
+            return null
+        }
+
+        // Check to see if this is a member reference.
+        val hashIndex = sourceReference.indexOf('#')
+        if (hashIndex != -1) {
+            // The reference is to a class member so first resolve the class.
+            val classItem =
+                if (hashIndex == 0) {
+                    // Use this documentation's containing class.
+                    context.containingClassItem
+                } else {
+                    // Else resolve the class reference.
+                    val classReference = sourceReference.substring(0, hashIndex)
+                    val resolved =
+                        context.resolveItemReference(classReference, NameClassification.CLASS)
+                    when (resolved) {
+                        is ClassItem -> resolved
+                        is InvalidReferencableItem -> {
+                            resolved.reportIssue(reporter)
+                            null
+                        }
+                        // Ignore any non-class references.
+                        else -> null
+                    }
+                }
+            classItem ?: return null
+
+            var memberReference = sourceReference.substring(hashIndex + 1)
+            return resolveMember(classItem, memberReference)
+        }
+
+        // Resolve the reference.
+        val resolved = context.resolveItemReference(sourceReference, NameClassification.AMBIGUOUS)
+        return when (resolved) {
+            is ClassItem -> resolved.toResolvedReference()
+            is PackageItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
+            is FieldItem -> resolved.toResolvedReference()
+            else -> null
+        }
+    }
+
+    private fun resolveMember(classItem: ClassItem, memberReference: String): ResolvedReference? {
+        val openParenthesisIndex = memberReference.indexOf('(')
+
+        // Ignore methods and constructors for now.
+        if (openParenthesisIndex != -1) return null
+
+        return classItem.findField(memberReference)?.toResolvedReference()
     }
 
     companion object {
@@ -104,6 +189,9 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          */
         private const val QUALIFIED_NAME = """(?:$SIMPLE_NAME(?:\.$SIMPLE_NAME)*)"""
 
+        /** A list of parameters. */
+        private const val PARAMETERS = """(?:\([^)]*\))"""
+
         /**
          * A member.
          *
@@ -111,7 +199,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          * * `<simple-name>`
          * * `<simple-name>(...)`
          */
-        private const val MEMBER = """$SIMPLE_NAME(?:\([^)]*\))?"""
+        private const val MEMBER = """$SIMPLE_NAME(?:$PARAMETERS)?"""
 
         /** A URI fragment, consists of most characters except `#` and white spaces. */
         private const val FRAGMENT = """[^ #]+"""
@@ -121,6 +209,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          *
          * Can be one of:
          * * `<qualified-name>`
+         * * `<qualified-name>(<parameters>)`
          * * `<qualified-name>#<member>`
          * * `#<member>`
          * * `<member>`
@@ -129,7 +218,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          */
         private val VALID_REFERENCE =
             Regex(
-                """$QUALIFIED_NAME|$QUALIFIED_NAME#$MEMBER|#$MEMBER|$MEMBER|$QUALIFIED_NAME##$FRAGMENT|##$FRAGMENT"""
+                """$QUALIFIED_NAME|$QUALIFIED_NAME$PARAMETERS|$QUALIFIED_NAME#$MEMBER|#$MEMBER|$QUALIFIED_NAME##$FRAGMENT|##$FRAGMENT"""
             )
 
         /** Validate [sourceReference], returning `true` if it is valid, `false` otherwise. */
