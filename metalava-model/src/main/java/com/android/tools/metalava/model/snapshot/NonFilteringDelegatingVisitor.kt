@@ -33,7 +33,11 @@ import com.android.tools.metalava.model.PropertyItem
  * property.
  */
 open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
-    BaseItemVisitor(preserveClassNesting = delegate.requiresClassNesting) {
+    BaseItemVisitor(
+        preserveClassNesting = delegate.requiresClassNesting,
+        // [DelegatedVisitor] does not support visiting parameters.
+        visitParameterItems = false,
+    ) {
 
     override fun visitCodebase(codebase: Codebase) {
         delegate.visitCodebase(codebase)
@@ -59,7 +63,7 @@ open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor)
         delegate.afterVisitClass(cls)
     }
 
-    override fun visit(constructor: ConstructorItem) {
+    override fun visitConstructor(constructor: ConstructorItem) {
         delegate.visitConstructor(constructor)
     }
 

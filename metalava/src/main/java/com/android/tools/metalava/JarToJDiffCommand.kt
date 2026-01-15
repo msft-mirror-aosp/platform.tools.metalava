@@ -22,6 +22,10 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
+import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 
@@ -62,12 +66,8 @@ class JarToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         StandaloneJarCodebaseLoader.create(
-                executionEnvironment,
+                executionEnvironment.disableStderrDumping(),
                 progressTracker,
                 BasicReporter(stderr)
             )
@@ -76,19 +76,27 @@ class JarToJDiffCommand :
 
                 val apiType = ApiType.PUBLIC_API
                 val apiPredicateConfig = ApiPredicate.Config()
-                val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-                val apiReference = apiType.getReferenceFilter(apiPredicateConfig)
+                val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
-                createReportFile(progressTracker, codebase, xmlFile, "JDiff File") { printWriter ->
-                    JDiffXmlWriter(
-                            writer = printWriter,
-                        )
-                        .createFilteringVisitor(
-                            filterEmit = apiEmit,
-                            filterReference = apiReference,
+                val codebaseFragment =
+                    CodebaseFragment.create(codebase) { delegate ->
+                        createFilteringVisitorForJDiffWriter(
+                            delegate,
+                            apiFilters = apiFilters,
                             preFiltered = false,
                             showUnannotated = false,
                         )
+                    }
+
+                createOutputFileFromCodebaseFragment(
+                    progressTracker,
+                    codebaseFragment,
+                    xmlFile,
+                    "JDiff File"
+                ) { printWriter ->
+                    JDiffXmlWriter(
+                        writer = printWriter,
+                    )
                 }
             }
     }

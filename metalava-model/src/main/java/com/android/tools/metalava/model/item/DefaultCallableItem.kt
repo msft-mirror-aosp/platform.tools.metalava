@@ -25,10 +25,13 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -44,7 +47,8 @@ typealias ParameterItemsFactory = (CallableItem) -> List<ParameterItem>
 abstract class DefaultCallableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -59,7 +63,8 @@ abstract class DefaultCallableItem(
     DefaultMemberItem(
         codebase,
         fileLocation,
-        itemLanguage,
+        sourceLanguage,
+        targetLanguages,
         modifiers,
         documentationFactory,
         variantSelectorsFactory,
@@ -99,4 +104,17 @@ abstract class DefaultCallableItem(
      * explained in the documentation of [CallableBodyFactory].
      */
     final override val body: CallableBody = callableBodyFactory(@Suppress("LeakingThis") this)
+
+    override val containingScope: ReferencableNameScope?
+        get() =
+            // Fallback to the containing class.
+            containingClass()
+
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        nameClassification: NameClassification,
+        isFirstSimpleName: Boolean
+    ) =
+        // Check for type parameters.
+        nameClassification.findTypeParameter { typeParameterList.find { it.name() == simpleName } }
 }

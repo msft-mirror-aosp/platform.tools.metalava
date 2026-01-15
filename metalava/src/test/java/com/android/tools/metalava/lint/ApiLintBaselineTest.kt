@@ -22,9 +22,10 @@ import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.restrictToSource
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import kotlin.arrayOf
 import org.junit.Test
 
 /** Test for [ApiLint] specifically with baseline arguments. */
@@ -168,11 +169,13 @@ class ApiLintBaselineTest : DriverTest() {
                     """
                     )
                 ),
-            expectedFail = """
-                *** api-lint failed ***
-            """,
-            expectedOutput = """
-                *** api-lint failed ***
+            expectedFail =
+                """
+                    *** api-lint failed ***
+                """,
+            expectedOutput =
+                """
+                    *** api-lint failed ***
                 """
         )
     }
@@ -229,7 +232,9 @@ class ApiLintBaselineTest : DriverTest() {
                     ARG_HIDE,
                     "ProtectedMember",
                     ARG_HIDE,
-                    "GetterOnBuilder"
+                    "GetterOnBuilder",
+                    ARG_HIDE,
+                    Issues.INHERIT_CHANGES_SIGNATURE.name,
                 ),
             sourceFiles =
                 arrayOf(
@@ -286,8 +291,36 @@ class ApiLintBaselineTest : DriverTest() {
                     androidxNonNullSource,
                     androidxNullableSource,
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
+                ),
+        )
+    }
+
+    @Test
+    fun `Should report multiple type parameter issues for a particular element`() {
+        check(
+            apiLint = "", // enabled
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    // This baseline should have errors for both "KeyType" and "ValueType"
+                    // as they both violate Google generic type parameter naming guidelines
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            TypeParameterName: test.AppSearchBatchResult:
+                                Invalid type parameter names "KeyType", "ValueType". Type parameter names must follow the Google naming guidelines specified here: https://developer.android.com/kotlin/style-guide#type_variable_names
+                        """,
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test;
+
+                    public final class AppSearchBatchResult<KeyType, ValueType> {
+                    }
+                    """
+                    )
                 ),
         )
     }

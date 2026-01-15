@@ -19,50 +19,44 @@ package com.android.tools.metalava.model.snapshot
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDoc
-import com.android.tools.metalava.model.item.PackageDocs
-
-/** Stack of [SnapshotTypeItemFactory] */
-internal typealias TypeItemFactoryStack = ArrayList<SnapshotTypeItemFactory>
-
-/** Push new [SnapshotTypeItemFactory] onto the top of the stack. */
-internal fun TypeItemFactoryStack.push(factory: SnapshotTypeItemFactory) {
-    add(factory)
-}
-
-/** Pop [SnapshotTypeItemFactory] from the top of the stack. */
-internal fun TypeItemFactoryStack.pop() {
-    removeLast()
-}
+import com.android.tools.metalava.model.item.PackageInfo
+import com.android.tools.metalava.model.snapshottingFactory
+import com.android.tools.metalava.model.value.provider
+import java.util.IdentityHashMap
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
-class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), DelegatedVisitor {
+class CodebaseSnapshotTaker
+private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) :
+    DefaultCodebaseAssembler(), DelegatedVisitor {
 
     /**
      * The [Codebase] that is under construction.
@@ -71,12 +65,22 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
      */
     private lateinit var snapshotCodebase: DefaultCodebase
 
+    override val codebase: DefaultCodebase
+        get() = snapshotCodebase
+
+    /**
+     * The [ItemVisitor] to use in [createClassFromUnderlyingModel] to create a [ClassItem] that is
+     * not emitted as part of the snapshot but is included because it is referenced from a
+     * [ClassItem] that is emitted from the snapshot.
+     */
+    private val referenceVisitor = referenceVisitorFactory(this)
+
     override val itemFactory: DefaultItemFactory by
         lazy(LazyThreadSafetyMode.NONE) {
             DefaultItemFactory(
                 snapshotCodebase,
                 // Snapshots currently only support java.
-                defaultItemLanguage = ItemLanguage.JAVA,
+                defaultSourceLanguage = SourceLanguage.JAVA,
                 // Snapshots have already been separated by API surface variants, so they can use
                 // the same immutable ApiVariantSelectors.
                 ApiVariantSelectors.IMMUTABLE_FACTORY,
@@ -93,16 +97,6 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     private val globalTypeItemFactory by
         lazy(LazyThreadSafetyMode.NONE) { SnapshotTypeItemFactory(snapshotCodebase) }
 
-    /**
-     * Stack of [SnapshotTypeItemFactory] that contain information about the [TypeParameterItem]s
-     * that are in scope and can resolve a type variable reference to the parameter.
-     */
-    private val typeItemFactoryStack = TypeItemFactoryStack()
-
-    /** Get the current [SnapshotTypeItemFactory], i.e. the closest enclosing one. */
-    private val typeItemFactory
-        get() = typeItemFactoryStack.last()
-
     /** Take a snapshot of this [ModifierList] for [snapshotCodebase]. */
     private fun ModifierList.snapshot() = snapshot(snapshotCodebase)
 
@@ -111,7 +105,9 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
      * will not be initialized correctly.
      */
     override val requiresClassNesting: Boolean
-        get() = true
+        get() = false
+
+    private lateinit var sourceFileCache: SnapshotSourceFileCache
 
     override fun visitCodebase(codebase: Codebase) {
         this.originalCodebase = codebase
@@ -120,36 +116,33 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 location = codebase.location,
                 description = "snapshot of ${codebase.description}",
                 preFiltered = true,
-                annotationManager = codebase.annotationManager,
+                config = codebase.config,
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
-                reporter = codebase.reporter,
                 assembler = this,
             )
 
         this.snapshotCodebase = newCodebase
-        typeItemFactoryStack.push(globalTypeItemFactory)
+        this.sourceFileCache = SnapshotSourceFileCache(newCodebase)
     }
 
-    override fun afterVisitCodebase(codebase: Codebase) {
-        typeItemFactoryStack.pop()
-    }
+    override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
+        val originalPackage =
+            originalCodebase.resolvePackage(packageName)
+                ?: error(
+                    "Snapshot requires all packages are present in the original codebase but it cannot find '$packageName'"
+                )
 
-    /**
-     * Construct a [PackageDocs] that contains a [PackageDoc] that in turn contains information
-     * extracted from [packageItem] that can be used to create a new [PackageItem] that is a
-     * snapshot of [packageItem].
-     */
-    private fun packageDocsForPackageItem(packageItem: PackageItem) =
-        MutablePackageDoc(
-                qualifiedName = packageItem.qualifiedName(),
-                fileLocation = packageItem.fileLocation,
-                modifiers = packageItem.modifiers.snapshot(),
-                commentFactory = packageItem.documentation::snapshot,
-                overview = packageItem.overviewDocumentation,
-            )
-            .let { PackageDocs(mapOf(it.qualifiedName to it)) }
+        var originalAnnotations = originalPackage.modifiers.annotations()
+        val annotations = originalAnnotations.map { it.snapshot(snapshotCodebase) }
+        return PackageInfo(
+            fileLocation = originalPackage.fileLocation,
+            annotations = annotations,
+            commentFactory = originalPackage.documentation.snapshottingFactory(),
+            overview = originalPackage.overviewDocumentation,
+        )
+    }
 
     /** Get the [PackageItem] corresponding to this [PackageItem] in the snapshot codebase. */
     private fun PackageItem.getSnapshotPackage(): PackageItem {
@@ -159,15 +152,9 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             return it
         }
 
-        // Get a PackageDocs that contains a PackageDoc that contains information extracted from the
-        // PackageItem being visited. This is needed to ensure that the findOrCreatePackage(...)
-        // call below will use the correct information when creating the package. As only a single
-        // PackageDoc is provided for this package it means that if findOrCreatePackage(...) had to
-        // created a containing package that package would not have a PackageDocs and might be
-        // incorrect. However, that should not be a problem as the packages are visited in order
-        // such that a containing package is visited before any contained packages.
-        val packageDocs = packageDocsForPackageItem(this)
-        return snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
+        val newPackageItem = snapshotCodebase.findOrCreatePackage(packageName)
+        newPackageItem.copySelectedApiVariants(this)
+        return newPackageItem
     }
 
     /**
@@ -182,9 +169,11 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
      * into the Javadoc.
      */
     private fun snapshotDocumentation(
-        itemToSnapshot: Item,
-        documentedItem: Item,
+        itemToSnapshot: SelectableItem,
+        documentedItem: SelectableItem,
     ): ItemDocumentationFactory {
+        val documentation = documentedItem.documentation ?: return ItemDocumentation.NONE_FACTORY
+
         // The documentation does not need to be reverted if...
         if (
             // the item is not being reverted
@@ -196,15 +185,21 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 ||
                 itemToSnapshot.effectivelyDeprecated
         )
-            return documentedItem.documentation::snapshot
+            return documentation.snapshottingFactory()
 
-        val documentation = documentedItem.documentation
-        return { item -> documentation.snapshot(item).apply { removeDeprecatedSection() } }
+        return ItemDocumentationFactory { item ->
+            documentation.snapshot(item).apply { removeDeprecatedSection() }
+        }
     }
 
     /** Get the [ClassItem] corresponding to this [ClassItem] in the [snapshotCodebase]. */
     private fun ClassItem.getSnapshotClass(): DefaultClassItem =
         snapshotCodebase.resolveClass(qualifiedName()) as DefaultClassItem
+
+    /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
+    private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {
+        selectedApiVariants = original.selectedApiVariants
+    }
 
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
@@ -217,43 +212,47 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         // Create a TypeParameterList and SnapshotTypeItemFactory for the class.
         val (typeParameterList, classTypeItemFactory) =
-            typeItemFactory.inScope {
+            globalTypeItemFactory.from(containingClass).inScope {
                 classToSnapshot.typeParameterList.snapshot(
                     "class ${classToSnapshot.qualifiedName()}"
                 )
             }
 
-        // Push on the stack before resolving any types just in case they refer to a type parameter.
-        typeItemFactoryStack.push(classTypeItemFactory)
-
         // Snapshot the super class type, if any.
         val snapshotSuperClassType =
             classToSnapshot.superClassType()?.let { superClassType ->
-                typeItemFactory.getSuperClassType(superClassType)
+                classTypeItemFactory.getSuperClassType(superClassType)
             }
         val snapshotInterfaceTypes =
-            classToSnapshot.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
+            classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
+
+        val optionalAliasedType =
+            if (classToSnapshot.classKind == ClassKind.TYPEALIAS) {
+                classTypeItemFactory.getGeneralType(classToSnapshot.aliasedType)
+            } else {
+                null
+            }
 
         // Create the class and register it in the codebase.
-        itemFactory.createClassItem(
-            fileLocation = classToSnapshot.fileLocation,
-            itemLanguage = classToSnapshot.itemLanguage,
-            modifiers = classToSnapshot.modifiers.snapshot(),
-            documentationFactory = snapshotDocumentation(classToSnapshot, cls),
-            source = cls.sourceFile(),
-            classKind = classToSnapshot.classKind,
-            containingClass = containingClass,
-            containingPackage = containingPackage,
-            qualifiedName = classToSnapshot.qualifiedName(),
-            typeParameterList = typeParameterList,
-            origin = classToSnapshot.origin,
-            superClassType = snapshotSuperClassType,
-            interfaceTypes = snapshotInterfaceTypes,
-        )
-    }
-
-    override fun afterVisitClass(cls: ClassItem) {
-        typeItemFactoryStack.pop()
+        val newClass =
+            itemFactory.createClassItem(
+                fileLocation = classToSnapshot.fileLocation,
+                sourceLanguage = classToSnapshot.sourceLanguage,
+                targetLanguages = classToSnapshot.targetLanguages,
+                modifiers = classToSnapshot.modifiers.snapshot(),
+                documentationFactory = snapshotDocumentation(classToSnapshot, cls),
+                source = sourceFileCache.snapshotSourceFile(cls.sourceFile()),
+                classKind = classToSnapshot.classKind,
+                containingClass = containingClass,
+                containingPackage = containingPackage,
+                qualifiedName = classToSnapshot.qualifiedName(),
+                typeParameterList = typeParameterList,
+                origin = classToSnapshot.origin,
+                superClassType = snapshotSuperClassType,
+                interfaceTypes = snapshotInterfaceTypes,
+                optionalAliasedType = optionalAliasedType
+            )
+        newClass.copySelectedApiVariants(classToSnapshot)
     }
 
     /** Execute [body] within [SnapshotTypeItemFactoryContext]. */
@@ -268,7 +267,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         // Create a TypeParameterList and SnapshotTypeItemFactory for the constructor.
         val (typeParameterList, constructorTypeItemFactory) =
-            typeItemFactory.inScope {
+            globalTypeItemFactory.from(containingClass).inScope {
                 constructorToSnapshot.typeParameterList.snapshot(constructorToSnapshot.describe())
             }
 
@@ -278,7 +277,8 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             constructorTypeItemFactory.inScope {
                 itemFactory.createConstructorItem(
                     fileLocation = constructorToSnapshot.fileLocation,
-                    itemLanguage = constructorToSnapshot.itemLanguage,
+                    sourceLanguage = constructorToSnapshot.sourceLanguage,
+                    targetLanguages = constructorToSnapshot.targetLanguages,
                     modifiers = constructorToSnapshot.modifiers.snapshot(),
                     documentationFactory =
                         snapshotDocumentation(constructorToSnapshot, constructor),
@@ -295,8 +295,10 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                         },
                     callableBodyFactory = constructorToSnapshot.body::snapshot,
                     implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
+                    isPrimary = constructorToSnapshot.isPrimary,
                 )
             }
+        newConstructor.copySelectedApiVariants(constructorToSnapshot)
 
         containingClass.addConstructor(newConstructor)
     }
@@ -308,9 +310,11 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
         // Create a TypeParameterList and SnapshotTypeItemFactory for the method.
         val (typeParameterList, methodTypeItemFactory) =
-            typeItemFactory.inScope {
+            globalTypeItemFactory.from(containingClass).inScope {
                 methodToSnapshot.typeParameterList.snapshot(methodToSnapshot.describe())
             }
+
+        val defaultValueSnapshot = methodToSnapshot.defaultValue?.snapshot(snapshotCodebase)
 
         val newMethod =
             // Resolve any type parameters used in the method's return type and parameter items
@@ -318,7 +322,8 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             methodTypeItemFactory.inScope {
                 itemFactory.createMethodItem(
                     fileLocation = methodToSnapshot.fileLocation,
-                    itemLanguage = methodToSnapshot.itemLanguage,
+                    sourceLanguage = methodToSnapshot.sourceLanguage,
+                    targetLanguages = methodToSnapshot.targetLanguages,
                     modifiers = methodToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(methodToSnapshot, method),
                     name = methodToSnapshot.name(),
@@ -331,57 +336,81 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
                     callableBodyFactory = methodToSnapshot.body::snapshot,
-                    annotationDefault = methodToSnapshot.defaultValue(),
+                    defaultValueProvider = defaultValueSnapshot.provider(),
+                    isExtensionMethod = methodToSnapshot.isExtensionMethod(),
                 )
             }
+        newMethod.copySelectedApiVariants(methodToSnapshot)
 
         containingClass.addMethod(newMethod)
     }
 
     override fun visitField(field: FieldItem) {
         val fieldToSnapshot = field.actualItemToSnapshot
+        val constantValueSnapshot = fieldToSnapshot.constantValue?.snapshot(snapshotCodebase)
 
         val containingClass = field.containingClass().getSnapshotClass()
         val newField =
             // Resolve any type parameters used in the field's type within the scope of the
             // containing class's SnapshotTypeItemFactory.
-            typeItemFactory.inScope {
+            globalTypeItemFactory.from(containingClass).inScope {
                 itemFactory.createFieldItem(
                     fileLocation = fieldToSnapshot.fileLocation,
-                    itemLanguage = fieldToSnapshot.itemLanguage,
+                    sourceLanguage = fieldToSnapshot.sourceLanguage,
+                    targetLanguages = fieldToSnapshot.targetLanguages,
                     modifiers = fieldToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
                     name = fieldToSnapshot.name(),
                     containingClass = containingClass,
                     type = fieldToSnapshot.type().snapshot(),
                     isEnumConstant = fieldToSnapshot.isEnumConstant(),
-                    fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
+                    constantValueProvider = constantValueSnapshot.provider(),
                 )
             }
+        newField.copySelectedApiVariants(fieldToSnapshot)
 
         containingClass.addField(newField)
     }
 
     override fun visitProperty(property: PropertyItem) {
         val propertyToSnapshot = property.actualItemToSnapshot
-
         val containingClass = property.containingClass().getSnapshotClass()
+
+        // Create a TypeParameterList and SnapshotTypeItemFactory for the property.
+        val (typeParameterList, propertyTypeItemFactory) =
+            globalTypeItemFactory.from(containingClass).inScope {
+                propertyToSnapshot.typeParameterList.snapshot(propertyToSnapshot.describe())
+            }
+
         val newProperty =
             // Resolve any type parameters used in the property's type within the scope of the
             // containing class's SnapshotTypeItemFactory.
-            typeItemFactory.inScope {
+            propertyTypeItemFactory.inScope {
                 itemFactory.createPropertyItem(
                     fileLocation = propertyToSnapshot.fileLocation,
-                    itemLanguage = propertyToSnapshot.itemLanguage,
+                    sourceLanguage = propertyToSnapshot.sourceLanguage,
                     modifiers = propertyToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(propertyToSnapshot, property),
                     name = propertyToSnapshot.name(),
                     containingClass = containingClass,
                     type = propertyToSnapshot.type().snapshot(),
+                    getter = property.getter,
+                    setter = property.setter,
+                    constructorParameter = property.constructorParameter,
+                    backingField = property.backingField,
+                    receiver = property.receiver?.snapshot(),
+                    typeParameterList = typeParameterList,
+                    setterVisibility = property.setterVisibility,
                 )
             }
+        newProperty.copySelectedApiVariants(propertyToSnapshot)
 
         containingClass.addProperty(newProperty)
+    }
+
+    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
+        val originalPackage = originalCodebase.resolvePackage(qualifiedName) ?: return null
+        return originalPackage.getSnapshotPackage()
     }
 
     /** Take a snapshot of [qualifiedName]. */
@@ -389,30 +418,45 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         // Resolve the class in the original codebase, if possible.
         val originalClass = originalCodebase.resolveClass(qualifiedName) ?: return null
 
-        // Take a snapshot of the class, that should add a new class to the snapshot codebase.
-        val visitor = NonFilteringDelegatingVisitor(this)
+        // Take a snapshot of a class that is referenced from, but not defined within, the snapshot.
+        originalClass.accept(referenceVisitor)
 
-        // Set up the state for taking a snapshot of a class.
-        typeItemFactoryStack.push(globalTypeItemFactory)
-        originalClass.accept(visitor)
-        typeItemFactoryStack.pop()
+        // Find the newly added class, if no class was added then it is not part of this snapshot
+        // so return `null`.
+        val classItem = snapshotCodebase.findClass(originalClass.qualifiedName()) ?: return null
 
-        // Find the newly added class.
-        return snapshotCodebase.findClass(originalClass.qualifiedName())!!
+        // Any class that is created only when resolving references is by definition not part of the
+        // codebase and so will not be emitted.
+        classItem.emit = false
+
+        return classItem
     }
 
     companion object {
-        /** Take a snapshot of [codebase]. */
+        /**
+         * Take a snapshot of [codebase].
+         *
+         * @param definitionVisitorFactory a factory for creating an [ItemVisitor] that delegates to
+         *   a [DelegatedVisitor]. The [ItemVisitor] is used to determine which parts of [codebase]
+         *   will be defined within and emitted from the snapshot.
+         * @param referenceVisitorFactory a factory for creating an [ItemVisitor] that delegates to
+         *   a [DelegatedVisitor]. The [ItemVisitor] is used to determine which parts of [codebase]
+         *   will be referenced from within but not emitted from the snapshot.
+         */
         fun takeSnapshot(
             codebase: Codebase,
-            visitorFactory: (DelegatedVisitor) -> ItemVisitor = ::NonEmittableDelegatingVisitor,
+            definitionVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
+            referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
         ): Codebase {
-            // Create a snapshot taker that will construct the snapshot.
-            val taker = CodebaseSnapshotTaker()
+            // Create a snapshot taker that will construct the snapshot. Pass in the
+            // referenceVisitorFactory so it can create the reference visitor for use in creating
+            // Items that are referenced from the snapshot.
+            val taker = CodebaseSnapshotTaker(referenceVisitorFactory)
 
-            // Wrap it in a visitor and visit the codebase.
-            val visitor = visitorFactory(taker)
-            codebase.accept(visitor)
+            // Wrap it in a visitor that will determine which Items are defined in the snapshot and
+            // then apply that visitor to the input codebase.
+            val definitionVisitor = definitionVisitorFactory(taker)
+            codebase.accept(definitionVisitor)
 
             // Return the constructed snapshot.
             return taker.snapshotCodebase
@@ -439,8 +483,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                     this,
                     { typeParameterItem ->
                         DefaultTypeParameterItem(
-                            codebase = snapshotCodebase,
-                            itemLanguage = typeParameterItem.itemLanguage,
+                            classResolver = snapshotCodebase,
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()
@@ -451,6 +494,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                         typeParameterItem.typeBounds().map { typeItemFactory.getBoundsType(it) }
                     },
                 )
+
         /** General [TypeItem] specific snapshot. */
         internal fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
 
@@ -488,14 +532,14 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
                 itemFactory.createParameterItem(
                     fileLocation = parameterItem.fileLocation,
-                    itemLanguage = parameterItem.itemLanguage,
+                    sourceLanguage = parameterItem.sourceLanguage,
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
-                    publicNameProvider = { publicName },
+                    publicName = publicName,
                     containingCallable = containingCallable,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
-                    defaultValueFactory = parameterItem.defaultValue::snapshot,
+                    hasDefaultValue = parameterItem.hasDefaultValue(),
                 )
             }
         }
@@ -505,12 +549,73 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 /**
  * Get the actual item to snapshot, this takes into account whether the item has been reverted.
  *
- * The [Showability.revertItem] is only set to a non-null value if changes to this [Item] have been
- * reverted AND this [Item] existed in the previously released API.
+ * The [Showability.revertItem] is only set to a non-null value if changes to this [SelectableItem]
+ * have been reverted AND this [SelectableItem] existed in the previously released API.
  *
  * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
- * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
- * same type.
+ * if set to a non-null value the [Showability.revertItem] will always point to a [SelectableItem]
+ * of the same type.
  */
-val <reified T : Item> T.actualItemToSnapshot: T
+private val <reified T : SelectableItem> T.actualItemToSnapshot: T
     inline get() = (showability.revertItem ?: this) as T
+
+/**
+ * Creates [SourceFile] snapshots on demand for a [SourceFile] and caches the result for reuse.
+ *
+ * @param targetCodebase the [DefaultCodebase] of which any created [SourceFile]s are part.
+ */
+internal class SnapshotSourceFileCache(
+    private val targetCodebase: DefaultCodebase,
+) {
+    /** Map from original [SourceFile] to the snapshot [SourceFile]. */
+    private val snapshotSourceFiles = IdentityHashMap<SourceFile, SourceFile>()
+
+    /** Get the snapshot [SourceFile] for a [SourceFile]. */
+    internal fun snapshotSourceFile(sourceFile: SourceFile?): SourceFile? {
+        sourceFile ?: return null
+        return snapshotSourceFiles.computeIfAbsent(sourceFile) { originalSourceFile ->
+            var pkgName = originalSourceFile.containingPackage.qualifiedName()
+            SourceFileSnapshot(
+                targetCodebase,
+                targetCodebase.resolvePackage(pkgName)!!,
+                originalSourceFile,
+            )
+        }
+    }
+}
+
+/**
+ * A snapshot of a [SourceFile].
+ *
+ * This delegates a number of methods to the [originalSourceFile].
+ */
+internal class SourceFileSnapshot(
+    override val codebase: Codebase,
+    override val containingPackage: PackageItem,
+    private val originalSourceFile: SourceFile
+) : AbstractSourceFile() {
+
+    override fun classes() =
+        originalSourceFile.classes().mapNotNull { codebase.resolveClass(it.qualifiedName()) }
+
+    /** Delegate to [originalSourceFile] as they are not changed by snapshotting. */
+    override fun getHeaderComments(): String? = originalSourceFile.getHeaderComments()
+
+    /**
+     * Delegate to [originalSourceFile] as while they could contain references to classes which are
+     * not part of the snapshot they will be filtered when this is called.
+     */
+    override fun getImports() = originalSourceFile.getImports()
+
+    /**
+     * Delegate to [originalSourceFile] as while they could contain references to classes which are
+     * not part of the snapshot they will be filtered by [predicate] when this is called.
+     */
+    override fun getImports(predicate: FilterPredicate) = originalSourceFile.getImports(predicate)
+
+    /**
+     * Delegate to [originalSourceFile] as while they could contain references to classes which are
+     * not part of the snapshot they will be ignored as they will not appear in [codebase].
+     */
+    override fun allJavaImports() = originalSourceFile.allJavaImports()
+}

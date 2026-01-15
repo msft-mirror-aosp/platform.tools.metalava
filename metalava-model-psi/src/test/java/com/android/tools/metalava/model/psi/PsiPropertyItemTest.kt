@@ -150,6 +150,7 @@ class PsiPropertyItemTest : BaseModelTest() {
 
                     class Foo {
                         @ExperimentalFooApi
+                        @field:ExperimentalFooApi
                         var withField: String = "42"
                             get() { return field }
                             set(value) { field = "v=" + value }
@@ -275,8 +276,6 @@ class PsiPropertyItemTest : BaseModelTest() {
             checkSingleAnnotation(withoutFieldOnGetterAndNoUseSite)
             checkSingleAnnotation(withoutFieldOnGetterAndNoUseSiteSameArg, barApi)
             checkSingleAnnotation(withoutFieldOnProperty)
-            checkSingleAnnotation(withoutFieldOnPropertyAndNoUseSite)
-            checkSingleAnnotation(withoutFieldOnPropertyAndNoUseSiteSameArg, barApi)
 
             fun checkAnnotations(
                 propertyItem: PropertyItem,
@@ -288,6 +287,8 @@ class PsiPropertyItemTest : BaseModelTest() {
                 annotations.forEach { assertEquals(expectedAnnotationName, it.qualifiedName) }
             }
 
+            checkAnnotations(withoutFieldOnPropertyAndNoUseSite, 2, fooApi)
+            checkAnnotations(withoutFieldOnPropertyAndNoUseSiteSameArg, 2)
             checkAnnotations(withoutFieldOnGetterAndNoUseSiteDiffArg, 2)
             checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArg, 2)
             checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArgLists1, 2)
@@ -319,11 +320,11 @@ class PsiPropertyItemTest : BaseModelTest() {
             val body = properties.single { it.name() == "body" }
             val accessors = properties.single { it.name() == "accessors" }
 
-            assertContains(parameter.documentation, "parameter doc")
-            assertContains(body.documentation, "body doc")
-            assertContains(accessors.documentation, "accessors property doc")
-            assertContains(accessors.getter?.documentation?.text.orEmpty(), "getter doc")
-            assertContains(accessors.setter?.documentation?.text.orEmpty(), "setter doc")
+            assertContains(parameter.requiredDocumentation.text, "parameter doc")
+            assertContains(body.requiredDocumentation.text, "body doc")
+            assertContains(accessors.requiredDocumentation.text, "accessors property doc")
+            assertContains(accessors.getter?.requiredDocumentation?.text.orEmpty(), "getter doc")
+            assertContains(accessors.setter?.requiredDocumentation?.text.orEmpty(), "setter doc")
         }
     }
 }

@@ -19,10 +19,16 @@ package com.android.tools.metalava.model.testsuite.classitem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNullableSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSource
 import com.android.tools.metalava.testing.java
@@ -66,7 +72,6 @@ class CommonClassItemTest : BaseModelTest() {
             assertEquals("Test", testClass.fullName())
             assertEquals("test/pkg/Test", testClass.internalName())
             assertEquals("test.pkg.Test", testClass.qualifiedName())
-            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarNestedClasses())
             assertEquals(1, testClass.constructors().size)
             assertEquals(emptyList(), testClass.methods())
             assertEquals(emptyList(), testClass.fields())
@@ -102,14 +107,42 @@ class CommonClassItemTest : BaseModelTest() {
 
             // This should not find the method as `findMethod` splits parameters by `,` so it looks
             // for one parameter of type `java.util.Map<String` and one of type `Integer>`.
-            val foundMethod = fooClass.findMethod("foo", "java.util.Map<String, Integer>")
+            val foundMethod = fooClass.findBytecodeMethod("foo", "java.util.Map<String, Integer>")
             assertNull(
                 foundMethod,
                 message = "unexpectedly found method with multiple type parameters"
             )
 
             // This should find the method.
-            assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
+            assertSame(fooMethod, fooClass.findBytecodeMethod("foo", "java.util.Map"))
+        }
+    }
+
+    @Test
+    fun `Find method by multiple erased types`() {
+        runCodebaseTest(
+            java(
+                """
+                package test.pkg;
+                import java.util.List;
+                import java.util.Map;
+                public class Foo {
+                    public void multipleSimpleParams(int i, float f, String s) {}
+                    public <T1, T2 extends Integer> void multipleVariableParams(T1 t1, T2 t2, List<T1> t1s, Map<T2, T1> map) {}
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertNotNull(
+                fooClass.findBytecodeMethod("multipleSimpleParams", "int,float,java.lang.String")
+            )
+            assertNotNull(
+                fooClass.findBytecodeMethod(
+                    "multipleVariableParams",
+                    "java.lang.Object,java.lang.Integer,java.util.List,java.util.Map"
+                )
+            )
         }
     }
 
@@ -602,7 +635,7 @@ class CommonClassItemTest : BaseModelTest() {
             inputSet(
                 signature(
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Generic<T, U> {
                           }
@@ -654,7 +687,7 @@ class CommonClassItemTest : BaseModelTest() {
             val superClassType = fooClass.superClassType()!!
             assertEquals(
                 "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
-                superClassType.toTypeString(kotlinStyleNulls = true)
+                superClassType.testTypeString(kotlinStyleNulls = true)
             )
         }
     }
@@ -665,7 +698,7 @@ class CommonClassItemTest : BaseModelTest() {
             inputSet(
                 signature(
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public interface Generic<T, U> {
                           }
@@ -717,7 +750,7 @@ class CommonClassItemTest : BaseModelTest() {
             val superClassType = fooClass.interfaceTypes().single()
             assertEquals(
                 "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
-                superClassType.toTypeString(kotlinStyleNulls = true)
+                superClassType.testTypeString(kotlinStyleNulls = true)
             )
         }
     }
@@ -758,6 +791,7 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     /**
+                     * @noinspection DeprecatedIsStillUsed
                      * @deprecated
                      */
                     public class Bar {}
@@ -765,8 +799,48 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is not treated as deprecated by @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertNotDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is treated as deprecated if @deprecated comes after @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     * @deprecated Really deprecated
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -786,6 +860,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
+                    /** @noinspection DeprecatedIsStillUsed */
                     @Deprecated
                     public class Bar {}
                 """
@@ -800,8 +875,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -833,8 +907,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(false, barClass.originallyDeprecated)
-            assertEquals(false, barClass.effectivelyDeprecated)
+            barClass.assertNotDeprecated()
         }
     }
 
@@ -847,14 +920,12 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Parent<M, N> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> extends Parent<X, Y> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -868,7 +939,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -878,7 +948,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Parent<M, N>
                         class Child<X, Y> : Parent<X, Y>()
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -909,28 +978,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Class4<I> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class3<G, H> extends Class4<G> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class2<D, E, F> extends Class3<D, F> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class1<A, B, C> extends Class2<B, C, A> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -948,7 +1013,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -960,7 +1024,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Class2<D, E, F> : Class3<D, F>
                         class Class1<A, B, C> : Class2<B, C, A>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1007,21 +1070,18 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Grandparent<A, B> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Parent<T> extends Grandparent<T, Parent<T>> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child extends Parent<Child> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1037,7 +1097,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1048,7 +1107,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Parent<T> : Grandparent<T, Parent<T>>
                         class Child : Parent<Child>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1090,28 +1148,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public interface Interface3<G, H> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface2<E, F> extends Interface3<E, F> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface1<C, D> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class<A, B> implements Interface1<A, B>, Interface2<B, A>{}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1129,7 +1183,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1141,7 +1194,6 @@ class CommonClassItemTest : BaseModelTest() {
                         interface Interface1<C, D>
                         class Class<A, B> : Interface1<A, B>, Interface2<B, A>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1184,28 +1236,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public interface Root<T> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface1<T1> extends Root<T1> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface2<T2> extends Root<T2> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> implements Interface1<X>, Interface2<Y> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1223,7 +1271,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1235,7 +1282,6 @@ class CommonClassItemTest : BaseModelTest() {
                         interface Interface2<T2> : Root<T2>
                         class Child<X, Y> : Interface1<X>, Interface2<Y>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1400,7 +1446,7 @@ class CommonClassItemTest : BaseModelTest() {
 
                 val parameterType = inheritedMethod.parameters().single().type()
                 assertWithMessage("testing type of $name")
-                    .that(parameterType.toTypeString(kotlinStyleNulls = true))
+                    .that(parameterType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedTypes[name])
             }
         }
@@ -1413,8 +1459,8 @@ class CommonClassItemTest : BaseModelTest() {
         // nullability annotation.
         runSourceCodebaseTest(
             inputSet(
-                typeUseOnlyNonNullSource,
-                typeUseOnlyNullableSource,
+                notTypeUseNonNullSource,
+                notTypeUseNullableSource,
                 java(
                     """
                         package test.pkg;
@@ -1454,7 +1500,7 @@ class CommonClassItemTest : BaseModelTest() {
                 val returnType = inheritedMethod.returnType()
                 val (expectedType, expectedNullability) = expectedTypesAndNullability[name]!!
                 assertWithMessage("testing type of $name")
-                    .that(returnType.toTypeString(kotlinStyleNulls = true))
+                    .that(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
 
                 assertWithMessage("testing type nullability of $name")
@@ -1739,8 +1785,291 @@ class CommonClassItemTest : BaseModelTest() {
                     ),
             )
         ) {
-            // Make sure that a class defined on the source class path can be resolved.
-            assertNotNull(codebase.resolveClass("test.pkg.SourcePathClass"))
+            // Make sure that a class defined on the source class path can be resolved but is not
+            // emitted.
+            codebase.assertResolvedClass("test.pkg.SourcePathClass")
+        }
+    }
+
+    @Test
+    fun `Test class excluded by package filter`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.excluded.pkg;
+
+                        public class Excluded {
+                            private Excluded() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            // Make sure that a class defined excluded by a package filter can be resolved but is
+            // not emitted.
+            codebase.assertResolvedClass("test.excluded.pkg.Excluded")
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test class location (java)`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.java:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test class location (kotlin)`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Test private constructor() {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.kt:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.SIGNATURE)
+    @Test
+    fun `Test class location (signature)`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/api.txt:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
+        }
+    }
+
+    /**
+     * This test is to make sure that older signature files without any exhaustivity modifiers are
+     * read as non-exhaustive.
+     */
+    @Test
+    fun `modifiers show nonexhaustive when no exhaustivity modifier is present in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed class SealedClass {
+                      }
+                      public sealed interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+                    public sealed interface SealedInterface {}
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(false, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show exhaustive when class or interface is marked as exhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed exhaustive class SealedClass {
+                      }
+                      public sealed exhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    public sealed interface SealedInterface {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(true, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(true, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show nonexhaustive when class or interface is marked as nonexhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed nonexhaustive class SealedClass {
+                      }
+                      public sealed nonexhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+
+                    public sealed interface SealedInterface
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `subclasses are populated correctly for sealed classes and interfaces, and indirect subclasses aren't tracked`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class MyIndirectInterfaceImplementor extends test.pkg.MyInterfaceImplementorA {
+                        ctor public MyIndirectInterfaceImplementor();
+                      }
+                      public final class MyIndirectSubclass extends test.pkg.MySubclassA {
+                        ctor public MyIndirectSubclass();
+                      }
+                      public abstract sealed exhaustive class MyInterfaceImplementorA implements test.pkg.ParentInterface {
+                      }
+                      public final class MyInterfaceImplementorB implements test.pkg.ParentInterface {
+                        ctor public MyInterfaceImplementorB();
+                      }
+                      public abstract sealed exhaustive class MySubclassA extends test.pkg.ParentClass {
+                      }
+                      public final class MySubclassB extends test.pkg.ParentClass {
+                        ctor public MySubclassB();
+                      }
+                      public abstract sealed exhaustive class ParentClass {
+                      }
+                      public sealed exhaustive interface ParentInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    sealed class ParentClass
+                    sealed class MySubclassA : ParentClass()
+                    class MySubclassB : ParentClass()
+                    class MyIndirectSubclass : MySubclassA()
+
+                    sealed interface ParentInterface
+                    sealed class MyInterfaceImplementorA : ParentInterface
+                    class MyInterfaceImplementorB : ParentInterface
+                    class MyIndirectInterfaceImplementor : MyInterfaceImplementorA()
+                """
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.ParentClass")
+            assertEquals(2, testClass.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MySubclassA" in
+                    testClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+            assertTrue(
+                "test.pkg.MySubclassB" in
+                    testClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val testInterface = codebase.assertClass("test.pkg.ParentInterface")
+            assertEquals(2, testInterface.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyInterfaceImplementorA" in
+                    testInterface.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+            assertTrue(
+                "test.pkg.MyInterfaceImplementorB" in
+                    testInterface.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val subClass = codebase.assertClass("test.pkg.MySubclassA")
+            assertEquals(1, subClass.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyIndirectSubclass" in
+                    subClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val ifaceImplementor = codebase.assertClass("test.pkg.MyInterfaceImplementorA")
+            assertEquals(1, ifaceImplementor.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyIndirectInterfaceImplementor" in
+                    ifaceImplementor.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
         }
     }
 }

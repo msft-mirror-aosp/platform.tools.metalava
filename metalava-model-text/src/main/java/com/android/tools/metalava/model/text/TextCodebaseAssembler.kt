@@ -16,31 +16,30 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultPackageItem
-import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.model.item.PackageInfo
+import com.android.tools.metalava.model.utils.extractOptionalQualifierName
+import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import java.io.File
-import java.io.PrintWriter
 
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
-    private val classResolver: ClassResolver?,
+    private val classPathResolver: ClassPathResolver?,
 ) : DefaultCodebaseAssembler() {
 
-    internal val codebase = codebaseFactory(this)
+    override val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =
@@ -48,16 +47,15 @@ internal class TextCodebaseAssembler(
             codebase = codebase,
             // Signature files do not contain information about whether an item was originally
             // created from Java or Kotlin.
-            defaultItemLanguage = ItemLanguage.UNKNOWN,
+            defaultSourceLanguage = SourceLanguage.UNKNOWN,
             // Signature files have already been separated by API surface variants, so they can use
             // the same immutable ApiVariantSelectors.
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
-    fun initialize() {
-        // Make sure that it has a root package.
-        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
-    }
+    override fun createPackageFromUnderlyingModel(qualifiedName: String) =
+        // Check on the class path, if any, for additional packages.
+        classPathResolver?.resolvePackage(qualifiedName)
 
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         getOrCreateClass(qualifiedName)
@@ -84,6 +82,9 @@ internal class TextCodebaseAssembler(
         // that the stubs should be is no longer needed.
         requiredStubKindForClass.remove(classItem.qualifiedName())
     }
+
+    /** Override to return [PackageInfo.NO_COMMENT]. */
+    override fun getPackageInfoFromUnderlyingModel(packageName: String) = PackageInfo.NO_COMMENT
 
     /**
      * Register that the class type requires a specific stub kind.
@@ -132,9 +133,9 @@ internal class TextCodebaseAssembler(
 
         // Only check for external classes if this is not searching for an outer class of a class in
         // this codebase and there is a class resolver that will populate the external classes.
-        if (!isOuterClassOfClassInThisCodebase && classResolver != null) {
+        if (!isOuterClassOfClassInThisCodebase && classPathResolver != null) {
             // Try and resolve the class, returning it if it was found.
-            classResolver.resolveClass(qualifiedName)?.let {
+            classPathResolver.resolveClass(qualifiedName)?.let {
                 return it
             }
         }
@@ -145,7 +146,7 @@ internal class TextCodebaseAssembler(
             if (fullName.contains('.')) {
                 // We created a new nested class stub. We need to fully initialize it with outer
                 // classes, themselves possibly stubs
-                val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
+                val outerName = qualifiedName.extractOptionalQualifierName()!!
                 val outerClass = getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase)
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
@@ -159,11 +160,10 @@ internal class TextCodebaseAssembler(
         // Find/create package
         val pkg =
             if (outerClass == null) {
-                val endIndex = qualifiedName.lastIndexOf('.')
-                val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-                codebase.findOrCreatePackage(pkgPath)
+                val pkgName = qualifiedName.extractPossiblyEmptyQualifierName()
+                codebase.findOrCreatePackage(pkgName)
             } else {
-                outerClass.containingPackage() as DefaultPackageItem
+                outerClass.containingPackage()
             }
 
         // Build a stub class of the required kind.
@@ -185,27 +185,24 @@ internal class TextCodebaseAssembler(
         fun createAssembler(
             location: File,
             description: String,
-            annotationManager: AnnotationManager,
-            classResolver: ClassResolver?,
+            codebaseConfig: Codebase.Config,
+            classPathResolver: ClassPathResolver?,
         ): TextCodebaseAssembler {
             val assembler =
                 TextCodebaseAssembler(
                     codebaseFactory = { assembler ->
-                        val reporter = BasicReporter(PrintWriter(System.err))
                         DefaultCodebase(
                             location = location,
                             description = description,
                             preFiltered = true,
-                            annotationManager = annotationManager,
+                            config = codebaseConfig,
                             trustedApi = true,
                             supportsDocumentation = false,
-                            reporter = reporter,
                             assembler = assembler,
                         )
                     },
-                    classResolver = classResolver,
+                    classPathResolver = classPathResolver,
                 )
-            assembler.initialize()
 
             return assembler
         }
