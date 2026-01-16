@@ -177,7 +177,7 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 methodSourceReference(
                                     name = "toLowerCase",
-                                    SourceParameter("Locale locale"),
+                                    SourceParameter("Locale", "locale"),
                                 ),
                         ),
                 ),
@@ -187,7 +187,7 @@ class ParameterizedParsedReferenceTest {
                     expectedParsed =
                         methodSourceReference(
                             name = "java.lang.String.toLowerCase",
-                            SourceParameter("Locale locale"),
+                            SourceParameter("Locale", "locale"),
                         ),
                 ),
                 TestParams(
@@ -197,7 +197,7 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 methodSourceReference(
                                     name = "toLowerCase",
-                                    SourceParameter("Locale locale"),
+                                    SourceParameter("Locale", "locale"),
                                 ),
                         ),
                 ),
@@ -206,7 +206,7 @@ class ParameterizedParsedReferenceTest {
                     expectedParsed =
                         methodSourceReference(
                             name = "toLowerCase",
-                            SourceParameter("Locale locale"),
+                            SourceParameter("Locale", "locale"),
                         ),
                 ),
 
@@ -248,8 +248,8 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 methodSourceReference(
                                     name = "put",
-                                    SourceParameter("K key"),
-                                    SourceParameter("V value"),
+                                    SourceParameter("K", "key"),
+                                    SourceParameter("V", "value"),
                                 ),
                         ),
                     expectedNormalized = "java.util.Map#put(K key,V value)",
@@ -261,8 +261,8 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 methodSourceReference(
                                     name = "put",
-                                    SourceParameter("K key"),
-                                    SourceParameter("V value"),
+                                    SourceParameter("K", "key"),
+                                    SourceParameter("V", "value"),
                                 ),
                         ),
                     expectedNormalized = "#put(K key,V value)",
@@ -272,8 +272,8 @@ class ParameterizedParsedReferenceTest {
                     expectedParsed =
                         methodSourceReference(
                             name = "put",
-                            SourceParameter("K key"),
-                            SourceParameter("V value"),
+                            SourceParameter("K", "key"),
+                            SourceParameter("V", "value"),
                         ),
                     expectedNormalized = "put(K key,V value)",
                 ),
@@ -284,7 +284,7 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 methodSourceReference(
                                     name = "bar",
-                                    SourceParameter("java.lang.Integer p1"),
+                                    SourceParameter("java.lang.Integer", "p1"),
                                     SourceParameter("java.lang.String"),
                                 ),
                         ),
@@ -297,10 +297,11 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 methodSourceReference(
                                     name = "bar",
-                                    SourceParameter("int[]p1"),
-                                    SourceParameter("List<String>p2"),
+                                    SourceParameter("int[]", "p1"),
+                                    SourceParameter("List<String>", "p2"),
                                 ),
                         ),
+                    expectedNormalized = "#bar(int[] p1,List<String> p2)",
                 ),
 
                 // Methods with generic parameter types.
@@ -353,12 +354,12 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 methodSourceReference(
                                     name = "foo",
-                                    SourceParameter("Collection<? extends Bar> [  ]   param"),
+                                    SourceParameter("Collection<? extends Bar> [  ]", "param"),
                                     SourceParameter("Map< Integer  , List <String > >"),
                                 ),
                         ),
                     expectedNormalized =
-                        "Class#foo(Collection<? extends Bar> [  ]   param,Map< Integer  , List <String > >)",
+                        "Class#foo(Collection<? extends Bar> [  ] param,Map< Integer  , List <String > >)",
                 ),
                 TestParams(
                     name = "qualified type with spaces",

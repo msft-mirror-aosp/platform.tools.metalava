@@ -313,14 +313,83 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                     // Trim any trailing whitespace from the end.
                     val parameterEndExclusive = skipBackwardsOverTrailingWhitespace(index - 1) + 1
 
-                    val parameterString = substring(parameterStartInclusive, parameterEndExclusive)
-                    val parameter = SourceParameter(parameterString)
+                    // See if the parameter ends with a name.
+                    val nameStartInclusive =
+                        skipBackwardsOverParameterName(
+                            parameterEndExclusive - 1,
+                            parameterStartInclusive
+                        )
+
+                    val parameter =
+                        if (nameStartInclusive > parameterStartInclusive) {
+                            val typeEndExclusive =
+                                skipBackwardsOverTrailingWhitespace(nameStartInclusive - 1) + 1
+                            val typeString = substring(parameterStartInclusive, typeEndExclusive)
+                            val name = substring(nameStartInclusive, parameterEndExclusive)
+                            SourceParameter(typeString, name)
+                        } else {
+                            val typeString =
+                                substring(parameterStartInclusive, parameterEndExclusive)
+                            SourceParameter(typeString)
+                        }
 
                     return parameter to index
                 }
             }
 
             return null
+        }
+
+        /**
+         * Starting with the character at position [endInclusive] and searching backwards, return
+         * the position of the beginning of a parameter name, or -1 if none could be found.
+         */
+        internal fun CharSequence.skipBackwardsOverParameterName(
+            endInclusive: Int,
+            toInclusive: Int
+        ): Int {
+            var end = endInclusive
+            while (end >= toInclusive) {
+                val c = this[end]
+                // Skip back over anything that could be part of a parameter name.
+                if (!c.isJavaIdentifierPart()) {
+                    // Check to see if anything that looked like a parameter (i.e. a java identifier
+                    // of length > 0) was found. If it was not then there is no parameter.
+                    if (end == endInclusive) {
+                        return -1
+                    }
+
+                    // An identifier was found at the end of the type which could be a parameter so
+                    // check if it is.
+
+                    // If it was preceded by something that is the end of an array or generic type
+                    // then it must be a parameter.
+                    if (c == ']' || c == '>') {
+                        return end + 1
+                    }
+
+                    // If it is a whitespace then the identifier at the end of the parameter could
+                    // be a parameter name but first check to make sure that it is not part of a
+                    // qualified type name.
+                    if (c.isWhitespace()) {
+                        // Skip backwards over any whitespace.
+                        val lastIndex = skipBackwardsOverTrailingWhitespace(end - 1)
+
+                        // If the character is '.' then the identifier is part of a qualified type
+                        // name, otherwise it is a parameter name.
+                        if (this[lastIndex] != '.') {
+                            return end + 1
+                        }
+                    }
+
+                    // No parameter was found.
+                    return -1
+                }
+                end -= 1
+            }
+
+            // Reached the beginning and no parameter was found.
+            return -1
         }
     }
 }
@@ -470,7 +539,11 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         for (parameter in parameters) {
             append(separator)
             separator = ","
-            append(parameter.typeAndName)
+            append(parameter.typeString)
+            parameter.name?.let {
+                append(' ')
+                append(it)
+            }
         }
         append(')')
     }
@@ -479,8 +552,8 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         // Return a method reference that uses the fully qualified name of the containing class.
         MethodReference(classItem.qualifiedName(), formatSignature())
 
-    data class SourceParameter(val typeAndName: String) {
-        override fun toString() = typeAndName
+    data class SourceParameter(val typeString: String, val name: String? = null) {
+        override fun toString() = if (name == null) typeString else "$name: $typeString"
     }
 }
 
