@@ -288,19 +288,9 @@ internal class PsiItemDocumentation(
                             }
                         }
                         if (referenceText.startsWith(className)) {
-                            sb.append("{@")
-                            sb.append(tagType)
-                            sb.append(' ')
-                            sb.append(referencedElement.classQualifiedName)
+                            val qualifiedName = referencedElement.classQualifiedName
                             val suffix = referenceText.substring(className.length)
-                            if (suffix.contains("(") && suffix.contains(")")) {
-                                expandArgumentList(element, suffix, sb)
-                            } else {
-                                sb.append(suffix)
-                            }
-                            sb.append(' ')
-                            sb.append(displayText)
-                            sb.append("}")
+                            appendFullyQualifiedTag(element, sb, qualifiedName, suffix, displayText)
                             return true
                         }
                     }
@@ -429,6 +419,43 @@ internal class PsiItemDocumentation(
         }
 
         return false
+    }
+
+    /**
+     * Append a fully qualified version of [element] to [sb].
+     *
+     * @param element the [PsiInlineDocTag] to append.
+     * @param sb the destination [StringBuilder].
+     * @param qualifiedName the fully qualified name of the class.
+     * @param memberSuffix the not yet fully qualified member reference suffix.
+     * @param label the label to use for the tag.
+     */
+    private fun appendFullyQualifiedTag(
+        element: PsiInlineDocTag,
+        sb: StringBuilder,
+        qualifiedName: String,
+        memberSuffix: String,
+        label: String
+    ) {
+        // Open the doc tag.
+        sb.append("{@")
+        sb.append(element.name)
+        sb.append(' ')
+
+        // Append the fully qualified reference to the buffer.
+        sb.append(qualifiedName)
+        if (memberSuffix.contains("(") && memberSuffix.contains(")")) {
+            expandArgumentList(element, memberSuffix, sb)
+        } else {
+            sb.append(memberSuffix)
+        }
+
+        // Append the label.
+        sb.append(' ')
+        sb.append(label)
+
+        // Close the doc tag.
+        sb.append("}")
     }
 
     private fun expandArgumentList(element: PsiInlineDocTag, suffix: String, sb: StringBuilder) {
