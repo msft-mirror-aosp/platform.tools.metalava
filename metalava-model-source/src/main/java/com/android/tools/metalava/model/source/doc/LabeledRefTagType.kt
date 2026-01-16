@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.source.doc.MethodSourceReference.SourceParameter
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -210,7 +211,8 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         // qualified cannot be `null` as the only way for relative to start with `(`
                         // and qualified to be `null` is if sourceReference starts with '(' but that
                         // is rejected above.
-                        MethodSourceReference(qualified!!, parameters = relative)
+                        val parameters = parseParameters(relative)
+                        MethodSourceReference(qualified!!, parameters)
                     }
                     relative.last() == ')' -> {
                         require(relative[0] == '#') {
@@ -226,7 +228,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         }
 
                         val methodName = relative.substring(1, index)
-                        val parameters = relative.substring(index)
+                        val parameters = parseParameters(relative.substring(index))
 
                         MethodSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
                     }
@@ -244,6 +246,81 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 }
 
             return parsedReference
+        }
+
+        /**
+         * Parse [parametersWithParentheses] into a list of [SourceParameter] objects, separating
+         * the parameter names and types.
+         */
+        private fun parseParameters(parametersWithParentheses: String): List<SourceParameter> {
+            require(
+                parametersWithParentheses.first() == '(' && parametersWithParentheses.last() == ')'
+            ) {
+                "internal error: parameters should start with `(` and end with `)` but was '$parametersWithParentheses'"
+            }
+
+            var startInclusive = 1
+            return buildList {
+                while (true) {
+                    // Get the next parameter, if any. Exiting the loop if there was none.
+                    val (parameter, endExclusive) =
+                        parametersWithParentheses.nextParameter(startInclusive) ?: break
+
+                    // Add the parameter to the list.
+                    add(parameter)
+
+                    // Move onto the next parameter.
+                    startInclusive = endExclusive + 1
+                }
+            }
+        }
+
+        /**
+         * Get the next parameter from this [String] starting from [startInclusive].
+         *
+         * If there is no next parameter then this returns `null`. Otherwise, it returns the
+         * [SourceParameter] for it and the index of the character (',' or ')') immediately
+         * following the parameter.
+         */
+        fun String.nextParameter(startInclusive: Int): Pair<SourceParameter, Int>? {
+            var inTypeArgumentList = 0
+            for (index in startInclusive until length) {
+                val c = this[index]
+
+                // Track whether inside a type argument list as a ',' inside that does not end the
+                // parameter.
+                if (c == '<') {
+                    inTypeArgumentList += 1
+                    continue
+                } else if (c == '>') {
+                    inTypeArgumentList -= 1
+                    continue
+                } else if (inTypeArgumentList > 0) {
+                    continue
+                }
+
+                // Check for the end of the parameter.
+                if (c == ',' || c == ')') {
+                    // This is the end of the parameter.
+
+                    // Trim any leading whitespace from the start of the parameter.
+                    val parameterStartInclusive = skipForwardsOverLeadingWhitespace(startInclusive)
+                    if (parameterStartInclusive == index) {
+                        // There is no parameter.
+                        return null
+                    }
+
+                    // Trim any trailing whitespace from the end.
+                    val parameterEndExclusive = skipBackwardsOverTrailingWhitespace(index - 1) + 1
+
+                    val parameterString = substring(parameterStartInclusive, parameterEndExclusive)
+                    val parameter = SourceParameter(parameterString)
+
+                    return parameter to index
+                }
+            }
+
+            return null
         }
     }
 }
@@ -376,20 +453,35 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
  * [ClassMemberSourceReference] because it can be resolved relative to a class, and
  * [ParsedReference] because it can be resolved within a [ReferencableNameScope].
  */
-internal data class MethodSourceReference(val name: String, val parameters: String) :
+internal data class MethodSourceReference(val name: String, val parameters: List<SourceParameter>) :
     ClassMemberSourceReference, ParsedReference {
 
     override val normalizedForm: String
-        get() = "$name${formatParameters()}"
+        get() = formatSignature()
 
     /**
-     * Format [parameters] for use in [normalizedForm] and [MethodReference.unresolvedParameters].
+     * Format [name] and [parameters] into a method signature for use in [normalizedForm] and
+     * [MethodReference.signature].
      */
-    private fun formatParameters() = parameters
+    private fun formatSignature() = buildString {
+        append(name)
+        append('(')
+        var separator = ""
+        for (parameter in parameters) {
+            append(separator)
+            separator = ","
+            append(parameter.typeAndName)
+        }
+        append(')')
+    }
 
     override fun findIn(classItem: ClassItem) =
         // Return a method reference that uses the fully qualified name of the containing class.
-        MethodReference(classItem.qualifiedName(), "$name${formatParameters()}")
+        MethodReference(classItem.qualifiedName(), formatSignature())
+
+    data class SourceParameter(val typeAndName: String) {
+        override fun toString() = typeAndName
+    }
 }
 
 /** A reference to a [uriFragment]. */

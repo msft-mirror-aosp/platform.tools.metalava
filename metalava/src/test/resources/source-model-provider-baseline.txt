@@ -21,10 +21,8 @@ com.android.tools.metalava.Java9LanguageFeaturesTest
 com.android.tools.metalava.JavadocTest
   Check references to inherited field constants[turbine]
   Javadoc link to innerclass constructor[turbine]
-  Relative documentation links in stubs[turbine]
   Rewrite parameter list 2[turbine]
   Rewrite parameter list[turbine]
-  Rewrite relative documentation links in doc-stubs[turbine]
   Warn about unresolved[turbine]
 
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
