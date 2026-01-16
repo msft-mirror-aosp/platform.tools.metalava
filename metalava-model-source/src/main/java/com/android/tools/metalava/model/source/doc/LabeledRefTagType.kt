@@ -71,8 +71,12 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 checkSourceReferenceValidForResolvedReference(reporter, sourceReference, resolved)
             }
 
+        // Get a normalized form of the source reference for use as the label if the resolved
+        // reference is different.
+        val normalizedSourceReference = parsedReference?.normalizedForm ?: sourceReference
+
         return ExtractDataResult(
-            LabeledRefTagData(name, sourceReference, resolvedReference),
+            LabeledRefTagData(name, normalizedSourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
             consumedContent = labelStart
@@ -250,6 +254,12 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
  */
 internal sealed interface ParsedReference {
     /**
+     * Get the normalized form of this reference, including any '#' separator between a qualifying
+     * class and a [ClassMemberSourceReference].
+     */
+    val normalizedForm: String
+
+    /**
      * Resolve this [ParsedReference], if possible, within [context], reporting any issues to
      * [reporter].
      */
@@ -263,6 +273,9 @@ internal sealed interface ParsedReference {
 
 /** An ambiguous reference to something by [name]. */
 internal data class AmbiguousSourceReference(val name: String) : ParsedReference {
+    override val normalizedForm: String
+        get() = name
+
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
@@ -282,6 +295,9 @@ internal data class QualifyingClassSourceReference(
     val className: String,
     val member: ClassMemberSourceReference
 ) : ParsedReference {
+    override val normalizedForm: String
+        get() = "$className#${member.normalizedForm}"
+
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
@@ -307,6 +323,9 @@ internal data class QualifyingClassSourceReference(
 /** A [ParsedReference] that qualifies a [member] reference to the current class. */
 internal data class CurrentClassSourceReference(val member: ClassMemberSourceReference) :
     ParsedReference {
+    override val normalizedForm: String
+        get() = "#${member.normalizedForm}"
+
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
@@ -324,6 +343,12 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
  */
 internal sealed interface ClassMemberSourceReference {
     /**
+     * Get the normalized form of this reference, not including the '#' separator from the
+     * qualifying class.
+     */
+    val normalizedForm: String
+
+    /**
      * Will wrap this in a [QualifyingClassSourceReference] if [className] is not-null otherwise
      * will wrap this in [CurrentClassSourceReference].
      */
@@ -339,6 +364,9 @@ internal sealed interface ClassMemberSourceReference {
 
 /** A reference to a member called [name], which could be a field or a method. */
 internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemberSourceReference {
+    override val normalizedForm: String
+        get() = name
+
     override fun findIn(classItem: ClassItem): ResolvedReference? =
         classItem.findField(name)?.toResolvedReference()
 }
@@ -351,14 +379,30 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
 internal data class MethodSourceReference(val name: String, val parameters: String) :
     ClassMemberSourceReference, ParsedReference {
 
+    override val normalizedForm: String
+        get() = "$name${formatParameters()}"
+
+    /**
+     * Format [parameters] for use in [normalizedForm] and [MethodReference.unresolvedParameters].
+     */
+    private fun formatParameters() = parameters
+
     override fun findIn(classItem: ClassItem) =
         // Return a method reference that uses the fully qualified name of the containing class.
-        MethodReference(classItem.qualifiedName(), "$name$parameters")
+        MethodReference(classItem.qualifiedName(), "$name${formatParameters()}")
 }
 
 /** A reference to a [uriFragment]. */
 internal data class UriFragmentSourceReference(val uriFragment: String) :
-    ClassMemberSourceReference
+    ClassMemberSourceReference {
+    /**
+     * The normalized form of this includes a leading `#`. Coupled with the `#` added by the
+     * containing [QualifyingClassSourceReference] or [CurrentClassSourceReference] that gives the
+     * double `##` that identifies the reference as a URI fragment.
+     */
+    override val normalizedForm: String
+        get() = "#$uriFragment"
+}
 
 /**
  * Find the end of the reference.

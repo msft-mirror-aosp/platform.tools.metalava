@@ -20,6 +20,7 @@ import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import org.junit.Assert.*
+import org.junit.Assume.assumeNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -42,6 +43,7 @@ class ParameterizedParsedReferenceTest {
         val name: String,
         val reference: String = name,
         val expectedParsed: ParsedReference? = null,
+        val expectedNormalized: String = reference,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -274,6 +276,7 @@ class ParameterizedParsedReferenceTest {
                             member =
                                 UriFragmentSourceReference(uriFragment = "optional-restrictions")
                         ),
+                    expectedNormalized = "##optional-restrictions"
                 ),
 
                 // Invalid references
@@ -313,8 +316,16 @@ class ParameterizedParsedReferenceTest {
     }
 
     @Test
-    fun `Test validation`() {
+    fun `Test parsing`() {
         val parsed = LabeledRefTagType.parseReference(params.reference)
         assertEquals(params.expectedParsed, parsed)
+    }
+
+    @Test
+    fun `Test normalized form`() {
+        assumeNotNull(params.expectedParsed)
+
+        val parsed = LabeledRefTagType.parseReference(params.reference)
+        assertEquals(params.expectedNormalized, parsed!!.normalizedForm)
     }
 }
