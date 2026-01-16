@@ -165,7 +165,7 @@ class JavadocTest : DriverTest() {
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
                      * @see test.pkg2.OtherClass
-                     * @see test.pkg2.OtherClass#bar(int, boolean)
+                     * @see test.pkg2.OtherClass#bar(int,boolean)
                      * @deprecated For some reason
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -375,7 +375,7 @@ class JavadocTest : DriverTest() {
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
                  * @see test.pkg2.OtherClass
-                 * @see test.pkg2.OtherClass#bar(int, boolean)
+                 * @see test.pkg2.OtherClass#bar(int,boolean)
                  * @deprecated For some reason
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})

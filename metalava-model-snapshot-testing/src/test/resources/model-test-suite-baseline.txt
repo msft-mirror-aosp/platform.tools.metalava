@@ -36,12 +36,8 @@ com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentation
   Test fully qualifying links that wrap on multiple lines[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
-  Documentation text[psi,java,k1,@see,#collectionMethod(Collection)]
-  Documentation text[psi,java,k1,@see,Imported#collectionMethod(Collection)]
-  Documentation text[psi,java,k1,@see,Other#collectionMethod(Collection)]
-  Documentation text[psi,java,k2,@see,#collectionMethod(Collection)]
-  Documentation text[psi,java,k2,@see,Imported#collectionMethod(Collection)]
-  Documentation text[psi,java,k2,@see,Other#collectionMethod(Collection)]
+  Documentation text[psi,java,k1,@see,other.pkg.Another#collectionMethod(Collection)]
+  Documentation text[psi,java,k2,@see,other.pkg.Another#collectionMethod(Collection)]
   Documentation text[turbine,@link,#collectionMethod(Collection)]
   Documentation text[turbine,@link,Imported#Imported()]
   Documentation text[turbine,@link,Imported#Imported(int p)]

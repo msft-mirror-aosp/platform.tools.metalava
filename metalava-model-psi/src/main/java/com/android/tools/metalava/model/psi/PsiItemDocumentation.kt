@@ -165,7 +165,7 @@ internal class PsiItemDocumentation(
                     if (containingClass != null) {
                         val referenceText = element.reference?.element?.text ?: text
                         if (referenceText.startsWith("#")) {
-                            sb.append(text)
+                            appendFullyQualifiedMemberSuffix(element, sb, referenceText)
                             return
                         }
 
@@ -189,17 +189,19 @@ internal class PsiItemDocumentation(
                         }
 
                         sb.append(className)
-                        sb.append('#')
-                        sb.append(resolved.name)
-                        val index = text.indexOf('(')
-                        if (index != -1) {
-                            sb.append(text.substring(index))
-                        }
+
+                        val hashIndex = text.indexOf('#')
+                        val memberSuffix = if (hashIndex == -1) "" else text.substring(hashIndex)
+                        appendFullyQualifiedMemberSuffix(element, sb, memberSuffix)
                     } else {
                         sb.append(text)
                     }
                 } else {
-                    sb.append(text)
+                    if (text.startsWith("#")) {
+                        appendFullyQualifiedMemberSuffix(element, sb, text)
+                    } else {
+                        sb.append(text)
+                    }
                 }
             }
             element is PsiJavaCodeReferenceElement -> {
