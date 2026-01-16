@@ -264,7 +264,7 @@ class ParameterizedParsedReferenceTest {
                         QualifyingClassSourceReference(
                             className = "java.util.Collection",
                             member =
-                                UriFragmentSourceReference(uriFragment = "##optional-restrictions"),
+                                UriFragmentSourceReference(uriFragment = "optional-restrictions"),
                         )
                 ),
                 TestParams(
@@ -272,7 +272,7 @@ class ParameterizedParsedReferenceTest {
                     expectedParsed =
                         CurrentClassSourceReference(
                             member =
-                                UriFragmentSourceReference(uriFragment = "##optional-restrictions")
+                                UriFragmentSourceReference(uriFragment = "optional-restrictions")
                         ),
                 ),
 

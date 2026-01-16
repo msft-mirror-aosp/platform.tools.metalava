@@ -227,7 +227,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         MethodSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
                     }
                     relative.startsWith("##") -> {
-                        UriFragmentSourceReference(relative).qualifyIfNeeded(qualified)
+                        UriFragmentSourceReference(relative.substring(2)).qualifyIfNeeded(qualified)
                     }
                     relative[0] == '#' -> {
                         AmbiguousMemberSourceReference(relative.substring(1))
