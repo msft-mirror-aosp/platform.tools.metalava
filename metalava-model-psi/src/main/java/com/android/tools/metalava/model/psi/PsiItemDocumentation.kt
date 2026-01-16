@@ -245,8 +245,8 @@ internal class PsiItemDocumentation(
     }
 
     private fun handleTag(element: PsiInlineDocTag, sb: StringBuilder): Boolean {
-        val name = element.name
-        if (name == "code" || name == "literal" || name == "throws") {
+        val tagType = element.name
+        if (tagType == "code" || tagType == "literal" || tagType == "throws") {
             // Don't attempt to rewrite this
             return false
         }
@@ -289,7 +289,7 @@ internal class PsiItemDocumentation(
                         }
                         if (referenceText.startsWith(className)) {
                             sb.append("{@")
-                            sb.append(element.name)
+                            sb.append(tagType)
                             sb.append(' ')
                             sb.append(referencedElement.classQualifiedName)
                             val suffix = referenceText.substring(className.length)
@@ -314,7 +314,7 @@ internal class PsiItemDocumentation(
                 is PsiClass -> {
                     // No need to handle class references in {@link} and {@linkplain} tags as they
                     // have been resolved in LinkTagType.
-                    if (element.name == "link" || element.name == "linkplain") {
+                    if (tagType == "link" || tagType == "linkplain") {
                         return false
                     }
 
@@ -337,15 +337,15 @@ internal class PsiItemDocumentation(
                                 val end = start + valueElement.textLength
                                 text.substring(0, start) + qualifiedName + text.substring(end)
                             }
-                            name == "see" -> {
+                            tagType == "see" -> {
                                 val suffix =
                                     text.substring(
                                         text.indexOf(referenceText) + referenceText.length
                                     )
                                 "@see $qualifiedName$suffix"
                             }
-                            text.startsWith("{") -> "{@$name $qualifiedName $displayText}"
-                            else -> "@$name $qualifiedName $displayText"
+                            text.startsWith("{") -> "{@$tagType $qualifiedName $displayText}"
+                            else -> "@$tagType $qualifiedName $displayText"
                         }
                     sb.append(append)
                     return true
