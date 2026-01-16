@@ -257,11 +257,7 @@ internal class PsiItemDocumentation(
         val displayText = customLinkText ?: referenceText.replaceFirst('#', '.')
         if (referenceText.startsWith("#")) {
             val suffix = element.text
-            if (suffix.contains("(") && suffix.contains(")")) {
-                expandArgumentList(element, suffix, sb)
-            } else {
-                sb.append(suffix)
-            }
+            appendFullyQualifiedMemberSuffix(element, sb, suffix)
             return true
         }
 
@@ -444,11 +440,7 @@ internal class PsiItemDocumentation(
 
         // Append the fully qualified reference to the buffer.
         sb.append(qualifiedName)
-        if (memberSuffix.contains("(") && memberSuffix.contains(")")) {
-            expandArgumentList(element, memberSuffix, sb)
-        } else {
-            sb.append(memberSuffix)
-        }
+        appendFullyQualifiedMemberSuffix(element, sb, memberSuffix)
 
         // Append the label.
         sb.append(' ')
@@ -458,7 +450,26 @@ internal class PsiItemDocumentation(
         sb.append("}")
     }
 
-    private fun expandArgumentList(element: PsiInlineDocTag, suffix: String, sb: StringBuilder) {
+    /**
+     * Append a fully qualified version of [memberSuffix] to [sb].
+     *
+     * @param element the [PsiElement] that will be used to resolve any type references.
+     * @param sb the destination [StringBuilder].
+     * @param memberSuffix the not yet fully qualified member reference suffix.
+     */
+    private fun appendFullyQualifiedMemberSuffix(
+        element: PsiElement,
+        sb: StringBuilder,
+        memberSuffix: String
+    ) {
+        if (memberSuffix.contains("(") && memberSuffix.contains(")")) {
+            expandArgumentList(element, memberSuffix, sb)
+        } else {
+            sb.append(memberSuffix)
+        }
+    }
+
+    private fun expandArgumentList(element: PsiElement, suffix: String, sb: StringBuilder) {
         val elementFactory = JavaPsiFacade.getElementFactory(element.project)
         // Try to rewrite the types to fully qualified names as well
         val begin = suffix.indexOf('(')
