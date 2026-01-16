@@ -39,6 +39,14 @@ sealed interface ResolvedReference : Comparable<ResolvedReference> {
 
     override fun compareTo(other: ResolvedReference) =
         fullyQualifiedForm.compareTo(other.fullyQualifiedForm)
+
+    /**
+     * Check whether this could possibly rely on the [importedName].
+     *
+     * Returns `true` if the reference has not been fully resolved and the partially resolved parts
+     * contain [importedName] as a separate word.
+     */
+    fun referenceCouldRelyOnImportedName(importedName: String) = false
 }
 
 /** A reference to a [PackageItem]. */

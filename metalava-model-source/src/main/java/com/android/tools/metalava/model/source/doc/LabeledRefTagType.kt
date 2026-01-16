@@ -418,12 +418,19 @@ internal data class LabeledRefTagData(
     /** The tag type for which this was created. */
     private val tagType: String,
     /** The reference from the source; used as the label if necessary. */
-    val sourceReference: String,
+    private val sourceReference: String,
     /** The resolved reference, subclasses identify the specific part of the API it references. */
-    val resolvedReference: ResolvedReference?,
+    private val resolvedReference: ResolvedReference?,
 ) : TagData {
-    /** Check whether the [sourceReference] was fully resolved. */
-    fun wasReferenceFullyResolved(): Boolean = resolvedReference != null
+    /**
+     * Check whether the references could possibly rely on the [importedName].
+     *
+     * Returns `true` if the reference has not been fully resolved and the partially resolved parts
+     * contain [importedName] as a separate word.
+     */
+    fun referenceCouldRelyOnImportedName(importedName: String) =
+        resolvedReference?.referenceCouldRelyOnImportedName(importedName)
+            ?: sourceReference.containsWord(importedName)
 
     /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
