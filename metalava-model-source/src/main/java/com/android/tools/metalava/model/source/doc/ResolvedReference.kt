@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
@@ -96,3 +97,21 @@ data class FieldReference(
 /** Create a [FieldReference] from a [FieldItem]. */
 internal fun FieldItem.toResolvedReference() =
     FieldReference(containingClass().qualifiedName(), name())
+
+/** A reference to a [MethodItem]. */
+data class MethodReference(
+    private val qualifiedClassName: String,
+    private val signature: String,
+) : MemberReference {
+    override val fullyQualifiedForm = "$qualifiedClassName#$signature"
+
+    override fun formatForTagReference(containingClassName: String?) =
+        if (qualifiedClassName == containingClassName) "#$signature" else fullyQualifiedForm
+
+    override fun referenceCouldRelyOnImportedName(importedName: String) =
+        // The only part of this that can rely on an imported name are the currently unresolved
+        // parameter types. This checks the whole signature so this will also keep imports that
+        // match the method name.
+        // TODO(b/447588621): Remove once this is fully resolved.
+        signature.containsWord(importedName)
+}
