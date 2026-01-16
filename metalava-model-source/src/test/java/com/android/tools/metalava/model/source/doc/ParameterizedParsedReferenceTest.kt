@@ -189,6 +189,7 @@ class ParameterizedParsedReferenceTest {
                                     SourceParameter(classTypeItem("Locale"), "locale"),
                                 ),
                         ),
+                    expectedNormalized = "java.lang.String#toLowerCase(Locale)",
                 ),
                 TestParams(
                     // Not strictly valid (no # separating class and method) but still supported.
@@ -198,6 +199,7 @@ class ParameterizedParsedReferenceTest {
                             name = "java.lang.String.toLowerCase",
                             SourceParameter(classTypeItem("Locale"), "locale"),
                         ),
+                    expectedNormalized = "java.lang.String.toLowerCase(Locale)",
                 ),
                 TestParams(
                     name = "#toLowerCase(Locale locale)",
@@ -209,6 +211,7 @@ class ParameterizedParsedReferenceTest {
                                     SourceParameter(classTypeItem("Locale"), "locale"),
                                 ),
                         ),
+                    expectedNormalized = "#toLowerCase(Locale)",
                 ),
                 TestParams(
                     name = "toLowerCase(Locale locale)",
@@ -217,6 +220,7 @@ class ParameterizedParsedReferenceTest {
                             name = "toLowerCase",
                             SourceParameter(classTypeItem("Locale"), "locale"),
                         ),
+                    expectedNormalized = "toLowerCase(Locale)",
                 ),
 
                 // Methods with two parameters (no names).
@@ -261,7 +265,7 @@ class ParameterizedParsedReferenceTest {
                                     SourceParameter(variableTypeItem("V"), "value"),
                                 ),
                         ),
-                    expectedNormalized = "java.util.Map#put(K key,V value)",
+                    expectedNormalized = "java.util.Map#put(K,V)",
                 ),
                 TestParams(
                     name = "#put(K key, V value)",
@@ -274,7 +278,7 @@ class ParameterizedParsedReferenceTest {
                                     SourceParameter(variableTypeItem("V"), "value"),
                                 ),
                         ),
-                    expectedNormalized = "#put(K key,V value)",
+                    expectedNormalized = "#put(K,V)",
                 ),
                 TestParams(
                     name = "put(K key, V value)",
@@ -284,7 +288,7 @@ class ParameterizedParsedReferenceTest {
                             SourceParameter(variableTypeItem("K"), "key"),
                             SourceParameter(variableTypeItem("V"), "value"),
                         ),
-                    expectedNormalized = "put(K key,V value)",
+                    expectedNormalized = "put(K,V)",
                 ),
                 TestParams(
                     name = "#bar(java.lang.Integer p1, java.lang.String)",
@@ -297,7 +301,7 @@ class ParameterizedParsedReferenceTest {
                                     SourceParameter(classTypeItem("java.lang.String")),
                                 ),
                         ),
-                    expectedNormalized = "#bar(java.lang.Integer p1,java.lang.String)",
+                    expectedNormalized = "#bar(java.lang.Integer,java.lang.String)",
                 ),
                 TestParams(
                     name = "#bar(int[]p1,List<String>p2)",
@@ -321,7 +325,7 @@ class ParameterizedParsedReferenceTest {
                                     ),
                                 ),
                         ),
-                    expectedNormalized = "#bar(int[] p1,List<String> p2)",
+                    expectedNormalized = "#bar(int[],List<String>)",
                 ),
 
                 // Methods with generic parameter types.
@@ -415,7 +419,7 @@ class ParameterizedParsedReferenceTest {
                         ),
                     expectedNormalized =
                         // TODO(b/447588621): The [] is missing.
-                        "Class#foo(Collection<? extends Bar> param,Map<Integer,List <String>>)",
+                        "Class#foo(Collection<? extends Bar>,Map<Integer,List <String>>)",
                 ),
                 TestParams(
                     name = "qualified type with spaces",

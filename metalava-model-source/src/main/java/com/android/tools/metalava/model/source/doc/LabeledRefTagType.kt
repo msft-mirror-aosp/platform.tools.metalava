@@ -548,16 +548,7 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     private fun formatSignature() = buildString {
         append(name)
         append('(')
-        var separator = ""
-        for (parameter in parameters) {
-            append(separator)
-            separator = ","
-            append(parameter.type.toTypeString())
-            parameter.name?.let {
-                append(' ')
-                append(it)
-            }
-        }
+        parameters.joinTo(this, ",") { it.type.toTypeString() }
         append(')')
     }
 

@@ -184,7 +184,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "#Test(int p)",
-                    expectedResolvedReference = "#Test(int p)",
+                    expectedResolvedReference = "#Test(int)",
                     expectedLinkLabel = null,
                 ),
                 TestParams(
@@ -204,7 +204,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "#intMethod(int p)",
-                    expectedResolvedReference = "#intMethod(int p)",
+                    expectedResolvedReference = "#intMethod(int)",
                     expectedLinkLabel = null,
                 ),
                 TestParams(
@@ -277,7 +277,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Other#Other(int p)",
-                    expectedResolvedReference = "test.pkg.Other#Other(int p)",
+                    expectedResolvedReference = "test.pkg.Other#Other(int)",
+                    expectedLinkLabel = "Other.Other(int)",
                 ),
                 TestParams(
                     name = "Other#noParamsMethod",
@@ -298,7 +299,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Other#intMethod(int p)",
-                    expectedResolvedReference = "test.pkg.Other#intMethod(int p)",
+                    expectedResolvedReference = "test.pkg.Other#intMethod(int)",
+                    expectedLinkLabel = "Other.intMethod(int)",
                 ),
                 TestParams(
                     name = "Other.Nested",
@@ -327,7 +329,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Imported#Imported(int p)",
-                    expectedResolvedReference = "another.pkg.Imported#Imported(int p)",
+                    expectedResolvedReference = "another.pkg.Imported#Imported(int)",
+                    expectedLinkLabel = "Imported.Imported(int)",
                 ),
                 TestParams(
                     name = "Imported#noParamsMethod",
@@ -343,7 +346,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Imported#intMethod(int p)",
-                    expectedResolvedReference = "another.pkg.Imported#intMethod(int p)",
+                    expectedResolvedReference = "another.pkg.Imported#intMethod(int)",
+                    expectedLinkLabel = "Imported.intMethod(int)",
                 ),
                 TestParams(
                     name = "Imported#collectionMethod(Collection)",
@@ -380,7 +384,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "other.pkg.Another#Another(int p)",
-                    expectedResolvedReference = "other.pkg.Another#Another(int p)",
+                    expectedResolvedReference = "other.pkg.Another#Another(int)",
                     expectedLinkLabel = null,
                 ),
                 TestParams(
@@ -406,7 +410,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "other.pkg.Another#intMethod(int p)",
-                    expectedResolvedReference = "other.pkg.Another#intMethod(int p)",
+                    expectedResolvedReference = "other.pkg.Another#intMethod(int)",
                     expectedLinkLabel = null,
                 ),
                 TestParams(
