@@ -155,14 +155,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         }
 
         // Resolve the reference.
-        val resolved = context.resolveItemReference(sourceReference, NameClassification.AMBIGUOUS)
-        return when (resolved) {
-            is ClassItem -> resolved.toResolvedReference()
-            is PackageItem -> resolved.toResolvedReference()
-            is TypeParameterItem -> resolved.toResolvedReference()
-            is FieldItem -> resolved.toResolvedReference()
-            else -> null
-        }
+        return parsedReference.resolveReference(context, reporter)
     }
 
     private fun resolveMember(classItem: ClassItem, memberReference: String): ResolvedReference? {
@@ -307,10 +300,34 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
  * Represents a reference that was parsed from a source reference and which can be resolved within a
  * [ReferencableNameScope].
  */
-internal sealed interface ParsedReference
+internal sealed interface ParsedReference {
+    /**
+     * Resolve this [ParsedReference], if possible, within [context], reporting any issues to
+     * [reporter].
+     */
+    fun resolveReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter
+    ): ResolvedReference? =
+        // TODO(b/447588621): Remove default after implementing in all sub-classes.
+        null
+}
 
 /** An ambiguous reference to something by [name]. */
-internal data class AmbiguousSourceReference(val name: String) : ParsedReference
+internal data class AmbiguousSourceReference(val name: String) : ParsedReference {
+    override fun resolveReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter
+    ): ResolvedReference? =
+        // Resolve the reference.
+        when (val resolved = context.resolveItemReference(name, NameClassification.AMBIGUOUS)) {
+            is ClassItem -> resolved.toResolvedReference()
+            is PackageItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
+            is FieldItem -> resolved.toResolvedReference()
+            else -> null
+        }
+}
 
 /** A [ParsedReference] that qualifies a [member] reference by [className]. */
 internal data class QualifyingClassSourceReference(
