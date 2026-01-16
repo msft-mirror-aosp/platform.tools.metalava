@@ -400,9 +400,9 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "other.pkg.Another#collectionMethod(Collection)",
-                    // TODO(b/447588621): The parameter should be resolved to java.util.Collection.
-                    expectedResolvedReference = "other.pkg.Another#collectionMethod(Collection)",
-                    expectedLinkLabel = null,
+                    expectedResolvedReference =
+                        "other.pkg.Another#collectionMethod(java.util.Collection)",
+                    expectedLinkLabel = "other.pkg.Another.collectionMethod(Collection)",
                 ),
                 TestParams(
                     name = "other.pkg.Another#intMethod(int p)",

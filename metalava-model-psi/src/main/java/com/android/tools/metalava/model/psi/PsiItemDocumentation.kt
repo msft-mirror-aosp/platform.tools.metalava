@@ -278,16 +278,14 @@ internal class PsiItemDocumentation(
                     val referenceElement = firstChildPsi as PsiJavaCodeReferenceElement?
                     val referencedElement = referenceElement!!.resolve()
                     if (referencedElement is PsiClass) {
-                        var className = computeFullClassName(referencedElement)
-                        if (className.indexOf('.') != -1 && !referenceText.startsWith(className)) {
-                            val simpleName = referencedElement.name
-                            if (simpleName != null && referenceText.startsWith(simpleName)) {
-                                className = simpleName
-                            }
-                        }
-                        if (referenceText.startsWith(className)) {
-                            val qualifiedName = referencedElement.classQualifiedName
-                            val suffix = referenceText.substring(className.length)
+                        val qualifiedName = referencedElement.classQualifiedName
+                        val hashIndex = referenceText.indexOf('#')
+                        val className =
+                            if (hashIndex == -1) referenceText
+                            else referenceText.substring(0, hashIndex)
+                        if (qualifiedName == className || qualifiedName.endsWith(".$className")) {
+                            val suffix =
+                                if (hashIndex == -1) "" else referenceText.substring(hashIndex)
                             appendFullyQualifiedTag(element, sb, qualifiedName, suffix, displayText)
                             return true
                         }
@@ -440,13 +438,19 @@ internal class PsiItemDocumentation(
         sb.append(element.name)
         sb.append(' ')
 
-        // Append the fully qualified reference to the buffer.
+        // Append the fully qualified reference to the buffer, remembering where it started so it
+        // can be extracted later.
+        val startReference = sb.length
         sb.append(qualifiedName)
         appendFullyQualifiedMemberSuffix(element, sb, memberSuffix)
 
-        // Append the label.
-        sb.append(' ')
-        sb.append(label)
+        // Extract the qualified reference, convert it into display text by replacing '#' with '.'
+        // and compare it to the display text. If it is different then append the display text,
+        // otherwise do not.
+        if (sb.substring(startReference).replace('#', '.') != label) {
+            sb.append(' ')
+            sb.append(label)
+        }
 
         // Close the doc tag.
         sb.append("}")

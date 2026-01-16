@@ -25,6 +25,7 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocR
   Documentation text[@link,Other#intMethod(int)]
   Documentation text[@link,Other#noParamsMethod()]
   Documentation text[@link,Other#noParamsMethod]
+  Documentation text[@link,other.pkg.Another#collectionMethod(Collection)]
   Documentation text[@linkplain,#collectionMethod(Collection)]
   Documentation text[@linkplain,Imported#Imported()]
   Documentation text[@linkplain,Imported#Imported(int p)]
@@ -42,6 +43,7 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocR
   Documentation text[@linkplain,Other#intMethod(int)]
   Documentation text[@linkplain,Other#noParamsMethod()]
   Documentation text[@linkplain,Other#noParamsMethod]
+  Documentation text[@linkplain,other.pkg.Another#collectionMethod(Collection)]
   Documentation text[@see,#collectionMethod(Collection)]
   Documentation text[@see,Imported#Imported()]
   Documentation text[@see,Imported#Imported(int p)]
@@ -59,6 +61,7 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocR
   Documentation text[@see,Other#intMethod(int)]
   Documentation text[@see,Other#noParamsMethod()]
   Documentation text[@see,Other#noParamsMethod]
+  Documentation text[@see,other.pkg.Another#collectionMethod(Collection)]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
