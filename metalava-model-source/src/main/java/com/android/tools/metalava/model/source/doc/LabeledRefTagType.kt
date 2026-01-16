@@ -55,10 +55,19 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 // Ensures consistent formatting irrespective of how it was formatted in the source.
                 .replace(SOME_WHITESPACE, " ")
 
-        // Resolve the source reference, if it failed then still return a non-null result to ensure
-        // that whitespace is normalized consistently.
+        // Parse the source reference, reporting an error if it could not be done.
+        val parsedReference = parseReference(sourceReference)
+        if (parsedReference == null) {
+            reporter.report(
+                Issues.MALFORMED_DOC_REFERENCE,
+                "Malformed reference `$sourceReference`"
+            )
+        }
+
+        // Resolve the parsed source reference, if available.
         val resolvedReference =
-            resolveReference(context, reporter, sourceReference)?.also { resolved ->
+            // Resolve the reference.
+            parsedReference?.resolveReference(context, reporter)?.also { resolved ->
                 checkSourceReferenceValidForResolvedReference(reporter, sourceReference, resolved)
             }
 
@@ -104,29 +113,6 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             }
             else -> {}
         }
-    }
-
-    /**
-     * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
-     * constructor, method, or field) to a [ResolvedReference], if possible.
-     */
-    private fun resolveReference(
-        context: DocCommentContext,
-        reporter: LocationSpecificReporter,
-        sourceReference: String
-    ): ResolvedReference? {
-        // Parse the source reference matches the expected pattern.
-        val parsedReference = parseReference(sourceReference)
-        if (parsedReference == null) {
-            reporter.report(
-                Issues.MALFORMED_DOC_REFERENCE,
-                "Malformed reference `$sourceReference`"
-            )
-            return null
-        }
-
-        // Resolve the reference.
-        return parsedReference.resolveReference(context, reporter)
     }
 
     companion object {
