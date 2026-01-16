@@ -16,14 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaDocTokenType
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -149,26 +147,6 @@ internal class PsiItemDocumentation(
         return buildString(documentation.length) { expand(comment, this) }
     }
 
-    private fun reportUnresolvedDocReference(unresolved: String) {
-        if (!REPORT_UNRESOLVED_SYMBOLS) {
-            return
-        }
-
-        if (unresolved.startsWith("{@") && !unresolved.startsWith("{@link")) {
-            return
-        }
-
-        // References are sometimes split across lines and therefore have newlines, leading
-        // asterisks etc. in the middle: clean this up before emitting reference into error message
-        val cleaned = unresolved.replace("\n", "").replace("*", "").replace("  ", " ")
-
-        item.codebase.reporter.report(
-            Issues.UNRESOLVED_LINK,
-            item,
-            "Unresolved documentation reference: $cleaned"
-        )
-    }
-
     private fun expand(element: PsiElement, sb: StringBuilder) {
         when {
             element is PsiWhiteSpace -> {
@@ -221,15 +199,6 @@ internal class PsiItemDocumentation(
                         sb.append(text)
                     }
                 } else {
-                    if (resolved == null) {
-                        val referenceText = element.reference?.element?.text ?: text
-                        if (text.startsWith("#") && item is ClassItem) {
-                            // Unfortunately resolving references is broken from class javadocs
-                            // to members using just a relative reference, #.
-                        } else {
-                            reportUnresolvedDocReference(referenceText)
-                        }
-                    }
                     sb.append(text)
                 }
             }
@@ -252,9 +221,6 @@ internal class PsiItemDocumentation(
                     }
                 } else {
                     val text = element.text
-                    if (resolved == null) {
-                        reportUnresolvedDocReference(text)
-                    }
                     sb.append(text)
                 }
             }
@@ -460,8 +426,6 @@ internal class PsiItemDocumentation(
                     }
                 }
             }
-        } else {
-            reportUnresolvedDocReference(referenceText)
         }
 
         return false
