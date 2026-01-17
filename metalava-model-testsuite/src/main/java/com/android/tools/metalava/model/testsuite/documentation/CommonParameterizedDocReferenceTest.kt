@@ -210,7 +210,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 TestParams(
                     name = "#collectionMethod(Collection)",
                     expectedResolvedReference = "#collectionMethod(java.util.Collection)",
-                    expectedLinkLabel = null,
+                    expectedLinkLabel = "collectionMethod(Collection)",
                 ),
                 TestParams(
                     name = "Test", // Reference self.

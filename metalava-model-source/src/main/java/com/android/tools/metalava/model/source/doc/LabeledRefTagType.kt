@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
@@ -475,7 +477,7 @@ internal data class QualifyingClassSourceReference(
                 else -> error("type '$className' was resolved to an unknown type $resolved")
             }
 
-        return member.findIn(classItem)
+        return member.findIn(context, reporter, classItem)
     }
 }
 
@@ -492,7 +494,7 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
         // TODO(b/447588621): Report issue when no class is available, member references are not
         //  allowed in packages.
         val classItem = context.containingClassItem ?: return null
-        return member.findIn(classItem)
+        return member.findIn(context, reporter, classItem)
     }
 }
 
@@ -516,7 +518,11 @@ internal sealed interface ClassMemberSourceReference {
             ?: CurrentClassSourceReference(this)
 
     /** Find this in [classItem]. */
-    fun findIn(classItem: ClassItem): ResolvedReference? =
+    fun findIn(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ): ResolvedReference? =
         // TODO(b/447588621): Remove default after implementing in all sub-classes.
         null
 }
@@ -526,8 +532,11 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
     override val normalizedForm: String
         get() = name
 
-    override fun findIn(classItem: ClassItem): ResolvedReference? =
-        classItem.findField(name)?.toResolvedReference()
+    override fun findIn(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ): ResolvedReference? = classItem.findField(name)?.toResolvedReference()
 }
 
 /**
@@ -539,22 +548,43 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     ClassMemberSourceReference, ParsedReference {
 
     override val normalizedForm: String
-        get() = formatSignature()
+        get() = formatSignature(parameters)
 
     /**
      * Format [name] and [parameters] into a method signature for use in [normalizedForm] and
      * [MethodReference.signature].
      */
-    private fun formatSignature() = buildString {
+    private fun formatSignature(parameters: List<SourceParameter>) = buildString {
         append(name)
         append('(')
         parameters.joinTo(this, ",") { it.type.toTypeString() }
         append(')')
     }
 
-    override fun findIn(classItem: ClassItem) =
-        // Return a method reference that uses the fully qualified name of the containing class.
-        MethodReference(classItem.qualifiedName(), formatSignature())
+    override fun findIn(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ) = createMethodReference(context, reporter, classItem)
+
+    /**
+     * Return a method reference that uses the fully qualified name of the containing class and
+     * fully qualified parameter types.
+     */
+    private fun createMethodReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ) =
+        MethodReference(
+            classItem.qualifiedName(),
+            formatSignature(
+                parameters.map { sourceParameter ->
+                    val fullyQualifiedType = sourceParameter.type.fullyQualify(context, reporter)
+                    SourceParameter(fullyQualifiedType, sourceParameter.name)
+                }
+            )
+        )
 
     data class SourceParameter(
         val type: TypeItem,
@@ -563,6 +593,42 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         override fun toString() = if (name == null) type.toString() else "$name: $type"
     }
 }
+
+/** Fully qualify this [TypeItem] within [context], reporting any issues to [reporter]. */
+private fun TypeItem.fullyQualify(context: DocCommentContext, reporter: LocationSpecificReporter) =
+    transform(
+        object : BaseTypeTransformer() {
+            override fun transform(typeItem: ClassTypeItem): ClassTypeItem {
+                // Resolve the qualified name (which may in fact be a simple name, or a partially
+                // qualified name) as a class.
+                val resolved =
+                    context.resolveItemReference(typeItem.qualifiedName, NameClassification.CLASS)
+
+                val resolvedType =
+                    when (resolved) {
+                        is ClassItem ->
+                            // Use the resolved class's type.
+                            resolved.type()
+                        else -> {
+                            // Report any issues with resolving the class.
+                            if (resolved is InvalidReferencableItem) {
+                                resolved.reportIssue(reporter)
+                            }
+
+                            // Default to just using this type
+                            typeItem
+                        }
+                    }
+
+                // Fully qualify the type arguments, reporting any issues with class references.
+                val fullyQualifiedTypeArguments = typeItem.arguments.map { it.transform(this) }
+
+                // Use the resolved type with the fully qualified type arguments provided in the
+                // source.
+                return resolvedType.substitute(arguments = fullyQualifiedTypeArguments)
+            }
+        }
+    )
 
 /** A reference to a [uriFragment]. */
 internal data class UriFragmentSourceReference(val uriFragment: String) :

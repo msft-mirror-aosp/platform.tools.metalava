@@ -940,7 +940,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.OtherClass2;
                 /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2,int,OtherClass2[])}, */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
@@ -984,7 +983,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.nio.ByteBuffer;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
@@ -1100,7 +1098,6 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package android.view;
-                    import android.graphics.Insets;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class WindowInsets {
                     public WindowInsets() { throw new RuntimeException("Stub!"); }
