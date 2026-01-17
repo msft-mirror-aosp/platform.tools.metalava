@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -551,7 +552,7 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         for (parameter in parameters) {
             append(separator)
             separator = ","
-            append(parameter.typeString)
+            append(parameter.type.toTypeString())
             parameter.name?.let {
                 append(' ')
                 append(it)
@@ -564,8 +565,11 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         // Return a method reference that uses the fully qualified name of the containing class.
         MethodReference(classItem.qualifiedName(), formatSignature())
 
-    data class SourceParameter(val typeString: String, val name: String? = null) {
-        override fun toString() = if (name == null) typeString else "$name: $typeString"
+    data class SourceParameter(
+        val type: TypeItem,
+        val name: String? = null,
+    ) {
+        override fun toString() = if (name == null) type.toString() else "$name: $type"
     }
 }
 

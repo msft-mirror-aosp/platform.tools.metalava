@@ -945,7 +945,7 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2 [])}, */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2[])}, */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """

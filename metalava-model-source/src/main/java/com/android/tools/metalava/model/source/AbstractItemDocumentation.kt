@@ -221,7 +221,7 @@ abstract class AbstractItemDocumentation(
 
     /** Implements [DocCommentContext.docTypeParser]. */
     override val docTypeParser: DocTypeParser
-        get() = DocTypeParser.create()
+        get() = DocTypeParser.create(reporter = this, item)
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")

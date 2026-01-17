@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
@@ -31,7 +32,7 @@ import org.mockito.kotlin.mock
 
 abstract class BaseDocCommentTest {
     internal val reporter = CollatingDocumentationIssueReporter()
-    internal val context = TestDocCommentContext()
+    internal val context = TestDocCommentContext(reporter)
 
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
@@ -117,7 +118,8 @@ internal class CollatingDocumentationIssueReporter : DocumentationIssueReporter 
 }
 
 /** A test [DocCommentContext] that provides basic implementations. */
-internal class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
+internal class TestDocCommentContext(reporter: DocumentationIssueReporter) :
+    DocCommentContext, DocCommentMutationListener {
     override val mutationListener: DocCommentMutationListener
         get() = this
 
@@ -164,5 +166,6 @@ internal class TestDocCommentContext : DocCommentContext, DocCommentMutationList
     override val containingClassItem: ClassItem?
         get() = null
 
-    override val docTypeParser: DocTypeParser = DocTypeParser.create()
+    override val docTypeParser: DocTypeParser =
+        DocTypeParser.create(reporter, TypeParameterScope.empty)
 }
