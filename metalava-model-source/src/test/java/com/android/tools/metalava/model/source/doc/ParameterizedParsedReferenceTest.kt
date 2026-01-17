@@ -266,6 +266,30 @@ class ParameterizedParsedReferenceTest {
                             parameters = "(K key, V value)",
                         ),
                 ),
+                TestParams(
+                    name = "#bar(java.lang.Integer p1, java.lang.String)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "bar",
+                                    parameters = "(java.lang.Integer p1, java.lang.String)",
+                                ),
+                        ),
+                    expectedNormalized = "#bar(java.lang.Integer p1, java.lang.String)",
+                ),
+                TestParams(
+                    name = "#bar(int[]p1,List<String>p2)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "bar",
+                                    parameters = "(int[]p1,List<String>p2)",
+                                ),
+                        ),
+                    expectedNormalized = "#bar(int[]p1,List<String>p2)",
+                ),
 
                 // Methods with generic parameter types.
                 TestParams(
@@ -279,6 +303,67 @@ class ParameterizedParsedReferenceTest {
                                     parameters = "(Collection<? extends E>)",
                                 ),
                         ),
+                ),
+
+                // Methods with pathological formatting.
+                TestParams(
+                    name = "whitespaces but no parameters",
+                    reference = "Class#foo(   \t\n\r)",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "Class",
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    parameters = "(   \t\n\r)",
+                                ),
+                        ),
+                    expectedNormalized = "Class#foo(   \t\n\r)",
+                ),
+                TestParams(
+                    name = "leading and trailing whitespace",
+                    reference = "Class#foo(   int    )",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "Class",
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    parameters = "(   int    )",
+                                ),
+                        ),
+                    expectedNormalized = "Class#foo(   int    )",
+                ),
+                TestParams(
+                    name = "complex",
+                    reference =
+                        "Class#foo(   Collection<? extends Bar> [  ]   param   ,   Map< Integer  , List <String > >   )",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "Class",
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    parameters =
+                                        "(   Collection<? extends Bar> [  ]   param   ,   Map< Integer  , List <String > >   )",
+                                ),
+                        ),
+                    expectedNormalized =
+                        "Class#foo(   Collection<? extends Bar> [  ]   param   ,   Map< Integer  , List <String > >   )",
+                ),
+                TestParams(
+                    name = "qualified type with spaces",
+                    reference = "Class#foo(   java . lang . String   )",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "Class",
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    parameters = "(   java . lang . String   )",
+                                ),
+                        ),
+                    expectedNormalized = "Class#foo(   java . lang . String   )",
                 ),
 
                 // Fragment reference
