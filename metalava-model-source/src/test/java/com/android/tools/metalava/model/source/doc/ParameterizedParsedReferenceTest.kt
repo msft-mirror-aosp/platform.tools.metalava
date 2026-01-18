@@ -26,7 +26,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class ParameterizedDocReferenceValidationTest {
+class ParameterizedParsedReferenceTest {
 
     @Parameterized.Parameter(0) internal lateinit var params: TestParams
 
