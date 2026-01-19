@@ -19,9 +19,13 @@ package com.android.tools.metalava.model.testsuite.typeitem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.EntryPoint
+import com.android.tools.metalava.testing.EntryPointCallerRule
+import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -29,7 +33,15 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var params: TestParams
 
-    data class TestParams(
+    /**
+     * Will try and rewrite the stack trace of any test failures to refer to the location where the
+     * [TestParams] that is currently being tested was created.
+     */
+    @get:Rule val entryPointCallerRule = EntryPointCallerRule { params.entryPointCallerTracker }
+
+    data class TestParams
+    @EntryPoint
+    constructor(
         val javaTypeParameter: String? = null,
         val javaType: String,
         val name: String = javaType,
@@ -38,6 +50,12 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
         val kotlinType: String,
         val expectedAsClassName: String?,
     ) {
+        /**
+         * Record the stack trace of the creation of this which can be used to provide a stack trace
+         * to the creator of this instance in the event of a test failure.
+         */
+        val entryPointCallerTracker = EntryPointCallerTracker()
+
         fun javaParameter(): String = "$javaType p"
 
         fun javaTypeParameter(): String = javaTypeParameter ?: ""
