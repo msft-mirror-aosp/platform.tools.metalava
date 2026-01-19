@@ -26,7 +26,8 @@ class DefaultResolvedClassTypeItem(
     modifiers: TypeModifiers,
     private val classItem: ClassItem,
     override val arguments: List<TypeArgumentTypeItem>,
-) : ClassTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
 
     override val qualifiedName = classItem.qualifiedName()
 

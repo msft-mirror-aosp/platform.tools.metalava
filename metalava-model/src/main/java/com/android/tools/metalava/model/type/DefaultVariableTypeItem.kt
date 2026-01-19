@@ -24,7 +24,8 @@ import com.android.tools.metalava.model.VariableTypeItem
 class DefaultVariableTypeItem(
     modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
-) : VariableTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : VariableTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
 
     override val name: String = asTypeParameter.name()
 

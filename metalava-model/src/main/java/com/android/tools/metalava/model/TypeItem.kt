@@ -385,7 +385,7 @@ typealias TypeParameterBindings = Map<TypeParameterItem, TypeArgumentTypeItem>
 
 abstract class DefaultTypeItem(
     final override val modifiers: TypeModifiers,
-    override val isValueClassType: Boolean = false,
+    override val isValueClassType: Boolean,
 ) : TypeItem {
 
     private lateinit var cachedDefaultType: String

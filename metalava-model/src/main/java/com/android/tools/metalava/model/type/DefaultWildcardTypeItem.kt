@@ -25,7 +25,8 @@ class DefaultWildcardTypeItem(
     modifiers: TypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-) : WildcardTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : WildcardTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
     @Deprecated(
         "implementation detail of this class",
         replaceWith = ReplaceWith("substitute(modifiers, extendsBound, superBound)"),
