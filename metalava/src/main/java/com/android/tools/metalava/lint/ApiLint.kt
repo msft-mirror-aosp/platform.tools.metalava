@@ -1183,9 +1183,10 @@ private constructor(
                 name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")
             ) {
                 val returnType = method.returnType()
-                val methodReturnsBuilderClassType =
-                    builderType.isAssignableFromWithoutUnboxing(returnType)
-                if (!methodReturnsBuilderClassType) {
+
+                // If the return type and builder type are not equal (after erasing to handle
+                // type variables) then it is an error.
+                if (returnType.asErasedType() != builderType.asErasedType()) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
