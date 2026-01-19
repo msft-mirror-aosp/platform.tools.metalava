@@ -28,8 +28,8 @@ open class DefaultClassTypeItem(
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
-    override val isValueClassType: Boolean = false,
-) : ClassTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by

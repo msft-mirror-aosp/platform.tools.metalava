@@ -41,11 +41,7 @@ internal sealed class PsiTypeItem(
     val psiType: PsiType,
     modifiers: TypeModifiers,
     val kotlinTypeInfo: KotlinTypeInfo?,
-) : DefaultTypeItem(modifiers) {
-    /** Whether the [psiType] is originally a value class type. */
-    override val isValueClassType
-        get() = kotlinTypeInfo?.isValueClassType() ?: false
-}
+) : DefaultTypeItem(modifiers, kotlinTypeInfo?.isValueClassType() ?: false)
 
 /** A [PsiTypeItem] backed by a [PsiPrimitiveType]. */
 internal class PsiPrimitiveTypeItem(
