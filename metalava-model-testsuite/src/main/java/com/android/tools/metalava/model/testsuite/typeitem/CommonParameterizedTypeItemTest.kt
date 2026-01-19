@@ -83,9 +83,9 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     expectedAsClassName = null,
                 ),
                 TestParams(
-                    javaType = "Comparable<String>",
-                    kotlinType = "Comparable<String>",
-                    expectedAsClassName = "java.lang.Comparable",
+                    javaType = "test.pkg.Generic<String>",
+                    kotlinType = "test.pkg.Generic<String>",
+                    expectedAsClassName = "test.pkg.Generic",
                 ),
                 TestParams(
                     javaType = "String[]...",
@@ -94,9 +94,9 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     expectedAsClassName = "java.lang.String",
                 ),
                 TestParams(
-                    javaTypeParameter = "<T extends Comparable<T>>",
+                    javaTypeParameter = "<T extends test.pkg.Generic<T>>",
                     javaType = "java.util.Map.Entry<String, T>",
-                    kotlinTypeParameter = "<T: Comparable<T>>",
+                    kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "java.util.Map.Entry<String, T>",
                     expectedAsClassName = "java.util.Map.Entry",
                 ),
@@ -108,24 +108,24 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     expectedAsClassName = "java.lang.Object",
                 ),
                 TestParams(
-                    name = "T extends Comparable",
-                    javaTypeParameter = "<T extends Comparable<T>>",
+                    name = "T extends Generic",
+                    javaTypeParameter = "<T extends test.pkg.Generic<T>>",
                     javaType = "T",
-                    kotlinTypeParameter = "<T: Comparable<T>>",
+                    kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "T",
-                    expectedAsClassName = "java.lang.Comparable",
+                    expectedAsClassName = "test.pkg.Generic",
                 ),
                 TestParams(
-                    javaTypeParameter = "<T extends Comparable<T>>",
+                    javaTypeParameter = "<T extends test.pkg.Generic<T>>",
                     javaType = "T[]",
-                    kotlinTypeParameter = "<T: Comparable<T>>",
+                    kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "Array<T>",
-                    expectedAsClassName = "java.lang.Comparable",
+                    expectedAsClassName = "test.pkg.Generic",
                 ),
                 TestParams(
-                    javaType = "Comparable<Integer>[]",
-                    kotlinType = "Array<Comparable<Int>>",
-                    expectedAsClassName = "java.lang.Comparable",
+                    javaType = "test.pkg.Generic<Integer>[]",
+                    kotlinType = "Array<test.pkg.Generic<Int>>",
+                    expectedAsClassName = "test.pkg.Generic",
                 ),
             )
 
@@ -139,31 +139,53 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
 
     private fun runTypeItemTest(test: TestContext.() -> Unit) {
         runCodebaseTest(
-            signature(
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                    public interface Foo {
-                        method public ${params.javaTypeParameter()} void method(${params.javaParameter()});
-                    }
-                }
-                """
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public interface Foo {
+                                method public ${params.javaTypeParameter()} void method(${params.javaParameter()});
+                            }
+                            public interface Generic<A> {
+                            }
+                        }
+                    """
+                ),
             ),
-            java(
-                """
-                package test.pkg;
-                public interface Foo {
-                    ${params.javaTypeParameter()} void method(${params.javaParameter()});
-                }
-                """
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface Foo {
+                            ${params.javaTypeParameter()} void method(${params.javaParameter()});
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface Generic<A> {
+                        }
+                    """
+                ),
             ),
-            kotlin(
-                """
-                package test.pkg
-                interface Foo {
-                    fun ${params.kotlinTypeParameter()} method(${params.kotlinParameter()})
-                }
-                """
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Foo {
+                            fun ${params.kotlinTypeParameter()} method(${params.kotlinParameter()})
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Generic<A> {
+                        }
+                    """
+                )
             ),
         ) {
             val methodItem = codebase.assertClass("test.pkg.Foo").methods().single()
