@@ -829,7 +829,7 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
  */
 sealed interface BoundsTypeItem : TypeItem, ReferenceTypeItem {
     /** Override to specialize the return type. */
-    override fun asErasedType(): BoundsTypeItem
+    override fun asErasedType(): ClassTypeItem
 }
 
 /**
@@ -845,9 +845,7 @@ sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
      * Get the erased [ClassItem], if any.
      *
      * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
-     * types have been erased. This will cause an error if it is called on a [VariableTypeItem]
-     * whose [TypeParameterItem]'s upper bound is not a [ExceptionTypeItem]. However, that should
-     * never happen as it would be a compile time error.
+     * types have been erased.
      */
     val erasedClass: ClassItem?
 
@@ -1346,7 +1344,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     override fun asErasedType() = asTypeParameter.asErasedType()
 
     override val erasedClass: ClassItem?
-        get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass
+        get() = asTypeParameter.asErasedType().erasedClass
 
     override fun description() =
         "$name (extends ${this.asTypeParameter.asErasedType().description()})}"
@@ -1417,9 +1415,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             it is LambdaTypeItem ||
                 // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g.
                 // from the text model b/437086600)
-                (it is ClassTypeItem) &&
-                    it.classNamePrefix == "kotlin.jvm.functions." &&
-                    it.className.startsWith("Function")
+                it.classNamePrefix == "kotlin.jvm.functions." && it.className.startsWith("Function")
         }
     }
 }
