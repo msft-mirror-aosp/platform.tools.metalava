@@ -50,8 +50,8 @@ internal sealed class PsiTypeItem(
 /** A [PsiTypeItem] backed by a [PsiPrimitiveType]. */
 internal class PsiPrimitiveTypeItem(
     psiType: PsiType,
-    override val kind: PrimitiveTypeItem.Primitive,
     modifiers: TypeModifiers,
+    override val kind: PrimitiveTypeItem.Primitive,
     kotlinTypeInfo: KotlinTypeInfo?,
 ) : PrimitiveTypeItem, PsiTypeItem(psiType, modifiers, kotlinTypeInfo) {
     @Deprecated(
@@ -70,9 +70,9 @@ internal class PsiPrimitiveTypeItem(
 /** A [PsiTypeItem] backed by a [PsiArrayType]. */
 internal class PsiArrayTypeItem(
     psiType: PsiType,
+    modifiers: TypeModifiers,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
-    modifiers: TypeModifiers,
     kotlinTypeInfo: KotlinTypeInfo?,
 ) : ArrayTypeItem, PsiTypeItem(psiType, modifiers, kotlinTypeInfo) {
     @Deprecated(
@@ -86,9 +86,9 @@ internal class PsiArrayTypeItem(
     ): ArrayTypeItem =
         PsiArrayTypeItem(
             psiType = psiType,
+            modifiers = modifiers,
             componentType = componentType,
             isVarargs = isVarargs,
-            modifiers = modifiers,
             kotlinTypeInfo = kotlinTypeInfo,
         )
 }
@@ -97,10 +97,10 @@ internal class PsiArrayTypeItem(
 internal open class PsiClassTypeItem(
     protected val classResolver: ClassResolver,
     psiType: PsiType,
+    modifiers: TypeModifiers,
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
-    modifiers: TypeModifiers,
     kotlinTypeInfo: KotlinTypeInfo?,
 ) : ClassTypeItem, PsiTypeItem(psiType, modifiers, kotlinTypeInfo) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
@@ -137,10 +137,10 @@ internal open class PsiClassTypeItem(
 internal class PsiLambdaTypeItem(
     classResolver: ClassResolver,
     psiType: PsiType,
+    modifiers: TypeModifiers,
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
     outerClassType: ClassTypeItem?,
-    modifiers: TypeModifiers,
     override val isSuspend: Boolean,
     override val receiverType: TypeItem?,
     override val parameterTypes: List<TypeItem>,
@@ -209,9 +209,9 @@ internal class PsiVariableTypeItem(
 /** A [PsiTypeItem] backed by a [PsiWildcardType]. */
 internal class PsiWildcardTypeItem(
     psiType: PsiType,
+    modifiers: TypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-    modifiers: TypeModifiers,
     kotlinTypeInfo: KotlinTypeInfo?,
 ) : WildcardTypeItem, PsiTypeItem(psiType, modifiers, kotlinTypeInfo) {
     @Deprecated(

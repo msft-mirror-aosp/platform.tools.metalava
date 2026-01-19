@@ -418,8 +418,8 @@ internal class PsiTypeItemFactory(
     ) =
         PsiPrimitiveTypeItem(
             psiType = psiType,
-            kind = getKind(psiType),
             modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceNonNull),
+            kind = getKind(psiType),
             kotlinTypeInfo = kotlinType,
         )
 
@@ -450,6 +450,7 @@ internal class PsiTypeItemFactory(
     ) =
         PsiArrayTypeItem(
             psiType = psiType,
+            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             componentType =
                 createTypeItem(
                     psiType.componentType,
@@ -460,7 +461,6 @@ internal class PsiTypeItemFactory(
                     contextNullability.forComponentType(),
                 ),
             isVarargs = psiType is PsiEllipsisType,
-            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             kotlinTypeInfo = kotlinType,
         )
 
@@ -475,6 +475,7 @@ internal class PsiTypeItemFactory(
         return PsiClassTypeItem(
             classResolver = codebase,
             psiType = psiType,
+            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             qualifiedName = qualifiedName,
             arguments =
                 computeTypeArguments(
@@ -488,7 +489,6 @@ internal class PsiTypeItemFactory(
                     kotlinType,
                     creatingClassTypeForClass = true,
                 ),
-            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             kotlinTypeInfo = kotlinType,
         )
     }
@@ -775,10 +775,10 @@ internal class PsiTypeItemFactory(
         return PsiLambdaTypeItem(
             classResolver = codebase,
             psiType = psiType,
+            modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
             qualifiedName = qualifiedName,
             arguments = typeArguments,
             outerClassType = computeOuterClass(psiType, actualKotlinType),
-            modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
             isSuspend = isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
@@ -808,6 +808,7 @@ internal class PsiTypeItemFactory(
     ) =
         PsiWildcardTypeItem(
             psiType = psiType,
+            modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceUndefined),
             extendsBound =
                 createBound(
                     psiType.extendsBound,
@@ -830,7 +831,6 @@ internal class PsiTypeItemFactory(
                     // only pass it through if this has an explicit `super` bound.
                     kotlinType.takeIf { psiType.isSuper },
                 ),
-            modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceUndefined),
             kotlinTypeInfo = kotlinType,
         )
 
