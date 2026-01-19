@@ -584,18 +584,7 @@ abstract class DefaultTypeItem(
                     if (configuration.eraseGenerics) {
                         // Replace the type variable with the bounds of the type parameter.
                         val typeParameter = type.asTypeParameter
-                        typeParameter.asErasedType()?.let { boundsType ->
-                            appendTypeString(boundsType, configuration)
-                        }
-                            // No explicit bounds were provided so use the default of
-                            // java.lang.Object.
-                            ?: if (
-                                configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS
-                            ) {
-                                append("Object")
-                            } else {
-                                append(JAVA_LANG_OBJECT)
-                            }
+                        appendTypeString(typeParameter.asErasedType(), configuration)
                     } else {
                         append(type.name)
                     }
@@ -1325,7 +1314,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass
 
     override fun description() =
-        "$name (extends ${this.asTypeParameter.asErasedType()?.description() ?: "unknown type"})}"
+        "$name (extends ${this.asTypeParameter.asErasedType().description()})}"
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -1377,7 +1366,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         return transformer.transform(this)
     }
 
-    override fun asClass() = asTypeParameter.asErasedType()?.asClass()
+    override fun asClass() = asTypeParameter.asErasedType().asClass()
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         return (other as? VariableTypeItem)?.name == name &&
