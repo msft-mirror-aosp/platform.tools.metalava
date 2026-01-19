@@ -17,9 +17,11 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -60,7 +62,7 @@ import org.jetbrains.uast.kotlin.isKotlin
 data class PsiTypeInfo(val psiType: PsiType, val context: PsiElement? = null)
 
 /**
- * Creates [PsiTypeItem]s from [PsiType]s and an optional context [PsiElement], encapsulated within
+ * Creates [TypeItem]s from [PsiType]s and an optional context [PsiElement], encapsulated within
  * [PsiTypeInfo].
  */
 internal class PsiTypeItemFactory(
@@ -152,7 +154,7 @@ internal class PsiTypeItemFactory(
         this?.modifierList?.text?.contains("vararg") == true
 
     /**
-     * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
+     * Returns a [TypeItem] representing the [psiType]. The [context] is used to get nullability
      * information for Kotlin types.
      */
     internal fun getType(
@@ -175,8 +177,8 @@ internal class PsiTypeItemFactory(
         return createTypeItem(psiType, kotlinTypeInfo, contextNullability)
     }
 
-    /** Get a [PsiClassTypeItem] to represent the [PsiClassItem]. */
-    fun getClassTypeForClass(psiClassItem: PsiClassItem): PsiClassTypeItem {
+    /** Get a [ClassTypeItem] to represent the [PsiClassItem]. */
+    fun getClassTypeForClass(psiClassItem: PsiClassItem): ClassTypeItem {
         // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class
         // has any type parameters then the PsiType will include references to those parameters.
         val psiTypeWithTypeParametersIfAny = assembler.getClassType(psiClassItem.psiClass)
@@ -188,7 +190,7 @@ internal class PsiTypeItemFactory(
             KotlinTypeInfo.fromContext(psiClassItem.psiClass),
             contextNullability = ContextNullability.forceNonNull,
             creatingClassTypeForClass = true,
-        ) as PsiClassTypeItem
+        ) as ClassTypeItem
     }
 
     /** Get a [VariableTypeItem] to represent [PsiTypeParameterItem]. */
@@ -226,7 +228,7 @@ internal class PsiTypeItemFactory(
         return psiType?.let { createTypeItem(it, kotlinTypeInfo, ContextNullability.none) }
     }
 
-    // PsiTypeItem factory methods
+    // TypeItem factory methods
 
     /** Creates modifiers based on the annotations of the [type]. */
     private fun createTypeModifiers(
@@ -261,7 +263,7 @@ internal class PsiTypeItemFactory(
             return isJetBrainNotNull || isJetBrainNullable
         }
 
-    /** Create a [PsiTypeItem]. */
+    /** Create a [TypeItem]. */
     private fun createTypeItem(
         psiType: PsiType,
         kotlinType: KotlinTypeInfo?,
@@ -375,7 +377,7 @@ internal class PsiTypeItemFactory(
      * If there is no matching type alias, returns null.
      */
     private fun checkForTypeAliasSubstitution(
-        classTypeItem: PsiClassTypeItem,
+        classTypeItem: ClassTypeItem,
         contextNullability: ContextNullability
     ): TypeItem? {
         // Don't bother checking for type aliases in non-KMP codebases because the substitution will
@@ -411,7 +413,7 @@ internal class PsiTypeItemFactory(
         return convertedType.substitute(nullability)
     }
 
-    /** Create a [PsiPrimitiveTypeItem]. */
+    /** Create a [PrimitiveTypeItem]. */
     private fun createPrimitiveTypeItem(
         psiType: PsiPrimitiveType,
         kotlinType: KotlinTypeInfo?,
@@ -442,7 +444,7 @@ internal class PsiTypeItemFactory(
         }
     }
 
-    /** Create a [PsiArrayTypeItem]. */
+    /** Create an [ArrayTypeItem]. */
     private fun createArrayTypeItem(
         psiType: PsiArrayType,
         kotlinType: KotlinTypeInfo?,
@@ -464,7 +466,7 @@ internal class PsiTypeItemFactory(
             kotlinTypeInfo = kotlinType,
         )
 
-    /** Create a [PsiClassTypeItem]. */
+    /** Create a [ClassTypeItem]. */
     private fun createClassTypeItem(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
@@ -493,7 +495,7 @@ internal class PsiTypeItemFactory(
         )
     }
 
-    /** Compute the [PsiClassTypeItem.arguments]. */
+    /** Compute the [ClassTypeItem.arguments]. */
     private fun computeTypeArguments(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
@@ -625,12 +627,12 @@ internal class PsiTypeItemFactory(
         return psiTypeFromKotlin?.parameters?.toList() ?: emptyList()
     }
 
-    /** Compute the [PsiClassTypeItem.outerClassType]. */
+    /** Compute the [ClassTypeItem.outerClassType]. */
     private fun computeOuterClass(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
         creatingClassTypeForClass: Boolean = false,
-    ): PsiClassTypeItem? {
+    ): ClassTypeItem? {
         // TODO(b/300081840): this drops annotations on the outer class
         return PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no
@@ -655,7 +657,7 @@ internal class PsiTypeItemFactory(
                     contextNullability = ContextNullability.forceNonNull,
                     creatingClassTypeForClass = creatingClassTypeForClass,
                 )
-                    as PsiClassTypeItem
+                    as ClassTypeItem
             }
         }
     }
@@ -700,10 +702,10 @@ internal class PsiTypeItemFactory(
     }
 
     /**
-     * Create a [PsiLambdaTypeItem].
+     * Create a [LambdaTypeItem].
      *
-     * Extends a [PsiClassTypeItem] and then deconstructs the type arguments of Kotlin `Function<N>`
-     * to extract the receiver, input and output types. This makes heavy use of the
+     * Extends a [ClassTypeItem] and then deconstructs the type arguments of Kotlin `Function<N>` to
+     * extract the receiver, input and output types. This makes heavy use of the
      * [KotlinTypeInfo.kaType] property of [kotlinType] which must be a [KtFunctionalType]. That has
      * the information necessary to determine which of the Kotlin `Function<N>` class's type
      * arguments are the receiver (if any) and which are input parameters. The last type argument is
@@ -713,7 +715,7 @@ internal class PsiTypeItemFactory(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo,
         contextNullability: ContextNullability,
-    ): PsiLambdaTypeItem {
+    ): LambdaTypeItem {
         val qualifiedName = psiType.computeQualifiedName()
 
         val kaType = kotlinType.kaType as KaFunctionType
@@ -787,7 +789,7 @@ internal class PsiTypeItemFactory(
         )
     }
 
-    /** Create a [PsiVariableTypeItem]. */
+    /** Create a [VariableTypeItem]. */
     private fun createVariableTypeItem(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
@@ -801,7 +803,7 @@ internal class PsiTypeItemFactory(
             kotlinTypeInfo = kotlinType,
         )
 
-    /** Create a [PsiWildcardTypeItem]. */
+    /** Create a [WildcardTypeItem]. */
     private fun createWildcardTypeItem(
         psiType: PsiWildcardType,
         kotlinType: KotlinTypeInfo?,
@@ -835,7 +837,7 @@ internal class PsiTypeItemFactory(
         )
 
     /**
-     * Create a [PsiWildcardTypeItem.extendsBound] or [PsiWildcardTypeItem.superBound].
+     * Create a [WildcardTypeItem.extendsBound] or [WildcardTypeItem.superBound].
      *
      * If a [PsiWildcardType] doesn't have a bound, the bound is represented as the null [PsiType]
      * instead of just `null`.
