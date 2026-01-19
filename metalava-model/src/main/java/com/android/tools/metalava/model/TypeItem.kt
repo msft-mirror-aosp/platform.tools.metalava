@@ -827,7 +827,10 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
  */
-interface BoundsTypeItem : TypeItem, ReferenceTypeItem
+sealed interface BoundsTypeItem : TypeItem, ReferenceTypeItem {
+    /** Override to specialize the return type. */
+    override fun asErasedType(): BoundsTypeItem
+}
 
 /**
  * The type of [MethodItem.throwsTypes]'s.
@@ -1340,10 +1343,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     val asTypeParameter: TypeParameterItem
 
     /** Erasing a [VariableTypeItem] requires using the [TypeParameterItem]'s first bound. */
-    override fun asErasedType() =
-        // Temporarily down cast to ClassTypeItem as is done below.
-        // TODO(b/476956538): Remove once TypeParameterItem.asErasedType() is fixed.
-        asTypeParameter.asErasedType() as ClassTypeItem
+    override fun asErasedType() = asTypeParameter.asErasedType()
 
     override val erasedClass: ClassItem?
         get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass

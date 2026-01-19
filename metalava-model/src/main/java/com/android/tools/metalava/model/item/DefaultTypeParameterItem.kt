@@ -60,7 +60,7 @@ open class DefaultTypeParameterItem(
     override fun asErasedType() =
         // The first type bound, if any, is the erased type as defined in
         // https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.6.
-        typeBounds().firstOrNull()
+        typeBounds().firstOrNull()?.asErasedType()
             // If there is no explicit bound then default to java.lang.Object. First, try and
             // resolve the class and reuse its type.
             ?: classResolver.resolveClass(JAVA_LANG_OBJECT)?.type()

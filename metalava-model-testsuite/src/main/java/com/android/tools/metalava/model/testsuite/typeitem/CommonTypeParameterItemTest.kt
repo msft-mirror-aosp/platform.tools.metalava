@@ -20,11 +20,11 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.testing.classTypeItem
-import com.android.tools.metalava.model.testing.variableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
 
 class CommonTypeParameterItemTest : BaseModelTest() {
@@ -590,16 +590,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParameterItem = fooClass.typeParameterList.single()
             assertThat(typeParameterItem.asErasedType())
-                .isEqualTo(
-                    classTypeItem(
-                        "test.pkg.Generic",
-                        // TODO(b/476956538): Should not have any type arguments.
-                        arguments =
-                            listOf(
-                                variableTypeItem("A"),
-                            )
-                    )
-                )
+                .isEqualTo(classTypeItem("test.pkg.Generic"))
         }
     }
 
@@ -634,16 +625,12 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val erasedTypeParameters = fooClass.typeParameterList.map { it.asErasedType() }
-            assertThat(erasedTypeParameters)
-                .isEqualTo(
-                    listOf(
-                        classTypeItem("java.lang.Exception"),
-                        // TODO(b/476956538): Should also be `java.lang.Exception`.
-                        variableTypeItem("A"),
-                        variableTypeItem("B"),
-                    )
-                )
+            val exceptionTypeItem = classTypeItem("java.lang.Exception")
+            for (typeParameterItem in fooClass.typeParameterList) {
+                assertWithMessage("type parameter ${typeParameterItem.name()}")
+                    .that(typeParameterItem.asErasedType())
+                    .isEqualTo(exceptionTypeItem)
+            }
         }
     }
 }
