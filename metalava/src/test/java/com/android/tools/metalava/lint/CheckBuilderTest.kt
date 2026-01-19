@@ -47,7 +47,7 @@ class CheckBuilderTest : DriverTest() {
                 src/android/pkg/Bad.java:51: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/Bad.java:57: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
-                src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
+                src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as nested class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/test/pkg/BadClass.java:6: warning: Builder must be final: test.pkg.BadClass.Builder [StaticFinalBuilder]
                 src/test/pkg/BadInterface.java:6: warning: Builder must be final: test.pkg.BadInterface.Builder [StaticFinalBuilder]
                 """,
