@@ -130,16 +130,6 @@ interface TypeItem {
      */
     fun asErasedType(): TypeItem
 
-    /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
-    fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {
-        // Limited text based check
-        if (this == other) return true
-        val bounds =
-            (other as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map { it.toTypeString() }
-                ?: emptyList()
-        return bounds.contains(toTypeString())
-    }
-
     fun isJavaLangObject(): Boolean = false
 
     fun isString(): Boolean = false

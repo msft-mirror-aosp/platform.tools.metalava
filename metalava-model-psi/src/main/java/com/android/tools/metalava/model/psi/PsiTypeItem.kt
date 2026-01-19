@@ -35,7 +35,6 @@ import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiWildcardType
-import com.intellij.psi.util.TypeConversionUtil
 
 /** Represents a type backed by PSI */
 internal sealed class PsiTypeItem(
@@ -46,15 +45,6 @@ internal sealed class PsiTypeItem(
     /** Whether the [psiType] is originally a value class type. */
     override val isValueClassType
         get() = kotlinTypeInfo?.isValueClassType() ?: false
-
-    /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
-    override fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {
-        if (other !is PsiTypeItem) return super.isAssignableFromWithoutUnboxing(other)
-        if (this is PrimitiveTypeItem && other !is PrimitiveTypeItem) {
-            return false
-        }
-        return TypeConversionUtil.isAssignable(psiType, other.psiType)
-    }
 }
 
 /** A [PsiTypeItem] backed by a [PsiPrimitiveType]. */
