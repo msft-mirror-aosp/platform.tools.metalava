@@ -123,6 +123,13 @@ interface TypeItem {
         return this
     }
 
+    /**
+     * Return an erased form of this [TypeItem].
+     *
+     * No annotations, no type arguments, no variables.
+     */
+    fun asErasedType(): TypeItem
+
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {
         // Limited text based check
@@ -1000,6 +1007,9 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this, other)
     }
 
+    /** Erasing a [PrimitiveTypeItem] requires removing annotations. */
+    override fun asErasedType() = substitute(modifiers.withoutAnnotations())
+
     @Deprecated(
         "implementation detail of this class",
         replaceWith = ReplaceWith("substitute(modifiers)"),
@@ -1043,6 +1053,13 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
         visitor.visit(this, other)
     }
+
+    /**
+     * Erasing an [ArrayTypeItem] requires removing annotations, erasing its component type and
+     * dropping the [isVarargs] if set.
+     */
+    override fun asErasedType() =
+        substitute(modifiers.withoutAnnotations(), componentType.asErasedType(), isVarargs = false)
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [componentType] and
@@ -1164,6 +1181,13 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      * which is an interface with at most one abstract method.
      */
     fun isFunctionalType(): Boolean = error("unsupported")
+
+    /**
+     * Erasing a [ClassTypeItem] requires removing annotations and argument types and erasing its
+     * outer class type.
+     */
+    override fun asErasedType(): ClassTypeItem =
+        substitute(modifiers.withoutAnnotations(), outerClassType?.asErasedType(), emptyList())
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
@@ -1315,6 +1339,12 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /** The corresponding type parameter for this type variable. */
     val asTypeParameter: TypeParameterItem
 
+    /** Erasing a [VariableTypeItem] requires using the [TypeParameterItem]'s first bound. */
+    override fun asErasedType() =
+        // Temporarily down cast to ClassTypeItem as is done below.
+        // TODO(b/476956538): Remove once TypeParameterItem.asErasedType() is fixed.
+        asTypeParameter.asErasedType() as ClassTypeItem
+
     override val erasedClass: ClassItem?
         get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass
 
@@ -1412,6 +1442,16 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
         visitor.visit(this, other)
     }
+
+    /**
+     * Erasing a [WildcardTypeItem] does not make much sense.
+     *
+     * These can only appear in a generic class' parameters and so will be removed when that class
+     * is erased. It might be helpful to have this be erased to either [extendsBound] if present or
+     * `java.lang.Object` but there is no way to create a valid one with a [ClassResolver] and that
+     * is not available to implementations of this.
+     */
+    override fun asErasedType() = error("Erasing $this makes little sense")
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [extendsBound] and

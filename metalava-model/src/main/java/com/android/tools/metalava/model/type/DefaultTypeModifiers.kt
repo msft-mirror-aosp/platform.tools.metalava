@@ -35,6 +35,8 @@ class DefaultTypeModifiers(
             DefaultTypeModifiers(annotations, nullability)
         else this
 
+    override fun withoutAnnotations() = emptyModifiers(nullability)
+
     companion object {
         /** Get an empty (no annotations) [TypeModifiers] for [typeNullability]. */
         private fun emptyModifiers(typeNullability: TypeNullability) =

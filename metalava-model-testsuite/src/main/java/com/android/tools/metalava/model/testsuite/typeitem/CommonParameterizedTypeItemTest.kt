@@ -55,6 +55,12 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
         val kotlinType: String,
         val expectedTypeItem: TypeItem,
         val expectedAsClassName: String?,
+        val expectedAsErasedTypeItem: TypeItem = expectedTypeItem,
+        /**
+         * The [TypeItem.toErasedTypeString] must be the same as the [[TypeItem.toTypeString] of
+         * [TypeItem.asErasedType].
+         */
+        val expectedToErasedTypeString: String = expectedAsErasedTypeItem.toTypeString(),
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -103,6 +109,7 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                                 ),
                         ),
                     expectedAsClassName = "test.pkg.Generic",
+                    expectedAsErasedTypeItem = classTypeItem("test.pkg.Generic"),
                 ),
                 TestParams(
                     javaType = "String[]...",
@@ -114,6 +121,8 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                             isVarargs = true,
                         ),
                     expectedAsClassName = "java.lang.String",
+                    expectedAsErasedTypeItem =
+                        arrayTypeItem(arrayTypeItem(classTypeItem("java.lang.String"))),
                 ),
                 TestParams(
                     javaTypeParameter = "<T extends test.pkg.Generic<T>>",
@@ -131,6 +140,11 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                                 ),
                         ),
                     expectedAsClassName = "java.util.Map.Entry",
+                    expectedAsErasedTypeItem =
+                        classTypeItem(
+                            "java.util.Map.Entry",
+                            outerClassType = classTypeItem("java.util.Map"),
+                        ),
                 ),
                 TestParams(
                     javaTypeParameter = "<T>",
@@ -139,6 +153,7 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinType = "T",
                     expectedTypeItem = variableTypeItem("T"),
                     expectedAsClassName = "java.lang.Object",
+                    expectedAsErasedTypeItem = classTypeItem("java.lang.Object"),
                 ),
                 TestParams(
                     name = "T extends Generic",
@@ -148,6 +163,18 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinType = "T",
                     expectedTypeItem = variableTypeItem("T"),
                     expectedAsClassName = "test.pkg.Generic",
+                    expectedAsErasedTypeItem =
+                        classTypeItem(
+                            "test.pkg.Generic",
+                            // TODO(b/476956538): These should be erased too.
+                            arguments =
+                                listOf(
+                                    variableTypeItem("T"),
+                                ),
+                        ),
+                    // TODO(b/476956538): This should not be needed as it should match
+                    //  expectedAsErasedTypeItem above.
+                    expectedToErasedTypeString = "test.pkg.Generic",
                 ),
                 TestParams(
                     javaTypeParameter = "<T extends test.pkg.Generic<T>>",
@@ -156,6 +183,20 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinType = "Array<T>",
                     expectedTypeItem = arrayTypeItem(variableTypeItem("T")),
                     expectedAsClassName = "test.pkg.Generic",
+                    expectedAsErasedTypeItem =
+                        arrayTypeItem(
+                            classTypeItem(
+                                "test.pkg.Generic",
+                                // TODO(b/476956538): These should be erased too.
+                                arguments =
+                                    listOf(
+                                        variableTypeItem("T"),
+                                    ),
+                            )
+                        ),
+                    // TODO(b/476956538): This should not be needed as it should match
+                    //  expectedAsErasedTypeItem above.
+                    expectedToErasedTypeString = "test.pkg.Generic[]",
                 ),
                 TestParams(
                     javaType = "test.pkg.Generic<Integer>[]",
@@ -171,6 +212,7 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                             )
                         ),
                     expectedAsClassName = "test.pkg.Generic",
+                    expectedAsErasedTypeItem = arrayTypeItem(classTypeItem("test.pkg.Generic")),
                 ),
             )
 
@@ -254,5 +296,16 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
         runTypeItemTest {
             assertEquals(params.expectedAsClassName, typeItem.asClass()?.qualifiedName())
         }
+    }
+
+    @Test
+    fun `Test asErasedType`() {
+        runTypeItemTest { assertEquals(params.expectedAsErasedTypeItem, typeItem.asErasedType()) }
+    }
+
+    @Test
+    fun `Test consistency of asErasedType's toTypeString and toErasedTypeString`() {
+        val expectedErasedTypeString = params.expectedToErasedTypeString
+        runTypeItemTest { assertEquals(expectedErasedTypeString, typeItem.toErasedTypeString()) }
     }
 }
