@@ -1045,14 +1045,18 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     }
 
     /**
-     * Duplicates this type substituting in the provided [modifiers] and [componentType] in place of
-     * this instance's [modifiers] and [componentType].
+     * Duplicates this type substituting in the provided [modifiers], [componentType] and
+     * [isVarargs] in place of this instance's [modifiers], [componentType] and [isVarargs].
      */
     @Deprecated(
         "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
+        replaceWith = ReplaceWith("substitute(modifiers, componentType, isVarargs)"),
     )
-    fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem
+    fun duplicate(
+        modifiers: TypeModifiers,
+        componentType: TypeItem,
+        isVarargs: Boolean,
+    ): ArrayTypeItem
 
     override fun substitute(modifiers: TypeModifiers): ArrayTypeItem =
         substitute(modifiers, componentType)
@@ -1068,9 +1072,10 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     fun substitute(
         modifiers: TypeModifiers = this.modifiers,
         componentType: TypeItem = this.componentType,
+        isVarargs: Boolean = this.isVarargs,
     ) =
         if (modifiers !== this.modifiers || componentType !== this.componentType)
-            @Suppress("DEPRECATION") duplicate(modifiers, componentType)
+            @Suppress("DEPRECATION") duplicate(modifiers, componentType, isVarargs)
         else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ArrayTypeItem {
