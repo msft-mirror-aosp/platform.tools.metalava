@@ -17,7 +17,12 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.testing.arrayTypeItem
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.variableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
@@ -48,6 +53,7 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
         val kotlinModifiers: String? = null,
         val kotlinTypeParameter: String? = null,
         val kotlinType: String,
+        val expectedTypeItem: TypeItem,
         val expectedAsClassName: String?,
     ) {
         /**
@@ -75,22 +81,38 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                 TestParams(
                     javaType = "int",
                     kotlinType = "Int",
+                    expectedTypeItem = primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT),
                     expectedAsClassName = null,
                 ),
                 TestParams(
                     javaType = "int[]",
                     kotlinType = "IntArray",
+                    expectedTypeItem =
+                        arrayTypeItem(primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT)),
                     expectedAsClassName = null,
                 ),
                 TestParams(
                     javaType = "test.pkg.Generic<String>",
                     kotlinType = "test.pkg.Generic<String>",
+                    expectedTypeItem =
+                        classTypeItem(
+                            "test.pkg.Generic",
+                            arguments =
+                                listOf(
+                                    classTypeItem("java.lang.String"),
+                                ),
+                        ),
                     expectedAsClassName = "test.pkg.Generic",
                 ),
                 TestParams(
                     javaType = "String[]...",
                     kotlinModifiers = "vararg",
                     kotlinType = "Array<String>",
+                    expectedTypeItem =
+                        arrayTypeItem(
+                            arrayTypeItem(classTypeItem("java.lang.String")),
+                            isVarargs = true,
+                        ),
                     expectedAsClassName = "java.lang.String",
                 ),
                 TestParams(
@@ -98,6 +120,16 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     javaType = "java.util.Map.Entry<String, T>",
                     kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "java.util.Map.Entry<String, T>",
+                    expectedTypeItem =
+                        classTypeItem(
+                            "java.util.Map.Entry",
+                            outerClassType = classTypeItem("java.util.Map"),
+                            arguments =
+                                listOf(
+                                    classTypeItem("java.lang.String"),
+                                    variableTypeItem("T"),
+                                ),
+                        ),
                     expectedAsClassName = "java.util.Map.Entry",
                 ),
                 TestParams(
@@ -105,6 +137,7 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     javaType = "T",
                     kotlinTypeParameter = "<T>",
                     kotlinType = "T",
+                    expectedTypeItem = variableTypeItem("T"),
                     expectedAsClassName = "java.lang.Object",
                 ),
                 TestParams(
@@ -113,6 +146,7 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     javaType = "T",
                     kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "T",
+                    expectedTypeItem = variableTypeItem("T"),
                     expectedAsClassName = "test.pkg.Generic",
                 ),
                 TestParams(
@@ -120,11 +154,22 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     javaType = "T[]",
                     kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "Array<T>",
+                    expectedTypeItem = arrayTypeItem(variableTypeItem("T")),
                     expectedAsClassName = "test.pkg.Generic",
                 ),
                 TestParams(
                     javaType = "test.pkg.Generic<Integer>[]",
                     kotlinType = "Array<test.pkg.Generic<Int>>",
+                    expectedTypeItem =
+                        arrayTypeItem(
+                            classTypeItem(
+                                "test.pkg.Generic",
+                                arguments =
+                                    listOf(
+                                        classTypeItem("java.lang.Integer"),
+                                    ),
+                            )
+                        ),
                     expectedAsClassName = "test.pkg.Generic",
                 ),
             )
@@ -197,6 +242,11 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                 )
                 .test()
         }
+    }
+
+    @Test
+    fun `Test type`() {
+        runTypeItemTest { assertEquals(params.expectedTypeItem, typeItem) }
     }
 
     @Test
