@@ -152,12 +152,10 @@ open class DefaultClassItem(
 
     final override fun type(): ClassTypeItem {
         if (!::cachedType.isInitialized) {
-            cachedType = createClassTypeItemForThis()
+            cachedType = TypeItem.createClassTypeForClassItem(this)
         }
         return cachedType
     }
-
-    protected open fun createClassTypeItemForThis() = TypeItem.createClassTypeForClassItem(this)
 
     final override var frozen = false
         private set

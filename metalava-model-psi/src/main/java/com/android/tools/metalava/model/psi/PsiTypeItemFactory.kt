@@ -176,22 +176,6 @@ internal class PsiTypeItemFactory(
         return createTypeItem(psiType, kotlinTypeInfo, contextNullability)
     }
 
-    /** Get a [ClassTypeItem] to represent the [PsiClassItem]. */
-    fun getClassTypeForClass(psiClassItem: PsiClassItem): ClassTypeItem {
-        // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class
-        // has any type parameters then the PsiType will include references to those parameters.
-        val psiTypeWithTypeParametersIfAny = assembler.getClassType(psiClassItem.psiClass)
-        // Create a PsiTypeItemFactory that will correctly resolve any references to the class's
-        // type parameters.
-        val classTypeItemFactory = from(psiClassItem)
-        return classTypeItemFactory.createTypeItem(
-            psiTypeWithTypeParametersIfAny,
-            KotlinTypeInfo.fromContext(psiClassItem.psiClass),
-            contextNullability = ContextNullability.forceNonNull,
-            creatingClassTypeForClass = true,
-        ) as ClassTypeItem
-    }
-
     /** Get a [VariableTypeItem] to represent [PsiTypeParameterItem]. */
     fun getVariableTypeForTypeParameter(
         psiTypeParameterItem: PsiTypeParameterItem
