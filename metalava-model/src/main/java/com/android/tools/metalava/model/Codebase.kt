@@ -105,23 +105,12 @@ interface Codebase : ClassPathResolver, AnnotationContext {
     }
 
     /**
-     * Creates an annotation item for the given (fully qualified) Java source.
-     *
-     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
-     */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem?
-
-    /**
      * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
-     * a source representation of the annotation and the calling [createAnnotation].
+     * a source representation of the annotation and then calling [AnnotationItem.createFromSource].
      */
     fun createAnnotationFromAttributes(
         originalName: String,
         attributes: List<Pair<String, String>> = emptyList(),
-        context: Item? = null,
     ): AnnotationItem? {
         val source = buildString {
             append("@")
@@ -140,7 +129,7 @@ interface Codebase : ClassPathResolver, AnnotationContext {
             }
         }
 
-        return createAnnotation(source, context)
+        return AnnotationItem.createFromSource(this, source)
     }
 
     /** Reports that the given operation is unsupported for this codebase type */
