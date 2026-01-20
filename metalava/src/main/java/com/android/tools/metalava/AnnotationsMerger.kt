@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -62,9 +63,13 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.typeNullability
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.xml.parseDocument
@@ -96,6 +101,9 @@ class AnnotationsMerger(
         val apiPackageFilter: PackageFilter? = null,
         val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator? = null,
     )
+
+    /** Used for parsing annotation attribute values loaded from XML files. */
+    private val valueParser = ValueParser(codebase, TypeItemParser.forValueParser(codebase))
 
     /** Merge annotations which will appear in the output API. */
     fun mergeQualifierAnnotationsFromFiles(files: List<File>) {
@@ -823,31 +831,37 @@ class AnnotationsMerger(
     }
 
     /**
-     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
-     * a source representation of the annotation and then calling [AnnotationItem.createFromSource].
+     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by parsing
+     * each value, wrapping them in an [AnnotationAttribute] and then constructing the
+     * [AnnotationItem].
      */
     private fun createAnnotationFromAttributes(
         originalName: String,
         attributes: List<Pair<String, String>> = emptyList(),
     ): AnnotationItem? {
-        val source = buildString {
-            append("@")
-            append(originalName)
-            if (attributes.isNotEmpty()) {
-                append("(")
-                attributes.forEachIndexed { i, attribute ->
-                    if (i != 0) {
-                        append(", ")
-                    }
-                    append(attribute.first)
-                    append("=")
-                    append(attribute.second)
-                }
-                append(")")
-            }
-        }
+        // Resolve the annotation class, if possible.
+        val annotationClass = codebase.resolveClass(originalName)
 
-        return AnnotationItem.createFromSource(codebase, source)
+        // Convert the pairs of name/value strings into a list of AnnotationAttributes.
+        val annotationAttributes =
+            attributes.map { (name, sourceValue) ->
+                val attributeType = annotationClass?.methods()?.first { it.name() == name }?.type()
+                val value: Value =
+                    valueParser.parse(attributeType, sourceValue)
+                        // Throw an exception if no value could be found.
+                        ?: error(
+                            "Could not parse '$sourceValue' for attribute name '$name' in annotation '$originalName'"
+                        )
+                AnnotationAttribute.createAttribute(name, value)
+            }
+
+        // Create the annotation item.
+        return AnnotationItem.createWithAttributes(
+            codebase,
+            FileLocation.UNKNOWN,
+            originalName,
+            annotationAttributes,
+        )
     }
 
     companion object {
