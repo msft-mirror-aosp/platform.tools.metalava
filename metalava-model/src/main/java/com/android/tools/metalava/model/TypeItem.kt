@@ -207,23 +207,24 @@ interface TypeItem {
         }
 
         /**
-         * Create a [Comparator] that when given two [TypeItem] will treat them as equal if either
-         * returns `null` from [TypeItem.asClass] and will otherwise compare the two [ClassItem]s
-         * using [comparator].
+         * Create a [Comparator] that when given two [TypeItem] will try and resolve them to a
+         * [ClassItem] and if successful will compare them using [classComparator]. If unsuccessful
+         * then it will use the [fallbackComparator] to compare the [TypeItem]s directly and if that
+         * is `null` then will treat them as equal.
          *
-         * This only defines a partial ordering over [TypeItem].
+         * This only defines a partial ordering over [TypeItem]. It is the responsibility of the
+         * caller to combine it with other [Comparator]s if a total ordering is required.
          */
         private fun typeItemAsClassComparator(
-            comparator: Comparator<ClassItem>
-        ): Comparator<TypeItem> {
-            return Comparator { type1, type2 ->
-                val cls1 = type1.asClass()
-                val cls2 = type2.asClass()
-                if (cls1 != null && cls2 != null) {
-                    comparator.compare(cls1, cls2)
-                } else {
-                    0
-                }
+            classComparator: Comparator<ClassItem>,
+            fallbackComparator: Comparator<TypeItem>? = null,
+        ): Comparator<TypeItem> = Comparator { type1, type2 ->
+            val class1 = type1.asClass()
+            val class2 = type2.asClass()
+            if (class1 != null && class2 != null) {
+                classComparator.compare(class1, class2)
+            } else {
+                fallbackComparator?.compare(type1, type2) ?: 0
             }
         }
 
@@ -239,20 +240,18 @@ interface TypeItem {
             typeItemAsClassComparator(ClassItem.fullNameThenQualifierComparator)
                 .thenComparing(typeStringComparator)
 
+        /**
+         * A partial ordering over [TypeItem] using [ClassItem.fullNameComparator] to compare the
+         * result of calling [TypeItem.asClass] and if that returned `null` for either type then it
+         * will use [typeStringComparator] on the [TypeItem] directly.
+         */
         @Deprecated(
             "" +
                 "this should not be used as it only defines a partial ordering which means that the " +
                 "source order will affect the result"
         )
-        val partialComparator: Comparator<TypeItem> = Comparator { type1, type2 ->
-            val cls1 = type1.asClass()
-            val cls2 = type2.asClass()
-            if (cls1 != null && cls2 != null) {
-                ClassItem.fullNameComparator.compare(cls1, cls2)
-            } else {
-                type1.toTypeString().compareTo(type2.toTypeString())
-            }
-        }
+        val partialComparator: Comparator<TypeItem> =
+            typeItemAsClassComparator(ClassItem.fullNameComparator, typeStringComparator)
 
         /**
          * Convert a type string containing to its lambda representation or return the original.
