@@ -44,22 +44,20 @@ internal class DefaultResolvedClassTypeItem(
         if (classItem.codebase === classResolver) classItem
         else classResolver.resolveClass(qualifiedName)
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    override fun substitute(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
-    ): ClassTypeItem =
-        DefaultResolvedClassTypeItem(
-            modifiers,
-            classItem,
-            arguments,
-            outerClassType,
-            isValueClassType,
-        )
+    ) =
+        if (requiresNewInstance(modifiers, outerClassType, arguments))
+            DefaultResolvedClassTypeItem(
+                modifiers,
+                classItem,
+                arguments,
+                outerClassType,
+                isValueClassType,
+            )
+        else this
 }
 
 /**

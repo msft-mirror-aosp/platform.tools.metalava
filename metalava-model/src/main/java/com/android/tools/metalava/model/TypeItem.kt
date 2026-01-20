@@ -1055,14 +1055,7 @@ interface PrimitiveTypeItem : TypeItem {
     /** Erasing a [PrimitiveTypeItem] requires removing annotations. */
     override fun asErasedType() = substitute(modifiers.withoutAnnotations())
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers)"),
-    )
-    fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
-
-    override fun substitute(modifiers: TypeModifiers): PrimitiveTypeItem =
-        if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
+    override fun substitute(modifiers: TypeModifiers): PrimitiveTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
         // Primitive type is never affected by a type mapping so always return this.
@@ -1113,20 +1106,6 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     override fun asErasedType() =
         substitute(modifiers.withoutAnnotations(), componentType.asErasedType(), isVarargs = false)
 
-    /**
-     * Duplicates this type substituting in the provided [modifiers], [componentType] and
-     * [isVarargs] in place of this instance's [modifiers], [componentType] and [isVarargs].
-     */
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, componentType, isVarargs)"),
-    )
-    fun duplicate(
-        modifiers: TypeModifiers,
-        componentType: TypeItem,
-        isVarargs: Boolean,
-    ): ArrayTypeItem
-
     override fun substitute(modifiers: TypeModifiers): ArrayTypeItem =
         substitute(modifiers, componentType)
 
@@ -1142,10 +1121,7 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         modifiers: TypeModifiers = this.modifiers,
         componentType: TypeItem = this.componentType,
         isVarargs: Boolean = this.isVarargs,
-    ) =
-        if (modifiers !== this.modifiers || componentType !== this.componentType)
-            @Suppress("DEPRECATION") duplicate(modifiers, componentType, isVarargs)
-        else this
+    ): ArrayTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ArrayTypeItem {
         return substitute(
@@ -1241,20 +1217,6 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun asErasedType(): ClassTypeItem =
         substitute(modifiers.withoutAnnotations(), outerClassType?.asErasedType(), emptyList())
 
-    /**
-     * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
-     * [arguments] in place of this instance's [modifiers], [outerClassType] and [arguments].
-     */
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    fun duplicate(
-        modifiers: TypeModifiers,
-        outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>,
-    ): ClassTypeItem
-
     override fun substitute(modifiers: TypeModifiers): ClassTypeItem =
         substitute(modifiers, outerClassType, arguments)
 
@@ -1270,14 +1232,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         modifiers: TypeModifiers = this.modifiers,
         outerClassType: ClassTypeItem? = this.outerClassType,
         arguments: List<TypeArgumentTypeItem> = this.arguments,
-    ) =
-        if (
-            modifiers !== this.modifiers ||
-                outerClassType !== this.outerClassType ||
-                arguments !== this.arguments
-        )
-            @Suppress("DEPRECATION") duplicate(modifiers, outerClassType, arguments)
-        else this
+    ): ClassTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
         return substitute(
@@ -1353,16 +1308,6 @@ interface LambdaTypeItem : ClassTypeItem {
     /** The return type. */
     val returnType: TypeItem
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)")
-    )
-    override fun duplicate(
-        modifiers: TypeModifiers,
-        outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>,
-    ): LambdaTypeItem
-
     override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
         substitute(modifiers, outerClassType, arguments)
 
@@ -1371,7 +1316,7 @@ interface LambdaTypeItem : ClassTypeItem {
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
-    ) = super.substitute(modifiers, outerClassType, arguments) as LambdaTypeItem
+    ): LambdaTypeItem
 
     override fun transform(transformer: TypeTransformer): LambdaTypeItem {
         return transformer.transform(this)
@@ -1408,14 +1353,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         visitor.visit(this, other)
     }
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers)")
-    )
-    fun duplicate(modifiers: TypeModifiers): VariableTypeItem
-
-    override fun substitute(modifiers: TypeModifiers): VariableTypeItem =
-        if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
+    override fun substitute(modifiers: TypeModifiers): VariableTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem {
         val nullability = modifiers.nullability
@@ -1498,20 +1436,6 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
      */
     override fun asErasedType() = error("Erasing $this makes little sense")
 
-    /**
-     * Duplicates this type substituting in the provided [modifiers], [extendsBound] and
-     * [superBound] in place of this instance's [modifiers], [extendsBound] and [superBound].
-     */
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, extendsBound, superBound)"),
-    )
-    fun duplicate(
-        modifiers: TypeModifiers,
-        extendsBound: ReferenceTypeItem?,
-        superBound: ReferenceTypeItem?,
-    ): WildcardTypeItem
-
     override fun substitute(modifiers: TypeModifiers): WildcardTypeItem =
         substitute(modifiers, extendsBound, superBound)
 
@@ -1527,14 +1451,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         modifiers: TypeModifiers = this.modifiers,
         extendsBound: ReferenceTypeItem? = this.extendsBound,
         superBound: ReferenceTypeItem? = this.superBound,
-    ) =
-        if (
-            modifiers !== this.modifiers ||
-                extendsBound !== this.extendsBound ||
-                superBound !== this.superBound
-        )
-            @Suppress("DEPRECATION") duplicate(modifiers, extendsBound, superBound)
-        else this
+    ): WildcardTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
         return substitute(

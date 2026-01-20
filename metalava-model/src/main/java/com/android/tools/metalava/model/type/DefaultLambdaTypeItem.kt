@@ -42,24 +42,21 @@ internal class DefaultLambdaTypeItem(
     ),
     LambdaTypeItem {
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    override fun substitute(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>
-    ): LambdaTypeItem {
-        return DefaultLambdaTypeItem(
-            qualifiedName = qualifiedName,
-            arguments = arguments,
-            outerClassType = outerClassType,
-            modifiers = modifiers,
-            isSuspend = isSuspend,
-            receiverType = receiverType,
-            parameterTypes = parameterTypes,
-            returnType = returnType,
-        )
-    }
+        arguments: List<TypeArgumentTypeItem>,
+    ): LambdaTypeItem =
+        if (requiresNewInstance(modifiers, outerClassType, arguments))
+            DefaultLambdaTypeItem(
+                modifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+                isSuspend,
+                receiverType,
+                parameterTypes,
+                returnType,
+            )
+        else this
 }

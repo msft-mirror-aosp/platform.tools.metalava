@@ -30,15 +30,32 @@ internal open class DefaultClassTypeItem(
 ) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    /**
+     * Check whether the provided [modifiers], [outerClassType] and [arguments] are different to the
+     * current values.
+     *
+     * Used by [ClassTypeItem.substitute] to determine whether it needs to create a new instance.
+     */
+    protected fun requiresNewInstance(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>
-    ): ClassTypeItem {
-        return DefaultClassTypeItem(modifiers, qualifiedName, arguments, outerClassType)
-    }
+        arguments: List<TypeArgumentTypeItem>,
+    ): Boolean =
+        modifiers !== this.modifiers ||
+            outerClassType !== this.outerClassType ||
+            arguments !== this.arguments
+
+    override fun substitute(
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>,
+    ): ClassTypeItem =
+        if (requiresNewInstance(modifiers, outerClassType, arguments)) {
+            DefaultClassTypeItem(
+                modifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+            )
+        } else this
 }
