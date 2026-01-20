@@ -790,7 +790,7 @@ data class TypeStringConfiguration(
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeArgument.
  */
-interface TypeArgumentTypeItem : TypeItem {
+sealed interface TypeArgumentTypeItem : TypeItem {
     /** Override to specialize the return type. */
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem
 
@@ -806,7 +806,7 @@ interface TypeArgumentTypeItem : TypeItem {
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-ReferenceType.
  */
-interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
+sealed interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
 
