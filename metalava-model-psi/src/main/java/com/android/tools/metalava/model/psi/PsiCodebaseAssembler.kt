@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
@@ -52,7 +51,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
-import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiClassType
@@ -154,9 +152,6 @@ internal class PsiCodebaseAssembler(
 
     internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
         getFactory().createTypeFromText(s, parent)
-
-    private fun createPsiAnnotation(s: String, parent: PsiElement? = null): PsiAnnotation =
-        getFactory().createAnnotationFromText(s, parent)
 
     internal fun findPsiPackage(pkgName: String): PsiPackage? {
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
@@ -811,14 +806,6 @@ internal class PsiCodebaseAssembler(
         }
 
         return qualifiedName.substring(0, qualifiedName.length - 1 - simpleName.length)
-    }
-
-    internal fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
-        return PsiAnnotationItem.create(psiCodebase, psiAnnotation)
     }
 
     internal fun initializeFromJar(jarFile: File) {

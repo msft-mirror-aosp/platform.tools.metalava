@@ -1096,35 +1096,59 @@ private constructor(
         }
     }
 
+    /**
+     * Check to see whether [builderClass] is following the builder pattern as defined in
+     * http://go/android-api-guidelines#builders and if it is make sure that it is following the
+     * guidelines correctly.
+     */
     private fun checkBuilder(
-        cls: ClassItem,
+        builderClass: ClassItem,
         methods: Sequence<MethodItem>,
         constructors: Sequence<ConstructorItem>,
         superClass: ClassItem?,
         interfaces: Sequence<TypeItem>,
     ) {
-        if (!cls.simpleName().endsWith("Builder")) {
+        // A class is considered to be following the builder pattern if and only if:
+        // * Its name ends with "Builder".
+        // * It directly extends `java.lang.Object` (implicitly or otherwise).
+        // * It does not implement any interfaces.
+        if (
+            !builderClass.simpleName().endsWith("Builder") ||
+                (superClass != null && !superClass.isJavaLangObject()) ||
+                interfaces.any()
+        ) {
             return
         }
-        if (superClass != null && !superClass.isJavaLangObject()) {
-            return
-        }
-        if (interfaces.any()) {
-            return
-        }
-        if (cls.isTopLevelClass()) {
+
+        // Builders must be nested class of the class they are building.
+        if (builderClass.isTopLevelClass()) {
             report(
                 TOP_LEVEL_BUILDER,
-                cls,
-                "Builder should be defined as inner class: ${cls.qualifiedName()}"
+                builderClass,
+                "Builder should be defined as nested class: ${builderClass.qualifiedName()}"
             )
         }
-        if (!cls.modifiers.isFinal()) {
-            report(STATIC_FINAL_BUILDER, cls, "Builder must be final: ${cls.qualifiedName()}")
+
+        // They must be final classes.
+        if (!builderClass.modifiers.isFinal()) {
+            report(
+                STATIC_FINAL_BUILDER,
+                builderClass,
+                "Builder must be final: ${builderClass.qualifiedName()}"
+            )
         }
-        if (!cls.modifiers.isStatic() && !cls.isTopLevelClass()) {
-            report(STATIC_FINAL_BUILDER, cls, "Builder must be static: ${cls.qualifiedName()}")
+
+        // They must be static classes.
+        if (!builderClass.modifiers.isStatic() && !builderClass.isTopLevelClass()) {
+            report(
+                STATIC_FINAL_BUILDER,
+                builderClass,
+                "Builder must be static: ${builderClass.qualifiedName()}"
+            )
         }
+
+        // Constructor arguments cannot be optional, i.e. nullable. Options properties must be set
+        // using setter methods.
         for (constructor in constructors) {
             for (arg in constructor.parameters()) {
                 if (arg.type().modifiers.isNullable) {
@@ -1136,10 +1160,11 @@ private constructor(
                 }
             }
         }
+
         // Maps each setter to a list of potential getters that would satisfy it.
         val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
-        val clsType = cls.type()
+        val builderType = builderClass.type()
 
         for (method in methods) {
             val name = method.name()
@@ -1157,13 +1182,13 @@ private constructor(
             ) {
                 val returnType = method.returnType()
                 val methodReturnsBuilderClassType =
-                    clsType.isAssignableFromWithoutUnboxing(returnType)
+                    builderType.isAssignableFromWithoutUnboxing(returnType)
                 if (!methodReturnsBuilderClassType) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
                         "Methods must return the builder object (return type " +
-                            "$clsType instead of $returnType): ${method.describe()}"
+                            "$builderType instead of $returnType): ${method.describe()}"
                     )
                 }
 
@@ -1234,8 +1259,8 @@ private constructor(
         if (builtType == null) {
             report(
                 MISSING_BUILD_METHOD,
-                cls,
-                "${cls.qualifiedName()} does not declare a `build()` method, but builder classes are expected to"
+                builderClass,
+                "${builderClass.qualifiedName()} does not declare a `build()` method, but builder classes are expected to"
             )
         }
         builtType?.asClass()?.let { builtClass ->
