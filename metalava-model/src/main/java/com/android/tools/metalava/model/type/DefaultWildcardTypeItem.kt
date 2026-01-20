@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.WildcardTypeItem
 
-class DefaultWildcardTypeItem(
+internal class DefaultWildcardTypeItem(
     modifiers: TypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,

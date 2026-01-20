@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.type.InternalTypeItemFactory
 import com.android.tools.metalava.model.utils.extractSimpleName
 import java.util.Objects
 
@@ -184,7 +185,7 @@ interface TypeItem {
         return false
     }
 
-    companion object {
+    companion object : InternalTypeItemFactory {
         /** [TypeStringConfiguration] for [toSimpleTypeString] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =
             TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)

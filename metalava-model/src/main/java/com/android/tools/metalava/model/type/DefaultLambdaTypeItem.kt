@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultLambdaTypeItem(
+internal class DefaultLambdaTypeItem(
     classResolver: ClassResolver,
     modifiers: TypeModifiers,
     qualifiedName: String,

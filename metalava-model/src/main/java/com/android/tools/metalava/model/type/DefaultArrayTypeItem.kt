@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultArrayTypeItem(
+internal class DefaultArrayTypeItem(
     modifiers: TypeModifiers,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,

@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultPrimitiveTypeItem(
+internal class DefaultPrimitiveTypeItem(
     modifiers: TypeModifiers,
     override val kind: Primitive,
     isValueClassType: Boolean = false,

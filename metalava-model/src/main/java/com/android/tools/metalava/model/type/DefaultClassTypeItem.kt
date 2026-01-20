@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-open class DefaultClassTypeItem(
+internal open class DefaultClassTypeItem(
     internal val classResolver: ClassResolver,
     modifiers: TypeModifiers,
     final override val qualifiedName: String,
