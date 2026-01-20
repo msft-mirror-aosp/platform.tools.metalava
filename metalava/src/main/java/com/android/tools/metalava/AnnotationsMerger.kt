@@ -185,7 +185,7 @@ class AnnotationsMerger(
                 val xml = file.readText()
                 mergeQualifierAnnotationsFromXml(file.path, xml)
             } catch (e: IOException) {
-                error("I/O problem during transform: $e")
+                reportError("I/O problem during transform: $e")
             }
         } else if (
             file.path.endsWith(".txt") ||
@@ -197,7 +197,7 @@ class AnnotationsMerger(
                 // Others: new signature files (e.g. kotlin-style nullness info)
                 mergeQualifierAnnotationsFromSignatureFile(file)
             } catch (e: IOException) {
-                error("I/O problem during transform: $e")
+                reportError("I/O problem during transform: $e")
             }
         }
     }
@@ -219,7 +219,7 @@ class AnnotationsMerger(
                 entry = zis.nextEntry
             }
         } catch (e: IOException) {
-            error("I/O problem during transform: $e")
+            reportError("I/O problem during transform: $e")
         } finally {
             try {
                 Closeables.close(zis, true /* swallowIOException */)
@@ -241,7 +241,7 @@ class AnnotationsMerger(
             if (e !is IOException) {
                 message += "\n" + e.stackTraceToString().prependIndent("  ")
             }
-            error(message)
+            reportError(message)
         }
     }
 
@@ -360,7 +360,8 @@ class AnnotationsMerger(
         externalCodebase.accept(visitor)
     }
 
-    internal fun error(message: String) {
+    /** Report an [Issues.INTERNAL_ERROR] without any location information. */
+    private fun reportError(message: String) {
         reporter.report(Issues.INTERNAL_ERROR, reportable = null, message)
     }
 
@@ -671,7 +672,7 @@ class AnnotationsMerger(
                                 }
                             }
                             else -> {
-                                error("Unrecognized element: " + elementName)
+                                reportError("Unrecognized element: " + elementName)
                             }
                         }
                     }
