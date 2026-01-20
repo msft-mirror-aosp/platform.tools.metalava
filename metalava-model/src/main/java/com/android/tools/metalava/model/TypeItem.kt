@@ -163,7 +163,8 @@ interface TypeItem {
     fun transform(transformer: TypeTransformer): TypeItem
 
     /** Whether this type was originally a value class type. Defaults to false if not overridden. */
-    fun isValueClassType(): Boolean = false
+    val isValueClassType
+        get() = false
 
     /**
      * Returns whether this type is SAM convertible or a Kotlin lambda.
