@@ -2006,7 +2006,7 @@ private constructor(
 
         // Only report issues with an actual type and not a generic type that extends Number as
         // there is nothing that can be done to avoid auto-boxing when using generic types.
-        val qualifiedName = (type as? ClassTypeItem)?.asClass()?.qualifiedName() ?: return
+        val qualifiedName = (type as? ClassTypeItem)?.resolveClass()?.qualifiedName() ?: return
         if (isBoxType(qualifiedName)) {
             report(AUTO_BOXING, item, "Must avoid boxed primitives (`$qualifiedName`)")
         }

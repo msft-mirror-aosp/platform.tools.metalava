@@ -1151,7 +1151,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun asClass() = resolveClass()
 
     override val erasedClass: ClassItem?
-        get() = asClass()
+        get() = resolveClass()
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -1262,7 +1262,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         // amount of Java methods with a Kotlin interface with a single abstract method from an
         // external dependency should be minimal. When using signature files, it also won't be clear
         // whether a non-fun interface was defined in Java or Kotlin.
-        val cls = asClass() ?: return false
+        val cls = resolveClass() ?: return false
         if (!cls.isInterface()) return false
         // The functional modifier will only be present on Kotlin source interfaces
         if (cls.modifiers.isFunctional()) return true

@@ -293,7 +293,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
             is ClassTypeItem ->
-                asClass()?.let { !filterReference.test(it) } == true ||
+                resolveClass()?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem ->
