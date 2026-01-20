@@ -104,34 +104,6 @@ interface Codebase : ClassPathResolver, AnnotationContext {
         visitor.visit(this)
     }
 
-    /**
-     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
-     * a source representation of the annotation and then calling [AnnotationItem.createFromSource].
-     */
-    fun createAnnotationFromAttributes(
-        originalName: String,
-        attributes: List<Pair<String, String>> = emptyList(),
-    ): AnnotationItem? {
-        val source = buildString {
-            append("@")
-            append(originalName)
-            if (attributes.isNotEmpty()) {
-                append("(")
-                attributes.forEachIndexed { i, attribute ->
-                    if (i != 0) {
-                        append(", ")
-                    }
-                    append(attribute.first)
-                    append("=")
-                    append(attribute.second)
-                }
-                append(")")
-            }
-        }
-
-        return AnnotationItem.createFromSource(this, source)
-    }
-
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing {
         error(

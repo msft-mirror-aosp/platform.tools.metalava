@@ -566,7 +566,7 @@ class AnnotationsMerger(
                 val value1 = valueElement1.getAttribute(ATTR_VAL)
                 val valName2 = valueElement2.getAttribute(ATTR_NAME)
                 val value2 = valueElement2.getAttribute(ATTR_VAL)
-                return codebase.createAnnotationFromAttributes(
+                return createAnnotationFromAttributes(
                     ANDROIDX_INT_RANGE,
                     listOf(
                         // Add "L" suffix to ensure that we don't for example interpret "-1" as
@@ -648,7 +648,7 @@ class AnnotationsMerger(
                     }
                 }
 
-                return codebase.createAnnotationFromAttributes(
+                return createAnnotationFromAttributes(
                     if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
                     attributes,
                 )
@@ -682,7 +682,7 @@ class AnnotationsMerger(
                     }
                 }
                 val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
-                return codebase.createAnnotationFromAttributes(
+                return createAnnotationFromAttributes(
                     if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF,
                     attributes,
                 )
@@ -693,12 +693,12 @@ class AnnotationsMerger(
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
                 return if (pure.isNotEmpty()) {
-                    codebase.createAnnotationFromAttributes(
+                    createAnnotationFromAttributes(
                         name,
                         listOf(TYPE_DEF_VALUE_ATTRIBUTE to value, ATTR_PURE to pure),
                     )
                 } else {
-                    codebase.createAnnotationFromAttributes(
+                    createAnnotationFromAttributes(
                         name,
                         listOf(TYPE_DEF_VALUE_ATTRIBUTE to value),
                     )
@@ -718,7 +718,7 @@ class AnnotationsMerger(
                         add(attributeName to attributeValue)
                     }
                 }
-                return codebase.createAnnotationFromAttributes(name, attributes)
+                return createAnnotationFromAttributes(name, attributes)
             }
         }
     }
@@ -819,6 +819,34 @@ class AnnotationsMerger(
         workingString = workingString.replace(AMP_ENTITY, "&")
 
         return workingString
+    }
+
+    /**
+     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
+     * a source representation of the annotation and then calling [AnnotationItem.createFromSource].
+     */
+    private fun createAnnotationFromAttributes(
+        originalName: String,
+        attributes: List<Pair<String, String>> = emptyList(),
+    ): AnnotationItem? {
+        val source = buildString {
+            append("@")
+            append(originalName)
+            if (attributes.isNotEmpty()) {
+                append("(")
+                attributes.forEachIndexed { i, attribute ->
+                    if (i != 0) {
+                        append(", ")
+                    }
+                    append(attribute.first)
+                    append("=")
+                    append(attribute.second)
+                }
+                append(")")
+            }
+        }
+
+        return AnnotationItem.createFromSource(codebase, source)
     }
 
     companion object {
