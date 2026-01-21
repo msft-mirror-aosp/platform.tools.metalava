@@ -667,34 +667,23 @@ interface ClassItem :
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: FilterPredicate): Collection<ClassTypeItem> {
-        val interfaceTypes =
-            filteredInterfaceTypes(
-                predicate,
-                LinkedHashSet(),
-                includeSelf = false,
-                includeParents = false,
-                target = this
-            )
+    fun filteredInterfaceTypes(predicate: FilterPredicate) =
+        filteredInterfaceTypes(
+            predicate,
+            LinkedHashSet(),
+            includeSelf = false,
+            includeParents = false,
+            target = this
+        )
 
-        return interfaceTypes
-    }
-
-    fun allInterfaceTypes(predicate: FilterPredicate): Collection<TypeItem> {
-        val interfaceTypes =
-            filteredInterfaceTypes(
-                predicate,
-                LinkedHashSet(),
-                includeSelf = false,
-                includeParents = true,
-                target = this
-            )
-        if (interfaceTypes.isEmpty()) {
-            return interfaceTypes
-        }
-
-        return interfaceTypes
-    }
+    fun allInterfaceTypes(predicate: FilterPredicate) =
+        filteredInterfaceTypes(
+            predicate,
+            LinkedHashSet(),
+            includeSelf = false,
+            includeParents = true,
+            target = this
+        )
 
     private fun filteredInterfaceTypes(
         predicate: FilterPredicate,
@@ -702,7 +691,7 @@ interface ClassItem :
         includeSelf: Boolean,
         includeParents: Boolean,
         target: ClassItem
-    ): LinkedHashSet<ClassTypeItem> {
+    ): Set<ClassTypeItem> {
         val superClassType = superClassType()
         if (superClassType != null) {
             val superClass = superClassType.asClass()

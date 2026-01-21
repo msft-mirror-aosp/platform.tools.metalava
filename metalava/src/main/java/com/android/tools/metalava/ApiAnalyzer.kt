@@ -306,7 +306,7 @@ class ApiAnalyzer(
         // Also generate stubs for any methods we would have inherited from abstract parents
         // All methods from super classes that (1) aren't overridden in this class already, and
         // (2) are overriding some method that is in a public interface accessible from this class.
-        val interfaces: Set<TypeItem> = cls.allInterfaceTypes(filterReference).toSet()
+        val interfaces = cls.allInterfaceTypes(filterReference).toSet()
 
         // Note that we can't just call method.superMethods() to and see whether any of their
         // containing classes are among our target APIs because it's possible that the super class
