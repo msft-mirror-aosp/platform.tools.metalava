@@ -1355,13 +1355,42 @@ private constructor(
         }
     }
 
-    private fun checkLayering(
-        cls: ClassItem,
-        callables: Sequence<CallableItem>,
-        fields: Sequence<FieldItem>
-    ) {
-        fun packageRank(pkg: PackageItem): Int {
-            return when (pkg.qualifiedName()) {
+    /** Encapsulate a [packageItem] and its associated [rank]. */
+    private class PackageRank private constructor() {
+        /**
+         * The [PackageItem].
+         *
+         * Must only be read if [rank] is not [INVALID_RANK].
+         */
+        private lateinit var packageItem: PackageItem
+
+        private var rank = INVALID_RANK
+
+        /** Construct from a [ClassItem]. */
+        constructor(classItem: ClassItem) : this() {
+            // Extract the package item from the class and get its rank.
+            packageItem = classItem.containingPackage()
+            rank = packageItem.packageRank()
+        }
+
+        /** Construct from a [TypeItem]. */
+        constructor(type: TypeItem) : this() {
+            // If `asClass()` returns `null` then return immediately. That will leave this in an
+            // invalid state so [TypeItem.packageRank] will discard it.
+            val classItem = type.asClass() ?: return
+
+            // Extract the package item from the class and get its rank.
+            packageItem = classItem.containingPackage()
+            rank = packageItem.packageRank()
+        }
+
+        /**
+         * Get the package rank for this [PackageItem].
+         *
+         * Higher means the package is more restricted about what it can depend upon.
+         */
+        private fun PackageItem.packageRank() =
+            when (qualifiedName()) {
                 "android.service",
                 "android.accessibilityservice",
                 "android.inputmethodservice",
@@ -1383,64 +1412,64 @@ private constructor(
                 "android.graphics" -> 100
                 "android.os" -> 110
                 "android.util" -> 120
-                else -> -1
+                else -> INVALID_RANK
             }
-        }
 
-        fun getTypePackage(type: TypeItem?): PackageItem? {
-            return if (type == null || type is PrimitiveTypeItem) {
-                null
-            } else {
-                type.asClass()?.containingPackage()
-            }
-        }
+        /** True if this is value. */
+        fun valid() = rank != INVALID_RANK
 
-        fun getTypeRank(type: TypeItem?): Int {
-            type ?: return -1
-            val pkg = getTypePackage(type) ?: return -1
-            return packageRank(pkg)
-        }
+        operator fun compareTo(other: PackageRank) = rank.compareTo(other.rank)
 
-        val classPackage = cls.containingPackage()
-        val classRank = packageRank(classPackage)
-        if (classRank == -1) {
-            return
+        override fun toString() = if (valid()) packageItem.toString() else "invalid"
+
+        companion object {
+            /** The invalid or unknown rank. */
+            private const val INVALID_RANK = -1
         }
+    }
+
+    /** Get the [PackageRank] for this [ClassItem], returning `null` if it could not be found. */
+    private fun ClassItem.packageRank() = PackageRank(this).takeIf { it.valid() }
+
+    /** Get the [PackageRank] for this [TypeItem], returning `null` if it could not be found. */
+    private fun TypeItem.packageRank() = PackageRank(this).takeIf { it.valid() }
+
+    private fun checkLayering(
+        cls: ClassItem,
+        callables: Sequence<CallableItem>,
+        fields: Sequence<FieldItem>
+    ) {
+        val classRank = cls.packageRank() ?: return
+
         for (field in fields) {
-            val fieldTypeRank = getTypeRank(field.type())
-            if (fieldTypeRank != -1 && fieldTypeRank < classRank) {
+            val fieldTypeRank = field.type().packageRank() ?: continue
+            if (fieldTypeRank < classRank) {
                 report(
                     PACKAGE_LAYERING,
                     field,
-                    "Field type `${field.type().toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                        field.type()
-                    )}`"
+                    "Field type `${field.type().toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$fieldTypeRank`"
                 )
             }
         }
 
         for (callable in callables) {
             val returnType = callable.returnType()
-            val returnTypeRank = getTypeRank(returnType)
-            if (returnTypeRank != -1 && returnTypeRank < classRank) {
+            val returnTypeRank = returnType.packageRank() ?: continue
+            if (returnTypeRank < classRank) {
                 report(
                     PACKAGE_LAYERING,
                     callable,
-                    "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                        returnType
-                    )}`"
+                    "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$returnTypeRank`"
                 )
             }
 
             for (parameter in callable.parameters()) {
-                val parameterTypeRank = getTypeRank(parameter.type())
-                if (parameterTypeRank != -1 && parameterTypeRank < classRank) {
+                val parameterTypeRank = parameter.type().packageRank() ?: continue
+                if (parameterTypeRank < classRank) {
                     report(
                         PACKAGE_LAYERING,
                         parameter,
-                        "Method parameter type `${parameter.type().toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                            parameter.type()
-                        )}`"
+                        "Method parameter type `${parameter.type().toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$parameterTypeRank`"
                     )
                 }
             }
