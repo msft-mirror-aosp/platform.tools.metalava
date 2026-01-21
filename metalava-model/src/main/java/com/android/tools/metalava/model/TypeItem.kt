@@ -1145,6 +1145,11 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
             return qualifiedName.substring(0, classNamePrefixEnd)
         }
 
+    /** Resolve this to a [ClassItem], if possible. */
+    fun resolveClass(): ClassItem?
+
+    override fun asClass() = resolveClass()
+
     override val erasedClass: ClassItem?
         get() = asClass()
 
