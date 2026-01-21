@@ -53,6 +53,7 @@ import com.android.tools.metalava.manifest.SetMinSdkVersion
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
@@ -1356,7 +1357,7 @@ private constructor(
     }
 
     /** Encapsulate a [packageItem] and its associated [rank]. */
-    private class PackageRank private constructor() {
+    private class PackageRank private constructor() : BaseTypeVisitor() {
         /**
          * The [PackageItem].
          *
@@ -1375,13 +1376,29 @@ private constructor(
 
         /** Construct from a [TypeItem]. */
         constructor(type: TypeItem) : this() {
-            // If `asClass()` returns `null` then return immediately. That will leave this in an
-            // invalid state so [TypeItem.packageRank] will discard it.
-            val classItem = type.asClass() ?: return
+            // Visit the [type] searching for any [ClassTypeItem] references passing in this as the
+            // visitor. This class's visitor methods will ensure that the rank and packageItem are
+            // set the highest package rank for all the classes referenced in this type. If none are
+            // found (or no packages have a valid rank) then it will leave this in an invalid state
+            // so [TypeItem.packageRank] will discard it.
+            type.accept(this)
+        }
 
-            // Extract the package item from the class and get its rank.
-            packageItem = classItem.containingPackage()
-            rank = packageItem.packageRank()
+        override fun visitClassType(classType: ClassTypeItem) {
+            val classItem = classType.resolveClass() ?: return
+            val newPackageItem = classItem.containingPackage()
+            val newRank = newPackageItem.packageRank()
+
+            // Use the rank if it is higher than the existing one.
+            if (newRank > rank) {
+                packageItem = newPackageItem
+                rank = newRank
+            }
+        }
+
+        override fun visit(variableType: VariableTypeItem) {
+            // Visit the lower type bound.
+            variableType.asErasedType().accept(this)
         }
 
         /**

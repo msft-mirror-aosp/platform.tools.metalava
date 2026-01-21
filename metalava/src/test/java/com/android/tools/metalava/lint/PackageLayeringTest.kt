@@ -38,6 +38,7 @@ class PackageLayeringTest : DriverTest() {
                     src/android/content/MyClass1.java:18: warning: Method return type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
                     src/android/content/MyClass1.java:20: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
                     src/android/content/MyClass1.java:22: warning: Method parameter type `A` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
+                    src/android/content/MyClass1.java:22: warning: Method parameter type `java.util.List<android.view.View>` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
                     src/android/content/MyClass1.java:22: warning: Method return type `android.view.View[]` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
                 """,
             sourceFiles =
