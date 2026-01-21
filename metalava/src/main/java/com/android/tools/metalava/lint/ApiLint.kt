@@ -1817,20 +1817,21 @@ private constructor(
         }
     }
 
-    /** Check whether this [TypeItem] uses the [qualifiedName] class in any way. */
-    private fun TypeItem.usesClass(qualifiedName: String): Boolean =
+    /** Check whether this [TypeItem] uses any of the [qualifiedClassNames] in any way. */
+    private fun TypeItem.usesAnyClassIn(qualifiedClassNames: Set<String>): Boolean =
         when (this) {
-            is ArrayTypeItem -> componentType.usesClass(qualifiedName)
+            is ArrayTypeItem -> componentType.usesAnyClassIn(qualifiedClassNames)
             is ClassTypeItem ->
-                this.qualifiedName == qualifiedName || arguments.any { it.usesClass(qualifiedName) }
+                qualifiedName in qualifiedClassNames ||
+                    arguments.any { it.usesAnyClassIn(qualifiedClassNames) }
             is WildcardTypeItem ->
-                extendsBound?.usesClass(qualifiedName) == true ||
-                    superBound?.usesClass(qualifiedName) == true
+                extendsBound?.usesAnyClassIn(qualifiedClassNames) == true ||
+                    superBound?.usesAnyClassIn(qualifiedClassNames) == true
             else -> false
         }
 
     private fun checkBitSet(type: TypeItem, item: Item) {
-        if (type.usesClass("java.util.BitSet")) {
+        if (type.usesAnyClassIn(HEAVY_BIT_SET_CLASSES)) {
             report(HEAVY_BIT_SET, item, "Type must not use heavy BitSet (${item.describe()})")
         }
     }
@@ -3378,6 +3379,9 @@ private constructor(
                 s = s.replace(acronym, decapitalized)
             }
         }
+
+        /** The set of heavyweight BitSet classes that are disallowed by [checkBitSet] */
+        private val HEAVY_BIT_SET_CLASSES = setOf("java.util.BitSet")
     }
 }
 
