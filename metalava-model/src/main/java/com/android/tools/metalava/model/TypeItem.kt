@@ -91,14 +91,16 @@ interface TypeItem {
 
     fun asClass(): ClassItem?
 
-    fun toSimpleType() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
+    fun toSimpleTypeString() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
 
     /**
+     * Provide a canonical string representation of this type.
+     *
      * Helper methods to compare types, especially types from signature files with types from
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
+    fun toCanonicalTypeString() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
 
     /**
      * Makes substitutions to the type based on the [typeParameterBindings]. For instance, if the
@@ -163,7 +165,8 @@ interface TypeItem {
     fun transform(transformer: TypeTransformer): TypeItem
 
     /** Whether this type was originally a value class type. Defaults to false if not overridden. */
-    fun isValueClassType(): Boolean = false
+    val isValueClassType
+        get() = false
 
     /**
      * Returns whether this type is SAM convertible or a Kotlin lambda.
@@ -185,11 +188,11 @@ interface TypeItem {
     }
 
     companion object {
-        /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
+        /** [TypeStringConfiguration] for [toSimpleTypeString] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =
             TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
 
-        /** [TypeStringConfiguration] for [toCanonicalType] to pass to [toTypeString]. */
+        /** [TypeStringConfiguration] for [toCanonicalTypeString] to pass to [toTypeString]. */
         private val CANONICAL_TYPE_CONFIGURATION =
             TypeStringConfiguration(
                 stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
