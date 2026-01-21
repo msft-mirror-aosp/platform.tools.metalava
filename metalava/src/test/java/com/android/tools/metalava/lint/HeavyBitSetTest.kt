@@ -32,10 +32,13 @@ class HeavyBitSetTest : DriverTest() {
             extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
             expectedIssues =
                 """
-                    src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
-                    src/android/pkg/MyClass.java:11: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
-                    src/android/pkg/MyClass.java:11: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
-                    src/android/pkg/MyClass.java:13: error: Type must not be heavy BitSet (method android.pkg.MyClass.array()) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:9: error: Type must not use heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:11: error: Type must not use heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:11: error: Type must not use heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:13: error: Type must not use heavy BitSet (method android.pkg.MyClass.array()) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:15: error: Type must not use heavy BitSet (method android.pkg.MyClass.collectionReturn()) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:16: error: Type must not use heavy BitSet (parameter c in android.pkg.MyClass.collectionExtends(java.util.Collection<? extends java.util.BitSet> c)) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:17: error: Type must not use heavy BitSet (parameter c in android.pkg.MyClass.collectionSuper(java.util.Collection<? super java.util.BitSet> c)) [HeavyBitSet]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =

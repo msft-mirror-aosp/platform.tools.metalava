@@ -77,6 +77,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.asInt
@@ -307,7 +308,7 @@ private constructor(
         checkCollectionsOverArrays(type, typeString, item)
         checkBoxed(type, item)
         checkIcu(type, typeString, item)
-        checkBitSet(type, typeString, item)
+        checkBitSet(type, item)
         checkHasNullability(item)
         checkUri(typeString, item)
         checkFutures(typeString, item)
@@ -1808,12 +1809,21 @@ private constructor(
         }
     }
 
-    private fun checkBitSet(type: TypeItem, typeString: String, item: Item) {
-        if (
-            typeString.startsWith("java.util.BitSet") &&
-                type.asClass()?.qualifiedName() == "java.util.BitSet"
-        ) {
-            report(HEAVY_BIT_SET, item, "Type must not be heavy BitSet (${item.describe()})")
+    /** Check whether this [TypeItem] uses the [qualifiedName] class in any way. */
+    private fun TypeItem.usesClass(qualifiedName: String): Boolean =
+        when (this) {
+            is ArrayTypeItem -> componentType.usesClass(qualifiedName)
+            is ClassTypeItem ->
+                this.qualifiedName == qualifiedName || arguments.any { it.usesClass(qualifiedName) }
+            is WildcardTypeItem ->
+                extendsBound?.usesClass(qualifiedName) == true ||
+                    superBound?.usesClass(qualifiedName) == true
+            else -> false
+        }
+
+    private fun checkBitSet(type: TypeItem, item: Item) {
+        if (type.usesClass("java.util.BitSet")) {
+            report(HEAVY_BIT_SET, item, "Type must not use heavy BitSet (${item.describe()})")
         }
     }
 
