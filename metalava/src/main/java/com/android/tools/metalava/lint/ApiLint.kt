@@ -1690,14 +1690,22 @@ private constructor(
     }
 
     /**
-     * Whether the type is a collection. To preserve legacy behavior, primitive arrays (for which
-     * [TypeItem.asClass] is null) are not considered collections but other arrays are
-     * (b/343748165).
+     * Whether the type is a collection.
+     *
+     * To preserve legacy behavior, primitive arrays are not considered collections but other arrays
+     * are (b/343748165).
      */
-    private fun TypeItem.isCollection(): Boolean {
-        val asClass = asClass() ?: return false
-        return this is ArrayTypeItem || asClass.isCollection()
-    }
+    private fun TypeItem.isCollection(): Boolean =
+        when (this) {
+            // Historically arrays are considered collections unless their innermost component type
+            // is primitive.
+            is ArrayTypeItem -> innermostComponentType() !is PrimitiveTypeItem
+            // A class reference is a collection if the referenced ClassItem is a collection.
+            is ClassTypeItem -> resolveClass()?.isCollection() == true
+            // A variable type is a collection if its erased type is a collection.
+            is VariableTypeItem -> asTypeParameter.asErasedType().isCollection()
+            else -> false
+        }
 
     private fun checkFlags(fields: Sequence<FieldItem>) {
         var known: MutableMap<String, Int>? = null

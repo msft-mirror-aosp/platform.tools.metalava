@@ -1060,6 +1060,15 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     /** Whether this array type represents a varargs parameter. */
     val isVarargs: Boolean
 
+    /** Get the innermost component type of this [ArrayTypeItem]. */
+    fun innermostComponentType(): TypeItem {
+        var type = componentType
+        while (type is ArrayTypeItem) {
+            type = type.componentType
+        }
+        return type
+    }
+
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
