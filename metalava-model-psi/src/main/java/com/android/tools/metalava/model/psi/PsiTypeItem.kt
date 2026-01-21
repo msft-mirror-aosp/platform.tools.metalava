@@ -114,7 +114,7 @@ internal open class PsiClassTypeItem(
     private val asClassCache by
         lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
 
-    override fun asClass() = asClassCache
+    override fun resolveClass() = asClassCache
 
     override fun isFunctionalType(): Boolean {
         return LambdaUtil.isFunctionalType(psiType)
