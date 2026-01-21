@@ -55,6 +55,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -1280,11 +1281,25 @@ private constructor(
         //    here.
 
         // Resolve the built type to a class, if possible.
-        builtType?.asClass()?.let { builtClass ->
+        builtType?.builtClass()?.let { builtClass ->
             // Check to make sure it provides the expected getters.
             checkGettersOnBuiltClass(builtClass, expectedGetters)
         }
     }
+
+    /** Get the [ClassItem] being built by a build method that returned this [TypeItem]. */
+    private fun TypeItem.builtClass(): ClassItem? =
+        when (this) {
+            // The built type can either be a ClassTypeItem or a VariableTypeItem.
+            is ClassOrVariableTypeItem -> asErasedClass()
+
+            // TODO(b/477255952): This should probably be an error.
+            // If it is an array then the built class is considered to be the innermost component.
+            is ArrayTypeItem -> innermostComponentType().builtClass()
+
+            // Otherwise, there is no built class.
+            else -> null
+        }
 
     /** Check that [builtClass] provides the [expectedGetters]. */
     private fun checkGettersOnBuiltClass(
