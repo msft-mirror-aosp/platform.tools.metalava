@@ -1171,6 +1171,9 @@ private constructor(
         for (method in methods) {
             val name = method.name()
             if (name == "build") {
+                // TODO(b/477255952): Provide stricter checking of the `build` methods.
+                // * What is there are multiple matching methods? At the moment it just uses the
+                //   last one it finds.
                 builtType = method.type()
                 continue
             } else if (name.startsWith("get") || name.startsWith("is")) {
@@ -1266,27 +1269,47 @@ private constructor(
                 "${builderClass.qualifiedName()} does not declare a `build()` method, but builder classes are expected to"
             )
         }
+
+        // TODO(b/477255952): Provide stricter checking of the `build` methods.
+        // 1. What if the returned type is an array of classes? At the moment that is
+        //    allowed and this will run the check for expected getters on the innermost component.
+        // 2. What if the returned type is not a class? At the moment that is allowed but
+        //    it is not clear if that makes sense.
+        // 3. What is the built class cannot be resolved? At the moment that is allowed.
+        // 4. Types that are allowed but do not resolve to a class, e.g. primitives, are ignored
+        //    here.
+
+        // Resolve the built type to a class, if possible.
         builtType?.asClass()?.let { builtClass ->
-            val builtMethods =
-                builtClass
-                    .filteredMethods(filterReference, includeSuperClassMethods = true)
-                    .map { it.name() }
-                    .toSet()
-            for ((setter, expectedGetterNames) in expectedGetters) {
-                if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
-                    val expectedGetterCalls = expectedGetterNames.map { "$it()" }
-                    val errorString =
-                        if (expectedGetterCalls.size == 1) {
-                            "${builtClass.qualifiedName()} does not declare a " +
-                                "`${expectedGetterCalls.first()}` method matching " +
-                                setter.describe()
-                        } else {
-                            "${builtClass.qualifiedName()} does not declare a getter method " +
-                                "matching ${setter.describe()} (expected one of: " +
-                                "$expectedGetterCalls)"
-                        }
-                    report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
-                }
+            // Check to make sure it provides the expected getters.
+            checkGettersOnBuiltClass(builtClass, expectedGetters)
+        }
+    }
+
+    /** Check that [builtClass] provides the [expectedGetters]. */
+    private fun checkGettersOnBuiltClass(
+        builtClass: ClassItem,
+        expectedGetters: List<Pair<Item, Set<String>>>,
+    ) {
+        val builtMethods =
+            builtClass
+                .filteredMethods(filterReference, includeSuperClassMethods = true)
+                .map { it.name() }
+                .toSet()
+        for ((setter, expectedGetterNames) in expectedGetters) {
+            if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
+                val expectedGetterCalls = expectedGetterNames.map { "$it()" }
+                val errorString =
+                    if (expectedGetterCalls.size == 1) {
+                        "${builtClass.qualifiedName()} does not declare a " +
+                            "`${expectedGetterCalls.first()}` method matching " +
+                            setter.describe()
+                    } else {
+                        "${builtClass.qualifiedName()} does not declare a getter method " +
+                            "matching ${setter.describe()} (expected one of: " +
+                            "$expectedGetterCalls)"
+                    }
+                report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
             }
         }
     }
