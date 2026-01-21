@@ -28,9 +28,8 @@ import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 
 class ArrayCheckTest : DriverTest() {
-    @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Return collections instead of arrays`() {
+    fun `Return collections instead of arrays - java`() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
             expectedIssues =
@@ -60,6 +59,18 @@ class ArrayCheckTest : DriverTest() {
                             }
                         """
                     ),
+                    androidxNonNullSource,
+                    androidxNullableSource,
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Return collections instead of arrays - kotlin`() {
+        check(
+            sourceFiles =
+                arrayOf(
                     kotlin(
                         """
                             package test.pkg
