@@ -76,6 +76,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
@@ -1901,16 +1902,41 @@ private constructor(
         }
     }
 
-    /** Check whether this [TypeItem] uses any of the [qualifiedClassNames] in any way. */
-    private fun TypeItem.usesAnyClassIn(qualifiedClassNames: Set<String>): Boolean =
+    /**
+     * Check whether this [TypeItem] uses any of the [qualifiedClassNames] in any way.
+     *
+     * This will only check the [TypeParameterItem.typeBounds] of a
+     * [VariableTypeItem.asTypeParameter] if specifically requested. That is because when the check
+     * has to prevent any type being used it is better to check the [TypeParameterItem]s directly
+     * rather than every use as the latter would produce a lot of noise.
+     *
+     * Care has to be taken when checking [TypeParameterItem]s as they can form cycles, e.g.
+     * * in `Foo<T extends Foo<T>>` type parameter `T` depends on itself
+     * * in `Foo<A extends Foo<A, B>, B extends Foo<A, B>>` both `A` and `B` depend on each other.
+     */
+    private fun TypeItem.usesAnyClassIn(
+        qualifiedClassNames: Set<String>,
+        checkVariableTypes: Boolean = false,
+    ): Boolean =
         when (this) {
-            is ArrayTypeItem -> componentType.usesAnyClassIn(qualifiedClassNames)
+            is ArrayTypeItem ->
+                componentType.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
             is ClassTypeItem ->
                 qualifiedName in qualifiedClassNames ||
-                    arguments.any { it.usesAnyClassIn(qualifiedClassNames) }
+                    arguments.any { it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) }
             is WildcardTypeItem ->
-                extendsBound?.usesAnyClassIn(qualifiedClassNames) == true ||
-                    superBound?.usesAnyClassIn(qualifiedClassNames) == true
+                extendsBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true ||
+                    superBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true
+            // Make sure that there are no references to the class in the type parameter.
+            is VariableTypeItem ->
+                checkVariableTypes &&
+                    asTypeParameter.typeBounds().any {
+                        it.usesAnyClassIn(
+                            qualifiedClassNames,
+                            // Always set this to `true` to avoid getting trapped in a cycle.
+                            checkVariableTypes = false,
+                        )
+                    }
             else -> false
         }
 
@@ -1938,7 +1964,19 @@ private constructor(
             )
         }
         for (method in methods) {
-            if (method.returnType().asClass() == cls) {
+            // A Manager class must not be returned, in any form so report an issue if the return
+            // type contains any use of the Manager class name. That includes checking for variable
+            // types.
+            if (
+                method
+                    .returnType()
+                    .usesAnyClassIn(
+                        setOf(cls.qualifiedName()),
+                        // Make sure to check that the manager is not returned through a type
+                        // parameter.
+                        checkVariableTypes = true,
+                    )
+            ) {
                 report(
                     MANAGER_LOOKUP,
                     method,

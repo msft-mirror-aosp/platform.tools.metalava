@@ -36,6 +36,7 @@ class ManagerCheckTest : DriverTest() {
                     src/android/pkg/MyFirstManager.java:11: error: Managers must always be obtained from Context (`error1`) [ManagerLookup]
                     src/android/pkg/MyFirstManager.java:13: warning: Methods should return `List<? extends Parcelable>` instead of `Parcelable[]` to support `ParceledListSlice` under the hood: method android.pkg.MyFirstManager.error2() [ParcelableList]
                     src/android/pkg/MyFirstManager.java:13: error: Managers must always be obtained from Context (`error2`) [ManagerLookup]
+                    src/android/pkg/MyFirstManager.java:15: error: Managers must always be obtained from Context (`error3`) [ManagerLookup]
                     src/android/pkg/MySecondManager.java:8: error: Managers must always be obtained from Context (`error1`) [ManagerLookup]
                 """,
             expectedFail = DefaultLintErrorMessage,
