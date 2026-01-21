@@ -1588,28 +1588,20 @@ private constructor(
             }
         }
 
-        when (type.asClass()?.qualifiedName()) {
-            "java.util.Vector",
-            "java.util.LinkedList",
-            "java.util.ArrayList",
-            "java.util.Stack",
-            "java.util.HashMap",
-            "java.util.HashSet",
-            "android.util.ArraySet",
-            "android.util.ArrayMap" -> {
-                val where =
-                    when (item) {
-                        is MethodItem -> "Return type"
-                        is FieldItem -> "Field type"
-                        else -> "Parameter type"
-                    }
-                val erased = type.toErasedTypeString()
-                report(
-                    CONCRETE_COLLECTION,
-                    item,
-                    "$where is concrete collection (`$erased`); must be higher-level interface"
-                )
-            }
+        // If the types uses one of the concrete collection classes then it is a problem.
+        if (type.usesAnyClassIn(CONCRETE_COLLECTION_CLASSES)) {
+            val where =
+                when (item) {
+                    is MethodItem -> "Return type"
+                    is FieldItem -> "Field type"
+                    else -> "Parameter type"
+                }
+            val erased = type.toErasedTypeString()
+            report(
+                CONCRETE_COLLECTION,
+                item,
+                "$where is concrete collection (`$erased`); must be higher-level interface"
+            )
         }
     }
 
@@ -3382,6 +3374,19 @@ private constructor(
 
         /** The set of heavyweight BitSet classes that are disallowed by [checkBitSet] */
         private val HEAVY_BIT_SET_CLASSES = setOf("java.util.BitSet")
+
+        /** The set of concrete classes that are disallowed by [checkCollections] */
+        private val CONCRETE_COLLECTION_CLASSES =
+            setOf(
+                "java.util.Vector",
+                "java.util.LinkedList",
+                "java.util.ArrayList",
+                "java.util.Stack",
+                "java.util.HashMap",
+                "java.util.HashSet",
+                "android.util.ArraySet",
+                "android.util.ArrayMap",
+            )
     }
 }
 
