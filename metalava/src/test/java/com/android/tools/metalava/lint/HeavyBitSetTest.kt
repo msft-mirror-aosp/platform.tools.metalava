@@ -17,7 +17,9 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -26,11 +28,14 @@ class HeavyBitSetTest : DriverTest() {
     fun `Check no usages of heavy BitSet`() {
         check(
             apiLint = "", // enabled
+            // Ignore other issues.
+            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
             expectedIssues =
                 """
-                    src/android/pkg/MyClass.java:7: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
-                    src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
-                    src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:11: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:11: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
+                    src/android/pkg/MyClass.java:13: error: Type must not be heavy BitSet (method android.pkg.MyClass.array()) [HeavyBitSet]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -38,17 +43,26 @@ class HeavyBitSetTest : DriverTest() {
                     java(
                         """
                             package android.pkg;
+                            import androidx.annotation.NonNull;
                             import androidx.annotation.Nullable;
                             import java.util.BitSet;
+                            import java.util.Collection;
 
                             public class MyClass {
                                 @Nullable
                                 public final BitSet bitset;
                                 @Nullable
                                 public BitSet reverse(@Nullable BitSet bitset) { return null; }
+                                @NonNull
+                                public BitSet[] array() { return null; }
+                                @NonNull
+                                public Collection<BitSet> collectionReturn() { return null; }
+                                public void collectionExtends(@Nullable Collection<? extends BitSet> c) { }
+                                public void collectionSuper(@Nullable Collection<? super BitSet> c) { }
                             }
                         """
                     ),
+                    androidxNonNullSource,
                     androidxNullableSource,
                 ),
         )
