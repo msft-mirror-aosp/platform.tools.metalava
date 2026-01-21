@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -767,11 +768,10 @@ class CompatibilityCheck(
                         // exactly the same.
                         return old.asTypeParameter.typeBounds() == new.asTypeParameter.typeBounds()
                     }
-
-                    else -> {
+                    is ClassTypeItem -> {
                         // Resolve the old type to the class. If it cannot be resolved then assume
                         // that they are not compatible.
-                        val oldClass = old.asClass() ?: return false
+                        val oldClass = old.resolveClass() ?: return false
 
                         // If the old return type was not parameterized but the new return type is,
                         // the new type parameter must have the old return type in its bounds
@@ -783,7 +783,7 @@ class CompatibilityCheck(
                         for (constraint in constraints) {
                             // Resolve one of the new constraints to its class. If it cannot be
                             // resolved then assume that it is not compatible.
-                            val newClass = constraint.asClass() ?: return false
+                            val newClass = constraint.asErasedClass() ?: return false
 
                             // If the new class constraint is not a super type of the old class
                             // then it is not compatible.
@@ -795,6 +795,11 @@ class CompatibilityCheck(
                         // The old class is compatible with all the constraints so the change of
                         // return types does not affect compatibility.
                         return true
+                    }
+                    else -> {
+                        // A new VariableTypeItem cannot be compatible with anything other than an
+                        // old ClassTypeItem or VariableTypeItem.
+                        return false
                     }
                 }
             }

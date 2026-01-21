@@ -153,8 +153,6 @@ class MethodCompatibilityCheckTest : DriverTest() {
     fun `Incompatible method change -- return types`() {
         check(
             expectedIssues =
-                // TODO(b/447588621): method10 changed its return type from `Number[]` to
-                //  `U extends Number` which is incompatible but that is not caught here.
                 """
                     src/test/pkg/MyClass.java:5: error: Binary breaking change: Method test.pkg.MyClass.method1 has changed return type from float to int [ChangedType]
                     src/test/pkg/MyClass.java:6: error: Binary breaking change: Method test.pkg.MyClass.method2 has changed return type from java.util.List<java.lang.Number> to java.util.List<java.lang.Integer> [ChangedType]
@@ -163,6 +161,7 @@ class MethodCompatibilityCheckTest : DriverTest() {
                     src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method5 has changed return type from java.lang.String[] to java.lang.String[][] [ChangedType]
                     src/test/pkg/MyClass.java:11: error: Binary breaking change: Method test.pkg.MyClass.method7 has changed return type from T (extends java.lang.Number) to java.lang.Number [ChangedType]
                     src/test/pkg/MyClass.java:13: error: Binary breaking change: Method test.pkg.MyClass.method9 has changed return type from X (extends java.lang.Throwable) to U (extends java.lang.Number) [ChangedType]
+                    src/test/pkg/MyClass.java:14: error: Binary breaking change: Method test.pkg.MyClass.method10 has changed return type from java.lang.Number[] to U (extends java.lang.Number) [ChangedType]
                 """,
             checkCompatibilityApiReleased =
                 """
