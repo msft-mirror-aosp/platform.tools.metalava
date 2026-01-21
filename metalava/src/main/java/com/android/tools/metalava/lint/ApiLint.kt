@@ -62,6 +62,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -2657,7 +2658,18 @@ private constructor(
     }
 
     private fun checkCollectionsOverArrays(type: TypeItem, typeString: String, item: Item) {
-        if (type !is ArrayTypeItem || (item is ParameterItem && item.isVarArgs())) {
+        // This check only applies to array types.
+        if (type !is ArrayTypeItem) {
+            return
+        }
+
+        // Vararg parameters have to use arrays.
+        if (item is ParameterItem && item.isVarArgs()) {
+            return
+        }
+
+        // Annotation classes cannot use collections and have to use arrays.
+        if (item is MethodItem && item.containingClass().isAnnotationType()) {
             return
         }
 
@@ -2665,42 +2677,33 @@ private constructor(
         // (go/android-api-guidelines#exception-for-kotlin)
         if (item.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) return
 
-        when (typeString) {
-            "java.lang.String[]",
-            "byte[]",
-            "short[]",
-            "int[]",
-            "long[]",
-            "float[]",
-            "double[]",
-            "boolean[]",
-            "char[]" -> {
-                return
-            }
-            else -> {
-                val action =
-                    when (item) {
-                        is MethodItem -> {
-                            if (item.name() == "values" && item.containingClass().isEnum()) {
-                                return
-                            }
-                            if (item.containingClass().extends("java.lang.annotation.Annotation")) {
-                                // Annotation are allowed to use arrays
-                                return
-                            }
-                            "Method should return"
-                        }
-                        is FieldItem -> "Field should be"
-                        else -> "Method parameter should be"
-                    }
-                val component = type.asClass()?.simpleName() ?: ""
-                report(
-                    ARRAY_RETURN,
-                    item,
-                    "$action Collection<$component> (or subclass) instead of raw array; was `$typeString`"
-                )
+        // Arrays of some component types are allowed.
+        val componentType = type.componentType
+        when (componentType) {
+            // Primitive arrays are allowed. (go/android-api-guidelines#exception-for-primitives)
+            is PrimitiveTypeItem -> return
+
+            // String arrays are also allowed. They are not specifically allowed in the API
+            // guidelines but there are hundreds of uses in the existing APIs so disallowing would
+            // cause issues.
+            is ClassTypeItem -> {
+                if (componentType.qualifiedName == JAVA_LANG_STRING) return
             }
         }
+
+        val action =
+            when (item) {
+                is MethodItem -> "Method should return"
+                is FieldItem -> "Field should be"
+                is ParameterItem -> "Method parameter should be"
+                else -> error("internal error: should never be called for $item")
+            }
+        val component = type.asClass()?.simpleName() ?: ""
+        report(
+            ARRAY_RETURN,
+            item,
+            "$action Collection<$component> (or subclass) instead of raw array; was `$typeString`"
+        )
     }
 
     private fun checkUserHandle(cls: ClassItem, methods: Sequence<MethodItem>) {
