@@ -34,8 +34,12 @@ class ArrayCheckTest : DriverTest() {
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
             expectedIssues =
                 """
-                    src/android/pkg/ArrayTest.java:13: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
-                    src/android/pkg/ArrayTest.java:14: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:8: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:9: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:10: warning: Method parameter should be Collection<Object> (or subclass) instead of raw array; was `T[]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:11: warning: Method parameter should be Collection<ArrayTest> (or subclass) instead of raw array; was `T[]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:12: warning: Method parameter should be Collection<> (or subclass) instead of raw array; was `byte[][]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:13: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[][]` [ArrayReturn]
                 """,
             sourceFiles =
                 arrayOf(
@@ -48,14 +52,19 @@ class ArrayCheckTest : DriverTest() {
 
                             public class ArrayTest {
                                 @NonNull
+                                public Object[] error1() { throw new RuntimeException(); }
+                                public void error2(@NonNull Number[] i) { }
+                                public <T> void error3(@NonNull T[] i) { }
+                                public <T extends ArrayTest> void error4(@NonNull T[] i) { }
+                                public void error5(@NonNull byte[][] i) { }
+                                public void error6(@NonNull Number[][] i) { }
+
+                                @NonNull
                                 public int[] ok1() { throw new RuntimeException(); }
                                 @NonNull
                                 public String[] ok2() { throw new RuntimeException(); }
                                 public void ok3(@Nullable int[] i) { }
-                                @NonNull
-                                public Object[] error1() { throw new RuntimeException(); }
-                                public void error2(@NonNull Number[] i) { }
-                                public void ok(@NonNull Number... args) { }
+                                public void ok4(@NonNull Number... args) { }
                             }
                         """
                     ),
