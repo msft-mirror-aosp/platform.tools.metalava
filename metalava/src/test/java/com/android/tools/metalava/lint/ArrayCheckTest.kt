@@ -36,10 +36,10 @@ class ArrayCheckTest : DriverTest() {
                 """
                     src/android/pkg/ArrayTest.java:8: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
                     src/android/pkg/ArrayTest.java:9: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
-                    src/android/pkg/ArrayTest.java:10: warning: Method parameter should be Collection<Object> (or subclass) instead of raw array; was `T[]` [ArrayReturn]
-                    src/android/pkg/ArrayTest.java:11: warning: Method parameter should be Collection<ArrayTest> (or subclass) instead of raw array; was `T[]` [ArrayReturn]
-                    src/android/pkg/ArrayTest.java:12: warning: Method parameter should be Collection<> (or subclass) instead of raw array; was `byte[][]` [ArrayReturn]
-                    src/android/pkg/ArrayTest.java:13: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[][]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:10: warning: Method parameter should be Collection<T> (or subclass) instead of raw array; was `T[]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:11: warning: Method parameter should be Collection<T> (or subclass) instead of raw array; was `T[]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:12: warning: Method parameter should be Collection<byte[]> (or subclass) instead of raw array; was `byte[][]` [ArrayReturn]
+                    src/android/pkg/ArrayTest.java:13: warning: Method parameter should be Collection<Number[]> (or subclass) instead of raw array; was `java.lang.Number[][]` [ArrayReturn]
                 """,
             sourceFiles =
                 arrayOf(

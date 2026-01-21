@@ -2698,7 +2698,7 @@ private constructor(
                 is ParameterItem -> "Method parameter should be"
                 else -> error("internal error: should never be called for $item")
             }
-        val component = type.asClass()?.simpleName() ?: ""
+        val component = componentType.toCanonicalTypeString()
         report(
             ARRAY_RETURN,
             item,
