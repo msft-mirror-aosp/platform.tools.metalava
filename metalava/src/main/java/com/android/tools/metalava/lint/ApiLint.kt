@@ -1574,8 +1574,18 @@ private constructor(
     }
 
     private fun checkCollections(type: TypeItem, item: Item) {
+        // Primitive types cannot be collections.
         if (type is PrimitiveTypeItem) {
             return
+        }
+
+        // The bundle class is allowed to use ArrayList for legacy reasons. This is not an Android
+        // API council guideline but is rather a pragmatic exception due to it using ArrayList
+        // since creation.
+        if (item.containingClass()?.qualifiedName() == "android.os.Bundle") {
+            if (type is ClassTypeItem && type.qualifiedName == "java.util.ArrayList") {
+                return
+            }
         }
 
         when (type.asClass()?.qualifiedName()) {
@@ -1587,9 +1597,6 @@ private constructor(
             "java.util.HashSet",
             "android.util.ArraySet",
             "android.util.ArrayMap" -> {
-                if (item.containingClass()?.qualifiedName() == "android.os.Bundle") {
-                    return
-                }
                 val where =
                     when (item) {
                         is MethodItem -> "Return type"
