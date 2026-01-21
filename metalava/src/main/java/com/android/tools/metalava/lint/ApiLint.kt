@@ -72,6 +72,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -670,11 +671,15 @@ private constructor(
             method.parameters().size == 1 &&
                 method.name().startsWith("on") &&
                 method.parameters().first().type() !is PrimitiveTypeItem &&
-                method.returnType().toTypeString() == Void.TYPE.name
+                (method.returnType() as? PrimitiveTypeItem)?.kind == Primitive.VOID
 
         if (!methods.all(::isSingleParamCallbackMethod)) return
 
-        fun TypeItem.extendsThrowable() = asClass()?.extends(JAVA_LANG_THROWABLE) ?: false
+        fun TypeItem.extendsThrowable() =
+            // The only types that can represent a Throwable are either a type parameter or class.
+            (this as? ClassOrVariableTypeItem)?.asErasedClass()?.extends(JAVA_LANG_THROWABLE) ==
+                true
+
         fun isErrorMethod(method: MethodItem) =
             method.name().run { startsWith("onError") || startsWith("onFail") } &&
                 method.parameters().first().type().extendsThrowable()

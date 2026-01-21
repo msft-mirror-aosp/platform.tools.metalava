@@ -30,12 +30,10 @@ class GenericCallbacksTest : DriverTest() {
             // Ignore other issues.
             extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
             expectedIssues =
-                // TODO(b/477515664): The Ok4Listener case should not be listed.
                 """
                     src/android/pkg/Cases.java:8: error: Cases.BadCallback can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
                     src/android/pkg/Cases.java:12: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
                     src/android/pkg/Cases.java:16: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                    src/android/pkg/Cases.java:33: error: Cases.Ok4Listener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
