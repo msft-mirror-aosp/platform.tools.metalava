@@ -91,7 +91,7 @@ interface TypeItem {
 
     fun asClass(): ClassItem?
 
-    fun toSimpleType() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
+    fun toSimpleTypeString() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
 
     /**
      * Provide a canonical string representation of this type.
@@ -188,7 +188,7 @@ interface TypeItem {
     }
 
     companion object {
-        /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
+        /** [TypeStringConfiguration] for [toSimpleTypeString] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =
             TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
 
