@@ -37,6 +37,10 @@ object WellKnownTypes {
     /** Get a [TypeNullability.PLATFORM] [ClassTypeItem] for [this] name. */
     internal fun String.platformClassType() = wellKnownType(this, TypeNullability.PLATFORM)
 
+    val JAVA_LANG_ANNOTATION_NON_NULL_TYPE = JAVA_LANG_ANNOTATION.nonNullClassType()
+
+    val JAVA_LANG_ENUM_NON_NULL_TYPE = JAVA_LANG_ENUM.nonNullClassType()
+
     val JAVA_LANG_OBJECT_PLATFORM_TYPE = JAVA_LANG_OBJECT.platformClassType()
     val JAVA_LANG_OBJECT_NON_NULL_TYPE = JAVA_LANG_OBJECT.nonNullClassType()
 }
