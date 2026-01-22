@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -95,7 +95,7 @@ internal class PsiArrayTypeItem(
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that does not represent a type variable. */
 internal open class PsiClassTypeItem(
-    protected val codebase: Codebase,
+    protected val classResolver: ClassResolver,
     psiType: PsiType,
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
@@ -106,7 +106,7 @@ internal open class PsiClassTypeItem(
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
-        lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
+        lazy(LazyThreadSafetyMode.NONE) { classResolver.resolveClass(qualifiedName) }
 
     override fun resolveClass() = asClassCache
 
@@ -124,7 +124,7 @@ internal open class PsiClassTypeItem(
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem =
         PsiClassTypeItem(
-            codebase = codebase,
+            classResolver = classResolver,
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = arguments,
@@ -135,7 +135,7 @@ internal open class PsiClassTypeItem(
 }
 
 internal class PsiLambdaTypeItem(
-    codebase: Codebase,
+    classResolver: ClassResolver,
     psiType: PsiType,
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
@@ -148,7 +148,7 @@ internal class PsiLambdaTypeItem(
     kotlinTypeInfo: KotlinTypeInfo?,
 ) :
     PsiClassTypeItem(
-        codebase = codebase,
+        classResolver = classResolver,
         psiType = psiType,
         qualifiedName = qualifiedName,
         arguments = arguments,
@@ -168,7 +168,7 @@ internal class PsiLambdaTypeItem(
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem {
         return PsiLambdaTypeItem(
-            codebase = codebase,
+            classResolver = classResolver,
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = arguments,

@@ -473,7 +473,7 @@ internal class PsiTypeItemFactory(
     ): PsiClassTypeItem {
         val qualifiedName = psiType.computeQualifiedName()
         return PsiClassTypeItem(
-            codebase = codebase,
+            classResolver = codebase,
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments =
@@ -773,7 +773,7 @@ internal class PsiTypeItemFactory(
                 .toList()
 
         return PsiLambdaTypeItem(
-            codebase = codebase,
+            classResolver = codebase,
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = typeArguments,
