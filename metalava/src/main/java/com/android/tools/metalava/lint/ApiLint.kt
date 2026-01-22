@@ -1411,7 +1411,7 @@ private constructor(
             if (fieldTypeRank != -1 && fieldTypeRank < classRank) {
                 report(
                     PACKAGE_LAYERING,
-                    cls,
+                    field,
                     "Field type `${field.type().toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
                         field.type()
                     )}`"
@@ -1425,7 +1425,7 @@ private constructor(
             if (returnTypeRank != -1 && returnTypeRank < classRank) {
                 report(
                     PACKAGE_LAYERING,
-                    cls,
+                    callable,
                     "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
                         returnType
                     )}`"
@@ -1437,7 +1437,7 @@ private constructor(
                 if (parameterTypeRank != -1 && parameterTypeRank < classRank) {
                     report(
                         PACKAGE_LAYERING,
-                        cls,
+                        parameter,
                         "Method parameter type `${parameter.type().toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
                             parameter.type()
                         )}`"
