@@ -18,6 +18,7 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -26,11 +27,15 @@ class GenericCallbacksTest : DriverTest() {
     fun `Listener replaceable with OutcomeReceiver or ListenableFuture`() {
         check(
             apiLint = "", // enabled
+            // Ignore other issues.
+            extraArguments = arrayOf(ARG_HIDE, "ArrayReturn"),
             expectedIssues =
+                // TODO(b/477515664): The Ok4Listener case should not be listed.
                 """
-                    src/android/pkg/Cases.java:7: error: Cases.BadCallback can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                    src/android/pkg/Cases.java:11: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                    src/android/pkg/Cases.java:15: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
+                    src/android/pkg/Cases.java:8: error: Cases.BadCallback can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
+                    src/android/pkg/Cases.java:12: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
+                    src/android/pkg/Cases.java:16: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
+                    src/android/pkg/Cases.java:33: error: Cases.Ok4Listener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -41,6 +46,7 @@ class GenericCallbacksTest : DriverTest() {
 
                             import androidx.annotation.NonNull;
                             import java.io.IOException;
+                            import java.util.List;
 
                             public final class Cases {
                                 public class BadCallback {
@@ -57,16 +63,24 @@ class GenericCallbacksTest : DriverTest() {
                                 }
                                 public interface OkListener {
                                     void onResult(@NonNull Object result);
-                                    void onError(@NonNull int error);
+                                    void onError(int error);
                                 }
                                 public interface Ok2Listener {
-                                    void onResult(@NonNull int result);
+                                    void onResult(int result);
                                     void onError(@NonNull Throwable error);
                                 }
                                 public interface Ok3Listener {
                                     void onSuccess(@NonNull String result);
                                     void onOtherThing(@NonNull String result);
                                     void onFailure(@NonNull Throwable error);
+                                }
+                                public interface Ok4Listener {
+                                    void onResult(@NonNull String result);
+                                    void onError(@NonNull Throwable[] error);
+                                }
+                                public interface Ok5Listener {
+                                    void onResult(@NonNull String result);
+                                    void onError(@NonNull List<Throwable> error);
                                 }
                             }
                         """
