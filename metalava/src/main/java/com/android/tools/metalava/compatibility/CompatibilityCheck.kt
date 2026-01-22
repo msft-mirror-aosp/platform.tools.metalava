@@ -513,8 +513,9 @@ class CompatibilityCheck(
             // in this change
         }
 
+        val oldCodebase = old.codebase
         for (iface in old.interfaceTypes()) {
-            val qualifiedName = iface.resolveClass()?.qualifiedName() ?: continue
+            val qualifiedName = iface.resolveClass(oldCodebase)?.qualifiedName() ?: continue
             if (!new.implements(qualifiedName)) {
                 report(
                     Issues.REMOVED_INTERFACE,
@@ -525,8 +526,9 @@ class CompatibilityCheck(
             }
         }
 
+        val newCodebase = new.codebase
         for (iface in new.filteredInterfaceTypes(filterReference)) {
-            val qualifiedName = iface.resolveClass()?.qualifiedName() ?: continue
+            val qualifiedName = iface.resolveClass(newCodebase)?.qualifiedName() ?: continue
             if (!old.implements(qualifiedName)) {
                 report(
                     Issues.ADDED_INTERFACE,
@@ -756,11 +758,21 @@ class CompatibilityCheck(
      * TODO(b/111253910): could this also allow changes like List<T> to List<A> where A and T have
      *   equal bounds?
      */
-    private fun compatibleReturnTypes(old: TypeItem, new: TypeItem): Boolean {
+    private fun compatibleReturnTypes(
+        oldCodebase: Codebase,
+        old: TypeItem,
+        newCodebase: Codebase,
+        new: TypeItem,
+    ): Boolean {
         when (new) {
             is ArrayTypeItem ->
                 return old is ArrayTypeItem &&
-                    compatibleReturnTypes(old.componentType, new.componentType)
+                    compatibleReturnTypes(
+                        oldCodebase,
+                        old.componentType,
+                        newCodebase,
+                        new.componentType
+                    )
             is VariableTypeItem -> {
                 when (old) {
                     is VariableTypeItem -> {
@@ -771,7 +783,7 @@ class CompatibilityCheck(
                     is ClassTypeItem -> {
                         // Resolve the old type to the class. If it cannot be resolved then assume
                         // that they are not compatible.
-                        val oldClass = old.resolveClass() ?: return false
+                        val oldClass = old.resolveClass(oldCodebase) ?: return false
 
                         // If the old return type was not parameterized but the new return type is,
                         // the new type parameter must have the old return type in its bounds
@@ -783,7 +795,7 @@ class CompatibilityCheck(
                         for (constraint in constraints) {
                             // Resolve one of the new constraints to its class. If it cannot be
                             // resolved then assume that it is not compatible.
-                            val newClass = constraint.asErasedClass() ?: return false
+                            val newClass = constraint.asErasedClass(newCodebase) ?: return false
 
                             // If the new class constraint is not a super type of the old class
                             // then it is not compatible.
@@ -838,7 +850,7 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.asErasedClass() ?: continue
+            val throwableClass = throwType.asErasedClass(old.codebase) ?: continue
             if (!new.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
@@ -856,7 +868,7 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.asErasedClass() ?: continue
+            val throwableClass = throwType.asErasedClass(new.codebase) ?: continue
             if (!old.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
@@ -875,7 +887,7 @@ class CompatibilityCheck(
         val oldReturnType = old.returnType()
         val newReturnType = new.returnType()
 
-        if (!compatibleReturnTypes(oldReturnType, newReturnType)) {
+        if (!compatibleReturnTypes(old.codebase, oldReturnType, new.codebase, newReturnType)) {
             // For incompatible type variable changes, include the type bounds in the string.
             val oldTypeString = describeBounds(oldReturnType)
             val newTypeString = describeBounds(newReturnType)

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -53,7 +54,7 @@ internal class DefaultResolvedClassTypeItem(
 
     override val className = classItem.simpleName()
 
-    override fun resolveClass() = classItem
+    override fun resolveClass(classResolver: ClassResolver) = classItem
 
     @Deprecated(
         "implementation detail of this class",

@@ -178,7 +178,7 @@ interface TypeItem {
      * - Variable type with Kotlin lambda bound = true
      * - Any other type = false
      */
-    fun isSamCompatibleOrKotlinLambda(): Boolean {
+    fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // Overrides are present on ClassTypeItem, LambdaTypeItem, and VariableTypeItem
         return false
     }
@@ -868,7 +868,7 @@ sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
      * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
      * types have been erased.
      */
-    fun asErasedClass(): ClassItem?
+    fun asErasedClass(classResolver: ClassResolver): ClassItem?
 
     /**
      * The best guess of the full name, i.e. the qualified class name without the package but
@@ -1205,9 +1205,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         }
 
     /** Resolve this to a [ClassItem], if possible. */
-    fun resolveClass(): ClassItem?
+    fun resolveClass(classResolver: ClassResolver): ClassItem?
 
-    override fun asErasedClass() = resolveClass()
+    override fun asErasedClass(classResolver: ClassResolver) = resolveClass(classResolver)
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -1304,7 +1304,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, arguments)
 
-    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+    override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g. from the
         // text model b/437086600)
         if (classNamePrefix == "kotlin.jvm.functions." && className.startsWith("Function"))
@@ -1318,7 +1318,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         // amount of Java methods with a Kotlin interface with a single abstract method from an
         // external dependency should be minimal. When using signature files, it also won't be clear
         // whether a non-fun interface was defined in Java or Kotlin.
-        val cls = resolveClass() ?: return false
+        val cls = resolveClass(classResolver) ?: return false
         if (!cls.isInterface()) return false
         // The functional modifier will only be present on Kotlin source interfaces
         if (cls.modifiers.isFunctional()) return true
@@ -1377,7 +1377,7 @@ interface LambdaTypeItem : ClassTypeItem {
         return transformer.transform(this)
     }
 
-    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+    override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // This is a Kotlin lambda type
         return true
     }
@@ -1394,7 +1394,8 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /** Erasing a [VariableTypeItem] requires using the [TypeParameterItem]'s first bound. */
     override fun asErasedType() = asTypeParameter.asErasedType()
 
-    override fun asErasedClass() = asTypeParameter.asErasedType().asErasedClass()
+    override fun asErasedClass(classResolver: ClassResolver) =
+        asTypeParameter.asErasedType().asErasedClass(classResolver)
 
     override fun description() =
         "$name (extends ${this.asTypeParameter.asErasedType().description()})}"
@@ -1456,7 +1457,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun hashCodeForType(): Int = name.hashCode()
 
-    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+    override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // A variable type can be used with trailing lambda syntax if its bound is a Kotlin
         // functional type, but not if the bound is a different SAM compatible type.
         return asTypeParameter.asErasedType().let {

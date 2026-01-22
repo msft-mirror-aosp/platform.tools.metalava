@@ -35,7 +35,7 @@ internal open class DefaultClassTypeItem(
     private val asClassCache by
         lazy(LazyThreadSafetyMode.NONE) { classResolver.resolveClass(qualifiedName) }
 
-    override fun resolveClass() = asClassCache
+    override fun resolveClass(classResolver: ClassResolver) = asClassCache
 
     @Deprecated(
         "implementation detail of this class",

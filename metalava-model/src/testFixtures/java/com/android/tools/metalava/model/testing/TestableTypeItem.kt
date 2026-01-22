@@ -108,11 +108,11 @@ fun typeParameterItem(name: String, classResolver: ClassResolver = ClassResolver
     DefaultTypeParameterItem(classResolver, DefaultModifierList.create(0), name, isReified = false)
 
 /** Force the resolving of all [ClassTypeItem]s in this [TypeItem]. */
-fun TypeItem.forceResolveClasses() =
+fun TypeItem.forceResolveClasses(classResolver: ClassResolver) =
     accept(
         object : BaseTypeVisitor() {
             override fun visitClassType(classType: ClassTypeItem) {
-                classType.resolveClass()
+                classType.resolveClass(classResolver)
             }
         }
     )
