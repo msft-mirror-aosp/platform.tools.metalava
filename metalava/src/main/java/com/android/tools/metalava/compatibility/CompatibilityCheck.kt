@@ -761,27 +761,41 @@ class CompatibilityCheck(
                 return old is ArrayTypeItem &&
                     compatibleReturnTypes(old.componentType, new.componentType)
             is VariableTypeItem -> {
-                if (old is VariableTypeItem) {
-                    // If both return types are parameterized then the constraints must be
-                    // exactly the same.
-                    return old.asTypeParameter.typeBounds() == new.asTypeParameter.typeBounds()
-                } else {
-                    // If the old return type was not parameterized but the new return type is,
-                    // the new type parameter must have the old return type in its bounds
-                    // (e.g. changing return type from `String` to `T extends String` is valid).
-                    val constraints = new.asTypeParameter.typeBounds()
-                    val oldClass = old.asClass()
-                    for (constraint in constraints) {
-                        val newClass = constraint.asClass()
-                        if (
-                            oldClass == null ||
-                                newClass == null ||
-                                !oldClass.extendsOrImplements(newClass.qualifiedName())
-                        ) {
-                            return false
-                        }
+                when (old) {
+                    is VariableTypeItem -> {
+                        // If both return types are parameterized then the constraints must be
+                        // exactly the same.
+                        return old.asTypeParameter.typeBounds() == new.asTypeParameter.typeBounds()
                     }
-                    return true
+
+                    else -> {
+                        // Resolve the old type to the class. If it cannot be resolved then assume
+                        // that they are not compatible.
+                        val oldClass = old.asClass() ?: return false
+
+                        // If the old return type was not parameterized but the new return type is,
+                        // the new type parameter must have the old return type in its bounds
+                        // (e.g. changing return type from `String` to `T extends String` is valid).
+                        val constraints = new.asTypeParameter.typeBounds()
+
+                        // Check that all the constraints are compatible with the old type as the
+                        // type bounds form an intersection type.
+                        for (constraint in constraints) {
+                            // Resolve one of the new constraints to its class. If it cannot be
+                            // resolved then assume that it is not compatible.
+                            val newClass = constraint.asClass() ?: return false
+
+                            // If the new class constraint is not a super type of the old class
+                            // then it is not compatible.
+                            if (!oldClass.extendsOrImplements(newClass.qualifiedName())) {
+                                return false
+                            }
+                        }
+
+                        // The old class is compatible with all the constraints so the change of
+                        // return types does not affect compatibility.
+                        return true
+                    }
                 }
             }
             else -> return old == new
