@@ -90,8 +90,6 @@ interface TypeItem {
     /** Returns the internal name of the type, as seen in bytecode. */
     fun internalName(): String
 
-    fun asClass(): ClassItem?
-
     fun toSimpleTypeString() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
 
     /**
@@ -1081,8 +1079,6 @@ interface PrimitiveTypeItem : TypeItem {
     }
 
     override fun hashCodeForType(): Int = kind.hashCode()
-
-    override fun asClass(): ClassItem? = null
 }
 
 /** Represents an array type, including vararg types. */
@@ -1169,8 +1165,6 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     }
 
     override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
-
-    override fun asClass(): ClassItem? = componentType.asClass()
 }
 
 /** Represents a class type. */
@@ -1212,8 +1206,6 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     /** Resolve this to a [ClassItem], if possible. */
     fun resolveClass(): ClassItem?
-
-    override fun asClass() = resolveClass()
 
     override fun asErasedClass() = resolveClass()
 
@@ -1457,8 +1449,6 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         return transformer.transform(this)
     }
 
-    override fun asClass() = asTypeParameter.asErasedType().asClass()
-
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         return (other as? VariableTypeItem)?.name == name &&
             (!includeNullability || modifiers.nullability == other.modifiers.nullability)
@@ -1575,8 +1565,6 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     }
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
-
-    override fun asClass(): ClassItem? = null
 }
 
 /**
