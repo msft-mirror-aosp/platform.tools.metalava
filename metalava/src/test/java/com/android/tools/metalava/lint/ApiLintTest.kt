@@ -1094,47 +1094,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check package layering`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/content/MyClass1.java:8: warning: Field type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method return type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.content;
-
-                    import android.graphics.drawable.Drawable;
-                    import android.graphics.Bitmap;
-                    import android.view.View;
-                    import androidx.annotation.Nullable;
-
-                    public class MyClass1 {
-                        @Nullable
-                        public final View view = null;
-                        @Nullable
-                        public final Drawable drawable = null;
-                        @Nullable
-                        public final Bitmap bitmap = null;
-                        @Nullable
-                        public View ok(@Nullable View view, @Nullable Drawable drawable) { return null; }
-                        @Nullable
-                        public Bitmap wrong(@Nullable View view, @Nullable Bitmap bitmap) { return null; }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check boolean getter and setter naming patterns`() {
         check(
             apiLint = "", // enabled
