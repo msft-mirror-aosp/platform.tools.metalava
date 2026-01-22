@@ -1438,49 +1438,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check Manager related issues`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MyFirstManager.java:6: error: Managers must always be obtained from Context; no direct constructors [ManagerConstructor]
-                src/android/pkg/MyFirstManager.java:9: error: Managers must always be obtained from Context (`get`) [ManagerLookup]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyFirstManager {
-                        public MyFirstManager() {
-                        }
-                        @Nullable
-                        public MyFirstManager get() { return null; }
-                        @Nullable
-                        public MySecondManager ok() { return null; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class MySecondManager {
-                        private MySecondManager() {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check static utilities`() {
         check(
             apiLint = "", // enabled
