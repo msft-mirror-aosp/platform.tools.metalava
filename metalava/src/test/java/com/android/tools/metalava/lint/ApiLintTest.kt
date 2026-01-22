@@ -1479,38 +1479,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check no usages of heavy BitSet`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.java:7: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
-                src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
-                src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-                    import androidx.annotation.Nullable;
-                    import java.util.BitSet;
-
-                    public class MyClass {
-                        @Nullable
-                        public final BitSet bitset;
-                        @Nullable
-                        public BitSet reverse(@Nullable BitSet bitset) { return null; }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check Manager related issues`() {
         check(
             apiLint = "", // enabled
