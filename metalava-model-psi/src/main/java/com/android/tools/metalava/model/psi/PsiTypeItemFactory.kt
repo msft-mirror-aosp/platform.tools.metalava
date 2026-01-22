@@ -442,7 +442,6 @@ internal class PsiTypeItemFactory(
     ): ClassTypeItem {
         val qualifiedName = psiType.computeQualifiedName()
         return TypeItem.createClassType(
-            classResolver = codebase,
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             qualifiedName = qualifiedName,
             arguments =
@@ -741,7 +740,6 @@ internal class PsiTypeItemFactory(
                 .toList()
 
         return TypeItem.createLambdaType(
-            classResolver = codebase,
             modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
             qualifiedName = qualifiedName,
             arguments = typeArguments,

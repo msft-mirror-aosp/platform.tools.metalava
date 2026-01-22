@@ -86,7 +86,6 @@ internal class SnapshotTypeItemFactory(
 
     override fun transform(typeItem: ClassTypeItem) =
         TypeItem.createClassType(
-            codebase,
             typeItem.modifiers.snapshot(),
             typeItem.qualifiedName,
             typeItem.arguments.map { it.transform(this) },
@@ -95,7 +94,6 @@ internal class SnapshotTypeItemFactory(
 
     override fun transform(typeItem: LambdaTypeItem) =
         TypeItem.createLambdaType(
-            codebase,
             typeItem.modifiers.snapshot(),
             typeItem.qualifiedName,
             typeItem.arguments.map { it.transform(this) },

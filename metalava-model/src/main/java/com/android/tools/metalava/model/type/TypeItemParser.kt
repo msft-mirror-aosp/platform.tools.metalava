@@ -404,7 +404,6 @@ open class TypeItemParser(
         // Create the ClassTypeItem.
         val classType =
             TypeItem.createClassType(
-                annotationContext,
                 classModifiers,
                 qualifiedName,
                 arguments,

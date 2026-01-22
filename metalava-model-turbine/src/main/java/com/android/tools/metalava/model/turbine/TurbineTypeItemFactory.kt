@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
@@ -40,8 +39,6 @@ internal class TurbineTypeItemFactory(
     private val annotationFactory: TurbineAnnotationFactory,
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
-
-    private val codebase: DefaultCodebase = initializer.codebase
 
     override fun self() = this
 
@@ -174,7 +171,6 @@ internal class TurbineTypeItemFactory(
                 // This is case of unresolved superclass or implemented interface
                 type as Type.ErrorTy
                 TypeItem.createClassType(
-                    codebase,
                     DefaultTypeModifiers.emptyUndefinedModifiers,
                     type.name(),
                     emptyList(),
@@ -236,11 +232,10 @@ internal class TurbineTypeItemFactory(
         val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
         val classTypeItem =
             TypeItem.createClassType(
-                codebase,
                 modifiers,
                 element.qualifiedName.toString(), // Assuming qualifiedName is available on element
                 emptyList(),
-                outerClassTypeItem
+                outerClassTypeItem,
             )
         return classTypeItem
     }
@@ -262,11 +257,10 @@ internal class TurbineTypeItemFactory(
         val qualifiedName = sym.qualifiedName
         val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
         return TypeItem.createClassType(
-            codebase,
             modifiers,
             qualifiedName,
             parameters,
-            outerClassItem
+            outerClassItem,
         )
     }
 }

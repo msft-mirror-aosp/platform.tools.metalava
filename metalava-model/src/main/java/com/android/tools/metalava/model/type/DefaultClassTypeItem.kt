@@ -16,14 +16,12 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 internal open class DefaultClassTypeItem(
-    internal val classResolver: ClassResolver,
     modifiers: TypeModifiers,
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
@@ -41,12 +39,6 @@ internal open class DefaultClassTypeItem(
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
-        return DefaultClassTypeItem(
-            classResolver,
-            modifiers,
-            qualifiedName,
-            arguments,
-            outerClassType
-        )
+        return DefaultClassTypeItem(modifiers, qualifiedName, arguments, outerClassType)
     }
 }

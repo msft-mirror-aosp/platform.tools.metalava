@@ -70,7 +70,6 @@ fun classTypeItem(
     outerClassType: ClassTypeItem? = null,
 ): ClassTypeItem =
     TypeItem.createClassType(
-        ClassResolver.THROWING,
         DefaultTypeModifiers.emptyNonNullModifiers,
         qualifiedName,
         arguments,

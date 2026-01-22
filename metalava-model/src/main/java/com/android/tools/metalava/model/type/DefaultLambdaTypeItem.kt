@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -24,7 +23,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 internal class DefaultLambdaTypeItem(
-    classResolver: ClassResolver,
     modifiers: TypeModifiers,
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
@@ -36,7 +34,6 @@ internal class DefaultLambdaTypeItem(
     isValueClassType: Boolean = false,
 ) :
     DefaultClassTypeItem(
-        classResolver = classResolver,
         modifiers = modifiers,
         qualifiedName = qualifiedName,
         arguments = arguments,
@@ -55,7 +52,6 @@ internal class DefaultLambdaTypeItem(
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem {
         return DefaultLambdaTypeItem(
-            classResolver = classResolver,
             qualifiedName = qualifiedName,
             arguments = arguments,
             outerClassType = outerClassType,

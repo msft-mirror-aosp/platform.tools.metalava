@@ -65,7 +65,6 @@ open class DefaultTypeParameterItem(
             ?: classResolver.resolveClass(JAVA_LANG_OBJECT)?.type()
             // Otherwise, just create a type item for it.
             ?: TypeItem.createClassType(
-                classResolver,
                 // The nullability of the default type bound differs between Kotlin (Any?) and Java
                 // (Object!) but that does not matter here as this is the type used at runtime which
                 // ignores nullability. As nullability is required this just uses the platform as
