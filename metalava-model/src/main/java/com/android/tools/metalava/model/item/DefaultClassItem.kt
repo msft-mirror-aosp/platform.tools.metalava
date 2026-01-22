@@ -40,7 +40,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -158,8 +157,7 @@ open class DefaultClassItem(
         return cachedType
     }
 
-    protected open fun createClassTypeItemForThis() =
-        DefaultResolvedClassTypeItem.createForClass(this)
+    protected open fun createClassTypeItemForThis() = TypeItem.createClassTypeForClassItem(this)
 
     final override var frozen = false
         private set

@@ -22,11 +22,12 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultResolvedClassTypeItem(
+internal class DefaultResolvedClassTypeItem(
     modifiers: TypeModifiers,
     private val classItem: ClassItem,
     override val arguments: List<TypeArgumentTypeItem>,
-) : ClassTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
 
     override val qualifiedName = classItem.qualifiedName()
 
@@ -46,13 +47,5 @@ class DefaultResolvedClassTypeItem(
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
         return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
-    }
-
-    companion object {
-        fun createForClass(classItem: ClassItem): ClassTypeItem {
-            val arguments = classItem.typeParameterList.map { it.type() }
-            val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
-            return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
-        }
     }
 }
