@@ -1205,7 +1205,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         }
 
     /** Resolve this to a [ClassItem], if possible. */
-    fun resolveClass(classResolver: ClassResolver): ClassItem?
+    fun resolveClass(classResolver: ClassResolver) = classResolver.resolveClass(qualifiedName)
 
     override fun asErasedClass(classResolver: ClassResolver) = resolveClass(classResolver)
 

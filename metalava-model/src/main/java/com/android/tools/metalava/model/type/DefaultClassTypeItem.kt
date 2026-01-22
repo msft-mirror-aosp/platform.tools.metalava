@@ -32,11 +32,6 @@ internal open class DefaultClassTypeItem(
 ) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
-    private val asClassCache by
-        lazy(LazyThreadSafetyMode.NONE) { classResolver.resolveClass(qualifiedName) }
-
-    override fun resolveClass(classResolver: ClassResolver) = asClassCache
-
     @Deprecated(
         "implementation detail of this class",
         replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),

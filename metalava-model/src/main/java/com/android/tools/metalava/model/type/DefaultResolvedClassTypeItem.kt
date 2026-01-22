@@ -54,7 +54,11 @@ internal class DefaultResolvedClassTypeItem(
 
     override val className = classItem.simpleName()
 
-    override fun resolveClass(classResolver: ClassResolver) = classItem
+    override fun resolveClass(classResolver: ClassResolver) =
+        // If the ClassResolver is the Codebase for the classItem then just return it, otherwise
+        // resolve this by name in the ClassResolver.
+        if (classItem.codebase === classResolver) classItem
+        else classResolver.resolveClass(qualifiedName)
 
     @Deprecated(
         "implementation detail of this class",
