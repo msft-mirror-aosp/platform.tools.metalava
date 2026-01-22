@@ -820,7 +820,12 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
  * Provided as this is convenient for some code to handle these together.
  */
 sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
-    /** Override to specialize the return type. */
+    /**
+     * Override to specialize the return type.
+     *
+     * Use [asErasedClass] instead of calling [ClassTypeItem.resolveClass] on the result of this as
+     * [asErasedClass] is more efficient.
+     */
     override fun asErasedType(): ClassTypeItem
 
     /** Override to specialize the return type. */
@@ -832,7 +837,7 @@ sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
      * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
      * types have been erased.
      */
-    val erasedClass: ClassItem?
+    fun asErasedClass(): ClassItem?
 
     /**
      * The best guess of the full name, i.e. the qualified class name without the package but
@@ -1168,8 +1173,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun asClass() = resolveClass()
 
-    override val erasedClass: ClassItem?
-        get() = resolveClass()
+    override fun asErasedClass() = resolveClass()
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -1356,8 +1360,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /** Erasing a [VariableTypeItem] requires using the [TypeParameterItem]'s first bound. */
     override fun asErasedType() = asTypeParameter.asErasedType()
 
-    override val erasedClass: ClassItem?
-        get() = asTypeParameter.asErasedType().erasedClass
+    override fun asErasedClass() = asTypeParameter.asErasedType().asErasedClass()
 
     override fun description() =
         "$name (extends ${this.asTypeParameter.asErasedType().description()})}"
