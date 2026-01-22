@@ -815,21 +815,14 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
 }
 
 /**
- * The type of [TypeParameterItem]'s type bounds.
+ * The "union" of [ClassTypeItem] and [VariableTypeItem].
  *
- * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
+ * Provided as this is convenient for some code to handle these together.
  */
-sealed interface BoundsTypeItem : TypeItem, ReferenceTypeItem {
+sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
     /** Override to specialize the return type. */
     override fun asErasedType(): ClassTypeItem
-}
 
-/**
- * The type of [MethodItem.throwsTypes]'s.
- *
- * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
- */
-sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
     /** Override to specialize the return type. */
     override fun transform(transformer: TypeTransformer): ExceptionTypeItem
 
@@ -867,11 +860,34 @@ sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
     fun fullName(): String = bestGuessAtFullName(toTypeString())
 
     companion object {
-        /** A partial ordering over [ExceptionTypeItem] comparing [ExceptionTypeItem] full names. */
-        val fullNameComparator: Comparator<ExceptionTypeItem> =
+        /**
+         * A partial ordering over [ClassOrVariableTypeItem] comparing [ClassOrVariableTypeItem]
+         * full names.
+         */
+        val fullNameComparator: Comparator<ClassOrVariableTypeItem> =
             Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
     }
 }
+
+/**
+ * The "union" type of [TypeParameterItem]'s type bounds.
+ *
+ * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
+ *
+ * At the moment this is identical to [ClassOrVariableTypeItem] but it is kept as that may not
+ * always be the case.
+ */
+sealed interface BoundsTypeItem : ClassOrVariableTypeItem
+
+/**
+ * The "union" type of [MethodItem.throwsTypes]'s.
+ *
+ * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
+ *
+ * At the moment this is identical to [ClassOrVariableTypeItem] but it is kept as that may not
+ * always be the case.
+ */
+sealed interface ExceptionTypeItem : ClassOrVariableTypeItem
 
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
