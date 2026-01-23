@@ -17,6 +17,14 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with unknown field[turbine]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test type for a nested but not inner class with an outer class with type parameter[psi,java,k1]
+  Test type for a nested but not inner class with an outer class with type parameter[psi,java,k2]
+  Test type for a nested but not inner class with an outer class with type parameter[psi,kotlin,k1]
+  Test type for a nested but not inner class with an outer class with type parameter[psi,kotlin,k2]
+  Test type for a nested but not inner class with an outer class with type parameter[text]
+  Test type for a nested but not inner class with an outer class with type parameter[turbine]
+
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
 
