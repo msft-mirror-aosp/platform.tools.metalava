@@ -30,8 +30,8 @@ import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
 abstract class BaseDocCommentTest {
-    val reporter = CollatingDocumentationIssueReporter()
-    val context = TestDocCommentContext()
+    internal val reporter = CollatingDocumentationIssueReporter()
+    internal val context = TestDocCommentContext()
 
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
@@ -79,7 +79,7 @@ abstract class BaseDocCommentTest {
  * A [DocumentationIssueReporter] that collates any issues reported and returns them from
  * [toString].
  */
-class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
+internal class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
     private val list = mutableListOf<Report>()
 
     private data class Report(
@@ -117,7 +117,7 @@ class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
 }
 
 /** A test [DocCommentContext] that provides basic implementations. */
-class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
+internal class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override val mutationListener: DocCommentMutationListener
         get() = this
 
