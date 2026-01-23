@@ -153,6 +153,8 @@ class MethodCompatibilityCheckTest : DriverTest() {
     fun `Incompatible method change -- return types`() {
         check(
             expectedIssues =
+                // TODO(b/447588621): method10 changed its return type from `Number[]` to
+                //  `U extends Number` which is incompatible but that is not caught here.
                 """
                     src/test/pkg/MyClass.java:5: error: Binary breaking change: Method test.pkg.MyClass.method1 has changed return type from float to int [ChangedType]
                     src/test/pkg/MyClass.java:6: error: Binary breaking change: Method test.pkg.MyClass.method2 has changed return type from java.util.List<java.lang.Number> to java.util.List<java.lang.Integer> [ChangedType]
@@ -175,6 +177,7 @@ class MethodCompatibilityCheckTest : DriverTest() {
                           method public <X extends java.lang.Throwable> T method7(java.util.function.Supplier<? extends X>);
                           method public <X extends java.lang.Throwable> Number method8(java.util.function.Supplier<? extends X>);
                           method public <X extends java.lang.Throwable> X method9(java.util.function.Supplier<? extends X>);
+                          method public Number[] method10();
                       }
                     }
                 """,
@@ -195,6 +198,7 @@ class MethodCompatibilityCheckTest : DriverTest() {
                                 public <X extends java.lang.Throwable> Number method7(java.util.function.Supplier<? extends X> arg) { return null; }
                                 public <X extends java.lang.Throwable> U method8(java.util.function.Supplier<? extends X> arg) { return null; }
                                 public <X extends java.lang.Throwable> U method9(java.util.function.Supplier<? extends X> arg) { return null; }
+                                public U method10();
                             }
                         """
                     )
