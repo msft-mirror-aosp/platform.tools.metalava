@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -84,16 +85,11 @@ fun arrayTypeItem(componentType: TypeItem, isVarargs: Boolean = false): ArrayTyp
         isVarargs,
     )
 
-/** Create a [VariableTypeItem] for a [TypeArgumentTypeItem] called [name]. */
+/** Create a [VariableTypeItem] for a [TypeParameterItem] called [name]. */
 fun variableTypeItem(name: String): VariableTypeItem =
     TypeItem.createVariableType(
         DefaultTypeModifiers.emptyNonNullModifiers,
-        DefaultTypeParameterItem(
-            ClassResolver.THROWING,
-            DefaultModifierList.create(0),
-            name,
-            isReified = false
-        )
+        typeParameterItem(name),
     )
 
 /** Create a [WildcardTypeItem] for [extendsBound] of [superBound] . */
@@ -106,6 +102,10 @@ fun wildcardTypeItem(
         extendsBound,
         superBound,
     )
+
+/** Create a [TypeParameterItem] called [name]. */
+fun typeParameterItem(name: String, classResolver: ClassResolver = ClassResolver.THROWING) =
+    DefaultTypeParameterItem(classResolver, DefaultModifierList.create(0), name, isReified = false)
 
 /** Force the resolving of all [ClassTypeItem]s in this [TypeItem]. */
 fun TypeItem.forceResolveClasses() =
