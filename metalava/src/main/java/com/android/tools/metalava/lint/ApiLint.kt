@@ -77,6 +77,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.asInt
@@ -307,7 +308,7 @@ private constructor(
         checkCollectionsOverArrays(type, typeString, item)
         checkBoxed(type, item)
         checkIcu(type, typeString, item)
-        checkBitSet(type, typeString, item)
+        checkBitSet(type, item)
         checkHasNullability(item)
         checkUri(typeString, item)
         checkFutures(typeString, item)
@@ -1182,9 +1183,10 @@ private constructor(
                 name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")
             ) {
                 val returnType = method.returnType()
-                val methodReturnsBuilderClassType =
-                    builderType.isAssignableFromWithoutUnboxing(returnType)
-                if (!methodReturnsBuilderClassType) {
+
+                // If the return type and builder type are not equal (after erasing to handle
+                // type variables) then it is an error.
+                if (returnType.asErasedType() != builderType.asErasedType()) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -1572,35 +1574,34 @@ private constructor(
     }
 
     private fun checkCollections(type: TypeItem, item: Item) {
+        // Primitive types cannot be collections.
         if (type is PrimitiveTypeItem) {
             return
         }
 
-        when (type.asClass()?.qualifiedName()) {
-            "java.util.Vector",
-            "java.util.LinkedList",
-            "java.util.ArrayList",
-            "java.util.Stack",
-            "java.util.HashMap",
-            "java.util.HashSet",
-            "android.util.ArraySet",
-            "android.util.ArrayMap" -> {
-                if (item.containingClass()?.qualifiedName() == "android.os.Bundle") {
-                    return
-                }
-                val where =
-                    when (item) {
-                        is MethodItem -> "Return type"
-                        is FieldItem -> "Field type"
-                        else -> "Parameter type"
-                    }
-                val erased = type.toErasedTypeString()
-                report(
-                    CONCRETE_COLLECTION,
-                    item,
-                    "$where is concrete collection (`$erased`); must be higher-level interface"
-                )
+        // The bundle class is allowed to use ArrayList for legacy reasons. This is not an Android
+        // API council guideline but is rather a pragmatic exception due to it using ArrayList
+        // since creation.
+        if (item.containingClass()?.qualifiedName() == "android.os.Bundle") {
+            if (type is ClassTypeItem && type.qualifiedName == "java.util.ArrayList") {
+                return
             }
+        }
+
+        // If the types uses one of the concrete collection classes then it is a problem.
+        if (type.usesAnyClassIn(CONCRETE_COLLECTION_CLASSES)) {
+            val where =
+                when (item) {
+                    is MethodItem -> "Return type"
+                    is FieldItem -> "Field type"
+                    else -> "Parameter type"
+                }
+            val erased = type.toErasedTypeString()
+            report(
+                CONCRETE_COLLECTION,
+                item,
+                "$where is concrete collection (`$erased`); must be higher-level interface"
+            )
         }
     }
 
@@ -1808,12 +1809,22 @@ private constructor(
         }
     }
 
-    private fun checkBitSet(type: TypeItem, typeString: String, item: Item) {
-        if (
-            typeString.startsWith("java.util.BitSet") &&
-                type.asClass()?.qualifiedName() == "java.util.BitSet"
-        ) {
-            report(HEAVY_BIT_SET, item, "Type must not be heavy BitSet (${item.describe()})")
+    /** Check whether this [TypeItem] uses any of the [qualifiedClassNames] in any way. */
+    private fun TypeItem.usesAnyClassIn(qualifiedClassNames: Set<String>): Boolean =
+        when (this) {
+            is ArrayTypeItem -> componentType.usesAnyClassIn(qualifiedClassNames)
+            is ClassTypeItem ->
+                qualifiedName in qualifiedClassNames ||
+                    arguments.any { it.usesAnyClassIn(qualifiedClassNames) }
+            is WildcardTypeItem ->
+                extendsBound?.usesAnyClassIn(qualifiedClassNames) == true ||
+                    superBound?.usesAnyClassIn(qualifiedClassNames) == true
+            else -> false
+        }
+
+    private fun checkBitSet(type: TypeItem, item: Item) {
+        if (type.usesAnyClassIn(HEAVY_BIT_SET_CLASSES)) {
+            report(HEAVY_BIT_SET, item, "Type must not use heavy BitSet (${item.describe()})")
         }
     }
 
@@ -1995,7 +2006,7 @@ private constructor(
 
         // Only report issues with an actual type and not a generic type that extends Number as
         // there is nothing that can be done to avoid auto-boxing when using generic types.
-        val qualifiedName = (type as? ClassTypeItem)?.asClass()?.qualifiedName() ?: return
+        val qualifiedName = (type as? ClassTypeItem)?.resolveClass()?.qualifiedName() ?: return
         if (isBoxType(qualifiedName)) {
             report(AUTO_BOXING, item, "Must avoid boxed primitives (`$qualifiedName`)")
         }
@@ -3360,6 +3371,22 @@ private constructor(
                 s = s.replace(acronym, decapitalized)
             }
         }
+
+        /** The set of heavyweight BitSet classes that are disallowed by [checkBitSet] */
+        private val HEAVY_BIT_SET_CLASSES = setOf("java.util.BitSet")
+
+        /** The set of concrete classes that are disallowed by [checkCollections] */
+        private val CONCRETE_COLLECTION_CLASSES =
+            setOf(
+                "java.util.Vector",
+                "java.util.LinkedList",
+                "java.util.ArrayList",
+                "java.util.Stack",
+                "java.util.HashMap",
+                "java.util.HashSet",
+                "android.util.ArraySet",
+                "android.util.ArrayMap",
+            )
     }
 }
 

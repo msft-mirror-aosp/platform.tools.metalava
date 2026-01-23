@@ -40,6 +40,9 @@ interface TypeModifiers {
         annotations: List<AnnotationItem> = this.annotations,
     ): TypeModifiers
 
+    /** Return an instance of this with all the [annotations] removed. */
+    fun withoutAnnotations(): TypeModifiers
+
     /** Whether the [nullability] is [TypeNullability.NULLABLE]. */
     val isNullable
         get() = nullability == TypeNullability.NULLABLE

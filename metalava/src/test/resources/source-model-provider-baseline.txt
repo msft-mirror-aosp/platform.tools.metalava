@@ -68,9 +68,6 @@ com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
 com.android.tools.metalava.lint.ApiLintTest
   Typedef must be hidden[turbine]
 
-com.android.tools.metalava.lint.CheckBuilderTest
-  Check builders[turbine]
-
 com.android.tools.metalava.lint.FlaggedApiLintTest
   Require @FlaggedApi on API that modify annotations[turbine]
 
