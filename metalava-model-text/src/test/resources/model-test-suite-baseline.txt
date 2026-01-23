@@ -1,6 +1,3 @@
-com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test type for a nested but not inner class with an outer class with type parameter
-
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class
 

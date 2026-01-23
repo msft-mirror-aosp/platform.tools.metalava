@@ -1,9 +1,6 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with unknown field
 
-com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test type for a nested but not inner class with an outer class with type parameter
-
 com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
   Test varargs
 
