@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testing
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -104,4 +105,14 @@ fun wildcardTypeItem(
         DefaultTypeModifiers.emptyUndefinedModifiers,
         extendsBound,
         superBound,
+    )
+
+/** Force the resolving of all [ClassTypeItem]s in this [TypeItem]. */
+fun TypeItem.forceResolveClasses() =
+    accept(
+        object : BaseTypeVisitor() {
+            override fun visitClassType(classType: ClassTypeItem) {
+                classType.resolveClass()
+            }
+        }
     )
