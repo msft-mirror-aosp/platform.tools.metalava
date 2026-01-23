@@ -163,4 +163,6 @@ internal class TestDocCommentContext : DocCommentContext, DocCommentMutationList
 
     override val containingClassItem: ClassItem?
         get() = null
+
+    override val docTypeParser: DocTypeParser = DocTypeParser.create()
 }

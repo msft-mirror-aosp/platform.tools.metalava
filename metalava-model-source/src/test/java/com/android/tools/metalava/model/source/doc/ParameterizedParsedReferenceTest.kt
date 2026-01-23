@@ -432,9 +432,11 @@ class ParameterizedParsedReferenceTest {
         @JvmStatic @Parameterized.Parameters(name = "{0}") internal fun params() = params
     }
 
+    val docTypeParser = DocTypeParser.create()
+
     @Test
     fun `Test parsing`() {
-        val parsed = LabeledRefTagType.parseReference(params.reference)
+        val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)
         assertEquals(params.expectedParsed, parsed)
     }
 
@@ -442,7 +444,7 @@ class ParameterizedParsedReferenceTest {
     fun `Test normalized form`() {
         assumeNotNull(params.expectedParsed)
 
-        val parsed = LabeledRefTagType.parseReference(params.reference)
+        val parsed = LabeledRefTagType.parseReference(params.reference, docTypeParser)
         assertEquals(params.expectedNormalized, parsed!!.normalizedForm)
     }
 }

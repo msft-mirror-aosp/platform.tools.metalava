@@ -57,7 +57,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 .replace(SOME_WHITESPACE, " ")
 
         // Parse the source reference, reporting an error if it could not be done.
-        val parsedReference = parseReference(sourceReference)
+        val parsedReference = parseReference(sourceReference, context.docTypeParser)
         if (parsedReference == null) {
             reporter.report(
                 Issues.MALFORMED_DOC_REFERENCE,
@@ -190,7 +190,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         private const val RELATIVE_INDEX = 2
 
         /** Parse [sourceReference], to a [ParsedReference], or `null` if it was not valid. */
-        internal fun parseReference(sourceReference: String): ParsedReference? {
+        internal fun parseReference(
+            sourceReference: String,
+            docTypeParser: DocTypeParser
+        ): ParsedReference? {
             // Check some edge cases that are not caught by the pattrern.
             if (sourceReference == "" || sourceReference[0] == '(') return null
 
@@ -211,7 +214,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         // qualified cannot be `null` as the only way for relative to start with `(`
                         // and qualified to be `null` is if sourceReference starts with '(' but that
                         // is rejected above.
-                        val parameters = parseParameters(relative)
+                        val parameters = parseParameters(relative, docTypeParser)
                         MethodSourceReference(qualified!!, parameters)
                     }
                     relative.last() == ')' -> {
@@ -228,7 +231,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         }
 
                         val methodName = relative.substring(1, index)
-                        val parameters = parseParameters(relative.substring(index))
+                        val parameters = parseParameters(relative.substring(index), docTypeParser)
 
                         MethodSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
                     }
@@ -252,7 +255,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          * Parse [parametersWithParentheses] into a list of [SourceParameter] objects, separating
          * the parameter names and types.
          */
-        private fun parseParameters(parametersWithParentheses: String): List<SourceParameter> {
+        private fun parseParameters(
+            parametersWithParentheses: String,
+            docTypeParser: DocTypeParser
+        ): List<SourceParameter> {
             require(
                 parametersWithParentheses.first() == '(' && parametersWithParentheses.last() == ')'
             ) {
@@ -264,7 +270,8 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 while (true) {
                     // Get the next parameter, if any. Exiting the loop if there was none.
                     val (parameter, endExclusive) =
-                        parametersWithParentheses.nextParameter(startInclusive) ?: break
+                        parametersWithParentheses.nextParameter(startInclusive, docTypeParser)
+                            ?: break
 
                     // Add the parameter to the list.
                     add(parameter)
@@ -282,7 +289,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          * [SourceParameter] for it and the index of the character (',' or ')') immediately
          * following the parameter.
          */
-        fun String.nextParameter(startInclusive: Int): Pair<SourceParameter, Int>? {
+        fun String.nextParameter(
+            startInclusive: Int,
+            docTypeParser: DocTypeParser
+        ): Pair<SourceParameter, Int>? {
             var inTypeArgumentList = 0
             for (index in startInclusive until length) {
                 val c = this[index]
@@ -326,11 +336,13 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                                 skipBackwardsOverTrailingWhitespace(nameStartInclusive - 1) + 1
                             val typeString = substring(parameterStartInclusive, typeEndExclusive)
                             val name = substring(nameStartInclusive, parameterEndExclusive)
-                            SourceParameter(typeString, name)
+                            val parsedType = docTypeParser.parse(typeString)
+                            SourceParameter(parsedType, name)
                         } else {
                             val typeString =
                                 substring(parameterStartInclusive, parameterEndExclusive)
-                            SourceParameter(typeString)
+                            val parsedType = docTypeParser.parse(typeString)
+                            SourceParameter(parsedType)
                         }
 
                     return parameter to index
