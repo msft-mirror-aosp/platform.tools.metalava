@@ -39,15 +39,15 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
          */
         internal val issuePrefix: String,
     ) {
-        LINK(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:4:12: ") {
+        LINK(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:6:12: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** {@link ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
-        LINKPLAIN(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:4:17: ") {
+        LINKPLAIN(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:6:17: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** {@linkplain ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
-        SEE(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:4:10: ") {
+        SEE(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:6:10: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** @see ${referenceAndLabel(reference, linkLabel)} */\n"
         };
@@ -230,6 +230,28 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "#field",
                     expectedLinkLabel = null,
                 ),
+                TestParams(
+                    name = "intMethod(int)",
+                    // TODO(b/447588621): Should start with #
+                    expectedResolvedReference = "intMethod(int)",
+                    expectedLinkLabel = null,
+                ),
+
+                // The # is optional when referencing statically imported members. The following
+                // tests verify the behavior. Note, the result must have a leading # as that will
+                // ensure consistent behavior in tools that consume generated documentation stubs
+                // and may not handle a missing # correctly.
+                TestParams(
+                    name = "staticallyImportedField",
+                    expectedResolvedReference = "another.pkg.Imported#staticallyImportedField",
+                ),
+                TestParams(
+                    name = "staticallyImportedCollectionMethod(Collection)",
+                    // TODO(b/447588621): Should start with # and Collection should be fully
+                    //  qualified.
+                    expectedResolvedReference = "staticallyImportedCollectionMethod(Collection)",
+                    expectedLinkLabel = null,
+                ),
 
                 // Use invalid reference without a #. It will work but will be reported as an issue.
                 TestParams(
@@ -237,6 +259,20 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "test.pkg.Other#field",
                     expectedIssues =
                         "warning: Malformed reference `Other.field`, missing '#', should be 'Other#field (ErrorWhenNew) [MalformedDocReference]",
+                ),
+                TestParams(
+                    name = "Other.intMethod(int)",
+                    // TODO(b/447588621): Other should be fully qualified and the class and method
+                    //  name should be separated by a #
+                    expectedResolvedReference = "Other.intMethod(int)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "Other.collectionMethod(Collection)",
+                    // TODO(b/447588621): Other and Collection should be fully qualified and the
+                    //  class and method name should be separated by a #
+                    expectedResolvedReference = "Other.collectionMethod(Collection)",
+                    expectedLinkLabel = null,
                 ),
 
                 // Invalid reference qualifiers
@@ -437,6 +473,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
+                        import static another.pkg.Imported.staticallyImportedCollectionMethod;
+                        import static another.pkg.Imported.staticallyImportedField;
                         import another.pkg.Imported;
                         import java.util.Collection;
                         ${comment}
@@ -495,6 +533,9 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                             public void noParamsMethod() {}
                             public void intMethod(int p) {}
                             public void collectionMethod(Collection<?> p) {}
+
+                            public static int staticallyImportedField;
+                            public static void staticallyImportedCollectionMethod(Collection<?> p) {}
 
                             public class Nested {}
                         }
