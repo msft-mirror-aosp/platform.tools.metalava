@@ -1653,10 +1653,9 @@ class CommonClassItemTest : BaseModelTest() {
                 innerType.substitute(outerClassType = noArgsOuterClassType)
 
             // Make sure that the replacement actually changed the outer class type.
-            // TODO(b/477906867): This is broken.
-            assertThat(innerWithNewOuterClassType.toTypeString())
-                .isEqualTo("test.pkg.Outer<T>.Inner")
-            assertThat(innerWithNewOuterClassType.outerClassType).isSameInstanceAs(outerClassType)
+            assertThat(innerWithNewOuterClassType.toTypeString()).isEqualTo("test.pkg.Outer.Inner")
+            assertThat(innerWithNewOuterClassType.outerClassType)
+                .isSameInstanceAs(noArgsOuterClassType)
         }
     }
 
