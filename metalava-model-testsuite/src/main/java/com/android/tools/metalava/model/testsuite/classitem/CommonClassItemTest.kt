@@ -1606,6 +1606,61 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test substituting outer class in type for inner class with an outer class with type parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Outer<T> {
+                        public class Inner {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Outer<T> {
+                        inner class Inner {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Outer<T> {
+                      }
+                      public class Outer.Inner {
+                      }
+                    }
+                """
+            )
+        ) {
+            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
+
+            val innerType = innerClass.type()
+            assertThat(innerType.toTypeString()).isEqualTo("test.pkg.Outer<T>.Inner")
+
+            val outerClassType = innerType.outerClassType
+            assertNotNull(outerClassType)
+            assertThat(outerClassType.toTypeString()).isEqualTo("test.pkg.Outer<T>")
+
+            val noArgsOuterClassType = outerClassType.substitute(arguments = emptyList())
+            assertThat(noArgsOuterClassType.toTypeString()).isEqualTo("test.pkg.Outer")
+
+            // Replace the outer type with one without any arguments.
+            val innerWithNewOuterClassType =
+                innerType.substitute(outerClassType = noArgsOuterClassType)
+
+            // Make sure that the replacement actually changed the outer class type.
+            // TODO(b/477906867): This is broken.
+            assertThat(innerWithNewOuterClassType.toTypeString())
+                .isEqualTo("test.pkg.Outer<T>.Inner")
+            assertThat(innerWithNewOuterClassType.outerClassType).isSameInstanceAs(outerClassType)
+        }
+    }
+
+    @Test
     fun `Check TypeParameterItem is not a ClassItem`() {
         runCodebaseTest(
             signature(
