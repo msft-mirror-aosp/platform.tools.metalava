@@ -1694,7 +1694,6 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    import android.database.Cursor;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ColumnTest {
                     public ColumnTest() { throw new RuntimeException("Stub!"); }
