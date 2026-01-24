@@ -65,31 +65,16 @@ class DefaultTypeModifiers(
         /** A set of empty, undefined [TypeModifiers] for sharing. */
         val emptyUndefinedModifiers = emptyModifiers(TypeNullability.UNDEFINED)
 
-        /**
-         * Create a [DefaultTypeModifiers].
-         *
-         * If [knownNullability] is `null` then this will compute nullability from the
-         * [annotations], if any, and if not then default to platform nullness.
-         */
+        /** Create a [DefaultTypeModifiers]. */
         fun create(
             annotations: List<AnnotationItem>,
-            knownNullability: TypeNullability? = null,
-        ): TypeModifiers {
-            // Use the known nullability, or find if there is a nullness annotation on the type,
-            // defaulting to platform nullness if not.
-            val nullability =
-                knownNullability
-                    ?: annotations
-                        .firstOrNull { it.isNullnessAnnotation() }
-                        ?.let { TypeNullability.ofAnnotation(it) }
-                    ?: TypeNullability.PLATFORM
-
+            nullability: TypeNullability,
+        ): TypeModifiers =
             // If the annotations are empty then use one of the predefined instances.
             if (annotations.isEmpty()) {
-                return emptyModifiers(nullability)
+                emptyModifiers(nullability)
+            } else {
+                DefaultTypeModifiers(annotations, nullability)
             }
-
-            return DefaultTypeModifiers(annotations, nullability)
-        }
     }
 }

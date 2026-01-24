@@ -432,14 +432,26 @@ open class TypeItemParser(
         return classType
     }
 
+    /**
+     * Create a [TypeModifiers].
+     *
+     * If [knownNullability] is `null` then this will compute nullability from the [annotations], if
+     * any, and if not then default to platform nullness.
+     */
     private fun modifiers(
         annotations: List<AnnotationItem>,
-        nullability: TypeNullability?
+        knownNullability: TypeNullability?
     ): TypeModifiers {
-        return DefaultTypeModifiers.create(
-            annotations,
-            nullability,
-        )
+        // Use the known nullability, or find if there is a nullness annotation on the type,
+        // defaulting to platform nullness if not.
+        val nullability =
+            knownNullability
+                ?: annotations
+                    .firstOrNull { it.isNullnessAnnotation() }
+                    ?.let { TypeNullability.ofAnnotation(it) }
+                ?: TypeNullability.PLATFORM
+
+        return DefaultTypeModifiers.create(annotations, nullability)
     }
 
     /**
