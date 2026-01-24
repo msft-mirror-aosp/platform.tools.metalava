@@ -61,7 +61,7 @@ private constructor(
 
     companion object {
         /** Get an empty (no annotations) [TypeModifiers] for [typeNullability]. */
-        private fun emptyModifiers(typeNullability: TypeNullability) =
+        internal fun emptyModifiers(typeNullability: TypeNullability) =
             emptyModifiersByNullability[typeNullability.ordinal]
 
         /**

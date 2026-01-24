@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -30,6 +29,8 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM_TYPE
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.value.ValueParser
 
@@ -51,10 +52,8 @@ open class TypeItemParser(
     private val valueParser = ValueParser(annotationContext, this)
 
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
-    private val objectType: ReferenceTypeItem
-        get() =
-            parseTypeWithContextNullability(JAVA_LANG_OBJECT, TypeParameterScope.empty)
-                as ReferenceTypeItem
+    private val objectType =
+        if (kotlinStyleNulls) JAVA_LANG_OBJECT_NON_NULL_TYPE else JAVA_LANG_OBJECT_PLATFORM_TYPE
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
