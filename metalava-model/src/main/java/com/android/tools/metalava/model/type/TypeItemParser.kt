@@ -451,7 +451,7 @@ open class TypeItemParser(
                     ?.let { TypeNullability.ofAnnotation(it) }
                 ?: TypeNullability.PLATFORM
 
-        return DefaultTypeModifiers.create(annotations, nullability)
+        return TypeModifiers.create(annotations, nullability)
     }
 
     /**

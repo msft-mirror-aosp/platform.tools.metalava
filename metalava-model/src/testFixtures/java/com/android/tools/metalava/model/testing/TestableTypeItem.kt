@@ -27,12 +27,12 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 
 /**
  * The default [TypeStringConfiguration] that [testTypeString] uses to obtain the defaults for its
@@ -58,7 +58,7 @@ fun TypeItem.testTypeString(
 
 /** Create a [PrimitiveTypeItem] for [kind]. */
 fun primitiveTypeForKind(kind: Primitive): PrimitiveTypeItem =
-    TypeItem.createPrimitiveType(DefaultTypeModifiers.emptyNonNullModifiers, kind)
+    TypeItem.createPrimitiveType(TypeModifiers.emptyNonNullModifiers, kind)
 
 /** Create a [ClassTypeItem] for [JAVA_LANG_STRING]. */
 fun stringType(): ClassTypeItem = classTypeItem(JAVA_LANG_STRING)
@@ -70,7 +70,7 @@ fun classTypeItem(
     outerClassType: ClassTypeItem? = null,
 ): ClassTypeItem =
     TypeItem.createClassType(
-        DefaultTypeModifiers.emptyNonNullModifiers,
+        TypeModifiers.emptyNonNullModifiers,
         qualifiedName,
         arguments,
         outerClassType,
@@ -79,7 +79,7 @@ fun classTypeItem(
 /** Create a [ArrayTypeItem] for [componentType]. */
 fun arrayTypeItem(componentType: TypeItem, isVarargs: Boolean = false): ArrayTypeItem =
     TypeItem.createArrayType(
-        DefaultTypeModifiers.emptyNonNullModifiers,
+        TypeModifiers.emptyNonNullModifiers,
         componentType,
         isVarargs,
     )
@@ -87,7 +87,7 @@ fun arrayTypeItem(componentType: TypeItem, isVarargs: Boolean = false): ArrayTyp
 /** Create a [VariableTypeItem] for a [TypeParameterItem] called [name]. */
 fun variableTypeItem(name: String): VariableTypeItem =
     TypeItem.createVariableType(
-        DefaultTypeModifiers.emptyNonNullModifiers,
+        TypeModifiers.emptyNonNullModifiers,
         typeParameterItem(name),
     )
 
@@ -97,7 +97,7 @@ fun wildcardTypeItem(
     superBound: ReferenceTypeItem? = null,
 ): WildcardTypeItem =
     TypeItem.createWildcardType(
-        DefaultTypeModifiers.emptyUndefinedModifiers,
+        TypeModifiers.emptyUndefinedModifiers,
         extendsBound,
         superBound,
     )

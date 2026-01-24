@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -59,7 +58,7 @@ internal class TurbineTypeItemFactory(
         // Compute the nullability, factoring in any context nullability and type annotations.
         // Turbine does not support kotlin so the kotlin nullability is always null.
         val nullability = contextNullability.compute(null, typeAnnotations)
-        return DefaultTypeModifiers.create(typeAnnotations, nullability)
+        return TypeModifiers.create(typeAnnotations, nullability)
     }
 
     internal fun createType(
@@ -164,14 +163,14 @@ internal class TurbineTypeItemFactory(
             Type.TyKind.NONE_TY ->
                 TypeItem.createPrimitiveType(
                     // Primitives are always non-null.
-                    DefaultTypeModifiers.emptyNonNullModifiers,
+                    TypeModifiers.emptyNonNullModifiers,
                     PrimitiveTypeItem.Primitive.VOID
                 )
             Type.TyKind.ERROR_TY -> {
                 // This is case of unresolved superclass or implemented interface
                 type as Type.ErrorTy
                 TypeItem.createClassType(
-                    DefaultTypeModifiers.emptyUndefinedModifiers,
+                    TypeModifiers.emptyUndefinedModifiers,
                     type.name(),
                     emptyList(),
                     null,
@@ -229,7 +228,7 @@ internal class TurbineTypeItemFactory(
         element as TypeElement
 
         // Since this type was never part of source , it won't have any annotation or arguments
-        val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
+        val modifiers = TypeModifiers.emptyNonNullModifiers
         val classTypeItem =
             TypeItem.createClassType(
                 modifiers,

@@ -64,7 +64,7 @@ interface InternalTypeItemFactory {
     /** Create a [ClassTypeItem] for [ClassItem]. */
     fun createClassTypeForClassItem(classItem: ClassItem): ClassTypeItem {
         val arguments = classItem.typeParameterList.map { it.type() }
-        val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
+        val modifiers = TypeModifiers.emptyNonNullModifiers
         return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
     }
 

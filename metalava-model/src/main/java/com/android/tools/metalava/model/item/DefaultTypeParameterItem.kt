@@ -22,9 +22,9 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
 open class DefaultTypeParameterItem(
@@ -50,7 +50,7 @@ open class DefaultTypeParameterItem(
 
     /** Create a [VariableTypeItem] for this [TypeParameterItem]. */
     protected open fun createVariableTypeItem(): VariableTypeItem =
-        TypeItem.createVariableType(DefaultTypeModifiers.emptyUndefinedModifiers, this)
+        TypeItem.createVariableType(TypeModifiers.emptyUndefinedModifiers, this)
 
     lateinit var bounds: List<BoundsTypeItem>
 
@@ -69,7 +69,7 @@ open class DefaultTypeParameterItem(
                 // (Object!) but that does not matter here as this is the type used at runtime which
                 // ignores nullability. As nullability is required this just uses the platform as
                 // that seems more representative of the intent.
-                DefaultTypeModifiers.emptyPlatformModifiers,
+                TypeModifiers.emptyPlatformModifiers,
                 JAVA_LANG_OBJECT,
                 emptyList(),
                 outerClassType = null,
