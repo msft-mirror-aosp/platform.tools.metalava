@@ -190,12 +190,6 @@ class CommonSourceFileTest : BaseModelTest() {
             val sourceFile = classItem.sourceFile()!!
 
             // Create the Import objects that are expected.
-            val classItem1 = codebase.assertClass("test.Test")
-            val classImport = Import(classItem1)
-
-            val innerClassItem = codebase.assertClass("test.Test.Inner")
-            val innerClassImport = Import(innerClassItem)
-
             val pkgItem = codebase.assertPackage("test.pkg1")
             val packageImport = Import(pkgItem)
 
@@ -206,7 +200,6 @@ class CommonSourceFileTest : BaseModelTest() {
             val allImports = sourceFile.getImports()
             assertEquals(
                 setOf(
-                    innerClassImport,
                     packageImport,
                 ),
                 allImports,

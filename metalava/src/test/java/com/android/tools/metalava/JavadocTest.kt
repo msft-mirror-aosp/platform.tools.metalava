@@ -864,7 +864,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.MyChild;
                 /**
                  * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1},
                  * {@link test.pkg2.MyChild#CONSTANT2 MyChild.CONSTANT2}, and

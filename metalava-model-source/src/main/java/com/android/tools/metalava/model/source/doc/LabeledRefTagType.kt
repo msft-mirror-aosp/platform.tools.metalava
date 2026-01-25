@@ -536,7 +536,13 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
         classItem: ClassItem
-    ): ResolvedReference? = classItem.findField(name)?.toResolvedReference()
+    ) =
+        // TODO(b/447588621): Check for methods and constructors not just fields.
+        classItem.findField(name)?.toResolvedReference()
+            // TODO(b/447588621): Report that the field could not be found.
+            // If the field could not be found then fallback to a field reference so that at least
+            // the resolved class will be fully qualified.
+            ?: FieldReference(classItem.qualifiedName(), name)
 }
 
 /**
