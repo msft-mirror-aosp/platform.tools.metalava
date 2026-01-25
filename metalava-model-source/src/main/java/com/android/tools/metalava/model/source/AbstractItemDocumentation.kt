@@ -283,10 +283,8 @@ abstract class AbstractItemDocumentation(
     override val mainDescriptionOwner: DocContentOwner
         get() = docComment
 
-    override fun blockTagDescription(tagTypeName: String, forAppending: Boolean): DocContent? =
-        findBlockTagSection(tagTypeName)?.let { blockTagSection ->
-            if (forAppending) blockTagSection.docContentForAppending else blockTagSection.docContent
-        }
+    override fun blockTagDescription(tagTypeName: String): DocContent? =
+        findBlockTagSection(tagTypeName)?.docContent
 
     override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
         return findBlockTagSection(tagTypeName)

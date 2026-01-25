@@ -436,15 +436,15 @@ class DocAnalyzerTest : DriverTest() {
                     package test.pkg;
                     /**
                      * Methods in this class must be called on the thread that originally created
-                     * this UI element, unless otherwise noted. This is typically the
-                     * main thread of your app.
+                     *            this UI element, unless otherwise noted. This is typically the
+                     *            main thread of your app.
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This method may take several seconds to complete, so it should
-                     * only be called from a worker thread.
+                     *            only be called from a worker thread.
                      */
                     public int test1() { throw new RuntimeException("Stub!"); }
                     }
@@ -488,10 +488,10 @@ class DocAnalyzerTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This method must be called on the thread that originally created
-                     * this UI element. This is typically the main thread of your app.
+                     *            this UI element. This is typically the main thread of your app.
                      * <br>
                      * This method may take several seconds to complete, so it should
-                     * only be called from a worker thread.
+                     *            only be called from a worker thread.
                      */
                     public int test1() { throw new RuntimeException("Stub!"); }
                     }
@@ -566,7 +566,7 @@ class DocAnalyzerTest : DriverTest() {
                      * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
                      * <br>
                      * This method must be called on the thread that originally created
-                     * this UI element. This is typically the main thread of your app.
+                     *            this UI element. This is typically the main thread of your app.
                      *
                      * @return blah blah blah
                      * @apiSince 24
@@ -574,7 +574,7 @@ class DocAnalyzerTest : DriverTest() {
                     public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
                     /**
                      * This method must be called on the thread that originally created
-                     * this UI element. This is typically the main thread of your app.
+                     *            this UI element. This is typically the main thread of your app.
                      * @apiSince 24
                      */
                     public int getCurrentContentInsetRight() { throw new RuntimeException("Stub!"); }
