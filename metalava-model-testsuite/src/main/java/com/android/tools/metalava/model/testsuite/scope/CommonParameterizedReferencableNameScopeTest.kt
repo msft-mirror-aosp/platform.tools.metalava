@@ -217,8 +217,9 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "Test",
                     nameClassification = NameClassification.FIELD,
-                    // TODO(b/447588621): Should resolve to `null` as Test is not a field.
-                    expectedItemGetter = { codebase.assertClass("test.pkg.Test") },
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve a field called 'Test' in 'class test.pkg.Test'",
                 ),
 
                 // ClassItem - Nested classes

@@ -353,7 +353,9 @@ open class DefaultClassItem(
         // First, check to see if it matches this class and if it does then return it. Only do that
         // for the first simple name in a qualified name, otherwise it would treat something like
         // java.util.Map.Map.Map.Map as if it was `java.util.Map`.
-        (if (isFirstSimpleName && simpleName == simpleName()) this else null)
+        nameClassification.findClass {
+            if (isFirstSimpleName && simpleName == simpleName()) this else null
+        }
             // Then check to see type parameters.
             ?: nameClassification.findTypeParameter {
                 typeParameterList.find { it.name() == simpleName }
