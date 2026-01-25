@@ -205,9 +205,6 @@ abstract class AbstractItemDocumentation(
         // Purposely does not cache this as superMethods() is already cached.
         item is MethodItem && item.superMethods().isNotEmpty()
 
-    /** Expands the given documentation comment in the current name context */
-    open fun fullyQualifiedDocumentation(documentation: String): String = documentation
-
     override val containingClassItem: ClassItem?
         get() =
             when (item) {
