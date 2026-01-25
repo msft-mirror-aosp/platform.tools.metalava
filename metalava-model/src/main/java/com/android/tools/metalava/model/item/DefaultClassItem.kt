@@ -361,7 +361,7 @@ open class DefaultClassItem(
                 typeParameterList.find { it.name() == simpleName }
             }
             // Then, check to see if it is a field of this class.
-            ?: nameClassification.findField { mutableFields.find { it.name() == simpleName } }
+            ?: nameClassification.findField { findField(simpleName) }
             // Then, check to see if it matches a nested class and if it does then return that.
             ?: nameClassification.findClass {
                 mutableNestedClasses.find { it.simpleName() == simpleName }
