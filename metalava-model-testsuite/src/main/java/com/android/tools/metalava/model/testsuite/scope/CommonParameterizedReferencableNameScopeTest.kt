@@ -164,6 +164,17 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                         "Expected a field called 'IOException' but found 'class java.io.IOException'",
                 ),
                 TestParams(
+                    name = "SourceFile - resolve static imported method",
+                    imports =
+                        """
+                            import static java.lang.System.getenv;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "getenv",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage = "Could not resolve 'getenv' in 'class test.pkg.Test'",
+                ),
+                TestParams(
                     name = "SourceFile - resolve class in same file",
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "Hidden",
@@ -303,6 +314,21 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = {
                         codebase.assertClass("test.pkg.Test").assertField("field")
                     },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve simple method reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "method",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage = "Could not resolve 'method' in 'class test.pkg.Test'",
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified method reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.method",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Test.method' as could not find 'method' in 'class test.pkg.Test'",
                 ),
 
                 // ConstructorItem related tests.
