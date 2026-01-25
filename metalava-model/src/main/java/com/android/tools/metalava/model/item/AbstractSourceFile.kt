@@ -87,6 +87,7 @@ abstract class AbstractSourceFile() : SourceFile {
         // TODO(b/474319264): Check nested classes instead.
         nameClassification.findClass { codebase.resolveClass("${qualifiedName()}.$memberName") }
             ?: nameClassification.findField { findField(memberName) }
+            ?: nameClassification.findMethodSet { findMethodSet(memberName) }
 
     override val containingScope: ReferencableNameScope?
         get() =

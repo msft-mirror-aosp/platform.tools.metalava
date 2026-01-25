@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -362,6 +363,9 @@ open class DefaultClassItem(
             }
             // Then, check to see if it is a field of this class.
             ?: nameClassification.findField { findField(simpleName) }
+            // Then, check to see if this contains any method with the same name, if it does
+            // then return a ReferencableMethodSet.
+            ?: nameClassification.findMethodSet { findMethodSet(simpleName) }
             // Then, check to see if it matches a nested class and if it does then return that.
             ?: nameClassification.findClass {
                 mutableNestedClasses.find { it.simpleName() == simpleName }
@@ -449,3 +453,14 @@ open class DefaultClassItem(
         }
     }
 }
+
+/**
+ * Check to see if this [ClassItem] contains any methods called [name] and if so then returns a
+ * [ReferencableMethodSet] to indicate that, otherwise returns `null`.
+ */
+internal fun ClassItem.findMethodSet(name: String) =
+    if (methods().any { it.name() == name }) {
+        ReferencableMethodSet(this, name)
+    } else {
+        null
+    }

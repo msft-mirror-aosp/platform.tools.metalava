@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.scope
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -31,7 +32,6 @@ import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertSame
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -171,8 +171,12 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                         """,
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "getenv",
-                    expectedItemGetter = { null },
-                    expectedErrorMessage = "Could not resolve 'getenv' in 'class test.pkg.Test'",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(
+                            codebase.assertResolvedClass("java.lang.System"),
+                            "getenv"
+                        )
+                    },
                 ),
                 TestParams(
                     name = "SourceFile - resolve class in same file",
@@ -319,16 +323,17 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     name = "ClassItem - resolve simple method reference",
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "method",
-                    expectedItemGetter = { null },
-                    expectedErrorMessage = "Could not resolve 'method' in 'class test.pkg.Test'",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(codebase.assertClass("test.pkg.Test"), "method")
+                    },
                 ),
                 TestParams(
                     name = "ClassItem - resolve qualified method reference",
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "Test.method",
-                    expectedItemGetter = { null },
-                    expectedErrorMessage =
-                        "Could not resolve 'Test.method' as could not find 'method' in 'class test.pkg.Test'",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(codebase.assertClass("test.pkg.Test"), "method")
+                    },
                 ),
 
                 // ConstructorItem related tests.
@@ -477,7 +482,10 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                 val error = assertIs<InvalidReferencableItem>(resolvedItem)
                 assertEquals(params.expectedErrorMessage, error.message)
             } else {
-                assertSame(expectedItem, resolvedItem)
+                // Compare resolved item using equals not same to handle ReferencableMethodSet which
+                // unlike other ReferencableItem classes is not found within the Codebase but is
+                // instead created on demand when resolving.
+                assertEquals(expectedItem, resolvedItem)
                 assertEquals(params.expectedErrorMessage, "")
             }
         }
