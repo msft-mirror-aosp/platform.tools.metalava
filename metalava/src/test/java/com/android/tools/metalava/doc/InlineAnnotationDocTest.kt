@@ -152,10 +152,7 @@ class InlineAnnotationDocTest : DriverTest() {
      * the one that `Anno` was referencing) and `AnotherTest` which does not import it. `Anno` also
      * has a `Working` reference that can be resolved for comparison.
      *
-     * Ideally, the `Broken` reference should be unresolved everywhere that it is used, but
-     * currently it is resolved in `Test` but not in `AnotherTest`. That is caused by fully
-     * qualifying references again while printing (after the content has been appended from `Anno`).
-     * // TODO(b/447588621): Remove fully qualifying after printing.
+     * The `Broken` reference should be unresolved everywhere that it is used.
      */
     @Test
     fun `Unresolvable classDoc`() {
@@ -208,7 +205,7 @@ class InlineAnnotationDocTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /** {@link anno.pkg.Working Working} {@link another.pkg.Broken Broken} */
+                            /** {@link anno.pkg.Working Working} {@link Broken} */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             @anno.pkg.Anno
                             public class Test {

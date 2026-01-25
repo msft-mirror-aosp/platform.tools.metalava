@@ -242,28 +242,10 @@ abstract class AbstractItemDocumentation(
 
         checkDocumentationBeforePrinting(originalText)
 
-        // Before printing fully qualify the comment. This expects a whole comment and will fix up
-        // @link and @see tags.
-        val fullyQualifiedText = fullyQualifiedDocumentation(originalText)
-
         // Only print the comment if it is not blank.
-        if (fullyQualifiedText.isNotBlank()) {
-            // If fully qualifying did not change the text then used the docComment, otherwise
-            // create a new one from the fully qualified text.
-            val fullyQualifiedComment =
-                if (fullyQualifiedText == originalText) docComment
-                else
-                    DocComment.createDocComment(
-                        context = this,
-                        fullyQualifiedText,
-                        // Ignore any errors that are found while parsing the fully qualified test
-                        // as they will duplicate issues found when first creating and the line
-                        // numbers may not match the original source.
-                        reporter = DocumentationIssueReporter.NULL,
-                    )
-
+        if (originalText.isNotBlank()) {
             // Print the docComment as Javadoc.
-            fullyQualifiedComment.printAsJavadocComment(
+            docComment.printAsJavadocComment(
                 writer,
                 // Apply the [JavaSummaryTruncationWorkaround] to the main description.
                 mainDescriptionRewriter = JavaSummaryTruncationWorkaround()

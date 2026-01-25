@@ -49,7 +49,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   Test Column annotation[turbine]
 
 com.android.tools.metalava.doc.InlineAnnotationDocTest
-  Unresolvable classDoc[turbine]
   memberDoc crash[turbine]
 
 com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
