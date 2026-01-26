@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -40,7 +39,6 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -60,6 +58,7 @@ import com.android.tools.metalava.model.psi.PsiItemDocumentation
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.FileLocation
@@ -1178,7 +1177,7 @@ private constructor(
         // JvmName is used, they can be, but the inlined type needs to be used to find the accessor
         // instead of the value class type.
         val (possiblyInlinedPropertyType, possiblyInlinedReceiverType) =
-            if (propertyType.isValueClassType() || receiverType?.isValueClassType() == true) {
+            if (propertyType.isValueClassType || receiverType?.isValueClassType == true) {
                 if (accessor.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) {
                     typeItemFactory.inlineTypeIfNeeded(property.returnType, propertyType) to
                         receiverType?.let {
@@ -1229,8 +1228,7 @@ private constructor(
         scopeDescription: String,
         typeParameterSymbols: List<KaTypeParameterSymbol>,
     ): TypeParameterListAndFactory<KaTypeItemFactory> {
-        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-            enclosingTypeItemFactory,
+        return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
             scopeDescription,
             typeParameterSymbols,
             // Construct type parameter items from the symbols

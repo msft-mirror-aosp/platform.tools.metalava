@@ -40,7 +40,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -153,13 +152,10 @@ open class DefaultClassItem(
 
     final override fun type(): ClassTypeItem {
         if (!::cachedType.isInitialized) {
-            cachedType = createClassTypeItemForThis()
+            cachedType = TypeItem.createClassTypeForClassItem(this)
         }
         return cachedType
     }
-
-    protected open fun createClassTypeItemForThis() =
-        DefaultResolvedClassTypeItem.createForClass(this)
 
     final override var frozen = false
         private set
@@ -169,7 +165,7 @@ open class DefaultClassItem(
         frozen = true
         superClass()?.freeze()
         for (interfaceType in interfaceTypes) {
-            interfaceType.asClass()?.freeze()
+            interfaceType.resolveClass()?.freeze()
         }
     }
 
@@ -232,7 +228,7 @@ open class DefaultClassItem(
 
         // Add all the interfaces of direct interfaces
         interfaceTypes().forEach { interfaceType ->
-            val itf = interfaceType.asClass()
+            val itf = interfaceType.resolveClass()
             itf?.allInterfaces()?.forEach { add(it) }
         }
     }
@@ -374,7 +370,7 @@ open class DefaultClassItem(
                     )
                 // Then, check to see if it matches a class defined in a super interface.
                 ?: interfaceTypes().firstNotNullOfOrNull {
-                    it.asClass()
+                    it.resolveClass()
                         ?.resolveReferencableItemBySimpleName(
                             simpleName,
                             nameClassification,

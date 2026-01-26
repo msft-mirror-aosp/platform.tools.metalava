@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testing
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -26,16 +27,12 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.type.DefaultArrayTypeItem
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
-import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 
 /**
  * The default [TypeStringConfiguration] that [testTypeString] uses to obtain the defaults for its
@@ -61,7 +58,7 @@ fun TypeItem.testTypeString(
 
 /** Create a [PrimitiveTypeItem] for [kind]. */
 fun primitiveTypeForKind(kind: Primitive): PrimitiveTypeItem =
-    DefaultPrimitiveTypeItem(DefaultTypeModifiers.emptyNonNullModifiers, kind)
+    TypeItem.createPrimitiveType(DefaultTypeModifiers.emptyNonNullModifiers, kind)
 
 /** Create a [ClassTypeItem] for [JAVA_LANG_STRING]. */
 fun stringType(): ClassTypeItem = classTypeItem(JAVA_LANG_STRING)
@@ -72,7 +69,7 @@ fun classTypeItem(
     arguments: List<TypeArgumentTypeItem> = emptyList(),
     outerClassType: ClassTypeItem? = null,
 ): ClassTypeItem =
-    DefaultClassTypeItem(
+    TypeItem.createClassType(
         ClassResolver.THROWING,
         DefaultTypeModifiers.emptyNonNullModifiers,
         qualifiedName,
@@ -81,23 +78,18 @@ fun classTypeItem(
     )
 
 /** Create a [ArrayTypeItem] for [componentType]. */
-fun arrayTypeItem(componentType: TypeItem): ArrayTypeItem =
-    DefaultArrayTypeItem(
+fun arrayTypeItem(componentType: TypeItem, isVarargs: Boolean = false): ArrayTypeItem =
+    TypeItem.createArrayType(
         DefaultTypeModifiers.emptyNonNullModifiers,
         componentType,
-        isVarargs = false,
+        isVarargs,
     )
 
-/** Create a [VariableTypeItem] for a [TypeArgumentTypeItem] called [name]. */
+/** Create a [VariableTypeItem] for a [TypeParameterItem] called [name]. */
 fun variableTypeItem(name: String): VariableTypeItem =
-    DefaultVariableTypeItem(
+    TypeItem.createVariableType(
         DefaultTypeModifiers.emptyNonNullModifiers,
-        DefaultTypeParameterItem(
-            ClassResolver.THROWING,
-            DefaultModifierList.create(0),
-            name,
-            isReified = false
-        )
+        typeParameterItem(name),
     )
 
 /** Create a [WildcardTypeItem] for [extendsBound] of [superBound] . */
@@ -105,4 +97,22 @@ fun wildcardTypeItem(
     extendsBound: ReferenceTypeItem? = null,
     superBound: ReferenceTypeItem? = null,
 ): WildcardTypeItem =
-    DefaultWildcardTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, extendsBound, superBound)
+    TypeItem.createWildcardType(
+        DefaultTypeModifiers.emptyUndefinedModifiers,
+        extendsBound,
+        superBound,
+    )
+
+/** Create a [TypeParameterItem] called [name]. */
+fun typeParameterItem(name: String, classResolver: ClassResolver = ClassResolver.THROWING) =
+    DefaultTypeParameterItem(classResolver, DefaultModifierList.create(0), name, isReified = false)
+
+/** Force the resolving of all [ClassTypeItem]s in this [TypeItem]. */
+fun TypeItem.forceResolveClasses() =
+    accept(
+        object : BaseTypeVisitor() {
+            override fun visitClassType(classType: ClassTypeItem) {
+                classType.resolveClass()
+            }
+        }
+    )

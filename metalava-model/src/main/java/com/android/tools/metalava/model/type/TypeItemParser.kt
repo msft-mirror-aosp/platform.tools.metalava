@@ -165,7 +165,7 @@ open class TypeItemParser(
         if (nullability != null && nullability != TypeNullability.NONNULL) {
             errorReporter.report("Invalid nullability suffix on primitive: $original")
         }
-        return DefaultPrimitiveTypeItem(modifiers(annotations, TypeNullability.NONNULL), kind)
+        return TypeItem.createPrimitiveType(modifiers(annotations, TypeNullability.NONNULL), kind)
     }
 
     /**
@@ -265,11 +265,11 @@ open class TypeItemParser(
         // Create the component type of the outermost array by building up the inner component type.
         val componentType =
             componentModifiers.fold(deepComponentType) { component, modifiers ->
-                DefaultArrayTypeItem(modifiers, component, false)
+                TypeItem.createArrayType(modifiers, component, false)
             }
 
         // Create the outer array.
-        return DefaultArrayTypeItem(arrayModifiers, componentType, varargs)
+        return TypeItem.createArrayType(arrayModifiers, componentType, varargs)
     }
 
     /**
@@ -292,20 +292,20 @@ open class TypeItemParser(
         val modifiers = modifiers(annotations, TypeNullability.UNDEFINED)
 
         // Unbounded wildcard type: there is an implicit Object extends bound
-        if (type == "?") return DefaultWildcardTypeItem(modifiers, objectType, null)
+        if (type == "?") return TypeItem.createWildcardType(modifiers, objectType, null)
 
         // If there's a bound, the nullability suffix applies there instead.
         val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
-            DefaultWildcardTypeItem(
+            TypeItem.createWildcardType(
                 modifiers,
                 getWildcardBound(extendsBound, typeParameterScope),
                 null,
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
-            DefaultWildcardTypeItem(
+            TypeItem.createWildcardType(
                 modifiers,
                 // All wildcards have an implicit Object extends bound
                 objectType,
@@ -315,7 +315,7 @@ open class TypeItemParser(
             errorReporter.report("Type starts with \"?\" but doesn't appear to be wildcard: $type")
 
             // Ignore the part after the "?" and treat it as an unbounded wildcard.
-            DefaultWildcardTypeItem(modifiers, objectType, null)
+            TypeItem.createWildcardType(modifiers, objectType, null)
         }
     }
 
@@ -335,7 +335,7 @@ open class TypeItemParser(
         nullability: TypeNullability?
     ): VariableTypeItem? {
         val param = typeParameterScope.findTypeParameter(type) ?: return null
-        return DefaultVariableTypeItem(modifiers(annotations, nullability), param)
+        return TypeItem.createVariableType(modifiers(annotations, nullability), param)
     }
 
     /**
@@ -370,14 +370,6 @@ open class TypeItemParser(
     ): ClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
 
-        val qualifiedName =
-            if (outerClassType != null) {
-                // This is a nested type, add the prefix of the outer name
-                "${outerClassType.qualifiedName}.$name"
-            } else {
-                name
-            }
-
         val (argumentStrings, remainder) = typeParameterStringsWithRemainder(afterName)
         val arguments =
             argumentStrings.map {
@@ -392,27 +384,32 @@ open class TypeItemParser(
                 modifiers(classAnnotations + annotations, nullability)
             }
 
-        // If the class name is qualified (i.e. contains a `.`) then create the ClassTypeItem,
-        // directly, otherwise defer to the unqualifiedTypeHandler to create it instead.
-        val classType =
-            if (qualifiedName.contains('.')) {
-                DefaultClassTypeItem(
-                    annotationContext,
-                    classModifiers,
-                    qualifiedName,
-                    arguments,
-                    outerClassType
-                )
+        // Construct a qualified name to use for the class.
+        val qualifiedName =
+            if (outerClassType != null) {
+                // This is a nested type, add the prefix of the outer name
+                "${outerClassType.qualifiedName}.$name"
+            } else if (name.contains('.')) {
+                // The name is already qualified so use it.
+                name
             } else {
+                // Otherwise, delegate to the UnqualifiedClassHandler which will construct a
+                // qualified name.
                 unqualifiedClassHandler.handleUnqualifiedType(
-                    annotationContext,
                     errorReporter,
-                    classModifiers,
                     name,
-                    arguments,
-                    outerClassType
                 )
             }
+
+        // Create the ClassTypeItem.
+        val classType =
+            TypeItem.createClassType(
+                annotationContext,
+                classModifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+            )
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {

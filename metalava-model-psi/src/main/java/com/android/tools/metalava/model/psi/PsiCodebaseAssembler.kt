@@ -371,7 +371,7 @@ internal class PsiCodebaseAssembler(
                 // Constructors with value class type parameters may or may not be fake UAST
                 // elements depending on whether K1 or K2 is used.
                 // TODO(b/427783483): remove this workaround
-                if (constructor.parameters().any { it.type().isValueClassType() }) {
+                if (constructor.parameters().any { it.type().isValueClassType }) {
                     continue
                 }
 
@@ -429,8 +429,8 @@ internal class PsiCodebaseAssembler(
                 // are not fake UAST. Filter those value class type property accessors here.
                 // TODO(b/427783483): remove this workaround
                 if (
-                    (method.returnType().isValueClassType() ||
-                        method.parameters().any { it.type().isValueClassType() } ||
+                    (method.returnType().isValueClassType ||
+                        method.parameters().any { it.type().isValueClassType } ||
                         // If a suspend function returns a value class type, the return is turned
                         // into a final continuation parameter where the argument of the type is
                         // a super bound of the value class type.
@@ -439,7 +439,7 @@ internal class PsiCodebaseAssembler(
                                     ?.arguments
                                     ?.singleOrNull() as? WildcardTypeItem)
                                 ?.superBound
-                                ?.isValueClassType() == true)) && !hasJvmName
+                                ?.isValueClassType == true)) && !hasJvmName
                 ) {
                     continue
                 }

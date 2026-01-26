@@ -80,7 +80,7 @@ interface ClassItem :
      *
      * Interfaces always return `null` for this.
      */
-    @MetalavaApi fun superClass() = superClassType()?.asClass()
+    @MetalavaApi fun superClass() = superClassType()?.resolveClass()
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
@@ -136,7 +136,7 @@ interface ClassItem :
         }
 
         interfaceTypes().forEach {
-            val cls = it.asClass()
+            val cls = it.resolveClass()
             if (cls != null && cls.implements(qualifiedName)) {
                 return true
             }
@@ -307,21 +307,11 @@ interface ClassItem :
             }
         }
 
-        /** A partial ordering over [ClassItem] comparing [ClassItem.fullName]. */
-        val fullNameComparator: Comparator<ClassItem> = Comparator.comparing { it.fullName() }
-
         /** A total ordering over [ClassItem] comparing [ClassItem.qualifiedName]. */
         private val qualifiedComparator: Comparator<ClassItem> =
             Comparator.comparing { it.qualifiedName() }
 
-        /**
-         * A total ordering over [ClassItem] comparing [ClassItem.fullName] first and then
-         * [ClassItem.qualifiedName].
-         */
-        val fullNameThenQualifierComparator: Comparator<ClassItem> =
-            fullNameComparator.thenComparing(qualifiedComparator)
-
-        fun classNameSorter(): Comparator<in ClassItem> = ClassItem.qualifiedComparator
+        fun classNameSorter(): Comparator<in ClassItem> = qualifiedComparator
     }
 
     fun findMethod(
@@ -344,7 +334,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
+                val cls = itf.resolveClass() ?: continue
                 cls.findMethod(template, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -396,7 +386,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
+                val cls = itf.resolveClass() ?: continue
                 cls.findField(fieldName, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -431,7 +421,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
+                val cls = itf.resolveClass() ?: continue
                 cls.findProperty(template, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -552,7 +542,7 @@ interface ClassItem :
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
-            val superClass = superClassType.asClass() ?: return null
+            val superClass = superClassType.resolveClass() ?: return null
             if (predicate.test(superClass)) {
                 if (prev == null || superClass == superClass()) {
                     // Direct reference; no need to map type variables
@@ -667,34 +657,23 @@ interface ClassItem :
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: FilterPredicate): Collection<ClassTypeItem> {
-        val interfaceTypes =
-            filteredInterfaceTypes(
-                predicate,
-                LinkedHashSet(),
-                includeSelf = false,
-                includeParents = false,
-                target = this
-            )
+    fun filteredInterfaceTypes(predicate: FilterPredicate) =
+        filteredInterfaceTypes(
+            predicate,
+            LinkedHashSet(),
+            includeSelf = false,
+            includeParents = false,
+            target = this
+        )
 
-        return interfaceTypes
-    }
-
-    fun allInterfaceTypes(predicate: FilterPredicate): Collection<TypeItem> {
-        val interfaceTypes =
-            filteredInterfaceTypes(
-                predicate,
-                LinkedHashSet(),
-                includeSelf = false,
-                includeParents = true,
-                target = this
-            )
-        if (interfaceTypes.isEmpty()) {
-            return interfaceTypes
-        }
-
-        return interfaceTypes
-    }
+    fun allInterfaceTypes(predicate: FilterPredicate) =
+        filteredInterfaceTypes(
+            predicate,
+            LinkedHashSet(),
+            includeSelf = false,
+            includeParents = true,
+            target = this
+        )
 
     private fun filteredInterfaceTypes(
         predicate: FilterPredicate,
@@ -702,10 +681,10 @@ interface ClassItem :
         includeSelf: Boolean,
         includeParents: Boolean,
         target: ClassItem
-    ): LinkedHashSet<ClassTypeItem> {
+    ): Set<ClassTypeItem> {
         val superClassType = superClassType()
         if (superClassType != null) {
-            val superClass = superClassType.asClass()
+            val superClass = superClassType.resolveClass()
             if (superClass != null) {
                 if (!predicate.test(superClass)) {
                     superClass.filteredInterfaceTypes(
@@ -730,7 +709,7 @@ interface ClassItem :
             }
         }
         for (type in interfaceTypes()) {
-            val cls = type.asClass() ?: continue
+            val cls = type.resolveClass() ?: continue
             if (predicate.test(cls)) {
                 if (hasTypeVariables() && type.hasTypeArguments()) {
                     val replacementMap = target.mapTypeVariables(this)
@@ -781,9 +760,8 @@ interface ClassItem :
             }
 
         for (superClassType in candidates.filterNotNull()) {
-            superClassType as? ClassTypeItem ?: continue
             // Get the class from the class type so that its type parameters can be accessed.
-            val declaringClass = superClassType.asClass() ?: continue
+            val declaringClass = superClassType.resolveClass() ?: continue
 
             if (declaringClass.qualifiedName() == target.qualifiedName()) {
                 // The target has been found, return the map directly.

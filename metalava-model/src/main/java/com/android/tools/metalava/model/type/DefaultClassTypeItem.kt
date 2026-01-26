@@ -22,24 +22,20 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-open class DefaultClassTypeItem(
+internal open class DefaultClassTypeItem(
     internal val classResolver: ClassResolver,
     modifiers: TypeModifiers,
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
-    private val isValueClassType: Boolean = false,
-) : ClassTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
         lazy(LazyThreadSafetyMode.NONE) { classResolver.resolveClass(qualifiedName) }
 
-    override fun asClass() = asClassCache
-
-    override fun isValueClassType(): Boolean {
-        return isValueClassType
-    }
+    override fun resolveClass() = asClassCache
 
     @Deprecated(
         "implementation detail of this class",

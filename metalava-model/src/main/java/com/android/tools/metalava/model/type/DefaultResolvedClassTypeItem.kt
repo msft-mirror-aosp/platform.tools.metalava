@@ -22,19 +22,38 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultResolvedClassTypeItem(
+internal class DefaultResolvedClassTypeItem(
     modifiers: TypeModifiers,
     private val classItem: ClassItem,
     override val arguments: List<TypeArgumentTypeItem>,
-) : ClassTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
 
     override val qualifiedName = classItem.qualifiedName()
 
-    override val outerClassType = classItem.containingClass()?.type()
+    /**
+     * The outer class type to use depends on whether [classItem] is an inner (i.e. not-static
+     * nested) class or simply a static nested class. For inner classes the outer type needs to
+     * include its type arguments but for static nested classes the outer type must not include any
+     * type arguments.
+     */
+    override val outerClassType =
+        // Get the containing class type (if available) and adjust it based on the inner/static
+        // nesting state of [classItem].
+        classItem.containingClass()?.type()?.let { containingType ->
+            if (classItem.modifiers.isStatic()) {
+                // The type for a static nested class does not include any type arguments from its
+                // containing outer class so remove any that it may have.
+                containingType.substitute(arguments = emptyList())
+            } else {
+                // The type for an inner nested class does so keep its type as is.
+                containingType
+            }
+        }
 
     override val className = classItem.simpleName()
 
-    override fun asClass() = classItem
+    override fun resolveClass() = classItem
 
     @Deprecated(
         "implementation detail of this class",
@@ -46,13 +65,5 @@ class DefaultResolvedClassTypeItem(
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
         return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
-    }
-
-    companion object {
-        fun createForClass(classItem: ClassItem): ClassTypeItem {
-            val arguments = classItem.typeParameterList.map { it.type() }
-            val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
-            return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
-        }
     }
 }

@@ -384,7 +384,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, classItem.interfaceTypes().count())
 
             assertNotNull(superClassType)
-            assertEquals(null, superClassType.asClass())
+            assertEquals(null, superClassType.resolveClass())
         }
     }
 
@@ -825,7 +825,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertNull(codebase.findClass("java.io.IOException"))
 
             // Resolve the types to classes.
-            val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
+            val throwableClasses = methodItem.throwsTypes().map { it.asErasedClass() }
 
             // This must be available after resolving throwable types.
             val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
