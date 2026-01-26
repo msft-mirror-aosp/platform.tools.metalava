@@ -214,14 +214,13 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "#collectionMethod(Collection<String> p)",
-                    expectedResolvedReference =
-                        "#collectionMethod(java.util.Collection<java.lang.String>)",
+                    expectedResolvedReference = "#collectionMethod(java.util.Collection)",
                     expectedLinkLabel = "collectionMethod(Collection<String>)",
                 ),
                 TestParams(
                     name = "#genericMethod(T t)",
-                    expectedResolvedReference = "#genericMethod(T)",
-                    expectedLinkLabel = null,
+                    expectedResolvedReference = "#genericMethod(java.lang.Number)",
+                    expectedLinkLabel = "genericMethod(T)",
                 ),
                 TestParams(
                     name = "Test", // Reference self.

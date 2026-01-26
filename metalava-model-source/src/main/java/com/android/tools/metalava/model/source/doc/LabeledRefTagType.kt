@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.MethodSourceReference.SourceParameter
@@ -547,16 +548,27 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     ClassMemberSourceReference, ParsedReference {
 
     override val normalizedForm: String
-        get() = formatSignature(parameters)
+        get() =
+            formatSignature(
+                parameters,
+                // Preserve generic arguments in the label part of this.
+                eraseGenericArguments = false,
+            )
 
     /**
      * Format [name] and [parameters] into a method signature for use in [normalizedForm] and
      * [MethodReference.signature].
      */
-    private fun formatSignature(parameters: List<SourceParameter>) = buildString {
+    private fun formatSignature(
+        parameters: List<SourceParameter>,
+        eraseGenericArguments: Boolean,
+    ) = buildString {
+        val typeStringConfiguration =
+            if (eraseGenericArguments) ERASE_GENERICS_TYPE_STRING_CONFIGURATION
+            else TypeStringConfiguration.DEFAULT
         append(name)
         append('(')
-        parameters.joinTo(this, ",") { it.type.toTypeString() }
+        parameters.joinTo(this, ",") { it.type.toTypeString(typeStringConfiguration) }
         append(')')
     }
 
@@ -612,7 +624,9 @@ internal data class MethodSourceReference(val name: String, val parameters: List
                 parameters.map { sourceParameter ->
                     val fullyQualifiedType = sourceParameter.type.fullyQualify(context, reporter)
                     SourceParameter(fullyQualifiedType, sourceParameter.name)
-                }
+                },
+                // Erase generic arguments from the reference part of this.
+                eraseGenericArguments = true,
             )
         )
 
@@ -621,6 +635,12 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         val name: String? = null,
     ) {
         override fun toString() = if (name == null) type.toString() else "$name: $type"
+    }
+
+    companion object {
+        /** Configuration used in [formatSignature] when `eraseGenericArguments` is `true`. */
+        private val ERASE_GENERICS_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration.DEFAULT.copy(eraseGenerics = true)
     }
 }
 
