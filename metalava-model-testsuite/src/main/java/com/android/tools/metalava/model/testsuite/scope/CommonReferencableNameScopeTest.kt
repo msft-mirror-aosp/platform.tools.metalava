@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -67,7 +66,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         assertSame(expectedUnderlyingClass, fieldClass, message = "field class")
 
         // Verify that the resolution is correct.
-        val resolved = testClass.resolveReferencableItem(simpleName, NameClassification.AMBIGUOUS)
+        val resolved = testClass.resolveReferencableItem(simpleName)
         if (expectedResolvedClass == null) {
             val error = resolved as InvalidReferencableItem
             assertEquals(expectedErrorMessage, error.message)

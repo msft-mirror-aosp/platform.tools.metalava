@@ -25,81 +25,53 @@ import org.junit.Test
 class AnnotationItemTest {
 
     fun checkShortenAnnotation(expected: String, source: String) {
-        assertEquals(
-            expected,
-            AnnotationItem.shortenAnnotation(source),
-            message = "shortened is incorrect"
-        )
-        assertEquals(
-            source,
-            AnnotationItem.unshortenAnnotation(expected),
-            message = "unshortened is incorrect"
-        )
+        assertEquals(expected, AnnotationItem.shortenAnnotation(source))
+        assertEquals(source, AnnotationItem.unshortenAnnotation(expected))
     }
 
     @Test
     fun `Test shortenAnnotation and unshortenAnnotation`() {
-        checkShortenAnnotation("Nullable", "android.annotation.Nullable")
-        checkShortenAnnotation("Deprecated", "java.lang.Deprecated")
-        checkShortenAnnotation("SystemService", "android.annotation.SystemService")
-        checkShortenAnnotation("TargetApi", "android.annotation.TargetApi")
-        checkShortenAnnotation("SuppressLint", "android.annotation.SuppressLint")
-        checkShortenAnnotation("FlaggedApi", "android.annotation.FlaggedApi")
-        checkShortenAnnotation("Unknown", "androidx.annotation.Unknown")
-        checkShortenAnnotation("Unknown.Nested", "androidx.annotation.Unknown.Nested")
-        checkShortenAnnotation("my.Annotation", "my.Annotation")
-        checkShortenAnnotation("m.Annotation", "m.Annotation")
+        checkShortenAnnotation("@Nullable", "@android.annotation.Nullable")
+        checkShortenAnnotation("@Deprecated", "@java.lang.Deprecated")
+        checkShortenAnnotation("@SystemService", "@android.annotation.SystemService")
+        checkShortenAnnotation("@TargetApi", "@android.annotation.TargetApi")
+        checkShortenAnnotation("@SuppressLint", "@android.annotation.SuppressLint")
+        checkShortenAnnotation("@FlaggedApi", "@android.annotation.FlaggedApi")
+        checkShortenAnnotation("@Unknown", "@androidx.annotation.Unknown")
+        checkShortenAnnotation("@Unknown.Nested", "@androidx.annotation.Unknown.Nested")
+        checkShortenAnnotation("@my.Annotation", "@my.Annotation")
+        checkShortenAnnotation("@m.Annotation", "@m.Annotation")
     }
 
     fun checkAppendAnnotationStringTo(
         expected: String,
         annotationItem: AnnotationItem,
         configuration: ValueStringConfiguration,
-        purpose: AnnotationPurpose,
+        annotationIsValue: Boolean,
     ) {
         val actual = buildString {
-            annotationItem.appendAnnotationStringTo(this, configuration, purpose)
+            annotationItem.appendAnnotationStringTo(this, configuration, annotationIsValue)
         }
         assertEquals(expected, actual)
     }
 
     @Test
-    fun `Test item annotation for java`() {
+    fun `Test non-value annotation for java`() {
         checkAppendAnnotationStringTo(
             "@test.pkg.Anno",
             annotationItem("test.pkg.Anno"),
             configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.JAVA),
-            AnnotationPurpose.ITEM,
+            annotationIsValue = false,
         )
     }
 
     @Test
-    fun `Test type annotation for kotlin`() {
+    fun `Test non-value annotation for kotlin`() {
         checkAppendAnnotationStringTo(
             "@test.pkg.Anno",
             annotationItem("test.pkg.Anno"),
             configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN),
-            AnnotationPurpose.TYPE,
-        )
-    }
-
-    @Test
-    fun `Test type annotation for java`() {
-        checkAppendAnnotationStringTo(
-            "@test.pkg.Anno",
-            annotationItem("test.pkg.Anno"),
-            configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.JAVA),
-            AnnotationPurpose.TYPE,
-        )
-    }
-
-    @Test
-    fun `Test item annotation for kotlin`() {
-        checkAppendAnnotationStringTo(
-            "@test.pkg.Anno",
-            annotationItem("test.pkg.Anno"),
-            configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN),
-            AnnotationPurpose.ITEM,
+            annotationIsValue = false,
         )
     }
 
@@ -109,7 +81,7 @@ class AnnotationItemTest {
             "@test.pkg.Anno",
             annotationItem("test.pkg.Anno"),
             configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.JAVA),
-            AnnotationPurpose.VALUE,
+            annotationIsValue = true,
         )
     }
 
@@ -119,7 +91,7 @@ class AnnotationItemTest {
             "test.pkg.Anno()",
             annotationItem("test.pkg.Anno"),
             configuration = ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN),
-            AnnotationPurpose.VALUE,
+            annotationIsValue = true,
         )
     }
 }

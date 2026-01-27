@@ -264,7 +264,7 @@ internal class DefaultDocComment(
         if (overallRequiredSpace == RequiredSpace.EMPTY && noComment) return
 
         // Create a printer for [JavadocContent].
-        val contentPrinter = JavadocContentPrinter(writer, context)
+        val contentPrinter = JavadocContentPrinter(writer)
 
         // Check to see whether this is multi-line comment. If is then output it on multiple lines,
         // e.g.

@@ -17,9 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
@@ -80,20 +78,7 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
      * constructor, method, or field) to a [ResolvedReference], if possible.
      */
-    fun resolveReference(
-        reporter: LocationSpecificReporter,
-        sourceReference: String
-    ): ResolvedReference?
-
-    /**
-     * The optional [ClassItem] that contains this documentation.
-     *
-     * The value returned depends on the [SelectableItem] this documents:
-     * * For a [PackageItem] this will return `null`.
-     * * For a [ClassItem] this will just return the [ClassItem] itself.
-     * * For a [MemberItem] this will return [MemberItem.containingClass].
-     */
-    val containingClassItem: ClassItem?
+    fun resolveReference(sourceReference: String): ResolvedReference?
 }
 
 /**
@@ -106,9 +91,6 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
 sealed interface ResolvedReference : Comparable<ResolvedReference> {
     /** The fully qualified form of the referenced type. */
     val fullyQualifiedForm: String
-
-    /** Format [this] for use as the reference in a reference tag, e.g. `@link`, `@see`. */
-    fun formatForTagReference(containingClassName: String?) = fullyQualifiedForm
 
     override fun compareTo(other: ResolvedReference) =
         fullyQualifiedForm.compareTo(other.fullyQualifiedForm)
@@ -133,18 +115,4 @@ data class ClassReference(private val qualifiedName: String) : TypeReference {
 data class TypeParameterReference(private val name: String) : TypeReference {
     override val fullyQualifiedForm: String
         get() = name
-}
-
-/** Base for references to class members, i.e. fields, constructors, methods. */
-sealed interface MemberReference : ResolvedReference
-
-/** A reference to a [FieldItem]. */
-data class FieldReference(
-    private val qualifiedClassName: String,
-    private val memberName: String,
-) : MemberReference {
-    override val fullyQualifiedForm = "$qualifiedClassName#$memberName"
-
-    override fun formatForTagReference(containingClassName: String?) =
-        if (qualifiedClassName == containingClassName) "#$memberName" else fullyQualifiedForm
 }

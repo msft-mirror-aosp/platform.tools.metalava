@@ -350,8 +350,7 @@ interface ModifierFlags {
                 INFIX or
                 OPERATOR or
                 SUSPEND or
-                COMPANION or
-                INLINE
+                COMPANION
     }
 }
 

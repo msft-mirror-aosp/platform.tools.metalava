@@ -221,7 +221,6 @@ class ConvertJarsToSignatureFiles(
                 SnapshotDeltaMaker.createDelta(
                     base = extendedCodebase,
                     codebaseFragment = jarCodebaseFragment,
-                    checkMemberItemEquivalence = false,
                 )
             }
 
