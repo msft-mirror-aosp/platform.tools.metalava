@@ -213,6 +213,17 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = "collectionMethod(Collection)",
                 ),
                 TestParams(
+                    name = "#collectionMethod(Collection<String> p)",
+                    expectedResolvedReference =
+                        "#collectionMethod(java.util.Collection<java.lang.String>)",
+                    expectedLinkLabel = "collectionMethod(Collection<String>)",
+                ),
+                TestParams(
+                    name = "#genericMethod(T t)",
+                    expectedResolvedReference = "#genericMethod(T)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
                     name = "Test", // Reference self.
                     expectedResolvedReference = "test.pkg.Test",
                 ),
@@ -470,12 +481,13 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                         import another.pkg.Imported;
                         import java.util.Collection;
                         ${comment}
-                        public class Test<T> {
+                        public class Test<T extends Number> {
                             public int field;
                             public Test() {}
                             public Test(int p) {}
                             public void noParamsMethod() {}
                             public void intMethod(int p) {}
+                            public void genericMethod(T t) {}
                             public void collectionMethod(Collection<?> p) {}
 
                             public class Nested {}
