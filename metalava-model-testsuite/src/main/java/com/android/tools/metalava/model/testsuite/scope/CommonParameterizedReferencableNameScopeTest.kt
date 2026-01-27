@@ -190,8 +190,9 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     name = "ClassItem - resolve self against self",
                     scopeGetter = { codebase.assertResolvedClass("java.util.Map") },
                     referencableName = "Map.Map",
-                    // TODO(b/447588621): Map.Map must not resolve to java.util.Map.
-                    expectedItemGetter = { codebase.assertResolvedClass("java.util.Map") },
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Map.Map' as could not find 'Map' in 'class java.util.Map'",
                 ),
                 // ClassItem - Nested classes
                 TestParams(
