@@ -230,6 +230,11 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Test.Nested",
                     expectedResolvedReference = "test.pkg.Test.Nested",
                 ),
+                TestParams(
+                    name = "##uri-fragment",
+                    expectedResolvedReference = "##uri-fragment",
+                    expectedLinkLabel = null,
+                ),
 
                 // The # is optional when referencing members of the current class. The following
                 // tests verify the behavior. Note, the result must have a leading # as that will
@@ -344,6 +349,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Other.Nested",
                     expectedResolvedReference = "test.pkg.Other.Nested",
                 ),
+                TestParams(
+                    name = "Other##uri-fragment",
+                    // TODO(b/447588621): Other should be fully qualified.
+                    expectedResolvedReference = "Other##uri-fragment",
+                    expectedLinkLabel = null,
+                ),
 
                 // Reference a member of an imported class.
                 TestParams(
@@ -395,6 +406,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 TestParams(
                     name = "Imported.Nested",
                     expectedResolvedReference = "another.pkg.Imported.Nested",
+                ),
+                TestParams(
+                    name = "Imported##uri-fragment",
+                    // TODO(b/447588621): Importer should be fully qualified.
+                    expectedResolvedReference = "Imported##uri-fragment",
+                    expectedLinkLabel = null,
                 ),
 
                 // Reference a member of a fully qualified class.
@@ -454,6 +471,11 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 TestParams(
                     name = "other.pkg.Another.Nested",
                     expectedResolvedReference = "other.pkg.Another.Nested",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another##uri-fragment",
+                    expectedResolvedReference = "other.pkg.Another##uri-fragment",
                     expectedLinkLabel = null,
                 ),
             )

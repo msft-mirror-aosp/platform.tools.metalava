@@ -12,6 +12,20 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[kotlin,k1]
 
+com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
+  Documentation text[java,k1,@link,Imported##uri-fragment]
+  Documentation text[java,k1,@link,Other##uri-fragment]
+  Documentation text[java,k1,@link,other.pkg.Another##uri-fragment]
+  Documentation text[java,k1,@linkplain,Imported##uri-fragment]
+  Documentation text[java,k1,@linkplain,Other##uri-fragment]
+  Documentation text[java,k1,@linkplain,other.pkg.Another##uri-fragment]
+  Documentation text[java,k2,@link,Imported##uri-fragment]
+  Documentation text[java,k2,@link,Other##uri-fragment]
+  Documentation text[java,k2,@link,other.pkg.Another##uri-fragment]
+  Documentation text[java,k2,@linkplain,Imported##uri-fragment]
+  Documentation text[java,k2,@linkplain,Other##uri-fragment]
+  Documentation text[java,k2,@linkplain,other.pkg.Another##uri-fragment]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
   Test inner parameterized types with annotations[java,k2]
