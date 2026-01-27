@@ -351,32 +351,33 @@ open class DefaultClassItem(
     ) =
         // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
         // First, check to see if it matches this class and if it does then return it.
-        if (simpleName == simpleName()) this
-        else
-        // Then check to see type parameters.
-        nameClassification.findTypeParameter { typeParameterList.find { it.name() == simpleName } }
-                // Then, check to see if it is a field of this class.
-                ?: nameClassification.findField { mutableFields.find { it.name() == simpleName } }
-                // Then, check to see if it matches a nested class and if it does then return that.
-                ?: nameClassification.findClass {
-                    mutableNestedClasses.find { it.simpleName() == simpleName }
-                }
-                // Then, check to see if it matches a class defined in a super class.
-                ?: superClass()
+        (if (simpleName == simpleName()) this else null)
+            // Then check to see type parameters.
+            ?: nameClassification.findTypeParameter {
+                typeParameterList.find { it.name() == simpleName }
+            }
+            // Then, check to see if it is a field of this class.
+            ?: nameClassification.findField { mutableFields.find { it.name() == simpleName } }
+            // Then, check to see if it matches a nested class and if it does then return that.
+            ?: nameClassification.findClass {
+                mutableNestedClasses.find { it.simpleName() == simpleName }
+            }
+            // Then, check to see if it matches a class defined in a super class.
+            ?: superClass()
+                ?.resolveReferencableItemBySimpleName(
+                    simpleName,
+                    nameClassification,
+                    isFirstSimpleName
+                )
+            // Then, check to see if it matches a class defined in a super interface.
+            ?: interfaceTypes().firstNotNullOfOrNull {
+                it.resolveClass(codebase)
                     ?.resolveReferencableItemBySimpleName(
                         simpleName,
                         nameClassification,
                         isFirstSimpleName
                     )
-                // Then, check to see if it matches a class defined in a super interface.
-                ?: interfaceTypes().firstNotNullOfOrNull {
-                    it.resolveClass(codebase)
-                        ?.resolveReferencableItemBySimpleName(
-                            simpleName,
-                            nameClassification,
-                            isFirstSimpleName
-                        )
-                }
+            }
 
     /** Cache value of [annotationClass]. */
     private lateinit var cachedAnnotationClass: AnnotationClass
