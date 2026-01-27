@@ -108,3 +108,14 @@ data class MethodReference(
     override fun formatForTagReference(containingClassName: String?) =
         if (qualifiedClassName == containingClassName) "#$signature" else fullyQualifiedForm
 }
+
+/** A reference to a URI fragment, i.e. an HTML element with `id="<fragment>" attribute. */
+data class UriFragmentReference(
+    private val qualifiedClassName: String,
+    private val fragmentName: String,
+) : MemberReference {
+    override val fullyQualifiedForm = "$qualifiedClassName##$fragmentName"
+
+    override fun formatForTagReference(containingClassName: String?) =
+        if (qualifiedClassName == containingClassName) "##$fragmentName" else fullyQualifiedForm
+}

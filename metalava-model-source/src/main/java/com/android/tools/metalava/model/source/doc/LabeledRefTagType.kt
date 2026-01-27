@@ -522,9 +522,7 @@ internal sealed interface ClassMemberSourceReference {
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
         classItem: ClassItem
-    ): ResolvedReference? =
-        // TODO(b/447588621): Remove default after implementing in all sub-classes.
-        null
+    ): ResolvedReference
 }
 
 /** A reference to a member called [name], which could be a field or a method. */
@@ -696,6 +694,15 @@ internal data class UriFragmentSourceReference(val uriFragment: String) :
      */
     override val normalizedForm: String
         get() = "#$uriFragment"
+
+    override fun findIn(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ) =
+        // TODO(b/447588621): If the source for classItem is available then check it for an
+        //  id="<uriFragment>" attribute.
+        UriFragmentReference(classItem.qualifiedName(), uriFragment)
 }
 
 /**
@@ -846,6 +853,9 @@ internal data class LabeledRefTagData(
      */
     fun String.referenceAsLabel(): String {
         val hashIndex = indexOf('#')
+        if (hashIndex + 1 < length && this[hashIndex + 1] == '#') {
+            return substring(hashIndex + 1)
+        }
         return when (hashIndex) {
             -1 -> this
             0 -> substring(1)
