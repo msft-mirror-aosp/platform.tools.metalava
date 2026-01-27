@@ -57,6 +57,11 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
         /** The name to resolve. */
         val referencableName: String,
         /**
+         * The [NameClassification] of [referencableName] for which the [expectedErrorMessage] is
+         * provided.
+         */
+        val nameClassification: NameClassification = NameClassification.AMBIGUOUS,
+        /**
          * Getter for the expected [ReferencableItem] to which [referencableName] name will be
          * resolved.
          */
@@ -146,6 +151,18 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     }
                 ),
                 TestParams(
+                    name = "SourceFile - resolve imported class as field",
+                    imports =
+                        """
+                            import java.io.IOException;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "IOException",
+                    nameClassification = NameClassification.FIELD,
+                    // TODO(b/447588621): Should resolve to `null` as IOException is not a field.
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") },
+                ),
+                TestParams(
                     name = "SourceFile - resolve class in same file",
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "Hidden",
@@ -194,6 +211,15 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedErrorMessage =
                         "Could not resolve 'Map.Map' as could not find 'Map' in 'class java.util.Map'",
                 ),
+                TestParams(
+                    name = "ClassItem - resolve self as field",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test",
+                    nameClassification = NameClassification.FIELD,
+                    // TODO(b/447588621): Should resolve to `null` as Test is not a field.
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test") },
+                ),
+
                 // ClassItem - Nested classes
                 TestParams(
                     name = "ClassItem - resolve nested class",
@@ -412,7 +438,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
             val scope = scopeGetter()
 
             val resolvedItem =
-                scope.resolveReferencableItem(params.referencableName, NameClassification.AMBIGUOUS)
+                scope.resolveReferencableItem(params.referencableName, params.nameClassification)
 
             // Defer getting the expected Item until after resolving to ensure that resolving works
             // even on packages and classes that are not in the sources which have not yet been
