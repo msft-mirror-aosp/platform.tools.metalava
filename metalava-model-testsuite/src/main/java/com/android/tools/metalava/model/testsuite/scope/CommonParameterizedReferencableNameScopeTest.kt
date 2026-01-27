@@ -159,8 +159,9 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "IOException",
                     nameClassification = NameClassification.FIELD,
-                    // TODO(b/447588621): Should resolve to `null` as IOException is not a field.
-                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") },
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Expected a field called 'IOException' but found 'class java.io.IOException'",
                 ),
                 TestParams(
                     name = "SourceFile - resolve class in same file",

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.imports.ImportResolver
@@ -63,8 +64,13 @@ abstract class AbstractSourceFile() : SourceFile {
         val qualifiedClassName = resolvedImport.qualifiedClassName
         val resolvedClass = codebase.resolveClass(qualifiedClassName) ?: return null
 
-        // Check if a member name was provided and if not just return the class.
-        val memberName = resolvedImport.memberName ?: return resolvedClass
+        // Check if a member name was provided and if not just return the class, if allowed.
+        val memberName =
+            resolvedImport.memberName
+                ?: return nameClassification.findClass { resolvedClass }
+                    ?: InvalidReferencableItem(
+                        "Expected ${nameClassification.describeName(simpleName)} but found '$resolvedClass'"
+                    )
 
         // Return the result of trying to resolve a nested class.
         return resolvedClass.resolveClassMember(memberName, nameClassification)
