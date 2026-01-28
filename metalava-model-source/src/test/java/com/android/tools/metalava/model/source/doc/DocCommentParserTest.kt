@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.BarTagData
 import com.android.tools.metalava.model.source.javadoc.JavadocText
-import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import com.android.tools.metalava.model.source.javadoc.dumpContentStructure
 import junit.framework.TestCase.assertFalse
@@ -33,13 +32,11 @@ class DocCommentParserTest : BaseDocCommentTest() {
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
     private fun checkDocComment(
         input: String,
-        referenceResolver: ((String) -> ResolvedReference?)? = null,
         expectedString: String? = null,
         expectedPrintOutput: String? = null,
         expectedIssues: String = "",
         checker: DocCommentContext.() -> Unit = {},
     ) {
-        if (referenceResolver != null) context.referenceResolver = referenceResolver
         val docComment = createTestDocComment(input, expectedIssues)
         if (expectedString != null) {
             assertEquals(expectedString.trimIndent(), docComment.toString())
@@ -130,7 +127,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
             expectedPrintOutput =
                 """
-                    /** @see something */
+                    /** @see resolved.something */
                 """,
         )
     }
@@ -155,18 +152,17 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /**
                      * Some text
                      *
-                     * @see something
-                     * @see other thing
+                     * @see resolved.something
+                     * @see resolved.other thing
                      */
                 """,
         ) {
             docComment.assertStructure(
                 """
                     text: 'Some text'
-                    blockTag: see
-                      text: 'something'
-                      blockTag: see
-                      text: 'other thing'
+                    blockTag: see LabeledRefTagData(sourceReference=something, resolvedReference=ClassReference(qualifiedName=resolved.something))
+                    blockTag: see LabeledRefTagData(sourceReference=other, resolvedReference=ClassReference(qualifiedName=resolved.other))
+                      text: 'thing'
                 """
             )
         }
@@ -194,8 +190,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /**
                      * Some text
                      *
-                     * @see something
-                     * @see other thing
+                     * @see resolved.something
+                     * @see resolved.other thing
                      */
                 """,
         )
@@ -286,11 +282,11 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     description: <<>>
                     @throws <<SomeException reason>>
                 """,
-            expectedPrintOutput = "/** @throws SomeException reason */",
+            expectedPrintOutput = "/** @throws resolved.SomeException reason */",
         ) {
             docComment.assertStructure(
                 """
-                    blockTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=SomeException))
+                    blockTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=resolved.SomeException))
                       text: 'reason'
                 """
             )
@@ -408,9 +404,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /**
                      * An inline tag.
-                     *
-                     * @see Something
-                     * {@hide}
+                     * @see resolved.Something {@hide}
                      */
                 """,
         )
@@ -488,8 +482,8 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @param
                      * @return something
                      * @attr ref xml-thing
-                     * @throws Exception
-                     * @throws Throwable
+                     * @throws resolved.Exception
+                     * @throws resolved.Throwable
                      * @throws
                      * @see #field
                      * @see #Class()
@@ -505,6 +499,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @unknown
                      */
                 """,
+            expectedIssues = "11:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]",
         )
     }
 
@@ -645,6 +640,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** {@code unclosed} */
                 """,
+            expectedIssues = "2:6: unclosed inline '@code' tag [UnclosedInlineTag]",
         )
     }
 
@@ -663,8 +659,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
 
     @Test
     fun `Test block tag data`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkDocComment(
             input =
                 """
@@ -681,13 +675,11 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** @bar foo block after */
                 """,
+            expectedIssues =
+                "2:9: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]",
         ) {
             val barBlockTagSection = docComment.blockTagSections.single()
             assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
-
-            reporter.assertJavadocParserIssues(
-                "2:9: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]"
-            )
         }
     }
 
@@ -875,7 +867,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see <a href="link.html">Label</a>
                      */
                 """,
-            referenceResolver = { error("should never be called") },
             expectedString =
                 """
                     description: <<>>
@@ -901,7 +892,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see "literal string"
                      */
                 """,
-            referenceResolver = { error("should never be called") },
             expectedString =
                 """
                     description: <<>>
@@ -927,19 +917,16 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see Reference
                      */
                 """,
-            // TODO(b/447588621): Resolve references in @see tag so this will have an effect.
-            referenceResolver = { ClassReference("resolved.$it") },
             expectedString =
                 """
                     description: <<>>
                     @see <<Reference>>
                 """,
-            expectedPrintOutput = """/** @see Reference */""",
+            expectedPrintOutput = """/** @see resolved.Reference */""",
         ) {
             docComment.assertStructure(
                 """
-                    blockTag: see
-                      text: 'Reference'
+                    blockTag: see LabeledRefTagData(sourceReference=Reference, resolvedReference=ClassReference(qualifiedName=resolved.Reference))
                 """
             )
         }
@@ -954,19 +941,63 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see Reference Label
                      */
                 """,
-            // TODO(b/447588621): Resolve references in @see tag so this will have an effect.
-            referenceResolver = { ClassReference("resolved.$it") },
             expectedString =
                 """
                     description: <<>>
                     @see <<Reference Label>>
                 """,
-            expectedPrintOutput = """/** @see Reference Label */""",
+            expectedPrintOutput = """/** @see resolved.Reference Label */""",
         ) {
             docComment.assertStructure(
                 """
-                    blockTag: see
-                      text: 'Reference Label'
+                    blockTag: see LabeledRefTagData(sourceReference=Reference, resolvedReference=ClassReference(qualifiedName=resolved.Reference))
+                      text: 'Label'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test {@throws} - block tag as inline tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * {@throws Exception}
+                     */
+                """,
+            expectedString = """description: <<\n * {@throws Exception}>>""",
+            expectedPrintOutput = """/** {@throws resolved.Exception} */""",
+            expectedIssues = "2:6: Cannot use 'throws' as an inline tag [InvalidTagForm]",
+        ) {
+            docComment.assertStructure(
+                """
+                    inlineTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=resolved.Exception))
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test @link - inline tag as block tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @link String
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @link <<String>>
+                """,
+            expectedPrintOutput = """/** @link resolved.String String */""",
+            expectedIssues = "2:5: Cannot use 'link' as a block tag [InvalidTagForm]",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: link LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
                 """
             )
         }
