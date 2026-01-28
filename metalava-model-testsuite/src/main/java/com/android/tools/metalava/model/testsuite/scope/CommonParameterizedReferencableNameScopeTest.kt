@@ -359,6 +359,68 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     },
                 ),
                 TestParams(
+                    name = "ClassItem - resolve simple constructor reference - ambiguous",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test",
+                    nameClassification = NameClassification.AMBIGUOUS,
+                    expectedItemGetter = {
+                        // A constructor name and class name are indistinguishable so unless the
+                        // NameClassification differentiates between them, resolving defaults to the
+                        // class.
+                        codebase.assertClass("test.pkg.Test")
+                    },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve simple constructor reference - callable",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test",
+                    nameClassification = NameClassification.CALLABLE_SET,
+                    // TODO(b/447588621): Should not be null.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve a method called 'Test' in 'class test.pkg.Test'",
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified constructor reference - callable",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "java.io.IOException",
+                    nameClassification = NameClassification.CALLABLE_SET,
+                    // Resolving a name that matches a class should return the class in lieu of the
+                    // constructor.
+                    // TODO(b/447588621): Should not be null.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve a method called 'java.io.IOException' as could not find a method called 'IOException' in 'package java.io'",
+                ),
+                TestParams(
+                    name = "ClassItem - resolve invalid constructor reference - callable",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    // This is not strictly speaking valid, but it is a likely result of someone
+                    // forgetting to use a # in a constructor reference.
+                    referencableName = "Test.Test",
+                    nameClassification = NameClassification.CALLABLE_SET,
+                    // TODO(b/447588621): Should not be null.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve a method called 'Test.Test' as could not find a method called 'Test' in 'class test.pkg.Test'",
+                ),
+                TestParams(
+                    name = "ClassItem - resolve imported constructor reference - callable",
+                    // It is impossible to import a constructor, instead the class is imported in
+                    // lieu of its constructors.
+                    imports =
+                        """
+                            import java.io.IOException;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "IOException",
+                    nameClassification = NameClassification.CALLABLE_SET,
+                    // TODO(b/447588621): Should not be null.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Expected a method called 'IOException' but found 'class java.io.IOException'",
+                ),
+                TestParams(
                     name = "ClassItem - resolve simple method reference",
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "method",
