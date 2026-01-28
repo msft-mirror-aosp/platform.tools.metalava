@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
@@ -52,7 +51,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
-import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiClassType
@@ -155,9 +153,6 @@ internal class PsiCodebaseAssembler(
     internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
         getFactory().createTypeFromText(s, parent)
 
-    private fun createPsiAnnotation(s: String, parent: PsiElement? = null): PsiAnnotation =
-        getFactory().createAnnotationFromText(s, parent)
-
     internal fun findPsiPackage(pkgName: String): PsiPackage? {
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
@@ -229,7 +224,7 @@ internal class PsiCodebaseAssembler(
         psiClass: PsiClass,
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): ClassItem {
+    ): PsiClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
         return createClass(
             psiClass,
@@ -246,7 +241,7 @@ internal class PsiCodebaseAssembler(
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): ClassItem {
+    ): PsiClassItem {
         val packageName = getPackageName(psiClass)
 
         // If the package could not be found then report an error.
@@ -376,7 +371,7 @@ internal class PsiCodebaseAssembler(
                 // Constructors with value class type parameters may or may not be fake UAST
                 // elements depending on whether K1 or K2 is used.
                 // TODO(b/427783483): remove this workaround
-                if (constructor.parameters().any { it.type().isValueClassType() }) {
+                if (constructor.parameters().any { it.type().isValueClassType }) {
                     continue
                 }
 
@@ -434,8 +429,8 @@ internal class PsiCodebaseAssembler(
                 // are not fake UAST. Filter those value class type property accessors here.
                 // TODO(b/427783483): remove this workaround
                 if (
-                    (method.returnType().isValueClassType() ||
-                        method.parameters().any { it.type().isValueClassType() } ||
+                    (method.returnType().isValueClassType ||
+                        method.parameters().any { it.type().isValueClassType } ||
                         // If a suspend function returns a value class type, the return is turned
                         // into a final continuation parameter where the argument of the type is
                         // a super bound of the value class type.
@@ -444,7 +439,7 @@ internal class PsiCodebaseAssembler(
                                     ?.arguments
                                     ?.singleOrNull() as? WildcardTypeItem)
                                 ?.superBound
-                                ?.isValueClassType() == true)) && !hasJvmName
+                                ?.isValueClassType == true)) && !hasJvmName
                 ) {
                     continue
                 }
@@ -782,6 +777,9 @@ internal class PsiCodebaseAssembler(
                 )
             }
 
+        // Add any Kotlin properties to the class.
+        kaCodebaseAssembler?.addPropertiesToClassFromClasspath(createdClassItem)
+
         // Select the class item to return.
         return if (missingPsiClass == psiClass) {
             // The created class item was what was requested so just return it.
@@ -808,14 +806,6 @@ internal class PsiCodebaseAssembler(
         }
 
         return qualifiedName.substring(0, qualifiedName.length - 1 - simpleName.length)
-    }
-
-    internal fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
-        return PsiAnnotationItem.create(psiCodebase, psiAnnotation)
     }
 
     internal fun initializeFromJar(jarFile: File) {
@@ -887,11 +877,9 @@ internal class PsiCodebaseAssembler(
         createInitialPackages(sourceSet)
 
         // Add type aliases.
+        val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
         kaCodebaseAssembler =
-            psiFiles
-                .filterIsInstance<KtFile>()
-                .takeIf { it.isNotEmpty() }
-                ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, psiCodebase) }
+            psiCodebase.mainAnalysisModule?.let { KaCodebaseAssembler(kotlinFiles, psiCodebase) }
         kaCodebaseAssembler?.let { kaCodebaseAssembler ->
             // Provide a list of all packages when all typealiases are needed in order to inline
             // usages. If that isn't necessary, just typealiases from source will be processed.

@@ -114,7 +114,7 @@ internal open class DescriptionOwner(
         PrintWriter(stringWriter).use { writer ->
             writer.print("/**\n")
             writer.print(" * ")
-            val printer = JavadocContentPrinter(writer)
+            val printer = JavadocContentPrinter(writer, context)
             printer.print(content)
             writer.print("\n */")
         }
@@ -134,7 +134,9 @@ internal open class DescriptionOwner(
             DocComment.createDocComment(
                 context,
                 qualified,
-                DocumentationIssueReporter.THROWING,
+                // Use the null reporter as any issues found in this block tag will have been
+                // reported elsewhere.
+                DocumentationIssueReporter.NULL,
             )
 
         // Return the main description as the comment.
@@ -228,7 +230,7 @@ internal open class DescriptionOwner(
          * `{@inheritDoc}` inline tag to insert when modifying a comment that does not exist in the
          * sources and is attached to an overriding method.
          */
-        private val INHERIT_DOC_CONTENT = JavadocInlineTag(InlineTagTypes.INHERIT_DOC, null, null)
+        private val INHERIT_DOC_CONTENT = JavadocInlineTag(TagTypes.INHERIT_DOC, null, null)
 
         /**
          * Blank line to add between [INHERIT_DOC_CONTENT] and the content being added to maintain
