@@ -292,6 +292,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                         "warning: Could not resolve a class called 'Unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
                 TestParams(
+                    name = "Unknown#method(String, Number)",
+                    // TODO(b/447588621): The parameter types should still be resolved.
+                    expectedResolvedReference = "Unknown#method(String,Number)",
+                    expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve a class called 'Unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                ),
+                TestParams(
                     name = "Imported.field.other#member",
                     expectedResolvedReference = "Imported.field.other#member",
                     expectedLinkLabel = null,
