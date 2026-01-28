@@ -138,6 +138,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         val annotations = originalAnnotations.map { it.snapshot(snapshotCodebase) }
         return PackageInfo(
             fileLocation = originalPackage.fileLocation,
+            sourceFile = originalPackage.sourceFile,
             annotations = annotations,
             commentFactory = originalPackage.documentation.snapshottingFactory(),
             overview = originalPackage.overviewDocumentation,

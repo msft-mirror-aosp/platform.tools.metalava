@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.scope.NameClassification
@@ -32,6 +33,7 @@ import com.android.tools.metalava.reporter.FileLocation
 class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
+    override val sourceFile: SourceFile?,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
