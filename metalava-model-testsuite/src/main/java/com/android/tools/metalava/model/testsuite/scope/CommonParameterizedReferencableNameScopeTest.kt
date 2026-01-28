@@ -111,6 +111,33 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "java.util",
                     expectedItemGetter = { codebase.assertResolvedPackage("java.util") }
                 ),
+                TestParams(
+                    name = "PackageItem - implicit java.lang type",
+                    scopeGetter = { codebase.assertPackage("test.pkg") },
+                    referencableName = "String",
+                    // TODO(b/447588621): Should not be `null`.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage = "Could not resolve 'String' in 'package test.pkg'",
+                ),
+                TestParams(
+                    name = "PackageItem - import List",
+                    scopeGetter = { codebase.assertPackage("test.pkg") },
+                    referencableName = "List",
+                    // TODO(b/447588621): Should not be `null`.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage = "Could not resolve 'List' in 'package test.pkg'",
+                ),
+                TestParams(
+                    name = "PackageItem - using qualified imported name List",
+                    scopeGetter = { codebase.assertPackage("test.pkg") },
+                    // The `List` name is imported into `test/pkg/package-info.java` and must only
+                    // be used when resolving an unqualified name. This makes sure that is correct.
+                    referencableName = "test.pkg.List",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'test.pkg.List' as could not find 'List' in 'package test.pkg'",
+                ),
+
                 // SourceFile related tests.
                 TestParams(
                     name = "SourceFile - absolute class",
@@ -457,6 +484,14 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
     fun `Test resolve`() {
         runCodebaseTest(
             inputSet(
+                java(
+                    "test/pkg/package-info.java",
+                    """
+                        package test.pkg;
+
+                        import java.util.List;
+                    """
+                ),
                 java(
                     """
                         package test.pkg;
