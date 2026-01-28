@@ -17,24 +17,35 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.imports.ImportResolver
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
 
 /** Base class for model implementations of [SourceFile]. */
 abstract class AbstractSourceFile() : SourceFile {
-    override fun snapshot(targetCodebase: Codebase): SourceFile {
-        return SourceFileSnapshot(
-            targetCodebase,
-            targetCodebase.resolvePackage(containingPackage.qualifiedName())!!,
-            originalSourceFile = this,
-        )
-    }
+    /** Backing field for [containingPackage]. */
+    private lateinit var _containingPackage: PackageItem
+
+    /**
+     * Lazily initialize this as otherwise it leads to cycles when creating an [AbstractSourceFile]
+     * for a `package-info.java` file.
+     */
+    final override val containingPackage: PackageItem
+        get() {
+            if (!::_containingPackage.isInitialized) {
+                val containingPackageName = computeContainingPackageName()
+                _containingPackage = codebase.resolvePackage(containingPackageName)!!
+            }
+
+            return _containingPackage
+        }
+
+    /** Compute the containing package name for this. */
+    abstract fun computeContainingPackageName(): String
 
     /** Backing field of [importResolver]. */
     private lateinit var _importResolver: ImportResolver

@@ -573,10 +573,8 @@ internal class SnapshotSourceFileCache(
     internal fun snapshotSourceFile(sourceFile: SourceFile?): SourceFile? {
         sourceFile ?: return null
         return snapshotSourceFiles.computeIfAbsent(sourceFile) { originalSourceFile ->
-            var pkgName = originalSourceFile.containingPackage.qualifiedName()
             SourceFileSnapshot(
                 targetCodebase,
-                targetCodebase.resolvePackage(pkgName)!!,
                 originalSourceFile,
             )
         }
@@ -590,12 +588,14 @@ internal class SnapshotSourceFileCache(
  */
 internal class SourceFileSnapshot(
     override val codebase: Codebase,
-    override val containingPackage: PackageItem,
     private val originalSourceFile: SourceFile
 ) : AbstractSourceFile() {
 
     override val fileLocation: FileLocation
         get() = originalSourceFile.fileLocation
+
+    override fun computeContainingPackageName() =
+        originalSourceFile.containingPackage.qualifiedName()
 
     override fun classes() =
         originalSourceFile.classes().mapNotNull { codebase.resolveClass(it.qualifiedName()) }

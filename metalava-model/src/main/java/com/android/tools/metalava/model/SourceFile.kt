@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
 import com.android.tools.metalava.reporter.FileLocation
 
 /** Represents a Kotlin/Java source file */
@@ -53,7 +54,11 @@ interface SourceFile : ReferencableNameScope {
     /** Get only those imports that reference [Item]s for which [predicate] returns `true`. */
     fun getImports(predicate: FilterPredicate): Collection<Import> = emptyList()
 
-    fun snapshot(targetCodebase: Codebase): SourceFile
+    fun snapshot(targetCodebase: Codebase): SourceFile =
+        SourceFileSnapshot(
+            targetCodebase,
+            originalSourceFile = this,
+        )
 }
 
 /** Encapsulates information about the imports used in a [SourceFile]. */

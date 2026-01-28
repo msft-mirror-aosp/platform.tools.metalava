@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.doc.characterOffsetFor
@@ -37,16 +36,7 @@ internal class TurbineSourceFile(
 
     override val fileLocation: FileLocation = TurbineFileLocation.forTree(this)
 
-    private lateinit var _containingPackage: PackageItem
-
-    override val containingPackage: PackageItem
-        get() {
-            if (!::_containingPackage.isInitialized) {
-                val packageName = getPackageName(compUnit)
-                _containingPackage = codebase.packageTracker.findOrCreatePackage(packageName)
-            }
-            return _containingPackage
-        }
+    override fun computeContainingPackageName() = getPackageName(compUnit)
 
     override fun getHeaderComments() = compUnit.getHeaderComments()
 
