@@ -110,17 +110,19 @@ abstract class AbstractSourceFile() : SourceFile {
         simpleName: String,
         nameClassification: NameClassification,
         isFirstSimpleName: Boolean
-    ) =
+    ): ReferencableItem? {
+        // This must only be called when isFirstSimpleName == true.
+        require(isFirstSimpleName) {
+            "internal error: resolving ${simpleName} as ${nameClassification}, isFirstSimpleName was false"
+        }
+
         // First, check for other top level classes in the same file.
-        nameClassification.findClass { classes().find { it.simpleName() == simpleName } }
+        return nameClassification.findClass { classes().find { it.simpleName() == simpleName } }
             // Then check for named imports first.
             ?: importedItem(simpleName, onDemand = false, nameClassification)
             // Then check the containing package.
-            ?: containingPackage.resolveReferencableItemBySimpleName(
-                simpleName,
-                nameClassification,
-                isFirstSimpleName
-            )
+            ?: containingPackage.findClassIfAllowed(simpleName, nameClassification)
             // Then check for on demand imports.
             ?: importedItem(simpleName, onDemand = true, nameClassification)
+    }
 }
