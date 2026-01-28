@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
-import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
 
 abstract class BaseJavadocTest : BaseDocCommentTest() {
@@ -28,14 +27,10 @@ abstract class BaseJavadocTest : BaseDocCommentTest() {
         expectedStructure: String,
         expectedJavadocIssues: String = "",
     ) {
-        context.referenceResolver = { ClassReference("resolved.$it") }
-        val docComment = createTestDocComment(text)
+        val docComment = createTestDocComment(text, expectedJavadocIssues)
 
         // Parse the main description
         var content = contentGetter(docComment)
-
-        // Make sure that no unexpected JavadocParser issues were found.
-        reporter.assertJavadocParserIssues(expectedJavadocIssues)
 
         // Check the model structure.
         content.assertStructure(expectedStructure.trimIndent())

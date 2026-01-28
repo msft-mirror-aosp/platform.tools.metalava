@@ -47,6 +47,7 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
+import com.android.tools.metalava.lint.MultiplatformLint
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
@@ -371,6 +372,9 @@ class Driver(
             )
             .generateStubs()
 
+        // Run additional operations on the multiplatform codebase, if it exists.
+        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
+
         val packageCount = codebase.size()
         progressTracker.progress(
             "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
@@ -515,6 +519,47 @@ class Driver(
         return sourceOptions.projectDescription?.let { projectDescription ->
             sourceParser.createMultiplatformCodebase(projectDescription)
         } ?: error("Project description is required to create multiplatform codebase from sources.")
+    }
+
+    private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {
+        if (apiLintOptions.apiLintEnabled) {
+            MultiplatformLint(reporter).check(multiplatformCodebase)
+
+            // For the regular, non-multiplatform codebase operations, either the android or jvm
+            // source set was used. Find which one of these it was.
+            val (mainSourceSet, mainCodebase) =
+                multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
+                    it.key == "androidMain"
+                }
+                    ?: multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
+                        it.key == "jvmMain"
+                    }
+                    ?: error("Multiplatform codebase must have main android or jvm source set")
+
+            // Run regular API lint checks for each source set.
+            for ((sourceSet, codebase) in multiplatformCodebase.sourceSetToCodebase) {
+                // Skip checking the main source set, which will already have been checked through
+                // the non-multiplatform lint checks. Also skip checking common, since all APIs will
+                // be included in the checks for other source sets.
+                if (sourceSet == mainSourceSet || sourceSet == "commonMain") continue
+                runApiChecksFromOptions(codebase) { codebase, _ ->
+                    ApiLint.check(
+                        codebase,
+                        // By making the main android/jvm codebase the "oldCodebase", any issues
+                        // which have already been reported for the main codebase through the non-
+                        // multiplatform checks will be skipped.
+                        oldCodebase = mainCodebase,
+                        reporter,
+                        apiPredicateConfig,
+                        ApiLint.Config(
+                            manifest = miscellaneousOptions.manifest,
+                            allowedAcronyms = apiLintOptions.allowedAcronyms,
+                            useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
+                        ),
+                    )
+                }
+            }
+        }
     }
 
     /** write api history to files specified by option flags (e.g. api-versions.xml) */
