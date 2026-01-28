@@ -624,6 +624,17 @@ internal data class CallableSourceReference(
                     resolved.name,
                 )
             }
+            is ClassItem -> {
+                // Resolving a callable can return the class in lieu of a set of constructor so
+                // treat it as one and create a reference to the constructor.
+                createCallableReference(
+                    context,
+                    reporter,
+                    resolved.qualifiedName(),
+                    // Use the class's simple name as the constructor name.
+                    resolved.simpleName(),
+                )
+            }
             // Report an error and return `null`.
             is InvalidReferencableItem -> {
                 resolved.reportIssue(reporter)

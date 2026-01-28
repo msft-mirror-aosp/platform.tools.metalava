@@ -89,8 +89,13 @@ enum class NameClassification(
      * be able to reference a [ClassItem] for a similar set of constructors.
      */
     CALLABLE_SET(
+        // Constructors cannot be referenced by name. Instead, the name refers to the constructor's
+        // class and that implicitly gives access to its constructors. Setting [classes] to `true`
+        // means that when this [NameClassification] is used if a name refers to a class it is
+        // assumed to be referring to its constructors.
+        classes = true,
         methods = true,
-        nameDescriptionPrefix = "a method called ",
+        nameDescriptionPrefix = "a method/constructor called ",
     ),
     ;
 

@@ -248,10 +248,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 // and may not handle a missing # correctly.
                 TestParams(
                     name = "Test()",
-                    expectedResolvedReference = "Test()",
+                    expectedResolvedReference = "#Test()",
                     expectedLinkLabel = null,
-                    expectedIssues =
-                        "warning: Could not resolve a method called 'Test' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
                 TestParams(
                     // Not strictly valid but a likely mistake when typing `Test#Test()` as
@@ -261,7 +259,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "Test.Test()",
                     expectedLinkLabel = null,
                     expectedIssues =
-                        "warning: Could not resolve a method called 'Test.Test' as could not find a method called 'Test' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                        "warning: Could not resolve a method/constructor called 'Test.Test' as could not find a method/constructor called 'Test' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
                 TestParams(
                     name = "field",

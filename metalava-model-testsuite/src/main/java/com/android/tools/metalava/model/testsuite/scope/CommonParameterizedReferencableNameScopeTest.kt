@@ -375,22 +375,18 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "Test",
                     nameClassification = NameClassification.CALLABLE_SET,
-                    // TODO(b/447588621): Should not be null.
-                    expectedItemGetter = { null },
-                    expectedErrorMessage =
-                        "Could not resolve a method called 'Test' in 'class test.pkg.Test'",
+                    // Resolving a name that matches a class will return the class in lieu of its
+                    // constructors.
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test") },
                 ),
                 TestParams(
                     name = "ClassItem - resolve qualified constructor reference - callable",
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "java.io.IOException",
                     nameClassification = NameClassification.CALLABLE_SET,
-                    // Resolving a name that matches a class should return the class in lieu of the
+                    // Resolving a name that matches a class should return the class in lieu of its
                     // constructor.
-                    // TODO(b/447588621): Should not be null.
-                    expectedItemGetter = { null },
-                    expectedErrorMessage =
-                        "Could not resolve a method called 'java.io.IOException' as could not find a method called 'IOException' in 'package java.io'",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") },
                 ),
                 TestParams(
                     name = "ClassItem - resolve invalid constructor reference - callable",
@@ -402,7 +398,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     // TODO(b/447588621): Should not be null.
                     expectedItemGetter = { null },
                     expectedErrorMessage =
-                        "Could not resolve a method called 'Test.Test' as could not find a method called 'Test' in 'class test.pkg.Test'",
+                        "Could not resolve a method/constructor called 'Test.Test' as could not find a method/constructor called 'Test' in 'class test.pkg.Test'",
                 ),
                 TestParams(
                     name = "ClassItem - resolve imported constructor reference - callable",
@@ -415,10 +411,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "IOException",
                     nameClassification = NameClassification.CALLABLE_SET,
-                    // TODO(b/447588621): Should not be null.
-                    expectedItemGetter = { null },
-                    expectedErrorMessage =
-                        "Expected a method called 'IOException' but found 'class java.io.IOException'",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") },
                 ),
                 TestParams(
                     name = "ClassItem - resolve simple method reference",
