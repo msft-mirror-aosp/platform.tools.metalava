@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.doc.characterOffsetFor
 import com.android.tools.metalava.model.source.filterImports
+import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
 import java.util.TreeSet
@@ -33,6 +34,8 @@ internal class TurbineSourceFile(
     override val codebase: DefaultCodebase,
     val compUnit: CompUnit,
 ) : AbstractSourceFile() {
+
+    override val fileLocation: FileLocation = TurbineFileLocation.forTree(this)
 
     private lateinit var _containingPackage: PackageItem
 

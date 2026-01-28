@@ -17,9 +17,17 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.reporter.FileLocation
 
 /** Represents a Kotlin/Java source file */
 interface SourceFile : ReferencableNameScope {
+    /**
+     * The location of this [SourceFile]
+     *
+     * If this is not [FileLocation.UNKNOWN] then it will not have a line number.
+     */
+    val fileLocation: FileLocation
+
     /** The [Codebase] to which this [SourceFile] belongs. */
     val codebase: Codebase
 

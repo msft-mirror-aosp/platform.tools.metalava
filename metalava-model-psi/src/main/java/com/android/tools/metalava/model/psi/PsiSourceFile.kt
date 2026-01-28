@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.source.filterImports
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiField
@@ -42,6 +43,8 @@ internal class PsiSourceFile(
     override val codebase: PsiBasedCodebase,
     val file: PsiFile,
 ) : AbstractSourceFile() {
+
+    override val fileLocation: FileLocation = PsiFileLocation.fromPsiElement(file)
 
     override val containingPackage: PackageItem = run {
         val packageName = (file as PsiClassOwner).packageName

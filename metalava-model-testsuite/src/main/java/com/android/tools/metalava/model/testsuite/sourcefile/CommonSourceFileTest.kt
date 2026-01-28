@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.sourcefile
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -30,6 +32,50 @@ import org.junit.Test
 class CommonSourceFileTest : BaseModelTest() {
     internal class FilterHidden : FilterPredicate {
         override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test location of class file - java`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.java",
+                removeTestSpecificDirectories(sourceFile.fileLocation.toString())
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test location of class file - kotlin`() {
+        runSourceCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.kt",
+                removeTestSpecificDirectories(sourceFile.fileLocation.toString())
+            )
+        }
     }
 
     @Test

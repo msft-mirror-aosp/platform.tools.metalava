@@ -50,6 +50,7 @@ import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.snapshottingFactory
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.provider
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.IdentityHashMap
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
@@ -592,6 +593,9 @@ internal class SourceFileSnapshot(
     override val containingPackage: PackageItem,
     private val originalSourceFile: SourceFile
 ) : AbstractSourceFile() {
+
+    override val fileLocation: FileLocation
+        get() = originalSourceFile.fileLocation
 
     override fun classes() =
         originalSourceFile.classes().mapNotNull { codebase.resolveClass(it.qualifiedName()) }
