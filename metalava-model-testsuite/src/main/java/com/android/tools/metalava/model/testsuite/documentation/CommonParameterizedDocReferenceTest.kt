@@ -256,10 +256,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     // developers often use '.' instead of '#' in document references simply from
                     // habit.
                     name = "Test.Test()",
-                    expectedResolvedReference = "Test.Test()",
-                    expectedLinkLabel = null,
-                    expectedIssues =
-                        "warning: Could not resolve a method/constructor called 'Test.Test' as could not find a method/constructor called 'Test' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                    expectedResolvedReference = "#Test()",
                 ),
                 TestParams(
                     name = "field",

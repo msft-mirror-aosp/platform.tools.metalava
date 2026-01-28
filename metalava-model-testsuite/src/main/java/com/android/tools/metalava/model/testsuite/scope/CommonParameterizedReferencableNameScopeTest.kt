@@ -395,10 +395,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     // forgetting to use a # in a constructor reference.
                     referencableName = "Test.Test",
                     nameClassification = NameClassification.CALLABLE_SET,
-                    // TODO(b/447588621): Should not be null.
-                    expectedItemGetter = { null },
-                    expectedErrorMessage =
-                        "Could not resolve a method/constructor called 'Test.Test' as could not find a method/constructor called 'Test' in 'class test.pkg.Test'",
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test") },
                 ),
                 TestParams(
                     name = "ClassItem - resolve imported constructor reference - callable",
