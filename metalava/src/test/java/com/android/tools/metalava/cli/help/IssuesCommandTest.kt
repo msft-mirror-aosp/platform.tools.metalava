@@ -38,6 +38,7 @@ Available Issues                             |  Category                        
   ActionValue                                |  api_lint                             |   error
   AddSealed                                  |  source_compatibility_only            |   error
   AddedAbstractMethod                        |  binary_and_source_compatibility      |   error
+  AddedAbstractProperty                      |  source_compatibility_only            |   error
   AddedAnnotation                            |  other_compatibility                  |   error
   AddedClass                                 |  other_compatibility                  |   hidden
   AddedField                                 |  other_compatibility                  |   hidden
@@ -46,6 +47,7 @@ Available Issues                             |  Category                        
   AddedInterface                             |  other_compatibility                  |   hidden
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
+  AddedProperty                              |  other_compatibility                  |   hidden
   AddedReified                               |  binary_compatibility_only            |   error
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
@@ -96,7 +98,7 @@ Available Issues                             |  Category                        
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
   FacadeClassJvmName                         |  api_lint                             |   hidden
-  FlaggedApiLiteral                          |  api_lint                             |   warning_error_when_new
+  FlaggedApiLiteral                          |  api_lint                             |   error
   ForbiddenSuperClass                        |  api_lint                             |   error
   ForbiddenTag                               |  documentation                        |   error
   FractionFloat                              |  api_lint                             |   error
@@ -123,6 +125,7 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
+  InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
   InvalidIfTag                               |  documentation                        |   error
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
@@ -133,7 +136,16 @@ Available Issues                             |  Category                        
   InvalidNullabilityOverride                 |  api_lint                             |   error
   InvalidPackage                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
+  InvalidTagForm                             |  documentation                        |   warning_error_when_new
   IoError                                    |  unknown                              |   error
+  KmpDeprecationMismatch                     |  api_lint                             |   error
+  KmpExperimentalMismatch                    |  api_lint                             |   error
+  KmpHideShowAnnotationMismatch              |  api_lint                             |   error
+  KmpModifierMismatch                        |  api_lint                             |   error
+  KmpOriginMismatch                          |  api_lint                             |   error
+  KmpReifiedMismatch                         |  api_lint                             |   error
+  KmpSignatureClash                          |  api_lint                             |   error
+  KmpVisibilityMismatch                      |  api_lint                             |   error
   KotlinDefaultParameterOrder                |  api_lint                             |   error
   KotlinKeyword                              |  api_lint                             |   error
   KotlinOperator                             |  api_lint                             |   info
@@ -200,6 +212,7 @@ Available Issues                             |  Category                        
   RemovedJvmDefaultWithCompatibility         |  binary_compatibility_only            |   error
   RemovedMethod                              |  binary_and_source_compatibility      |   error
   RemovedPackage                             |  binary_and_source_compatibility      |   error
+  RemovedProperty                            |  source_compatibility_only            |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error
@@ -242,6 +255,8 @@ Available Issues                             |  Category                        
   UserHandle                                 |  api_lint                             |   warning
   UserHandleName                             |  api_lint                             |   warning
   ValueClassDefinition                       |  api_lint                             |   error
+  ValueClassUsageFromConstructor             |  api_lint                             |   hidden
+  ValueClassUsageWithoutJvmName              |  api_lint                             |   hidden
   VarargRemoval                              |  binary_and_source_compatibility      |   error
   VisiblySynchronized                        |  api_lint                             |   error
 """

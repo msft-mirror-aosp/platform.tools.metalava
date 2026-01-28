@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.imports.ImportResolver
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
 
@@ -48,17 +50,37 @@ abstract class AbstractSourceFile() : SourceFile {
             return _importResolver
         }
 
-    /** Resolve [simpleName] to a [ClassItem] using [importResolver]. */
-    private fun importedClassItem(simpleName: String, onDemand: Boolean): ClassItem? {
+    /** Resolve [simpleName] to a [ReferencableItem] using [importResolver]. */
+    private fun importedItem(
+        simpleName: String,
+        onDemand: Boolean,
+        nameClassification: NameClassification
+    ): ReferencableItem? {
         // Resolve the import, if possible.
         val resolvedImport = importResolver.resolveImport(simpleName, onDemand) ?: return null
 
-        // Assume that the resolved import was for a qualified class name.
-        val qualifiedClassName = resolvedImport.treatAsQualifiedClassName()
-
         // Resolve the class.
-        return codebase.resolveClass(qualifiedClassName)
+        val qualifiedClassName = resolvedImport.qualifiedClassName
+        val resolvedClass = codebase.resolveClass(qualifiedClassName) ?: return null
+
+        // Check if a member name was provided and if not just return the class.
+        val memberName = resolvedImport.memberName ?: return resolvedClass
+
+        // Return the result of trying to resolve a nested class.
+        return resolvedClass.resolveClassMember(memberName, nameClassification)
     }
+
+    /** Resolve class member [memberName] classified as [nameClassification]. */
+    private fun ClassItem.resolveClassMember(
+        memberName: String,
+        nameClassification: NameClassification
+    ): ReferencableItem? =
+        // Determine in memberName is a member of a nested class by constructing its fully qualified
+        // name and resolving it. That is necessary because the nested classes may not be created
+        // properly during snapshotting.
+        // TODO(b/474319264): Check nested classes instead.
+        nameClassification.findClass { codebase.resolveClass("${qualifiedName()}.$memberName") }
+            ?: nameClassification.findField { fields().find { it.name() == memberName } }
 
     override val containingScope: ReferencableNameScope?
         get() =
@@ -68,14 +90,19 @@ abstract class AbstractSourceFile() : SourceFile {
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
+        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ) =
         // First, check for other top level classes in the same file.
-        classes().find { it.simpleName() == simpleName }
+        nameClassification.findClass { classes().find { it.simpleName() == simpleName } }
             // Then check for named imports first.
-            ?: importedClassItem(simpleName, onDemand = false)
+            ?: importedItem(simpleName, onDemand = false, nameClassification)
             // Then check the containing package.
-            ?: containingPackage.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
+            ?: containingPackage.resolveReferencableItemBySimpleName(
+                simpleName,
+                nameClassification,
+                isFirstSimpleName
+            )
             // Then check for on demand imports.
-            ?: importedClassItem(simpleName, onDemand = true)
+            ?: importedItem(simpleName, onDemand = true, nameClassification)
 }
