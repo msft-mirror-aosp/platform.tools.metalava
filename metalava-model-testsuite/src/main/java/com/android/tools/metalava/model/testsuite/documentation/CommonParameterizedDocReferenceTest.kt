@@ -275,12 +275,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Other.intMethod(int)",
-                    expectedResolvedReference = "test.pkg.Other#Other.intMethod(int)",
+                    expectedResolvedReference = "test.pkg.Other#intMethod(int)",
                 ),
                 TestParams(
                     name = "Other.collectionMethod(Collection)",
                     expectedResolvedReference =
-                        "test.pkg.Other#Other.collectionMethod(java.util.Collection)",
+                        "test.pkg.Other#collectionMethod(java.util.Collection)",
                 ),
 
                 // Invalid reference qualifiers

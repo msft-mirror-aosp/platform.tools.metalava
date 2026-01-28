@@ -569,6 +569,7 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     override val normalizedForm: String
         get() =
             formatSignature(
+                name,
                 parameters,
                 // Preserve generic arguments in the label part of this.
                 eraseGenericArguments = false,
@@ -579,6 +580,7 @@ internal data class MethodSourceReference(val name: String, val parameters: List
      * [MethodReference.signature].
      */
     private fun formatSignature(
+        name: String,
         parameters: List<SourceParameter>,
         eraseGenericArguments: Boolean,
     ) = buildString {
@@ -615,6 +617,8 @@ internal data class MethodSourceReference(val name: String, val parameters: List
                     context,
                     reporter,
                     containingClass.qualifiedName(),
+                    // Use the resolved name as the source name may be qualified.
+                    resolved.name,
                 )
             }
             // Report an error and return `null`.
@@ -633,7 +637,15 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         reporter: LocationSpecificReporter,
         classItem: ClassItem?,
         className: String,
-    ) = createMethodReference(context, reporter, className)
+    ) =
+        createMethodReference(
+            context,
+            reporter,
+            className,
+            // The source name will always be the simple method name in this case, it will never be
+            // qualified so it is safe to use in the method reference.
+            name,
+        )
 
     /**
      * Return a method reference that uses the fully qualified name of the containing class and
@@ -643,10 +655,12 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
         className: String,
+        name: String,
     ) =
         MethodReference(
             className,
             formatSignature(
+                name,
                 parameters.map { sourceParameter ->
                     val fullyQualifiedType = sourceParameter.type.fullyQualify(context, reporter)
                     SourceParameter(fullyQualifiedType, sourceParameter.name)
