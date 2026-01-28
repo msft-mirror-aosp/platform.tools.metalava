@@ -220,7 +220,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                          * {@link test.pkg.Test Test}
                          * {@link test.pkg.Test#field Test.field}
                          * {@link test.pkg.Test#method(test.pkg.Test,java.util.List) Test.method(Test,List<String>)}
-                         * {@link #invalid(java.lang.String,java.lang.Number)}
+                         * {@link #invalid(java.lang.String,java.lang.Number) invalid(String,Number)}
                          */
                     """,
             )

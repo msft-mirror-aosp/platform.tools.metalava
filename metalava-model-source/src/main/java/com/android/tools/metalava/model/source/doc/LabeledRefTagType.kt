@@ -469,7 +469,7 @@ internal data class QualifyingClassSourceReference(
                 is ClassItem -> resolved
                 is InvalidReferencableItem -> {
                     resolved.reportIssue(reporter)
-                    return null
+                    null
                 }
                 // This should never happen as passing in NameClassification.CLASS above should
                 // limit
@@ -477,7 +477,13 @@ internal data class QualifyingClassSourceReference(
                 else -> error("type '$className' was resolved to an unknown type $resolved")
             }
 
-        return member.findIn(context, reporter, classItem)
+        return member.findIn(
+            context,
+            reporter,
+            classItem,
+            // Use the qualified class name if available, otherwise use the source name.
+            classItem?.qualifiedName() ?: className,
+        )
     }
 }
 
@@ -493,8 +499,8 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
     ): ResolvedReference? {
         // TODO(b/447588621): Report issue when no class is available, member references are not
         //  allowed in packages.
-        val classItem = context.containingClassItem ?: return null
-        return member.findIn(context, reporter, classItem)
+        val classItem = context.containingClassItem
+        return member.findIn(context, reporter, classItem, classItem?.qualifiedName() ?: "")
     }
 }
 
@@ -517,11 +523,19 @@ internal sealed interface ClassMemberSourceReference {
         className?.let { QualifyingClassSourceReference(it, this) }
             ?: CurrentClassSourceReference(this)
 
-    /** Find this in [classItem]. */
+    /**
+     * Find the class member that this is referencing in [classItem], if provided.
+     *
+     * If the qualifying class could be resolved then [classItem] will be provided and [className]
+     * will be the fully qualified class name. However, if the qualifying class could not be
+     * resolved then [classItem] will be `null` and [className] will be the name provided in the
+     * source.
+     */
     fun findIn(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
+        classItem: ClassItem?,
+        className: String,
     ): ResolvedReference
 }
 
@@ -533,14 +547,15 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
     override fun findIn(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
+        classItem: ClassItem?,
+        className: String,
     ) =
         // TODO(b/447588621): Check for methods and constructors not just fields.
-        classItem.findField(name)?.toResolvedReference()
+        classItem?.findField(name)?.toResolvedReference()
             // TODO(b/447588621): Report that the field could not be found.
             // If the field could not be found then fallback to a field reference so that at least
             // the resolved class will be fully qualified.
-            ?: FieldReference(classItem.qualifiedName(), name)
+            ?: FieldReference(className, name)
 }
 
 /**
@@ -593,9 +608,15 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     ): ResolvedReference? {
         val resolved = context.resolveItemReference(name, NameClassification.METHOD_SET)
         return when (resolved) {
-            is ReferencableMethodSet ->
+            is ReferencableMethodSet -> {
                 // TODO(b/447588621): Try and find a method that matches the resolved [parameters].
-                createMethodReference(context, reporter, resolved.containingClass)
+                val containingClass = resolved.containingClass
+                createMethodReference(
+                    context,
+                    reporter,
+                    containingClass.qualifiedName(),
+                )
+            }
             // Report an error and return `null`.
             is InvalidReferencableItem -> {
                 resolved.reportIssue(reporter)
@@ -610,8 +631,9 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     override fun findIn(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
-    ) = createMethodReference(context, reporter, classItem)
+        classItem: ClassItem?,
+        className: String,
+    ) = createMethodReference(context, reporter, className)
 
     /**
      * Return a method reference that uses the fully qualified name of the containing class and
@@ -620,10 +642,10 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     private fun createMethodReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
+        className: String,
     ) =
         MethodReference(
-            classItem.qualifiedName(),
+            className,
             formatSignature(
                 parameters.map { sourceParameter ->
                     val fullyQualifiedType = sourceParameter.type.fullyQualify(context, reporter)
@@ -698,11 +720,12 @@ internal data class UriFragmentSourceReference(val uriFragment: String) :
     override fun findIn(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
+        classItem: ClassItem?,
+        className: String,
     ) =
         // TODO(b/447588621): If the source for classItem is available then check it for an
         //  id="<uriFragment>" attribute.
-        UriFragmentReference(classItem.qualifiedName(), uriFragment)
+        UriFragmentReference(className, uriFragment)
 }
 
 /**

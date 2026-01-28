@@ -32,9 +32,6 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
 com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
   Test varargs[turbine]
 
-com.android.tools.metalava.model.testsuite.documentation.CommonDocReferenceTest
-  Test link tag in package-info[turbine]
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 

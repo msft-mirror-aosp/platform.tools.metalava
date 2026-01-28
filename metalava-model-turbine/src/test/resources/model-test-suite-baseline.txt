@@ -4,9 +4,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
   Test varargs
 
-com.android.tools.metalava.model.testsuite.documentation.CommonDocReferenceTest
-  Test link tag in package-info
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
