@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
@@ -98,8 +98,8 @@ data class FieldReference(
 internal fun FieldItem.toResolvedReference() =
     FieldReference(containingClass().qualifiedName(), name())
 
-/** A reference to a [MethodItem]. */
-data class MethodReference(
+/** A reference to a [CallableItem]. */
+data class CallableReference(
     private val qualifiedClassName: String,
     private val signature: String,
 ) : MemberReference {

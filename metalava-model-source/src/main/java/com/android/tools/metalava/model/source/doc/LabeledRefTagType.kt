@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.source.doc.MethodSourceReference.SourceParameter
+import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -220,7 +220,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         // and qualified to be `null` is if sourceReference starts with '(' but that
                         // is rejected above.
                         val parameters = parseParameters(relative, docTypeParser)
-                        MethodSourceReference(qualified!!, parameters)
+                        CallableSourceReference(qualified!!, parameters)
                     }
                     relative.last() == ')' -> {
                         require(relative[0] == '#') {
@@ -238,7 +238,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         val methodName = relative.substring(1, index)
                         val parameters = parseParameters(relative.substring(index), docTypeParser)
 
-                        MethodSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
+                        CallableSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
                     }
                     relative.startsWith("##") -> {
                         UriFragmentSourceReference(relative.substring(2)).qualifyIfNeeded(qualified)
@@ -539,7 +539,7 @@ internal sealed interface ClassMemberSourceReference {
     ): ResolvedReference
 }
 
-/** A reference to a member called [name], which could be a field or a method. */
+/** A reference to a member called [name], which could be a field or a callable. */
 internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemberSourceReference {
     override val normalizedForm: String
         get() = name
@@ -559,12 +559,14 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
 }
 
 /**
- * A reference to a method called [name] with [parameters]. This is both a
+ * A reference to a callable called [name] with [parameters]. This is both a
  * [ClassMemberSourceReference] because it can be resolved relative to a class, and
  * [ParsedReference] because it can be resolved within a [ReferencableNameScope].
  */
-internal data class MethodSourceReference(val name: String, val parameters: List<SourceParameter>) :
-    ClassMemberSourceReference, ParsedReference {
+internal data class CallableSourceReference(
+    val name: String,
+    val parameters: List<SourceParameter>
+) : ClassMemberSourceReference, ParsedReference {
 
     override val normalizedForm: String
         get() =
@@ -576,8 +578,8 @@ internal data class MethodSourceReference(val name: String, val parameters: List
             )
 
     /**
-     * Format [name] and [parameters] into a method signature for use in [normalizedForm] and
-     * [MethodReference.signature].
+     * Format [name] and [parameters] into a callable signature for use in [normalizedForm] and
+     * [CallableReference.signature].
      */
     private fun formatSignature(
         name: String,
@@ -594,11 +596,11 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     }
 
     /**
-     * Resolve [name] reference to a method directly within [context].
+     * Resolve [name] reference to a callable directly within [context].
      *
-     * This differs from [findIn] as that finds a method within a class that has already been
+     * This differs from [findIn] as that finds a callable within a class that has already been
      * resolved but this resolves the name directly within the containing scope. The key difference
-     * is that the former uses `#` to unambiguously separate the class from the method but the
+     * is that the former uses `#` to unambiguously separate the class from the callable but the
      * latter does not.
      *
      * e.g. [findIn] is used for references like `{@link #method()}` and {@link Class#method()}`
@@ -608,12 +610,13 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         context: DocCommentContext,
         reporter: LocationSpecificReporter
     ): ResolvedReference? {
-        val resolved = context.resolveItemReference(name, NameClassification.METHOD_SET)
+        val resolved = context.resolveItemReference(name, NameClassification.CALLABLE_SET)
         return when (resolved) {
             is ReferencableMethodSet -> {
-                // TODO(b/447588621): Try and find a method that matches the resolved [parameters].
+                // TODO(b/447588621): Try and find a callable that matches the resolved
+                //  [parameters].
                 val containingClass = resolved.containingClass
-                createMethodReference(
+                createCallableReference(
                     context,
                     reporter,
                     containingClass.qualifiedName(),
@@ -628,7 +631,7 @@ internal data class MethodSourceReference(val name: String, val parameters: List
             }
             // This should never happen as passing in NameClassification.METHOD above should limit
             // the returned types to MethodItemSet or InvalidReferencableItem.
-            else -> error("method name '$name' was resolved to an unknown type $resolved")
+            else -> error("callable name '$name' was resolved to an unknown type $resolved")
         }
     }
 
@@ -638,26 +641,26 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         classItem: ClassItem?,
         className: String,
     ) =
-        createMethodReference(
+        createCallableReference(
             context,
             reporter,
             className,
-            // The source name will always be the simple method name in this case, it will never be
-            // qualified so it is safe to use in the method reference.
+            // The source name will always be the simple callable name in this case, it will never
+            // be qualified so it is safe to use in the callable reference.
             name,
         )
 
     /**
-     * Return a method reference that uses the fully qualified name of the containing class and
+     * Return a [CallableReference] that uses the fully qualified name of the containing class and
      * fully qualified parameter types.
      */
-    private fun createMethodReference(
+    private fun createCallableReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
         className: String,
         name: String,
     ) =
-        MethodReference(
+        CallableReference(
             className,
             formatSignature(
                 name,

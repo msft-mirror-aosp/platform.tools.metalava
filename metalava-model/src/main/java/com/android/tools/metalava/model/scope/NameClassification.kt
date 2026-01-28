@@ -84,8 +84,11 @@ enum class NameClassification(
         nameDescriptionPrefix = "a field called ",
     ),
 
-    /** A method name, i.e. one that can only reference a [ReferencableMethodItemSet]. */
-    METHOD_SET(
+    /**
+     * A callable name, i.e. one that can reference a [ReferencableMethodSet] for methods and will
+     * be able to reference a [ClassItem] for a similar set of constructors.
+     */
+    CALLABLE_SET(
         methods = true,
         nameDescriptionPrefix = "a method called ",
     ),
