@@ -100,7 +100,7 @@ class DefaultPackageItem(
         isFirstSimpleName: Boolean
     ): ReferencableItem? {
         // First, check to see if it [simpleName] is a class in this package, returning it if it is.
-        return resolveNameInThisPackage(simpleName, nameClassification)
+        return resolveNameInThisPackage(simpleName, nameClassification, isFirstSimpleName)
             // Then, if allowed, check to see if it is a sub-package of this one.
             ?: nameClassification.findPackage {
                 if (!isFirstSimpleName || containingPackage == null) {
@@ -114,7 +114,20 @@ class DefaultPackageItem(
     private fun resolveNameInThisPackage(
         simpleName: String,
         nameClassification: NameClassification,
-    ) = findClassIfAllowed(simpleName, nameClassification)
+        isFirstSimpleName: Boolean,
+    ) =
+        if (sourceFile != null && isFirstSimpleName) {
+            // This has a corresponding package-info.java which might have imports and the name is
+            // unqualified so delegate to the source file to resolve the name against the imports.
+            sourceFile.resolveReferencableItemBySimpleName(
+                simpleName,
+                nameClassification,
+                isFirstSimpleName = true,
+            )
+        } else {
+            // Otherwise, just look for a class in this package, if allowed.
+            findClassIfAllowed(simpleName, nameClassification)
+        }
 
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null

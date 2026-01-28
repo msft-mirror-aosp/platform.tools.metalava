@@ -115,17 +115,13 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     name = "PackageItem - implicit java.lang type",
                     scopeGetter = { codebase.assertPackage("test.pkg") },
                     referencableName = "String",
-                    // TODO(b/447588621): Should not be `null`.
-                    expectedItemGetter = { null },
-                    expectedErrorMessage = "Could not resolve 'String' in 'package test.pkg'",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.lang.String") },
                 ),
                 TestParams(
                     name = "PackageItem - import List",
                     scopeGetter = { codebase.assertPackage("test.pkg") },
                     referencableName = "List",
-                    // TODO(b/447588621): Should not be `null`.
-                    expectedItemGetter = { null },
-                    expectedErrorMessage = "Could not resolve 'List' in 'package test.pkg'",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.util.List") },
                 ),
                 TestParams(
                     name = "PackageItem - using qualified imported name List",

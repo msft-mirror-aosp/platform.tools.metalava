@@ -227,11 +227,7 @@ class CommonDocReferenceTest : BaseModelTest() {
 
             assertAndRemoveReportedIssues(
                 // TODO(b/447588621): Should report an issue about the #invalid(...) reference.
-                // TODO(b/447588621): Should be able to resolve List and String.
-                """
-                    MAIN_SRC/test/pkg/package-info.java:4:11: warning: Could not resolve a class called 'List' in 'package test.pkg' (ErrorWhenNew) [UnresolvedLink]
-                    MAIN_SRC/test/pkg/package-info.java:4:11: warning: Could not resolve a class called 'String' in 'package test.pkg' (ErrorWhenNew) [UnresolvedLink]
-                """
+                ""
             )
         }
     }
