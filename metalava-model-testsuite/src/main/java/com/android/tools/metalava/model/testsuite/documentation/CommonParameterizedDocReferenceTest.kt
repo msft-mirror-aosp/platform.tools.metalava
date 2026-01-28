@@ -183,9 +183,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = null,
                 ),
                 TestParams(
-                    name = "#Test(int p)",
-                    expectedResolvedReference = "#Test(int)",
-                    expectedLinkLabel = null,
+                    name = "#Test(Collection<String> p)",
+                    expectedResolvedReference = "#Test(java.util.Collection)",
+                    expectedLinkLabel = "Test(Collection<String>)",
+                ),
+                TestParams(
+                    name = "Test#Test(Collection<String> p)",
+                    expectedResolvedReference = "#Test(java.util.Collection)",
+                    expectedLinkLabel = "Test.Test(Collection<String>)",
                 ),
                 TestParams(
                     name = "#noParamsMethod",
@@ -241,6 +246,23 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 // tests verify the behavior. Note, the result must have a leading # as that will
                 // ensure consistent behavior in tools that consume generated documentation stubs
                 // and may not handle a missing # correctly.
+                TestParams(
+                    name = "Test()",
+                    expectedResolvedReference = "Test()",
+                    expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve a method called 'Test' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                ),
+                TestParams(
+                    // Not strictly valid but a likely mistake when typing `Test#Test()` as
+                    // developers often use '.' instead of '#' in document references simply from
+                    // habit.
+                    name = "Test.Test()",
+                    expectedResolvedReference = "Test.Test()",
+                    expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve a method called 'Test.Test' as could not find a method called 'Test' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                ),
                 TestParams(
                     name = "field",
                     expectedResolvedReference = "#field",
@@ -311,13 +333,11 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Other#field",
                     expectedResolvedReference = "test.pkg.Other#field",
                 ),
-                /* TODO(b/447588621): uncomment and fix flaky behavior.
                 TestParams(
                     name = "Other#Other",
                     // TODO(b/447588621): Resolve it to a constructor, e.g. `test.pkg.Other#Other()`
                     expectedResolvedReference = "test.pkg.Other#Other",
                 ),
-                */
                 TestParams(
                     name = "Other#Other()",
                     expectedResolvedReference = "test.pkg.Other#Other()",
@@ -368,13 +388,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Imported#field",
                     expectedResolvedReference = "another.pkg.Imported#field",
                 ),
-                /* TODO(b/447588621): uncomment and fix flaky behavior.
                 TestParams(
                     name = "Imported#Imported",
-                    // TODO(b/447588621): Resolve it to a constructor, e.g. `another.pkg.Imported#Imported()`
+                    // TODO(b/447588621): Resolve it to a constructor, e.g.
+                    //  `another.pkg.Imported#Imported()`
                     expectedResolvedReference = "another.pkg.Imported#Imported",
                 ),
-                */
                 TestParams(
                     name = "Imported#Imported()",
                     expectedResolvedReference = "another.pkg.Imported#Imported()",
@@ -429,7 +448,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 TestParams(
                     name = "other.pkg.Another#Another",
                     // TODO(b/447588621): Resolve it to a constructor, e.g.
-                    // `other.pkg.Another#Another()`
+                    //  `other.pkg.Another#Another()`
                     expectedResolvedReference = "other.pkg.Another#Another",
                     expectedLinkLabel = null,
                 ),
