@@ -810,16 +810,6 @@ internal data class LabeledRefTagData(
     private val resolvedReference: ResolvedReference?,
 ) : TagData {
     /**
-     * Check whether the references could possibly rely on the [importedName].
-     *
-     * Returns `true` if the reference has not been fully resolved and the partially resolved parts
-     * contain [importedName] as a separate word.
-     */
-    fun referenceCouldRelyOnImportedName(importedName: String) =
-        resolvedReference?.referenceCouldRelyOnImportedName(importedName)
-            ?: sourceReference.containsWord(importedName)
-
-    /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
      * optional label.
      *
