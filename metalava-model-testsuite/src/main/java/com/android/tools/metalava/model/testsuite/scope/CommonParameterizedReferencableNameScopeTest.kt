@@ -190,10 +190,11 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "Other",
                     expectedItemGetter = { codebase.assertClass("test.pkg.Other") }
                 ),
+
                 // ClassItem related tests.
                 TestParams(
                     name = "ClassItem - absolute class",
-                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "java.io.IOException",
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
@@ -236,6 +237,20 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedErrorMessage =
                         "Could not resolve a field called 'Test' in 'class test.pkg.Test'",
                 ),
+                TestParams(
+                    name = "ClassItem - using qualified imported name List",
+                    imports =
+                        """
+                            import java.util.List;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    // The `List` name is imported into `test/pkg/Test.java` but must only be used
+                    // when resolving an unqualified name.
+                    referencableName = "test.pkg.Test.List",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'test.pkg.Test.List' as could not find 'List' in 'class test.pkg.Test'",
+                ),
 
                 // ClassItem - Nested classes
                 TestParams(
@@ -262,6 +277,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "java.io.IOException",
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
+
                 // ClassItem - TypeParameters
                 TestParams(
                     name = "ClassItem - TypeParameter - O",
