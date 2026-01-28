@@ -125,15 +125,11 @@ internal open class DescriptionOwner(
         // clearly did not cause too many issues.
         val trimmed = text.replace(Regex("""^ \*  +""", RegexOption.MULTILINE), " * ")
 
-        // Fully qualify the content. This does not fully qualify references that are in the same
-        // class or package but again this is what the preceding implementation did.
-        val qualified = context.fullyQualifyComment(trimmed)
-
         // Parse the comment, throwing an error if any errors were found.
         val docComment =
             DocComment.createDocComment(
                 context,
-                qualified,
+                trimmed,
                 // Use the null reporter as any issues found in this block tag will have been
                 // reported elsewhere.
                 DocumentationIssueReporter.NULL,

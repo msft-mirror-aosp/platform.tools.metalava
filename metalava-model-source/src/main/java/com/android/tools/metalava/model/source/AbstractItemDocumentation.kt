@@ -208,9 +208,6 @@ abstract class AbstractItemDocumentation(
     /** Expands the given documentation comment in the current name context */
     open fun fullyQualifiedDocumentation(documentation: String): String = documentation
 
-    /** Implements [DocCommentContext.fullyQualifyComment]. */
-    override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
-
     override val containingClassItem: ClassItem?
         get() =
             when (item) {
