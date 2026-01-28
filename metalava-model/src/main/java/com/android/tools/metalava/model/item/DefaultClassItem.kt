@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
@@ -37,8 +38,8 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -51,7 +52,7 @@ open class DefaultClassItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val source: SourceFile?,
-    final override val classKind: ClassKind,
+    classKind: ClassKind,
     private val containingClass: ClassItem?,
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
@@ -64,7 +65,7 @@ open class DefaultClassItem(
      * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
      * Otherwise, it should be null.
      */
-    override val optionalAliasedType: TypeItem?,
+    optionalAliasedType: TypeItem?,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -120,8 +121,10 @@ open class DefaultClassItem(
     private lateinit var sealedClassSubclasses: List<ClassItem>
 
     final override fun sealedClassDirectSubclasses(): List<ClassItem> {
-        if (!modifiers.isSealed()) {
-            error("Computing subclasses is only available for sealed classes and interfaces")
+        if (!isEffectivelySealed()) {
+            error(
+                "Computing subclasses is only available for effectively sealed classes and interfaces"
+            )
         }
         if (!::sealedClassSubclasses.isInitialized) {
             sealedClassSubclasses =
@@ -149,13 +152,10 @@ open class DefaultClassItem(
 
     final override fun type(): ClassTypeItem {
         if (!::cachedType.isInitialized) {
-            cachedType = createClassTypeItemForThis()
+            cachedType = TypeItem.createClassTypeForClassItem(this)
         }
         return cachedType
     }
-
-    protected open fun createClassTypeItemForThis() =
-        DefaultResolvedClassTypeItem.createForClass(this)
 
     final override var frozen = false
         private set
@@ -165,13 +165,25 @@ open class DefaultClassItem(
         frozen = true
         superClass()?.freeze()
         for (interfaceType in interfaceTypes) {
-            interfaceType.asClass()?.freeze()
+            interfaceType.resolveClass(codebase)?.freeze()
         }
     }
 
     private fun ensureNotFrozen() {
         if (frozen) error("Cannot modify frozen $this")
     }
+
+    final override var classKind: ClassKind = classKind
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
+
+    final override var optionalAliasedType: TypeItem? = optionalAliasedType
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
 
     final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
         ensureNotFrozen()
@@ -216,7 +228,7 @@ open class DefaultClassItem(
 
         // Add all the interfaces of direct interfaces
         interfaceTypes().forEach { interfaceType ->
-            val itf = interfaceType.asClass()
+            val itf = interfaceType.resolveClass(codebase)
             itf?.allInterfaces()?.forEach { add(it) }
         }
     }
@@ -230,6 +242,32 @@ open class DefaultClassItem(
     fun addConstructor(constructor: ConstructorItem) {
         ensureNotFrozen()
         mutableConstructors += constructor
+    }
+
+    /**
+     * If there is a version of [item] already in [mutableItems], replaces the existing version with
+     * [item]. Otherwise, adds [item] to the end of [mutableItems].
+     */
+    private fun <I : Item> replaceOrAddItem(item: I, mutableItems: MutableList<I>) {
+        ensureNotFrozen()
+        val iterator = mutableItems.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == item) {
+                iterator.set(item)
+                return
+            }
+        }
+        mutableItems += item
+    }
+
+    /**
+     * If there is already a constructor with the same signature as [constructor], replaces the
+     * existing version with the new one. If there is not a matching constructor, just adds
+     * [constructor] to the list of constructors.
+     */
+    fun replaceOrAddConstructor(constructor: ConstructorItem) {
+        replaceOrAddItem(constructor, mutableConstructors)
     }
 
     override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
@@ -258,16 +296,7 @@ open class DefaultClassItem(
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem) {
-        ensureNotFrozen()
-        val iterator = mutableMethods.listIterator()
-        while (iterator.hasNext()) {
-            val existing = iterator.next()
-            if (existing == method) {
-                iterator.set(method)
-                return
-            }
-        }
-        mutableMethods += method
+        replaceOrAddItem(method, mutableMethods)
     }
 
     /** The mutable list of [FieldItem] that backs [fields]. */
@@ -292,6 +321,15 @@ open class DefaultClassItem(
         mutableProperties += property
     }
 
+    /**
+     * If there is already a property with the same signature as [property], replaces the existing
+     * version with the new one. If there is not a matching property, just adds [property] to the
+     * list of properties.
+     */
+    fun replaceOrAddProperty(property: PropertyItem) {
+        replaceOrAddItem(property, mutableProperties)
+    }
+
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
 
@@ -308,6 +346,7 @@ open class DefaultClassItem(
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
+        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ) =
         // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
@@ -315,14 +354,28 @@ open class DefaultClassItem(
         if (simpleName == simpleName()) this
         else
         // Then check to see type parameters.
-        typeParameterList.find { it.name() == simpleName }
+        nameClassification.findTypeParameter { typeParameterList.find { it.name() == simpleName } }
+                // Then, check to see if it is a field of this class.
+                ?: nameClassification.findField { mutableFields.find { it.name() == simpleName } }
                 // Then, check to see if it matches a nested class and if it does then return that.
-                ?: mutableNestedClasses.find { it.simpleName() == simpleName }
+                ?: nameClassification.findClass {
+                    mutableNestedClasses.find { it.simpleName() == simpleName }
+                }
                 // Then, check to see if it matches a class defined in a super class.
-                ?: superClass()?.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
+                ?: superClass()
+                    ?.resolveReferencableItemBySimpleName(
+                        simpleName,
+                        nameClassification,
+                        isFirstSimpleName
+                    )
                 // Then, check to see if it matches a class defined in a super interface.
                 ?: interfaceTypes().firstNotNullOfOrNull {
-                    it.asClass()?.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
+                    it.resolveClass(codebase)
+                        ?.resolveReferencableItemBySimpleName(
+                            simpleName,
+                            nameClassification,
+                            isFirstSimpleName
+                        )
                 }
 
     /** Cache value of [annotationClass]. */

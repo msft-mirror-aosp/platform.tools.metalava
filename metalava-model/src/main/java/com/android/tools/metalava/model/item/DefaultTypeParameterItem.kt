@@ -19,12 +19,12 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM_TYPE
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
 open class DefaultTypeParameterItem(
@@ -50,14 +50,21 @@ open class DefaultTypeParameterItem(
 
     /** Create a [VariableTypeItem] for this [TypeParameterItem]. */
     protected open fun createVariableTypeItem(): VariableTypeItem =
-        DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
+        TypeItem.createVariableType(TypeModifiers.emptyUndefinedModifiers, this)
 
     lateinit var bounds: List<BoundsTypeItem>
 
     final override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun asErasedType() =
-        typeBounds().firstOrNull() ?: classResolver.resolveClass(JAVA_LANG_OBJECT)?.type()
+        // The first type bound, if any, is the erased type as defined in
+        // https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.6.
+        typeBounds().firstOrNull()?.asErasedType()
+            // The nullability of the default type bound differs between Kotlin (Any?) and Java
+            // (Object!) but that does not matter here as this is the type used at runtime which
+            // ignores nullability. As nullability is required this just uses the platform as
+            // that seems more representative of the intent.
+            ?: JAVA_LANG_OBJECT_PLATFORM_TYPE
 
     final override fun isReified(): Boolean = isReified
 

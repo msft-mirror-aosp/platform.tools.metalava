@@ -23,5 +23,9 @@ package com.android.tools.metalava.model
  * * [PackageItem]
  * * [ClassItem]
  * * [TypeParameterItem]
+ * * [FieldItem]
  */
 sealed interface ReferencableItem
+
+/** Provides details about an invalid reference and why it could not be resolved. */
+data class InvalidReferencableItem(val message: String) : ReferencableItem
