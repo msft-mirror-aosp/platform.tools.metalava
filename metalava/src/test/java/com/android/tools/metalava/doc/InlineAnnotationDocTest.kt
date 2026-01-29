@@ -142,4 +142,93 @@ class InlineAnnotationDocTest : DriverTest() {
                 "src/test/pkg/Anno.java:3: error: unclosed inline '@code' tag [UnclosedInlineTag]",
         )
     }
+
+    /**
+     * Test what happens when an annotation has an unresolvable reference in `@classDoc` but which
+     * can be resolved in the destination.
+     *
+     * In this test `Anno` has a reference to `Broken` that cannot be resolved. There are two
+     * classes annotated with `@Anno`, `Test` which imports a `Broken` class (but not necessarily
+     * the one that `Anno` was referencing) and `AnotherTest` which does not import it. `Anno` also
+     * has a `Working` reference that can be resolved for comparison.
+     *
+     * Ideally, the `Broken` reference should be unresolved everywhere that it is used, but
+     * currently it is resolved in `Test` but not in `AnotherTest`. That is caused by fully
+     * qualifying references again while printing (after the content has been appended from `Anno`).
+     * // TODO(b/447588621): Remove fully qualifying after printing.
+     */
+    @Test
+    fun `Unresolvable classDoc`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package anno.pkg;
+                            /**
+                             * @classDoc {@link Working} {@link Broken}
+                             */
+                            public @interface Anno { }
+                        """
+                    ),
+                    java(
+                        """
+                            package anno.pkg;
+                            public class Working { }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import another.pkg.Broken;
+                            @anno.pkg.Anno
+                            public class Test {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @anno.pkg.Anno
+                            public class AnotherTest {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package another.pkg;
+                            public class Broken {
+                            }
+                        """
+                    ),
+                ),
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** {@link anno.pkg.Working Working} {@link another.pkg.Broken Broken} */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @anno.pkg.Anno
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** {@link anno.pkg.Working Working} {@link Broken} */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @anno.pkg.Anno
+                            public class AnotherTest {
+                            public AnotherTest() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues = "",
+        )
+    }
 }
