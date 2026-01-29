@@ -835,12 +835,6 @@ internal data class LabeledRefTagData(
             return
         }
 
-        // Do not add custom labels to @see tags. This matches the behavior of the Psi reference
-        // resolution code and keeping them consistent simplifies migration to this reference
-        // resolving code.
-        // TODO(b/447588621): Remove once this replaces the Psi reference resolving code completely.
-        if (tagType == "see") return
-
         // Check to see whether it is necessary to add a label to try and preserve the developer's
         // original intent.
 
