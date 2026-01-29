@@ -20,9 +20,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.source.filterImports
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiField
@@ -43,10 +43,9 @@ internal class PsiSourceFile(
     val file: PsiFile,
 ) : AbstractSourceFile() {
 
-    override val containingPackage: PackageItem = run {
-        val packageName = (file as PsiClassOwner).packageName
-        codebase.resolvePackage(packageName)!!
-    }
+    override val fileLocation: FileLocation = PsiFileLocation.fromPsiElement(file)
+
+    override fun computeContainingPackageName() = (file as PsiClassOwner).packageName
 
     override fun getHeaderComments(): String? {
         // https://youtrack.jetbrains.com/issue/KT-22135

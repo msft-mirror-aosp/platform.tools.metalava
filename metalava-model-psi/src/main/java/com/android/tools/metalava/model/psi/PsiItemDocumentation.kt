@@ -257,6 +257,19 @@ internal class PsiItemDocumentation(
         val referenceText = reference?.element?.text ?: element.text
         val customLinkText = extractCustomLinkText(element)
         val displayText = customLinkText ?: referenceText.replaceFirst('#', '.')
+
+        // Check for a uri-fragment. The underlying Psi code splits "Class##fragment" into
+        // "Class#" and "#fragment" and the latter gets treated as part of the label causing it to
+        // be broken. This detects that case and leaves it up to the model independent code to
+        // handle resolving the qualifying class.
+        if (
+            referenceText.endsWith('#') &&
+                customLinkText?.startsWith('#') == true &&
+                element.text.contains("##")
+        ) {
+            return false
+        }
+
         if (referenceText.startsWith("#")) {
             val suffix = element.text
             appendFullyQualifiedMemberSuffix(element, sb, suffix)

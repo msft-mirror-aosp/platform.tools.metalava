@@ -50,6 +50,7 @@ import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.snapshottingFactory
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.provider
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.IdentityHashMap
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
@@ -137,6 +138,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         val annotations = originalAnnotations.map { it.snapshot(snapshotCodebase) }
         return PackageInfo(
             fileLocation = originalPackage.fileLocation,
+            sourceFile = originalPackage.sourceFile,
             annotations = annotations,
             commentFactory = originalPackage.documentation.snapshottingFactory(),
             overview = originalPackage.overviewDocumentation,
@@ -572,10 +574,8 @@ internal class SnapshotSourceFileCache(
     internal fun snapshotSourceFile(sourceFile: SourceFile?): SourceFile? {
         sourceFile ?: return null
         return snapshotSourceFiles.computeIfAbsent(sourceFile) { originalSourceFile ->
-            var pkgName = originalSourceFile.containingPackage.qualifiedName()
             SourceFileSnapshot(
                 targetCodebase,
-                targetCodebase.resolvePackage(pkgName)!!,
                 originalSourceFile,
             )
         }
@@ -589,9 +589,14 @@ internal class SnapshotSourceFileCache(
  */
 internal class SourceFileSnapshot(
     override val codebase: Codebase,
-    override val containingPackage: PackageItem,
     private val originalSourceFile: SourceFile
 ) : AbstractSourceFile() {
+
+    override val fileLocation: FileLocation
+        get() = originalSourceFile.fileLocation
+
+    override fun computeContainingPackageName() =
+        originalSourceFile.containingPackage.qualifiedName()
 
     override fun classes() =
         originalSourceFile.classes().mapNotNull { codebase.resolveClass(it.qualifiedName()) }
