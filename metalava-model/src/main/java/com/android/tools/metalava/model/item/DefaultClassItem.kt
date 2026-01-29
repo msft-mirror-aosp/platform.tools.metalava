@@ -24,18 +24,24 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
-import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
@@ -47,7 +53,7 @@ open class DefaultClassItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val source: SourceFile?,
-    final override val classKind: ClassKind,
+    classKind: ClassKind,
     private val containingClass: ClassItem?,
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
@@ -55,6 +61,12 @@ open class DefaultClassItem(
     final override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
+    override val isFileFacade: Boolean,
+    /**
+     * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
+     * Otherwise, it should be null.
+     */
+    optionalAliasedType: TypeItem?,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -67,7 +79,7 @@ open class DefaultClassItem(
     ),
     ClassItem {
 
-    private val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+    private val simpleName = qualifiedName.extractSimpleName()
 
     private val fullName: String
 
@@ -107,6 +119,27 @@ open class DefaultClassItem(
 
     final override fun containingClass() = containingClass
 
+    private lateinit var sealedClassSubclasses: List<ClassItem>
+
+    final override fun sealedClassDirectSubclasses(): List<ClassItem> {
+        if (!isEffectivelySealed()) {
+            error(
+                "Computing subclasses is only available for effectively sealed classes and interfaces"
+            )
+        }
+        if (!::sealedClassSubclasses.isInitialized) {
+            sealedClassSubclasses =
+                containingPackage
+                    .allClasses()
+                    .filter { cls ->
+                        cls.superClassType()?.qualifiedName == qualifiedName ||
+                            cls.interfaceTypes().any { it.qualifiedName == qualifiedName }
+                    }
+                    .toList()
+        }
+        return sealedClassSubclasses
+    }
+
     final override fun qualifiedName() = qualifiedName
 
     final override fun simpleName() = simpleName
@@ -120,13 +153,10 @@ open class DefaultClassItem(
 
     final override fun type(): ClassTypeItem {
         if (!::cachedType.isInitialized) {
-            cachedType = createClassTypeItemForThis()
+            cachedType = TypeItem.createClassTypeForClassItem(this)
         }
         return cachedType
     }
-
-    protected open fun createClassTypeItemForThis() =
-        DefaultResolvedClassTypeItem.createForClass(this)
 
     final override var frozen = false
         private set
@@ -136,13 +166,25 @@ open class DefaultClassItem(
         frozen = true
         superClass()?.freeze()
         for (interfaceType in interfaceTypes) {
-            interfaceType.asClass()?.freeze()
+            interfaceType.resolveClass(codebase)?.freeze()
         }
     }
 
     private fun ensureNotFrozen() {
         if (frozen) error("Cannot modify frozen $this")
     }
+
+    final override var classKind: ClassKind = classKind
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
+
+    final override var optionalAliasedType: TypeItem? = optionalAliasedType
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
 
     final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
         ensureNotFrozen()
@@ -187,7 +229,7 @@ open class DefaultClassItem(
 
         // Add all the interfaces of direct interfaces
         interfaceTypes().forEach { interfaceType ->
-            val itf = interfaceType.asClass()
+            val itf = interfaceType.resolveClass(codebase)
             itf?.allInterfaces()?.forEach { add(it) }
         }
     }
@@ -201,17 +243,33 @@ open class DefaultClassItem(
     fun addConstructor(constructor: ConstructorItem) {
         ensureNotFrozen()
         mutableConstructors += constructor
-
-        // Keep track of whether any implicit constructors were added.
-        if (constructor.isImplicitConstructor()) {
-            hasImplicitDefaultConstructor = true
-        }
     }
 
-    /** Tracks whether the class has an implicit default constructor. */
-    private var hasImplicitDefaultConstructor = false
+    /**
+     * If there is a version of [item] already in [mutableItems], replaces the existing version with
+     * [item]. Otherwise, adds [item] to the end of [mutableItems].
+     */
+    private fun <I : Item> replaceOrAddItem(item: I, mutableItems: MutableList<I>) {
+        ensureNotFrozen()
+        val iterator = mutableItems.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == item) {
+                iterator.set(item)
+                return
+            }
+        }
+        mutableItems += item
+    }
 
-    final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
+    /**
+     * If there is already a constructor with the same signature as [constructor], replaces the
+     * existing version with the new one. If there is not a matching constructor, just adds
+     * [constructor] to the list of constructors.
+     */
+    fun replaceOrAddConstructor(constructor: ConstructorItem) {
+        replaceOrAddItem(constructor, mutableConstructors)
+    }
 
     override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
@@ -239,16 +297,7 @@ open class DefaultClassItem(
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem) {
-        ensureNotFrozen()
-        val iterator = mutableMethods.listIterator()
-        while (iterator.hasNext()) {
-            val existing = iterator.next()
-            if (existing == method) {
-                iterator.set(method)
-                return
-            }
-        }
-        mutableMethods += method
+        replaceOrAddItem(method, mutableMethods)
     }
 
     /** The mutable list of [FieldItem] that backs [fields]. */
@@ -273,6 +322,15 @@ open class DefaultClassItem(
         mutableProperties += property
     }
 
+    /**
+     * If there is already a property with the same signature as [property], replaces the existing
+     * version with the new one. If there is not a matching property, just adds [property] to the
+     * list of properties.
+     */
+    fun replaceOrAddProperty(property: PropertyItem) {
+        replaceOrAddItem(property, mutableProperties)
+    }
+
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
 
@@ -283,6 +341,51 @@ open class DefaultClassItem(
         ensureNotFrozen()
         mutableNestedClasses.add(classItem)
     }
+
+    override val containingScope: ReferencableNameScope?
+        get() = containingClass() ?: sourceFile()
+
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        nameClassification: NameClassification,
+        isFirstSimpleName: Boolean
+    ) =
+        // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
+        // First, check to see if it matches this class and if it does then return it. Only do that
+        // for the first simple name in a qualified name, otherwise it would treat something like
+        // java.util.Map.Map.Map.Map as if it was `java.util.Map`.
+        nameClassification.findClass {
+            if (isFirstSimpleName && simpleName == simpleName()) this else null
+        }
+            // Then check to see type parameters.
+            ?: nameClassification.findTypeParameter {
+                typeParameterList.find { it.name() == simpleName }
+            }
+            // Then, check to see if it is a field of this class.
+            ?: nameClassification.findField { findField(simpleName) }
+            // Then, check to see if this contains any method with the same name, if it does
+            // then return a ReferencableMethodSet.
+            ?: nameClassification.findCallableSet { findCallableSet(simpleName) }
+            // Then, check to see if it matches a nested class and if it does then return that.
+            ?: nameClassification.findClass {
+                mutableNestedClasses.find { it.simpleName() == simpleName }
+            }
+            // Then, check to see if it matches a class defined in a super class.
+            ?: superClass()
+                ?.resolveReferencableItemBySimpleName(
+                    simpleName,
+                    nameClassification,
+                    isFirstSimpleName
+                )
+            // Then, check to see if it matches a class defined in a super interface.
+            ?: interfaceTypes().firstNotNullOfOrNull {
+                it.resolveClass(codebase)
+                    ?.resolveReferencableItemBySimpleName(
+                        simpleName,
+                        nameClassification,
+                        isFirstSimpleName
+                    )
+            }
 
     /** Cache value of [annotationClass]. */
     private lateinit var cachedAnnotationClass: AnnotationClass
@@ -299,4 +402,82 @@ open class DefaultClassItem(
 
             return cachedAnnotationClass
         }
+
+    override val aliasedType: TypeItem
+        get() {
+            if (classKind != ClassKind.TYPEALIAS) {
+                error("aliasedType can only be accessed on typealiases")
+            }
+            return optionalAliasedType!!
+        }
+
+    companion object {
+        /** Creates a [DefaultClassItem] which has [ClassKind.TYPEALIAS]. */
+        fun createTypeAlias(
+            codebase: DefaultCodebase,
+            fileLocation: FileLocation,
+            modifiers: BaseModifierList,
+            documentationFactory: ItemDocumentationFactory,
+            variantSelectorsFactory: ApiVariantSelectorsFactory,
+            aliasedType: TypeItem,
+            qualifiedName: String,
+            typeParameterList: TypeParameterList,
+            containingPackage: PackageItem,
+            origin: ClassOrigin,
+        ): DefaultClassItem {
+            return DefaultClassItem(
+                codebase = codebase,
+                fileLocation = fileLocation,
+                // Typealiases can only be defined in Kotlin.
+                sourceLanguage = SourceLanguage.KOTLIN,
+                // Typealiases can only be referenced from Kotlin source.
+                targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
+                modifiers = modifiers,
+                documentationFactory = documentationFactory,
+                variantSelectorsFactory = variantSelectorsFactory,
+                source = null,
+                classKind = ClassKind.TYPEALIAS,
+                // Typealiases can only be defined at the top leve.
+                containingClass = null,
+                containingPackage = containingPackage,
+                qualifiedName = qualifiedName,
+                typeParameterList = typeParameterList,
+                origin = origin,
+                // Typealiases don't have a superclass or interface types, since they are not
+                // normal classes.
+                superClassType = null,
+                interfaceTypes = emptyList(),
+                isFileFacade = false,
+                optionalAliasedType = aliasedType,
+            )
+        }
+    }
 }
+
+/**
+ * Check to see if [name] refers to a method or constructor in this [ClassItem].
+ *
+ * If [name] matches [ClassItem.simpleName] then it is assumed to be a constructor. In that case if
+ * this [ClassItem] has any constructors then this [ClassItem] is returned to represent the set of
+ * constructors, otherwise `null` is returned. [ClassItem] is used to represent the constructors
+ * because that matches the specification. Constructors cannot usually be referenced by name and
+ * instead the class is referenced which gives access to its constructor.
+ *
+ * Else, [ClassItem.methods] is searched for a [MethodItem] that matches [name]. If at least one
+ * could be found then returns a [ReferencableMethodSet] to represent the set of all [MethodItem]s
+ * called [name].
+ *
+ * Otherwise, `null` is returned.
+ */
+internal fun ClassItem.findCallableSet(name: String) =
+    if (name == simpleName()) {
+        if (constructors().isEmpty()) {
+            null
+        } else {
+            this
+        }
+    } else if (methods().any { it.name() == name }) {
+        ReferencableMethodSet(this, name)
+    } else {
+        null
+    }

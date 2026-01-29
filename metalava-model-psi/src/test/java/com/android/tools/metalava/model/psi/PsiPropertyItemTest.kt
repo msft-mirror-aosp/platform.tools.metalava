@@ -150,6 +150,7 @@ class PsiPropertyItemTest : BaseModelTest() {
 
                     class Foo {
                         @ExperimentalFooApi
+                        @field:ExperimentalFooApi
                         var withField: String = "42"
                             get() { return field }
                             set(value) { field = "v=" + value }
@@ -319,11 +320,11 @@ class PsiPropertyItemTest : BaseModelTest() {
             val body = properties.single { it.name() == "body" }
             val accessors = properties.single { it.name() == "accessors" }
 
-            assertContains(parameter.documentation, "parameter doc")
-            assertContains(body.documentation, "body doc")
-            assertContains(accessors.documentation, "accessors property doc")
-            assertContains(accessors.getter?.documentation?.text.orEmpty(), "getter doc")
-            assertContains(accessors.setter?.documentation?.text.orEmpty(), "setter doc")
+            assertContains(parameter.requiredDocumentation.text, "parameter doc")
+            assertContains(body.requiredDocumentation.text, "body doc")
+            assertContains(accessors.requiredDocumentation.text, "accessors property doc")
+            assertContains(accessors.getter?.requiredDocumentation?.text.orEmpty(), "getter doc")
+            assertContains(accessors.setter?.requiredDocumentation?.text.orEmpty(), "setter doc")
         }
     }
 }

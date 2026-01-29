@@ -19,18 +19,26 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
-import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.JavaImport
+import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.source.doc.characterOffsetFor
+import com.android.tools.metalava.model.source.filterImports
+import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
 import java.util.TreeSet
 
 internal class TurbineSourceFile(
-    val codebase: DefaultCodebase,
+    override val codebase: DefaultCodebase,
     val compUnit: CompUnit,
-) : SourceFile {
+) : AbstractSourceFile() {
 
-    override fun getHeaderComments() = getHeaderComments(compUnit.source().source())
+    override val fileLocation: FileLocation = TurbineFileLocation.forTree(this)
+
+    override fun computeContainingPackageName() = getPackageName(compUnit)
+
+    override fun getHeaderComments() = compUnit.getHeaderComments()
 
     override fun classes(): Sequence<ClassItem> {
         val pkgName = getPackageName(compUnit)
@@ -47,6 +55,15 @@ internal class TurbineSourceFile(
     override fun hashCode(): Int {
         return compUnit.hashCode()
     }
+
+    override fun allJavaImports() =
+        compUnit.imports().map { import ->
+            JavaImport(
+                qualifiedName = import.type().dotSeparatedName,
+                onDemand = import.wild(),
+                static = import.stat(),
+            )
+        }
 
     override fun getImports(predicate: FilterPredicate): Collection<Import> {
         val imports = TreeSet<Import>(compareBy { it.pattern })
@@ -78,7 +95,7 @@ internal class TurbineSourceFile(
         // Next only keep those that are present in any docs; those are the only ones
         // we need to import
         if (imports.isNotEmpty()) {
-            return filterImports(imports, predicate)
+            return filterImports(imports, classes(), predicate)
         }
 
         return emptyList()
@@ -97,4 +114,11 @@ internal class TurbineSourceFile(
      * [com.google.turbine.tree.Tree.position].
      */
     fun lineForPosition(position: Int) = lineMap.lineNumber(position)
+
+    /**
+     * Get the character position for [position] which was retrieved from
+     * [com.google.turbine.tree.Tree.position].
+     */
+    fun characterPositionForPosition(position: Int) =
+        compUnit.source().source().characterOffsetFor(position) + 1
 }

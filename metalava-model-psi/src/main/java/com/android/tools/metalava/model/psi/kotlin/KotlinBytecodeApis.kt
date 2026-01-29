@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi.kotlin
 import com.android.SdkConstants
 import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
@@ -50,13 +51,16 @@ import java.util.zip.ZipOutputStream
 import kotlin.metadata.KmClass
 import kotlin.metadata.KmConstructor
 import kotlin.metadata.KmDeclarationContainer
+import kotlin.metadata.KmFunction
 import kotlin.metadata.KmProperty
+import kotlin.metadata.KmPropertyAccessorAttributes
 import kotlin.metadata.Visibility
-import kotlin.metadata.hasAnnotations
+import kotlin.metadata.isReified
 import kotlin.metadata.jvm.JvmMethodSignature
 import kotlin.metadata.jvm.KotlinClassMetadata
 import kotlin.metadata.jvm.Metadata
 import kotlin.metadata.jvm.getterSignature
+import kotlin.metadata.jvm.hasAnnotationsInBytecode
 import kotlin.metadata.jvm.setterSignature
 import kotlin.metadata.jvm.signature
 import kotlin.metadata.jvm.syntheticMethodForAnnotations
@@ -272,7 +276,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // Don't re-add methods which are already present: find the items which might have
         // the same signature of this one, to compare by erased signature.
         val potentialMatches =
-            erasedSignaturesOfPotentialMatchingCallables(
+            potentialMatchingCallables(
                 psiMethod,
                 classItem,
                 hasDefaultConstructorMarker,
@@ -294,11 +298,12 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             psiParametersForErasedSignature.joinToString {
                 it.type.canonicalText.dropTypeArguments()
             }
+        val semiErasedReturn = psiMethod.returnType?.canonicalText?.dropTypeArguments() ?: ""
         // Check if there's a signature match (technically, it would be possible to find a
         // false match here if a type variable that is in semiErasedSignature had the same
         // name as a primitive type used in one of the potential matches, but that shouldn't
         // be allowed).
-        if (potentialMatches.any { it == semiErasedSignature }) return
+        if (checkForSignatureMatch(semiErasedSignature, semiErasedReturn, potentialMatches)) return
 
         // Create the item.
         val callableItem =
@@ -310,21 +315,27 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                         classTypeItemFactory,
                         targetLanguages = TargetLanguageSet.BYTECODE_ONLY,
                     )
-                    .takeUnless {
-                        // if a source constructor has an optional parameter, there are two
+                    .also {
+                        // If a source constructor has an optional parameter, there are two
                         // DefaultConstructorMarker constructors generated in the bytecode: one with
                         // a DefaultConstructorMarker parameter added, and one with both an int and
-                        // DefaultConstructorMarker parameter added. We don't need to track the
-                        // version with the extra int parameter. However, it is also possible that
-                        // the penultimate parameter of a DefaultConstructorMarker constructor is
-                        // int just because the last parameter of a source constructor was int, so
-                        // check if there is a constructor in the metadata matching the signature,
-                        // if there isn't, this is an extra copy because the source version had an
-                        // optional parameter.
-                        hasDefaultConstructorMarker &&
-                            (it.parameters()[it.parameters().size - 2].type() as? PrimitiveTypeItem)
-                                ?.kind == PrimitiveTypeItem.Primitive.INT &&
-                            it.findMatchingConstructor(metadataContainer) == null
+                        // DefaultConstructorMarker parameter added. The version with the extra int
+                        // parameter needs to be tracked because it is used when the constructor is
+                        // called from Kotlin source without all default parameter values provided.
+                        // However, it is also possible that the penultimate parameter of a
+                        // DefaultConstructorMarker constructor is int just because the last
+                        // parameter of a source constructor was int, so check if there is a
+                        // constructor in the metadata matching the signature, if there isn't, this
+                        // is an extra copy because the source version had an optional parameter.
+                        if (
+                            hasDefaultConstructorMarker &&
+                                (it.parameters()[it.parameters().size - 2].type()
+                                        as? PrimitiveTypeItem)
+                                    ?.kind == PrimitiveTypeItem.Primitive.INT &&
+                                it.findMatchingConstructor(metadataContainer) == null
+                        ) {
+                            updateGeneratedDefaultCallable(it, classItem, isConstructor = true)
+                        }
                     }
             } else {
                 PsiMethodItem.create(
@@ -337,6 +348,11 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                     .takeUnless {
                         // Skip enum synthetic methods since we don't track those.
                         it.isEnumSyntheticMethod()
+                    }
+                    ?.also {
+                        if (it.name().endsWith(DEFAULT_MARKER)) {
+                            updateGeneratedDefaultCallable(it, classItem, isConstructor = false)
+                        }
                     }
             } ?: return
 
@@ -353,15 +369,26 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 }
             val erasedSignature =
                 parameterItemsForErasedSignature.joinToString { it.type().toErasedTypeString() }
+            val erasedReturn = callableItem.returnType().toErasedTypeString()
             if (
                 erasedSignature != semiErasedSignature &&
-                    potentialMatches.any { it == erasedSignature }
+                    checkForSignatureMatch(erasedSignature, erasedReturn, potentialMatches)
             )
                 return
         }
 
+        val metadataEntry = callableItem.findMetadataEntry(metadataContainer)
+        // Reified inline functions can't be called from java, and for kotlin clients their usages
+        // are all inlined in the binary (directly calling the binary version of the function will
+        // be an error). So, it does not make sense to track the bytecode version for compatibility
+        // since it will never be used.
+        if (metadataEntry?.isReified == true) return
+        // Propagate special property annotations to accessors.
+        if (metadataEntry is MetadataEntry.AccessorMetadataEntry) {
+            callableItem.propagateAnnotationsAsNeeded(metadataEntry.kmProperty, psiClass)
+        }
         // Update the visibility of the item based on metadata, if needed.
-        if (callableItem.isInternal(metadataContainer, psiClass)) {
+        if (metadataEntry?.visibility == Visibility.INTERNAL) {
             callableItem.mutateModifiers { setVisibilityLevel(VisibilityLevel.INTERNAL) }
         }
 
@@ -369,6 +396,58 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         when (callableItem) {
             is ConstructorItem -> classItem.addConstructor(callableItem)
             is MethodItem -> classItem.addMethod(callableItem)
+        }
+    }
+
+    /**
+     * When a Kotlin function or constructor has parameters with default values, the compiler
+     * generates a version of the callable with some extra parameters which is used in bytecode when
+     * the callable is called without all parameters from Kotlin source.
+     *
+     * The compiler does not include any annotations from the source callable on the generated one,
+     * but these can be important for API visibility and deprecation status. Also, callables with
+     * internal visibility appear public in bytecode. To correct these issues, this finds the source
+     * version of the callable and updates the compiler-generated version.
+     */
+    private fun updateGeneratedDefaultCallable(
+        callableItem: CallableItem,
+        containingClassItem: ClassItem,
+        isConstructor: Boolean,
+    ) {
+        // Remove the int and Object parameters added to the generated method, or the int and
+        // DefaultConstructorMarker parameters added to the generated constructor.
+        var parametersForOriginal = callableItem.parameters().dropLast(2)
+        // For functions that aren't at the top level, the generated method has the class type as
+        // the first parameter.
+        if (!isConstructor && !containingClassItem.isFileFacade) {
+            parametersForOriginal = parametersForOriginal.drop(1)
+        }
+
+        // Find the source version of the callable.
+        val erasedParameters = parametersForOriginal.joinToString { it.type().toErasedTypeString() }
+        val originalCallableItem =
+            if (isConstructor) {
+                containingClassItem.findBytecodeConstructor(erasedParameters)
+            } else {
+                containingClassItem.findBytecodeMethod(
+                    callableItem.name().removeSuffix(DEFAULT_MARKER),
+                    erasedParameters
+                )
+            } ?: return
+
+        // Add annotations from the source version, and update deprecation status and visibility as
+        // needed.
+        callableItem.mutateModifiers {
+            for (annotationItem in originalCallableItem.modifiers.annotations()) {
+                addAnnotation(annotationItem)
+                if (annotationItem.qualifiedName == KOTLIN_DEPRECATED) {
+                    setDeprecated(true)
+                }
+            }
+
+            if (originalCallableItem.isInternal) {
+                setVisibilityLevel(VisibilityLevel.INTERNAL)
+            }
         }
     }
 
@@ -381,13 +460,20 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * The `$` is used for mangled names of internal elements (which are not @PublishedApi), and
      * delegate and lambda generated elements used by the class itself but not external callers, so
      * they don't need to be tracked.
+     *
+     * However, `$` is also used for compiler-generated overloads of functions with default
+     * parameter values (see [DEFAULT_MARKER]), which can be used externally and do need tracking.
      */
     private fun skipTracking(methodName: String) =
         methodName == "equals-impl" ||
             methodName == "equals-impl0" ||
             methodName == "toString-impl" ||
             methodName == "hashCode-impl" ||
-            methodName.contains('$')
+            (methodName.contains('$') &&
+                // Default marked functions should be tracked, but if the method name contains more
+                // than one $, it has been additionally mangled (internal declarations) and doesn't
+                // need tracking.
+                !(methodName.endsWith(DEFAULT_MARKER) && methodName.count { it == '$' } == 1))
 
     /** Removes type arguments (anything between "<" and ">") from the type string. */
     private fun String.dropTypeArguments(): String =
@@ -395,16 +481,17 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
 
     /**
      * Finds callables of the [classItem] that might have the same signature as the [psiMethod]
-     * (those that have the same name and parameter count), and return their erased signatures.
+     * (those that have the same name and parameter count), and returns them along with their erased
+     * signatures.
      *
      * If [hasDefaultConstructorMarker] is true, the parameter count of the potential matches will
      * be one less than the parameter count of the [psiMethod].
      */
-    private fun erasedSignaturesOfPotentialMatchingCallables(
+    private fun potentialMatchingCallables(
         psiMethod: PsiMethod,
         classItem: ClassItem,
         hasDefaultConstructorMarker: Boolean,
-    ): List<String> {
+    ): List<Pair<CallableItem, String>> {
         val callables =
             if (psiMethod.isConstructor) {
                 classItem.constructors()
@@ -423,8 +510,49 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 callable.name() == psiMethod.name && callable.parameters().size == parameterCount
             }
             .map { callable ->
-                callable.parameters().joinToString { it.type().toErasedTypeString() }
+                callable to callable.parameters().joinToString { it.type().toErasedTypeString() }
             }
+    }
+
+    /**
+     * Checks the [potentialMatches] (pairs of [CallableItem]s and their erased signatures) to see
+     * if one of the signatures is the same as [erasedSignature].
+     *
+     * If it is, and the matching item was created as Kotlin-only, is not reified, and has the same
+     * [erasedReturn] type, updates it to include bytecode as a target language as well. If the
+     * matching item is Kotlin-only and does not have the same return type or is reified, it is not
+     * considered a match.
+     *
+     * Returns whether a match was found.
+     */
+    private fun checkForSignatureMatch(
+        erasedSignature: String,
+        erasedReturn: String,
+        potentialMatches: List<Pair<CallableItem, String>>,
+    ): Boolean {
+        val (callableItem, _) =
+            potentialMatches.firstOrNull { (_, signature) -> signature == erasedSignature }
+                ?: return false
+        // If the item was created as Kotlin only but does exist in bytecode with the same return
+        // type, update the target language set. Exclude reified inline functions because even
+        // though these are present in bytecode, there's an error if they're actually used.
+        if (
+            callableItem.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
+                callableItem.typeParameterList.none { it.isReified() }
+        ) {
+            val jvmName = (callableItem as? MethodItem)?.findJvmNameFromAnnotation()
+            if (
+                callableItem is ConstructorItem ||
+                    callableItem.returnType().toErasedTypeString() == erasedReturn &&
+                        // Make sure not to merge separate method definitions which use JvmName.
+                        (jvmName == null || jvmName == callableItem.name())
+            ) {
+                callableItem.targetLanguages = TargetLanguageSet.NOT_JAVA
+            } else {
+                return false
+            }
+        }
+        return true
     }
 
     /**
@@ -502,51 +630,76 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      */
     private fun PsiCallableItem.findMatchingConstructor(
         container: KmDeclarationContainer?,
-    ): KmConstructor? {
+    ): MetadataEntry.ConstructorMetadataEntry? {
         val internalDescriptor = internalDesc(voidConstructorTypes = true)
-        return (container as? KmClass)?.constructors?.firstOrNull {
-            it.signature?.descriptor == internalDescriptor
+        return (container as? KmClass)
+            ?.constructors
+            ?.firstOrNull { it.signature?.descriptor == internalDescriptor }
+            ?.let { MetadataEntry.ConstructorMetadataEntry(it) }
+    }
+
+    /**
+     * Determines the function name and descriptor that should be used to search for the metadata
+     * entry of a function.
+     */
+    private fun PsiCallableItem.computeNameAndDescriptor(): Pair<String, String> {
+        val initialDescriptor = internalDesc(voidConstructorTypes = true)
+
+        return if (name().endsWith(DEFAULT_MARKER)) {
+            // Search for compiler generated default overloads with the regular method name.
+            val name = name().removeSuffix(DEFAULT_MARKER)
+            // Remove the extra arguments added by the compiler to the end of the signature.
+            val trailingArgs = "ILjava/lang/Object;)"
+            val removeDefaults =
+                if (initialDescriptor.contains(trailingArgs)) {
+                    initialDescriptor.replaceFirst(trailingArgs, ")")
+                } else {
+                    throw IllegalStateException(
+                        "Unexpected descriptor for ${toStringForItem()}: $initialDescriptor"
+                    )
+                }
+            // For regular classes, the compiler also adds an argument to the start of the signature
+            // which is the containing class.
+            if (containingClass().isFileFacade) {
+                name to removeDefaults
+            } else {
+                name to removeDefaults.replaceFirst(containingClass().type().internalName(), "")
+            }
+        } else {
+            name() to initialDescriptor
         }
     }
 
-    /** Checks if the item's true visibility is internal based on the metadata from [container]. */
-    private fun PsiCallableItem.isInternal(
+    /**
+     * Finds the metadata for the callable in the [container]. The metadata might be from a
+     * constructor, function, or property accessor.
+     */
+    private fun PsiCallableItem.findMetadataEntry(
         container: KmDeclarationContainer?,
-        psiClass: PsiClass,
-    ): Boolean {
-        if (container == null) return false
-        val visibility =
-            // For constructors and functions generated from constructor definitions, check if there
-            // is a constructor with the right signature.
-            if (isConstructor() || name() == "constructor-impl") {
-                findMatchingConstructor(container)?.visibility
-            } else {
-                val expectedDescriptor = internalDesc(voidConstructorTypes = true)
-                // Cut off the mangled part of the name, if there is one.
-                // val simpleName = name().substringBefore('-')
-                // Check for a function with the right signature.
-                container.functions
-                    .firstOrNull { it.signature.matches(name(), expectedDescriptor) }
-                    ?.visibility
-                    // No matching function, check if this is a property accessor.
-                    ?: container.properties.firstNotNullOfOrNull {
-                        if (it.getterSignature.matches(name(), expectedDescriptor)) {
-                            // Propagate special annotations.
-                            propagateAnnotationsAsNeeded(it, psiClass)
-                            // A getter always has the same visibility as the property.
-                            it.visibility
-                        } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
-                            // Propagate special annotations.
-                            propagateAnnotationsAsNeeded(it, psiClass)
-                            // A setter's visibility can be different from the property.
-                            it.setter?.visibility
-                        } else {
-                            null
-                        }
-                    }
-            }
+    ): MetadataEntry? {
+        if (container == null) return null
 
-        return visibility == Visibility.INTERNAL
+        // For constructors and functions generated from constructor definitions, check if there
+        // is a constructor with the right signature.
+        return if (isConstructor() || name().startsWith("constructor-impl")) {
+            findMatchingConstructor(container)
+        } else {
+            val (expectedName, expectedDescriptor) = computeNameAndDescriptor()
+            // Check for a function with the right signature.
+            container.functions
+                .firstOrNull { it.signature.matches(expectedName, expectedDescriptor) }
+                ?.let { MetadataEntry.FunctionMetadataEntry(it) }
+                // No matching function, check if this is a property accessor.
+                ?: container.properties.firstNotNullOfOrNull {
+                    if (it.getterSignature.matches(name(), expectedDescriptor)) {
+                        MetadataEntry.AccessorMetadataEntry(it.getter, it)
+                    } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
+                        MetadataEntry.AccessorMetadataEntry(it.setter!!, it)
+                    } else {
+                        null
+                    }
+                }
+        }
     }
 
     /** Whether the signature exists and has the [expectedName] and [expectedDescriptor]. */
@@ -568,7 +721,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         kmProperty: KmProperty,
         psiClass: PsiClass,
     ) {
-        if (!kmProperty.hasAnnotations) return
+        if (!kmProperty.hasAnnotationsInBytecode) return
 
         // The annotations on a property in source end up in bytecode on a synthetic method
         // generated to track the annotations. Find that method in the psi class.
@@ -590,7 +743,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             annotationMethod.annotations
                 .firstOrNull { it.qualifiedName == "kotlin.PublishedApi" }
                 ?.let { publishedAnnotation ->
-                    val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
+                    val annotationItem = PsiAnnotationItem.create(psiCodebase, publishedAnnotation)
                     mutateModifiers { addAnnotation(annotationItem) }
                 }
         }
@@ -609,9 +762,59 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             // to a property, they are implicitly propagated to the getter and setter
             // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
             if (annotationClass.hasAnnotation("kotlin.RequiresOptIn")) {
-                val annotationItem = PsiAnnotationItem.create(codebase, annotationEntry)
+                val annotationItem = PsiAnnotationItem.create(psiCodebase, annotationEntry)
                 mutateModifiers { addAnnotation(annotationItem) }
             }
         }
+    }
+
+    /**
+     * Wrapper for function, constructor, or property kotlin metadata, because the Km type do not
+     * have a shared parent class.
+     */
+    private sealed interface MetadataEntry {
+        /** Source visibility of the declaration. */
+        val visibility: Visibility
+
+        /** Whether the definition has a reified type parameter. */
+        val isReified: Boolean
+
+        /** Wrapper for aa [KmFunction]. */
+        class FunctionMetadataEntry(private val kmFunction: KmFunction) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmFunction.visibility
+
+            override val isReified: Boolean
+                get() = kmFunction.typeParameters.any { it.isReified }
+        }
+
+        /** Wrapper for aa [KmConstructor]. */
+        class ConstructorMetadataEntry(private val kmConstructor: KmConstructor) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmConstructor.visibility
+
+            override val isReified = false
+        }
+
+        /** Wrapper for a [KmPropertyAccessorAttributes] from a [KmProperty]. */
+        class AccessorMetadataEntry(
+            private val kmAccessor: KmPropertyAccessorAttributes,
+            val kmProperty: KmProperty
+        ) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmAccessor.visibility
+
+            override val isReified: Boolean
+                get() = kmProperty.typeParameters.any { it.isReified }
+        }
+    }
+
+    companion object {
+        /**
+         * When a Kotlin function has parameters with default values, the compiler generates a
+         * version used when the source function is called without all parameters from Kotlin
+         * source. The generated method name will end with this default marker.
+         */
+        const val DEFAULT_MARKER = "\$default"
     }
 }

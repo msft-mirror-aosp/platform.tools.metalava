@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -30,6 +31,106 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class ApiAnalyzerTest : DriverTest() {
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Don't flag indirect implementor of super-interface marked with RestrictTo(LIBRARY_GROUP_PREFIX)`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/test/pkg/RestrictedParentInterface.kt:7: warning: Public class test.pkg.PublicChildInterface stripped of unavailable superclass test.pkg.RestrictedParentInterface [HiddenSuperclass]
+            """
+                    .trimIndent(),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+                    import androidx.annotation.RestrictTo
+                    import androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX
+
+                    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP_PREFIX)
+                    public interface RestrictedParentInterface {}
+                    public interface PublicChildInterface : RestrictedParentInterface {}
+                    public class PublicGrandchildClass : PublicChildInterface {}
+                    """
+                    ),
+                    restrictToSource,
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_ANNOTATION,
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX)"
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Don't flag indirect descendant of superclass marked with RestrictTo(LIBRARY_GROUP_PREFIX)`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                    src/test/pkg/RestrictedParentClass.kt:7: warning: Public class test.pkg.PublicChildClass stripped of unavailable superclass test.pkg.RestrictedParentClass [HiddenSuperclass]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+                    import androidx.annotation.RestrictTo
+                    import androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX
+
+                    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP_PREFIX)
+                    public open class RestrictedParentClass {}
+                    public open class PublicChildClass : RestrictedParentClass() {}
+                    public class PublicGrandchildClass : PublicChildClass() {}
+                    """
+                    ),
+                    restrictToSource,
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_ANNOTATION,
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX)"
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Flag superclasses that are marked with RestrictTo(LIBRARY_GROUP_PREFIX)`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                    src/test/pkg/RestrictedParentClass.kt:7: warning: Public class test.pkg.PublicChildClass stripped of unavailable superclass test.pkg.RestrictedParentClass [HiddenSuperclass]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+                    import androidx.annotation.RestrictTo
+                    import androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX
+
+                    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP_PREFIX)
+                    public open class RestrictedParentClass {}
+                    public class PublicChildClass : RestrictedParentClass() {}
+                    """
+                    ),
+                    restrictToSource,
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_ANNOTATION,
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX)"
+                ),
+        )
+    }
+
     @Test
     fun `Hidden abstract method with show @SystemApi`() {
         check(
@@ -95,7 +196,10 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                             package test.pkg;
                             import android.annotation.SystemApi;
-                            /** This class is OK because it is all hidden @hide */
+                            /**
+                             * This class is OK because it is all hidden
+                             * @hide
+                             */
                             public abstract class HiddenClass {
                                 public abstract boolean goodAbstractHiddenMethod() { return true; }
                             }
@@ -404,10 +508,10 @@ class ApiAnalyzerTest : DriverTest() {
                     package test.pkg {
                       @Deprecated public final class Foo {
                         ctor @Deprecated public Foo(@Deprecated int i, @Deprecated boolean b);
-                        method @Deprecated public boolean getB();
-                        method @Deprecated public int getI();
-                        method @Deprecated public void setB(boolean);
-                        method @Deprecated public void setI(int);
+                        method @InaccessibleFromKotlin @Deprecated public boolean getB();
+                        method @InaccessibleFromKotlin @Deprecated public int getI();
+                        method @InaccessibleFromKotlin @Deprecated public void setB(boolean);
+                        method @InaccessibleFromKotlin @Deprecated public void setI(int);
                         property @Deprecated public boolean b;
                         property @Deprecated public int i;
                       }
@@ -522,7 +626,7 @@ class ApiAnalyzerTest : DriverTest() {
                     kotlin(
                         """
                             package test.pkg
-                            /** @suppress */
+                            /** @hide */
                             interface HiddenInterface
                             class PublicClass {
                                 fun returnsHiddenInterface(): HiddenInterface = TODO()
@@ -877,9 +981,9 @@ class ApiAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(int) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
+                src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
                 src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
-                src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(int) [ReferencesHidden]
+                src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) [ReferencesHidden]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =

@@ -35,6 +35,63 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /** The list of parameters */
     @MetalavaApi fun parameters(): List<ParameterItem>
 
+    override fun describe(capitalize: Boolean) =
+        describeCallableItem(includeParameterTypes = true, capitalize = capitalize)
+
+    fun describeCallableItem(
+        includeParameterNames: Boolean = false,
+        includeParameterTypes: Boolean = false,
+        includeReturnValue: Boolean = false,
+        capitalize: Boolean = false
+    ) = buildString {
+        if (isConstructor()) {
+            append(if (capitalize) "Constructor" else "constructor")
+        } else {
+            append(if (capitalize) "Method" else "method")
+        }
+        append(' ')
+        if (includeReturnValue && !isConstructor()) {
+            append(returnType().toSimpleTypeString())
+            append(' ')
+        }
+        appendCallableSignature(includeParameterNames, includeParameterTypes)
+    }
+
+    fun StringBuilder.appendCallableSignature(
+        includeParameterNames: Boolean,
+        includeParameterTypes: Boolean
+    ) {
+        append(containingClass().qualifiedName())
+        if (!isConstructor()) {
+            append('.')
+            append(name())
+        }
+        if (includeParameterNames || includeParameterTypes) {
+            append('(')
+            var first = true
+            for (parameter in parameters()) {
+                if (first) {
+                    first = false
+                } else {
+                    append(',')
+                    if (includeParameterNames && includeParameterTypes) {
+                        append(' ')
+                    }
+                }
+                if (includeParameterTypes) {
+                    append(parameter.type().toSimpleTypeString())
+                    if (includeParameterNames) {
+                        append(' ')
+                    }
+                }
+                if (includeParameterNames) {
+                    append(parameter.publicName() ?: parameter.name())
+                }
+            }
+            append(')')
+        }
+    }
+
     override fun type() = returnType()
 
     /** Types of exceptions that this callable can throw */
@@ -46,7 +103,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.erasedClass ?: continue
+            val throwableClass = type.asErasedClass(codebase) ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -67,19 +124,22 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         throwsTypes: LinkedHashSet<ExceptionTypeItem>
     ): LinkedHashSet<ExceptionTypeItem> {
         for (exceptionType in throwsTypes()) {
-            if (exceptionType is VariableTypeItem) {
-                throwsTypes.add(exceptionType)
-            } else {
-                val classItem = exceptionType.erasedClass ?: continue
-                if (predicate.test(classItem)) {
+            when (exceptionType) {
+                is VariableTypeItem -> {
                     throwsTypes.add(exceptionType)
-                } else {
-                    // Excluded, but it may have super class throwables that are included; if so,
-                    // include those.
-                    classItem
-                        .allSuperClasses()
-                        .firstOrNull { superClass -> predicate.test(superClass) }
-                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                }
+                is ClassTypeItem -> {
+                    val classItem = exceptionType.asErasedClass(codebase) ?: continue
+                    if (predicate.test(classItem)) {
+                        throwsTypes.add(exceptionType)
+                    } else {
+                        // Excluded, but it may have super class throwables that are included; if
+                        // so, include those.
+                        classItem
+                            .allSuperClasses()
+                            .firstOrNull { superClass -> predicate.test(superClass) }
+                            ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                    }
                 }
             }
         }
@@ -98,13 +158,13 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         append("#")
         append(name())
         append("(")
-        parameters().joinTo(this) { it.type().toSimpleType() }
+        parameters().joinTo(this) { it.type().toSimpleTypeString() }
         append(")")
     }
 
     override fun toStringForItem(): String {
         return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
+            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleTypeString() }})"
     }
 
     override fun equalsToItem(other: Any?): Boolean {
@@ -152,7 +212,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                 return false
             }
         }
-        return true
+
+        // Check target languages are equal for methods to be equal
+        return targetLanguages == other.targetLanguages
     }
 
     override fun hashCodeForItem(): Int {
@@ -163,7 +225,8 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /**
      * Returns true if this callable is a signature match for the given callable (e.g. can be
      * overriding if it is a method). This checks that the name and parameter lists match, but
-     * ignores differences in parameter names, return value types and throws list types.
+     * ignores differences in parameter names, return value types and throws list types. It allows
+     * for differences in the target language sets, but requires at least some overlap.
      */
     fun matches(other: CallableItem): Boolean {
         if (this === other) return true
@@ -176,6 +239,9 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             return false
         }
 
+        // Require at least one shared target language.
+        if (targetLanguages.intersect(other.targetLanguages).isEmpty()) return false
+
         val parameters1 = parameters()
         val parameters2 = other.parameters()
 
@@ -187,7 +253,17 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             val parameter1Type = parameters1[i].type()
             val parameter2Type = parameters2[i].type()
             if (parameter1Type == parameter2Type) continue
-            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) continue
+            // If these have the same erased type, they're considered equal for bytecode. If this
+            // is a Kotlin-only callable, don't accept any equivalent-erased types as equal, but
+            // allow for the case that one version has wildcards that the other doesn't (common
+            // when comparing types generated from PSI vs the Kotlin analysis API).
+            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) {
+                if (TargetLanguage.BYTECODE in targetLanguages) {
+                    continue
+                } else if (equalWithFlattenedWildcards(parameter1Type, parameter2Type)) {
+                    continue
+                }
+            }
 
             val convertedType =
                 parameter1Type.convertType(other.containingClass(), containingClass())
@@ -220,7 +296,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
             is ClassTypeItem ->
-                asClass()?.let { !filterReference.test(it) } == true ||
+                resolveClass(codebase)?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem ->

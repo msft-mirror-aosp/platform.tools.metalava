@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
@@ -27,7 +26,6 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -41,7 +39,7 @@ import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.uast.UField
 
 internal class PsiFieldItem(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     private val psiField: PsiField,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -52,7 +50,7 @@ internal class PsiFieldItem(
     constantValueProvider: OptionalValueProvider?,
 ) :
     DefaultFieldItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = PsiFileLocation(psiField),
         sourceLanguage = psiField.sourceLanguage,
         targetLanguages = TargetLanguageSet.ALL,
@@ -74,10 +72,10 @@ internal class PsiFieldItem(
 
     override fun duplicate(targetContainingClass: ClassItem) =
         create(
-                codebase,
+                psiCodebase,
                 targetContainingClass,
                 psiField,
-                codebase.globalTypeItemFactory.from(targetContainingClass),
+                psiCodebase.globalTypeItemFactory.from(targetContainingClass),
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
@@ -90,12 +88,6 @@ internal class PsiFieldItem(
         ): PsiFieldItem {
             val name = psiField.name
             val modifiers = PsiModifierItem.create(codebase, psiField)
-
-            if (containingClass.classKind == ClassKind.INTERFACE) {
-                // All interface fields are implicitly public and static.
-                modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-                modifiers.setStatic(true)
-            }
 
             val isEnumConstant = psiField is PsiEnumConstant
 
@@ -119,8 +111,9 @@ internal class PsiFieldItem(
             val couldHaveConstantValue =
                 when (psiField.sourceLanguage) {
                     // In Kotlin the `const` modifier is what determines whether the field could
-                    // have a constant value.
-                    SourceLanguage.KOTLIN -> modifiers.isConst()
+                    // have a constant value. However, it also needs to be static as a const
+                    // instance field cannot be treated as a constant by code outside the class.
+                    SourceLanguage.KOTLIN -> modifiers.isConst() && modifiers.isStatic()
                     // In Java fields have to be static and final in order for them to have a
                     // constant value but that is not sufficient.
                     else -> modifiers.isStatic() && modifiers.isFinal()
@@ -133,7 +126,7 @@ internal class PsiFieldItem(
                 else null
 
             return PsiFieldItem(
-                codebase = codebase,
+                psiCodebase = codebase,
                 psiField = psiField,
                 documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
                 modifiers = modifiers,
