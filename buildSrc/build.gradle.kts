@@ -16,12 +16,44 @@
 
 plugins {
     alias(libs.plugins.kotlinJvm)
+    `java-gradle-plugin`
 }
 
 repositories {
-    mavenCentral()
+    // For CI builds, it is important to use prebuilts because maven central throttles requests for
+    // artifacts. The `DOWNLOAD_DEPENDENCIES` flag allows building locally in repos which do not
+    // include the AndroidX prebuilts repo.
+    if (System.getenv("DOWNLOAD_DEPENDENCIES") == "true") {
+        mavenCentral()
+        google()
+    } else {
+        maven("../../../prebuilts/androidx/external")
+    }
 }
 
 dependencies {
-    implementation("com.google.code.gson:gson:2.8.6")
+    implementation(gradleApi())
+    implementation(gradleKotlinDsl())
+    implementation(libs.kotlinGradlePlugin)
+    implementation(libs.androidGradlePlugin)
+    implementation(libs.gson)
+}
+
+gradlePlugin {
+    plugins {
+        create("metalava-build-plugin") {
+            id = "metalava-build-plugin"
+            implementationClass = "com.android.tools.metalava.MetalavaBuildPlugin"
+        }
+        create("metalava-model-provider-plugin") {
+            id = "metalava-model-provider-plugin"
+            implementationClass = "com.android.tools.metalava.MetalavaModelProviderPlugin"
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors = true
+    }
 }

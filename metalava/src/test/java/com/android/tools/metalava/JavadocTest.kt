@@ -1,0 +1,1440 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava
+
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
+import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.java
+import org.intellij.lang.annotations.Language
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+@Suppress("JavadocReference")
+class JavadocTest : DriverTest() {
+    private fun checkStubs(
+        @Language("JAVA") source: String,
+        warnings: String? = "",
+        expectedFail: String? = null,
+        apiLint: String? = null,
+        api: String? = null,
+        extraArguments: Array<String> = emptyArray(),
+        docStubs: Boolean = false,
+        showAnnotations: Array<String> = emptyArray(),
+        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
+        sourceFiles: Array<TestFile>
+    ) {
+        check(
+            sourceFiles = sourceFiles,
+            showAnnotations = showAnnotations,
+            stubFiles = arrayOf(java(source)),
+            expectedFail = expectedFail,
+            expectedIssues = warnings,
+            checkCompilation = true,
+            apiLint = apiLint,
+            api = api,
+            extraArguments = extraArguments,
+            docStubs = docStubs,
+            skipEmitPackages = skipEmitPackages
+        )
+    }
+
+    @Test
+    fun `Test package to package info`() {
+        @Language("HTML")
+        val html =
+            """
+            <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+            <!-- not a body tag: <body> -->
+            <html>
+            <body bgcolor="white">
+            My package docs<br>
+            <!-- comment -->
+            Sample code: /** code here */
+            Another line.<br>
+            </BODY>
+            </html>
+            """
+
+        @Suppress("DanglingJavadoc")
+        @Language("JAVA")
+        val java =
+            """
+            /**
+             * My package docs<br>
+             * <!-- comment -->
+             * Sample code: /** code here &#42;/
+             * Another line.<br>
+             */
+            """
+
+        assertEquals(java.trimIndent() + "\n", packageHtmlToJavadoc(html.trimIndent()))
+    }
+
+    @Test
+    fun `Relative documentation links in stubs`() {
+        checkStubs(
+            docStubs = false,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.io.IOException;
+                    import test.pkg2.OtherClass;
+
+                    /**
+                     *  Blah blah {@link OtherClass} blah blah.
+                     *  Referencing <b>field</b> {@link OtherClass#foo},
+                     *  and referencing method {@link OtherClass#bar(int,
+                     *   boolean)}.
+                     *  And relative method reference {@link #baz()}.
+                     *  And relative field reference {@link #importance}.
+                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
+                     *  And here's one in the same package: {@link LocalClass}.
+                     *
+                     *  @deprecated For some reason
+                     *  @see OtherClass
+                     *  @see OtherClass#bar(int, boolean)
+                     */
+                    @SuppressWarnings("all")
+                    public class SomeClass {
+                       /**
+                       * My method.
+                       * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
+                       *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
+                       * @throws IOException when blah blah blah
+                       * @throws RuntimeException when blah blah blah
+                       */
+                       public void baz(int focus) throws IOException;
+                       public boolean importance;
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg2;
+
+                    @SuppressWarnings("all")
+                    public class OtherClass {
+                        public static final int FOCUS_INPUT = 1;
+                        public static final int FOCUS_ACCESSIBILITY = 2;
+                        public int foo;
+                        public void bar(int baz, boolean bar);
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg1;
+
+                    @SuppressWarnings("all")
+                    public class LocalClass {
+                    }
+                    """
+                    )
+                ),
+            warnings = "",
+            source =
+                """
+                    package test.pkg1;
+                    /**
+                     * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
+                     *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
+                     *  And relative method reference {@link #baz()}.
+                     *  And relative field reference {@link #importance}.
+                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
+                     *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
+                     *
+                     * @see test.pkg2.OtherClass
+                     * @see test.pkg2.OtherClass#bar(int,boolean)
+                     * @deprecated For some reason
+                     */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @Deprecated
+                    public class SomeClass {
+                    @Deprecated
+                    public SomeClass() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * My method.
+                     *
+                     * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
+                     *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
+                     * @throws java.io.IOException when blah blah blah
+                     * @throws java.lang.RuntimeException when blah blah blah
+                     */
+                    @Deprecated
+                    public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                    @Deprecated public boolean importance;
+                    }
+                    """
+        )
+    }
+
+    @Test
+    fun `Check allowReadingComments = false`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS),
+            docStubs = false,
+            // Enable API lint to make sure that some issues will be reported.
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            // These warnings prove that lint is enabled and will report MutableBareField and
+            // MissingNullability. The first two issues are reported because `test.hidden.Hidden`
+            // is not hidden by the `@hide` in `test/hidden/package-info.java`.
+            warnings =
+                """
+                    src/test/hidden/Hidden.java:4: error: Missing nullability on field `bareMutableFieldMissingNullability` in class `class test.hidden.Hidden` [MissingNullability]
+                    src/test/hidden/Hidden.java:4: error: Bare field bareMutableFieldMissingNullability must be marked final, or moved behind accessors if mutable [MutableBareField]
+                    src/test/pkg1/SomeClass.java:29: error: Bare field importance must be marked final, or moved behind accessors if mutable [MutableBareField]
+                    src/test/pkg2/OtherClass.java:7: error: Missing nullability on field `foo` in class `class test.pkg2.OtherClass` [MissingNullability]
+                    src/test/pkg2/OtherClass.java:7: error: Bare field foo must be marked final, or moved behind accessors if mutable [MutableBareField]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.io.IOException;
+                    import test.pkg2.OtherClass;
+
+                    /**
+                     *  Blah blah {@link OtherClass} blah blah.
+                     *  Referencing <b>field</b> {@link OtherClass#foo},
+                     *  and referencing method {@link OtherClass#bar(int,
+                     *   boolean)}.
+                     *  And relative method reference {@link #baz()}.
+                     *  And relative field reference {@link #importance}.
+                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
+                     *  And here's one in the same package: {@link LocalClass}.
+                     *
+                     *  @deprecated
+                     *  @see OtherClass
+                     *  @see OtherClass#bar(int, boolean)
+                     */
+                    @SuppressWarnings("all")
+                    public class SomeClass {
+                       /**
+                       * My method.
+                       * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
+                       *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
+                       * @throws IOException when blah blah blah
+                       * @throws RuntimeException when blah blah blah
+                       */
+                       public void baz(int focus) throws IOException;
+                       public boolean importance;
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg2;
+
+                    @SuppressWarnings("all")
+                    public class OtherClass {
+                        public static final int FOCUS_INPUT = 1;
+                        public static final int FOCUS_ACCESSIBILITY = 2;
+                        public String foo;
+                        public void bar(int baz, boolean bar);
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg1;
+
+                    @SuppressWarnings("all")
+                    public class LocalClass {
+                    }
+                    """
+                    ),
+                    // Make sure that using `@hide` in the package javadoc comment has no effect
+                    // when allowReadingComments = false.
+                    java(
+                        """
+                            /** @hide */
+                            package test.hidden;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.hidden;
+
+                            public class Hidden {
+                                public String bareMutableFieldMissingNullability;
+                            }
+                        """,
+                    )
+                ),
+            source =
+                """
+                    package test.pkg1;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class SomeClass {
+                    public SomeClass() { throw new RuntimeException("Stub!"); }
+                    public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                    public boolean importance;
+                    }
+                    """
+        )
+    }
+
+    @Test
+    fun `Rewrite relative documentation links in doc-stubs`() {
+        checkStubs(
+            docStubs = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.io.IOException;
+                    import test.pkg2.OtherClass;
+
+                    /**
+                     *  Blah blah {@link OtherClass} blah blah.
+                     *  Referencing <b>field</b> {@link OtherClass#foo},
+                     *  and referencing method {@link OtherClass#bar(int,
+                     *   boolean)}.
+                     *  And relative method reference {@link #baz()}.
+                     *  And relative field reference {@link #importance}.
+                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
+                     *  And here's one in the same package: {@link LocalClass}.
+                     *
+                     *  @deprecated For some reason
+                     *  @see OtherClass
+                     *  @see OtherClass#bar(int, boolean)
+                     */
+                    @SuppressWarnings("all")
+                    public class SomeClass {
+                       /**
+                       * My method.
+                       * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
+                       *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
+                       * @throws java.io.IOException when blah blah blah
+                       * @throws java.lang.RuntimeException when blah blah blah
+                       */
+                       public void baz(int focus) throws IOException;
+                       public boolean importance;
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg2;
+
+                    @SuppressWarnings("all")
+                    public class OtherClass {
+                        public static final int FOCUS_INPUT = 1;
+                        public static final int FOCUS_ACCESSIBILITY = 2;
+                        public int foo;
+                        public void bar(int baz, boolean bar);
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg1;
+
+                    @SuppressWarnings("all")
+                    public class LocalClass {
+                    }
+                    """
+                    )
+                ),
+            warnings = "",
+            source =
+                """
+                package test.pkg1;
+                /**
+                 * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
+                 *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
+                 *  And relative method reference {@link #baz()}.
+                 *  And relative field reference {@link #importance}.
+                 *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
+                 *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
+                 *
+                 * @see test.pkg2.OtherClass
+                 * @see test.pkg2.OtherClass#bar(int,boolean)
+                 * @deprecated For some reason
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @Deprecated
+                public class SomeClass {
+                @Deprecated
+                public SomeClass() { throw new RuntimeException("Stub!"); }
+                /**
+                 * My method.
+                 *
+                 * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
+                 *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
+                 * @throws java.io.IOException when blah blah blah
+                 * @throws java.lang.RuntimeException when blah blah blah
+                 */
+                @Deprecated
+                public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                @Deprecated public boolean importance;
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Rewrite relative documentation links in doc-stubs 2`() {
+        // Properly handle links to inherited methods
+        checkStubs(
+            docStubs = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.io.IOException;
+
+                    @SuppressWarnings("all")
+                    public class R {
+                        public static class attr {
+                            /**
+                             * Resource identifier to assign to this piece of named meta-data.
+                             * The resource identifier can later be retrieved from the meta data
+                             * Bundle through {@link android.os.Bundle#getInt Bundle.getInt}.
+                             * <p>May be a reference to another resource, in the form
+                             * "<code>@[+][<i>package</i>:]<i>type</i>/<i>name</i></code>" or a theme
+                             * attribute in the form
+                             * "<code>?[<i>package</i>:]<i>type</i>/<i>name</i></code>".
+                             */
+                            public static final int resource=0x01010025;
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.os;
+
+                    @SuppressWarnings("all")
+                    public class Bundle extends BaseBundle {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.os;
+
+                    @SuppressWarnings("all")
+                    public class BaseBundle {
+                        public int getInt(String key) {
+                            return getInt(key, 0);
+                        }
+
+                        public int getInt(String key, int defaultValue) {
+                            return defaultValue;
+                        }
+                    }
+                    """
+                    )
+                ),
+            warnings = "",
+            source =
+                """
+                package test.pkg1;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class R {
+                public R() { throw new RuntimeException("Stub!"); }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static class attr {
+                public attr() { throw new RuntimeException("Stub!"); }
+                /**
+                 * Resource identifier to assign to this piece of named meta-data.
+                 * The resource identifier can later be retrieved from the meta data
+                 * Bundle through {@link android.os.Bundle#getInt Bundle.getInt}.
+                 * <p>May be a reference to another resource, in the form
+                 * "<code>@[+][<i>package</i>:]<i>type</i>/<i>name</i></code>" or a theme
+                 * attribute in the form
+                 * "<code>?[<i>package</i>:]<i>type</i>/<i>name</i></code>".
+                 */
+                public static final int resource = 16842789;
+                }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Rewrite relative documentation links in doc-stubs 3`() {
+        checkStubs(
+            docStubs = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.accessibilityservice;
+
+                    import android.view.accessibility.AccessibilityEvent;
+                    import android.view.accessibility.AccessibilityRecord;
+
+                    /**
+                     * <p>
+                     * Window content may be retrieved with
+                     * {@link AccessibilityEvent#getSource() AccessibilityEvent.getSource()}.
+                     * Mention AccessibilityRecords here.
+                     * </p>
+                     */
+                    @SuppressWarnings("all")
+                    public abstract class AccessibilityService {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.view.accessibility;
+
+                    @SuppressWarnings("all")
+                    public final class AccessibilityEvent extends AccessibilityRecord {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.view.accessibility;
+
+                    @SuppressWarnings("all")
+                    public class AccessibilityRecord {
+                        public AccessibilityNodeInfo getSource() {
+                            return null;
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.view.accessibility;
+                    public class AccessibilityNodeInfo {}
+                    """
+                    )
+                ),
+            warnings = "",
+            source =
+                """
+                package android.accessibilityservice;
+                /**
+                 * <p>
+                 * Window content may be retrieved with
+                 * {@link android.view.accessibility.AccessibilityEvent#getSource() AccessibilityEvent.getSource()}.
+                 * Mention AccessibilityRecords here.
+                 * </p>
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class AccessibilityService {
+                public AccessibilityService() { throw new RuntimeException("Stub!"); }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Rewrite relative documentation links in doc-stubs but preserve custom link text`() {
+        checkStubs(
+            docStubs = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.accessibilityservice;
+
+                    import android.view.accessibility.AccessibilityEvent;
+                    import android.view.accessibility.AccessibilityRecord;
+
+                    /**
+                     * <p>
+                     * Window content may be retrieved with
+                     * {@link AccessibilityEvent#getSource() this_method}.
+                     * Mention AccessibilityRecords here.
+                     * </p>
+                     */
+                    @SuppressWarnings("all")
+                    public abstract class AccessibilityService {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.view.accessibility;
+
+                    @SuppressWarnings("all")
+                    public final class AccessibilityEvent extends AccessibilityRecord {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.view.accessibility;
+
+                    @SuppressWarnings("all")
+                    public class AccessibilityRecord {
+                        public AccessibilityNodeInfo getSource() {
+                            return null;
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.view.accessibility;
+                    public class AccessibilityNodeInfo {}
+                    """
+                    )
+                ),
+            warnings = "",
+            source =
+                """
+                package android.accessibilityservice;
+                /**
+                 * <p>
+                 * Window content may be retrieved with
+                 * {@link android.view.accessibility.AccessibilityEvent#getSource() this_method}.
+                 * Mention AccessibilityRecords here.
+                 * </p>
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class AccessibilityService {
+                public AccessibilityService() { throw new RuntimeException("Stub!"); }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Rewrite relative documentation links in doc-stubs 4`() {
+        checkStubs(
+            docStubs = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.content;
+
+                    import android.os.OperationCanceledException;
+
+                    @SuppressWarnings("all")
+                    public abstract class AsyncTaskLoader<D> {
+                        /**
+                         * Called if the task was canceled before it was completed.  Gives the class a chance
+                         * to clean up post-cancellation and to properly dispose of the result.
+                         *
+                         * @param data The value that was returned by {@link #loadInBackground}, or null
+                         * if the task threw {@link OperationCanceledException}.
+                         */
+                        public void onCanceled(D data) {
+                        }
+
+                        /**
+                         * Called on a worker thread to perform the actual load and to return
+                         * the result of the load operation.
+                         *
+                         * Implementations should not deliver the result directly, but should return them
+                         * from this method, which will eventually end up calling {@link #deliverResult} on
+                         * the UI thread.  If implementations need to process the results on the UI thread
+                         * they may override {@link #deliverResult} and do so there.
+                         *
+                         * When the load is canceled, this method may either return normally or throw
+                         * {@link OperationCanceledException}.  In either case, the Loader will
+                         * call {@link #onCanceled} to perform post-cancellation cleanup and to dispose of the
+                         * result object, if any.
+                         *
+                         * @return The result of the load operation.
+                         *
+                         * @throws OperationCanceledException if the load is canceled during execution.
+                         *
+                         * @see #onCanceled
+                         */
+                        public abstract Object loadInBackground();
+
+                        /**
+                         * Sends the result of the load to the registered listener. Should only be called by subclasses.
+                         *
+                         * Must be called from the process's main thread.
+                         *
+                         * @param data the result of the load
+                         */
+                        public void deliverResult(Object data) {
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.os;
+
+
+                    /**
+                     * An exception type that is thrown when an operation in progress is canceled.
+                     */
+                    @SuppressWarnings("all")
+                    public class OperationCanceledException extends RuntimeException {
+                        public OperationCanceledException() {
+                            this(null);
+                        }
+
+                        public OperationCanceledException(String message) {
+                            super(message != null ? message : "The operation has been canceled.");
+                        }
+                    }
+                    """
+                    )
+                ),
+            warnings = "",
+            source =
+                """
+                package android.content;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class AsyncTaskLoader<D> {
+                public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
+                /**
+                 * Sends the result of the load to the registered listener. Should only be called by subclasses.
+                 *
+                 * Must be called from the process's main thread.
+                 * @param data the result of the load
+                 */
+                public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
+                /**
+                 * Called on a worker thread to perform the actual load and to return
+                 * the result of the load operation.
+                 *
+                 * Implementations should not deliver the result directly, but should return them
+                 * from this method, which will eventually end up calling {@link #deliverResult} on
+                 * the UI thread.  If implementations need to process the results on the UI thread
+                 * they may override {@link #deliverResult} and do so there.
+                 *
+                 * When the load is canceled, this method may either return normally or throw
+                 * {@link android.os.OperationCanceledException OperationCanceledException}.  In either case, the Loader will
+                 * call {@link #onCanceled} to perform post-cancellation cleanup and to dispose of the
+                 * result object, if any.
+                 *
+                 * @return The result of the load operation.
+                 * @throws android.os.OperationCanceledException if the load is canceled during execution.
+                 * @see #onCanceled
+                 */
+                public abstract java.lang.Object loadInBackground();
+                /**
+                 * Called if the task was canceled before it was completed.  Gives the class a chance
+                 * to clean up post-cancellation and to properly dispose of the result.
+                 *
+                 * @param data The value that was returned by {@link #loadInBackground}, or null
+                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
+                 */
+                public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Rewrite relative documentation links in doc-stubs 5`() {
+        // Properly handle links to inherited methods
+        checkStubs(
+            docStubs = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package org.xmlpull.v1;
+
+                    /**
+                     * Example docs.
+                     * <pre>
+                     * import org.xmlpull.v1.<a href="XmlPullParserException.html">XmlPullParserException</a>;
+                     *         xpp.<a href="#setInput">setInput</a>( new StringReader ( "&lt;foo>Hello World!&lt;/foo>" ) );
+                     * </pre>
+                     * see #setInput
+                     */
+                    @SuppressWarnings("all")
+                    public interface XmlPullParser {
+                        void setInput();
+                    }
+                    """
+                    )
+                ),
+            warnings = "",
+            source =
+                """
+                package org.xmlpull.v1;
+                /**
+                 * Example docs.
+                 * <pre>
+                 * import org.xmlpull.v1.<a href="XmlPullParserException.html">XmlPullParserException</a>;
+                 *         xpp.<a href="#setInput">setInput</a>( new StringReader ( "&lt;foo>Hello World!&lt;/foo>" ) );
+                 * </pre>
+                 * see #setInput
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public interface XmlPullParser {
+                public void setInput();
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Check references to inherited field constants`() {
+        checkStubs(
+            docStubs = true,
+            warnings = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import test.pkg2.MyChild;
+
+                    /**
+                     * Reference to {@link MyChild#CONSTANT1},
+                     * {@link MyChild#CONSTANT2}, and
+                     * {@link MyChild#myMethod}.
+                     * <p>
+                     * Absolute reference:
+                     * {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1}
+                     * <p>
+                     * Inner class reference:
+                     * {@link Test.TestInner#CONSTANT3}, again
+                     * {@link TestInner#CONSTANT3}
+                     *
+                     * @see test.pkg2.MyChild#myMethod
+                     */
+                    @SuppressWarnings("all")
+                    public class Test {
+                        public static class TestInner {
+                            public static final String CONSTANT3 = "Hello";
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg1;
+                    @SuppressWarnings("all")
+                    interface MyConstants {
+                        long CONSTANT1 = 12345;
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.io.Closeable;
+                    @SuppressWarnings("all")
+                    class MyParent implements MyConstants, Closeable {
+                        public static final long CONSTANT2 = 67890;
+                        public void myMethod() {
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg2;
+
+                    import test.pkg1.MyParent;
+                    @SuppressWarnings("all")
+                    public class MyChild extends MyParent implements MyConstants {
+                        @Override
+                        public void close() {}
+                    }
+                    """
+                    )
+                ),
+            source =
+                """
+                package test.pkg1;
+                /**
+                 * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1},
+                 * {@link test.pkg2.MyChild#CONSTANT2 MyChild.CONSTANT2}, and
+                 * {@link test.pkg2.MyChild#myMethod MyChild.myMethod}.
+                 * <p>
+                 * Absolute reference:
+                 * {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1}
+                 * <p>
+                 * Inner class reference:
+                 * {@link test.pkg1.Test.TestInner#CONSTANT3 Test.TestInner.CONSTANT3}, again
+                 * {@link test.pkg1.Test.TestInner#CONSTANT3 TestInner.CONSTANT3}
+                 * @see test.pkg2.MyChild#myMethod
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Test {
+                public Test() { throw new RuntimeException("Stub!"); }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static class TestInner {
+                public TestInner() { throw new RuntimeException("Stub!"); }
+                public static final java.lang.String CONSTANT3 = "Hello";
+                }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Rewrite parameter list`() {
+        checkStubs(
+            docStubs = true,
+            warnings = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import test.pkg2.OtherClass1;
+                    import test.pkg2.OtherClass2;
+
+                    /**
+                     * Reference to {@link OtherClass1#myMethod(OtherClass2, int name, OtherClass2[])},
+                     */
+                    @SuppressWarnings("all")
+                    public class Test<E extends OtherClass2> {
+                        /**
+                         * Reference to {@link OtherClass1#myMethod(E, int, OtherClass2 [])},
+                         */
+                        public void test() { }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg2;
+
+                    @SuppressWarnings("all")
+                    class OtherClass1 {
+                        public void myMethod(OtherClass2 parameter1, int parameter2, OtherClass2[] parameter3) {
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg2;
+
+                    @SuppressWarnings("all")
+                    public class OtherClass2 {
+                    }
+                    """
+                    )
+                ),
+            source =
+                """
+                package test.pkg1;
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2,int,OtherClass2[])}, */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Test<E extends test.pkg2.OtherClass2> {
+                public Test() { throw new RuntimeException("Stub!"); }
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2[])}, */
+                public void test() { throw new RuntimeException("Stub!"); }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Rewrite parameter list 2`() {
+        checkStubs(
+            docStubs = true,
+            warnings = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.nio.ByteBuffer;
+
+                    @SuppressWarnings("all")
+                    public abstract class Test {
+                        /**
+                         * Blah blah
+                         * <blockquote><pre>
+                         * {@link #wrap(ByteBuffer [], int, int, ByteBuffer)
+                         *     engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
+                         * </pre></blockquote>
+                         */
+                        public void test() { }
+
+                        public abstract void wrap(ByteBuffer [] srcs, int offset,
+                            int length, ByteBuffer dst);
+                    }
+                    """
+                    )
+                ),
+            source =
+                """
+                package test.pkg1;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class Test {
+                public Test() { throw new RuntimeException("Stub!"); }
+                /**
+                 * Blah blah
+                 * <blockquote><pre>
+                 * {@link #wrap(java.nio.ByteBuffer[],int,int,java.nio.ByteBuffer) engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
+                 * </pre></blockquote>
+                 */
+                public void test() { throw new RuntimeException("Stub!"); }
+                public abstract void wrap(java.nio.ByteBuffer[] srcs, int offset, int length, java.nio.ByteBuffer dst);
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Warn about unresolved`() {
+        @Suppress("ConstantConditionIf")
+        checkStubs(
+            docStubs = true,
+            warnings = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.nio.ByteBuffer;
+
+                    @SuppressWarnings("all")
+                    public class Test {
+                        /**
+                         * Reference to {@link SomethingMissing} and
+                         * {@link String#randomMethod}.
+                         *
+                         * @see OtherMissing
+                         */
+                        public void test() { }
+                    }
+                    """
+                    )
+                ),
+            source =
+                """
+                package test.pkg1;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Test {
+                public Test() { throw new RuntimeException("Stub!"); }
+                /**
+                 * Reference to {@link SomethingMissing} and
+                 * {@link java.lang.String#randomMethod String.randomMethod}.
+                 * @see OtherMissing
+                 */
+                public void test() { throw new RuntimeException("Stub!"); }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Javadoc link to innerclass constructor`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.view;
+                    import android.graphics.Insets;
+
+                    public final class WindowInsets {
+                        /**
+                         * Returns a copy of this WindowInsets with selected system window insets replaced
+                         * with new values.
+                         *
+                         * @param left New left inset in pixels
+                         * @param top New top inset in pixels
+                         * @param right New right inset in pixels
+                         * @param bottom New bottom inset in pixels
+                         * @return A modified copy of this WindowInsets
+                         * @deprecated use {@link Builder#Builder(WindowInsets)} with
+                         *             {@link Builder#setSystemWindowInsets(Insets)} instead.
+                         */
+                        @Deprecated
+                        public WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) {
+
+                        }
+
+                        public static class Builder {
+                            public Builder() {
+                            }
+
+                            public Builder(WindowInsets insets) {
+                            }
+
+                            public Builder setSystemWindowInsets(Insets systemWindowInsets) {
+                                return this;
+                            }
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.graphics;
+                    public class Insets {
+                    }
+                    """
+                    )
+                ),
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.view;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class WindowInsets {
+                    public WindowInsets() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * Returns a copy of this WindowInsets with selected system window insets replaced
+                     * with new values.
+                     *
+                     * @param left New left inset in pixels
+                     * @param top New top inset in pixels
+                     * @param right New right inset in pixels
+                     * @param bottom New bottom inset in pixels
+                     * @return A modified copy of this WindowInsets
+                     * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder.Builder(WindowInsets)} with
+                     *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder.setSystemWindowInsets(Insets)} instead.
+                     */
+                    @Deprecated
+                    public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public static class Builder {
+                    public Builder() { throw new RuntimeException("Stub!"); }
+                    public Builder(android.view.WindowInsets insets) { throw new RuntimeException("Stub!"); }
+                    public android.view.WindowInsets.Builder setSystemWindowInsets(android.graphics.Insets systemWindowInsets) { throw new RuntimeException("Stub!"); }
+                    }
+                    }
+                    """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Ensure references to classes in JavaDoc of hidden members do not affect imports`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    import test.pkg.bar.Bar;
+                    import test.pkg.baz.Baz;
+                    public class Foo {
+                        /**
+                         * This method is hidden so the reference to {@link Baz} in this comment
+                         * should not cause test.pkg.baz.Baz import to be added even though Baz is
+                         * part of the API.
+                         * @hide
+                         */
+                        public void baz() {}
+
+                        /**
+                         * @see Bar
+                         */
+                        public void bar() {}
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg.bar;
+                    import test.pkg.Foo;
+                    import test.pkg.baz.Baz;
+                    public class Bar {
+                        /** @see Baz */
+                        public void baz(Baz baz) {}
+                        /** @see Foo */
+                        public void foo(Foo foo) {}
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg.baz;
+                    public class Baz {
+                    }
+                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Foo {
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    /** @see test.pkg.bar.Bar */
+                    public void bar() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg.bar;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Bar {
+                    public Bar() { throw new RuntimeException("Stub!"); }
+                    /** @see test.pkg.baz.Baz */
+                    public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
+                    /** @see test.pkg.Foo */
+                    public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg.baz;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Baz {
+                    public Baz() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Test non-block @hide tag`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                private Foo() {}
+                                /**
+                                 * A method that does not use @hide correctly
+                                 */
+                                public void bar() {}
+
+                                /**
+                                 * Another method that does not use @hide correctly
+                                 */
+                                public void baz() {}
+
+                                /**
+                                 * {@hide}
+                                 */
+                                public void qux() {}
+
+                                /**
+                                 * Some text.
+                                 * {@hide}
+                                 */
+                                public void quux() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                """,
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar();
+                        method public void baz();
+                        method public void quux();
+                        method public void qux();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            /** A method that does not use @hide correctly */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /** Another method that does not use @hide correctly */
+                            public void baz() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Some text.
+                             * {@hide}
+                             */
+                            public void quux() { throw new RuntimeException("Stub!"); }
+                            /** {@hide} */
+                            public void qux() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test non-block @hide tag and appending content`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Nullable;
+                            @UiThread
+                            public class Foo {
+                                private Foo() {}
+                                /** Does not use @hide correctly; {@link Nullable}. */
+                                @Nullable
+                                public String method() {return null;}
+                            }
+                        """
+                    ),
+                    KnownSourceFiles.nullableSource,
+                ),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:6: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                """,
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Does not use @hide correctly; {@link android.annotation.Nullable Nullable}.
+                             * @return This value may be {@code null}.
+                             */
+                            @androidx.annotation.Nullable
+                            public java.lang.String method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test multiple javadoc issues with baseline`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                private Foo() {}
+                                /**
+                                 * A method that does not use @hide correctly
+                                 */
+                                public void bar() {}
+
+                                /**
+                                 * Another method that does not use @hide correctly
+                                 */
+                                public void baz() {}
+
+                                /**
+                                 * {@hide}
+                                 */
+                                public void qux() {}
+
+                                /**
+                                 * Some text.
+                                 * {@hide}
+                                 */
+                                public void quux() {}
+                            }
+                        """
+                    ),
+                ),
+            baselineTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            InvalidBlockTagUse: test.pkg.Foo#bar():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#baz():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#quux():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#qux():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                        """,
+                    silentUpdate = false,
+                ),
+            expectedFail =
+                "metalava wrote updated baseline to TESTROOT/update-baseline.txt\n$DefaultLintErrorMessage",
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                """,
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void bar();
+                        method public void baz();
+                        method public void quux();
+                        method public void qux();
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            /** A method that does not use @hide correctly */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /** Another method that does not use @hide correctly */
+                            public void baz() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Some text.
+                             * {@hide}
+                             */
+                            public void quux() { throw new RuntimeException("Stub!"); }
+                            /** {@hide} */
+                            public void qux() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+}
