@@ -94,17 +94,7 @@ internal class TurbineClassBuilder(
     private val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
 
     /** The [FieldResolver] used for resolving [Tree.ConstVarName] to [TypeBoundClass.FieldInfo]. */
-    private var fieldResolver: FieldResolver?
-
-    init {
-        if (sourceTypeBoundClass == null) {
-            // Only source classes need to resolve fields.
-            fieldResolver = null
-        } else {
-            // Source files need
-            fieldResolver = createFieldResolver(classSymbol, sourceTypeBoundClass)
-        }
-    }
+    private var fieldResolver = createFieldResolver(classSymbol, typeBoundClass)
 
     /**
      * Create a [ClassItem] for the [classSymbol]/[typeBoundClass] pair.

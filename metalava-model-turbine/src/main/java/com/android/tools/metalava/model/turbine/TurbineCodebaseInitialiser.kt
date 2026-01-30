@@ -522,15 +522,19 @@ internal class TurbineCodebaseInitialiser(
 
     override fun createFieldResolver(
         classSymbol: ClassSymbol,
-        sourceTypeBoundClass: SourceTypeBoundClass
-    ): FieldResolver =
-        TurbineFieldResolver(
-            classSymbol,
-            classSymbol,
-            sourceTypeBoundClass.memberImports(),
-            sourceTypeBoundClass.scope(),
-            envClassMap,
-        )
+        typeBoundClass: TypeBoundClass,
+    ): FieldResolver? =
+        when (typeBoundClass) {
+            is SourceTypeBoundClass ->
+                TurbineFieldResolver(
+                    classSymbol,
+                    classSymbol,
+                    typeBoundClass.memberImports(),
+                    typeBoundClass.scope(),
+                    envClassMap,
+                )
+            else -> null
+        }
 
     /**
      * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method

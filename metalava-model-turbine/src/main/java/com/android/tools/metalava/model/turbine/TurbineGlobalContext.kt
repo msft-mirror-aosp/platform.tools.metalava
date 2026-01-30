@@ -59,11 +59,12 @@ internal interface TurbineGlobalContext {
     fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass
 
     /**
-     * Create a [FieldResolver] for resolving fields from within
-     * [classSymbol]/[sourceTypeBoundClass].
+     * Create a [FieldResolver] for resolving fields from within [classSymbol]/[typeBoundClass].
+     *
+     * Returns `null` if the [typeBoundClass] is not a [SourceTypeBoundClass]
      */
     fun createFieldResolver(
         classSymbol: ClassSymbol,
-        sourceTypeBoundClass: SourceTypeBoundClass,
-    ): FieldResolver
+        typeBoundClass: TypeBoundClass,
+    ): FieldResolver?
 }
