@@ -148,7 +148,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
     /** Create an [ArrayElementValue] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toArrayElementValue(optionalTypeItem: TypeItem?): ArrayElementValue {
-        when (const.kind()) {
+        when (const?.kind()) {
             Const.Kind.CLASS_LITERAL -> {
                 const as TurbineClassValue
                 // Get the type of the class literal. e.g. if the expression was `X.class` then this
@@ -204,7 +204,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
     /** Create a [ConstantValue] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toConstant(optionalTypeItem: TypeItem?): ConstantValue {
-        if (const.kind() == Const.Kind.PRIMITIVE) {
+        if (const?.kind() == Const.Kind.PRIMITIVE) {
             val underlyingValue = (const as Const.Value).value
 
             // If no expr is provided then this comes from a .class file, otherwise it comes from
@@ -259,7 +259,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
         }
 
         throw ValueProviderException(
-            "Unknown value '$const' of ${const.javaClass} for type $optionalTypeItem"
+            "Unknown value '$const' (class ${const?.javaClass?.name}) of ${optionalTypeItem ?: "unknown"} type from expression '${expr ?: "unknown"}'"
         )
     }
 

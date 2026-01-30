@@ -171,7 +171,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
          * Add an attribute called [name] with constant value [const] and optional value expression
          * [valueExpr] to the `attributes` list.
          */
-        fun addAttribute(name: String, const: Const, valueExpr: Expression?) {
+        fun addAttribute(name: String, const: Const?, valueExpr: Expression?) {
             attributes.add(
                 AnnotationAttribute.createLazyAttribute(
                     name,
@@ -206,7 +206,6 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
                         // Const evaluation requires the annotation class is available, if it is not
                         // then just try and use the expression value.
                         ?: (valueExpr as? Literal)?.value()
-                        ?: error("Cannot find value for '$name' attribute from $valueExpr")
 
                 // Add an attribute.
                 addAttribute(name, const, valueExpr)
@@ -227,7 +226,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
      * @param annotationClass the optional [TypeBoundClass] for the annotation. If provided it will
      *   be used to find a [TypeItem] for the annotation attribute called [attributeName].
      * @param attributeName the name of the annotation.
-     * @param const the [Const] value.
+     * @param const the optional [Const] value.
      * @param expr the optional source [Expression].
      * @param fieldResolver the optional [FieldResolver] used to resolve field [expr]s to the field
      *   definition.
@@ -235,7 +234,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
     private fun createAttributeValueProvider(
         annotationClass: TypeBoundClass?,
         attributeName: String,
-        const: Const,
+        const: Const?,
         expr: Expression?,
         fieldResolver: FieldResolver?,
     ): ValueProvider {
