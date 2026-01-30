@@ -1593,4 +1593,156 @@ class CommonAnnotationItemTest : BaseModelTest() {
             assertEquals(expectedAnnos, annos)
         }
     }
+
+    @Test
+    fun `unknown annotation class with default attribute - string value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno("unknown")
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno("unknown")
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno("unknown")
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute(ANNOTATION_ATTR_VALUE).value
+            assertEquals(literalValue("unknown"), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with named attribute - string value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno(attr="unknown")
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno(attr="unknown")
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(attr="unknown")
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute("attr").value
+            assertEquals(literalValue("unknown"), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with default attribute - array value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno({"unknown1", "unknown2"})
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno({"unknown1", "unknown2"})
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(["unknown1", "unknown2"])
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute(ANNOTATION_ATTR_VALUE).value
+            assertEquals(arrayValue(literalValue("unknown1"), literalValue("unknown2")), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with named attribute - array value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno(attr={"unknown1", "unknown2"})
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno(attr={"unknown1", "unknown2"})
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(attr=["unknown1", "unknown2"])
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute("attr").value
+            assertEquals(arrayValue(literalValue("unknown1"), literalValue("unknown2")), value)
+        }
+    }
 }
