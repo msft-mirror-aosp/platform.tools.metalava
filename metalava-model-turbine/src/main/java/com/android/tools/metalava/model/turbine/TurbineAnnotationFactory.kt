@@ -166,71 +166,56 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
         fieldResolver: FieldResolver?,
     ): List<AnnotationAttribute> {
         val attributes = mutableListOf<AnnotationAttribute>()
+
+        /**
+         * Add an attribute called [name] with constant value [const] and optional value expression
+         * [valueExpr] to the `attributes` list.
+         */
+        fun addAttribute(name: String, const: Const, valueExpr: Expression?) {
+            attributes.add(
+                AnnotationAttribute.createLazyAttribute(
+                    name,
+                    createAttributeValueProvider(
+                        annotationClass,
+                        name,
+                        const,
+                        valueExpr,
+                        fieldResolver,
+                    ),
+                )
+            )
+        }
+
+        // Source annotations have expressions, binary annotations do not.
         if (exprs != null) {
+            // This is for a source annotation.
             for (exp in exprs) {
-                when (exp.kind()) {
-                    Tree.Kind.ASSIGN -> {
-                        exp as Assign
+                // Get the attribute name and value expression.
+                val (name, valueExpr) =
+                    if (exp is Assign) {
                         val name = exp.name().value()
                         val assignExp = exp.expr()
-                        val const =
-                            attrs[name]
-                                // Const evaluation requires the annotation class is available, if
-                                // it is not then just try and use the expression value.
-                                ?: (assignExp as? Literal)?.value()
-                                ?: error("Cannot find value for '$name' attribute from $assignExp")
-                        attributes.add(
-                            AnnotationAttribute.createLazyAttribute(
-                                name,
-                                createAttributeValueProvider(
-                                    annotationClass,
-                                    name,
-                                    const,
-                                    assignExp,
-                                    fieldResolver,
-                                ),
-                            )
-                        )
+                        name to assignExp
+                    } else {
+                        ANNOTATION_ATTR_VALUE to exp
                     }
-                    else -> {
-                        val name = ANNOTATION_ATTR_VALUE
-                        val const =
-                            attrs[name]
-                                // Const evaluation requires the annotation class is available, if
-                                // it is not then just try and use the expression value.
-                                ?: (exp as? Literal)?.value()
-                                ?: error(
-                                    "Cannot find value for default 'value' attribute from $exp"
-                                )
-                        attributes.add(
-                            AnnotationAttribute.createLazyAttribute(
-                                name,
-                                createAttributeValueProvider(
-                                    annotationClass,
-                                    name,
-                                    const,
-                                    exp,
-                                    fieldResolver,
-                                ),
-                            )
-                        )
-                    }
-                }
+
+                // Get the constant value, if possible.
+                val const =
+                    attrs[name]
+                        // Const evaluation requires the annotation class is available, if it is not
+                        // then just try and use the expression value.
+                        ?: (valueExpr as? Literal)?.value()
+                        ?: error("Cannot find value for '$name' attribute from $valueExpr")
+
+                // Add an attribute.
+                addAttribute(name, const, valueExpr)
             }
         } else {
+            // This is for a binary annotation.
             for ((name, const) in attrs) {
-                attributes.add(
-                    AnnotationAttribute.createLazyAttribute(
-                        name,
-                        createAttributeValueProvider(
-                            annotationClass,
-                            name,
-                            const,
-                            null,
-                            fieldResolver,
-                        ),
-                    )
-                )
+                // Add an attribute for a binary annotation which has no expression.
+                addAttribute(name, const, null)
             }
         }
         return attributes
