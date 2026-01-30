@@ -26,7 +26,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - array value[turbine]
   unknown annotation class with named attribute - string value[psi,kotlin,k1]
   unknown annotation class with named attribute - string value[psi,kotlin,k2]
-  unknown annotation class with named attribute - string value[turbine]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]

@@ -14,8 +14,6 @@ com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
 
 com.android.tools.metalava.RequiresFeatureTest
-  Check RequiresFeature handling - custom enforcement[turbine]
-  Check RequiresFeature handling - invalid enforcement[turbine]
   Check RequiresFeature handling - missing feature[turbine]
 
 com.android.tools.metalava.TypeUseAnnotationFilteringTest

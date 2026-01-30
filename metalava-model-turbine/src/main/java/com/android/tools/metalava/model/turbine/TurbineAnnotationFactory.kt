@@ -173,7 +173,12 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
                         exp as Assign
                         val name = exp.name().value()
                         val assignExp = exp.expr()
-                        val const = attrs[name]!!
+                        val const =
+                            attrs[name]
+                                // Const evaluation requires the annotation class is available, if
+                                // it is not then just try and use the expression value.
+                                ?: (assignExp as? Literal)?.value()
+                                ?: error("Cannot find value for '$name' attribute from $assignExp")
                         attributes.add(
                             AnnotationAttribute.createLazyAttribute(
                                 name,
@@ -191,6 +196,8 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
                         val name = ANNOTATION_ATTR_VALUE
                         val const =
                             attrs[name]
+                                // Const evaluation requires the annotation class is available, if
+                                // it is not then just try and use the expression value.
                                 ?: (exp as? Literal)?.value()
                                 ?: error(
                                     "Cannot find value for default 'value' attribute from $exp"
