@@ -8,9 +8,6 @@ com.android.tools.metalava.ApiFileTest
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
-com.android.tools.metalava.ExtractAnnotationsTest
-  Check warning about unexpected returns from typedef method[turbine]
-
 com.android.tools.metalava.FlaggedApiEdgeCasesTest
   Test unresolvable flag field[turbine]
 
@@ -36,10 +33,6 @@ com.android.tools.metalava.TypeUseAnnotationFilteringTest
 com.android.tools.metalava.UnhideApisTest
   Including private interfaces from types[turbine]
 
-com.android.tools.metalava.apilevels.ApiGeneratorTest
-  APIs annotated with suppress-compatibility-meta-annotations appear in output[turbine]
-  Generate API for system surface from jar[turbine]
-
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
@@ -50,11 +43,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
 
 com.android.tools.metalava.doc.InlineAnnotationDocTest
   memberDoc crash[turbine]
-
-com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
-  Test jar loader does not freeze codebase[turbine]
-  Test jar loader freezes codebase[turbine]
-  Test loaded jar depends on class path[turbine]
 
 com.android.tools.metalava.lint.ApiLintTest
   Typedef must be hidden[turbine]
