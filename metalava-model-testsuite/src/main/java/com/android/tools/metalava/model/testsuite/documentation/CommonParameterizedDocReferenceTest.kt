@@ -52,20 +52,10 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 "/** @see ${referenceAndLabel(reference, linkLabel)} */\n"
         };
 
-        /** Determine whether a link label is expected. */
-        private fun requiresLinkLabel(linkLabel: String?) =
-            when {
-                linkLabel == null -> false
-                // Ignore link labels for @see references. That matches the Psi specific resolving
-                // behavior.
-                this == SEE -> false
-                else -> true
-            }
-
         /** Combine [reference] and the optional [linkLabel]. */
         protected fun referenceAndLabel(reference: String, linkLabel: String?) = buildString {
             append(reference)
-            if (requiresLinkLabel(linkLabel)) {
+            if (linkLabel != null) {
                 append(" ")
                 append(linkLabel)
             }

@@ -47,6 +47,8 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
 
 com.android.tools.metalava.doc.DocAnalyzerTest
   Test Column annotation[turbine]
+
+com.android.tools.metalava.doc.InlineAnnotationDocTest
   memberDoc crash[turbine]
 
 com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest

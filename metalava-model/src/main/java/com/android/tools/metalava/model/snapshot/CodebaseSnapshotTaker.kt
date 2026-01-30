@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
@@ -603,18 +602,6 @@ internal class SourceFileSnapshot(
 
     /** Delegate to [originalSourceFile] as they are not changed by snapshotting. */
     override fun getHeaderComments(): String? = originalSourceFile.getHeaderComments()
-
-    /**
-     * Delegate to [originalSourceFile] as while they could contain references to classes which are
-     * not part of the snapshot they will be filtered when this is called.
-     */
-    override fun getImports() = originalSourceFile.getImports()
-
-    /**
-     * Delegate to [originalSourceFile] as while they could contain references to classes which are
-     * not part of the snapshot they will be filtered by [predicate] when this is called.
-     */
-    override fun getImports(predicate: FilterPredicate) = originalSourceFile.getImports(predicate)
 
     /**
      * Delegate to [originalSourceFile] as while they could contain references to classes which are
