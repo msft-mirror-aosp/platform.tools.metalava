@@ -401,8 +401,8 @@ internal class TurbineCodebaseInitialiser(
         val packageInfoSym = ClassSymbol(packageInfoBinaryName)
         val packageInfoClass = envClassMap[packageInfoSym] ?: return null
 
-        // TODO(b/479907812): Provide a non-null FieldResolver.
-        val fieldResolver: FieldResolver? = null
+        // Create a FieldResolver to use to resolve field references in package annotations.
+        val fieldResolver = createFieldResolver(packageInfoSym, packageInfoClass)
 
         return when (packageInfoClass) {
             // Handle a package-info.java file.
