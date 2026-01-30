@@ -218,17 +218,35 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             else -> {}
         }
 
-        // Check for a field reference if a field resolver is available.
-        if (expr != null && expr is ConstVarName && fieldResolver != null) {
-            val fieldInfo = fieldResolver.resolveField(expr)
-            val fieldSymbol = fieldInfo?.sym()
+        // Check for a field reference.
+        if (expr is ConstVarName) {
+            // Try and resolve it if a fieldResolver is available.
+            val fieldInfo = fieldResolver?.resolveField(expr)
             // If the field could be resolved then wrap it around the constant value.
-            if (fieldSymbol != null) {
+            if (fieldInfo != null) {
+                val fieldSymbol = fieldInfo.sym()
                 return createFieldReferenceValueWithDeferredConstantValue(
                     codebase,
                     fieldSymbol.owner().qualifiedName,
                     fieldSymbol.name(),
                     optionalTypeItem,
+                )
+            } else {
+                // It could not be resolved so create a fake FieldReferenceValue from the source
+                // name.
+                val identList = expr.name()
+
+                // The last part of the name must be the field.
+                val fieldName = identList.last().value()
+
+                // Everything else is the qualified name.
+                val qualifiedName = identList.subList(0, identList.size - 1).dotSeparatedName
+
+                // Create a FieldReferenceValue with no constant value.
+                return createFieldReferenceValue(
+                    codebase,
+                    qualifiedName,
+                    fieldName,
                 )
             }
         }

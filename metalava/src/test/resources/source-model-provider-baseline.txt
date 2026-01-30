@@ -4,17 +4,11 @@ com.android.tools.metalava.ApiFileTest
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
-com.android.tools.metalava.FlaggedApiEdgeCasesTest
-  Test unresolvable flag field[turbine]
-
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Using JDK APIs[turbine]
 
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
-
-com.android.tools.metalava.RequiresFeatureTest
-  Check RequiresFeature handling - missing feature[turbine]
 
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
@@ -23,12 +17,6 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
-
-com.android.tools.metalava.doc.DocAnalyzerTest
-  Test Column annotation[turbine]
-
-com.android.tools.metalava.lint.FlaggedApiLintTest
-  Require @FlaggedApi on API that modify annotations[turbine]
 
 com.android.tools.metalava.stub.StubsAnnotationTest
   Pass through libcore annotations[turbine]

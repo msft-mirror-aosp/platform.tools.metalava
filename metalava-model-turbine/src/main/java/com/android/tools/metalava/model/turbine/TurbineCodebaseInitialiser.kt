@@ -195,6 +195,8 @@ internal class TurbineCodebaseInitialiser(
             var errorKind = diagnostic.kind()
             when (errorKind) {
                 TurbineError.ErrorKind.CANNOT_RESOLVE,
+                TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
+                TurbineError.ErrorKind.EXPRESSION_ERROR,
                 TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
                     false
                 }

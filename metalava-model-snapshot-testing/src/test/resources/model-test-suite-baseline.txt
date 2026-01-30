@@ -14,8 +14,6 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
   Test properties of value class types with JvmName[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation attribute with unknown field[turbine]
-  annotation default attribute with unknown field[turbine]
   unknown annotation class with default attribute - array value[psi,kotlin,k1]
   unknown annotation class with default attribute - array value[psi,kotlin,k2]
   unknown annotation class with default attribute - string value[psi,kotlin,k1]
