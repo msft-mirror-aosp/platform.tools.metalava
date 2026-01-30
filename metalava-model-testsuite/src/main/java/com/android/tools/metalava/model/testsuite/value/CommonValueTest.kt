@@ -125,4 +125,41 @@ class CommonValueTest : BaseModelTest() {
             assertEquals(37, value.asLiteralValue()?.underlyingValue)
         }
     }
+
+    @Test
+    fun `Test use field reference in a type annotation`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Target;
+                        @Target(ElementType.TYPE_USE)
+                        public @interface Anno {
+                            int value();
+
+                            int CONSTANT = 37;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            public @Anno(Anno.CONSTANT) int field;
+                        }
+                    """,
+                ),
+            ),
+        ) {
+            val testItem = codebase.assertClass("test.pkg.Test")
+            val fieldItem = testItem.fields().single()
+            val annotationItem = fieldItem.type().modifiers.annotations.single()
+            val annotationAttribute = annotationItem.attributes.single()
+            val value = annotationAttribute.value
+            assertEquals(fieldReferenceValue("test.pkg.Anno", "CONSTANT"), value)
+            assertEquals(37, value.asLiteralValue()?.underlyingValue)
+        }
+    }
 }
