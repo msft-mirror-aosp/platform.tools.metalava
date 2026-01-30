@@ -46,7 +46,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(
         annotations: List<AnnoInfo>,
-        fieldResolver: FieldResolver? = null,
+        fieldResolver: FieldResolver?,
     ): List<AnnotationItem> {
         return buildList {
             // The annotations could be a single annotation, or a container for a repeatable
@@ -129,7 +129,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
     /** Create an [AnnotationItem] from an [AnnoInfo]. */
     internal fun createAnnotation(
         annotation: AnnoInfo,
-        fieldResolver: FieldResolver? = null,
+        fieldResolver: FieldResolver?,
     ): AnnotationItem? {
         // Get the source representation of the annotation. This will be null for an annotation
         // loaded from a class file.

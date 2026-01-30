@@ -401,6 +401,9 @@ internal class TurbineCodebaseInitialiser(
         val packageInfoSym = ClassSymbol(packageInfoBinaryName)
         val packageInfoClass = envClassMap[packageInfoSym] ?: return null
 
+        // TODO(b/479907812): Provide a non-null FieldResolver.
+        val fieldResolver: FieldResolver? = null
+
         return when (packageInfoClass) {
             // Handle a package-info.java file.
             is SourceTypeBoundClass -> {
@@ -410,14 +413,14 @@ internal class TurbineCodebaseInitialiser(
                 var annoInfos = packageInfoClass.annotations()
                 SourcePackageInfo(
                     sourceFile = turbineSourceFile,
-                    annotations = annotationFactory.createAnnotations(annoInfos),
+                    annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver),
                     commentFactory = itemDocumentationFactoryForDecl(turbineSourceFile, pkgDecl),
                 )
             }
             // Handle a package-info.class file.
             is BytecodeBoundClass -> {
-                val annotations =
-                    annotationFactory.createAnnotations(packageInfoClass.annotations())
+                val annoInfos = packageInfoClass.annotations()
+                val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
                 SourcePackageInfo(annotations = annotations)
             }
             else -> error("Unknown package-info class: $packageInfoClass")
