@@ -14,7 +14,8 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
   Test properties of value class types with JvmName[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with unknown field[turbine]
+  annotation attribute with unknown field[turbine]
+  annotation default attribute with unknown field[turbine]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]

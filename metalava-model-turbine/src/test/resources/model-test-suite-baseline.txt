@@ -1,5 +1,6 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with unknown field
+  annotation attribute with unknown field
+  annotation default attribute with unknown field
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
