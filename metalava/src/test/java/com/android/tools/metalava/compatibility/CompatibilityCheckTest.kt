@@ -43,6 +43,86 @@ import org.junit.Test
 class CompatibilityCheckTest : DriverTest() {
 
     @Test
+    fun `Should raise issue when adding abstract method to explicitly sealed non-effectively final class when a grandchild implements the abstract method`() {
+        check(
+            // there should be an issue raised here because MyAbstractChildClass is publicly
+            // extensible and doesn't implement the abstract method from MySealedClass,
+            // so a client implementing it could break
+            expectedIssues =
+                """
+                    load-api.txt:11: error: Binary breaking change: Added method test.pkg.MySealedClass.myFun() [AddedAbstractMethod]
+                """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractChildClass extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClass();
+                  }
+                  public abstract class MyAbstractGrandchildClass extends test.pkg.MyAbstractChildClass {
+                    ctor public MyAbstractGrandchildClass();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractChildClass extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClass();
+                  }
+                  public abstract class MyAbstractGrandchildClass extends test.pkg.MyAbstractChildClass {
+                    ctor public MyAbstractGrandchildClass();
+                    method public String myFun();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                    method public abstract String myFun();
+                  }
+                }
+                """
+        )
+    }
+
+    /**
+     * TODO: this should be called "Should NOT raise issue when adding abstract method to explicitly
+     *   sealed non-effectively final class when a subclass implements the abstract method"
+     */
+    @Test
+    fun `Should raise issue when adding abstract method to explicitly sealed non-effectively final class when a subclass implements the abstract method`() {
+        check(
+            // TODO: there should be no issue raised here
+            expectedIssues =
+                """
+                    load-api.txt:8: error: Binary breaking change: Added method test.pkg.MySealedClass.myFun() [AddedAbstractMethod]
+                """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractClass extends test.pkg.MySealedClass {
+                    ctor public MyAbstractClass();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractClass extends test.pkg.MySealedClass {
+                    ctor public MyAbstractClass();
+                    method public void myFun();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                    method public abstract void myFun();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Should raise issue when adding abstract method to non-effectively final explicitly sealed class`() {
         check(
             expectedIssues =
