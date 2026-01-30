@@ -41,6 +41,7 @@ import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.ConstVarName
 import com.google.turbine.tree.Tree.Expression
+import com.google.turbine.tree.Tree.Literal
 
 /**
  * Factory for creating [Value]s from [TurbineValue]s.
@@ -199,13 +200,20 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             }
         }
 
-        return toConstant(optionalTypeItem)
+        // Const evaluation requires the annotation class is available, if it is not
+        // then just try and use the expression value.
+        val constToConvert = const ?: (expr as? Literal)?.value()
+
+        return toConstant(constToConvert, optionalTypeItem)
     }
 
     /** Create a [ConstantValue] of [optionalTypeItem] from this [TurbineValue]. */
-    private fun TurbineValue.toConstant(optionalTypeItem: TypeItem?): ConstantValue {
-        if (const?.kind() == Const.Kind.PRIMITIVE) {
-            val underlyingValue = (const as Const.Value).value
+    private fun TurbineValue.toConstant(
+        constToConvert: Const?,
+        optionalTypeItem: TypeItem?
+    ): ConstantValue {
+        if (constToConvert?.kind() == Const.Kind.PRIMITIVE) {
+            val underlyingValue = (constToConvert as Const.Value).value
 
             // If no expr is provided then this comes from a .class file, otherwise it comes from
             // the source.
@@ -259,7 +267,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
         }
 
         throw ValueProviderException(
-            "Unknown value '$const' (class ${const?.javaClass?.name}) of ${optionalTypeItem ?: "unknown"} type from expression '${expr ?: "unknown"}'"
+            "Unknown value '$constToConvert' (class ${constToConvert?.javaClass?.name}) of ${optionalTypeItem ?: "unknown"} type from expression '${expr ?: "unknown"}'"
         )
     }
 

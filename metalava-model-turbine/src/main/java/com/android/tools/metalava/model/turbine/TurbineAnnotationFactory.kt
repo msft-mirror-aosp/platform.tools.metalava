@@ -32,7 +32,6 @@ import com.google.turbine.model.TurbineTyKind
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Assign
 import com.google.turbine.tree.Tree.Expression
-import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 
@@ -200,12 +199,8 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
                         ANNOTATION_ATTR_VALUE to exp
                     }
 
-                // Get the constant value, if possible.
-                val const =
-                    attrs[name]
-                        // Const evaluation requires the annotation class is available, if it is not
-                        // then just try and use the expression value.
-                        ?: (valueExpr as? Literal)?.value()
+                // Get the constant value, if any.
+                val const = attrs[name]
 
                 // Add an attribute.
                 addAttribute(name, const, valueExpr)
