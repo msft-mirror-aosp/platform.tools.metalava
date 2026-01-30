@@ -35,6 +35,9 @@ com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModi
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
+com.android.tools.metalava.model.testsuite.fielditem.CommonFieldModifierTest
+  Test transient[turbine]
+
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]
   Test final method in final class[turbine]
