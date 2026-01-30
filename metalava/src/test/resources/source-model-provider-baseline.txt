@@ -27,9 +27,6 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
 com.android.tools.metalava.doc.DocAnalyzerTest
   Test Column annotation[turbine]
 
-com.android.tools.metalava.lint.ApiLintTest
-  Typedef must be hidden[turbine]
-
 com.android.tools.metalava.lint.FlaggedApiLintTest
   Require @FlaggedApi on API that modify annotations[turbine]
 

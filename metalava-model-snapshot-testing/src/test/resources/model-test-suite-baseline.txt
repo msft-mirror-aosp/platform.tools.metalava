@@ -18,12 +18,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation default attribute with unknown field[turbine]
   unknown annotation class with default attribute - array value[psi,kotlin,k1]
   unknown annotation class with default attribute - array value[psi,kotlin,k2]
-  unknown annotation class with default attribute - array value[turbine]
   unknown annotation class with default attribute - string value[psi,kotlin,k1]
   unknown annotation class with default attribute - string value[psi,kotlin,k2]
   unknown annotation class with named attribute - array value[psi,kotlin,k1]
   unknown annotation class with named attribute - array value[psi,kotlin,k2]
-  unknown annotation class with named attribute - array value[turbine]
   unknown annotation class with named attribute - string value[psi,kotlin,k1]
   unknown annotation class with named attribute - string value[psi,kotlin,k2]
 

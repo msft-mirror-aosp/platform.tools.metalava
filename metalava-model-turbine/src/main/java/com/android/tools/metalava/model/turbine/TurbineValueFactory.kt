@@ -104,12 +104,15 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
     /** Create a [Value] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toValue(optionalTypeItem: TypeItem?): Value {
+        // Check to see if the value should be an array.
         if (const is ArrayInitValue) {
             val arrayTypeItem = optionalTypeItem as ArrayTypeItem
             val elementTypeItem = arrayTypeItem.componentType
 
+            // Get the list of Consts.
             val constElements = const.elements()
 
+            // Get a corresponding list of Expressions, if available.
             val exprElements =
                 expr?.let { expr ->
                     // If expr is an ArrayInit then get the expressions that make up its contents.
@@ -119,11 +122,13 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                         ?: listOf(expr)
                 }
 
+            // Combine the Const and optional Expressions into a list of TurbineValues.
             val turbineValues =
                 constElements.mapIndexed { index, element ->
                     TurbineValue(element, exprElements?.get(index), fieldResolver)
                 }
 
+            // Map the list of TurbineValues to ArrayElementValue objects.
             val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
 
             // If the source was a single non-array expression of an array type then that needs to
@@ -133,7 +138,35 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             // was unwrapped in the sources, otherwise it was not.
             val wasUnwrappedInSource = expr != null && expr !is ArrayInit
 
+            // Create an ArrayValue instance.
             return createArrayValue(values, wasUnwrappedInSource)
+        }
+
+        // If const is null then the expressions could not be resolved. See if the expression was an
+        // ArrayInit expression. If there was then create an ArrayValue from it.
+        if (const == null && expr is ArrayInit) {
+            // Get the array type item. If an optional type item is provided then it must be an
+            // ArrayTypeItem.
+            val elementTypeItem =
+                if (optionalTypeItem == null) null
+                else {
+                    val arrayTypeItem = optionalTypeItem as ArrayTypeItem
+                    arrayTypeItem.componentType
+                }
+
+            // Create a list of TurbineValues from the Expressions, no Consts are available for any
+            // of them.
+            val turbineValues =
+                expr.exprs().map { elementExpr ->
+                    TurbineValue(const = null, elementExpr, fieldResolver)
+                }
+
+            // Map the list of TurbineValues to ArrayElementValue objects.
+            val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
+
+            // Create an ArrayValue instance. As it was created from an array of expressions it was
+            // not unwrapped in the sources.
+            return createArrayValue(values, wasUnwrappedInSource = false)
         }
 
         return if (optionalTypeItem is ArrayTypeItem) {
