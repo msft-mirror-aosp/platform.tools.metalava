@@ -1289,7 +1289,8 @@ class CompatibilityCheck(
         // It is ok to add a new abstract method to a class that cannot be extended externally
         if (
             new.modifiers.isAbstract() &&
-                new.containingClass().cannotContainExternallyOverridableAbstractMethods()
+                (new.containingClass().cannotContainExternallyOverridableAbstractMethods() ||
+                    new.containingClass().allExtensibleSubclassesConcretelyImplement(new))
         ) {
             return
         }
@@ -1320,6 +1321,37 @@ class CompatibilityCheck(
     }
 
     /**
+     * Determines if all publicly extensible subclasses of a class have a non-abstract
+     * implementation of targetMethod.
+     */
+    private fun ClassItem.allExtensibleSubclassesConcretelyImplement(
+        targetMethod: CallableItem
+    ): Boolean {
+        if (
+            methods().any { clsMethod: CallableItem ->
+                clsMethod != targetMethod &&
+                    !clsMethod.modifiers.isAbstract() &&
+                    clsMethod.matches(targetMethod)
+            }
+        ) {
+            return true
+        }
+
+        // We need to check if the class is effectively sealed here because the
+        // sealedClassDirectSubclasses() call below errors on classes that aren't effectively
+        // sealed. Additionally, if the class is not effectively sealed (and doesn't implement
+        // the method) then it can be externally implemented/extended and a new abstract method
+        // would be breaking change for users.
+        if (!isEffectivelySealed()) {
+            return false
+        }
+
+        return sealedClassDirectSubclasses().all { cls: ClassItem ->
+            cls.allExtensibleSubclassesConcretelyImplement(targetMethod)
+        }
+    }
+
+    /**
      * Determines if it is possible for the class to have externally overridable abstract methods.
      */
     private fun ClassItem.cannotContainExternallyOverridableAbstractMethods(): Boolean {
@@ -1330,12 +1362,7 @@ class CompatibilityCheck(
 
         // if the class is directly publicly extensible (and not concrete) then it can contain
         // externally overridable abstract methods
-        if (
-            !modifiers.isSealed() &&
-                ((isInterface() && isPublic) ||
-                    (isClass() &&
-                        constructors().any { (it.isPublic || it.isProtected) && !it.hidden }))
-        ) {
+        if (!isEffectivelySealed()) {
             return false
         }
 
