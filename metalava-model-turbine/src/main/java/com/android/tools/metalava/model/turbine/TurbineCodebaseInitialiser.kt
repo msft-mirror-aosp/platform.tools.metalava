@@ -520,7 +520,7 @@ internal class TurbineCodebaseInitialiser(
     override fun createFieldResolver(
         classSymbol: ClassSymbol,
         sourceTypeBoundClass: SourceTypeBoundClass
-    ) =
+    ): FieldResolver =
         TurbineFieldResolver(
             classSymbol,
             classSymbol,

@@ -46,7 +46,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(
         annotations: List<AnnoInfo>,
-        fieldResolver: TurbineFieldResolver? = null,
+        fieldResolver: FieldResolver? = null,
     ): List<AnnotationItem> {
         return buildList {
             // The annotations could be a single annotation, or a container for a repeatable
@@ -72,7 +72,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
      */
     fun MutableList<AnnotationItem>.createAndAddAnnotationItemIfNotNull(
         annotation: AnnoInfo,
-        fieldResolver: TurbineFieldResolver?
+        fieldResolver: FieldResolver?
     ) {
         createAnnotation(annotation, fieldResolver)?.let { add(it) }
     }
@@ -129,7 +129,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
     /** Create an [AnnotationItem] from an [AnnoInfo]. */
     internal fun createAnnotation(
         annotation: AnnoInfo,
-        fieldResolver: TurbineFieldResolver? = null,
+        fieldResolver: FieldResolver? = null,
     ): AnnotationItem? {
         // Get the source representation of the annotation. This will be null for an annotation
         // loaded from a class file.
@@ -163,7 +163,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
         annotationClass: TypeBoundClass?,
         attrs: ImmutableMap<String, Const>,
         exprs: ImmutableList<Expression>?,
-        fieldResolver: TurbineFieldResolver?,
+        fieldResolver: FieldResolver?,
     ): List<AnnotationAttribute> {
         val attributes = mutableListOf<AnnotationAttribute>()
         if (exprs != null) {
@@ -237,15 +237,15 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
      * @param attributeName the name of the annotation.
      * @param const the [Const] value.
      * @param expr the optional source [Expression].
-     * @param fieldResolver the optional [TurbineFieldResolver] used to resolve field [expr]s to the
-     *   field definition.
+     * @param fieldResolver the optional [FieldResolver] used to resolve field [expr]s to the field
+     *   definition.
      */
     private fun createAttributeValueProvider(
         annotationClass: TypeBoundClass?,
         attributeName: String,
         const: Const,
         expr: Expression?,
-        fieldResolver: TurbineFieldResolver?,
+        fieldResolver: FieldResolver?,
     ): ValueProvider {
         val turbineValue = TurbineValue(const, expr, fieldResolver)
         return valueFactory.providerForAnnotationValue(annotationClass, attributeName, turbineValue)

@@ -51,5 +51,5 @@ internal class TurbineValue(
     val expr: Expression?,
 
     /** If available, then can be used to resolve [ConstVarName] to [TypeBoundClass.FieldInfo]. */
-    val fieldResolver: TurbineFieldResolver?,
+    val fieldResolver: FieldResolver?,
 )
