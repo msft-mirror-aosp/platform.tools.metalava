@@ -1543,9 +1543,8 @@ class CommonClassItemTest : BaseModelTest() {
 
             inheritedMethod.assertPrintedDocumentation(
                 expectedOutput =
-                    // TODO(b/447588621): This was not fully qualified before duplication.
                     """
-                        /** {@link List} */
+                        /** {@link java.util.List List} */
                     """
             )
         }

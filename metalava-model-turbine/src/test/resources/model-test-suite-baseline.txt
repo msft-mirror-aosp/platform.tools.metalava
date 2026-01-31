@@ -1,6 +1,3 @@
-com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test duplicated documentation is fully qualified in originating context
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 

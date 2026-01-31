@@ -118,8 +118,9 @@ internal class PsiItemDocumentation(
     }
 
     override fun duplicate(item: SelectableItem) =
-        if (item is PsiItem) PsiItemDocumentation(item, codebase, psi)
-        else text.toItemDocumentationFactory().create(item)!!
+        // Duplicating the text will fully qualify the comment in its original item before
+        // copying it into the new item.
+        text.toItemDocumentationFactory().create(item)!!
 
     override fun snapshot(item: SelectableItem) = this
 
