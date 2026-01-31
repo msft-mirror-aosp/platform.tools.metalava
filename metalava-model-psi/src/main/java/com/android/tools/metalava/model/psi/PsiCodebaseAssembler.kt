@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -417,7 +418,7 @@ internal class PsiCodebaseAssembler(
                     continue
                 }
 
-                addOverloadedKotlinCallablesIfNecessary(classItem, constructor)
+                addOverloadedKotlinCallablesIfNecessary(classItem, constructor, psiMethod)
                 classItem.addConstructor(constructor)
             } else {
                 // With K1, value class property accessors are present as [PsiMethod]s and with K2
@@ -483,7 +484,7 @@ internal class PsiCodebaseAssembler(
                 }
 
                 if (!method.isEnumSyntheticMethod()) {
-                    addOverloadedKotlinCallablesIfNecessary(classItem, method)
+                    addOverloadedKotlinCallablesIfNecessary(classItem, method, psiMethod)
                     classItem.addMethod(method)
                 }
             }
@@ -619,14 +620,14 @@ internal class PsiCodebaseAssembler(
      * annotation when the default is specified on expect side
      * (https://youtrack.jetbrains.com/issue/KT-57537).
      */
-    private fun PsiCallableItem.shouldExpandOverloads(): Boolean {
+    private fun shouldExpandOverloads(callable: CallableItem, psiMethod: PsiMethod): Boolean {
         val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
-        return modifiers.isActual() &&
+        return callable.modifiers.isActual() &&
             psiMethod.hasAnnotation(JvmStandardClassIds.JVM_OVERLOADS_FQ_NAME.asString()) &&
             // It is /technically/ invalid to have actual functions with default values, but
             // some places suppress the compiler error, so we should handle it here too.
             ktFunction.valueParameters.none { it.hasDefaultValue() } &&
-            parameters().any { it.hasDefaultValue() }
+            callable.parameters().any { it.hasDefaultValue() }
     }
 
     /**
@@ -634,14 +635,15 @@ internal class PsiCodebaseAssembler(
      *
      * Workaround for https://youtrack.jetbrains.com/issue/KT-57537.
      *
-     * For each parameter with a default value in [callable] this adds a [PsiCallableItem] that
+     * For each parameter with a default value in [callable] this adds a [CallableItem] that
      * excludes that parameter and all following parameters with default values.
      */
     private fun addOverloadedKotlinCallablesIfNecessary(
         classItem: DefaultClassItem,
-        callable: PsiCallableItem,
+        callable: CallableItem,
+        psiMethod: PsiMethod,
     ) {
-        if (!callable.shouldExpandOverloads()) {
+        if (!shouldExpandOverloads(callable, psiMethod)) {
             return
         }
 
