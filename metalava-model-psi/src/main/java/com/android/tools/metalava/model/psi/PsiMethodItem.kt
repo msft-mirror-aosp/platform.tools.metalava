@@ -245,7 +245,7 @@ internal class PsiMethodItem(
                     },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
-                    callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+                    callableBodyFactory = { PsiCallableBody(codebase, it, psiMethod) },
                     defaultValueProvider = defaultValueProvider,
                     targetLanguages = targetLanguages,
                     isExtensionMethod = isExtensionMethod

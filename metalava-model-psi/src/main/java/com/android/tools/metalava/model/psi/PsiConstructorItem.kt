@@ -139,7 +139,7 @@ private constructor(
                     returnType = containingClass.type(),
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
-                    callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+                    callableBodyFactory = { PsiCallableBody(codebase, it, psiMethod) },
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                     targetLanguages = targetLanguages,
