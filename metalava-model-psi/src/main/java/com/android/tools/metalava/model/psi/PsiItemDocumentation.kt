@@ -133,9 +133,6 @@ internal class PsiItemDocumentation(
          * [ItemDocumentation.NONE_FACTORY].
          *
          * @param psi the underlying element from which the documentation will be retrieved.
-         *   Although this is usually accessible through the [PsiItem.psi] property, that is not
-         *   true within the [ItemDocumentationFactory] as that is called during initialization of
-         *   the [PsiItem] before [PsiItem.psi] has been initialized.
          */
         internal fun factory(
             psi: PsiElement,
