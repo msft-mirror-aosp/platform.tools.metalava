@@ -27,8 +27,10 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.JVM_NAME
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SourceLanguage
@@ -415,11 +417,7 @@ internal class PsiCodebaseAssembler(
                     continue
                 }
 
-                addOverloadedKotlinCallablesIfNecessary(
-                    classItem,
-                    classTypeItemFactory,
-                    constructor
-                )
+                addOverloadedKotlinCallablesIfNecessary(classItem, constructor)
                 classItem.addConstructor(constructor)
             } else {
                 // With K1, value class property accessors are present as [PsiMethod]s and with K2
@@ -485,7 +483,7 @@ internal class PsiCodebaseAssembler(
                 }
 
                 if (!method.isEnumSyntheticMethod()) {
-                    addOverloadedKotlinCallablesIfNecessary(classItem, classTypeItemFactory, method)
+                    addOverloadedKotlinCallablesIfNecessary(classItem, method)
                     classItem.addMethod(method)
                 }
             }
@@ -641,7 +639,6 @@ internal class PsiCodebaseAssembler(
      */
     private fun addOverloadedKotlinCallablesIfNecessary(
         classItem: DefaultClassItem,
-        enclosingClassTypeItemFactory: PsiTypeItemFactory,
         callable: PsiCallableItem,
     ) {
         if (!callable.shouldExpandOverloads()) {
@@ -658,38 +655,22 @@ internal class PsiCodebaseAssembler(
             // There is no need to create an overload if the parameter does not have default value.
             if (!currentParameter.hasDefaultValue()) continue
 
-            val psiParameters =
+            val overloadParameters =
                 parameters.mapIndexedNotNull { index, parameterItem ->
                     // Ignore the current parameter as well as any following parameters
                     // with default values.
                     if (index >= currentParameterIndex && parameterItem.hasDefaultValue()) null
-                    else (parameterItem as PsiParameterItem).psiParameter
+                    else parameterItem
                 }
+
             // Create an overloaded callable.
-            when (callable) {
-                is PsiConstructorItem -> {
-                    val overloadConstructor =
-                        PsiConstructorItem.create(
-                            psiCodebase,
-                            classItem,
-                            callable.psiMethod,
-                            enclosingClassTypeItemFactory,
-                            psiParameters,
-                        )
-
-                    classItem.addConstructor(overloadConstructor)
+            val overload = callable.createOverload(overloadParameters)
+            when (overload) {
+                is ConstructorItem -> {
+                    classItem.addConstructor(overload)
                 }
-                is PsiMethodItem -> {
-                    val overloadMethod =
-                        PsiMethodItem.create(
-                            psiCodebase,
-                            classItem,
-                            callable.psiMethod,
-                            enclosingClassTypeItemFactory,
-                            psiParameters,
-                        )
-
-                    classItem.addMethod(overloadMethod)
+                is MethodItem -> {
+                    classItem.addMethod(overload)
                 }
             }
         }
