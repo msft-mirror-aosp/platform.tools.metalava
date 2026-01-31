@@ -23,6 +23,11 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - string value[psi,kotlin,k1]
   unknown annotation class with named attribute - string value[psi,kotlin,k2]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test duplicated documentation is fully qualified in originating context[psi,java,k1]
+  Test duplicated documentation is fully qualified in originating context[psi,java,k2]
+  Test duplicated documentation is fully qualified in originating context[turbine]
+
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
 
