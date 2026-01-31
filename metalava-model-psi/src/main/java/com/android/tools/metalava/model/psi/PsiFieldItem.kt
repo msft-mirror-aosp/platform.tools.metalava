@@ -66,8 +66,6 @@ internal class PsiFieldItem(
     FieldItem,
     PsiItem {
 
-    override fun psi(): PsiField = psiField
-
     override var property: PropertyItem? = null
 
     override fun duplicate(targetContainingClass: ClassItem) =

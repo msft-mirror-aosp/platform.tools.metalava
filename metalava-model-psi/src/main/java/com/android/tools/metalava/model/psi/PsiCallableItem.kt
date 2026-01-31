@@ -27,8 +27,6 @@ import org.jetbrains.uast.UMethod
 
 internal interface PsiCallableItem : CallableItem, PsiItem {
 
-    override fun psi() = psiMethod
-
     val psiMethod: PsiMethod
 
     companion object {

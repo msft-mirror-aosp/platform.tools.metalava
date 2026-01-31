@@ -23,9 +23,6 @@ import org.jetbrains.kotlin.idea.KotlinLanguage
 
 internal interface PsiItem : Item {
     val psiCodebase: PsiBasedCodebase
-
-    /** Returns the PSI element for this item */
-    fun psi(): PsiElement
 }
 
 /** Get the [SourceLanguage] for this [PsiElement]. */
