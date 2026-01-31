@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -65,6 +66,7 @@ internal class PsiMethodItem(
     parameterItemsFactory: ParameterItemsFactory,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
+    callableBodyFactory: CallableBodyFactory,
     val defaultValueProvider: OptionalValueProvider?,
     targetLanguages: Set<TargetLanguage>,
     isExtensionMethod: Boolean,
@@ -83,7 +85,7 @@ internal class PsiMethodItem(
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
-        callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+        callableBodyFactory = callableBodyFactory,
         defaultValueProvider = defaultValueProvider,
         isExtensionMethod = isExtensionMethod,
     ),
@@ -124,6 +126,8 @@ internal class PsiMethodItem(
                 },
                 typeParameterList,
                 throwsTypes(),
+                // Duplicate the original CallableBody.
+                callableBodyFactory = body::duplicate,
                 defaultValueProvider,
                 targetLanguages,
                 isExtensionMethod = isExtensionMethod(),
@@ -241,6 +245,7 @@ internal class PsiMethodItem(
                     },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
+                    callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
                     defaultValueProvider = defaultValueProvider,
                     targetLanguages = targetLanguages,
                     isExtensionMethod = isExtensionMethod
