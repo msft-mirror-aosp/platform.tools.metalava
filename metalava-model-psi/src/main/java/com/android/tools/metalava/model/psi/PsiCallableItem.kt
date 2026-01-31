@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
@@ -31,7 +32,7 @@ internal interface PsiCallableItem : CallableItem, PsiItem {
 
     companion object {
         /**
-         * Create a list of [PsiParameterItem]s.
+         * Create a list of [ParameterItem]s.
          *
          * The [codebase], and [containingCallableModifiers] parameters are added here, rather than
          * retrieving from [containingCallable]'s [PsiCallableItem.codebase], and
@@ -46,7 +47,7 @@ internal interface PsiCallableItem : CallableItem, PsiItem {
             enclosingTypeItemFactory: PsiTypeItemFactory,
             containingCallableModifiers: BaseModifierList,
             psiParameters: List<PsiParameter> = psiMethod.psiParameters,
-        ): List<PsiParameterItem> {
+        ): List<ParameterItem> {
             val fingerprint = MethodFingerprint(containingCallable.name(), psiParameters.size)
             return psiParameters.mapIndexed { index, parameter ->
                 PsiParameterItem.create(

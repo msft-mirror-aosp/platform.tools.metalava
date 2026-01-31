@@ -113,11 +113,7 @@ internal class PsiMethodItem(
                 modifiers,
                 documentation.duplicatingFactory(),
                 returnType.convertType(typeVariableMap),
-                { methodItem ->
-                    parameters().map {
-                        (it as PsiParameterItem).duplicate(methodItem, typeVariableMap)
-                    }
-                },
+                { methodItem -> parameters().map { it.duplicate(methodItem, typeVariableMap) } },
                 typeParameterList,
                 throwsTypes(),
                 // Duplicate the original CallableBody.

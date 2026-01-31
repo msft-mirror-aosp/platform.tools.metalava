@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
@@ -81,7 +82,7 @@ internal constructor(
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
             psiMethod: PsiMethod,
             containingCallableModifiers: BaseModifierList,
-        ): PsiParameterItem {
+        ): ParameterItem {
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
             val type =
