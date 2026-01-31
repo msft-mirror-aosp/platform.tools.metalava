@@ -72,7 +72,8 @@ open class DefaultParameterItem(
     override fun duplicate(
         containingCallable: CallableItem,
         typeConverter: TypeItemConverter,
-    ) =
+        newParameterIndex: Int,
+    ): ParameterItem =
         DefaultParameterItem(
             codebase,
             fileLocation,
@@ -81,7 +82,7 @@ open class DefaultParameterItem(
             name(),
             publicName,
             containingCallable,
-            parameterIndex,
+            newParameterIndex,
             typeConverter(type()),
             hasDefaultValue(),
         )

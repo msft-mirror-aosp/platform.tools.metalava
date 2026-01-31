@@ -37,7 +37,7 @@ internal constructor(
     modifiers: BaseModifierList,
     name: String,
     publicName: String?,
-    containingCallable: PsiCallableItem,
+    containingCallable: CallableItem,
     parameterIndex: Int,
     type: TypeItem,
     hasDefaultValue: Boolean,
@@ -59,6 +59,7 @@ internal constructor(
     override fun duplicate(
         containingCallable: CallableItem,
         typeConverter: TypeItemConverter,
+        newParameterIndex: Int,
     ) =
         PsiParameterItem(
             psiCodebase = psiCodebase,
@@ -66,8 +67,8 @@ internal constructor(
             modifiers = modifiers,
             name = name(),
             publicName = publicName,
-            containingCallable = containingCallable as PsiCallableItem,
-            parameterIndex = parameterIndex,
+            containingCallable = containingCallable,
+            parameterIndex = newParameterIndex,
             type = typeConverter(type()),
             hasDefaultValue = hasDefaultValue(),
         )

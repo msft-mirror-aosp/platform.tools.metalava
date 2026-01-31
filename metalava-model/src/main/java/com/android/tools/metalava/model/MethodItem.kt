@@ -52,6 +52,9 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
     /** Returns the super methods that this method is overriding */
     fun superMethods(): List<MethodItem>
 
+    /** Override to specialize return type. */
+    override fun createOverload(parameters: List<ParameterItem>): MethodItem
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,

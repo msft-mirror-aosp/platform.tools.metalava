@@ -108,6 +108,7 @@ interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
     fun duplicate(
         containingCallable: CallableItem,
         typeConverter: TypeItemConverter,
+        newParameterIndex: Int = parameterIndex,
     ): ParameterItem
 
     override val description: DocContent?

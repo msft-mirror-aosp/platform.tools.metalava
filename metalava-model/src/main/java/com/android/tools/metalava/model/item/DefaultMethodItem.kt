@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -141,6 +142,26 @@ open class DefaultMethodItem(
                 duplicated.updateCopiedMethodState()
             }
     }
+
+    override fun createOverload(parameters: List<ParameterItem>): MethodItem =
+        DefaultMethodItem(
+            codebase,
+            fileLocation,
+            sourceLanguage,
+            targetLanguages,
+            modifiers,
+            documentation.duplicatingFactory(),
+            variantSelectors::duplicate,
+            name(),
+            containingClass(),
+            typeParameterList,
+            returnType(),
+            parameterItemsFactory = overloadParameterItemFactory(parameters),
+            throwsTypes,
+            body::duplicate,
+            defaultValueProvider,
+            isExtensionMethod(),
+        )
 
     /**
      * Compute the super methods of this method.
