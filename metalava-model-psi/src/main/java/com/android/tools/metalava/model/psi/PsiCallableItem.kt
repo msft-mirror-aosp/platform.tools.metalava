@@ -26,9 +26,7 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.uast.UMethod
 
-internal interface PsiCallableItem : CallableItem, PsiItem {
-
-    val psiMethod: PsiMethod
+internal interface PsiCallableItem {
 
     companion object {
         /**

@@ -51,8 +51,8 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.toUElementOfType
 
 internal class PsiMethodItem(
-    override val psiCodebase: PsiBasedCodebase,
-    override val psiMethod: PsiMethod,
+    private val psiCodebase: PsiBasedCodebase,
+    internal val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
     // TextClassItem.
@@ -87,8 +87,7 @@ internal class PsiMethodItem(
         defaultValueProvider = defaultValueProvider,
         isExtensionMethod = isExtensionMethod,
         isKotlinProperty = isKotlinProperty(psiMethod),
-    ),
-    PsiCallableItem {
+    ) {
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
         // If duplicating within the same codebase type then map the type variables, otherwise do

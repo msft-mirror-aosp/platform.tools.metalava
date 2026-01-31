@@ -42,8 +42,8 @@ import org.jetbrains.uast.UMethod
 
 internal class PsiConstructorItem
 private constructor(
-    override val psiCodebase: PsiBasedCodebase,
-    override val psiMethod: PsiMethod,
+    psiCodebase: PsiBasedCodebase,
+    internal val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     containingClass: ClassItem,
     name: String,
@@ -75,8 +75,7 @@ private constructor(
         callableBodyFactory = callableBodyFactory,
         implicitConstructor = implicitConstructor,
         isPrimary = isPrimary,
-    ),
-    PsiCallableItem {
+    ) {
 
     companion object {
         internal fun create(
