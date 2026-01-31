@@ -56,11 +56,26 @@ class PsiFileLocationTest : BaseModelTest() {
         ) {
             val testKtPropertyItem = codebase.assertClass("test.pkg.TestKt").properties().single()
             assertEquals(
+                "test.pkg.TestKt#propertyInTestKt",
                 testKtPropertyItem.baselineKey.elementId(),
-                "test.pkg.TestKt#propertyInTestKt"
+                message = "from TestKt PropertyItem.baselineKey"
+            )
+            assertEquals(
+                "test.pkg.TestKt#propertyInTestKt",
+                testKtPropertyItem.fileLocation.baselineKey?.elementId(),
+                message = "from PropertyItem.fileLocation.baselineKey"
             )
             val fooPropertyItem = codebase.assertClass("test.pkg.Foo").properties().single()
-            assertEquals(fooPropertyItem.baselineKey.elementId(), "test.pkg.Foo#propertyInFoo")
+            assertEquals(
+                "test.pkg.Foo#propertyInFoo",
+                fooPropertyItem.baselineKey.elementId(),
+                message = "from Foo PropertyItem.baselineKey"
+            )
+            assertEquals(
+                "test.pkg.Foo#propertyInFoo",
+                fooPropertyItem.fileLocation.baselineKey?.elementId(),
+                message = "from Foo PropertyItem.fileLocation.baselineKey"
+            )
         }
     }
 
