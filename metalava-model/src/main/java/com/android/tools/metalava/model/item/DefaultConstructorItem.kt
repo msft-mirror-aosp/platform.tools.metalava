@@ -38,7 +38,7 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultConstructorItem(
+class DefaultConstructorItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -75,14 +75,14 @@ open class DefaultConstructorItem(
     ConstructorItem {
 
     /** Override to specialize the return type. */
-    final override fun returnType() = super.returnType() as ClassTypeItem
+    override fun returnType() = super.returnType() as ClassTypeItem
 
     /** Override to make sure that [type] is a [ClassTypeItem]. */
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         super.setType(type as ClassTypeItem)
     }
 
-    final override fun isImplicitConstructor() = implicitConstructor
+    override fun isImplicitConstructor() = implicitConstructor
 
     override fun createOverload(parameters: List<ParameterItem>): ConstructorItem =
         DefaultConstructorItem(

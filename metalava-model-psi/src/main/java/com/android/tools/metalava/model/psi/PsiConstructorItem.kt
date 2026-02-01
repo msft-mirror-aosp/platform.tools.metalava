@@ -17,22 +17,14 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultConstructorItem
-import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.throwsTypes
-import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -41,42 +33,7 @@ import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
 
-internal class PsiConstructorItem
-private constructor(
-    psiCodebase: PsiBasedCodebase,
-    internal val psiMethod: PsiMethod,
-    fileLocation: FileLocation = PsiFileLocation(psiMethod),
-    containingClass: ClassItem,
-    name: String,
-    modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
-    parameterItemsFactory: ParameterItemsFactory,
-    returnType: ClassTypeItem,
-    typeParameterList: TypeParameterList,
-    throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
-    implicitConstructor: Boolean = false,
-    isPrimary: Boolean = false,
-    targetLanguages: Set<TargetLanguage>,
-) :
-    DefaultConstructorItem(
-        codebase = psiCodebase,
-        fileLocation = fileLocation,
-        sourceLanguage = psiMethod.sourceLanguage,
-        targetLanguages = targetLanguages,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-        name = name,
-        containingClass = containingClass,
-        typeParameterList = typeParameterList,
-        returnType = returnType,
-        parameterItemsFactory = parameterItemsFactory,
-        throwsTypes = throwsTypes,
-        callableBodyFactory = callableBodyFactory,
-        implicitConstructor = implicitConstructor,
-        isPrimary = isPrimary,
-    ) {
+internal class PsiConstructorItem {
 
     companion object {
         internal fun create(
