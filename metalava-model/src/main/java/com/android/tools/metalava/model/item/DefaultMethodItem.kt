@@ -110,6 +110,9 @@ open class DefaultMethodItem(
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
 
+        // Create a [TypeItemConverter] wrapper around `typeVariableMap`.
+        val typeConverter = typeVariableMap.toTypeConverter()
+
         return DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
@@ -124,7 +127,7 @@ open class DefaultMethodItem(
                 returnType = returnType.convertType(typeVariableMap),
                 parameterItemsFactory = { containingCallable ->
                     // Duplicate the parameters
-                    parameters.map { it.duplicate(containingCallable, typeVariableMap) }
+                    parameters.map { it.duplicate(containingCallable, typeConverter) }
                 },
                 throwsTypes = throwsTypes,
                 callableBodyFactory = body::duplicate,

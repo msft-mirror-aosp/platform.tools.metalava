@@ -29,6 +29,8 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeItemConverter
+import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -117,4 +119,13 @@ abstract class DefaultCallableItem(
     ) =
         // Check for type parameters.
         nameClassification.findTypeParameter { typeParameterList.find { it.name() == simpleName } }
+
+    companion object {
+        /**
+         * Create a [TypeItemConverter] wrapper around this [TypeParameterBindings]. Use the
+         * identity function if the map is empty.
+         */
+        fun TypeParameterBindings.toTypeConverter(): TypeItemConverter =
+            if (isEmpty()) { type -> type } else { type -> type.convertType(this) }
+    }
 }

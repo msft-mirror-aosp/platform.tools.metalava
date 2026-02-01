@@ -98,8 +98,8 @@ interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
     /**
      * Create a duplicate of this for [containingCallable].
      *
-     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
-     * [TypeItem.convertType].
+     * The duplicate's [ParameterItem.type] is the result of applying [typeConverter] to this
+     * [ParameterItem]'s [type].
      *
      * This is called from within the constructor of the [containingCallable] so must only access
      * its `name` and its reference. In particularly it must not access its
@@ -107,7 +107,7 @@ interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
      */
     fun duplicate(
         containingCallable: CallableItem,
-        typeVariableMap: TypeParameterBindings,
+        typeConverter: TypeItemConverter,
     ): ParameterItem
 
     override val description: DocContent?

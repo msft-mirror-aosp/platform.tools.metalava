@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterBindings
+import com.android.tools.metalava.model.TypeItemConverter
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.psi.PsiMethodItem.Companion.isKotlinProperty
@@ -58,7 +58,7 @@ internal constructor(
 
     override fun duplicate(
         containingCallable: CallableItem,
-        typeVariableMap: TypeParameterBindings
+        typeConverter: TypeItemConverter,
     ) =
         PsiParameterItem(
             psiCodebase = psiCodebase,
@@ -68,7 +68,7 @@ internal constructor(
             publicName = publicName,
             containingCallable = containingCallable as PsiCallableItem,
             parameterIndex = parameterIndex,
-            type = type().convertType(typeVariableMap),
+            type = typeConverter(type()),
             hasDefaultValue = hasDefaultValue(),
         )
 

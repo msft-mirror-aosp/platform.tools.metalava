@@ -104,6 +104,9 @@ internal class PsiMethodItem(
                 targetContainingClass.mapTypeVariables(containingClass())
             else emptyMap()
 
+        // Create a [TypeItemConverter] wrapper around `typeVariableMap`.
+        val typeConverter = typeVariableMap.toTypeConverter()
+
         return PsiMethodItem(
                 psiCodebase,
                 psiMethod,
@@ -113,7 +116,7 @@ internal class PsiMethodItem(
                 modifiers,
                 documentation.duplicatingFactory(),
                 returnType.convertType(typeVariableMap),
-                { methodItem -> parameters().map { it.duplicate(methodItem, typeVariableMap) } },
+                { methodItem -> parameters().map { it.duplicate(methodItem, typeConverter) } },
                 typeParameterList,
                 throwsTypes(),
                 // Duplicate the original CallableBody.

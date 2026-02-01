@@ -25,7 +25,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterBindings
+import com.android.tools.metalava.model.TypeItemConverter
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultParameterItem(
@@ -71,7 +71,7 @@ open class DefaultParameterItem(
 
     override fun duplicate(
         containingCallable: CallableItem,
-        typeVariableMap: TypeParameterBindings,
+        typeConverter: TypeItemConverter,
     ) =
         DefaultParameterItem(
             codebase,
@@ -82,7 +82,7 @@ open class DefaultParameterItem(
             publicName,
             containingCallable,
             parameterIndex,
-            type().convertType(typeVariableMap),
+            typeConverter(type()),
             hasDefaultValue(),
         )
 }
