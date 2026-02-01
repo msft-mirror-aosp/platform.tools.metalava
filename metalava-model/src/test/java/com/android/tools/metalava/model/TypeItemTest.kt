@@ -93,9 +93,8 @@ class TypeItemTest {
         // Make sure that substituting a different isVarargs returns a new copy with the new
         // isVarargs.
         original.substitute(isVarargs = !originalVarargs).let { substitute ->
-            // TODO(b/480322151): Fix, this should return a new copy with different isVarargs
-            assertSame(original, substitute)
-            assertEquals(originalVarargs, substitute.isVarargs)
+            assertNotSame(original, substitute)
+            assertEquals(!originalVarargs, substitute.isVarargs)
         }
     }
 }
