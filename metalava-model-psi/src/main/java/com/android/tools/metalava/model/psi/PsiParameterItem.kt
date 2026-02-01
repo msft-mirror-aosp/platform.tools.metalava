@@ -17,11 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeItemConverter
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.psi.PsiMethodItem.Companion.isKotlinProperty
@@ -30,49 +27,7 @@ import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 
-internal class PsiParameterItem
-internal constructor(
-    override val psiCodebase: PsiBasedCodebase,
-    internal val psiParameter: PsiParameter,
-    modifiers: BaseModifierList,
-    name: String,
-    publicName: String?,
-    containingCallable: CallableItem,
-    parameterIndex: Int,
-    type: TypeItem,
-    hasDefaultValue: Boolean,
-) :
-    DefaultParameterItem(
-        codebase = psiCodebase,
-        fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
-        sourceLanguage = psiParameter.sourceLanguage,
-        modifiers = modifiers,
-        name = name,
-        publicName = publicName,
-        containingCallable = containingCallable,
-        parameterIndex = parameterIndex,
-        type = type,
-        hasDefaultValue = hasDefaultValue,
-    ),
-    PsiItem {
-
-    override fun duplicate(
-        containingCallable: CallableItem,
-        typeConverter: TypeItemConverter,
-        newParameterIndex: Int,
-    ) =
-        PsiParameterItem(
-            psiCodebase = psiCodebase,
-            psiParameter = psiParameter,
-            modifiers = modifiers,
-            name = name(),
-            publicName = publicName,
-            containingCallable = containingCallable,
-            parameterIndex = newParameterIndex,
-            type = typeConverter(type()),
-            hasDefaultValue = hasDefaultValue(),
-        )
-
+internal class PsiParameterItem {
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
