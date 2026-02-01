@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.VisibilityLevel
@@ -31,7 +32,7 @@ internal class PsiParameterItem {
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
-            containingCallable: PsiCallableItem,
+            containingCallable: CallableItem,
             fingerprint: MethodFingerprint,
             psiParameter: PsiParameter,
             parameterIndex: Int,

@@ -223,7 +223,7 @@ internal class PsiMethodItem(
                         parameterList(
                             codebase,
                             psiMethod,
-                            containingCallable as PsiCallableItem,
+                            containingCallable,
                             methodTypeItemFactory,
                             modifiers,
                             psiParameters,

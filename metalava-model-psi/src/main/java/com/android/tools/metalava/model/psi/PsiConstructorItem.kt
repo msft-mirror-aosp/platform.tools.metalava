@@ -125,7 +125,7 @@ private constructor(
                         parameterList(
                             codebase,
                             psiMethod,
-                            containingCallable as PsiCallableItem,
+                            containingCallable,
                             constructorTypeItemFactory,
                             modifiers,
                             psiParameters,
