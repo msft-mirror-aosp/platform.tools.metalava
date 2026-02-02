@@ -90,17 +90,7 @@ internal class PsiMethodItem(
     ) {
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
-        // If duplicating within the same codebase type then map the type variables, otherwise do
-        // not. That is because this can end up substituting a `TypeItem` implementation of one
-        // type in place of a `TypeItem` which can cause casting issues, e.g. in `PsiParameterItem`
-        // which expects its type as `TypeItem`. Falling back to not mapping will not cause any
-        // significant issues as that is what was done before.
-        // TODO(b/324196754): Fix this. It is not clear if this causes problems outside tests, it
-        //  does not seem to break Android build.
-        val typeVariableMap =
-            if (codebase.javaClass === targetContainingClass.codebase.javaClass)
-                targetContainingClass.mapTypeVariables(containingClass())
-            else emptyMap()
+        val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
 
         // Create a [TypeItemConverter] wrapper around `typeVariableMap`.
         val typeConverter = typeVariableMap.toTypeConverter()
