@@ -103,7 +103,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{version:extension}', '{module}', '{surface}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{version:extension}', '{library}', '{module}', '{surface}'",
             exception.message
         )
     }
@@ -432,8 +432,8 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=TESTROOT/1/api.txt, version=1, extension=true, module='api')
-                MatchedPatternFile(file=TESTROOT/2/api.txt, version=2, extension=true, module='api')
+                MatchedPatternFile(file=TESTROOT/1/api.txt, version=1, isExtension=true, module='api')
+                MatchedPatternFile(file=TESTROOT/2/api.txt, version=2, isExtension=true, module='api')
             """
         )
     }
@@ -462,11 +462,52 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=TESTROOT/extensions/1/module-one.txt, version=1, extension=true, module='module-one')
-                MatchedPatternFile(file=TESTROOT/extensions/3/module-one.txt, version=3, extension=true, module='module-one')
-                MatchedPatternFile(file=TESTROOT/extensions/2/module-two.txt, version=2, extension=true, module='module-two')
-                MatchedPatternFile(file=TESTROOT/extensions/3/module-two.txt, version=3, extension=true, module='module-two')
-                MatchedPatternFile(file=TESTROOT/extensions/2/module.three.txt, version=2, extension=true, module='module.three')
+                MatchedPatternFile(file=TESTROOT/extensions/1/module-one.txt, version=1, isExtension=true, module='module-one')
+                MatchedPatternFile(file=TESTROOT/extensions/3/module-one.txt, version=3, isExtension=true, module='module-one')
+                MatchedPatternFile(file=TESTROOT/extensions/2/module-two.txt, version=2, isExtension=true, module='module-two')
+                MatchedPatternFile(file=TESTROOT/extensions/3/module-two.txt, version=3, isExtension=true, module='module-two')
+                MatchedPatternFile(file=TESTROOT/extensions/2/module.three.txt, version=2, isExtension=true, module='module.three')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan for library`() {
+        val rootDir = buildFileStructure {
+            dir("root") {
+                dir("1") { apiFile("android") }
+                dir("2") {
+                    apiFile("android")
+                    apiFile("android.test.base")
+                    apiFile("android.test.mock")
+                    apiFile("android.test.runtime")
+                }
+                dir("3") {
+                    apiFile("android")
+                    apiFile("android.test.base")
+                    apiFile("android.test.mock")
+                    apiFile("android.test.runtime")
+                }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "root/{version:level}/{library}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/root/1/android.txt, version=1, library='android')
+                MatchedPatternFile(file=TESTROOT/root/2/android.txt, version=2, library='android')
+                MatchedPatternFile(file=TESTROOT/root/2/android.test.base.txt, version=2, library='android.test.base')
+                MatchedPatternFile(file=TESTROOT/root/2/android.test.mock.txt, version=2, library='android.test.mock')
+                MatchedPatternFile(file=TESTROOT/root/2/android.test.runtime.txt, version=2, library='android.test.runtime')
+                MatchedPatternFile(file=TESTROOT/root/3/android.txt, version=3, library='android')
+                MatchedPatternFile(file=TESTROOT/root/3/android.test.base.txt, version=3, library='android.test.base')
+                MatchedPatternFile(file=TESTROOT/root/3/android.test.mock.txt, version=3, library='android.test.mock')
+                MatchedPatternFile(file=TESTROOT/root/3/android.test.runtime.txt, version=3, library='android.test.runtime')
             """
         )
     }
@@ -491,7 +532,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=TESTROOT/1.7/module.txt.txt, version=1.7, module='module.txt')
-                MatchedPatternFile(file=TESTROOT/extensions/1/module.txt.txt, version=1, extension=true, module='module.txt')
+                MatchedPatternFile(file=TESTROOT/extensions/1/module.txt.txt, version=1, isExtension=true, module='module.txt')
             """
         )
     }

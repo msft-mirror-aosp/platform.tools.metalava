@@ -22,11 +22,11 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.FixedFieldValue
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.ItemKind
+import com.android.tools.metalava.model.ModifierFlags
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
 import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
@@ -44,16 +44,14 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.FieldValue
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -74,7 +72,6 @@ import com.google.turbine.tree.Tree.AnnoExpr
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.tree.Tree.MethDecl
-import com.google.turbine.tree.Tree.TyDecl
 import com.google.turbine.tree.Tree.VarDecl
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -96,21 +93,8 @@ internal class TurbineClassBuilder(
     /** The [SourceTypeBoundClass] if this is a source class. */
     private val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
 
-    /**
-     * The [TurbineFieldResolver] used for resolving [Tree.ConstVarName] to
-     * [TypeBoundClass.FieldInfo].
-     */
-    private var fieldResolver: TurbineFieldResolver?
-
-    init {
-        if (sourceTypeBoundClass == null) {
-            // Only source classes need to resolve fields.
-            fieldResolver = null
-        } else {
-            // Source files need
-            fieldResolver = createFieldResolver(classSymbol, sourceTypeBoundClass)
-        }
-    }
+    /** The [FieldResolver] used for resolving [Tree.ConstVarName] to [TypeBoundClass.FieldInfo]. */
+    private var fieldResolver = createFieldResolver(classSymbol, typeBoundClass)
 
     /**
      * Create a [ClassItem] for the [classSymbol]/[typeBoundClass] pair.
@@ -146,9 +130,9 @@ internal class TurbineClassBuilder(
 
         // Create class
         val qualifiedName = classSymbol.qualifiedName
-        val documentation = javadoc(decl)
         val modifierItem =
             createModifiers(
+                ItemKind.CLASS,
                 typeBoundClass.access(),
                 typeBoundClass.annotations(),
             )
@@ -179,7 +163,9 @@ internal class TurbineClassBuilder(
                     }
                 // Interfaces and annotations (which are a form of interface) do not.
                 ClassKind.INTERFACE,
-                ClassKind.ANNOTATION_TYPE -> null
+                ClassKind.ANNOTATION_TYPE,
+                // Turbine does not support typealiases (which only exist in kotlin).
+                ClassKind.TYPEALIAS, -> null
             }
 
         // Set interface types
@@ -190,7 +176,7 @@ internal class TurbineClassBuilder(
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
-                documentationFactory = getCommentedDoc(documentation),
+                documentationFactory = itemDocumentationFactoryForDecl(sourceFile, decl),
                 source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -218,7 +204,12 @@ internal class TurbineClassBuilder(
         return classItem
     }
 
-    private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
+    /** Create modifiers for [itemKind] from the set of access flags [flag] and [annoInfos]. */
+    private fun createModifiers(
+        itemKind: ItemKind,
+        flag: Int,
+        annoInfos: List<AnnoInfo>
+    ): MutableModifierList {
         val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
         val modifierItem =
             when (flag) {
@@ -229,7 +220,7 @@ internal class TurbineClassBuilder(
                     )
                 }
                 else -> {
-                    createMutableModifiers(computeFlag(flag), annotations)
+                    createMutableModifiers(computeFlag(itemKind, flag), annotations)
                 }
             }
         modifierItem.setDeprecated(isDeprecated(annotations))
@@ -237,9 +228,10 @@ internal class TurbineClassBuilder(
     }
 
     /**
-     * Given flag value corresponding to Turbine modifiers compute the equivalent flag in Metalava.
+     * Given flag value corresponding to Turbine modifiers compute the equivalent [ModifierFlags]
+     * suitable for [itemKind].
      */
-    private fun computeFlag(flag: Int): Int {
+    private fun computeFlag(itemKind: ItemKind, flag: Int): Int {
         // If no visibility flag is provided, result remains 0, implying a 'package-private' default
         // state.
         var result = 0
@@ -289,6 +281,14 @@ internal class TurbineClassBuilder(
             result = result or PROTECTED
         }
 
+        // Remove any flags that are not appropriate for itemKind. This is needed as there are some
+        // overlaps between the TurbineFlag settings. e.g. TurbineFlag.ACC_TRANSIENT and
+        // TurbineFlag.ACC_VARARGS have the same value so they will always cause
+        // ModifierFlags.TRANSIENT and ModifierFlags.VARARG to be added. This removes them. The
+        // alternative is to check before adding the ModifierFlags whether it is appropriate for
+        // the itemKind but this seems more efficient and simpler.
+        result = itemKind.normalizeJavaFlags(result)
+
         return result
     }
 
@@ -318,8 +318,7 @@ internal class TurbineClassBuilder(
             )
 
         // Create a list of [TypeParameterItem]s from turbine specific classes.
-        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-            enclosingClassTypeItemFactory,
+        return enclosingClassTypeItemFactory.createTypeParameterItemsAndFactory(
             description,
             tyParams.toList(),
             { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
@@ -333,7 +332,7 @@ internal class TurbineClassBuilder(
      * the same [TypeParameterList] can be resolved.
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
-        val modifiers = createModifiers(0, param.annotations())
+        val modifiers = createModifiers(ItemKind.TYPE_PARAMETER, 0, param.annotations())
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -365,7 +364,9 @@ internal class TurbineClassBuilder(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         for (nestedClassSymbol in nestedClasses) {
-            val nestedTypeBoundClass = typeBoundClassForSymbol(nestedClassSymbol)
+            val nestedTypeBoundClass =
+                typeBoundClassForSymbol(nestedClassSymbol)
+                    ?: error("Cannot find type bound class for nested class $nestedClassSymbol")
             val nestedClassBuilder =
                 TurbineClassBuilder(
                     globalContext = globalContext,
@@ -391,11 +392,11 @@ internal class TurbineClassBuilder(
             val decl = field.decl()
             val fieldModifierItem =
                 createModifiers(
+                    ItemKind.FIELD,
                     flags,
                     field.annotations(),
                 )
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
-            val fieldValue = createInitialValue(field)
             val type =
                 typeItemFactory.getFieldType(
                     underlyingType = field.type(),
@@ -405,29 +406,32 @@ internal class TurbineClassBuilder(
                     isInitialValueNonNull = {
                         // The initial value is non-null if the value is a literal which is not
                         // null.
-                        fieldValue.initialValue(false) != null
+                        isInitialValueNonNull(field)
                     }
                 )
 
-            val initialFieldValueProvider =
+            val constantValueProvider =
                 field.value()?.let { const ->
+                    // In Java fields have to be static and final in order for them to have a
+                    // constant value
+                    if (!fieldModifierItem.isStatic() || !fieldModifierItem.isFinal()) {
+                        return@let null
+                    }
                     val expr = field.decl()?.init()?.getOrNull()
                     val turbineValue = TurbineValue(const, expr, fieldResolver)
                     valueFactory.providerFor(type, turbineValue, ValueUseSite.FIELD)
                 }
 
-            val documentation = javadoc(decl)
             val fieldItem =
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = fieldModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
                     isEnumConstant = isEnumConstant,
-                    initialValueProvider = initialFieldValueProvider,
-                    fieldValue = fieldValue,
+                    constantValueProvider = constantValueProvider,
                 )
 
             classItem.addField(fieldItem)
@@ -446,9 +450,16 @@ internal class TurbineClassBuilder(
             val decl: MethDecl? = method.decl()
             val methodModifierItem =
                 createModifiers(
+                    ItemKind.METHOD,
                     method.access(),
                     method.annotations(),
                 )
+
+            // Final modifier is superfluous on a method in a final class.
+            if (methodModifierItem.isFinal() && classItem.modifiers.isFinal()) {
+                methodModifierItem.setFinal(false)
+            }
+
             val name = method.name()
             val (typeParams, methodTypeItemFactory) =
                 createTypeParameters(
@@ -456,7 +467,6 @@ internal class TurbineClassBuilder(
                     enclosingClassTypeItemFactory,
                     name,
                 )
-            val documentation = javadoc(decl)
             val defaultValueExpr = getAnnotationDefaultExpression(method)
             val defaultTurbineValue =
                 method.defaultValue()?.let { defaultConst ->
@@ -474,7 +484,6 @@ internal class TurbineClassBuilder(
                     isAnnotationElement = isAnnotationElement,
                 )
 
-            val defaultValue = defaultTurbineValue?.getSourceForMethodDefault() ?: ""
             val defaultValueProvider =
                 defaultTurbineValue?.let {
                     valueFactory.providerFor(returnType, it, ValueUseSite.ANNOTATION)
@@ -484,7 +493,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
@@ -499,7 +508,7 @@ internal class TurbineClassBuilder(
                     },
                     throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
                     defaultValueProvider = defaultValueProvider,
-                    annotationDefault = defaultValue,
+                    isExtensionMethod = false, // Java does not support extension methods
                 )
 
             // Ignore enum synthetic methods.
@@ -522,38 +531,47 @@ internal class TurbineClassBuilder(
         // implicit parameters are always at the beginning so the offset from the declared parameter
         // in [parameterDecls] to the corresponding parameter in [parameters] is simply the number
         // of the implicit parameters.
-        val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
-        return parameters.mapIndexed { idx, parameter ->
-            val parameterModifierItem =
-                createModifiers(parameter.access(), parameter.annotations()).toImmutable()
-            val type =
-                typeItemFactory.getMethodParameterType(
-                    underlyingParameterType = parameter.type(),
-                    itemAnnotations = parameterModifierItem.annotations(),
-                    fingerprint = fingerprint,
-                    parameterIndex = idx,
-                    isVarArg = parameterModifierItem.isVarArg(),
-                )
-            // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
-            val decl =
-                if (parameterDecls != null && idx >= declaredParameterOffset)
-                    parameterDecls.get(idx - declaredParameterOffset)
-                else null
+        val ignoreSynthetic = containingCallable is ConstructorItem
+        return buildList {
+            var parameterIndex = 0
+            for (parameter in parameters) {
+                if (ignoreSynthetic && parameter.synthetic()) continue
+                val parameterModifierItem =
+                    createModifiers(ItemKind.PARAMETER, parameter.access(), parameter.annotations())
+                        .toImmutable()
+                val type =
+                    typeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameter.type(),
+                        itemAnnotations = parameterModifierItem.annotations(),
+                        fingerprint = fingerprint,
+                        parameterIndex = parameterIndex,
+                        isVarArg = parameterModifierItem.isVarArg(),
+                    )
+                // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
+                // [parameterDecls] will be null for a binary class. It will be empty for a
+                // record class.
+                val decl =
+                    if (parameterDecls != null && parameterIndex < parameterDecls.size)
+                        parameterDecls.get(parameterIndex)
+                    else null
 
-            val fileLocation =
-                TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
-            val parameterItem =
-                itemFactory.createParameterItem(
-                    fileLocation = fileLocation,
-                    modifiers = parameterModifierItem,
-                    name = parameter.name(),
-                    publicNameProvider = { null },
-                    containingCallable = containingCallable,
-                    parameterIndex = idx,
-                    type = type,
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
-                )
-            parameterItem
+                val fileLocation =
+                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
+                val parameterItem =
+                    itemFactory.createParameterItem(
+                        fileLocation = fileLocation,
+                        modifiers = parameterModifierItem,
+                        name = parameter.name(),
+                        publicName = null,
+                        containingCallable = containingCallable,
+                        parameterIndex = parameterIndex,
+                        type = type,
+                        // Java parameters can't have default values
+                        hasDefaultValue = false,
+                    )
+                add(parameterItem)
+                parameterIndex += 1
+            }
         }
     }
 
@@ -569,6 +587,7 @@ internal class TurbineClassBuilder(
             val decl: MethDecl? = constructor.decl()
             val constructorModifierItem =
                 createModifiers(
+                    ItemKind.CONSTRUCTOR,
                     constructor.access(),
                     constructor.annotations(),
                 )
@@ -581,12 +600,11 @@ internal class TurbineClassBuilder(
             val isImplicitDefaultConstructor =
                 (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
             val name = classItem.simpleName()
-            val documentation = javadoc(decl)
             val constructorItem =
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = constructorModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -611,21 +629,6 @@ internal class TurbineClassBuilder(
         }
     }
 
-    private fun javadoc(item: TyDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
-    private fun javadoc(item: VarDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
-    private fun javadoc(item: MethDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
     private fun getThrowsList(
         throwsTypes: List<Type>,
         enclosingTypeItemFactory: TurbineTypeItemFactory
@@ -633,21 +636,20 @@ internal class TurbineClassBuilder(
         return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
     }
 
-    private fun getCommentedDoc(doc: String): ItemDocumentationFactory {
-        return buildString {
-                if (doc != "") {
-                    append("/**")
-                    append(doc)
-                    append("*/")
-                }
-            }
-            .toItemDocumentationFactory()
-    }
+    /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
+    private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
+        itemDocumentationFactoryForDecl(classItem.sourceFile() as? TurbineSourceFile, decl)
 
-    private fun createInitialValue(field: FieldInfo): FieldValue {
+    /**
+     * Check to see whether the initial value for [field] is non-null.
+     *
+     * If it is `non-null` then the field itself can be treated as if it is non-null, i.e. as if it
+     * had an `@NonNull` annotation.
+     */
+    private fun isInitialValueNonNull(field: FieldInfo): Boolean {
         val optExpr = field.decl()?.init()
-        val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
-        val constantValue = field.value()?.getValue()
+        val expr = if (optExpr != null && optExpr.isPresent) optExpr.get() else null
+        val constantValue = field.value()?.value
 
         val initialValueWithoutRequiredConstant =
             when {
@@ -668,7 +670,7 @@ internal class TurbineClassBuilder(
                     }
             }
 
-        return FixedFieldValue(constantValue, initialValueWithoutRequiredConstant)
+        return initialValueWithoutRequiredConstant != null
     }
 
     /**
@@ -676,7 +678,7 @@ internal class TurbineClassBuilder(
      * the method does not have a default value, returns null.
      */
     private fun getAnnotationDefaultExpression(method: MethodInfo) =
-        method.decl()?.defaultValue()?.orElse(null)?.let { defaultTree ->
+        method.decl()?.defaultValue()?.getOrNull()?.let { defaultTree ->
 
             // Turbine stores the default value as a Tree not an Expression so that it can use an
             // Anno class (which is not an Expression). It could wrap the Anno in an AnnoExpr but

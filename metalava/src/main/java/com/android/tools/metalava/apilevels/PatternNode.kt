@@ -16,8 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_CURRENT_VERSION
-import com.android.tools.metalava.ARG_FIRST_VERSION
+import com.android.tools.metalava.ARG_API_VERSION_RANGE
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import java.io.File
 import java.util.TreeSet
@@ -170,6 +169,13 @@ sealed class PatternNode {
          */
         val apiVersionFilter: ((ApiVersion) -> Boolean)? = null,
 
+        /**
+         * An optional filter which, if specified, will limit the sdk extension versions that will
+         * be returned. This is provided when scanning, instead of just filtering afterward, to save
+         * time when scanning by ignoring version directories that are not accepted by the filter.
+         */
+        val sdkExtensionVersionFilter: ((ApiVersion) -> Boolean)? = null,
+
         /** Provides access to [File]s. */
         val fileProvider: FileProvider = WholeFileSystemProvider(),
 
@@ -186,8 +192,8 @@ sealed class PatternNode {
      * Scan the [ScanConfig.dir] using this pattern node as the guide.
      *
      * Returns a list of [MatchedPatternFile] objects, ordered such that the files are ordered by:
-     * * [MatchedPatternFile.extension], i.e. primary API (i.e. when [MatchedPatternFile.extension]
-     *   is `false`) come before those for extensions.
+     * * [MatchedPatternFile.isExtension], i.e. primary API (i.e. when
+     *   [MatchedPatternFile.isExtension] is `false`) come before those for extensions.
      * * [MatchedPatternFile.module], i.e. those for which this is `null` come before everything
      *   else, and they are sorted alphabetically.
      * * [MatchedPatternFile.version], i.e. from lowest to highest.
@@ -413,8 +419,7 @@ sealed class PatternNode {
                     Mandatory property that stores the version of a matched file.
 
                     Apart from the ${Placeholder.VERSION_EXTENSION} all placeholders for this will
-                    ignore versions that fall outside the range $ARG_FIRST_VERSION and
-                    $ARG_CURRENT_VERSION, if provided.
+                    ignore versions that fall outside the range $ARG_API_VERSION_RANGE, if provided.
                 """
             },
         ) {
@@ -427,19 +432,36 @@ sealed class PatternNode {
                 // Extract the API version from the value.
                 val version = ApiVersion.fromString(value)
 
-                val extension = placeholder == Placeholder.VERSION_EXTENSION
+                val isExtension = placeholder == Placeholder.VERSION_EXTENSION
 
                 // Make sure that it is accepted by the filter (if one was specified). If it is not
-                // then ignore this file and all its contents by returning an empty sequence. The
-                // filter does not apply to extension versions, all extension versions are used.
-                if (!extension) {
-                    config.apiVersionFilter?.let { apiVersionFilter ->
-                        if (!apiVersionFilter(version)) return null
-                    }
-                }
+                // then ignore this file and all its contents by returning an empty sequence.
+                val versionFilter =
+                    if (isExtension) config.sdkExtensionVersionFilter else config.apiVersionFilter
+                versionFilter?.let { versionFilter -> if (!versionFilter(version)) return null }
 
-                return state.copy(version = version, extension = extension)
+                return state.copy(version = version, isExtension = isExtension)
             }
+        },
+
+        /**
+         * Corresponds to the [PatternFileState.library] and [MatchedPatternFile.library]
+         * properties.
+         */
+        LIBRARY(
+            "library",
+            help = {
+                """
+                    Optional property that stores the name of a library.
+                """
+            },
+        ) {
+            override fun track(
+                config: ScanConfig,
+                state: PatternFileState,
+                value: String,
+                placeholder: Placeholder,
+            ) = state.copy(library = value)
         },
 
         /**
@@ -586,6 +608,28 @@ sealed class PatternNode {
 
                     A pattern that includes this must also include `$MODULE` as SDK extension APIs
                     are stored in a file per extension module.
+                """
+            },
+        ),
+
+        /**
+         * The {library} placeholder.
+         *
+         * Generally, each version/module pair is supposed to have a single file representing it for
+         * each surface. However, sometimes it can be broken down into multiple files, e.g.
+         * `android.test.base.jar` was previously part of `android.jar` but was separated out. So,
+         * in order to generate an accurate history of the `android.test` classes it is necessary to
+         * include the `android.test.base.jar` alongside `android.jar`. That can be achieved by
+         * using the {library} placeholder.
+         */
+        LIBRARY(
+            property = Property.LIBRARY,
+            format = null,
+            pattern = """[a-z-.]+""",
+            help = {
+                """
+                    Matches a library name which must consist of lower case letters, hyphens and
+                    `.`s.
                 """
             },
         ),
@@ -812,13 +856,16 @@ internal data class PatternFileState(
     val version: ApiVersion? = null,
 
     /** Indicates whether the file is for an SDK extension module. */
-    val extension: Boolean = false,
+    val isExtension: Boolean = false,
 
     /** The optional module that was extracted from the path. */
     val module: String? = null,
 
     /** The optional surface that was extracted from the path. */
     val surface: ApiSurface? = null,
+
+    /** The optional name of the library. */
+    val library: String? = null,
 ) {
     /**
      * Construct a [MatchedPatternFile] from this.
@@ -832,9 +879,10 @@ internal data class PatternFileState(
             MatchedPatternFile(
                 file = file,
                 version = version,
-                extension = extension,
+                isExtension = isExtension,
                 module = module,
                 surface = surface,
+                library = library,
             )
 
     /**
@@ -864,13 +912,16 @@ data class MatchedPatternFile(
     val version: ApiVersion,
 
     /** True if this represents a file from an extension module. */
-    val extension: Boolean = false,
+    val isExtension: Boolean = false,
 
     /** The optional module that was extracted from the [File] path. */
     val module: String? = null,
 
     /** The optional surface that was extracted from the [File] path. */
     val surface: ApiSurface? = null,
+
+    /** The optional library that was extracted from the [File] path. */
+    val library: String? = null,
 ) {
     /**
      * Create a string representation of the properties, used for testing and debugging.
@@ -886,8 +937,8 @@ data class MatchedPatternFile(
             append(file.path)
             append(", version=")
             append(version)
-            if (extension) {
-                append(", extension=true")
+            if (isExtension) {
+                append(", isExtension=true")
             }
             if (module != null) {
                 append(", module='")
@@ -897,6 +948,11 @@ data class MatchedPatternFile(
             if (surface != null) {
                 append(", surface='")
                 append(surface.name)
+                append("'")
+            }
+            if (library != null) {
+                append(", library='")
+                append(library)
                 append("'")
             }
             append(")")
@@ -912,11 +968,13 @@ private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
     // If any of the selectors return `null` that will compare before any other value.
     compareBy(
         // Group into those that are for the primary API and those that are for an extension.
-        { it.extension },
+        { it.isExtension },
         // Group into those without modules and then by those with module, in order.
         { it.module },
         // Then sort them from the lowest version to the highest version.
         { it.version },
+        // Group into those without libraries and then by those with library, in order.
+        { it.library },
         // Then group into those without surface and then by those with a surface, in order.
         { it.surface },
     )

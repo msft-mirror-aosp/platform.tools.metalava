@@ -176,7 +176,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     <root>
                       <item name="test.pkg.LongDefTest void setFlags(java.lang.Object, int) 1">
                         <annotation name="androidx.annotation.LongDef">
-                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
+                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3L, 4L}" />
                           <val name="flag" val="true" />
                         </annotation>
                       </item>
@@ -187,7 +187,7 @@ class ExtractAnnotationsTest : DriverTest() {
                       </item>
                       <item name="test.pkg.LongDefTest.Inner void setInner(int) 0">
                         <annotation name="androidx.annotation.LongDef">
-                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
+                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3L, 4L}" />
                           <val name="flag" val="true" />
                         </annotation>
                       </item>
@@ -259,7 +259,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     <root>
                       <item name="test.pkg.LongDefTest void setFlags(java.lang.Object, int) 1">
                         <annotation name="androidx.annotation.LongDef">
-                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
+                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3L, 4L}" />
                           <val name="flag" val="true" />
                         </annotation>
                       </item>
@@ -270,7 +270,7 @@ class ExtractAnnotationsTest : DriverTest() {
                       </item>
                       <item name="test.pkg.LongDefTest.Inner void setInner(int) 0">
                         <annotation name="androidx.annotation.LongDef">
-                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
+                          <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3L, 4L}" />
                           <val name="flag" val="true" />
                         </annotation>
                       </item>
@@ -357,7 +357,6 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Include merged annotations in exported source annotations`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
             sourceFiles =
                 arrayOf(
@@ -424,7 +423,6 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Only including class retention annotations in stubs`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -463,7 +461,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     <root>
                       <item name="test.pkg.Test java.lang.String sayHello(int) 0">
                         <annotation name="androidx.annotation.IntRange">
-                          <val name="from" val="10" />
+                          <val name="from" val="10L" />
                         </annotation>
                       </item>
                     </root>
@@ -472,6 +470,7 @@ class ExtractAnnotationsTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.METHOD_BODY)
     @Test
     fun `Check warning about unexpected returns from typedef method`() {
         check(
@@ -656,7 +655,6 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Test generics in XML attributes are encoded`() {
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -680,7 +678,7 @@ class ExtractAnnotationsTest : DriverTest() {
                 <root>
                   <item name="test.pkg.MyTest void test(java.util.List&lt;java.lang.Integer&gt;, int) 1">
                     <annotation name="androidx.annotation.IntRange">
-                      <val name="from" val="10" />
+                      <val name="from" val="10L" />
                     </annotation>
                   </item>
                 </root>
@@ -810,15 +808,23 @@ class ExtractAnnotationsTest : DriverTest() {
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
-                        // TODO(b/331752084): Add missing annotations
                         """
                             <?xml version="1.0" encoding="UTF-8"?>
                             <root>
                               <item name="test.pkg.Foo void foo1()">
+                                <annotation name="androidx.annotation.RequiresPermission">
+                                  <val name="value" val="&quot;Permission1&quot;" />
+                                </annotation>
                               </item>
                               <item name="test.pkg.Foo void foo2()">
+                                <annotation name="androidx.annotation.RequiresPermission">
+                                  <val name="value" val="&quot;Permission2&quot;" />
+                                </annotation>
                               </item>
                               <item name="test.pkg.Foo void foo3()">
+                                <annotation name="androidx.annotation.RequiresPermission">
+                                  <val name="value" val="&quot;UnresolvedPermission&quot;" />
+                                </annotation>
                               </item>
                             </root>
                         """

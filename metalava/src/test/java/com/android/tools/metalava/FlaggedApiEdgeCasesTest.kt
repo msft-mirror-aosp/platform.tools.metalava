@@ -17,7 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -38,51 +40,25 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                 ),
             sourceFiles =
                 arrayOf(
-                    // A class that will be ignored during the initial codebase creation. However,
-                    // as it is referenced from test.pkg.Test class below it will be loaded in later
-                    // and that will result in it having an origin of ClassOrigin.SOURCE_PATH
-                    // instead of ClassOrigin.COMMAND_LINE like test.pkg.Test.
-                    java(
-                        """
-                            package other.pkg;
-                            import $ANDROID_FLAGGED_API;
-
-                            public abstract class Other {
-                                @$ANDROID_FLAGGED_API("flag.name")
-                                public abstract void method();
-                            }
-                        """
-                    ),
                     java(
                         """
                             package test.pkg;
+                            import $ANDROID_FLAGGED_API;
 
-                            public final class Test extends other.pkg.Other {
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            public final class Test {
                                 private Test() {}
-                                // Overrides the flagged method in other.pkg.Other. The flagged
-                                // status of the overridden method should be ignored because the
-                                // containing class is not contributing to this API and there is no
-                                // previously released API provided so reverting will result in this
-                                // method being removed.
-                                @Override public void method() {}
                             }
                         """
                     ),
                     flaggedApiSource
                 ),
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public final class Test extends other.pkg.Other {
-                            Test() { throw new RuntimeException("Stub!"); }
-                            public void method() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    )
-                ),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                """,
         )
     }
 
@@ -154,6 +130,65 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     }
 
     @Test
+    fun `Test reverting class with --show-single-annotation`() {
+        check(
+            // Use an empty api flags which defaults all flags to disabled.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_SINGLE_ANNOTATION,
+                    "android.annotation.SystemApi",
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                            * @hide
+                            */
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            @$ANDROID_SYSTEM_API
+                            public class Test {
+                                // A member of a class that is annotated with a show annotation but
+                                // is not marked as @hide. Usually, that would usually report an
+                                // error but the show annotation is a --show-single-annotation
+                                // so the @hide is not required.
+                                @$ANDROID_SYSTEM_API
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                    systemApiSource,
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        method public void method();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
     fun `Test javadoc for flagged class includes @apiSince`() {
         check(
             configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
@@ -190,6 +225,53 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                              * Javadoc for Test
                              * @apiSince 31
                              */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unresolvable flag field`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @$ANDROID_FLAGGED_API(UnresolvableFlag.FLAG_NAME)
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
                             Test() { throw new RuntimeException("Stub!"); }

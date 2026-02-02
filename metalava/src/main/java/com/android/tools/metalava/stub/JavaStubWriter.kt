@@ -18,10 +18,10 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
@@ -47,22 +47,6 @@ internal class JavaStubWriter(
             val qualifiedName = cls.containingPackage().qualifiedName()
             if (qualifiedName.isNotBlank()) {
                 writer.println("package $qualifiedName;")
-                writer.println()
-            }
-            if (config.includeDocumentationInStubs) {
-                // All the classes referenced in the stubs are fully qualified, so no imports are
-                // needed. However, in some cases for javadoc, replacement with fully qualified name
-                // fails, and thus we need to include imports for the stubs to compile.
-                cls.sourceFile()?.getImports()?.let {
-                    for (item in it) {
-                        if (item.isMember) {
-                            writer.println("import static ${item.pattern};")
-                        } else {
-                            writer.println("import ${item.pattern};")
-                        }
-                    }
-                    writer.println()
-                }
             }
         }
 
@@ -86,7 +70,7 @@ internal class JavaStubWriter(
         generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
         generateSuperClassDeclaration(cls)
         generateInterfaceList(cls)
-        writer.print(" {\n")
+        writer.println(" {")
 
         // Enum constants must be written out first.
         if (cls.isEnum()) {
@@ -118,7 +102,7 @@ internal class JavaStubWriter(
     }
 
     override fun afterVisitClass(cls: ClassItem) {
-        writer.print("}\n\n")
+        writer.println("}")
     }
 
     private fun appendModifiers(item: Item) {
@@ -172,7 +156,6 @@ internal class JavaStubWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        writer.println()
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
         generateTypeParameterList(typeList = constructor.typeParameterList, addSpace = true)
@@ -300,7 +283,6 @@ internal class JavaStubWriter(
     }
 
     private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
-        writer.println()
         appendDocumentation(method, writer, config)
 
         appendModifiers(method)
@@ -315,10 +297,9 @@ internal class JavaStubWriter(
         generateThrowsList(method)
 
         if (containingClass.isAnnotationType()) {
-            val default = method.legacyDefaultValue()
-            if (default.isNotEmpty()) {
+            method.defaultValue?.let { defaultValue ->
                 writer.print(" default ")
-                writer.print(default)
+                writer.print(defaultValue.toValueString())
             }
         }
 
@@ -337,8 +318,6 @@ internal class JavaStubWriter(
             return
         }
 
-        writer.println()
-
         appendDocumentation(field, writer, config)
         appendModifiers(field)
         writer.print(field.type().toTypeString())
@@ -346,11 +325,7 @@ internal class JavaStubWriter(
         writer.print(field.name())
 
         // Write the value, if any, falling back to the non-constant expression provider.
-        val valueWasWritten =
-            field.writeValueWithSemicolon(
-                writer,
-                JavaStubWriter::nonConstantExpressionProvider,
-            )
+        val valueWasWritten = field.writeFieldValue(writer)
         writer.print("\n")
 
         // An initializer block is needed if no value was written by the call to
@@ -366,6 +341,45 @@ internal class JavaStubWriter(
             }
             writer.print("{ ${field.name()} = ${field.type().defaultValueString()}; }\n")
         }
+    }
+
+    /**
+     * If this field has no initial value, it just writes ";", otherwise it writes " = value;" with
+     * the correct Java syntax for the initial value.
+     *
+     * @param writer the [PrintWriter] to which this will write the field value.
+     * @return `true` if a value was written, false otherwise.
+     */
+    private fun FieldItem.writeFieldValue(
+        writer: PrintWriter,
+    ): Boolean {
+        // Use [constantValue] which is only non-null on static final fields.
+        val constantValue = constantValue
+        if (constantValue != null) {
+            writer.print(" = ")
+            writer.print(constantValue.toValueString())
+            writer.print(";")
+            // A value was written.
+            return true
+        }
+
+        // A non-constant expression initializer is only needed if the field is static and final. If
+        // it was just final and not static then it must be part of a normal class or an enum in
+        // which case they will use a separate initializer block to initialize the field.
+        if (modifiers.isFinal() && modifiers.isStatic()) {
+            // Get the non-constant expression, if possible. If one is provided then write it out.
+            nonConstantExpressionProvider(this)?.let { nonConstantExpression ->
+                writer.print(" = ")
+                writer.print(nonConstantExpression)
+                writer.print(";")
+                // A value was written.
+                return true
+            }
+        }
+
+        writer.print(';')
+        // A value was not written.
+        return false
     }
 
     private fun writeThrowStub() {
@@ -391,7 +405,8 @@ internal class JavaStubWriter(
         val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             writer.print(" throws ")
-            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ClassOrVariableTypeItem.fullNameComparator).forEachIndexed { i, type
+                ->
                 if (i > 0) {
                     writer.print(", ")
                 }

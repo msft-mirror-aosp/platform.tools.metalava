@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -47,7 +48,7 @@ open class DefaultMethodItem(
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
-    private val annotationDefault: String = "",
+    private val isExtensionMethod: Boolean,
 ) :
     DefaultCallableItem(
         codebase,
@@ -69,9 +70,7 @@ open class DefaultMethodItem(
 
     final override var inheritedFrom: ClassItem? = null
 
-    override fun isExtensionMethod(): Boolean = false // java does not support extension methods
-
-    override fun legacyDefaultValue() = annotationDefault
+    override fun isExtensionMethod(): Boolean = isExtensionMethod
 
     final override val defaultValue
         get() = defaultValueProvider?.optionalValue
@@ -113,7 +112,7 @@ open class DefaultMethodItem(
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
-                documentationFactory = documentation::duplicate,
+                documentationFactory = documentation.duplicatingFactory(),
                 variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
@@ -126,7 +125,7 @@ open class DefaultMethodItem(
                 throwsTypes = throwsTypes,
                 callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
-                annotationDefault = annotationDefault,
+                isExtensionMethod = isExtensionMethod,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -214,7 +213,7 @@ open class DefaultMethodItem(
      */
     private fun appendSuperMethodsFromInterfaces(methods: MutableSet<MethodItem>, cls: ClassItem) {
         for (itf in cls.interfaceTypes()) {
-            val itfClass = itf.asClass() ?: continue
+            val itfClass = itf.resolveClass(codebase) ?: continue
 
             // Find the method in the interface.
             itfClass.findMethod(this)?.let { superMethod ->

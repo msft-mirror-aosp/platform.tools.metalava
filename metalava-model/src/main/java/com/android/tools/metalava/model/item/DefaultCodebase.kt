@@ -16,13 +16,10 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeAliasItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -68,8 +65,8 @@ open class DefaultCodebase(
 
     override val reporter: Reporter = config.reporter
 
-    /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker(assembler::createPackageItem)
+    /** Tracks [PackageItem] use in this [Codebase]. */
+    val packageTracker = PackageTracker(assembler)
 
     final override fun getPackages() = packageTracker.getPackages()
 
@@ -77,10 +74,7 @@ open class DefaultCodebase(
 
     final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
-    fun findOrCreatePackage(
-        packageName: String,
-        packageDocs: PackageDocs = PackageDocs.EMPTY,
-    ) = packageTracker.findOrCreatePackage(packageName, packageDocs)
+    fun findOrCreatePackage(packageName: String) = packageTracker.findOrCreatePackage(packageName)
 
     /**
      * Map from fully qualified name to [DefaultClassItem] for every class created by this.
@@ -110,24 +104,6 @@ open class DefaultCodebase(
         for (classItem in topLevelClassesFromSource) {
             classItem.freeze()
         }
-    }
-
-    /** Tracks all known type aliases in the codebase by qualified name. */
-    private val allTypeAliasesByName = HashMap<String, DefaultTypeAliasItem>()
-
-    override fun findTypeAlias(typeAliasName: String): TypeAliasItem? {
-        return allTypeAliasesByName[typeAliasName]
-    }
-
-    /**
-     * Adds the [typeAlias] to the [Codebase], throwing an error if there is already a type alias
-     * with the same qualified name.
-     */
-    internal fun addTypeAlias(typeAlias: DefaultTypeAliasItem) {
-        if (typeAlias.qualifiedName in allTypeAliasesByName) {
-            error("Duplicate typealias ${typeAlias.qualifiedName}")
-        }
-        allTypeAliasesByName[typeAlias.qualifiedName] = typeAlias
     }
 
     /**
@@ -193,10 +169,10 @@ open class DefaultCodebase(
         return created
     }
 
-    override fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        return DefaultAnnotationItem.createFromSource(this, source)
+    final override fun resolvePackage(pkgName: String): PackageItem? {
+        findPackage(pkgName)?.let {
+            return it
+        }
+        return assembler.createPackageFromUnderlyingModel(pkgName)
     }
 }

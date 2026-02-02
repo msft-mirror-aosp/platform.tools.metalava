@@ -51,7 +51,13 @@ fun addApisFromCodebase(
             }
 
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.updateClass(cls.nameInApi(), updater, cls.effectivelyDeprecated)
+                val newClass =
+                    api.updateClass(
+                        cls.nameInApi(),
+                        updater,
+                        cls.effectivelyDeprecated,
+                        cls.isEnum(),
+                    )
                 currentClass = newClass
 
                 when (cls.classKind) {
@@ -70,11 +76,6 @@ fun addApisFromCodebase(
                         if (newClass.name != enumClass) {
                             newClass.updateSuperClass(enumClass, updater)
                         }
-
-                        // Mimic doclava enum methods
-                        enumMethodNames(newClass.name).forEach { name ->
-                            newClass.updateMethod(name, updater, false)
-                        }
                     }
                     ClassKind.ANNOTATION_TYPE -> {
                         // Implicit super class; match convention from bytecode
@@ -83,10 +84,13 @@ fun addApisFromCodebase(
                             newClass.updateInterface(annotationClass, updater)
                         }
                     }
+                    // Typealiases aren't like regular classes and don't have a super class or
+                    // interfaces.
+                    ClassKind.TYPEALIAS -> {}
                 }
 
                 for (interfaceType in cls.interfaceTypes()) {
-                    val interfaceClass = interfaceType.asClass() ?: return
+                    val interfaceClass = interfaceType.resolveClass(cls.codebase) ?: return
                     newClass.updateInterface(interfaceClass.nameInApi(), updater)
                 }
             }
@@ -159,44 +163,7 @@ fun addApisFromCodebase(
                 val separator = if (useInternalNames) "/" else "."
                 return nameParts.joinToString(separator)
             }
-
-            /** The names of the doclava enum methods, based on [Api.useInternalNames] */
-            fun enumMethodNames(className: String): List<String> {
-                return if (useInternalNames) {
-                    listOf("valueOf(Ljava/lang/String;)L$className;", "values()[L$className;")
-                } else {
-                    listOf("valueOf(java.lang.String)", "values()")
-                }
-            }
         }
 
     codebaseFragment.accept(delegatedVisitor)
-}
-
-/**
- * Like [CallableItem.internalName] but is the desc-portion of the internal signature, e.g. for the
- * method "void create(int x, int y)" the internal name of the constructor is "create" and the desc
- * is "(II)V"
- */
-fun CallableItem.internalDesc(voidConstructorTypes: Boolean = false): String {
-    val sb = StringBuilder()
-    sb.append("(")
-
-    // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
-    // outer type
-    if (
-        isConstructor() &&
-            containingClass().containingClass() != null &&
-            !containingClass().modifiers.isStatic()
-    ) {
-        sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
-    }
-
-    for (parameter in parameters()) {
-        sb.append(parameter.type().internalName())
-    }
-
-    sb.append(")")
-    sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
-    return sb.toString()
 }

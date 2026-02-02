@@ -19,11 +19,17 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import java.util.function.Predicate
 
 open class ApiVisitor(
     /** @see BaseItemVisitor.preserveClassNesting */
@@ -31,6 +37,9 @@ open class ApiVisitor(
 
     /** @see BaseItemVisitor.visitParameterItems */
     visitParameterItems: Boolean = true,
+
+    /** Whether to visit typealiases in a package after all other [ClassItem]s have been visited. */
+    private val sortTypeAliasesLast: Boolean = true,
 
     /** Whether to include inherited fields too */
     private val inlineInheritedFields: Boolean = true,
@@ -48,6 +57,12 @@ open class ApiVisitor(
      * annotated API relative to the base API.
      */
     protected val showUnannotated: Boolean = true,
+
+    /**
+     * The target languages to consider. If an item's target languages do not include any of these
+     * languages, it will be skipped.
+     */
+    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
 
     constructor(
@@ -56,16 +71,20 @@ open class ApiVisitor(
 
         /** Configuration that may come from the command line. */
         apiPredicateConfig: ApiPredicate.Config,
+
+        /** The target languages to consider. */
+        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
     ) : this(
         visitParameterItems = visitParameterItems,
         apiFilters = defaultFilters(apiPredicateConfig),
+        targetLanguages = targetLanguages,
     )
 
     /** The filter to use to determine if we should emit an item */
-    protected val filterEmit = apiFilters.emit
+    protected val filterEmit = addTargetLanguageCheck(apiFilters.emit, targetLanguages)
 
     /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference = apiFilters.reference
+    protected val filterReference = addTargetLanguageCheck(apiFilters.reference, targetLanguages)
 
     companion object {
         /** Get the default [ApiFilters] to use with [ApiVisitor]. */
@@ -89,14 +108,36 @@ open class ApiVisitor(
                 includeApisForStubPurposes = true,
                 config = apiPredicateConfig.copy(ignoreShown = true),
             )
+
+        /**
+         * Updates the [filter] to also check that the [SelectableItem] has at least one of the
+         * [targetLanguages].
+         */
+        fun addTargetLanguageCheck(
+            filter: FilterPredicate,
+            targetLanguages: Set<TargetLanguage>
+        ): FilterPredicate {
+            return Predicate { item: SelectableItem ->
+                filter.test(item) && item.targetLanguages.intersect(targetLanguages).isNotEmpty()
+            }
+        }
     }
 
     /**
      * Visit a [List] of [ClassItem]s after sorting it into order defined by
-     * [ClassItem.classNameSorter].
+     * [ClassItem.classNameSorter]. If [sortTypeAliasesLast] is true, type aliases are after all
+     * other classes.
      */
     private fun visitClassList(classes: List<ClassItem>) {
-        classes.sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
+        val sortedByName = classes.sortedWith(ClassItem.classNameSorter())
+        if (sortTypeAliasesLast) {
+                // [sortedBy] is a stable sort, so the name order will be preserved within the
+                // non-typealias classes and within the typealiases.
+                sortedByName.sortedBy { it.classKind == ClassKind.TYPEALIAS }
+            } else {
+                sortedByName
+            }
+            .forEach { it.accept(this) }
     }
 
     /**
@@ -126,16 +167,14 @@ open class ApiVisitor(
         val classesToVisitDirectly: List<ClassItem> =
             packageClassesAsSequence(pkg).mapNotNull { getVisitCandidateIfNeeded(it) }.toList()
 
-        // If none of the classes in this package will be visited them ignore the package entirely.
-        // TODO (b/135191699): also check if there are type aliases before returning
+        // If none of the classes or typealiases in this package will be visited then ignore the
+        // package entirely.
         if (classesToVisitDirectly.isEmpty()) return
 
         wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
             visitPackage(pkg)
 
             visitClassList(classesToVisitDirectly)
-
-            pkg.typeAliases().sortedBy { it.simpleName }.forEach { it.accept(this) }
 
             afterVisitPackage(pkg)
         }

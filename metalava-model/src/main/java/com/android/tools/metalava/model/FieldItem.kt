@@ -16,16 +16,22 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.value.ConstantValue
-import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem, InheritableItem {
+interface FieldItem : MemberItem, InheritableItem, ReferencableItem {
     /** The property this field backs; inverse of [PropertyItem.backingField] */
     val property: PropertyItem?
         get() = null
+
+    override fun describe(capitalize: Boolean) =
+        if (isEnumConstant()) {
+            "${if (capitalize) "Enum" else "enum"} constant ${containingClass().qualifiedName()}.${name()}"
+        } else {
+            "${if (capitalize) "Field" else "field"} ${containingClass().qualifiedName()}.${name()}"
+        }
 
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
@@ -37,66 +43,16 @@ interface FieldItem : MemberItem, InheritableItem {
     ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
     /**
-     * The optional value of this [FieldItem].
-     *
-     * This is called `legacy` because this an old, inconsistent representation of the field value
-     * that exposes implementation details. It will be replaced by a properly modelled value
-     * representation.
-     */
-    val legacyFieldValue: FieldValue?
-
-    /**
-     * The legacy initial/constant value, if any. If [requireConstant] the initial value will only
-     * be returned if it's constant.
-     *
-     * This is called `legacy` because this an old, inconsistent representation of the field value
-     * that exposes implementation details. It will be replaced by a properly modelled value
-     * representation.
-     */
-    fun legacyInitialValue(requireConstant: Boolean = true): Any?
-
-    /**
-     * The optional initial value of the field.
-     *
-     * This is the [Value] provided in the source (or for constant fields in the jar) and may not be
-     * included in the API even if the [FieldItem] is. See [constantValue] for the API value. This
-     * may differ between implementation models and is likely to be removed.
-     *
-     * Replacement for [legacyInitialValue] and [legacyFieldValue].
-     *
-     * The [Value] may be the result of a constant expression as defined by JLS 15.28, i.e. a value
-     * of a primitive or [String] type (see [ConstantValue]), or it could be some other value, e.g.
-     * enum, class literal, etc.
-     *
-     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
-     * behavior is correctly maintained, i.e.:
-     * * `legacyInitialValue(true)` will become [constantValue].
-     * * `legacyInitialValue(false)` will become [initialValue].
-     */
-    val initialValue: Value?
-
-    /**
      * The optional constant value of the field.
      *
      * This is the [constantValue] provided in the source or in the jar and will be part of the API
-     * if the [FieldItem] is. See [initialValue] for the API value.
-     *
-     * Replacement for [legacyInitialValue] and [legacyFieldValue].
+     * if the [FieldItem] is.
      *
      * The [ConstantValue] is the result of a constant expression as defined by JLS 15.28, i.e. a
      * value of a primitive or [String] type (see [ConstantValue]) on a field which is `static` and
      * `final`.
-     *
-     * When migrating code from [legacyInitialValue] to [initialValue] it is important that the
-     * behavior is correctly maintained, i.e.:
-     * * `legacyInitialValue(true)` will become [constantValue].
-     * * `legacyInitialValue(false)` will become [initialValue].
      */
     val constantValue: ConstantValue?
-        get() =
-            // Make sure the field is static and final and return the constant value.
-            if (modifiers.isStatic() && modifiers.isFinal()) initialValue?.asLiteralValue()
-            else null
 
     /**
      * An enum can contain both enum constants and fields; this method provides a way to distinguish
@@ -130,42 +86,6 @@ interface FieldItem : MemberItem, InheritableItem {
 
     override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
 
-    /**
-     * Check the declared value with a typed comparison, not a string comparison, to accommodate
-     * toolchains with different fp -> string conversions.
-     */
-    fun hasSameConstantValue(other: FieldItem): Boolean {
-        val thisConstant = constantValue
-        val otherConstant = other.constantValue
-        if (thisConstant == null != (otherConstant == null)) {
-            return false
-        }
-
-        // Null values are considered equal
-        if (thisConstant == null) {
-            return true
-        }
-
-        if (type() != other.type()) {
-            return false
-        }
-
-        if (thisConstant == otherConstant) {
-            return true
-        }
-
-        if (thisConstant.toValueString() == otherConstant?.toValueString()) {
-            // TODO(b/354633349): Add support for a special compare ignoring type that handles all
-            //   the conversions that the ValueFactory.createLiteralValue(...) handles.
-            // e.g. Integer(3) and Short(3) are the same; when comparing
-            // with signature files we sometimes don't have the right
-            // types from signatures
-            return true
-        }
-
-        return false
-    }
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
@@ -184,15 +104,10 @@ interface FieldItem : MemberItem, InheritableItem {
      * the correct Java syntax for the initial value.
      *
      * @param writer the [PrintWriter] to which this will write the field value.
-     * @param nonConstantExpressionProvider optional provider of an expression that will initialize
-     *   the field but will not be considered to be a constant expression as defined in JLS 15.28.
-     * @return `true` if a value was written, false otherwise.
      */
-    fun writeValueWithSemicolon(
-        writer: PrintWriter,
-        nonConstantExpressionProvider: ((FieldItem) -> String?)? = null,
-    ): Boolean {
-        when (val value = legacyInitialValue(true)) {
+    fun writeValueWithSemicolon(writer: PrintWriter) {
+        // Use [constantValue] which is only non-null on static final fields.
+        when (val value = constantValue?.asAny()) {
             is Int -> {
                 writer.print(" = ")
                 writer.print(value)
@@ -266,30 +181,9 @@ interface FieldItem : MemberItem, InheritableItem {
                 )
             }
             else -> {
-                // A non-constant expression initializer is only needed if the field is static and
-                // final. If it was just final and not static then it must be part of a normal class
-                // or an enum in which case they will use a separate initializer block to initialize
-                // the field.
-                if (modifiers.isFinal() && modifiers.isStatic()) {
-                    // Get the non-constant expression, if possible. If one is provided then write
-                    // it out.
-                    nonConstantExpressionProvider?.invoke(this)?.let { nonConstantExpression ->
-                        writer.print(" = ")
-                        writer.print(nonConstantExpression)
-                        writer.print("; // Not compile-time constant")
-                        // A value was written.
-                        return true
-                    }
-                }
-
                 writer.print(';')
-                // A value was not written.
-                return false
             }
         }
-
-        // A value was written.
-        return true
     }
 }
 

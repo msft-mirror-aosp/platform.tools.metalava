@@ -17,11 +17,15 @@
 package com.android.tools.metalava.model.testsuite.sourcefile
 
 import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Common tests for implementations of [SourceFile]. */
@@ -30,145 +34,127 @@ class CommonSourceFileTest : BaseModelTest() {
         override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
-    fun `test sourcefile imports`() {
+    fun `Test location of class file - java`() {
         runSourceCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
+            java(
+                """
+                    package test.pkg;
 
-                        import static test.pkg2.Test1.FIELD;
-                        import static test.pkg2.Test1.method;
-                        import test.pkg1.*;
-                        import test.Test.Inner;
-                        import test.Test;
-                        import empty.*;
-                        import test.pkg1.Test2;
-                        import java.util.*;
-
-                        /** {@link method} {@link Inner} {@link Test}*/
-                        public class Test {
-                            /** {@link FIELD} */
-                            public static int FIELD;
-                        }
-
-                        class Outer {
-                            class Inner {}
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg2;
-
-                        class Test1 {
-                            public static final int FIELD = 7;
-
-                            public static void method1(int a) {}
-                            public static int method() { return 7;}
-                        }
-                     """
-                ),
-                java(
-                    """
-                        package test.pkg1;
-
-                        public class Test1 {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg1;
-
-                        public class Test2 {}
-                    """
-                ),
-                java(
-                    """
-                        package test;
-
-                        /** @hide */
-                        public class Test {
-                            class Inner {}
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package empty;
-                    """
-                ),
-            )
+                    public class Test {}
+                """
+            ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val sourceFile = classItem.sourceFile()!!
 
-            // Create the Import objects that are expected.
-            val classItem1 = codebase.assertClass("test.Test")
-            val classImport = Import(classItem1)
-
-            val innerClassItem = codebase.assertClass("test.Test.Inner")
-            val innerClassImport = Import(innerClassItem)
-
-            val pkgItem = codebase.assertPackage("test.pkg1")
-            val packageImport = Import(pkgItem)
-
-            // Only class imports that are referenced in documentation are included.
-            // The wildcard imports are always included (except for empty packages and packages from
-            // classpath).
-            // Method and Field imports don't seem to resolve and are not included.
-            val allImports = sourceFile.getImports()
             assertEquals(
-                setOf(classImport, innerClassImport, packageImport),
-                allImports,
-                message = "unfiltered imports"
+                "MAIN_SRC/src/test/pkg/Test.java",
+                removeTestSpecificDirectories(sourceFile.fileLocation.toString())
             )
+        }
+    }
 
-            val notHiddenImports = sourceFile.getImports(FilterHidden())
-            assertEquals(setOf(packageImport), notHiddenImports, message = "filtered hidden")
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test location of class file - kotlin`() {
+        runSourceCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.kt",
+                removeTestSpecificDirectories(sourceFile.fileLocation.toString())
+            )
         }
     }
 
     @Test
-    fun `test sourcefile imports from classpath`() {
+    fun `Test header comments`() {
         runSourceCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
+            java(
+                """
+                    /*
+                     * Copyright comment.
+                     */
 
-                        import java.util.List;
-                        import java.util.Set;
+                    // Inline comment before package
 
-                        /** {@link List} {@link Set}*/
-                        public class Foo {
-                            public static List<String> LIST_FIELD;
-                            public static Set<String> SET_FIELD;
-                        }
-                    """
-                ),
-            )
+                    package test.pkg;
+
+                    // Inline comment before class
+
+                    /*
+                     * Multi-line comment
+                     * before class.
+                     */
+
+                    /**
+                     * Main class comment.
+                     */
+                    public class Test {}
+
+                    // Inline comment after class
+
+                    /*
+                     * Multi-line comment
+                     * after class.
+                     */
+                """
+            ),
+            kotlin(
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    // Inline comment before package
+
+                    package test.pkg
+
+                    // Inline comment before class
+
+                    /*
+                     * Multi-line comment
+                     * before class.
+                     */
+
+                    /**
+                     * Main class comment.
+                     */
+                    class Test {}
+
+                    // Inline comment after class
+
+                    /*
+                     * Multi-line comment
+                     * after class.
+                     */
+                """
+            ),
         ) {
-            val classItem = codebase.assertClass("test.pkg.Foo")
+            val classItem = codebase.assertClass("test.pkg.Test")
             val sourceFile = classItem.sourceFile()!!
 
-            // Get the imports before resolving java.util.Set to see how the getImports(...) methods
-            // behave with unresolved classes.
-            val allImports = sourceFile.getImports()
-
-            // Create the Import objects that are expected.
-            val listClassItem = codebase.assertResolvedClass("java.util.List")
-            val listClassImport = Import(listClassItem)
-
-            val setClassItem = codebase.assertResolvedClass("java.util.Set")
-            val setClassImport = Import(setClassItem)
-
-            // Makes sure that classes from the classpath are included in the imports.
             assertEquals(
-                setOf(listClassImport, setClassImport),
-                allImports,
-                message = "unfiltered imports"
+                """
+                    /*
+                     * Copyright comment.
+                     */
+
+                    // Inline comment before package
+                """
+                    .trimIndent(),
+                sourceFile.getHeaderComments()?.trimEnd()
             )
         }
     }
@@ -193,6 +179,29 @@ class CommonSourceFileTest : BaseModelTest() {
             val sourceFile = classItem.sourceFile()!!
 
             assertEquals(listOf(classItem, outerClassItem), sourceFile.classes().toList())
+        }
+    }
+
+    @Test
+    fun `Test codebase and containingPackage`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertSame(classItem.codebase, sourceFile.codebase, message = "codebase")
+            assertSame(
+                classItem.containingPackage(),
+                sourceFile.containingPackage,
+                message = "containingPackage"
+            )
         }
     }
 }

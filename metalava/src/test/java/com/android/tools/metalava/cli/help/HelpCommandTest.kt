@@ -188,7 +188,9 @@ Usage: metalava help historical-api-patterns
   * `version` - Mandatory property that stores the version of a matched file.
 
   Apart from the {version:extension} all placeholders for this will ignore versions that fall outside the range
-  --first-version and --current-version, if provided.
+  --api-version-range, if provided.
+
+  * `library` - Optional property that stores the name of a library.
 
   * `module` - Optional property that stores the name of the SDK extension module.
 
@@ -212,6 +214,9 @@ Usage: metalava help historical-api-patterns
 
   A pattern that includes this must also include `{module}` as SDK extension APIs are stored in a file per extension
   module.
+
+  * `{library}` - Placeholder for property `library`. Matches a library name which must consist of lower case letters,
+  hyphens and `.`s.
 
   * `{module}` - Placeholder for property `module`. Matches a module name which must consist of lower case letters,
   hyphens and `.`s.
