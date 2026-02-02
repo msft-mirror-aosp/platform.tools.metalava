@@ -95,9 +95,10 @@ internal constructor(
                     isVarArg = psiParameter.type is PsiEllipsisType,
                 )
             val parameter =
-                PsiParameterItem(
-                    psiCodebase = codebase,
-                    psiParameter = psiParameter,
+                DefaultParameterItem(
+                    codebase = codebase,
+                    fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
+                    sourceLanguage = psiParameter.sourceLanguage,
                     modifiers = modifiers,
                     name = name,
                     publicName =
