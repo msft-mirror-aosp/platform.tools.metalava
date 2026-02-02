@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -71,11 +70,6 @@ internal constructor(
     ),
     ClassItem,
     PsiItem {
-
-    /** Creates a constructor in this class */
-    override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
-        return PsiConstructorItem.createDefaultConstructor(psiCodebase, this, psiClass, visibility)
-    }
 
     override fun isMultiFileClass(): Boolean {
         return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false

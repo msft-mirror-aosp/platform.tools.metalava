@@ -18,25 +18,20 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.reporter.FileLocation
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -170,41 +165,6 @@ private constructor(
             }
 
             return constructor
-        }
-
-        fun createDefaultConstructor(
-            codebase: PsiBasedCodebase,
-            containingClass: ClassItem,
-            psiClass: PsiClass,
-            visibilityLevel: VisibilityLevel,
-        ): PsiConstructorItem {
-            val name = psiClass.name!!
-
-            val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
-            val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = createImmutableModifiers(visibilityLevel)
-
-            val item =
-                PsiConstructorItem(
-                    psiCodebase = codebase,
-                    psiMethod = psiMethod,
-                    // Use the location of the containing class for the implicit default
-                    // constructor.
-                    fileLocation = containingClass.fileLocation,
-                    containingClass = containingClass,
-                    name = name,
-                    modifiers = modifiers,
-                    documentationFactory = ItemDocumentation.NONE_FACTORY,
-                    parameterItemsFactory = { emptyList() },
-                    returnType = containingClass.type(),
-                    typeParameterList = TypeParameterList.NONE,
-                    throwsTypes = emptyList(),
-                    // A default constructor has no method body.
-                    callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
-                    implicitConstructor = true,
-                    targetLanguages = TargetLanguageSet.ALL,
-                )
-            return item
         }
 
         /**

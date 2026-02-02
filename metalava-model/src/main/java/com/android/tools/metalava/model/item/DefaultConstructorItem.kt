@@ -110,8 +110,8 @@ open class DefaultConstructorItem(
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
                     callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
-                    // This is not an implicit constructor as it was not created by the compiler.
-                    implicitConstructor = false,
+                    // This is an implicit constructor as it was not found in the source.
+                    implicitConstructor = true,
                 )
             return ctorItem
         }
