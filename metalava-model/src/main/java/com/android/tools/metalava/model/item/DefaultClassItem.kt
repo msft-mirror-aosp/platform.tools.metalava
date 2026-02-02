@@ -67,6 +67,7 @@ open class DefaultClassItem(
      * Otherwise, it should be null.
      */
     optionalAliasedType: TypeItem?,
+    override val isMultiFileClass: Boolean = false,
 ) :
     DefaultSelectableItem(
         codebase = codebase,

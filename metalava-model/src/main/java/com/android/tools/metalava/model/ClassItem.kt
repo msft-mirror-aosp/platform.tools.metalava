@@ -219,7 +219,6 @@ interface ClassItem :
      * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
      */
     val isMultiFileClass: Boolean
-        get() = false
 
     override fun describe(capitalize: Boolean): String {
         val descriptor =
