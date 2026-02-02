@@ -254,8 +254,13 @@ interface MethodItem : CallableItem, InheritableItem {
      */
     val defaultValue: Value?
 
-    /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
-    fun isKotlinProperty(): Boolean = false
+    /**
+     * Whether this method is a getter/setter for an underlying Kotlin property (val/var).
+     *
+     * This should be the same as `property != null` but this may be called before [property] has
+     * been initialized.
+     */
+    val isKotlinProperty: Boolean
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that

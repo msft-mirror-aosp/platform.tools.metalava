@@ -54,8 +54,10 @@ import java.util.IdentityHashMap
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
 class CodebaseSnapshotTaker
-private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) :
-    DefaultCodebaseAssembler(), DelegatedVisitor {
+private constructor(
+    referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
+    private val includeDocumentation: Boolean,
+) : DefaultCodebaseAssembler(), DelegatedVisitor {
 
     /**
      * The [Codebase] that is under construction.
@@ -172,6 +174,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         itemToSnapshot: SelectableItem,
         documentedItem: SelectableItem,
     ): ItemDocumentationFactory {
+        // Only snapshot documentation when required.
+        if (!includeDocumentation) return ItemDocumentation.NONE_FACTORY
+
         val documentation = documentedItem.documentation ?: return ItemDocumentation.NONE_FACTORY
 
         // The documentation does not need to be reverted if...
@@ -447,11 +452,12 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             codebase: Codebase,
             definitionVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
             referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
+            includeDocumentation: Boolean,
         ): Codebase {
             // Create a snapshot taker that will construct the snapshot. Pass in the
             // referenceVisitorFactory so it can create the reference visitor for use in creating
             // Items that are referenced from the snapshot.
-            val taker = CodebaseSnapshotTaker(referenceVisitorFactory)
+            val taker = CodebaseSnapshotTaker(referenceVisitorFactory, includeDocumentation)
 
             // Wrap it in a visitor that will determine which Items are defined in the snapshot and
             // then apply that visitor to the input codebase.

@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.CallableBody
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -56,6 +58,7 @@ private constructor(
     returnType: ClassTypeItem,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
+    callableBodyFactory: CallableBodyFactory,
     implicitConstructor: Boolean = false,
     isPrimary: Boolean = false,
     targetLanguages: Set<TargetLanguage>,
@@ -74,7 +77,7 @@ private constructor(
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
-        callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+        callableBodyFactory = callableBodyFactory,
         implicitConstructor = implicitConstructor,
         isPrimary = isPrimary,
     ),
@@ -136,6 +139,7 @@ private constructor(
                     returnType = containingClass.type(),
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
+                    callableBodyFactory = { PsiCallableBody(codebase, it, psiMethod) },
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                     targetLanguages = targetLanguages,
@@ -195,6 +199,8 @@ private constructor(
                     returnType = containingClass.type(),
                     typeParameterList = TypeParameterList.NONE,
                     throwsTypes = emptyList(),
+                    // A default constructor has no method body.
+                    callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
                     implicitConstructor = true,
                     targetLanguages = TargetLanguageSet.ALL,
                 )
