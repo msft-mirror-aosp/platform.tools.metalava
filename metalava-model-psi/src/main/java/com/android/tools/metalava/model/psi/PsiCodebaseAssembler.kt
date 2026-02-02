@@ -449,12 +449,7 @@ internal class PsiCodebaseAssembler(
             }
         }
 
-        // Note that this is dependent on the constructor filtering above. UAST sometimes
-        // reports duplicate primary constructors, e.g.: the implicit no-arg constructor
-        // If the primary constructor has optional arguments, `isPrimary` will be true for all
-        // overloads, so there won't be one constructor selected as the class primary constructor.
         val constructors = classItem.constructors()
-        constructors.singleOrNull { it.isPrimary }?.let { classItem.primaryConstructor = it }
         val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
         if (hasImplicitDefaultConstructor) {
             assert(constructors.isEmpty())
