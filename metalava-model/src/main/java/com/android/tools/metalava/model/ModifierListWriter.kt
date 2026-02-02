@@ -291,7 +291,9 @@ private constructor(
             var printAnnotation = annotation
             if (!annotation.targets.contains(target)) {
                 continue
-            } else if ((annotation.isNullnessAnnotation())) {
+            } else if (annotation.isNullnessAnnotation()) {
+                // skip Nullness annotations if requested, otherwise fall through the if-statements
+                // like any other annotation
                 if (skipNullnessAnnotations) {
                     continue
                 }
