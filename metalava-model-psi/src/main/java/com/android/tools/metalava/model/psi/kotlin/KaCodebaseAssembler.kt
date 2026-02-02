@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -54,7 +55,6 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiItemDocumentation
-import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
@@ -1171,7 +1171,7 @@ private constructor(
         receiverType: TypeItem?,
         isGetter: Boolean,
         visibility: KaSymbolVisibility,
-    ): PsiMethodItem? {
+    ): MethodItem? {
         // Generally, properties using a value class type cannot be accessed from Java. However, if
         // JvmName is used, they can be, but the inlined type needs to be used to find the accessor
         // instead of the value class type.
@@ -1215,7 +1215,7 @@ private constructor(
                     methodItem.name().startsWith("$name\$"))) &&
                 methodItem.isKotlinProperty &&
                 methodItem.parameters().map { it.type().toErasedTypeString() } == parameters
-        } as? PsiMethodItem
+        }
     }
 
     /**
