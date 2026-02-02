@@ -71,9 +71,8 @@ internal constructor(
     ClassItem,
     PsiItem {
 
-    override fun isMultiFileClass(): Boolean {
-        return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false
-    }
+    override val isMultiFileClass: Boolean
+        get() = ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass == true
 
     companion object {
         /** Whether the [psiClass] is a file-facade class. See [ClassItem.isFileFacade]. */
