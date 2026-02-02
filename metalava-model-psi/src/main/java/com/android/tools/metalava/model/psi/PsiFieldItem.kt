@@ -65,22 +65,13 @@ internal class PsiFieldItem(
     FieldItem,
     PsiItem {
 
-    override fun duplicate(targetContainingClass: ClassItem) =
-        create(
-                psiCodebase,
-                targetContainingClass,
-                psiField,
-                psiCodebase.globalTypeItemFactory.from(targetContainingClass),
-            )
-            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
-
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: ClassItem,
             psiField: PsiField,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
-        ): PsiFieldItem {
+        ): FieldItem {
             val name = psiField.name
             val modifiers = PsiModifierItem.create(codebase, psiField)
 
@@ -120,16 +111,19 @@ internal class PsiFieldItem(
                     constantValueProviderForField(psiField, codebase, fieldType)
                 else null
 
-            return PsiFieldItem(
-                psiCodebase = codebase,
-                psiField = psiField,
-                documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
+            return DefaultFieldItem(
+                codebase = codebase,
+                fileLocation = PsiFileLocation(psiField),
+                sourceLanguage = psiField.sourceLanguage,
+                targetLanguages = TargetLanguageSet.ALL,
+                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
                 modifiers = modifiers,
+                documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
                 name = name,
                 containingClass = containingClass,
                 type = fieldType,
                 isEnumConstant = isEnumConstant,
-                constantValueProvider = constantValueProvider,
+                constantValueProvider = constantValueProvider
             )
         }
 
