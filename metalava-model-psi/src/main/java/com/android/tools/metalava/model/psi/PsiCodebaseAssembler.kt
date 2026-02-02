@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
@@ -337,12 +336,12 @@ internal class PsiCodebaseAssembler(
      * Get the [PsiSourceFile] for [psiClass].
      *
      * This should only be called on the outermost [PsiClass].
-     *
-     * TODO(b/480322151): It seems like this might only be used to retrieve the imports when
-     *   resolving documentation references so it could return `null` when
-     *   [Codebase.Config.allowReadingComments] is `false`.
      */
     private fun sourceFile(psiClass: PsiClass): PsiSourceFile? {
+        // SourceFile is only used when resolving references from within documentation comments so
+        // if they are not read then there is no point in creating the source files.
+        if (!codebase.config.allowReadingComments) return null
+
         require(psiClass.containingClass == null) {
             "internal error: attempted to get source file for nested class $psiClass"
         }
