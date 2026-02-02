@@ -52,7 +52,6 @@ import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiItemDocumentation
 import com.android.tools.metalava.model.psi.PsiMethodItem
@@ -981,7 +980,7 @@ private constructor(
                     } else {
                         containingClass
                     }
-                classWithField.findField(propertySymbol.name.identifier) as? PsiFieldItem
+                classWithField.findField(propertySymbol.name.identifier)
             } else {
                 null
             }
