@@ -83,7 +83,7 @@ open class DefaultConstructorItem(
     final override fun isImplicitConstructor() = implicitConstructor
 
     companion object {
-        fun createDefaultConstructor(
+        fun createImplicitDefaultConstructor(
             codebase: Codebase,
             sourceLanguage: SourceLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,

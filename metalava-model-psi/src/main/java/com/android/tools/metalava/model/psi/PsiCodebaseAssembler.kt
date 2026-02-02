@@ -495,7 +495,7 @@ internal class PsiCodebaseAssembler(
         val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
         if (hasImplicitDefaultConstructor) {
             assert(constructors.isEmpty())
-            classItem.addConstructor(classItem.createDefaultConstructor())
+            classItem.addConstructor(classItem.createImplicitDefaultConstructor())
         }
         if (psiFields.isNotEmpty()) {
             for (psiField in psiFields) {

@@ -272,8 +272,8 @@ class DefaultClassItem(
         replaceOrAddItem(constructor, mutableConstructors)
     }
 
-    override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
-        return DefaultConstructorItem.createDefaultConstructor(
+    override fun createImplicitDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
+        return DefaultConstructorItem.createImplicitDefaultConstructor(
             codebase = codebase,
             sourceLanguage = sourceLanguage,
             variantSelectorsFactory = variantSelectors::duplicate,
