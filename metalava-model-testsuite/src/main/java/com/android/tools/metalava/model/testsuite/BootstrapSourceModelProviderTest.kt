@@ -830,7 +830,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             // This must be available after resolving throwable types.
             val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
 
-            assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
+            assertEquals(listOf(ioExceptionClass, testExceptionClass), throwableClasses)
         }
     }
 
