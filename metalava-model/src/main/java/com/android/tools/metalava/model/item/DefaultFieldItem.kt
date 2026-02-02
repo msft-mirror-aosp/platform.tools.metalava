@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
@@ -66,6 +67,8 @@ open class DefaultFieldItem(
     final override fun setType(type: TypeItem) {
         this.type = type
     }
+
+    final override var property: PropertyItem? = null
 
     override fun duplicate(targetContainingClass: ClassItem) =
         DefaultFieldItem(

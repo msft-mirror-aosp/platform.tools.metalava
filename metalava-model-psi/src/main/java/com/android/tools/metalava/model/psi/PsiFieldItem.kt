@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -65,8 +64,6 @@ internal class PsiFieldItem(
     ),
     FieldItem,
     PsiItem {
-
-    override var property: PropertyItem? = null
 
     override fun duplicate(targetContainingClass: ClassItem) =
         create(
