@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
@@ -75,6 +76,8 @@ open class DefaultMethodItem(
 
     final override val defaultValue
         get() = defaultValueProvider?.optionalValue
+
+    final override var property: PropertyItem? = null
 
     private lateinit var superMethodList: List<MethodItem>
 
