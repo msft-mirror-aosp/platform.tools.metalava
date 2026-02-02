@@ -30,8 +30,8 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.ParameterItemsFactory
-import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
-import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
+import com.android.tools.metalava.model.psi.PsiCallableItem.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.OptionalValueProvider

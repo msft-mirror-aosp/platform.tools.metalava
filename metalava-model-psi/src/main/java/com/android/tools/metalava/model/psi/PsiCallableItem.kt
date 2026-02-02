@@ -26,59 +26,55 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.uast.UMethod
 
-internal interface PsiCallableItem {
+internal object PsiCallableItem {
+    /**
+     * Create a list of [ParameterItem]s.
+     *
+     * The [codebase], and [containingCallableModifiers] parameters are added here, rather than
+     * retrieving from [containingCallable]'s [CallableItem.codebase], and [CallableItem.modifiers]
+     * properties respectively, because at the time this is called [containingCallable] is in the
+     * process of being initialized and those properties have not yet been initialized.
+     */
+    internal fun parameterList(
+        codebase: PsiBasedCodebase,
+        psiMethod: PsiMethod,
+        containingCallable: CallableItem,
+        enclosingTypeItemFactory: PsiTypeItemFactory,
+        containingCallableModifiers: BaseModifierList,
+        psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+    ): List<ParameterItem> {
+        val fingerprint = MethodFingerprint(containingCallable.name(), psiParameters.size)
+        return psiParameters.mapIndexed { index, parameter ->
+            PsiParameterItem.create(
+                codebase,
+                containingCallable,
+                fingerprint,
+                parameter,
+                index,
+                enclosingTypeItemFactory,
+                psiMethod,
+                containingCallableModifiers
+            )
+        }
+    }
 
-    companion object {
-        /**
-         * Create a list of [ParameterItem]s.
-         *
-         * The [codebase], and [containingCallableModifiers] parameters are added here, rather than
-         * retrieving from [containingCallable]'s [CallableItem.codebase], and
-         * [CallableItem.modifiers] properties respectively, because at the time this is called
-         * [containingCallable] is in the process of being initialized and those properties have not
-         * yet been initialized.
-         */
-        internal fun parameterList(
-            codebase: PsiBasedCodebase,
-            psiMethod: PsiMethod,
-            containingCallable: CallableItem,
-            enclosingTypeItemFactory: PsiTypeItemFactory,
-            containingCallableModifiers: BaseModifierList,
-            psiParameters: List<PsiParameter> = psiMethod.psiParameters,
-        ): List<ParameterItem> {
-            val fingerprint = MethodFingerprint(containingCallable.name(), psiParameters.size)
-            return psiParameters.mapIndexed { index, parameter ->
-                PsiParameterItem.create(
-                    codebase,
-                    containingCallable,
-                    fingerprint,
-                    parameter,
-                    index,
-                    enclosingTypeItemFactory,
-                    psiMethod,
-                    containingCallableModifiers
-                )
-            }
+    internal fun throwsTypes(
+        psiMethod: PsiMethod,
+        enclosingTypeItemFactory: PsiTypeItemFactory,
+    ): List<ExceptionTypeItem> {
+        val throwsClassTypes = psiMethod.throwsList.referencedTypes
+        if (throwsClassTypes.isEmpty()) {
+            return emptyList()
         }
 
-        internal fun throwsTypes(
-            psiMethod: PsiMethod,
-            enclosingTypeItemFactory: PsiTypeItemFactory,
-        ): List<ExceptionTypeItem> {
-            val throwsClassTypes = psiMethod.throwsList.referencedTypes
-            if (throwsClassTypes.isEmpty()) {
-                return emptyList()
-            }
-
-            return throwsClassTypes
-                // Convert the PsiType to an ExceptionTypeItem and wrap it in a ThrowableType.
-                .map { psiType -> enclosingTypeItemFactory.getExceptionType(PsiTypeInfo(psiType)) }
-                // We're sorting the names here even though outputs typically do their own sorting,
-                // since for example the MethodItem.sameSignature check wants to do an
-                // element-by-element comparison to see if the signature matches, and that should
-                // match overrides even if they specify their elements in different orders.
-                .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
-        }
+        return throwsClassTypes
+            // Convert the PsiType to an ExceptionTypeItem and wrap it in a ThrowableType.
+            .map { psiType -> enclosingTypeItemFactory.getExceptionType(PsiTypeInfo(psiType)) }
+            // We're sorting the names here even though outputs typically do their own sorting,
+            // since for example the MethodItem.sameSignature check wants to do an
+            // element-by-element comparison to see if the signature matches, and that should
+            // match overrides even if they specify their elements in different orders.
+            .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
     }
 }
 

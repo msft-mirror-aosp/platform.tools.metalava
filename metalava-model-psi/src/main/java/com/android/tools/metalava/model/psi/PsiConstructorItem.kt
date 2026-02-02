@@ -29,8 +29,8 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.ParameterItemsFactory
-import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
-import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
+import com.android.tools.metalava.model.psi.PsiCallableItem.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.throwsTypes
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
