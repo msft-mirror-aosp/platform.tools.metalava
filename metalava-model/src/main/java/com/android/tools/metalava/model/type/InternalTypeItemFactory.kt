@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -99,7 +100,8 @@ interface InternalTypeItemFactory {
         isValueClassType: Boolean = false,
     ): PrimitiveTypeItem =
         DefaultPrimitiveTypeItem(
-            modifiers,
+            // Force primitives to be non-null.
+            modifiers.substitute(nullability = TypeNullability.NONNULL),
             kind,
             isValueClassType,
         )
