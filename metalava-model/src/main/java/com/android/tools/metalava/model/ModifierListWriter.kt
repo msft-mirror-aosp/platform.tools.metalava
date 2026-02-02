@@ -274,9 +274,7 @@ private constructor(
         annotations =
             annotations.filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
         // Ensure stable signature file order
-        if (annotations.size > 1) {
-            annotations = annotations.sortedBy { it.qualifiedName }
-        }
+        annotations = annotations.sortedBy { it.qualifiedName }
 
         if (annotations.isNotEmpty()) {
             var index = -1
