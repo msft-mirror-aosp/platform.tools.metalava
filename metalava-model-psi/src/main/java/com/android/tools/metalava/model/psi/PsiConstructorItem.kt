@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TargetLanguage
@@ -85,7 +86,7 @@ private constructor(
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             psiParameters: List<PsiParameter> = psiMethod.psiParameters,
             targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-        ): PsiConstructorItem {
+        ): ConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
@@ -113,13 +114,18 @@ private constructor(
                     psiMethod
                 )
             val constructor =
-                PsiConstructorItem(
-                    psiCodebase = codebase,
-                    psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
+                DefaultConstructorItem(
+                    codebase = codebase,
+                    fileLocation = PsiFileLocation(psiMethod),
+                    sourceLanguage = psiMethod.sourceLanguage,
+                    targetLanguages = targetLanguages,
                     modifiers = modifiers,
                     documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
+                    variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+                    name = name,
+                    containingClass = containingClass,
+                    typeParameterList = typeParameterList,
+                    returnType = containingClass.type(),
                     parameterItemsFactory = { containingCallable ->
                         parameterList(
                             codebase,
@@ -130,13 +136,10 @@ private constructor(
                             psiParameters,
                         )
                     },
-                    returnType = containingClass.type(),
-                    typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
                     callableBodyFactory = { PsiCallableBody(codebase, it, psiMethod) },
                     implicitConstructor = false,
-                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
-                    targetLanguages = targetLanguages,
+                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false
                 )
 
             // Undo setting of constructors with value class types to private (b/395472914).
