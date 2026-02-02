@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
@@ -223,7 +224,7 @@ internal class PsiCodebaseAssembler(
         psiClass: PsiClass,
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): PsiClassItem {
+    ): DefaultClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
         return createClass(
             psiClass,
@@ -240,7 +241,7 @@ internal class PsiCodebaseAssembler(
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): PsiClassItem {
+    ): DefaultClassItem {
         val packageName = getPackageName(psiClass)
 
         // If the package could not be found then report an error.
@@ -360,7 +361,7 @@ internal class PsiCodebaseAssembler(
      * [classItem].
      */
     fun addMembersToClassItem(
-        classItem: PsiClassItem,
+        classItem: DefaultClassItem,
         psiMethods: List<PsiMethod>,
         psiFields: List<PsiField>,
         classTypeItemFactory: PsiTypeItemFactory,
@@ -601,7 +602,7 @@ internal class PsiCodebaseAssembler(
      * the psi will include the implicit no-args constructor if it exists, so this is only needed
      * for Java source classes.
      */
-    private fun hasImplicitDefaultConstructor(classItem: PsiClassItem): Boolean {
+    private fun hasImplicitDefaultConstructor(classItem: ClassItem): Boolean {
         return classItem.isJava() && classItem.constructors().isEmpty() && classItem.isClass()
     }
 
@@ -631,7 +632,7 @@ internal class PsiCodebaseAssembler(
      * excludes that parameter and all following parameters with default values.
      */
     private fun addOverloadedKotlinCallablesIfNecessary(
-        classItem: PsiClassItem,
+        classItem: DefaultClassItem,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         callable: PsiCallableItem,
     ) {
@@ -1029,7 +1030,7 @@ internal class PsiCodebaseAssembler(
             // If this class was already processed, there is already a PsiClassItem defined.
             if (previouslyProcessedFiles.isNotEmpty()) {
                 val existingClassItem =
-                    codebase.findClass(multiFileClassName.toString()) as PsiClassItem
+                    codebase.findClass(multiFileClassName.toString()) as DefaultClassItem
                 // Only add the methods and fields which defined in files which have not been
                 // previously processed.
                 addMembersToClassItem(

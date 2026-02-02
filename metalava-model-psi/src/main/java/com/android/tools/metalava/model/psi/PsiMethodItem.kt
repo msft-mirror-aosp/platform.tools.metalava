@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -144,13 +143,7 @@ internal class PsiMethodItem(
     */
 
     companion object {
-        /**
-         * Create a [PsiMethodItem].
-         *
-         * The [containingClass] is not necessarily a [PsiClassItem] as this is used to implement
-         * [MethodItem.duplicate] as well as create [PsiMethodItem] from the underlying Psi source
-         * model.
-         */
+        /** Create a [PsiMethodItem]. */
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: ClassItem,
