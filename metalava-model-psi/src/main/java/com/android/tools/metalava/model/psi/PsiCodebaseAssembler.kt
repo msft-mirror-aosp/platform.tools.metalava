@@ -43,6 +43,8 @@ import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.psi.PsiClassItem.Companion.isFileFacade
+import com.android.tools.metalava.model.psi.PsiClassItem.Companion.isMultiFileClass
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
@@ -295,12 +297,15 @@ internal class PsiCodebaseAssembler(
             }
 
         val classItem =
-            PsiClassItem(
-                psiCodebase = psiCodebase,
-                psiClass = psiClass,
+            DefaultClassItem(
+                codebase = psiCodebase,
+                fileLocation = PsiFileLocation.fromPsiElement(psiClass),
+                sourceLanguage = psiClass.sourceLanguage,
+                targetLanguages = TargetLanguageSet.ALL,
                 modifiers = modifiers,
-                source = sourceFile,
                 documentationFactory = PsiItemDocumentation.factory(psiClass, psiCodebase),
+                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+                source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
                 containingPackage = packageItem,
@@ -309,6 +314,9 @@ internal class PsiCodebaseAssembler(
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
+                isFileFacade = isFileFacade(psiClass),
+                optionalAliasedType = null,
+                isMultiFileClass = isMultiFileClass(psiClass),
             )
 
         // Add methods, constructors, fields.
