@@ -88,13 +88,11 @@ internal class PsiMethodItem(
         callableBodyFactory = callableBodyFactory,
         defaultValueProvider = defaultValueProvider,
         isExtensionMethod = isExtensionMethod,
+        isKotlinProperty = isKotlinProperty(psiMethod),
     ),
     PsiCallableItem {
 
     override var property: PropertyItem? = null
-
-    override val isKotlinProperty
-        get() = isKotlinProperty(psiMethod)
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
         // If duplicating within the same codebase type then map the type variables, otherwise do

@@ -261,7 +261,6 @@ interface MethodItem : CallableItem, InheritableItem {
      * been initialized.
      */
     val isKotlinProperty: Boolean
-        get() = false
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that
