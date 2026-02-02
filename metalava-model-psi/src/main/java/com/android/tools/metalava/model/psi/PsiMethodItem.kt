@@ -17,27 +17,18 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.item.DefaultMethodItem
-import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.CombinedValueProvider
-import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
-import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
@@ -51,86 +42,7 @@ import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.toUElementOfType
 
-internal class PsiMethodItem(
-    private val psiCodebase: PsiBasedCodebase,
-    internal val psiMethod: PsiMethod,
-    fileLocation: FileLocation = PsiFileLocation(psiMethod),
-    // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
-    // TextClassItem.
-    containingClass: ClassItem,
-    name: String,
-    modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
-    returnType: TypeItem,
-    parameterItemsFactory: ParameterItemsFactory,
-    typeParameterList: TypeParameterList,
-    throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
-    val defaultValueProvider: OptionalValueProvider?,
-    targetLanguages: Set<TargetLanguage>,
-    isExtensionMethod: Boolean,
-) :
-    DefaultMethodItem(
-        codebase = psiCodebase,
-        fileLocation = fileLocation,
-        sourceLanguage = psiMethod.sourceLanguage,
-        targetLanguages = targetLanguages,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-        name = name,
-        containingClass = containingClass,
-        typeParameterList = typeParameterList,
-        returnType = returnType,
-        parameterItemsFactory = parameterItemsFactory,
-        throwsTypes = throwsTypes,
-        callableBodyFactory = callableBodyFactory,
-        defaultValueProvider = defaultValueProvider,
-        isExtensionMethod = isExtensionMethod,
-        isKotlinProperty = isKotlinProperty(psiMethod),
-    ) {
-
-    override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
-        val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
-
-        // Create a [TypeItemConverter] wrapper around `typeVariableMap`.
-        val typeConverter = typeVariableMap.toTypeConverter()
-
-        return PsiMethodItem(
-                psiCodebase,
-                psiMethod,
-                fileLocation,
-                targetContainingClass,
-                name(),
-                modifiers,
-                documentation.duplicatingFactory(),
-                returnType.convertType(typeVariableMap),
-                { methodItem -> parameters().map { it.duplicate(methodItem, typeConverter) } },
-                typeParameterList,
-                throwsTypes(),
-                // Duplicate the original CallableBody.
-                callableBodyFactory = body::duplicate,
-                defaultValueProvider,
-                targetLanguages,
-                isExtensionMethod = isExtensionMethod(),
-            )
-            .also { duplicated ->
-                duplicated.inheritedFrom = containingClass()
-
-                duplicated.updateCopiedMethodState()
-            }
-    }
-
-    /* Call corresponding PSI utility method -- if I can find it!
-    override fun matches(other: MethodItem): Boolean {
-        if (other !is PsiMethodItem) {
-            return super.matches(other)
-        }
-
-        // TODO: Find better API: this also checks surrounding class which we don't want!
-        return psiMethod.isEquivalentTo(other.psiMethod)
-    }
-    */
+internal class PsiMethodItem {
 
     companion object {
         /** Create a [PsiMethodItem]. */
