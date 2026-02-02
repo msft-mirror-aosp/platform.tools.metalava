@@ -238,17 +238,6 @@ private constructor(
                     else -> false
                 }
 
-        val list = item.modifiers
-        var annotations = list.annotations()
-        // b/442395516 RequiresPermission is not loaded consistently across codebases hence will be
-        // excluded for now
-        if (skipRequiresPermission) {
-            annotations =
-                annotations.filter { annotation ->
-                    !annotation.qualifiedName.contains("RequiresPermission")
-                }
-        }
-
         // Do not write deprecate annotations on a package.
         if (item !is PackageItem) {
             val writeDeprecated =
@@ -264,6 +253,21 @@ private constructor(
             }
         }
 
+        val list = item.modifiers
+        var annotations = list.annotations()
+        if (annotations.isEmpty()) {
+            return
+        }
+
+        // b/442395516 RequiresPermission is not loaded consistently across codebases hence will be
+        // excluded for now
+        if (skipRequiresPermission) {
+            annotations =
+                annotations.filter { annotation ->
+                    !annotation.qualifiedName.contains("RequiresPermission")
+                }
+        }
+
         if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
             writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
             writer.write(if (separateLines) "\n" else " ")
@@ -276,62 +280,56 @@ private constructor(
         // Ensure stable signature file order
         annotations = annotations.sortedBy { it.qualifiedName }
 
-        if (annotations.isNotEmpty()) {
-            var index = -1
-            for (annotation in annotations) {
-                index++
+        var index = -1
+        for (annotation in annotations) {
+            index++
 
-                if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+            if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+                continue
+            }
+
+            var printAnnotation = annotation
+            if (!annotation.targets.contains(target)) {
+                continue
+            } else if ((annotation.isNullnessAnnotation())) {
+                if (skipNullnessAnnotations) {
                     continue
                 }
-
-                var printAnnotation = annotation
-                if (!annotation.targets.contains(target)) {
-                    continue
-                } else if ((annotation.isNullnessAnnotation())) {
-                    if (skipNullnessAnnotations) {
-                        continue
+            } else if (annotation.qualifiedName == "java.lang.Deprecated") {
+                // Special cased in stubs and signature files: emitted first
+                continue
+            } else {
+                val typedefMode = item.codebase.annotationManager.typedefMode
+                if (typedefMode == TypedefMode.INLINE) {
+                    val typedef = annotation.findTypedefAnnotation()
+                    if (typedef != null) {
+                        printAnnotation = typedef
                     }
-                } else if (annotation.qualifiedName == "java.lang.Deprecated") {
-                    // Special cased in stubs and signature files: emitted first
-                    continue
-                } else {
-                    val typedefMode = item.codebase.annotationManager.typedefMode
-                    if (typedefMode == TypedefMode.INLINE) {
-                        val typedef = annotation.findTypedefAnnotation()
-                        if (typedef != null) {
-                            printAnnotation = typedef
-                        }
-                    } else if (
-                        typedefMode == TypedefMode.REFERENCE &&
-                            annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
-                            annotation.findTypedefAnnotation() != null
-                    ) {
-                        // For annotation references, only include the simple name
-                        writer.write("@")
-                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
-                        if (separateLines) {
-                            writer.write("\n")
-                        } else {
-                            writer.write(" ")
-                        }
-                        continue
+                } else if (
+                    typedefMode == TypedefMode.REFERENCE &&
+                        annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
+                        annotation.findTypedefAnnotation() != null
+                ) {
+                    // For annotation references, only include the simple name
+                    writer.write("@")
+                    writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
+                    if (separateLines) {
+                        writer.write("\n")
+                    } else {
+                        writer.write(" ")
                     }
+                    continue
                 }
+            }
 
-                val source =
-                    annotationFormatter.formatAnnotation(
-                        printAnnotation,
-                        AnnotationPurpose.ITEM,
-                        item
-                    )
-                writer.write(source)
+            val source =
+                annotationFormatter.formatAnnotation(printAnnotation, AnnotationPurpose.ITEM, item)
+            writer.write(source)
 
-                if (separateLines) {
-                    writer.write("\n")
-                } else {
-                    writer.write(" ")
-                }
+            if (separateLines) {
+                writer.write("\n")
+            } else {
+                writer.write(" ")
             }
         }
     }
