@@ -44,7 +44,7 @@ import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultClassItem(
+class DefaultClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -57,8 +57,8 @@ open class DefaultClassItem(
     private val containingClass: ClassItem?,
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
-    final override val typeParameterList: TypeParameterList,
-    final override val origin: ClassOrigin,
+    override val typeParameterList: TypeParameterList,
+    override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
     override val isFileFacade: Boolean,
@@ -116,13 +116,13 @@ open class DefaultClassItem(
     /** If [source] is not set and this is a nested class then try the containing class. */
     override fun sourceFile() = source ?: containingClass?.sourceFile()
 
-    final override fun containingPackage(): PackageItem = containingPackage
+    override fun containingPackage(): PackageItem = containingPackage
 
-    final override fun containingClass() = containingClass
+    override fun containingClass() = containingClass
 
     private lateinit var sealedClassSubclasses: List<ClassItem>
 
-    final override fun sealedClassDirectSubclasses(): List<ClassItem> {
+    override fun sealedClassDirectSubclasses(): List<ClassItem> {
         if (!isEffectivelySealed()) {
             error(
                 "Computing subclasses is only available for effectively sealed classes and interfaces"
@@ -141,25 +141,25 @@ open class DefaultClassItem(
         return sealedClassSubclasses
     }
 
-    final override fun qualifiedName() = qualifiedName
+    override fun qualifiedName() = qualifiedName
 
-    final override fun simpleName() = simpleName
+    override fun simpleName() = simpleName
 
-    final override fun fullName() = fullName
+    override fun fullName() = fullName
 
-    final override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
+    override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     /** Must only be used by [type] to cache its result. */
     private lateinit var cachedType: ClassTypeItem
 
-    final override fun type(): ClassTypeItem {
+    override fun type(): ClassTypeItem {
         if (!::cachedType.isInitialized) {
             cachedType = TypeItem.createClassTypeForClassItem(this)
         }
         return cachedType
     }
 
-    final override var frozen = false
+    override var frozen = false
         private set
 
     override fun freeze() {
@@ -175,24 +175,24 @@ open class DefaultClassItem(
         if (frozen) error("Cannot modify frozen $this")
     }
 
-    final override var classKind: ClassKind = classKind
+    override var classKind: ClassKind = classKind
         set(value) {
             ensureNotFrozen()
             field = value
         }
 
-    final override var optionalAliasedType: TypeItem? = optionalAliasedType
+    override var optionalAliasedType: TypeItem? = optionalAliasedType
         set(value) {
             ensureNotFrozen()
             field = value
         }
 
-    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+    override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
         ensureNotFrozen()
         super.mutateModifiers(mutator)
     }
 
-    final override fun superClassType(): ClassTypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
     /** Set the super class [ClassTypeItem]. */
     fun setSuperClassType(superClassType: ClassTypeItem?) {
@@ -200,9 +200,9 @@ open class DefaultClassItem(
         this.superClassType = superClassType
     }
 
-    final override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
-    final override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         ensureNotFrozen()
         this.interfaceTypes = interfaceTypes
     }
@@ -210,7 +210,7 @@ open class DefaultClassItem(
     /** Cache of the results of calling [cacheAllInterfaces]. */
     private var cacheAllInterfaces: List<ClassItem>? = null
 
-    final override fun allInterfaces(): Sequence<ClassItem> {
+    override fun allInterfaces(): Sequence<ClassItem> {
         if (cacheAllInterfaces == null) {
             cacheAllInterfaces = computeAllInterfaces()
         }
@@ -238,7 +238,7 @@ open class DefaultClassItem(
     /** The mutable list of [ConstructorItem] that backs [constructors]. */
     private val mutableConstructors = mutableListOf<ConstructorItem>()
 
-    final override fun constructors(): List<ConstructorItem> = mutableConstructors
+    override fun constructors(): List<ConstructorItem> = mutableConstructors
 
     /** Add a constructor to this class. */
     fun addConstructor(constructor: ConstructorItem) {
@@ -285,10 +285,10 @@ open class DefaultClassItem(
     /** The mutable list of [MethodItem] that backs [methods]. */
     private val mutableMethods = mutableListOf<MethodItem>()
 
-    final override fun methods(): List<MethodItem> = mutableMethods
+    override fun methods(): List<MethodItem> = mutableMethods
 
     /** Add a method to this class. */
-    final override fun addMethod(method: MethodItem) {
+    override fun addMethod(method: MethodItem) {
         ensureNotFrozen()
         mutableMethods += method
     }
@@ -310,12 +310,12 @@ open class DefaultClassItem(
         mutableFields += field
     }
 
-    final override fun fields(): List<FieldItem> = mutableFields
+    override fun fields(): List<FieldItem> = mutableFields
 
     /** The mutable list of [PropertyItem] that backs [properties]. */
     private val mutableProperties = mutableListOf<PropertyItem>()
 
-    final override fun properties(): List<PropertyItem> = mutableProperties
+    override fun properties(): List<PropertyItem> = mutableProperties
 
     /** Add a property to this class. */
     fun addProperty(property: PropertyItem) {
@@ -335,7 +335,7 @@ open class DefaultClassItem(
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
 
-    final override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
+    override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
 
     /** Add a nested class to this class. */
     private fun addNestedClass(classItem: ClassItem) {

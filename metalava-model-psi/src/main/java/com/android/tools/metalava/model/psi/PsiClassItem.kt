@@ -16,62 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.intellij.psi.PsiClass
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.uast.UClass
 
-internal class PsiClassItem
-internal constructor(
-    override val psiCodebase: PsiBasedCodebase,
-    val psiClass: PsiClass,
-    modifiers: BaseModifierList,
-    source: SourceFile?,
-    documentationFactory: ItemDocumentationFactory,
-    classKind: ClassKind,
-    containingClass: ClassItem?,
-    containingPackage: PackageItem,
-    qualifiedName: String,
-    typeParameterList: TypeParameterList,
-    origin: ClassOrigin,
-    superClassType: ClassTypeItem?,
-    interfaceTypes: List<ClassTypeItem>
-) :
-    DefaultClassItem(
-        codebase = psiCodebase,
-        fileLocation = PsiFileLocation.fromPsiElement(psiClass),
-        sourceLanguage = psiClass.sourceLanguage,
-        targetLanguages = TargetLanguageSet.ALL,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-        source = source,
-        classKind = classKind,
-        containingClass = containingClass,
-        containingPackage = containingPackage,
-        qualifiedName = qualifiedName,
-        typeParameterList = typeParameterList,
-        origin = origin,
-        superClassType = superClassType,
-        interfaceTypes = interfaceTypes,
-        isFileFacade = isFileFacade(psiClass),
-        isMultiFileClass = isMultiFileClass(psiClass),
-        optionalAliasedType = null,
-    ),
-    ClassItem,
-    PsiItem {
-
+internal class PsiClassItem {
     companion object {
         /** Whether the [psiClass] is a file-facade class. See [ClassItem.isFileFacade]. */
         fun isFileFacade(psiClass: PsiClass): Boolean {
