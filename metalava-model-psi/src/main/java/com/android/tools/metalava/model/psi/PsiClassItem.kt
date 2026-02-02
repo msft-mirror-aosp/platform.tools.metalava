@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiCompiledFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.uast.UClass
 
@@ -39,6 +38,7 @@ internal constructor(
     override val psiCodebase: PsiBasedCodebase,
     val psiClass: PsiClass,
     modifiers: BaseModifierList,
+    source: SourceFile?,
     documentationFactory: ItemDocumentationFactory,
     classKind: ClassKind,
     containingClass: ClassItem?,
@@ -57,7 +57,7 @@ internal constructor(
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-        source = null,
+        source = source,
         classKind = classKind,
         containingClass = containingClass,
         containingPackage = containingPackage,
@@ -71,20 +71,6 @@ internal constructor(
     ),
     ClassItem,
     PsiItem {
-
-    override fun sourceFile(): SourceFile? {
-        if (isNestedClass()) {
-            // Retrieve the SourceFile from the top level class.
-            return containingClass()?.sourceFile()
-        }
-
-        val containingFile = psiClass.containingFile ?: return null
-        if (containingFile is PsiCompiledFile) {
-            return null
-        }
-
-        return psiCodebase.sourceFileCache.psiSourceFile(containingFile)
-    }
 
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {

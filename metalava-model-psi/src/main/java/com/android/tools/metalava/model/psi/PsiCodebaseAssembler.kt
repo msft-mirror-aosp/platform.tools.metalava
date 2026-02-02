@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
@@ -55,6 +56,7 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCodeBlock
+import com.intellij.psi.PsiCompiledFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiField
@@ -284,11 +286,20 @@ internal class PsiCodebaseAssembler(
         val (superClassType, interfaceTypes) =
             computeSuperTypes(psiClass, classKind, classTypeItemFactory)
 
+        // Get the SourceFile, using the one from the containing class if this is nested.
+        val sourceFile =
+            if (containingClassItem != null) {
+                containingClassItem.sourceFile()
+            } else {
+                sourceFile(psiClass)
+            }
+
         val classItem =
             PsiClassItem(
                 psiCodebase = psiCodebase,
                 psiClass = psiClass,
                 modifiers = modifiers,
+                source = sourceFile,
                 documentationFactory = PsiItemDocumentation.factory(psiClass, psiCodebase),
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -320,6 +331,29 @@ internal class PsiCodebaseAssembler(
             )
         }
         return classItem
+    }
+
+    /**
+     * Get the [PsiSourceFile] for [psiClass].
+     *
+     * This should only be called on the outermost [PsiClass].
+     *
+     * TODO(b/480322151): It seems like this might only be used to retrieve the imports when
+     *   resolving documentation references so it could return `null` when
+     *   [Codebase.Config.allowReadingComments] is `false`.
+     */
+    private fun sourceFile(psiClass: PsiClass): PsiSourceFile? {
+        require(psiClass.containingClass == null) {
+            "internal error: attempted to get source file for nested class $psiClass"
+        }
+        val containingFile = psiClass.containingFile ?: return null
+        if (containingFile is PsiCompiledFile) {
+            return null
+        }
+
+        // This cache is necessary so that multiple classes within the same file share the same
+        // PsiSourceFile.
+        return psiCodebase.sourceFileCache.psiSourceFile(containingFile)
     }
 
     /**
