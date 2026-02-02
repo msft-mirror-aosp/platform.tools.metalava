@@ -67,7 +67,7 @@ open class DefaultParameterItem(
 
     final override fun hasDefaultValue(): Boolean = hasDefaultValue
 
-    override var property: PropertyItem? = null
+    final override var property: PropertyItem? = null
 
     override fun duplicate(
         containingCallable: CallableItem,

@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 
 @MetalavaApi
-interface ParameterItem : ClassContentItem, Item {
+interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
     /** The name of this field */
     fun name(): String
 
@@ -76,9 +76,12 @@ interface ParameterItem : ClassContentItem, Item {
     /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean = modifiers.isVarArg()
 
-    /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
-    val property: PropertyItem?
-        get() = null
+    /**
+     * The property declared by this parameter; inverse of [PropertyItem.constructorParameter].
+     *
+     * Overridden to provide more specific documentation.
+     */
+    override var property: PropertyItem?
 
     override fun parent(): CallableItem? = containingCallable()
 
