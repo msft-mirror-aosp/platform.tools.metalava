@@ -47,15 +47,15 @@ internal class PsiTypeParameterItem(
         fun create(
             codebase: PsiBasedCodebase,
             psiTypeParameter: PsiTypeParameter,
-        ): PsiTypeParameterItem {
+        ): DefaultTypeParameterItem {
             val simpleName = psiTypeParameter.name!!
             val modifiers = PsiModifierItem.create(codebase, psiTypeParameter)
 
-            return PsiTypeParameterItem(
-                codebase = codebase,
-                psiTypeParameter = psiTypeParameter,
+            return DefaultTypeParameterItem(
+                classResolver = codebase,
+                modifiers = modifiers,
                 name = simpleName,
-                modifiers = modifiers
+                isReified = isReified(psiTypeParameter),
             )
         }
 
