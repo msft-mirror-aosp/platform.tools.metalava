@@ -470,7 +470,7 @@ private constructor(
     private fun KaSession.findOrCreateClass(
         classifierSymbol: KaNamedClassSymbol,
         containingPackage: PackageItem,
-        containingClass: DefaultClassItem?,
+        containingClass: ClassItem?,
         qualifiedName: String,
     ): DefaultClassItem {
         codebase.findClassInCodebase(qualifiedName)?.let {
@@ -594,11 +594,11 @@ private constructor(
         return classItem
     }
 
-    /** Creates a [DefaultClassItem] of kind type alias from the [typeAlias]. */
+    /** Creates a [ClassItem] of kind type alias from the [typeAlias]. */
     private fun processTypeAlias(
         typeAlias: KaTypeAliasSymbol,
         containingPackage: PackageItem
-    ): DefaultClassItem? {
+    ): ClassItem? {
         val qualifiedName = typeAlias.classId?.asFqNameString() ?: return null
         val typeParameterListAndFactory =
             typeParameterListAndFactory(

@@ -107,13 +107,13 @@ internal class TurbineClassBuilder(
      * classes. Adding these as constructor properties would confuse that code and possibly lead to
      * errors if the wrong instance was used.
      *
-     * @param containingClassItem the containing [DefaultClassItem] to which the created [ClassItem]
-     *   will belong, if any.
+     * @param containingClassItem the containing [ClassItem] to which the created [ClassItem] will
+     *   belong, if any.
      * @param enclosingClassTypeItemFactory the [TurbineTypeItemFactory] that is used to create
      *   [TypeItem]s and tracks the in scope type parameters.
      */
     internal fun createClass(
-        containingClassItem: DefaultClassItem?,
+        containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ): ClassItem {
         val decl = sourceTypeBoundClass?.decl()

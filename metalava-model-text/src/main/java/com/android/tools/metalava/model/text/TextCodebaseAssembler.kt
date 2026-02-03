@@ -77,7 +77,7 @@ internal class TextCodebaseAssembler(
      */
     private val requiredStubKindForClass = mutableMapOf<String, StubKind>()
 
-    override fun newClassRegistered(classItem: DefaultClassItem) {
+    override fun newClassRegistered(classItem: ClassItem) {
         // A real class exists so a stub will not be created so the hint as to the kind of class
         // that the stubs should be is no longer needed.
         requiredStubKindForClass.remove(classItem.qualifiedName())

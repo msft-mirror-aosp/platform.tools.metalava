@@ -425,7 +425,7 @@ class DefaultClassItem(
             typeParameterList: TypeParameterList,
             containingPackage: PackageItem,
             origin: ClassOrigin,
-        ): DefaultClassItem {
+        ): ClassItem {
             return DefaultClassItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
