@@ -103,6 +103,7 @@ class DefaultItemFactory(
         interfaceTypes: List<ClassTypeItem>,
         optionalAliasedType: TypeItem? = null,
         isFileFacade: Boolean = false,
+        isMultiFileClass: Boolean = false,
     ): SkeletonClassItem =
         DefaultClassItem(
             codebase,
@@ -123,6 +124,7 @@ class DefaultItemFactory(
             interfaceTypes,
             isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
+            isMultiFileClass = isMultiFileClass,
         )
 
     /** Create a [ConstructorItem]. */
@@ -205,6 +207,7 @@ class DefaultItemFactory(
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         defaultValueProvider: OptionalValueProvider?,
         isExtensionMethod: Boolean,
+        isKotlinProperty: Boolean = false,
     ): MethodItem =
         DefaultMethodItem(
             codebase,
@@ -223,6 +226,7 @@ class DefaultItemFactory(
             callableBodyFactory,
             defaultValueProvider,
             isExtensionMethod,
+            isKotlinProperty,
         )
 
     /** Create a [ParameterItem]. */

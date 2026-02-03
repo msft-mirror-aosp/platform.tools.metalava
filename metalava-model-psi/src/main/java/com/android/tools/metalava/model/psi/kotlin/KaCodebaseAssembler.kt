@@ -49,7 +49,6 @@ import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
@@ -996,7 +995,6 @@ private constructor(
                     .maxByOrNull { it.parameters().size }
                     ?.parameters()
                     ?.firstOrNull { it.name() == propertySymbol.name.identifier }
-                    as? DefaultParameterItem
             } else {
                 null
             }

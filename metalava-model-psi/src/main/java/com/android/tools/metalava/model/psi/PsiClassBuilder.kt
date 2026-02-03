@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -45,11 +44,6 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultConstructorItem
-import com.android.tools.metalava.model.item.DefaultFieldItem
-import com.android.tools.metalava.model.item.DefaultMethodItem
-import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -171,14 +165,12 @@ internal class PsiClassBuilder(
             }
 
         val classItem =
-            DefaultClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = PsiFileLocation.fromPsiElement(psiClass),
                 sourceLanguage = psiClass.sourceLanguage,
                 targetLanguages = TargetLanguageSet.ALL,
                 modifiers = modifiers,
                 documentationFactory = PsiItemDocumentation.factory(psiClass, psiCodebase),
-                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
                 source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -591,12 +583,10 @@ internal class PsiClassBuilder(
         val constantValueProvider =
             if (couldHaveConstantValue) constantValueProviderForField(psiField, fieldType) else null
 
-        return DefaultFieldItem(
-            codebase = codebase,
+        return itemFactory.createFieldItem(
             fileLocation = PsiFileLocation(psiField),
             sourceLanguage = psiField.sourceLanguage,
             targetLanguages = TargetLanguageSet.ALL,
-            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
             modifiers = modifiers,
             documentationFactory = PsiItemDocumentation.factory(psiField, psiCodebase),
             name = name,
@@ -703,14 +693,12 @@ internal class PsiClassBuilder(
         val isExtensionMethod = (psiMethod as? UMethod)?.sourcePsi?.isExtensionDeclaration() == true
 
         val method =
-            DefaultMethodItem(
-                codebase = codebase,
+            itemFactory.createMethodItem(
                 fileLocation = PsiFileLocation(psiMethod),
                 sourceLanguage = psiMethod.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = PsiItemDocumentation.factory(psiMethod, psiCodebase),
-                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
                 name = name,
                 containingClass = containingClass,
                 typeParameterList = typeParameterList,
@@ -768,14 +756,12 @@ internal class PsiClassBuilder(
                 psiMethod
             )
         val constructor =
-            DefaultConstructorItem(
-                codebase = psiCodebase,
+            itemFactory.createConstructorItem(
                 fileLocation = PsiFileLocation(psiMethod),
                 sourceLanguage = psiMethod.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = PsiItemDocumentation.factory(psiMethod, psiCodebase),
-                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
                 name = name,
                 containingClass = containingClass,
                 typeParameterList = typeParameterList,
@@ -892,8 +878,7 @@ internal class PsiClassBuilder(
                 isVarArg = psiParameter.type is PsiEllipsisType,
             )
         val parameter =
-            DefaultParameterItem(
-                codebase = psiCodebase,
+            itemFactory.createParameterItem(
                 fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
                 sourceLanguage = psiParameter.sourceLanguage,
                 modifiers = modifiers,
