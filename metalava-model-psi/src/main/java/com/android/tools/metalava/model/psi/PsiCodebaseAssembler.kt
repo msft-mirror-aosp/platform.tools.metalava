@@ -97,9 +97,9 @@ import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 internal class PsiCodebaseAssembler(
     private val uastEnvironment: UastEnvironment,
     codebaseFactory: (PsiCodebaseAssembler) -> PsiBasedCodebase
-) : SourceCodebaseAssembler() {
+) : SourceCodebaseAssembler(), PsiGlobalContext {
 
-    internal val psiCodebase = codebaseFactory(this)
+    override val psiCodebase = codebaseFactory(this)
 
     override val codebase: DefaultCodebase
         get() = psiCodebase
@@ -151,15 +151,14 @@ internal class PsiCodebaseAssembler(
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)
 
-    internal fun getClassType(cls: PsiClass): PsiClassType =
-        getFactory().createType(cls, PsiSubstitutor.EMPTY)
+    override fun getClassType(psiClass: PsiClass) =
+        getFactory().createType(psiClass, PsiSubstitutor.EMPTY)
 
-    internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
-        getFactory().createTypeFromText(s, parent)
+    override fun createPsiType(sourceType: String, context: PsiElement?) =
+        getFactory().createTypeFromText(sourceType, context)
 
-    internal fun findPsiPackage(pkgName: String): PsiPackage? {
-        return JavaPsiFacade.getInstance(project).findPackage(pkgName)
-    }
+    override fun findPsiPackage(packageName: String) =
+        JavaPsiFacade.getInstance(project).findPackage(packageName)
 
     override fun getPackageInfoFromSource(packageName: String): SourcePackageInfo? {
         val psiPackage = findPsiPackage(packageName) ?: return null
