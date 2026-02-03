@@ -553,7 +553,7 @@ internal class PsiCodebaseAssembler(
             multiFileClasses[multiFileClassName] =
                 previouslyProcessedFiles + filesForCurrentPsiClass
 
-            // If this class was already processed, there is already a PsiClassItem defined.
+            // If this class was already processed, there is already a ClassItem defined.
             if (previouslyProcessedFiles.isNotEmpty()) {
                 val existingClassItem =
                     codebase.findClass(multiFileClassName.toString()) as DefaultClassItem
@@ -573,7 +573,7 @@ internal class PsiCodebaseAssembler(
                         psiClass.fields.filter { it.containingFile !in previouslyProcessedFiles },
                     classTypeItemFactory = globalTypeItemFactory.from(existingClassItem),
                 )
-                // Skip the step below of adding a new PsiClassItem as one already exists.
+                // Skip the step below of adding a new ClassItem as one already exists.
                 return
             }
         }

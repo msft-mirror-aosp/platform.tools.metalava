@@ -37,8 +37,6 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.psi.PsiClassItem.Companion.isFileFacade
-import com.android.tools.metalava.model.psi.PsiClassItem.Companion.isMultiFileClass
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.PsiClass
@@ -48,6 +46,7 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -156,9 +155,9 @@ internal class PsiClassBuilder(
                 origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
-                isFileFacade = isFileFacade(psiClass),
+                isFileFacade = psiClass.isFileFacade(),
                 optionalAliasedType = null,
-                isMultiFileClass = isMultiFileClass(psiClass),
+                isMultiFileClass = psiClass.isMultiFileClass(),
             )
 
         // Add methods, constructors, fields.
@@ -525,3 +524,12 @@ internal class PsiClassBuilder(
         }
     }
 }
+
+/** Whether [this] is a file-facade class. See [ClassItem.isFileFacade]. */
+private fun PsiClass.isFileFacade(): Boolean {
+    return isKotlin() && this is UClass && this.javaPsi is KtLightClassForFacade
+}
+
+/** Whether [this] is a multi-file class. See [ClassItem.isMultiFileClass]. */
+private fun PsiClass.isMultiFileClass() =
+    ((this as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass == true
