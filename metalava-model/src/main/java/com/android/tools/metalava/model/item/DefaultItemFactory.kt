@@ -296,17 +296,30 @@ class DefaultItemFactory(
         origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
     ): ClassItem =
-        DefaultClassItem.createTypeAlias(
+        DefaultClassItem(
             codebase,
             fileLocation,
+            // Typealiases can only be defined in Kotlin.
+            SourceLanguage.KOTLIN,
+            // Typealiases can only be referenced from Kotlin source.
+            TargetLanguageSet.KOTLIN_ONLY,
             modifiers,
             documentationFactory,
             defaultVariantSelectorsFactory,
-            aliasedType,
+            null,
+            ClassKind.TYPEALIAS,
+            // Typealiases can only be defined at the top leve.
+            containingClass = null,
+            containingPackage,
             qualifiedName,
             typeParameterList,
-            containingPackage,
             origin,
+            // Typealiases don't have a superclass or interface types, since they are not
+            // normal classes.
+            superClassType = null,
+            interfaceTypes = emptyList(),
+            isFileFacade = false,
+            optionalAliasedType = aliasedType,
         )
 
     /**
