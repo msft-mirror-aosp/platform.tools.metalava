@@ -17,11 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -38,44 +35,7 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.uast.UField
 
-internal class PsiFieldItem(
-    override val psiCodebase: PsiBasedCodebase,
-    private val psiField: PsiField,
-    modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
-    name: String,
-    containingClass: ClassItem,
-    type: TypeItem,
-    private val isEnumConstant: Boolean,
-    constantValueProvider: OptionalValueProvider?,
-) :
-    DefaultFieldItem(
-        codebase = psiCodebase,
-        fileLocation = PsiFileLocation(psiField),
-        sourceLanguage = psiField.sourceLanguage,
-        targetLanguages = TargetLanguageSet.ALL,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-        name = name,
-        containingClass = containingClass,
-        type = type,
-        isEnumConstant = isEnumConstant,
-        constantValueProvider = constantValueProvider,
-    ),
-    FieldItem,
-    PsiItem {
-
-    override var property: PropertyItem? = null
-
-    override fun duplicate(targetContainingClass: ClassItem) =
-        create(
-                psiCodebase,
-                targetContainingClass,
-                psiField,
-                psiCodebase.globalTypeItemFactory.from(targetContainingClass),
-            )
-            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
+internal class PsiFieldItem {
 
     companion object {
         internal fun create(
@@ -83,7 +43,7 @@ internal class PsiFieldItem(
             containingClass: ClassItem,
             psiField: PsiField,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
-        ): PsiFieldItem {
+        ): FieldItem {
             val name = psiField.name
             val modifiers = PsiModifierItem.create(codebase, psiField)
 
@@ -123,16 +83,19 @@ internal class PsiFieldItem(
                     constantValueProviderForField(psiField, codebase, fieldType)
                 else null
 
-            return PsiFieldItem(
-                psiCodebase = codebase,
-                psiField = psiField,
-                documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
+            return DefaultFieldItem(
+                codebase = codebase,
+                fileLocation = PsiFileLocation(psiField),
+                sourceLanguage = psiField.sourceLanguage,
+                targetLanguages = TargetLanguageSet.ALL,
+                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
                 modifiers = modifiers,
+                documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
                 name = name,
                 containingClass = containingClass,
                 type = fieldType,
                 isEnumConstant = isEnumConstant,
-                constantValueProvider = constantValueProvider,
+                constantValueProvider = constantValueProvider
             )
         }
 

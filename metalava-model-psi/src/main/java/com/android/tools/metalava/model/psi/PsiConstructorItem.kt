@@ -17,26 +17,14 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultConstructorItem
-import com.android.tools.metalava.model.item.ParameterItemsFactory
-import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
-import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
-import com.android.tools.metalava.reporter.FileLocation
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.PsiClass
+import com.android.tools.metalava.model.psi.PsiCallableItem.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.throwsTypes
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -45,43 +33,7 @@ import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
 
-internal class PsiConstructorItem
-private constructor(
-    override val psiCodebase: PsiBasedCodebase,
-    override val psiMethod: PsiMethod,
-    fileLocation: FileLocation = PsiFileLocation(psiMethod),
-    containingClass: ClassItem,
-    name: String,
-    modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
-    parameterItemsFactory: ParameterItemsFactory,
-    returnType: ClassTypeItem,
-    typeParameterList: TypeParameterList,
-    throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
-    implicitConstructor: Boolean = false,
-    isPrimary: Boolean = false,
-    targetLanguages: Set<TargetLanguage>,
-) :
-    DefaultConstructorItem(
-        codebase = psiCodebase,
-        fileLocation = fileLocation,
-        sourceLanguage = psiMethod.sourceLanguage,
-        targetLanguages = targetLanguages,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-        name = name,
-        containingClass = containingClass,
-        typeParameterList = typeParameterList,
-        returnType = returnType,
-        parameterItemsFactory = parameterItemsFactory,
-        throwsTypes = throwsTypes,
-        callableBodyFactory = callableBodyFactory,
-        implicitConstructor = implicitConstructor,
-        isPrimary = isPrimary,
-    ),
-    PsiCallableItem {
+internal class PsiConstructorItem {
 
     companion object {
         internal fun create(
@@ -91,7 +43,7 @@ private constructor(
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             psiParameters: List<PsiParameter> = psiMethod.psiParameters,
             targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-        ): PsiConstructorItem {
+        ): ConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
@@ -119,30 +71,32 @@ private constructor(
                     psiMethod
                 )
             val constructor =
-                PsiConstructorItem(
-                    psiCodebase = codebase,
-                    psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
+                DefaultConstructorItem(
+                    codebase = codebase,
+                    fileLocation = PsiFileLocation(psiMethod),
+                    sourceLanguage = psiMethod.sourceLanguage,
+                    targetLanguages = targetLanguages,
                     modifiers = modifiers,
                     documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
+                    variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+                    name = name,
+                    containingClass = containingClass,
+                    typeParameterList = typeParameterList,
+                    returnType = containingClass.type(),
                     parameterItemsFactory = { containingCallable ->
                         parameterList(
                             codebase,
                             psiMethod,
-                            containingCallable as PsiCallableItem,
+                            containingCallable,
                             constructorTypeItemFactory,
                             modifiers,
                             psiParameters,
                         )
                     },
-                    returnType = containingClass.type(),
-                    typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
                     callableBodyFactory = { PsiCallableBody(codebase, it, psiMethod) },
                     implicitConstructor = false,
-                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
-                    targetLanguages = targetLanguages,
+                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false
                 )
 
             // Undo setting of constructors with value class types to private (b/395472914).
@@ -170,41 +124,6 @@ private constructor(
             }
 
             return constructor
-        }
-
-        fun createDefaultConstructor(
-            codebase: PsiBasedCodebase,
-            containingClass: ClassItem,
-            psiClass: PsiClass,
-            visibilityLevel: VisibilityLevel,
-        ): PsiConstructorItem {
-            val name = psiClass.name!!
-
-            val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
-            val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = createImmutableModifiers(visibilityLevel)
-
-            val item =
-                PsiConstructorItem(
-                    psiCodebase = codebase,
-                    psiMethod = psiMethod,
-                    // Use the location of the containing class for the implicit default
-                    // constructor.
-                    fileLocation = containingClass.fileLocation,
-                    containingClass = containingClass,
-                    name = name,
-                    modifiers = modifiers,
-                    documentationFactory = ItemDocumentation.NONE_FACTORY,
-                    parameterItemsFactory = { emptyList() },
-                    returnType = containingClass.type(),
-                    typeParameterList = TypeParameterList.NONE,
-                    throwsTypes = emptyList(),
-                    // A default constructor has no method body.
-                    callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
-                    implicitConstructor = true,
-                    targetLanguages = TargetLanguageSet.ALL,
-                )
-            return item
         }
 
         /**

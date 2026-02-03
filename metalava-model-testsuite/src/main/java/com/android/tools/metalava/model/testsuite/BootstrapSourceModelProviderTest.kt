@@ -873,7 +873,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
-            val ctorItem = classItem.createDefaultConstructor()
+            val ctorItem = classItem.createImplicitDefaultConstructor()
 
             assertEquals("Test", ctorItem.name())
             assertEquals(classItem, ctorItem.containingClass())

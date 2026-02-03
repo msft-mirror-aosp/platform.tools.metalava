@@ -16,89 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiCompiledFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.uast.UClass
 
-internal class PsiClassItem
-internal constructor(
-    override val psiCodebase: PsiBasedCodebase,
-    val psiClass: PsiClass,
-    modifiers: BaseModifierList,
-    documentationFactory: ItemDocumentationFactory,
-    classKind: ClassKind,
-    containingClass: ClassItem?,
-    containingPackage: PackageItem,
-    qualifiedName: String,
-    typeParameterList: TypeParameterList,
-    origin: ClassOrigin,
-    superClassType: ClassTypeItem?,
-    interfaceTypes: List<ClassTypeItem>
-) :
-    DefaultClassItem(
-        codebase = psiCodebase,
-        fileLocation = PsiFileLocation.fromPsiElement(psiClass),
-        sourceLanguage = psiClass.sourceLanguage,
-        targetLanguages = TargetLanguageSet.ALL,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-        source = null,
-        classKind = classKind,
-        containingClass = containingClass,
-        containingPackage = containingPackage,
-        qualifiedName = qualifiedName,
-        typeParameterList = typeParameterList,
-        origin = origin,
-        superClassType = superClassType,
-        interfaceTypes = interfaceTypes,
-        isFileFacade = isFileFacade(psiClass),
-        optionalAliasedType = null,
-    ),
-    ClassItem,
-    PsiItem {
-
-    override var primaryConstructor: ConstructorItem? = null
-        internal set
-
-    override fun sourceFile(): SourceFile? {
-        if (isNestedClass()) {
-            // Retrieve the SourceFile from the top level class.
-            return containingClass()?.sourceFile()
-        }
-
-        val containingFile = psiClass.containingFile ?: return null
-        if (containingFile is PsiCompiledFile) {
-            return null
-        }
-
-        return psiCodebase.sourceFileCache.psiSourceFile(containingFile)
-    }
-
-    /** Creates a constructor in this class */
-    override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
-        return PsiConstructorItem.createDefaultConstructor(psiCodebase, this, psiClass, visibility)
-    }
-
-    override fun isMultiFileClass(): Boolean {
-        return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false
-    }
-
+internal class PsiClassItem {
     companion object {
         /** Whether the [psiClass] is a file-facade class. See [ClassItem.isFileFacade]. */
         fun isFileFacade(psiClass: PsiClass): Boolean {
@@ -106,5 +29,9 @@ internal constructor(
                 psiClass is UClass &&
                 psiClass.javaPsi is KtLightClassForFacade
         }
+
+        /** Whether the [psiClass] is a multi-file class. See [ClassItem.isMultiFileClass]. */
+        fun isMultiFileClass(psiClass: PsiClass) =
+            ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass == true
     }
 }

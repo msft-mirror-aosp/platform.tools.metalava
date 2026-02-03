@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
@@ -84,11 +85,13 @@ import kotlin.jvm.optionals.getOrNull
  * @param globalContext provides access to various pieces of data that apply across all classes.
  * @param classSymbol the unique identifier for the [TypeBoundClass].
  * @param typeBoundClass the definition of the class as recorded by Turbine.
+ * @param origin the [ClassOrigin] of the class.
  */
 internal class TurbineClassBuilder(
     private val globalContext: TurbineGlobalContext,
     private val classSymbol: ClassSymbol,
     private val typeBoundClass: TypeBoundClass,
+    private val origin: ClassOrigin,
 ) : TurbineGlobalContext by globalContext {
     /** The [SourceTypeBoundClass] if this is a source class. */
     private val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
@@ -99,6 +102,11 @@ internal class TurbineClassBuilder(
     /**
      * Create a [ClassItem] for the [classSymbol]/[typeBoundClass] pair.
      *
+     * The parameters are on this method rather than the [TurbineClassBuilder] constructor because
+     * these only apply to the [ClassItem] that this builds, not to all the members or the nested
+     * classes. Adding these as constructor properties would confuse that code and possibly lead to
+     * errors if the wrong instance was used.
+     *
      * @param containingClassItem the containing [DefaultClassItem] to which the created [ClassItem]
      *   will belong, if any.
      * @param enclosingClassTypeItemFactory the [TurbineTypeItemFactory] that is used to create
@@ -107,7 +115,6 @@ internal class TurbineClassBuilder(
     internal fun createClass(
         containingClassItem: DefaultClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
-        origin: ClassOrigin,
     ): ClassItem {
         val decl = sourceTypeBoundClass?.decl()
 
@@ -372,11 +379,11 @@ internal class TurbineClassBuilder(
                     globalContext = globalContext,
                     classSymbol = nestedClassSymbol,
                     typeBoundClass = nestedTypeBoundClass,
+                    origin = origin,
                 )
             nestedClassBuilder.createClass(
                 containingClassItem = classItem,
                 enclosingClassTypeItemFactory = enclosingClassTypeItemFactory,
-                origin = classItem.origin,
             )
         }
     }

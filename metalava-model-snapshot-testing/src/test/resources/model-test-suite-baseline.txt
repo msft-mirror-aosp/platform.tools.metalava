@@ -9,6 +9,7 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[text]
 
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test constructor using optional value class type[psi,kotlin,k1]
   Test function in value class[psi,kotlin,k1]
   Test properties of value class types with JvmName[psi,kotlin,k1]
   Test properties of value class types with JvmName[psi,kotlin,k2]

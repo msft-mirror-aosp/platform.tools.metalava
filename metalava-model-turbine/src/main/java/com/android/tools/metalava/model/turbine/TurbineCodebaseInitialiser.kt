@@ -470,11 +470,11 @@ internal class TurbineCodebaseInitialiser(
                 globalContext = this,
                 classSymbol = classSymbol,
                 typeBoundClass = typeBoundClass,
+                origin = origin,
             )
         return classBuilder.createClass(
             containingClassItem = null,
             enclosingClassTypeItemFactory = globalTypeItemFactory,
-            origin = origin,
         )
     }
 
