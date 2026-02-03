@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
-import org.jetbrains.uast.UMethod
 
 internal object PsiCallableItem {
     /**
@@ -186,7 +185,3 @@ internal object PsiCallableItem {
             .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
     }
 }
-
-/** Get the [PsiParameter]s for a [PsiMethod]. */
-val PsiMethod.psiParameters: List<PsiParameter>
-    get() = if (this is UMethod) uastParameters else parameterList.parameters.toList()

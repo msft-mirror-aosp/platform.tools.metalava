@@ -24,8 +24,10 @@ import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.uast.UAnnotationMethod
+import org.jetbrains.uast.UMethod
 
 // This file contains extension functions and properties on PsiElement and related classes that are
 // needed across multiple classes.
@@ -106,3 +108,7 @@ internal fun PsiMethod.defaultValueProvider(codebase: PsiBasedCodebase, returnTy
         }
         else -> null
     }
+
+/** Get the [PsiParameter]s for a [PsiMethod]. */
+val PsiMethod.psiParameters: List<PsiParameter>
+    get() = if (this is UMethod) uastParameters else parameterList.parameters.toList()
