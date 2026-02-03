@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -140,7 +141,7 @@ internal class PsiMethodItem(
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             psiParameters: List<PsiParameter> = psiMethod.psiParameters,
             targetLanguages: Set<TargetLanguage> = containingClass.targetLanguages,
-        ): PsiMethodItem {
+        ): MethodItem {
             assert(!psiMethod.isConstructor)
             // TODO(b/457844210): work around a UAST issue where the accessor methods of internal
             //  PublishedApi properties have mangled names even though the compiler does not mangle
@@ -200,13 +201,17 @@ internal class PsiMethodItem(
                 (psiMethod as? UMethod)?.sourcePsi?.isExtensionDeclaration() ?: false
 
             val method =
-                PsiMethodItem(
-                    psiCodebase = codebase,
-                    psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
+                DefaultMethodItem(
+                    codebase = codebase,
+                    fileLocation = PsiFileLocation(psiMethod),
+                    sourceLanguage = psiMethod.sourceLanguage,
+                    targetLanguages = targetLanguages,
                     modifiers = modifiers,
                     documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
+                    variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+                    name = name,
+                    containingClass = containingClass,
+                    typeParameterList = typeParameterList,
                     returnType = returnType,
                     parameterItemsFactory = { containingCallable ->
                         parameterList(
@@ -218,12 +223,11 @@ internal class PsiMethodItem(
                             psiParameters,
                         )
                     },
-                    typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                     callableBodyFactory = { PsiCallableBody(codebase, it, psiMethod) },
                     defaultValueProvider = defaultValueProvider,
-                    targetLanguages = targetLanguages,
-                    isExtensionMethod = isExtensionMethod
+                    isExtensionMethod = isExtensionMethod,
+                    isKotlinProperty = isKotlinProperty(psiMethod),
                 )
 
             return method
