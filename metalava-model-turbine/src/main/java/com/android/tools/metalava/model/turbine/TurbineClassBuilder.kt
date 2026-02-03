@@ -44,13 +44,13 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -334,11 +334,11 @@ internal class TurbineClassBuilder(
     }
 
     /**
-     * Create the [DefaultTypeParameterItem] without any bounds and register it so that any uses of
+     * Create the [SkeletonTypeParameterItem] without any bounds and register it so that any uses of
      * it within the type bounds, e.g. `<E extends Enum<E>>`, or from other type parameters within
      * the same [TypeParameterList] can be resolved.
      */
-    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
+    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): SkeletonTypeParameterItem {
         val modifiers = createModifiers(ItemKind.TYPE_PARAMETER, 0, param.annotations())
         val typeParamItem =
             itemFactory.createTypeParameterItem(
@@ -350,7 +350,7 @@ internal class TurbineClassBuilder(
         return typeParamItem
     }
 
-    /** Create the bounds of a [DefaultTypeParameterItem]. */
+    /** Create the bounds of a [SkeletonTypeParameterItem]. */
     private fun createTypeParameterBounds(
         param: TyVarInfo,
         typeItemFactory: TurbineTypeItemFactory,

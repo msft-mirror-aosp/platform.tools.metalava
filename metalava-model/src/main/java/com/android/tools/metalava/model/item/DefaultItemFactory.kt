@@ -36,11 +36,13 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -328,11 +330,11 @@ class DefaultItemFactory(
         )
 
     /**
-     * Create a [DefaultTypeParameterItem].
+     * Create a [SkeletonTypeParameterItem].
      *
-     * This returns [DefaultTypeParameterItem] because access is needed to its
-     * [DefaultTypeParameterItem.bounds] after creation as full creation is a two stage process due
-     * to cyclical dependencies between [DefaultTypeParameterItem] in a type parameters list.
+     * This returns [SkeletonTypeParameterItem] because access is needed to its
+     * [SkeletonTypeParameterItem.bounds] after creation as full creation is a two stage process due
+     * to cyclical dependencies between [TypeParameterItem] in a type parameters list.
      *
      * TODO(b/351410134): Provide support in this factory for two stage initialization.
      */
@@ -340,5 +342,5 @@ class DefaultItemFactory(
         modifiers: BaseModifierList,
         name: String,
         isReified: Boolean,
-    ) = DefaultTypeParameterItem(modifiers, name, isReified)
+    ): SkeletonTypeParameterItem = DefaultTypeParameterItem(modifiers, name, isReified)
 }

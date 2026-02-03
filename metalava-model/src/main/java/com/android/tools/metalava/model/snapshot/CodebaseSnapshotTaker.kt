@@ -44,7 +44,6 @@ import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.snapshottingFactory
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
@@ -487,7 +486,7 @@ private constructor(
                     description,
                     this,
                     { typeParameterItem ->
-                        DefaultTypeParameterItem(
+                        itemFactory.createTypeParameterItem(
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()

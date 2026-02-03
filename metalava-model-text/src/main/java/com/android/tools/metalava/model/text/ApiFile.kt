@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -54,7 +55,6 @@ import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
@@ -1869,13 +1869,13 @@ private constructor(
     }
 
     /**
-     * Create a partially initialized [DefaultTypeParameterItem].
+     * Create a partially initialized [SkeletonTypeParameterItem].
      *
      * This extracts the [TypeParameterItem.isReified] and [TypeParameterItem.name] from the
-     * [typeParameterString] and creates a [DefaultTypeParameterItem] with those properties
-     * initialized but the [DefaultTypeParameterItem.bounds] is not.
+     * [typeParameterString] and creates a [SkeletonTypeParameterItem] with those properties
+     * initialized but the [SkeletonTypeParameterItem.bounds] is not.
      */
-    private fun createTypeParameterItem(typeParameterString: String): DefaultTypeParameterItem {
+    private fun createTypeParameterItem(typeParameterString: String): SkeletonTypeParameterItem {
         val length = typeParameterString.length
         var nameEnd = length
 

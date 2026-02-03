@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -45,7 +46,6 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -1018,10 +1018,10 @@ internal class PsiClassBuilder(
         )
     }
 
-    /** Create a [DefaultTypeParameterItem] for [psiTypeParameter] */
+    /** Create a [SkeletonTypeParameterItem] for [psiTypeParameter] */
     private fun createTypeParameterItem(
         psiTypeParameter: PsiTypeParameter
-    ): DefaultTypeParameterItem {
+    ): SkeletonTypeParameterItem {
         val simpleName = psiTypeParameter.name!!
         val modifiers = createModifiers(psiTypeParameter)
 

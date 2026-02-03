@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
@@ -30,7 +31,7 @@ class DefaultTypeParameterItem(
     modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,
-) : TypeParameterItem {
+) : SkeletonTypeParameterItem {
 
     override val modifiers: ModifierList = modifiers.toImmutable()
 
@@ -47,7 +48,7 @@ class DefaultTypeParameterItem(
         return variableTypeItem
     }
 
-    lateinit var bounds: List<BoundsTypeItem>
+    override lateinit var bounds: List<BoundsTypeItem>
 
     override fun typeBounds(): List<BoundsTypeItem> = bounds
 
