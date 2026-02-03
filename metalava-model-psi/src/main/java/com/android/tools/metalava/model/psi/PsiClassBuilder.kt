@@ -45,6 +45,7 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -66,6 +67,8 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterListOwner
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
+import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
+import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtAnnotated
@@ -76,6 +79,7 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.KtTypeParameter
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotation
@@ -997,7 +1001,7 @@ internal class PsiClassBuilder(
         return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
             scopeDescription,
             psiTypeParameters,
-            { PsiTypeParameterItem.create(psiCodebase, it) },
+            { createTypeParameterItem(it) },
             // Create bounds and store it in the [PsiTypeParameterItem.bounds] property.
             { typeItemFactory, psiTypeParameter ->
                 val refs = psiTypeParameter.extendsList.referencedTypes
@@ -1008,6 +1012,39 @@ internal class PsiClassBuilder(
                 }
             },
         )
+    }
+
+    /** Create a [DefaultTypeParameterItem] for [psiTypeParameter] */
+    private fun createTypeParameterItem(
+        psiTypeParameter: PsiTypeParameter
+    ): DefaultTypeParameterItem {
+        val simpleName = psiTypeParameter.name!!
+        val modifiers = PsiModifierItem.create(psiCodebase, psiTypeParameter)
+
+        return itemFactory.createTypeParameterItem(
+            modifiers = modifiers,
+            name = simpleName,
+            isReified = isReified(psiTypeParameter),
+        )
+    }
+
+    /** Check whether the [PsiTypeParameter] is reified, i.e. available in inline functions. */
+    private fun isReified(element: PsiTypeParameter?): Boolean {
+        element ?: return false
+        // TODO(jsjeon): Handle PsiElementWithOrigin<*> when available
+        if (
+            element is KtLightDeclaration<*, *> &&
+                element.kotlinOrigin is KtTypeParameter &&
+                element.kotlinOrigin?.text?.startsWith(KtTokens.REIFIED_KEYWORD.value) == true
+        ) {
+            return true
+        } else if (
+            element is KotlinLightTypeParameterBuilder &&
+                element.origin.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
+        ) {
+            return true
+        }
+        return false
     }
 }
 
