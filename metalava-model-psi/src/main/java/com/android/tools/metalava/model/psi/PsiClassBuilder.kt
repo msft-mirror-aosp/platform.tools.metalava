@@ -26,32 +26,45 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
+import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.Issues
+import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
+import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
+import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
@@ -340,8 +353,7 @@ internal class PsiClassBuilder(
         }
         if (psiFields.isNotEmpty()) {
             for (psiField in psiFields) {
-                val fieldItem =
-                    PsiFieldItem.create(psiCodebase, classItem, psiField, classTypeItemFactory)
+                val fieldItem = createField(classItem, psiField, classTypeItemFactory)
                 classItem.addField(fieldItem)
             }
         }
@@ -523,6 +535,95 @@ internal class PsiClassBuilder(
             }
         }
     }
+
+    internal fun createField(
+        containingClass: ClassItem,
+        psiField: PsiField,
+        enclosingClassTypeItemFactory: PsiTypeItemFactory,
+    ): FieldItem {
+        val name = psiField.name
+        val modifiers = PsiModifierItem.create(psiCodebase, psiField)
+
+        val isEnumConstant = psiField is PsiEnumConstant
+
+        // Create a type for the field, taking into account the modifiers, whether it is an
+        // enum constant and whether the field's initial value is non-null.
+        val fieldType =
+            enclosingClassTypeItemFactory.getFieldType(
+                underlyingType = PsiTypeInfo(psiField.type, psiField),
+                itemAnnotations = modifiers.annotations(),
+                isEnumConstant = isEnumConstant,
+                isFinal = modifiers.isFinal(),
+                isInitialValueNonNull = {
+                    // The initial value is non-null if the field initializer is a method that
+                    // is annotated as being non-null so would produce a non-null value, or the
+                    // value is a literal which is not null.
+                    psiField.isFieldInitializerNonNull()
+                },
+            )
+
+        // Check to see whether the field could have a constant value.
+        val couldHaveConstantValue =
+            when (psiField.sourceLanguage) {
+                // In Kotlin the `const` modifier is what determines whether the field could
+                // have a constant value. However, it also needs to be static as a const
+                // instance field cannot be treated as a constant by code outside the class.
+                SourceLanguage.KOTLIN -> modifiers.isConst() && modifiers.isStatic()
+                // In Java fields have to be static and final in order for them to have a
+                // constant value but that is not sufficient.
+                else -> modifiers.isStatic() && modifiers.isFinal()
+            }
+
+        // Get a ValueProvider for the initializer, if possible.
+        val constantValueProvider =
+            if (couldHaveConstantValue) constantValueProviderForField(psiField, fieldType) else null
+
+        return DefaultFieldItem(
+            codebase = codebase,
+            fileLocation = PsiFileLocation(psiField),
+            sourceLanguage = psiField.sourceLanguage,
+            targetLanguages = TargetLanguageSet.ALL,
+            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+            modifiers = modifiers,
+            documentationFactory = PsiItemDocumentation.factory(psiField, psiCodebase),
+            name = name,
+            containingClass = containingClass,
+            type = fieldType,
+            isEnumConstant = isEnumConstant,
+            constantValueProvider = constantValueProvider
+        )
+    }
+
+    /**
+     * Get an [OptionalValueProvider] for the [psiField]'s constant value.
+     *
+     * This will return 'null' if the [psiField] has no initializer at all.
+     *
+     * The returned [OptionalValueProvider]'s [OptionalValueProvider.optionalValue] property will be
+     * `null` if the field is a Java field which does not have an initializer which is a constant
+     * expression.
+     */
+    private fun constantValueProviderForField(psiField: PsiField, fieldType: TypeItem) =
+        when (psiField) {
+            is UField -> {
+                psiField.uastInitializer?.let { uastInitializer ->
+                    psiCodebase.valueFactory.providerFor(
+                        fieldType,
+                        uastInitializer,
+                        ValueUseSite.FIELD,
+                    )
+                }
+            }
+            else -> {
+                psiField.initializer?.let { psiInitializer ->
+                    psiCodebase.valueFactory.providerFor(
+                        fieldType,
+                        psiInitializer,
+                        ValueUseSite.FIELD,
+                    )
+                }
+            }
+        }
 }
 
 /** Whether [this] is a file-facade class. See [ClassItem.isFileFacade]. */
@@ -533,3 +634,46 @@ private fun PsiClass.isFileFacade(): Boolean {
 /** Whether [this] is a multi-file class. See [ClassItem.isMultiFileClass]. */
 private fun PsiClass.isMultiFileClass() =
     ((this as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass == true
+
+/**
+ * Check to see whether the [PsiField] on which this is called has an initializer whose
+ * [TypeNullability] is known to be [TypeNullability.NONNULL].
+ */
+private fun PsiField.isFieldInitializerNonNull(): Boolean {
+    // If no initializer was provided then it cannot be non-null.
+    val initializer = initializer ?: return false
+
+    // If we're looking at a final field, look on the right hand side of the field to the field
+    // initialization. If that right hand side for example represents a method call, and the method
+    // we're calling is annotated with @NonNull, then the field (since it is final) will always be
+    // @NonNull as well.
+    when (initializer) {
+        is PsiReference -> {
+            initializer.resolve()
+        }
+        is PsiCallExpression -> {
+            initializer.resolveMethod()
+        }
+        else -> null
+    }?.let { resolved ->
+        if (
+            resolved is PsiModifierListOwner &&
+                resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
+        ) {
+            return true
+        }
+    }
+
+    // Try and compute a constant value.
+    computeConstantValue()?.let {
+        // If it was non-null then the field must be non-null.
+        return true
+    }
+
+    JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false)?.let {
+        // If it was non-null then the field must be non-null.
+        return true
+    }
+
+    return false
+}
