@@ -26,9 +26,9 @@ import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiClassBuilder
 import com.android.tools.metalava.model.psi.PsiGlobalContext
@@ -179,7 +179,7 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
 
         for (qualifiedName in qualifiedClassNames) {
             val psiClass = facade.findClass(qualifiedName, scope) ?: continue
-            val classItem = codebase.findClass(qualifiedName) as? DefaultClassItem ?: continue
+            val classItem = codebase.findClass(qualifiedName) as? SkeletonClassItem ?: continue
             // Find associated Kotlin metadata for the class. If there isn't any, this wasn't a
             // Kotlin source class and can be skipped.
             val metadataContainer = psiClass.getMetadataContainer() ?: continue
@@ -192,7 +192,7 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
         for ((qualifiedName, classParts) in multiFileClassParts) {
             // Find the multi-file class itself in the codebase.
             val multiFileClassItem =
-                codebase.findClass(qualifiedName) as? DefaultClassItem ?: continue
+                codebase.findClass(qualifiedName) as? SkeletonClassItem ?: continue
             for (classPartPath in classParts) {
                 // Find the psi and metadata corresponding to this part of the multi-file class.
                 val psiClassPart =
@@ -207,7 +207,7 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
     /** Adds to the [classItem] the methods from the [psiClass] which are not already present. */
     private fun addMethodsToClass(
         psiClass: PsiClass,
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         metadataContainer: KmDeclarationContainer,
     ) {
         val classTypeItemFactory = globalTypeItemFactory.from(classItem)
@@ -257,7 +257,7 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
     private fun addMethodToClass(
         psiMethod: PsiMethod,
         psiClass: PsiClass,
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         metadataContainer: KmDeclarationContainer,
         classTypeItemFactory: PsiTypeItemFactory,
         hasDefaultConstructorMarker: Boolean,

@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -119,7 +120,7 @@ internal class PsiClassBuilder(
         containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): DefaultClassItem {
+    ): SkeletonClassItem {
         val packageName = psiClass.packageName
 
         // If the package could not be found then report an error.
@@ -246,7 +247,7 @@ internal class PsiClassBuilder(
      * [classItem].
      */
     fun addMembersToClassItem(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         psiMethods: List<PsiMethod>,
         psiFields: List<PsiField>,
         classTypeItemFactory: PsiTypeItemFactory,
@@ -509,7 +510,7 @@ internal class PsiClassBuilder(
      * excludes that parameter and all following parameters with default values.
      */
     private fun addOverloadedKotlinCallablesIfNecessary(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         callable: CallableItem,
         psiMethod: PsiMethod,
     ) {

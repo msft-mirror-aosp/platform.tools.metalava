@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -45,7 +46,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
@@ -151,7 +151,7 @@ internal class KaCodebaseAssembler(
      * Analyzes the [classItem] to find any Kotlin properties (which can't be found through the psi
      * directly) and add them to the class definition.
      */
-    fun addPropertiesToClassFromClasspath(classItem: DefaultClassItem) {
+    fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem) {
         mainModuleProcessor.addPropertiesToClassFromClasspath(classItem)
     }
 
@@ -401,9 +401,9 @@ private constructor(
     private fun KaSession.processNamedClass(
         classifierSymbol: KaNamedClassSymbol,
         containingPackage: PackageItem,
-        containingClass: DefaultClassItem? = null,
+        containingClass: SkeletonClassItem? = null,
         processIfClasspath: Boolean = false,
-    ): DefaultClassItem? {
+    ): SkeletonClassItem? {
         // When adding to a psi codebase, skip Java classes as they won't be kotlin-only.
         if (addingToPsiCodebase && classifierSymbol.psi?.isKotlin() == false) return null
         // Skip classes loaded from the classpath.
@@ -472,7 +472,7 @@ private constructor(
         containingPackage: PackageItem,
         containingClass: ClassItem?,
         qualifiedName: String,
-    ): DefaultClassItem {
+    ): SkeletonClassItem {
         codebase.findClassInCodebase(qualifiedName)?.let {
             return it
         }
@@ -567,7 +567,7 @@ private constructor(
      * Facade classes are only created for the JVM, but in order to support top level functions and
      * properties in the [Codebase] model this creates a fake class to hold the package-level items.
      */
-    private fun findOrCreateFacadeClass(containingPackage: PackageItem): DefaultClassItem {
+    private fun findOrCreateFacadeClass(containingPackage: PackageItem): SkeletonClassItem {
         // Create a fake class name to contain the top level items.
         val qualifiedName = containingPackage.qualifiedName() + ".\$TopLevelDeclarations"
         codebase.findClassInCodebase(qualifiedName)?.let {
@@ -649,7 +649,7 @@ private constructor(
      */
     private fun KaSession.processConstructor(
         constructorSymbol: KaConstructorSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
     ) {
         if (!shouldGenerateConstructor(constructorSymbol, containingClass)) return
@@ -696,7 +696,7 @@ private constructor(
     /** Processes a [KaCallableSymbol], which could be a property or function. */
     private fun KaSession.processCallable(
         callableSymbol: KaCallableSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
     ) {
         // Skip callables loaded from the classpath.
@@ -763,7 +763,7 @@ private constructor(
     /** Constructs a method from the [functionSymbol] and adds it to the [containingClass]. */
     private fun KaSession.processFunction(
         functionSymbol: KaNamedFunctionSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory
     ) {
         if (!shouldGenerateMethod(functionSymbol)) return
@@ -875,7 +875,7 @@ private constructor(
      * Finds the symbol corresponding to the [classItem], if one exists, and adds any Kotlin
      * properties defined for the class.
      */
-    fun addPropertiesToClassFromClasspath(classItem: DefaultClassItem) {
+    fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem) {
         analyze(kaModule) {
             // The ClassId format is to have package names separated by slashes instead of dots.
             val classIdString =
@@ -902,7 +902,7 @@ private constructor(
     /** Constructs a property from the [propertySymbol] and adds it to the [containingClass]. */
     private fun KaSession.processProperty(
         propertySymbol: KaPropertySymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory
     ) {
         // Skip creating enum entry properties, which exist for all enums.

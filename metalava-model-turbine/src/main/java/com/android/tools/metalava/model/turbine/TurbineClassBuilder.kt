@@ -43,13 +43,13 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
@@ -366,7 +366,7 @@ internal class TurbineClassBuilder(
 
     /** This method sets up the nested class hierarchy. */
     private fun createNestedClasses(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -390,7 +390,7 @@ internal class TurbineClassBuilder(
 
     /** This method creates and sets the fields of a class */
     private fun createFields(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -446,7 +446,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createMethods(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -583,7 +583,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createConstructors(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {

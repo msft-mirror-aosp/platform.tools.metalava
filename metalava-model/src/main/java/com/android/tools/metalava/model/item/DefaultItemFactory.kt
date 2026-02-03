@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -102,7 +103,7 @@ class DefaultItemFactory(
         interfaceTypes: List<ClassTypeItem>,
         optionalAliasedType: TypeItem? = null,
         isFileFacade: Boolean = false,
-    ) =
+    ): SkeletonClassItem =
         DefaultClassItem(
             codebase,
             fileLocation,

@@ -26,10 +26,10 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
@@ -199,7 +199,7 @@ internal class PsiCodebaseAssembler(
         psiClass: PsiClass,
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): DefaultClassItem {
+    ): SkeletonClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
         return createClass(
             psiClass,
@@ -216,7 +216,7 @@ internal class PsiCodebaseAssembler(
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): DefaultClassItem {
+    ): SkeletonClassItem {
         val builder =
             PsiClassBuilder(
                 globalContext = this,
@@ -556,7 +556,7 @@ internal class PsiCodebaseAssembler(
             // If this class was already processed, there is already a ClassItem defined.
             if (previouslyProcessedFiles.isNotEmpty()) {
                 val existingClassItem =
-                    codebase.findClass(multiFileClassName.toString()) as DefaultClassItem
+                    codebase.findClass(multiFileClassName.toString()) as SkeletonClassItem
                 // Only add the methods and fields which defined in files which have not been
                 // previously processed.
                 val builder =
