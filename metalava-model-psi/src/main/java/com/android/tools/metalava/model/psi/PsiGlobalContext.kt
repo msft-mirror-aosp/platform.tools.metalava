@@ -32,6 +32,9 @@ internal interface PsiGlobalContext {
     /** The [PsiBasedCodebase] being constructed. */
     val psiCodebase: PsiBasedCodebase
 
+    /** The global, i.e. no class specific, [PsiTypeItemFactory]. */
+    val globalTypeItemFactory: PsiTypeItemFactory
+
     /** Get a [PsiClassType] for [psiClass]. */
     fun getClassType(psiClass: PsiClass): PsiClassType
 

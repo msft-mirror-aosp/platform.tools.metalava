@@ -85,7 +85,7 @@ internal class PsiCodebaseAssembler(
             defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         )
 
-    internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
+    override val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
     internal val project: Project = uastEnvironment.ideaProject
 

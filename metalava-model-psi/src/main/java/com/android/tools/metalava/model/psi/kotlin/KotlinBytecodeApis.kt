@@ -30,8 +30,8 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiConstructorItem
+import com.android.tools.metalava.model.psi.PsiGlobalContext
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItemFactory
 import com.android.tools.metalava.model.psi.psiParameters
@@ -78,7 +78,8 @@ import org.objectweb.asm.Opcodes
  * present in the jar. Then, [loadPsiFromProject] will search for the class names from the jar in a
  * psi project to add APIs to the [codebase].
  */
-internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
+internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
+    PsiGlobalContext by globalContext {
     /** Class names to process. Populated by [rewriteJar] and used by [loadPsiFromProject]. */
     private val qualifiedClassNames = mutableListOf<String>()
 
@@ -210,7 +211,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         classItem: DefaultClassItem,
         metadataContainer: KmDeclarationContainer,
     ) {
-        val classTypeItemFactory = codebase.globalTypeItemFactory.from(classItem)
+        val classTypeItemFactory = globalTypeItemFactory.from(classItem)
         // Kotlin source constructors get a constructor generated in the bytecode with
         // `kotlin.jvm.internal.DefaultConstructorMarker` as the final parameter. It only needs to
         // be tracked when there isn't already a matching constructor not including the
@@ -308,7 +309,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         val callableItem =
             if (psiMethod.isConstructor) {
                 PsiConstructorItem.create(
-                        codebase,
+                        psiCodebase,
                         classItem,
                         psiMethod,
                         classTypeItemFactory,
@@ -338,7 +339,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                     }
             } else {
                 PsiMethodItem.create(
-                        codebase,
+                        psiCodebase,
                         classItem,
                         psiMethod,
                         classTypeItemFactory,
@@ -562,7 +563,8 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // Find a @Metadata annotation on the class, and convert to Kotlin metadata
         val metadataAnnotation =
             annotations.singleOrNull { it.qualifiedName == KOTLIN_METADATA } ?: return null
-        val annotationItem = PsiAnnotationItem.create(codebase, metadataAnnotation) ?: return null
+        val annotationItem =
+            PsiAnnotationItem.create(psiCodebase, metadataAnnotation) ?: return null
         val metadata = annotationItem.toMetadata()
 
         // Return the relevant metadata container. Uses `readLenient` instead of `readStrict` as the
@@ -736,8 +738,6 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             classForAnnotationMethod.methods.singleOrNull {
                 it.name == annotationMethodSignature.name
             } ?: return
-
-        val psiCodebase = this@KotlinBytecodeApis.codebase
 
         if (kmProperty.visibility == Visibility.INTERNAL) {
             // Check if the method is @PublishedApi, propagate it to the accessor method if so.
