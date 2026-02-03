@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
@@ -45,6 +46,7 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.Issues
@@ -61,6 +63,7 @@ import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
+import com.intellij.psi.PsiTypeParameterListOwner
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -147,11 +150,10 @@ internal class PsiClassBuilder(
         // Create the TypeParameterList for this before wrapping any of the other types used by
         // it as they may reference a type parameter in the list.
         val (typeParameterList, classTypeItemFactory) =
-            PsiTypeParameterList.create(
-                psiCodebase,
+            createTypeParameterList(
                 enclosingClassTypeItemFactory,
                 "class $qualifiedName",
-                psiClass
+                psiClass,
             )
         val (superClassType, interfaceTypes) =
             computeSuperTypes(psiClass, classKind, classTypeItemFactory)
@@ -671,11 +673,10 @@ internal class PsiClassBuilder(
         // Create the TypeParameterList for this before wrapping any of the other types used by it
         // as they may reference a type parameter in the list.
         val (typeParameterList, methodTypeItemFactory) =
-            PsiTypeParameterList.create(
-                psiCodebase,
+            createTypeParameterList(
                 enclosingClassTypeItemFactory,
                 "method $name",
-                psiMethod
+                psiMethod,
             )
         val fingerprint = MethodFingerprint(psiMethod.name, psiMethod.parameters.size)
         val isAnnotationElement = containingClass.isAnnotationType() && !modifiers.isStatic()
@@ -749,11 +750,10 @@ internal class PsiClassBuilder(
         // Create the TypeParameterList for this before wrapping any of the other types used by it
         // as they may reference a type parameter in the list.
         val (typeParameterList, constructorTypeItemFactory) =
-            PsiTypeParameterList.create(
-                psiCodebase,
+            createTypeParameterList(
                 enclosingClassTypeItemFactory,
                 "constructor $name",
-                psiMethod
+                psiMethod,
             )
         val constructor =
             itemFactory.createConstructorItem(
@@ -974,6 +974,40 @@ internal class PsiClassBuilder(
             // element-by-element comparison to see if the signature matches, and that should match
             // overrides even if they specify their elements in different orders.
             .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
+    }
+
+    /**
+     * Create a [TypeParameterListAndFactory] pair from [psiOwner] for [scopeDescription].
+     *
+     * If the [TypeParameterListAndFactory.typeParameterList] is empty then
+     * [TypeParameterListAndFactory.factory] will be [enclosingTypeItemFactory]. Otherwise, the
+     * factory will resolve the [TypeParameterList] and delegate others to
+     * [enclosingTypeItemFactory].
+     */
+    private fun createTypeParameterList(
+        enclosingTypeItemFactory: PsiTypeItemFactory,
+        scopeDescription: String,
+        psiOwner: PsiTypeParameterListOwner
+    ): TypeParameterListAndFactory<PsiTypeItemFactory> {
+        val psiTypeParameters = psiOwner.typeParameterList?.typeParameters?.asList()
+        if (psiTypeParameters.isNullOrEmpty()) {
+            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+        }
+
+        return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
+            scopeDescription,
+            psiTypeParameters,
+            { PsiTypeParameterItem.create(psiCodebase, it) },
+            // Create bounds and store it in the [PsiTypeParameterItem.bounds] property.
+            { typeItemFactory, psiTypeParameter ->
+                val refs = psiTypeParameter.extendsList.referencedTypes
+                if (refs.isEmpty()) {
+                    emptyList()
+                } else {
+                    refs.mapNotNull { typeItemFactory.getBoundsType(PsiTypeInfo(it)) }
+                }
+            },
+        )
     }
 }
 
