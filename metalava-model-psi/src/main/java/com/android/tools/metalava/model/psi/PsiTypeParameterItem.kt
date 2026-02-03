@@ -34,7 +34,6 @@ internal class PsiTypeParameterItem {
             val modifiers = PsiModifierItem.create(codebase, psiTypeParameter)
 
             return DefaultTypeParameterItem(
-                classResolver = codebase,
                 modifiers = modifiers,
                 name = simpleName,
                 isReified = isReified(psiTypeParameter),

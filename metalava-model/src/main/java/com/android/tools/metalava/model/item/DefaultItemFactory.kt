@@ -340,11 +340,5 @@ class DefaultItemFactory(
         modifiers: BaseModifierList,
         name: String,
         isReified: Boolean,
-    ) =
-        DefaultTypeParameterItem(
-            codebase,
-            modifiers,
-            name,
-            isReified,
-        )
+    ) = DefaultTypeParameterItem(modifiers, name, isReified)
 }

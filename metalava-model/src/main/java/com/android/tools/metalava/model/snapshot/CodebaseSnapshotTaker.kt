@@ -488,7 +488,6 @@ private constructor(
                     this,
                     { typeParameterItem ->
                         DefaultTypeParameterItem(
-                            classResolver = snapshotCodebase,
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()
