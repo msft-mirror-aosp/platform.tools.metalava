@@ -23,13 +23,16 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -45,8 +48,7 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.DefaultMethodItem
-import com.android.tools.metalava.model.psi.PsiCallableItem.parameterList
-import com.android.tools.metalava.model.psi.PsiCallableItem.throwsTypes
+import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -55,6 +57,7 @@ import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
+import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
@@ -713,7 +716,6 @@ internal class PsiClassBuilder(
                 returnType = returnType,
                 parameterItemsFactory = { containingCallable ->
                     parameterList(
-                        psiCodebase,
                         psiMethod,
                         containingCallable,
                         methodTypeItemFactory,
@@ -779,7 +781,6 @@ internal class PsiClassBuilder(
                 returnType = containingClass.type(),
                 parameterItemsFactory = { containingCallable ->
                     parameterList(
-                        psiCodebase,
                         psiMethod,
                         containingCallable,
                         constructorTypeItemFactory,
@@ -839,6 +840,155 @@ internal class PsiClassBuilder(
             it.toUElementOfType<UAnnotation>()?.qualifiedName == "kotlin.PublishedApi"
         }
     }
+
+    /**
+     * Create a list of [ParameterItem]s.
+     *
+     * The [containingCallableModifiers] parameter is added here, rather than retrieving from
+     * [containingCallable]'s [CallableItem.modifiers] properties, because at the time this is
+     * called [containingCallable] is in the process of being initialized and its properties have
+     * not yet been initialized.
+     */
+    private fun parameterList(
+        psiMethod: PsiMethod,
+        containingCallable: CallableItem,
+        enclosingTypeItemFactory: PsiTypeItemFactory,
+        containingCallableModifiers: BaseModifierList,
+        psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+    ): List<ParameterItem> {
+        val fingerprint = MethodFingerprint(containingCallable.name(), psiParameters.size)
+        return psiParameters.mapIndexed { index, parameter ->
+            createParameterItem(
+                containingCallable,
+                fingerprint,
+                parameter,
+                index,
+                enclosingTypeItemFactory,
+                psiMethod,
+                containingCallableModifiers
+            )
+        }
+    }
+
+    /** Create a [ParameterItem] for [psiParameter]. */
+    private fun createParameterItem(
+        containingCallable: CallableItem,
+        fingerprint: MethodFingerprint,
+        psiParameter: PsiParameter,
+        parameterIndex: Int,
+        enclosingMethodTypeItemFactory: PsiTypeItemFactory,
+        psiMethod: PsiMethod,
+        containingCallableModifiers: BaseModifierList,
+    ): ParameterItem {
+        val name = psiParameter.name
+        val modifiers = createParameterModifiers(psiParameter)
+        val type =
+            enclosingMethodTypeItemFactory.getMethodParameterType(
+                underlyingParameterType = PsiTypeInfo(psiParameter.type, psiParameter),
+                itemAnnotations = modifiers.annotations(),
+                fingerprint = fingerprint,
+                parameterIndex = parameterIndex,
+                isVarArg = psiParameter.type is PsiEllipsisType,
+            )
+        val parameter =
+            DefaultParameterItem(
+                codebase = psiCodebase,
+                fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
+                sourceLanguage = psiParameter.sourceLanguage,
+                modifiers = modifiers,
+                name = name,
+                publicName =
+                    getPublicName(
+                        psiParameter,
+                        parameterIndex,
+                        fingerprint.parameterCount,
+                        psiMethod,
+                        containingCallableModifiers,
+                    ),
+                containingCallable = containingCallable,
+                parameterIndex = parameterIndex,
+                type = type,
+                hasDefaultValue = PsiParameterDefaultValue.compute(psiParameter, parameterIndex),
+            )
+        return parameter
+    }
+
+    /** Create [MutableModifierList] from [psiParameter] for a [ParameterItem]. */
+    private fun createParameterModifiers(psiParameter: PsiParameter): MutableModifierList {
+        val modifiers = PsiModifierItem.create(psiCodebase, psiParameter)
+        // Method parameters don't have a visibility level; they are visible to anyone that can
+        // call their method. However, Kotlin constructors sometimes appear to specify the
+        // visibility of a constructor parameter by putting visibility inside the constructor
+        // signature. This is really to indicate that the matching property should have the
+        // mentioned visibility.
+        // If the method parameter seems to specify a visibility level, we correct it back to
+        // the default, here, to ensure we don't attempt to incorrectly emit this information
+        // into a signature file.
+        modifiers.setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
+        return modifiers
+    }
+
+    /**
+     * Get the public name of a parameter.
+     *
+     * @param psiParameter The [PsiParameter] to find the name of.
+     * @param parameterIndex The index of this parameter in the containing callable.
+     * @param parameterCount The total number of parameters of the containing callable.
+     * @param psiMethod The containing [PsiMethod] of the parameter.
+     * @param containingCallableModifiers The modifiers of the containing callable.
+     */
+    private fun getPublicName(
+        psiParameter: PsiParameter,
+        parameterIndex: Int,
+        parameterCount: Int,
+        psiMethod: PsiMethod,
+        containingCallableModifiers: BaseModifierList,
+    ): String? {
+        if (psiParameter.isKotlin()) {
+            // Omit names of some special parameters in Kotlin. None of these parameters may be set
+            // through Kotlin keyword arguments, so there's no need to track their names for
+            // compatibility. This also helps avoid signature file churn if PSI or the compiler
+            // change what name they're using for these parameters.
+
+            // Receiver parameter of extension function
+            // Note receiver parameter used to be named $receiver in previous UAST versions, now it
+            // is $this$functionName
+            if (parameterIndex == 0 && psiParameter.name.startsWith("\$this$")) {
+                return null
+            }
+            // Property setter parameter
+            if (psiMethod.isKotlinProperty()) {
+                return null
+            }
+            // Continuation parameter of suspend function (the final parameter of a suspend function
+            // is the continuation).
+            if (containingCallableModifiers.isSuspend() && parameterCount - 1 == parameterIndex) {
+                return null
+            }
+            return psiParameter.name
+        }
+
+        return null
+    }
+
+    private fun throwsTypes(
+        psiMethod: PsiMethod,
+        enclosingTypeItemFactory: PsiTypeItemFactory,
+    ): List<ExceptionTypeItem> {
+        val throwsClassTypes = psiMethod.throwsList.referencedTypes
+        if (throwsClassTypes.isEmpty()) {
+            return emptyList()
+        }
+
+        return throwsClassTypes
+            // Convert the PsiType to an ExceptionTypeItem and wrap it in a ThrowableType.
+            .map { psiType -> enclosingTypeItemFactory.getExceptionType(PsiTypeInfo(psiType)) }
+            // We're sorting the names here even though outputs typically do their own sorting,
+            // since for example the MethodItem.sameSignature check wants to do an
+            // element-by-element comparison to see if the signature matches, and that should match
+            // overrides even if they specify their elements in different orders.
+            .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
+    }
 }
 
 /** Whether [this] is a file-facade class. See [ClassItem.isFileFacade]. */
@@ -894,7 +1044,7 @@ private fun PsiField.isFieldInitializerNonNull(): Boolean {
 }
 
 /** Returns `true` if this [PsiMethod] is part of a Kotlin property. */
-fun PsiMethod.isKotlinProperty(): Boolean {
+private fun PsiMethod.isKotlinProperty(): Boolean {
     return (this is UMethod) &&
         when (val source = sourcePsi) {
             is KtProperty -> true
