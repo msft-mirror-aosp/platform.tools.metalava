@@ -21,15 +21,11 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.psi.PsiCallableItem.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
-import com.android.tools.metalava.model.value.CombinedValueProvider
-import com.android.tools.metalava.model.value.ValueUseSite
-import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.KtAnnotated
@@ -38,7 +34,6 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.toUElementOfType
 
@@ -173,33 +168,4 @@ internal class PsiMethodItem {
             }
         }
     }
-}
-
-internal fun PsiMethod.defaultValueProvider(
-    codebase: PsiBasedCodebase,
-    returnType: TypeItem
-): CombinedValueProvider? {
-    val defaultValueProvider =
-        when (this) {
-            is UAnnotationMethod -> {
-                uastDefaultValue?.let { uDefaultValue ->
-                    codebase.valueFactory.providerFor(
-                        returnType,
-                        uDefaultValue,
-                        ValueUseSite.ANNOTATION,
-                    )
-                }
-            }
-            is PsiAnnotationMethod -> {
-                defaultValue?.let { psiDefaultValue ->
-                    codebase.valueFactory.providerFor(
-                        returnType,
-                        psiDefaultValue,
-                        ValueUseSite.ANNOTATION,
-                    )
-                }
-            }
-            else -> null
-        }
-    return defaultValueProvider
 }
