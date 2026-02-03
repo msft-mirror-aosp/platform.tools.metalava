@@ -30,9 +30,9 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
+import com.android.tools.metalava.model.psi.PsiClassBuilder
 import com.android.tools.metalava.model.psi.PsiConstructorItem
 import com.android.tools.metalava.model.psi.PsiGlobalContext
-import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItemFactory
 import com.android.tools.metalava.model.psi.psiParameters
 import com.android.tools.metalava.model.value.IntValue
@@ -338,8 +338,14 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
                         }
                     }
             } else {
-                PsiMethodItem.create(
-                        psiCodebase,
+                val builder =
+                    PsiClassBuilder(
+                        globalContext,
+                        psiClass,
+                        classItem.origin,
+                    )
+                builder
+                    .createMethod(
                         classItem,
                         psiMethod,
                         classTypeItemFactory,

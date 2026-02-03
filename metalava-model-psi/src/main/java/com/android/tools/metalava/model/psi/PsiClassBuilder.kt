@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
@@ -42,7 +43,11 @@ import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultFieldItem
+import com.android.tools.metalava.model.item.DefaultMethodItem
+import com.android.tools.metalava.model.psi.PsiCallableItem.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.throwsTypes
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.Issues
@@ -54,22 +59,27 @@ import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.JvmStandardClassIds
+import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
+import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
+import org.jetbrains.uast.toUElementOfType
 
 /**
  * Responsible for creating [ClassItem]s from either source or binary [PsiClass]es.
@@ -302,12 +312,11 @@ internal class PsiClassBuilder(
                         TargetLanguageSet.ALL
                     }
                 val method =
-                    PsiMethodItem.create(
-                        psiCodebase,
+                    createMethod(
                         classItem,
                         psiMethod,
                         classTypeItemFactory,
-                        targetLanguages = targetLanguages
+                        targetLanguages = targetLanguages,
                     )
 
                 val hasJvmName = method.modifiers.annotations().any { it.qualifiedName == JVM_NAME }
@@ -626,6 +635,123 @@ internal class PsiClassBuilder(
                 }
             }
         }
+
+    /** Create a [MethodItem]. */
+    internal fun createMethod(
+        containingClass: ClassItem,
+        psiMethod: PsiMethod,
+        enclosingClassTypeItemFactory: PsiTypeItemFactory,
+        psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+        targetLanguages: Set<TargetLanguage> = containingClass.targetLanguages,
+    ): MethodItem {
+        assert(!psiMethod.isConstructor)
+        // TODO(b/457844210): work around a UAST issue where the accessor methods of internal
+        //  PublishedApi properties have mangled names even though the compiler does not mangle
+        //  their names.
+        val name =
+            if (
+                psiMethod.name.contains("$") &&
+                    psiMethod.isKotlinProperty() &&
+                    sourcePropertyOrParameter(psiMethod)?.hasPublishedApiAnnotation() == true
+            ) {
+                psiMethod.name.substringBefore("$")
+            } else {
+                psiMethod.name
+            }
+        val modifiers = PsiModifierItem.create(psiCodebase, psiMethod)
+
+        if (containingClass.classKind == ClassKind.INTERFACE) {
+            // All interface methods are implicitly public (except in Java 1.9, where they can
+            // be private).
+            if (!modifiers.isPrivate()) {
+                modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+            }
+        }
+
+        if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
+            // The containing class is final, so it is implied that every method is final as well.
+            // No need to apply 'final' to each method. (We do it here rather than just in the
+            // signature emit code since we want to make sure that the signature comparison
+            // methods with super methods also consider this method non-final.)
+            modifiers.setFinal(false)
+        }
+
+        // Create the TypeParameterList for this before wrapping any of the other types used by it
+        // as they may reference a type parameter in the list.
+        val (typeParameterList, methodTypeItemFactory) =
+            PsiTypeParameterList.create(
+                psiCodebase,
+                enclosingClassTypeItemFactory,
+                "method $name",
+                psiMethod
+            )
+        val fingerprint = MethodFingerprint(psiMethod.name, psiMethod.parameters.size)
+        val isAnnotationElement = containingClass.isAnnotationType() && !modifiers.isStatic()
+        val returnType =
+            methodTypeItemFactory.getMethodReturnType(
+                underlyingReturnType = PsiTypeInfo(psiMethod.returnType!!, psiMethod),
+                itemAnnotations = modifiers.annotations(),
+                fingerprint = fingerprint,
+                isAnnotationElement = isAnnotationElement,
+            )
+
+        val defaultValueProvider = psiMethod.defaultValueProvider(psiCodebase, returnType)
+
+        // Use psi util which works for source kt elements to determine if this is an extension
+        val isExtensionMethod = (psiMethod as? UMethod)?.sourcePsi?.isExtensionDeclaration() == true
+
+        val method =
+            DefaultMethodItem(
+                codebase = codebase,
+                fileLocation = PsiFileLocation(psiMethod),
+                sourceLanguage = psiMethod.sourceLanguage,
+                targetLanguages = targetLanguages,
+                modifiers = modifiers,
+                documentationFactory = PsiItemDocumentation.factory(psiMethod, psiCodebase),
+                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+                name = name,
+                containingClass = containingClass,
+                typeParameterList = typeParameterList,
+                returnType = returnType,
+                parameterItemsFactory = { containingCallable ->
+                    parameterList(
+                        psiCodebase,
+                        psiMethod,
+                        containingCallable,
+                        methodTypeItemFactory,
+                        modifiers,
+                        psiParameters,
+                    )
+                },
+                throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
+                callableBodyFactory = { PsiCallableBody(psiCodebase, it, psiMethod) },
+                defaultValueProvider = defaultValueProvider,
+                isExtensionMethod = isExtensionMethod,
+                isKotlinProperty = psiMethod.isKotlinProperty(),
+            )
+
+        return method
+    }
+
+    /**
+     * For property accessor [psiMethod], returns the [KtProperty] or [KtParameter] which is the
+     * source of the method.
+     */
+    private fun sourcePropertyOrParameter(psiMethod: PsiMethod): KtAnnotated? {
+        return when (val sourcePsi = (psiMethod as? UMethod)?.sourcePsi) {
+            is KtProperty -> sourcePsi
+            is KtParameter -> sourcePsi
+            is KtPropertyAccessor -> sourcePsi.property
+            else -> null
+        }
+    }
+
+    /** Returns whether the element is annotated with @PublishedApi. */
+    private fun KtAnnotated.hasPublishedApiAnnotation(): Boolean {
+        return annotationEntries.any {
+            it.toUElementOfType<UAnnotation>()?.qualifiedName == "kotlin.PublishedApi"
+        }
+    }
 }
 
 /** Whether [this] is a file-facade class. See [ClassItem.isFileFacade]. */
