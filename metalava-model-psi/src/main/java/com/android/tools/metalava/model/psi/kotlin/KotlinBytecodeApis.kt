@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiClassBuilder
-import com.android.tools.metalava.model.psi.PsiConstructorItem
 import com.android.tools.metalava.model.psi.PsiGlobalContext
 import com.android.tools.metalava.model.psi.PsiTypeItemFactory
 import com.android.tools.metalava.model.psi.psiParameters
@@ -305,11 +304,19 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
         // be allowed).
         if (checkForSignatureMatch(semiErasedSignature, semiErasedReturn, potentialMatches)) return
 
+        // Create a PsiClassBuilder to use to create the CallableItem.
+        val builder =
+            PsiClassBuilder(
+                globalContext,
+                psiClass,
+                classItem.origin,
+            )
+
         // Create the item.
         val callableItem =
             if (psiMethod.isConstructor) {
-                PsiConstructorItem.create(
-                        psiCodebase,
+                builder
+                    .createConstructor(
                         classItem,
                         psiMethod,
                         classTypeItemFactory,
@@ -338,12 +345,6 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
                         }
                     }
             } else {
-                val builder =
-                    PsiClassBuilder(
-                        globalContext,
-                        psiClass,
-                        classItem.origin,
-                    )
                 builder
                     .createMethod(
                         classItem,
