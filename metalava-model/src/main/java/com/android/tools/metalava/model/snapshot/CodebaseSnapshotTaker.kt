@@ -35,12 +35,12 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.AbstractSourceFile
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
@@ -198,8 +198,8 @@ private constructor(
     }
 
     /** Get the [ClassItem] corresponding to this [ClassItem] in the [snapshotCodebase]. */
-    private fun ClassItem.getSnapshotClass(): DefaultClassItem =
-        snapshotCodebase.resolveClass(qualifiedName()) as DefaultClassItem
+    private fun ClassItem.getSnapshotClass(): SkeletonClassItem =
+        snapshotCodebase.resolveClass(qualifiedName()) as SkeletonClassItem
 
     /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
     private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {

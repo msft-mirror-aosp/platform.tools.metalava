@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.ReferencableMethodSet
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
@@ -77,7 +78,8 @@ class DefaultClassItem(
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
-    ClassItem {
+    ClassItem,
+    SkeletonClassItem {
 
     private val simpleName = qualifiedName.extractSimpleName()
 
@@ -193,8 +195,7 @@ class DefaultClassItem(
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
-    /** Set the super class [ClassTypeItem]. */
-    fun setSuperClassType(superClassType: ClassTypeItem?) {
+    override fun setSuperClassType(superClassType: ClassTypeItem?) {
         ensureNotFrozen()
         this.superClassType = superClassType
     }
@@ -239,8 +240,7 @@ class DefaultClassItem(
 
     override fun constructors(): List<ConstructorItem> = mutableConstructors
 
-    /** Add a constructor to this class. */
-    fun addConstructor(constructor: ConstructorItem) {
+    override fun addConstructor(constructor: ConstructorItem) {
         ensureNotFrozen()
         mutableConstructors += constructor
     }
@@ -262,12 +262,7 @@ class DefaultClassItem(
         mutableItems += item
     }
 
-    /**
-     * If there is already a constructor with the same signature as [constructor], replaces the
-     * existing version with the new one. If there is not a matching constructor, just adds
-     * [constructor] to the list of constructors.
-     */
-    fun replaceOrAddConstructor(constructor: ConstructorItem) {
+    override fun replaceOrAddConstructor(constructor: ConstructorItem) {
         replaceOrAddItem(constructor, mutableConstructors)
     }
 
@@ -286,25 +281,19 @@ class DefaultClassItem(
 
     override fun methods(): List<MethodItem> = mutableMethods
 
-    /** Add a method to this class. */
     override fun addMethod(method: MethodItem) {
         ensureNotFrozen()
         mutableMethods += method
     }
 
-    /**
-     * Replace an existing method with [method], if no such method exists then just add [method] to
-     * the list of methods.
-     */
-    fun replaceOrAddMethod(method: MethodItem) {
+    override fun replaceOrAddMethod(method: MethodItem) {
         replaceOrAddItem(method, mutableMethods)
     }
 
     /** The mutable list of [FieldItem] that backs [fields]. */
     private val mutableFields = mutableListOf<FieldItem>()
 
-    /** Add a field to this class. */
-    fun addField(field: FieldItem) {
+    override fun addField(field: FieldItem) {
         ensureNotFrozen()
         mutableFields += field
     }
@@ -316,18 +305,12 @@ class DefaultClassItem(
 
     override fun properties(): List<PropertyItem> = mutableProperties
 
-    /** Add a property to this class. */
-    fun addProperty(property: PropertyItem) {
+    override fun addProperty(property: PropertyItem) {
         ensureNotFrozen()
         mutableProperties += property
     }
 
-    /**
-     * If there is already a property with the same signature as [property], replaces the existing
-     * version with the new one. If there is not a matching property, just adds [property] to the
-     * list of properties.
-     */
-    fun replaceOrAddProperty(property: PropertyItem) {
+    override fun replaceOrAddProperty(property: PropertyItem) {
         replaceOrAddItem(property, mutableProperties)
     }
 
