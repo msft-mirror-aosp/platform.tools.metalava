@@ -16,14 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SourceLanguage
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.idea.KotlinLanguage
-
-internal interface PsiItem : Item {
-    val psiCodebase: PsiBasedCodebase
-}
 
 /** Get the [SourceLanguage] for this [PsiElement]. */
 val PsiElement.sourceLanguage
