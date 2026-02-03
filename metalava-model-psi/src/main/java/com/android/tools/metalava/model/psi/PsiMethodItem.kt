@@ -56,7 +56,7 @@ internal class PsiMethodItem {
             val name =
                 if (
                     psiMethod.name.contains("$") &&
-                        isKotlinProperty(psiMethod) &&
+                        psiMethod.isKotlinProperty() &&
                         sourcePropertyOrParameter(psiMethod)?.hasPublishedApiAnnotation() == true
                 ) {
                     psiMethod.name.substringBefore("$")
@@ -134,18 +134,10 @@ internal class PsiMethodItem {
                     callableBodyFactory = { PsiCallableBody(codebase, it, psiMethod) },
                     defaultValueProvider = defaultValueProvider,
                     isExtensionMethod = isExtensionMethod,
-                    isKotlinProperty = isKotlinProperty(psiMethod),
+                    isKotlinProperty = psiMethod.isKotlinProperty(),
                 )
 
             return method
-        }
-
-        fun isKotlinProperty(psiMethod: PsiMethod): Boolean {
-            return psiMethod is UMethod &&
-                (psiMethod.sourcePsi is KtProperty ||
-                    psiMethod.sourcePsi is KtPropertyAccessor ||
-                    psiMethod.sourcePsi is KtParameter &&
-                        (psiMethod.sourcePsi as KtParameter).hasValOrVar())
         }
 
         /**

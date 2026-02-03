@@ -61,6 +61,8 @@ import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
+import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UClass
@@ -289,7 +291,7 @@ internal class PsiClassBuilder(
                 // Property accessors can't be resolved from kotlin, direct access is used instead.
                 val targetLanguages =
                     if (
-                        PsiMethodItem.isKotlinProperty(psiMethod) &&
+                        psiMethod.isKotlinProperty() &&
                             // Data class component methods are one kind of property accessor that
                             // can be resolved from Kotlin source.
                             !(classItem.modifiers.isData() &&
@@ -676,4 +678,15 @@ private fun PsiField.isFieldInitializerNonNull(): Boolean {
     }
 
     return false
+}
+
+/** Returns `true` if this [PsiMethod] is part of a Kotlin property. */
+fun PsiMethod.isKotlinProperty(): Boolean {
+    return (this is UMethod) &&
+        when (val source = sourcePsi) {
+            is KtProperty -> true
+            is KtPropertyAccessor -> true
+            is KtParameter -> source.hasValOrVar()
+            else -> false
+        }
 }

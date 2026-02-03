@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultParameterItem
-import com.android.tools.metalava.model.psi.PsiMethodItem.Companion.isKotlinProperty
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiMethod
@@ -154,7 +153,7 @@ internal object PsiCallableItem {
                 return null
             }
             // Property setter parameter
-            if (isKotlinProperty(psiMethod)) {
+            if (psiMethod.isKotlinProperty()) {
                 return null
             }
             // Continuation parameter of suspend function (the final parameter of a suspend
