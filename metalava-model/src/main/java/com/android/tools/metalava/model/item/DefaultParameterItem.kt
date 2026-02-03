@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeItemConverter
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultParameterItem(
+internal class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,

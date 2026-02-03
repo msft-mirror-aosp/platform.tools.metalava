@@ -28,7 +28,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.util.concurrent.atomic.AtomicInteger
 
 /** Base [com.android.tools.metalava.model.Item] implementation that is common to all models. */
-abstract class DefaultItem(
+internal sealed class DefaultItem(
     final override val codebase: Codebase,
     final override val fileLocation: FileLocation,
     final override val sourceLanguage: SourceLanguage,

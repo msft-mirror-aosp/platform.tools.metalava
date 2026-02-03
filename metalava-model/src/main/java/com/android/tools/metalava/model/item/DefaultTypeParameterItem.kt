@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM_TYPE
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
-class DefaultTypeParameterItem(
+internal class DefaultTypeParameterItem(
     modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,

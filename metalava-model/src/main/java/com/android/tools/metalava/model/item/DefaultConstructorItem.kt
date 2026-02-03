@@ -38,7 +38,7 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultConstructorItem(
+internal class DefaultConstructorItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,

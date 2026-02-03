@@ -33,7 +33,7 @@ import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultFieldItem(
+internal class DefaultFieldItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,

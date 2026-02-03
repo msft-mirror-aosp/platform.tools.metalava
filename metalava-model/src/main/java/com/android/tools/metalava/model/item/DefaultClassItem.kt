@@ -44,7 +44,7 @@ import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultClassItem(
+internal class DefaultClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
