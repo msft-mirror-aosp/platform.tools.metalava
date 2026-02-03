@@ -246,7 +246,7 @@ internal class PsiCodebaseAssembler(
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
     ): DefaultClassItem {
-        val packageName = getPackageName(psiClass)
+        val packageName = psiClass.packageName
 
         // If the package could not be found then report an error.
         findPsiPackage(packageName)
@@ -808,23 +808,6 @@ internal class PsiCodebaseAssembler(
         }
     }
 
-    private fun getPackageName(clz: PsiClass): String {
-        var top: PsiClass? = clz
-        while (top?.containingClass != null) {
-            top = top.containingClass
-        }
-        top ?: return ""
-
-        val simpleName = top.simpleName
-        val qualifiedName = top.classQualifiedName
-
-        if (simpleName == qualifiedName) {
-            return ""
-        }
-
-        return qualifiedName.substring(0, qualifiedName.length - 1 - simpleName.length)
-    }
-
     internal fun initializeFromJar(jarFile: File) {
         // Extract the list of class names from the jar file.
         val classNames = buildList {
@@ -1038,7 +1021,7 @@ internal class PsiCodebaseAssembler(
 
         // If a package filter is supplied then ignore any classes that do not match it.
         if (apiPackages != null) {
-            val packageName = getPackageName(psiClass)
+            val packageName = psiClass.packageName
             if (!apiPackages.matches(packageName)) return
         }
 
@@ -1141,25 +1124,3 @@ internal class PsiCodebaseAssembler(
         return multiFileClassName
     }
 }
-
-/**
- * Get the simple name of a named class or type parameter.
- *
- * A [PsiClass] is used to represent named classes, type parameters, anonymous and local classes.
- * So, its [PsiClass.getName] can sometimes be `null`. However, Metalava only gets the name for
- * named classes and type parameters which never return `null`. So, this extension property forces
- * it to be non-null.
- */
-internal val PsiClass.simpleName
-    get() = name!!
-
-/**
- * Get the qualified name of a name class.
- *
- * A [PsiClass] is used to represent named classes, type parameters, anonymous and local classes.
- * So, its [PsiClass.getQualifiedName] can sometimes be `null`. However, Metalava only gets the
- * qualified name for name classes which never return `null`. So, this extension property forces it
- * to be non-null.
- */
-internal val PsiClass.classQualifiedName
-    get() = qualifiedName!!

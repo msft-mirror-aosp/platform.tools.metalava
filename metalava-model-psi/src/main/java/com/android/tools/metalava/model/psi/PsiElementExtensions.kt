@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.SourceLanguage
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.idea.KotlinLanguage
 
@@ -31,3 +32,44 @@ val PsiElement.sourceLanguage
 fun PsiElement.isKotlin(): Boolean {
     return language === KotlinLanguage.INSTANCE
 }
+
+/**
+ * Get the simple name of a named class or type parameter.
+ *
+ * A [PsiClass] is used to represent named classes, type parameters, anonymous and local classes.
+ * So, its [PsiClass.getName] can sometimes be `null`. However, Metalava only gets the name for
+ * named classes and type parameters which never return `null`. So, this extension property forces
+ * it to be non-null.
+ */
+internal val PsiClass.simpleName
+    get() = name!!
+
+/**
+ * Get the qualified name of a name class.
+ *
+ * A [PsiClass] is used to represent named classes, type parameters, anonymous and local classes.
+ * So, its [PsiClass.getQualifiedName] can sometimes be `null`. However, Metalava only gets the
+ * qualified name for name classes which never return `null`. So, this extension property forces it
+ * to be non-null.
+ */
+internal val PsiClass.classQualifiedName
+    get() = qualifiedName!!
+
+/** Get the package name from [PsiClass], returning the empty string for an unqualified class. */
+val PsiClass.packageName
+    get(): String {
+        var top: PsiClass? = this
+        while (top?.containingClass != null) {
+            top = top.containingClass
+        }
+        top ?: return ""
+
+        val simpleName = top.simpleName
+        val qualifiedName = top.classQualifiedName
+
+        if (simpleName == qualifiedName) {
+            return ""
+        }
+
+        return qualifiedName.substring(0, qualifiedName.length - 1 - simpleName.length)
+    }
