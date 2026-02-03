@@ -20,6 +20,9 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.idea.KotlinLanguage
 
+// This file contains extension functions and properties on PsiElement and related classes that are
+// needed across multiple classes.
+
 /** Get the [SourceLanguage] for this [PsiElement]. */
 val PsiElement.sourceLanguage
     get() = if (isKotlin()) SourceLanguage.KOTLIN else SourceLanguage.JAVA
