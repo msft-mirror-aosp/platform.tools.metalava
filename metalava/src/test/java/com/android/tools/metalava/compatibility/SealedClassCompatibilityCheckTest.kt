@@ -128,6 +128,117 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Should raise issue when adding abstract method to sealed non-effectively final class when not all subclasses implement the method`() {
+        // MyAbstractChildClassA is the only one that implements myFun()
+        check(
+            expectedIssues =
+                """
+                load-api.txt:11: error: Binary breaking change: Added method test.pkg.MySealedClass.myFun() [AddedAbstractMethod]
+            """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractChildClassA extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClassA();
+                  }
+                  public abstract class MyAbstractChildClassB extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClassB();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractChildClassA extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClassA();
+                    method public String myFun();
+                  }
+                  public abstract class MyAbstractChildClassB extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClassB();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                    method public abstract String myFun();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should not raise issue when adding abstract method to sealed non-effectively final class when all subclasses implement the method`() {
+        check(
+            expectedIssues = "",
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractChildClassA extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClassA();
+                  }
+                  public abstract class MyAbstractChildClassB extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClassB();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractChildClassA extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClassA();
+                    method public String myFun();
+                  }
+                  public abstract class MyAbstractChildClassB extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClassB();
+                    method public String myFun();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                    method public abstract String myFun();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should not raise issue when adding abstract method to sealed non-effectively final class when immediate subclasses implements the method but grandchild class doesn't`() {
+        check(
+            expectedIssues = "",
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractChildClass extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClass();
+                  }
+                  public abstract class MyAbstractGrandChildClass extends test.pkg.MyAbstractChildClass {
+                    ctor public MyAbstractGrandChildClass();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public abstract class MyAbstractChildClass extends test.pkg.MySealedClass {
+                    ctor public MyAbstractChildClass();
+                    method public String myFun();
+                  }
+                  public abstract class MyAbstractGrandChildClass extends test.pkg.MyAbstractChildClass {
+                    ctor public MyAbstractGrandChildClass();
+                  }
+                  public abstract sealed exhaustive class MySealedClass {
+                    method public abstract String myFun();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Should raise issue when adding abstract method to non-effectively final explicitly sealed class`() {
         check(
             expectedIssues =
