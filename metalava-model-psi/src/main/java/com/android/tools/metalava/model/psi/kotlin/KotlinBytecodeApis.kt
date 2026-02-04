@@ -26,13 +26,12 @@ import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiConstructorItem
-import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.psi.PsiClassBuilder
+import com.android.tools.metalava.model.psi.PsiGlobalContext
 import com.android.tools.metalava.model.psi.PsiTypeItemFactory
 import com.android.tools.metalava.model.psi.psiParameters
 import com.android.tools.metalava.model.value.IntValue
@@ -78,7 +77,8 @@ import org.objectweb.asm.Opcodes
  * present in the jar. Then, [loadPsiFromProject] will search for the class names from the jar in a
  * psi project to add APIs to the [codebase].
  */
-internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
+internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
+    PsiGlobalContext by globalContext {
     /** Class names to process. Populated by [rewriteJar] and used by [loadPsiFromProject]. */
     private val qualifiedClassNames = mutableListOf<String>()
 
@@ -179,7 +179,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
 
         for (qualifiedName in qualifiedClassNames) {
             val psiClass = facade.findClass(qualifiedName, scope) ?: continue
-            val classItem = codebase.findClass(qualifiedName) as? DefaultClassItem ?: continue
+            val classItem = codebase.findClass(qualifiedName) as? SkeletonClassItem ?: continue
             // Find associated Kotlin metadata for the class. If there isn't any, this wasn't a
             // Kotlin source class and can be skipped.
             val metadataContainer = psiClass.getMetadataContainer() ?: continue
@@ -192,7 +192,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         for ((qualifiedName, classParts) in multiFileClassParts) {
             // Find the multi-file class itself in the codebase.
             val multiFileClassItem =
-                codebase.findClass(qualifiedName) as? DefaultClassItem ?: continue
+                codebase.findClass(qualifiedName) as? SkeletonClassItem ?: continue
             for (classPartPath in classParts) {
                 // Find the psi and metadata corresponding to this part of the multi-file class.
                 val psiClassPart =
@@ -207,10 +207,10 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     /** Adds to the [classItem] the methods from the [psiClass] which are not already present. */
     private fun addMethodsToClass(
         psiClass: PsiClass,
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         metadataContainer: KmDeclarationContainer,
     ) {
-        val classTypeItemFactory = codebase.globalTypeItemFactory.from(classItem)
+        val classTypeItemFactory = globalTypeItemFactory.from(classItem)
         // Kotlin source constructors get a constructor generated in the bytecode with
         // `kotlin.jvm.internal.DefaultConstructorMarker` as the final parameter. It only needs to
         // be tracked when there isn't already a matching constructor not including the
@@ -257,7 +257,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     private fun addMethodToClass(
         psiMethod: PsiMethod,
         psiClass: PsiClass,
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         metadataContainer: KmDeclarationContainer,
         classTypeItemFactory: PsiTypeItemFactory,
         hasDefaultConstructorMarker: Boolean,
@@ -304,11 +304,19 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // be allowed).
         if (checkForSignatureMatch(semiErasedSignature, semiErasedReturn, potentialMatches)) return
 
+        // Create a PsiClassBuilder to use to create the CallableItem.
+        val builder =
+            PsiClassBuilder(
+                globalContext,
+                psiClass,
+                classItem.origin,
+            )
+
         // Create the item.
         val callableItem =
             if (psiMethod.isConstructor) {
-                PsiConstructorItem.create(
-                        codebase,
+                builder
+                    .createConstructor(
                         classItem,
                         psiMethod,
                         classTypeItemFactory,
@@ -337,8 +345,8 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                         }
                     }
             } else {
-                PsiMethodItem.create(
-                        codebase,
+                builder
+                    .createMethod(
                         classItem,
                         psiMethod,
                         classTypeItemFactory,
@@ -562,7 +570,8 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // Find a @Metadata annotation on the class, and convert to Kotlin metadata
         val metadataAnnotation =
             annotations.singleOrNull { it.qualifiedName == KOTLIN_METADATA } ?: return null
-        val annotationItem = PsiAnnotationItem.create(codebase, metadataAnnotation) ?: return null
+        val annotationItem =
+            PsiAnnotationItem.create(psiCodebase, metadataAnnotation) ?: return null
         val metadata = annotationItem.toMetadata()
 
         // Return the relevant metadata container. Uses `readLenient` instead of `readStrict` as the
@@ -736,8 +745,6 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             classForAnnotationMethod.methods.singleOrNull {
                 it.name == annotationMethodSignature.name
             } ?: return
-
-        val psiCodebase = this@KotlinBytecodeApis.codebase
 
         if (kmProperty.visibility == Visibility.INTERNAL) {
             // Check if the method is @PublishedApi, propagate it to the accessor method if so.

@@ -47,7 +47,7 @@ import com.android.tools.metalava.reporter.FileLocation
  */
 typealias ParameterItemsFactory = (CallableItem) -> List<ParameterItem>
 
-abstract class DefaultCallableItem(
+internal sealed class DefaultCallableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,

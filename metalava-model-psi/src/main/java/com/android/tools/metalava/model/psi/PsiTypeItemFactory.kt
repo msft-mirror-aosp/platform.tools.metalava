@@ -175,20 +175,6 @@ internal class PsiTypeItemFactory(
         return createTypeItem(psiType, kotlinTypeInfo, contextNullability)
     }
 
-    /** Get a [VariableTypeItem] to represent [PsiTypeParameterItem]. */
-    fun getVariableTypeForTypeParameter(
-        psiTypeParameterItem: PsiTypeParameterItem
-    ): VariableTypeItem {
-        val psiTypeParameter = psiTypeParameterItem.psi()
-        val psiType = globalContext.getClassType(psiTypeParameter)
-        return createVariableTypeItem(
-            psiType,
-            null,
-            psiTypeParameterItem,
-            ContextNullability.forceUndefined,
-        )
-    }
-
     // TypeItem factory methods
 
     /** Creates modifiers based on the annotations of the [type]. */

@@ -43,14 +43,14 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -107,13 +107,13 @@ internal class TurbineClassBuilder(
      * classes. Adding these as constructor properties would confuse that code and possibly lead to
      * errors if the wrong instance was used.
      *
-     * @param containingClassItem the containing [DefaultClassItem] to which the created [ClassItem]
-     *   will belong, if any.
+     * @param containingClassItem the containing [ClassItem] to which the created [ClassItem] will
+     *   belong, if any.
      * @param enclosingClassTypeItemFactory the [TurbineTypeItemFactory] that is used to create
      *   [TypeItem]s and tracks the in scope type parameters.
      */
     internal fun createClass(
-        containingClassItem: DefaultClassItem?,
+        containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ): ClassItem {
         val decl = sourceTypeBoundClass?.decl()
@@ -334,11 +334,11 @@ internal class TurbineClassBuilder(
     }
 
     /**
-     * Create the [DefaultTypeParameterItem] without any bounds and register it so that any uses of
+     * Create the [SkeletonTypeParameterItem] without any bounds and register it so that any uses of
      * it within the type bounds, e.g. `<E extends Enum<E>>`, or from other type parameters within
      * the same [TypeParameterList] can be resolved.
      */
-    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
+    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): SkeletonTypeParameterItem {
         val modifiers = createModifiers(ItemKind.TYPE_PARAMETER, 0, param.annotations())
         val typeParamItem =
             itemFactory.createTypeParameterItem(
@@ -350,7 +350,7 @@ internal class TurbineClassBuilder(
         return typeParamItem
     }
 
-    /** Create the bounds of a [DefaultTypeParameterItem]. */
+    /** Create the bounds of a [SkeletonTypeParameterItem]. */
     private fun createTypeParameterBounds(
         param: TyVarInfo,
         typeItemFactory: TurbineTypeItemFactory,
@@ -366,7 +366,7 @@ internal class TurbineClassBuilder(
 
     /** This method sets up the nested class hierarchy. */
     private fun createNestedClasses(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -390,7 +390,7 @@ internal class TurbineClassBuilder(
 
     /** This method creates and sets the fields of a class */
     private fun createFields(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -446,7 +446,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createMethods(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -583,7 +583,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createConstructors(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {

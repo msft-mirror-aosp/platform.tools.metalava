@@ -17,9 +17,17 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.value.CombinedValueProvider
+import com.android.tools.metalava.model.value.ValueUseSite
+import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.uast.UAnnotationMethod
+import org.jetbrains.uast.UMethod
 
 // This file contains extension functions and properties on PsiElement and related classes that are
 // needed across multiple classes.
@@ -73,3 +81,34 @@ val PsiClass.packageName
 
         return qualifiedName.substring(0, qualifiedName.length - 1 - simpleName.length)
     }
+
+/**
+ * Get a [CombinedValueProvider] for the default value of the annotation attribute represented by
+ * this [PsiMethod], or `null` if this is not an annotation method or it has no value.
+ */
+internal fun PsiMethod.defaultValueProvider(codebase: PsiBasedCodebase, returnType: TypeItem) =
+    when (this) {
+        is UAnnotationMethod -> {
+            uastDefaultValue?.let { uDefaultValue ->
+                codebase.valueFactory.providerFor(
+                    returnType,
+                    uDefaultValue,
+                    ValueUseSite.ANNOTATION,
+                )
+            }
+        }
+        is PsiAnnotationMethod -> {
+            defaultValue?.let { psiDefaultValue ->
+                codebase.valueFactory.providerFor(
+                    returnType,
+                    psiDefaultValue,
+                    ValueUseSite.ANNOTATION,
+                )
+            }
+        }
+        else -> null
+    }
+
+/** Get the [PsiParameter]s for a [PsiMethod]. */
+val PsiMethod.psiParameters: List<PsiParameter>
+    get() = if (this is UMethod) uastParameters else parameterList.parameters.toList()

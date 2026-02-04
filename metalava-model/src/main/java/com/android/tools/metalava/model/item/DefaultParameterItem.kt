@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -28,7 +27,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeItemConverter
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultParameterItem(
+internal class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,

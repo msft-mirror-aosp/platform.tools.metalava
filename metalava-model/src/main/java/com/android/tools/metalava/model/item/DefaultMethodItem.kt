@@ -34,7 +34,7 @@ import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultMethodItem(
+internal class DefaultMethodItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,

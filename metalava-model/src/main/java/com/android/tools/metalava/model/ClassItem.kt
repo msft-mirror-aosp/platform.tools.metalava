@@ -823,6 +823,7 @@ interface ClassItem :
         visibility: VisibilityLevel = modifiers.getVisibilityLevel()
     ): ConstructorItem
 
+    /** Add a method to this class. */
     fun addMethod(method: MethodItem)
 
     /**
