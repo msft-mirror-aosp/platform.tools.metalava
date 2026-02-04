@@ -47,7 +47,7 @@ import java.io.PrintWriter
 /**
  * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
  */
-abstract class AbstractItemDocumentation(
+internal abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
 ) :
     ItemDocumentation,
@@ -70,19 +70,6 @@ abstract class AbstractItemDocumentation(
      * value.
      */
     protected abstract fun initializeTextBackingField()
-
-    /**
-     * Ensures that [text]'s backing field has been initialized even if it is currently `null`.
-     *
-     * The `text` field has been initialized if [_text] is non-null or if [_docComment] is non-null.
-     * As the [_docComment] is only created from [_text] if it is non-null then [_text] must have
-     * been non-null in the past.
-     */
-    protected fun ensureTextBackingFieldHasBeenInitialized() {
-        if (_text == null && _docComment == null) {
-            initializeTextBackingField()
-        }
-    }
 
     /**
      * The immutable text contents of the documentation.

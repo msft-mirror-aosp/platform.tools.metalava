@@ -16,10 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.source.AbstractItemDocumentation
-import com.android.tools.metalava.model.source.toItemDocumentationFactory
+import com.android.tools.metalava.model.source.LazySourceComment
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
@@ -31,35 +28,26 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.uast.UElement
 
-/** A Psi specialization of [ItemDocumentation]. */
-internal class PsiItemDocumentation(
-    item: SelectableItem,
-    private val psiElement: PsiElement,
-) : AbstractItemDocumentation(item) {
+/**
+ * A Psi implementation of [LazySourceComment] that retrieves the comment details from [psiElement].
+ */
+internal class PsiSourceComment(private val psiElement: PsiElement) : LazySourceComment() {
     /**
      * Lazily initialized reference to the [PsiComment], if any, from which the [text] was
      * retrieved.
      *
-     * This is initialized in [initializeTextBackingField].
+     * This is initialized in [obtainText].
      */
     private var psiComment: PsiComment? = null
 
-    override val fileLocation: FileLocation
-        get() {
-            // Make sure that the psiComment is initialized by making sure that the text backing
-            // field has been initialized as they are initialized together in
-            // [initializeTextBackingField].
-            ensureTextBackingFieldHasBeenInitialized()
-            return PsiFileLocation.fromPsiElement(psiComment)
-        }
+    override fun obtainFileLocation(): FileLocation {
+        // Make sure that the psiComment is initialized by making sure that the text backing field
+        // has been initialized as they are initialized together in [obtainText].
+        text
+        return PsiFileLocation.fromPsiElement(psiComment)
+    }
 
-    /**
-     * Lazy initializer for [_text] and [psiComment].
-     *
-     * Updates the [_text] field with the text of the document comment associated with [element] and
-     * [psiComment] with the [PsiComment] for the document comment.
-     */
-    override fun initializeTextBackingField() {
+    override fun obtainText(): String {
         when (psiElement) {
             is PsiCompiledElement -> {
                 // Drop through.
@@ -67,8 +55,7 @@ internal class PsiItemDocumentation(
             is KtDeclaration -> {
                 psiElement.docComment?.let { comment ->
                     psiComment = comment
-                    _text = comment.text
-                    return
+                    return comment.text
                 }
             }
             is UElement -> {
@@ -78,8 +65,7 @@ internal class PsiItemDocumentation(
                         val text = comment.text
                         if (text.startsWith("/**")) {
                             psiComment = comment.sourcePsi
-                            _text = text
-                            return
+                            return text
                         }
                     }
                 }
@@ -91,8 +77,7 @@ internal class PsiItemDocumentation(
                     // Make sure that the text is a doc comment, i.e. starts with /**.
                     if (text.startsWith("/**")) {
                         psiComment = docComment
-                        _text = text
-                        return
+                        return text
                     }
                 }
             }
@@ -104,19 +89,13 @@ internal class PsiItemDocumentation(
                     // Make sure that the text is a doc comment, i.e. starts with /**.
                     if (text.startsWith("/**")) {
                         psiComment = docComment
-                        _text = text
-                        return
+                        return text
                     }
                 }
             }
         }
 
         psiComment = null
-        _text = ""
+        return ""
     }
-
-    override fun duplicate(item: SelectableItem) =
-        // Duplicating the text will fully qualify the comment in its original item before
-        // copying it into the new item.
-        text.toItemDocumentationFactory().create(item)!!
 }

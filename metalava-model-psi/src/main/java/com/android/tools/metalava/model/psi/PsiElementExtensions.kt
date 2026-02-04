@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.source.createSourceItemDocumentation
 import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.intellij.psi.PsiAnnotationMethod
@@ -127,7 +128,9 @@ internal fun PsiElement.createItemDocumentation(
 ) =
     if (codebase.config.allowReadingComments) {
         // When reading comments provide full access to them.
-        ItemDocumentationFactory { item -> PsiItemDocumentation(item, this) }
+        ItemDocumentationFactory { item ->
+            createSourceItemDocumentation(item, PsiSourceComment(this))
+        }
     } else {
         // Otherwise, there is no documentation to use.
         ItemDocumentation.NONE_FACTORY
