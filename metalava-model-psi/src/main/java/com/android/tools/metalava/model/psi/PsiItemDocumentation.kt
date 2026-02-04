@@ -16,9 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
@@ -36,14 +34,14 @@ import org.jetbrains.uast.UElement
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
     item: SelectableItem,
-    private val codebase: PsiBasedCodebase,
-    private val psi: PsiElement,
+    private val psiElement: PsiElement,
 ) : AbstractItemDocumentation(item) {
-
-    override fun initializeTextBackingField() {
-        initializeFromPsiElement(psi)
-    }
-
+    /**
+     * Lazily initialized reference to the [PsiComment], if any, from which the [text] was
+     * retrieved.
+     *
+     * This is initialized in [initializeTextBackingField].
+     */
     private var psiComment: PsiComment? = null
 
     override val fileLocation: FileLocation
@@ -61,20 +59,20 @@ internal class PsiItemDocumentation(
      * Updates the [_text] field with the text of the document comment associated with [element] and
      * [psiComment] with the [PsiComment] for the document comment.
      */
-    private fun initializeFromPsiElement(element: PsiElement) {
-        when (element) {
+    override fun initializeTextBackingField() {
+        when (psiElement) {
             is PsiCompiledElement -> {
                 // Drop through.
             }
             is KtDeclaration -> {
-                element.docComment?.let { comment ->
-                    _text = comment.text
+                psiElement.docComment?.let { comment ->
                     psiComment = comment
+                    _text = comment.text
                     return
                 }
             }
             is UElement -> {
-                val comments = element.comments
+                val comments = psiElement.comments
                 if (comments.isNotEmpty()) {
                     for (comment in comments) {
                         val text = comment.text
@@ -87,61 +85,38 @@ internal class PsiItemDocumentation(
                 }
             }
             is PsiDocCommentOwner -> {
-                val docComment = element.docComment
+                val docComment = psiElement.docComment
                 if (docComment != null) {
                     val text = docComment.text
                     // Make sure that the text is a doc comment, i.e. starts with /**.
                     if (text.startsWith("/**")) {
-                        _text = text
                         psiComment = docComment
+                        _text = text
                         return
                     }
                 }
             }
             is PsiPackageStatement -> {
                 val docComment =
-                    PsiTreeUtil.getPrevSiblingOfType(element, PsiDocComment::class.java)
+                    PsiTreeUtil.getPrevSiblingOfType(psiElement, PsiDocComment::class.java)
                 if (docComment != null) {
                     val text = docComment.text
                     // Make sure that the text is a doc comment, i.e. starts with /**.
                     if (text.startsWith("/**")) {
-                        _text = text
                         psiComment = docComment
+                        _text = text
                         return
                     }
                 }
             }
         }
 
-        _text = ""
         psiComment = null
+        _text = ""
     }
 
     override fun duplicate(item: SelectableItem) =
         // Duplicating the text will fully qualify the comment in its original item before
         // copying it into the new item.
         text.toItemDocumentationFactory().create(item)!!
-
-    companion object {
-        /**
-         * Get an [ItemDocumentationFactory] for the [psi].
-         *
-         * If [Codebase.Config.allowReadingComments] is `true` then this will return a factory that
-         * creates a [PsiItemDocumentation] instance, otherwise it will return
-         * [ItemDocumentation.NONE_FACTORY].
-         *
-         * @param psi the underlying element from which the documentation will be retrieved.
-         */
-        internal fun factory(
-            psi: PsiElement,
-            codebase: PsiBasedCodebase,
-        ) =
-            if (codebase.config.allowReadingComments) {
-                // When reading comments provide full access to them.
-                ItemDocumentationFactory { item -> PsiItemDocumentation(item, codebase, psi) }
-            } else {
-                // Otherwise, there is no documentation to use.
-                ItemDocumentation.NONE_FACTORY
-            }
-    }
 }

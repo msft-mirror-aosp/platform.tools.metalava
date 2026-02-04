@@ -53,7 +53,7 @@ import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFileLocation
-import com.android.tools.metalava.model.psi.PsiItemDocumentation
+import com.android.tools.metalava.model.psi.createItemDocumentation
 import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
@@ -1151,7 +1151,7 @@ private constructor(
     /** Creates documentation for the symbol through psi, if possible. */
     private fun KaSymbol.getDocumentation(): ItemDocumentationFactory {
         return psiCodebase?.let { psiCodebase ->
-            psi?.let { psi -> PsiItemDocumentation.factory(psi, psiCodebase) }
+            psi?.let { psi -> psi.createItemDocumentation(psiCodebase) }
         } ?: ItemDocumentation.NONE_FACTORY
     }
 
