@@ -93,7 +93,7 @@ abstract class AbstractItemDocumentation(
      * If [_docComment] is null then this needs initializing from the model, otherwise this is set
      * from [_docComment].
      */
-    override val text: String
+    protected val text: String
         get() {
             if (_text == null) {
                 val docComment = _docComment
