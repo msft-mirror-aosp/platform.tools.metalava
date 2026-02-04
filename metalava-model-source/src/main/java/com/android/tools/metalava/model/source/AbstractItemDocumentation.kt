@@ -311,7 +311,7 @@ internal abstract class AbstractItemDocumentation(
     }
 
     override fun duplicate(item: SelectableItem): ItemDocumentation =
-        DefaultItemDocumentation(item, text, fileLocation)
+        DefaultItemDocumentation(item, docComment.asJavadocCommentString(), fileLocation)
 
     final override fun snapshot(item: SelectableItem): ItemDocumentation =
         // Return this to avoid parsing the text again and duplicating errors. This is not strictly
