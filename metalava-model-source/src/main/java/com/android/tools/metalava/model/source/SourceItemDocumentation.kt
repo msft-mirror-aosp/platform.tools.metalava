@@ -32,9 +32,7 @@ internal class SourceItemDocumentation(
     override val fileLocation: FileLocation
         get() = sourceComment.fileLocation
 
-    override fun initializeTextBackingField() {
-        _text = sourceComment.text
-    }
+    override fun obtainCommentText() = sourceComment.text
 }
 
 /** Create an [ItemDocumentation] instance for [item] from [sourceComment]. */

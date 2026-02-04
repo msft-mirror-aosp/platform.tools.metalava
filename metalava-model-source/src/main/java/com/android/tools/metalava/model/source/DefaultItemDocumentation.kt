@@ -24,19 +24,11 @@ import com.android.tools.metalava.reporter.FileLocation
 /** A default [com.android.tools.metalava.model.ItemDocumentation] containing JavaDoc/KDoc. */
 internal class DefaultItemDocumentation(
     item: SelectableItem,
-    text: String,
+    private val text: String,
     override val fileLocation: FileLocation = FileLocation.UNKNOWN,
 ) : AbstractItemDocumentation(item) {
 
-    init {
-        // Initialize _text from the text constructor parameter.
-        _text = text
-    }
-
-    /** Should never be called as _text has been initialized above. */
-    override fun initializeTextBackingField() {
-        error("Internal Error: _text backing field is uninitialized")
-    }
+    override fun obtainCommentText() = text
 }
 
 /** Wrap a [String] in an [ItemDocumentationFactory]. */

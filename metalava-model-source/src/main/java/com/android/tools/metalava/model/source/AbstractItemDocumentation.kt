@@ -58,45 +58,10 @@ internal abstract class AbstractItemDocumentation(
     // sync.
     DocCommentMutationListener {
 
-    /**
-     * Lazily initialized backing property for [text].
-     *
-     * If this is `null` then it requires setting. If [_docComment] is `null` then it will be set by
-     * calling [initializeTextBackingField]. Otherwise, it will be set by printing [_docComment].
-     */
-    protected var _text: String? = null
+    /** Get the text content of the source commend. */
+    protected abstract fun obtainCommentText(): String
 
-    /**
-     * Called when [_text] requires initializing. Implementations must set [_text] to a non-null
-     * value.
-     */
-    protected abstract fun initializeTextBackingField()
-
-    /**
-     * The immutable text contents of the documentation.
-     *
-     * Although it is not possible to modify this property the backing field will be kept in sync
-     * with [docComment] so the value returned from this will change if [docComment] is mutated.
-     *
-     * If [_docComment] is null then this needs initializing from the model, otherwise this is set
-     * from [_docComment].
-     */
-    protected val text: String
-        get() {
-            if (_text == null) {
-                val docComment = _docComment
-                if (docComment == null) {
-                    // Initialize from the underlying model.
-                    initializeTextBackingField()
-                } else {
-                    // Initialize from the _docComment so that it reflects any changes in it.
-                    _text = docComment.asJavadocCommentString()
-                }
-            }
-            return _text!!
-        }
-
-    /** Lazily initialized from [text]. */
+    /** Lazily initialized from [obtainCommentText]. */
     private var _docComment: DocComment? = null
 
     private val docComment: DocComment
@@ -106,10 +71,9 @@ internal abstract class AbstractItemDocumentation(
                 val new =
                     DocComment.createDocComment(
                         context = this,
-                        text,
+                        obtainCommentText(),
                         reporter = this,
                     )
-                _text = null
                 _docComment = new
                 new
             } else {
@@ -121,16 +85,11 @@ internal abstract class AbstractItemDocumentation(
         get() = this
 
     /**
-     * Called when [docComment] is mutated to discard [_text] so it will be regenerated from
-     * [_docComment] the next time [text] is accessed.
+     * Called when [docComment] is mutated.
      *
-     * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
-     * currently both [text] and [docComment] are modified directly. Longer term, changes will be
-     * applied directly to [_docComment] and [text] will be dropped.
+     * No longer does anything.
      */
-    override fun docCommentMutated() {
-        _text = null
-    }
+    override fun docCommentMutated() {}
 
     override fun resolveItemReference(
         sourceReference: String,
