@@ -512,7 +512,6 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 released-api.txt:5: error: Source breaking change: method test.pkg.Foo.noCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Java source [RemovedFromJava]
                 released-api.txt:5: error: Source breaking change: method test.pkg.Foo.noCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Kotlin source [RemovedFromKotlin]
                 released-api.txt:6: error: Source breaking change: method test.pkg.Foo.withCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Java source [RemovedFromJava]
-                released-api.txt:6: error: Source breaking change: method test.pkg.Foo.withCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Kotlin source [RemovedFromKotlin]
             """,
             checkCompatibilityApiReleased =
                 """
