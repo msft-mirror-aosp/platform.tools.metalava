@@ -225,15 +225,12 @@ internal abstract class AbstractItemDocumentation(
 
         checkDocumentationBeforePrinting()
 
-        // Only print the comment if it is not blank.
-        if (text.isNotBlank()) {
-            // Print the docComment as Javadoc.
-            docComment.printAsJavadocComment(
-                writer,
-                // Apply the [JavaSummaryTruncationWorkaround] to the main description.
-                mainDescriptionRewriter = JavaSummaryTruncationWorkaround()
-            )
-        }
+        // Print the docComment as Javadoc.
+        docComment.printAsJavadocComment(
+            writer,
+            // Apply the [JavaSummaryTruncationWorkaround] to the main description.
+            mainDescriptionRewriter = JavaSummaryTruncationWorkaround.INSTANCE
+        )
     }
 
     /**
