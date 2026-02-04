@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiCallableItem
 import com.android.tools.metalava.model.psi.PsiConstructorItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItemFactory
@@ -623,12 +622,12 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     }
 
     /**
-     * Searches for a constructor in the metadata with the same signature as the [PsiCallableItem].
+     * Searches for a constructor in the metadata with the same signature as this [CallableItem].
      *
      * If [hasDefaultConstructorMarker] is true, the DefaultConstructorMarker parameter is dropped
      * from the signature to find a match.
      */
-    private fun PsiCallableItem.findMatchingConstructor(
+    private fun CallableItem.findMatchingConstructor(
         container: KmDeclarationContainer?,
     ): MetadataEntry.ConstructorMetadataEntry? {
         val internalDescriptor = internalDesc(voidConstructorTypes = true)
@@ -642,7 +641,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * Determines the function name and descriptor that should be used to search for the metadata
      * entry of a function.
      */
-    private fun PsiCallableItem.computeNameAndDescriptor(): Pair<String, String> {
+    private fun CallableItem.computeNameAndDescriptor(): Pair<String, String> {
         val initialDescriptor = internalDesc(voidConstructorTypes = true)
 
         return if (name().endsWith(DEFAULT_MARKER)) {
@@ -674,7 +673,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * Finds the metadata for the callable in the [container]. The metadata might be from a
      * constructor, function, or property accessor.
      */
-    private fun PsiCallableItem.findMetadataEntry(
+    private fun CallableItem.findMetadataEntry(
         container: KmDeclarationContainer?,
     ): MetadataEntry? {
         if (container == null) return null
@@ -717,7 +716,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * This includes [PublishedApi], annotations meta-annotated with [RequiresOptIn], and
      * deprecation status.
      */
-    private fun PsiCallableItem.propagateAnnotationsAsNeeded(
+    private fun CallableItem.propagateAnnotationsAsNeeded(
         kmProperty: KmProperty,
         psiClass: PsiClass,
     ) {
@@ -737,6 +736,8 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             classForAnnotationMethod.methods.singleOrNull {
                 it.name == annotationMethodSignature.name
             } ?: return
+
+        val psiCodebase = this@KotlinBytecodeApis.codebase
 
         if (kmProperty.visibility == Visibility.INTERNAL) {
             // Check if the method is @PublishedApi, propagate it to the accessor method if so.

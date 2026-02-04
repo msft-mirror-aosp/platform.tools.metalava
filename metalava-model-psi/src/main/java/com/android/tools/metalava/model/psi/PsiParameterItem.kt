@@ -55,8 +55,6 @@ internal constructor(
     ),
     PsiItem {
 
-    override fun psi() = psiParameter
-
     override fun duplicate(
         containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings

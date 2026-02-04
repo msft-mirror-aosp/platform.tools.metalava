@@ -1214,7 +1214,7 @@ private constructor(
             (methodItem.name() == name ||
                 (visibility == KaSymbolVisibility.INTERNAL &&
                     methodItem.name().startsWith("$name\$"))) &&
-                methodItem.isKotlinProperty() &&
+                methodItem.isKotlinProperty &&
                 methodItem.parameters().map { it.type().toErasedTypeString() } == parameters
         } as? PsiMethodItem
     }

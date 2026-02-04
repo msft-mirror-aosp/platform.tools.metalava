@@ -49,6 +49,7 @@ open class DefaultMethodItem(
     callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
     private val isExtensionMethod: Boolean,
+    override val isKotlinProperty: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase,
@@ -126,6 +127,7 @@ open class DefaultMethodItem(
                 callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
                 isExtensionMethod = isExtensionMethod,
+                isKotlinProperty = isKotlinProperty,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()

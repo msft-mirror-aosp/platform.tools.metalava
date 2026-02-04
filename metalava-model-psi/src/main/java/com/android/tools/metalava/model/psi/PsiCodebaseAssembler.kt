@@ -147,9 +147,6 @@ internal class PsiCodebaseAssembler(
     internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
-    internal fun getComment(documentation: String, parent: PsiElement? = null): PsiDocComment =
-        getFactory().createDocCommentFromText(documentation, parent)
-
     internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
         getFactory().createTypeFromText(s, parent)
 

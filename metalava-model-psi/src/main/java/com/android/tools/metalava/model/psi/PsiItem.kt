@@ -20,17 +20,9 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SourceLanguage
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.idea.KotlinLanguage
-import org.jetbrains.uast.UElement
 
 internal interface PsiItem : Item {
     val psiCodebase: PsiBasedCodebase
-
-    /** The source PSI provided by UAST */
-    val sourcePsi
-        get() = (psi() as? UElement)?.sourcePsi
-
-    /** Returns the PSI element for this item */
-    fun psi(): PsiElement
 }
 
 /** Get the [SourceLanguage] for this [PsiElement]. */

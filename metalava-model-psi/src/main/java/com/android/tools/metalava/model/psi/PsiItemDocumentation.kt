@@ -118,8 +118,9 @@ internal class PsiItemDocumentation(
     }
 
     override fun duplicate(item: SelectableItem) =
-        if (item is PsiItem) PsiItemDocumentation(item, codebase, psi)
-        else text.toItemDocumentationFactory().create(item)!!
+        // Duplicating the text will fully qualify the comment in its original item before
+        // copying it into the new item.
+        text.toItemDocumentationFactory().create(item)!!
 
     override fun snapshot(item: SelectableItem) = this
 
@@ -132,9 +133,6 @@ internal class PsiItemDocumentation(
          * [ItemDocumentation.NONE_FACTORY].
          *
          * @param psi the underlying element from which the documentation will be retrieved.
-         *   Although this is usually accessible through the [PsiItem.psi] property, that is not
-         *   true within the [ItemDocumentationFactory] as that is called during initialization of
-         *   the [PsiItem] before [PsiItem.psi] has been initialized.
          */
         internal fun factory(
             psi: PsiElement,

@@ -27,19 +27,17 @@ import org.jetbrains.uast.UMethod
 
 internal interface PsiCallableItem : CallableItem, PsiItem {
 
-    override fun psi() = psiMethod
-
     val psiMethod: PsiMethod
 
     companion object {
         /**
          * Create a list of [PsiParameterItem]s.
          *
-         * The [codebase], [psiMethod], and [containingCallableModifiers] parameters are added here,
-         * rather than retrieving from [containingCallable]'s [PsiCallableItem.codebase],
-         * [PsiCallableItem.psi], and [PsiCallableItem.modifiers] properties respectively, because
-         * at the time this is called [containingCallable] is in the process of being initialized
-         * and those properties have not yet been initialized.
+         * The [codebase], and [containingCallableModifiers] parameters are added here, rather than
+         * retrieving from [containingCallable]'s [PsiCallableItem.codebase], and
+         * [PsiCallableItem.modifiers] properties respectively, because at the time this is called
+         * [containingCallable] is in the process of being initialized and those properties have not
+         * yet been initialized.
          */
         internal fun parameterList(
             codebase: PsiBasedCodebase,

@@ -73,8 +73,6 @@ internal constructor(
     ClassItem,
     PsiItem {
 
-    override fun psi() = psiClass
-
     override var primaryConstructor: ConstructorItem? = null
         internal set
 
