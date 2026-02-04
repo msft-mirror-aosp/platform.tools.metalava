@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -83,3 +84,15 @@ abstract class LazySourceComment : SourceComment {
             return _text
         }
 }
+
+/** A [SourceComment] that provides the content from a [String]. */
+private data class SourceCommentFromString(override val text: String) : SourceComment {
+    override val fileLocation: FileLocation
+        get() = FileLocation.UNKNOWN
+}
+
+/** Wrap a [String] in an [ItemDocumentationFactory]. */
+fun String.toItemDocumentationFactory(): ItemDocumentationFactory =
+    ItemDocumentationFactory { item ->
+        SourceItemDocumentation(item, SourceCommentFromString(this))
+    }

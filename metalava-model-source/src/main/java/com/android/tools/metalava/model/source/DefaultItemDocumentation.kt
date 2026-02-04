@@ -31,14 +31,7 @@ internal class DefaultItemDocumentation(
     override fun obtainCommentText() = text
 }
 
-/** Wrap a [String] in an [ItemDocumentationFactory]. */
-fun String.toItemDocumentationFactory(): ItemDocumentationFactory = ItemDocumentationFactory {
-    toItemDocumentation(it)
+/** Creates an [ItemDocumentation] for an item without any source comment. */
+val NO_SOURCE_COMMENT_FACTORY = ItemDocumentationFactory { item ->
+    DefaultItemDocumentation(item, "")
 }
-
-/** Wrap a [String] in an [ItemDocumentation] instance. */
-private fun String.toItemDocumentation(item: SelectableItem): ItemDocumentation =
-    DefaultItemDocumentation(item, this)
-
-/** Creates a [DefaultItemDocumentation] for an item without any source comment. */
-val NO_SOURCE_COMMENT_FACTORY = "".toItemDocumentationFactory()
