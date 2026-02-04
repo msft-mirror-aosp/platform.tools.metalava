@@ -16,51 +16,34 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.source.AbstractItemDocumentation
+import com.android.tools.metalava.model.source.LazySourceComment
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.model.TurbineJavadoc
 
-/**
- * A Turbine specialization of [AbstractItemDocumentation] that delays finding the position of the
- * comment until needed.
- */
-internal class TurbineItemDocumentation(
-    item: SelectableItem,
+/** A Turbine implementation of [LazySourceComment]. */
+internal class TurbineSourceComment(
     private val sourceFile: TurbineSourceFile?,
     private val turbineJavadoc: TurbineJavadoc,
-) : AbstractItemDocumentation(item) {
-    /** Backing field for [fileLocation]. */
-    private lateinit var _fileLocation: FileLocation
+) : LazySourceComment() {
 
-    override val fileLocation: FileLocation
-        get() {
-            if (!::_fileLocation.isInitialized) {
-                ensureTextBackingFieldHasBeenInitialized()
-            }
-            return _fileLocation
+    override fun obtainFileLocation() =
+        if (sourceFile == null) {
+            FileLocation.UNKNOWN
+        } else {
+            TurbineFileLocation(
+                sourceFile,
+                turbineJavadoc.startPosition(),
+                // Report character position for documentation locations as that is consistent
+                // across
+                // models (because it is computed by Metalava not the underlying models).
+                reportCharacterPosition = true,
+            )
         }
 
-    override fun initializeTextBackingField() {
+    override fun obtainText(): String {
         // Reconstruct the original comment.
         val javadoc = turbineJavadoc.value()
         val originalComment = "/**$javadoc*/"
-
-        // Initialize the text backing field.
-        _text = originalComment
-
-        // Initialize the file location backing field.
-        _fileLocation =
-            if (sourceFile == null) {
-                FileLocation.UNKNOWN
-            } else {
-                TurbineFileLocation(
-                    sourceFile,
-                    turbineJavadoc.startPosition(),
-                    // Report character position for documentation locations as that is consistent
-                    // across models (because it is computed by Metalava not the underlying models).
-                    reportCharacterPosition = true,
-                )
-            }
+        return originalComment
     }
 }
