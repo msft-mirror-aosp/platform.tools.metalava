@@ -122,8 +122,6 @@ internal class PsiItemDocumentation(
         // copying it into the new item.
         text.toItemDocumentationFactory().create(item)!!
 
-    override fun snapshot(item: SelectableItem) = this
-
     companion object {
         /**
          * Get an [ItemDocumentationFactory] for the [psi].

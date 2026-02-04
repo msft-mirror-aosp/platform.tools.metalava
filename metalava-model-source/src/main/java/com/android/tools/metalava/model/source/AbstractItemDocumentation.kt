@@ -340,6 +340,9 @@ abstract class AbstractItemDocumentation(
     override fun duplicate(item: SelectableItem): ItemDocumentation =
         DefaultItemDocumentation(item, text, fileLocation)
 
-    override fun snapshot(item: SelectableItem): ItemDocumentation =
-        DefaultItemDocumentation(item, text, fileLocation)
+    final override fun snapshot(item: SelectableItem): ItemDocumentation =
+        // Return this to avoid parsing the text again and duplicating errors. This is not strictly
+        // speaking safe as the underlying DocComment is mutable, and this will end up sharing it
+        // across multiple snapshots, but it does not seem to cause any problems at the moment.
+        this
 }

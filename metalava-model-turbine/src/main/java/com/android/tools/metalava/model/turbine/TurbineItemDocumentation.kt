@@ -63,7 +63,4 @@ internal class TurbineItemDocumentation(
                 )
             }
     }
-
-    // Behaves the same as Psi.
-    override fun snapshot(item: SelectableItem) = this
 }
