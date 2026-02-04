@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
 import com.android.tools.metalava.model.source.doc.TagTypes
 import com.android.tools.metalava.model.source.javadoc.ExprContext
+import com.android.tools.metalava.model.source.javadoc.InvalidBlockUseVisitor
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
@@ -222,12 +223,10 @@ internal abstract class AbstractItemDocumentation(
             type == "hide" || type == "doconly"
         }
 
-        val originalText = text
-
-        checkDocumentationBeforePrinting(originalText)
+        checkDocumentationBeforePrinting()
 
         // Only print the comment if it is not blank.
-        if (originalText.isNotBlank()) {
+        if (text.isNotBlank()) {
             // Print the docComment as Javadoc.
             docComment.printAsJavadocComment(
                 writer,
@@ -238,27 +237,17 @@ internal abstract class AbstractItemDocumentation(
     }
 
     /**
-     * Check the documentation content [text] before printing it.
+     * Check the documentation content [docComment] before printing it.
      *
      * Verifies that it does not contain anything which could cause problems downstream, e.g. in
      * `doclava`.
      */
-    private fun checkDocumentationBeforePrinting(text: String) {
-        checkForInvalidBlockTagUse(text, "@hide")
-        checkForInvalidBlockTagUse(text, "@removed")
-        checkForInvalidBlockTagUse(text, "@doconly")
-    }
-
-    /**
-     * Check to see if there are any remaining non-block uses of block tags that could cause
-     * problems downstream.
-     */
-    private fun checkForInvalidBlockTagUse(text: String, blockTag: String) {
-        if (text.contains(blockTag)) {
+    private fun checkDocumentationBeforePrinting() {
+        if (docComment.check(InvalidBlockUseVisitor.INSTANCE)) {
             item.codebase.reporter.report(
                 Issues.INVALID_BLOCK_TAG_USE,
                 item,
-                "Documentation contains '$blockTag' that is not used as a block tag; that could cause unexpected behavior downstream.",
+                "Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.",
                 fileLocation,
             )
         }
