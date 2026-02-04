@@ -51,28 +51,8 @@ internal abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
 ) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
 
-    /** Get the text content of the source commend. */
-    protected abstract fun obtainCommentText(): String
-
-    /** Lazily initialized from [obtainCommentText]. */
-    private var _docComment: DocComment? = null
-
-    private val docComment: DocComment
-        get() {
-            val docComment = _docComment
-            return if (docComment == null) {
-                val new =
-                    DocComment.createDocComment(
-                        context = this,
-                        obtainCommentText(),
-                        reporter = this,
-                    )
-                _docComment = new
-                new
-            } else {
-                docComment
-            }
-        }
+    /** The [DocComment] that contains the documentation content. */
+    protected abstract val docComment: DocComment
 
     override fun resolveItemReference(
         sourceReference: String,
@@ -253,7 +233,7 @@ internal abstract class AbstractItemDocumentation(
     }
 
     override fun duplicate(item: SelectableItem): ItemDocumentation =
-        DefaultItemDocumentation(item, docComment.asJavadocCommentString(), fileLocation)
+        DefaultItemDocumentation(item, docComment, fileLocation)
 
     final override fun snapshot(item: SelectableItem): ItemDocumentation =
         // Return this to avoid parsing the text again and duplicating errors. This is not strictly

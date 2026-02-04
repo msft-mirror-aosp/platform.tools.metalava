@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -33,7 +34,21 @@ internal class SourceItemDocumentation(
     override val fileLocation: FileLocation
         get() = sourceComment.fileLocation
 
-    override fun obtainCommentText() = sourceComment.text
+    /** Lazily initialized backing property for [docComment]. */
+    private lateinit var _docComment: DocComment
+
+    override val docComment: DocComment
+        get() {
+            if (!::_docComment.isInitialized) {
+                _docComment =
+                    DocComment.createDocComment(
+                        context = this,
+                        sourceComment.text,
+                        reporter = this,
+                    )
+            }
+            return _docComment
+        }
 }
 
 /** Create an [ItemDocumentation] instance for [item] from [sourceComment]. */
