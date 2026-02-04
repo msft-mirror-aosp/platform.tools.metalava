@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
-import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocTypeParser
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
@@ -50,13 +49,7 @@ import java.io.PrintWriter
  */
 internal abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
-) :
-    ItemDocumentation,
-    DocumentationIssueReporter,
-    DocCommentContext,
-    // Implement this as a temporary measure while this needs to keep [text] and [docComment] in
-    // sync.
-    DocCommentMutationListener {
+) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
 
     /** Get the text content of the source commend. */
     protected abstract fun obtainCommentText(): String
@@ -80,16 +73,6 @@ internal abstract class AbstractItemDocumentation(
                 docComment
             }
         }
-
-    override val mutationListener: DocCommentMutationListener
-        get() = this
-
-    /**
-     * Called when [docComment] is mutated.
-     *
-     * No longer does anything.
-     */
-    override fun docCommentMutated() {}
 
     override fun resolveItemReference(
         sourceReference: String,
