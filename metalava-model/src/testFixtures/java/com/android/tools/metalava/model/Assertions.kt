@@ -283,11 +283,6 @@ interface Assertions {
         assertEquals(expectedOutput.trimIndent(), actualOutput, message)
     }
 
-    /** Make sure the documentation text for [this] matches [expectedOutput]. */
-    fun SelectableItem.assertDocumentationText(expectedOutput: String, message: String? = null) {
-        assertEquals(expectedOutput.trimIndent(), documentation?.text?.trim(), message)
-    }
-
     /**
      * Create a Kotlin like method description. It uses Kotlin structure for a method and Kotlin
      * style nulls but not Kotlin types.

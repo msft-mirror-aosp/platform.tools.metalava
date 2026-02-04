@@ -949,11 +949,20 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     .trimIndent()
             assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            methodItem.assertDocumentationText(methodComment, message = "method")
-            classItem.assertDocumentationText("/** Class documentation */", message = "class")
-            fieldItem.assertDocumentationText("/** Field Doc */", message = "field")
-            fieldItem1.assertDocumentationText("", message = "field1")
-            pkgItem.assertDocumentationText("", message = "package")
+            methodItem.assertPrintedDocumentation(
+                expectedOutput = methodComment,
+                message = "method"
+            )
+            classItem.assertPrintedDocumentation(
+                expectedOutput = "/** Class documentation */",
+                message = "class"
+            )
+            fieldItem.assertPrintedDocumentation(
+                expectedOutput = "/** Field Doc */",
+                message = "field"
+            )
+            fieldItem1.assertPrintedDocumentation(expectedOutput = "", message = "field1")
+            pkgItem.assertPrintedDocumentation(expectedOutput = "", message = "package")
             assertSame(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
