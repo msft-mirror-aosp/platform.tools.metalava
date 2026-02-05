@@ -20,6 +20,7 @@ import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -122,13 +123,16 @@ class ThrowsCompatibilityTest : DriverTest() {
 
     @Test
     fun `Incompatible method change -- throws list -- type parameter`() {
+        // This test relies on being able to resolve FileNotFoundException and IOException to their
+        // class definitions as their hierarchical relationship affects the results.
         check(
             expectedIssues =
+                // TODO(b/481997129): The error messages seem to be backwards. e.g. Changing method4
+                //  from throwing `FileNotFoundException` to `IOException`
                 """
                     src/test/pkg/MyClass.java:7: error: Binary breaking change: Method test.pkg.MyClass.method1 added thrown exception T (extends java.lang.Throwable)} [ChangedThrows]
                     src/test/pkg/MyClass.java:8: error: Binary breaking change: Method test.pkg.MyClass.method2 no longer throws exception T (extends java.lang.Throwable)} [ChangedThrows]
                     src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 added thrown exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
-                    src/test/pkg/MyClass.java:10: error: Binary breaking change: Method test.pkg.MyClass.method4 added thrown exception X (extends java.io.IOException)} [ChangedThrows]
                     src/test/pkg/MyClass.java:10: error: Binary breaking change: Method test.pkg.MyClass.method4 no longer throws exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
@@ -163,6 +167,7 @@ class ThrowsCompatibilityTest : DriverTest() {
                         """
                     )
                 ),
+            apiClassResolution = ApiClassResolution.API_CLASSPATH,
         )
     }
 
