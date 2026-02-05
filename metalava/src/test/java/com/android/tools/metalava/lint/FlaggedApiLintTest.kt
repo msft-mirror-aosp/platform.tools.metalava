@@ -687,14 +687,11 @@ class FlaggedApiLintTest : DriverTest() {
         )
     }
 
-    // b/448616809 Test added to showcase the discrepancy between how the previously released api
-    // (loaded from prebuilts) and the current api (loaded from sources) store @RequiresPermission.
-    // Comparisons for this annotation will be disabled until this discrepancy is resolved, hence
-    // changes in the @RequiresPermission annotation will not require flagging for the time being.
     @Test
-    fun `Do not require @FlaggedApi on RequiresPermission`() {
+    fun `Require @FlaggedApi on RequiresPermission changes`() {
         check(
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Foo.java:5: warning: Changes to modifiers, from '@androidx.annotation.RequiresPermission(\"android.permission.MY_PERMISSION_STRING\") public' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]",
             apiLint =
                 """
                     // Signature format: 2.0
@@ -742,6 +739,75 @@ class FlaggedApiLintTest : DriverTest() {
 
                             import android.annotation.RequiresPermission;
 
+                            public class Foo {
+                                Foo() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    requiresPermissionSource
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
+
+    // This test was added to showcase what happens when the attributes for @RequiresPermission are
+    // stored differently between sources (current api) and the prebuilts signature file (previous
+    // api).
+    @Test
+    fun `Do not require @FlaggedApi on RequiresPermission annotations that resolve to the same value`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                    @RequiresPermission("android.permission.MY_PERMISSION_STRING") public class Foo {
+                    }
+                    public class Manifest {
+                    }
+                    public static final class Manifest.permission {
+                      field public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                    }
+                  }
+                """,
+            api =
+                """
+                  package test.pkg {
+                    @RequiresPermission(test.pkg.Manifest.permission.MY_PERMISSION) public class Foo {
+                    }
+                    public class Manifest {
+                    }
+                    public static final class Manifest.permission {
+                      field public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                    }
+                  }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Manifest {
+                                Manifest() {}
+
+                                public static final class permission {
+                                    permission() {}
+                                    public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RequiresPermission;
+
+                            @RequiresPermission(Manifest.permission.MY_PERMISSION)
                             public class Foo {
                                 Foo() {}
                             }
