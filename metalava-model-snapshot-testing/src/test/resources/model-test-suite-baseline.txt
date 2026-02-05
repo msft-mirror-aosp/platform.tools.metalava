@@ -44,6 +44,14 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
+com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
+  Test invalid binary reference[turbine,with other but not nested]
+  Test invalid binary reference[turbine,without other at all]
+  Test invalid binary reference[turbine,without other but with another class in the same package]
+  Test invalid source reference[turbine,with other but not nested]
+  Test invalid source reference[turbine,without other at all]
+  Test invalid source reference[turbine,without other but with another class in the same package]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVariableNullabilityTest
   Test type variable as type argument of inner class type[text,KOTLIN_STYLE_NULLS,non-nullable variable]
   Test type variable as type argument of outer class type[psi,java,k1,TYPE_USE_ANNOTATIONS,non-nullable variable]
