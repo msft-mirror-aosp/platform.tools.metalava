@@ -321,6 +321,12 @@ private constructor(
                     ?: buildString {
                         append("Codebase loaded from ")
                         signatureFiles.joinTo(this)
+                        if (classPathResolver == null) {
+                            append(" without a class path resolver")
+                        } else {
+                            append(" with class path resolver ")
+                            append(classPathResolver)
+                        }
                     }
             val assembler =
                 TextCodebaseAssembler.createAssembler(

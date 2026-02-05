@@ -209,7 +209,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             return
         }
         val parameters = method.parameters()
-        if (parameters.size <= 1) {
+        if (parameters.isEmpty()) {
             // No need for overloads when there is at most one version...
             return
         }

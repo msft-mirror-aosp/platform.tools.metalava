@@ -16,8 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.source.createSourceItemDocumentation
 import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.intellij.psi.PsiAnnotationMethod
@@ -112,3 +116,22 @@ internal fun PsiMethod.defaultValueProvider(codebase: PsiBasedCodebase, returnTy
 /** Get the [PsiParameter]s for a [PsiMethod]. */
 val PsiMethod.psiParameters: List<PsiParameter>
     get() = if (this is UMethod) uastParameters else parameterList.parameters.toList()
+
+/**
+ * Get an [ItemDocumentationFactory] for this [PsiElement].
+ *
+ * If [Codebase.Config.allowReadingComments] is `true` then this will return a factory that creates
+ * an [ItemDocumentation] instance, otherwise it will return [ItemDocumentation.NONE_FACTORY].
+ */
+internal fun PsiElement.createItemDocumentation(
+    codebase: Codebase,
+) =
+    if (codebase.config.allowReadingComments) {
+        // When reading comments provide full access to them.
+        ItemDocumentationFactory { item ->
+            createSourceItemDocumentation(item, PsiSourceComment(this))
+        }
+    } else {
+        // Otherwise, there is no documentation to use.
+        ItemDocumentation.NONE_FACTORY
+    }
