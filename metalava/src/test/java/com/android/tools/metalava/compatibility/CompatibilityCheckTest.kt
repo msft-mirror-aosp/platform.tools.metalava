@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
@@ -359,7 +358,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Removed method from classpath`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -4012,7 +4010,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Conversion from AutoCloseable to Closeable is not API-breaking`() {
         // Closeable implements AutoCloseable
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4067,7 +4064,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Conversion from MutableCollection to AbstractMutableCollection is not API-breaking`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4108,7 +4104,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Expected API changes converting collections to Kotlin`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             // The parameter names are different between java.util.Collection and
             // kotlin.collections.Collection
             // Methods not defined in kotlin.collections.Collection appear abstract as they are not
@@ -4178,7 +4173,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `No issues using the same classpath class twice`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """

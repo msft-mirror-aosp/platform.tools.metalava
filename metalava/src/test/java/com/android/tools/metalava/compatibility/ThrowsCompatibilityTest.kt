@@ -20,7 +20,6 @@ import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -167,7 +166,6 @@ class ThrowsCompatibilityTest : DriverTest() {
                         """
                     )
                 ),
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
         )
     }
 
