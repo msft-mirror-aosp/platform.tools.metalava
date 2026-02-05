@@ -937,13 +937,10 @@ class FlaggedApiLintTest : DriverTest() {
         )
     }
 
-    // b/448616809 - In the future, @FlaggedApi will not be required for such changes after the
-    // attribute fields are normalized
     @Test
-    fun `Require @FlaggedApi on annotations changes that involve attribute fields that resolve to the same value`() {
+    fun `Do not require @FlaggedApi on annotations changes that involve attribute fields that resolve to the same value`() {
         check(
-            expectedIssues =
-                "src/test/pkg/Foo.java:10: warning: Changes to modifiers, from '@test.annotation.Custom(test.pkg.Foo.SECONDARY_FIELD) public' to '@test.annotation.Custom(test.pkg.Foo.PRIMARY_FIELD) public' must be flagged with @FlaggedApi: method test.pkg.Foo.bar() [UnflaggedApi]",
+            expectedIssues = "",
             apiLint =
                 """
                      // Signature format: 5.0

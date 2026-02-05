@@ -45,6 +45,16 @@ private constructor(
             )
         }
 
+        fun forNormalizing(writer: Writer): ModifierListWriter {
+            return ModifierListWriter(
+                writer = writer,
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = true,
+            )
+        }
+
         fun forStubs(
             writer: Writer,
             isDocStubs: Boolean,
