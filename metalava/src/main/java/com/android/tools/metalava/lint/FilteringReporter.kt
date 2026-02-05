@@ -44,7 +44,23 @@ class FilteringReporter(
 
         val item = reportable as? Item
         if (item != null) {
-            val previousItem = Codebase.findPreviouslyReleased(oldCodebase, item)
+            // Determine whether to inherit methods from super classes in the previously released
+            // API.
+            val inherit =
+                when (id) {
+                    // Do not consider inherited methods in previously released APIs when
+                    // determining
+                    // the severity to use for the EQUALS_AND_HASH_CODE report as otherwise it will
+                    // almost always inherit from `java.lang.Object`. That will break the test as it
+                    // expects to see both methods implemented directly on a class, and inherited
+                    // methods are explicitly not allowed.
+                    Issues.EQUALS_AND_HASH_CODE -> false
+
+                    // Inherit by default.
+                    else -> true
+                }
+
+            val previousItem = Codebase.findPreviouslyReleased(oldCodebase, item, inherit)
 
             val computedMaximumSeverity = computeMaximumSeverity(item, previousItem, id)
             if (computedMaximumSeverity == Severity.HIDDEN) {
