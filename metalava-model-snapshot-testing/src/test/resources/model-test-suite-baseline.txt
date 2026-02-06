@@ -1,6 +1,4 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  210 Test Method exception list[psi,java,k1]
-  210 Test Method exception list[psi,java,k2]
   260 - test doconly members[psi,java,k1]
   260 - test doconly members[psi,java,k2]
   260 - test doconly members[turbine]
@@ -9,6 +7,7 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[text]
 
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test constructor using optional value class type[psi,kotlin,k1]
   Test function in value class[psi,kotlin,k1]
   Test properties of value class types with JvmName[psi,kotlin,k1]
   Test properties of value class types with JvmName[psi,kotlin,k2]

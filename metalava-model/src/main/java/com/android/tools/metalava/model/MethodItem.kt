@@ -21,13 +21,14 @@ import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
 
 @MetalavaApi
-interface MethodItem : CallableItem, InheritableItem {
+interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
+     *
+     * Overridden to provide more specific documentation.
      */
-    val property: PropertyItem?
-        get() = null
+    override var property: PropertyItem?
 
     override val effectivelyDeprecated: Boolean
         get() =
@@ -50,6 +51,9 @@ interface MethodItem : CallableItem, InheritableItem {
 
     /** Returns the super methods that this method is overriding */
     fun superMethods(): List<MethodItem>
+
+    /** Override to specialize return type. */
+    override fun createOverload(parameters: List<ParameterItem>): MethodItem
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,

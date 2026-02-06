@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
@@ -35,7 +35,7 @@ internal interface TurbineGlobalContext {
     /** Cache of [TurbineSourceFile]s. */
     val sourceFileCache: TurbineSourceFileCache
 
-    /** Factory for creating [DefaultItem] implementations. */
+    /** Factory for creating [Item] implementations. */
     val itemFactory: DefaultItemFactory
 
     /** Factory for creating [AnnotationItem]s from [AnnoInfo] objects. */

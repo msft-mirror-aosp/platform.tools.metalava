@@ -1,8 +1,5 @@
-com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  210 Test Method exception list[java,k1]
-  210 Test Method exception list[java,k2]
-
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test constructor using optional value class type[kotlin,k1]
   Test function in value class[kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
