@@ -40,12 +40,14 @@ import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiEllipsisType
+import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
+import com.intellij.psi.impl.source.PsiClassReferenceType
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
@@ -553,12 +555,55 @@ internal class PsiTypeItemFactory(
         return psiTypeFromKotlin?.parameters?.toList() ?: emptyList()
     }
 
-    /** Compute the [ClassTypeItem.outerClassType]. */
+    /** Compute the [ClassTypeItem.outerClassType], which will be `null` if no type exists. */
     private fun computeOuterClass(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
     ): ClassTypeItem? {
-        // TODO(b/300081840): this drops annotations on the outer class
+        // Try and construct a qualifying PsiType for psiType. If the result resolves to a class
+        // then it is an outer class, otherwise it could be a package or an unknown class. That will
+        // be handled below.
+        val outerPsiType =
+            when (psiType) {
+                // PsiClassReferenceType are class type references, either in sources or possibly
+                // binary files. It contains a single PsiJavaCodeReferenceElement that may contain
+                // a qualifying reference, annotations and type parameters.
+                is PsiClassReferenceType -> {
+                    // Get the children of the reference.
+                    val children = psiType.reference.children
+
+                    // If this type is qualified then it will contain a PsiJavaCodeReferenceElement
+                    // as the first child  that encapsulates the qualifier, including any
+                    // annotations and type parameters it may have.
+                    val javaCodeReference = children.firstOrNull() as? PsiJavaCodeReferenceElement
+                    if (javaCodeReference != null) {
+                        // Construct a PsiClassReferenceType around the qualifying reference. This
+                        // could be a package or outer class so it will need to be checked first.
+                        PsiClassReferenceType(javaCodeReference, psiType.languageLevel)
+                    } else {
+                        // There is no outer class mentioned in the source reference so cannot
+                        // create an outer class type from it. However, that does not mean that
+                        // there is no outer class type so drop through and try another way.
+                        null
+                    }
+                }
+                else -> {
+                    // Drop through and try another way to create the type.
+                    null
+                }
+            }
+
+        // If an outer PsiType was constructed, and it could be resolved then it is a known class
+        // so construct a ClassTypeItem for it.
+        if (outerPsiType != null && outerPsiType.resolve() != null) {
+            return createClassTypeItem(
+                psiType = outerPsiType,
+                kotlinType = kotlinType?.forOuterClass(),
+                // Outer class types can never be null.
+                contextNullability = ContextNullability.forceNonNull,
+            )
+        }
+
         return PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no
             // outer class reference. If the type is not a nested type, it returns the package
