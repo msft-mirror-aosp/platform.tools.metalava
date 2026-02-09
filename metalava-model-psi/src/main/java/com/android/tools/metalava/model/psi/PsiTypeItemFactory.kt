@@ -698,11 +698,18 @@ internal class PsiTypeItemFactory(
                 .map { unwrapInputType(it) }
                 .toList()
 
+        // Verify that the lambda is being implemented using the expected classes.
+        require(qualifiedName.startsWith(KOTLIN_FUNCTION_PREFIX)) {
+            "internal error: Kotlin lambda implemented using unexpected class '$qualifiedName'."
+        }
+
         return TypeItem.createLambdaType(
             modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
             qualifiedName = qualifiedName,
             arguments = typeArguments,
-            outerClassType = computeOuterClass(psiType, actualKotlinType),
+            // Lambdas are implemented using a number of top level classes so never have an outer
+            // class.
+            outerClassType = null,
             isSuspend = isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
@@ -784,3 +791,6 @@ internal fun PsiClassType.computeQualifiedName(): String {
     // See https://youtrack.jetbrains.com/issue/KTIJ-27093 for more details.
     return PsiNameHelper.getQualifiedClassName(canonicalText, true)
 }
+
+/** Prefix of Kotlin JVM function types, used for lambdas. */
+private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
