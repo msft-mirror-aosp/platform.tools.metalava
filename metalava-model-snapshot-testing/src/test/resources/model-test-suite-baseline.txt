@@ -50,10 +50,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVaria
   Test type variable as type argument of outer class type[psi,java,k1,TYPE_USE_ANNOTATIONS,nullable variable]
   Test type variable as type argument of outer class type[psi,java,k2,TYPE_USE_ANNOTATIONS,non-nullable variable]
   Test type variable as type argument of outer class type[psi,java,k2,TYPE_USE_ANNOTATIONS,nullable variable]
-  Test type variable as type argument of outer class type[psi,kotlin,k1,KOTLIN_STYLE_NULLS,non-nullable variable]
-  Test type variable as type argument of outer class type[psi,kotlin,k1,KOTLIN_STYLE_NULLS,nullable variable]
-  Test type variable as type argument of outer class type[psi,kotlin,k2,KOTLIN_STYLE_NULLS,non-nullable variable]
-  Test type variable as type argument of outer class type[psi,kotlin,k2,KOTLIN_STYLE_NULLS,nullable variable]
   Test type variable as type argument of outer class type[text,KOTLIN_STYLE_NULLS,non-nullable variable]
   Test type variable on its own[text,KOTLIN_STYLE_NULLS,non-nullable variable]
 

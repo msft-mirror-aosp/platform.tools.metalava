@@ -439,7 +439,7 @@ internal class PsiTypeItemFactory(
                 computeOuterClass(
                     psiType,
                     kotlinType,
-                    creatingClassTypeForClass = true,
+                    creatingClassTypeForClass,
                 ),
             isValueClassType = kotlinType.isValueClassTypeIfAvailable,
         )
