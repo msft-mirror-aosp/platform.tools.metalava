@@ -184,9 +184,9 @@ data class MethodFingerprint(
  * 2. Kotlin; ignoring [TypeNullability.PLATFORM].
  * 3. Annotations.
  * 4. Nullability inferred from context, e.g. constant field with non-null value.
- * 4. [TypeNullability.PLATFORM]
+ * 4. [defaultNullability]
  */
-class ContextNullability(
+data class ContextNullability(
     /**
      * The [TypeNullability] that a [TypeItem] MUST have by virtue of what the type is, or where it
      * is used; e.g. [PrimitiveTypeItem]s and super class types MUST be [TypeNullability.NONNULL]
@@ -220,6 +220,9 @@ class ContextNullability(
      * It is passed as a lambda as it may be expensive to compute.
      */
     val inferNullability: (() -> TypeNullability?)? = null,
+
+    /** The default [TypeNullability] when all else fails. */
+    val defaultNullability: TypeNullability = TypeNullability.PLATFORM
 ) {
     /**
      * Compute the [TypeNullability] according to the priority in the documentation for this class.
@@ -239,8 +242,8 @@ class ContextNullability(
             ?: itemAnnotations?.typeNullability
             // If an inferred nullability is provided then use it.
             ?: inferNullability?.invoke()
-            // Finally default to [TypeNullability.PLATFORM].
-            ?: TypeNullability.PLATFORM
+            // Finally use the default.
+            ?: defaultNullability
 
     /**
      * Get a [ContextNullability] instance for components of arrays.
@@ -253,9 +256,29 @@ class ContextNullability(
         forcedComponentNullability?.let { ContextNullability(forcedNullability = it) } ?: none
 
     companion object {
+        /**
+         * A [ContextNullability] instance that provides no hints from the context as to the
+         * nullability of a type.
+         */
         val none = ContextNullability()
-        val forceNonNull = ContextNullability(TypeNullability.NONNULL)
-        val forceUndefined = ContextNullability(TypeNullability.UNDEFINED)
+
+        /**
+         * A [ContextNullability] instance that will force a type to be treated as
+         * [TypeNullability.NONNULL].
+         */
+        val forceNonNull =
+            ContextNullability(
+                forcedNullability = TypeNullability.NONNULL,
+            )
+
+        /**
+         * A [ContextNullability] instance that will force a type to be treated as
+         * [TypeNullability.UNDEFINED].
+         */
+        val forceUndefined =
+            ContextNullability(
+                forcedNullability = TypeNullability.UNDEFINED,
+            )
     }
 }
 
