@@ -106,9 +106,10 @@ open class TypeItemParser(
             splitNullabilitySuffix(
                 unannotated,
                 // If forceClassToBeNonNull is true then a plain class type without any nullability
-                // suffix must be treated as if it was not null, which is just how it would be
-                // treated when kotlinStyleNulls is true. So, pretend that kotlinStyleNulls is true.
-                kotlinStyleNulls || forceClassToBeNonNull,
+                // suffix must be treated as if it was not null. That is just how it is in Kotlin
+                // so this pretends that when forceClassToBeNonNull is true that kotlinStyleNulls is
+                // true.
+                forceClassToBeNonNull,
                 errorReporter,
             )
         val trimmed = withoutNullability.trim()
