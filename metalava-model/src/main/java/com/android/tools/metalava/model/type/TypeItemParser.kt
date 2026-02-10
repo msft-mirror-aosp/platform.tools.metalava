@@ -442,27 +442,32 @@ open class TypeItemParser(
      *
      * If [kotlinStyleNulls] is `true` then this will use the first non-null [TypeNullability] found
      * in the following steps:
-     * 1. [TypeNullability.NONNULL].
+     * 1. [defaultNullability]
+     * 2. [TypeNullability.NONNULL].
      *
      * Otherwise, it will use the first non-null [TypeNullability] found in the following steps:
      * 1. The [TypeNullability] of a [AnnotationItem.isNullnessAnnotation] annotation in
      *    [annotations].
-     * 2. [TypeNullability.PLATFORM].
+     * 2. [defaultNullability]
+     * 3. [TypeNullability.PLATFORM].
      */
     private fun createModifiers(
         annotations: List<AnnotationItem>,
-        knownNullability: TypeNullability?
+        knownNullability: TypeNullability?,
+        defaultNullability: TypeNullability? = null,
     ): TypeModifiers {
         // Use the known nullability, or find if there is a nullness annotation on the type,
         // defaulting to platform nullness if not.
         val nullability =
             knownNullability
                 ?: if (kotlinStyleNulls) {
-                    TypeNullability.NONNULL
+                    defaultNullability ?: TypeNullability.NONNULL
                 } else {
                     annotations
                         .firstOrNull { it.isNullnessAnnotation() }
-                        ?.let { TypeNullability.ofAnnotation(it) } ?: TypeNullability.PLATFORM
+                        ?.let { TypeNullability.ofAnnotation(it) }
+                        ?: defaultNullability
+                        ?: TypeNullability.PLATFORM
                 }
 
         return TypeModifiers.create(annotations, nullability)
