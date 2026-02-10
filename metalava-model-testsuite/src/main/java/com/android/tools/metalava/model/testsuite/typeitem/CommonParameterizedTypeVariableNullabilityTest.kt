@@ -240,6 +240,7 @@ class CommonParameterizedTypeVariableNullabilityTest : BaseModelTest() {
                             """
                                 // Signature format: 5.0
                                 // - kotlin-name-type-order=yes
+                                // - kotlin-style-nulls=no
                                 // - ${nullabilityForm.signatureOption}
                                 package test.pkg {
                                   public class Outer<O> {

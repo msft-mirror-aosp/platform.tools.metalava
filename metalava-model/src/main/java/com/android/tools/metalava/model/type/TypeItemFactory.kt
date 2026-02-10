@@ -268,6 +268,16 @@ data class ContextNullability(
     fun forComponentType() =
         forcedComponentNullability?.let { ContextNullability(forcedNullability = it) } ?: none
 
+    /**
+     * Get a [ContextNullability] instance for type variables.
+     *
+     * If `this`] is [none] then this method returns [defaultUndefined], otherwise this method
+     * returns a copy of `this` with [ContextNullability.defaultUndefined] set to
+     * [TypeNullability.UNDEFINED].
+     */
+    fun forTypeVariable() =
+        if (this == none) defaultUndefined else copy(defaultNullability = TypeNullability.UNDEFINED)
+
     companion object {
         /**
          * A [ContextNullability] instance that provides no hints from the context as to the
@@ -292,6 +302,12 @@ data class ContextNullability(
             ContextNullability(
                 forcedNullability = TypeNullability.UNDEFINED,
             )
+
+        /**
+         * A [ContextNullability] instance that will default to [TypeNullability.UNDEFINED] if not
+         * otherwise specified.
+         */
+        val defaultUndefined = ContextNullability(defaultNullability = TypeNullability.UNDEFINED)
     }
 }
 

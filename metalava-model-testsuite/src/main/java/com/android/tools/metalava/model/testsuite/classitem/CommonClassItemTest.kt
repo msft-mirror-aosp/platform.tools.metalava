@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -1086,10 +1085,6 @@ class CommonClassItemTest : BaseModelTest() {
                 appendResultOfDuplicatingInto("test.pkg.PlatformNumberClass")
             }
 
-            // TODO(b/483318672): Type variables are not treated as undefined by default in some
-            //   cases.
-            val undefinedSuffix = if (inputFormat == InputFormat.JAVA) "!" else ""
-
             // Check the result.
             // TODO(b/483318672): Non-null type variables are not marked as non-null (i.e. by
             //   appending ` & Any` to make it a non-null intersection type).
@@ -1112,10 +1107,10 @@ class CommonClassItemTest : BaseModelTest() {
                       listOfOptionalT -> java.util.List<? extends java.lang.Integer?>
 
                     Duplicating into class test.pkg.UndefinedTypeVariableClass
-                      t -> U$undefinedSuffix
+                      t -> U
                       requiredT -> U
                       optionalT -> U?
-                      listOfT -> java.util.List<? extends U$undefinedSuffix>
+                      listOfT -> java.util.List<? extends U>
                       listOfRequiredT -> java.util.List<? extends U>
                       listOfOptionalT -> java.util.List<? extends U?>
 
