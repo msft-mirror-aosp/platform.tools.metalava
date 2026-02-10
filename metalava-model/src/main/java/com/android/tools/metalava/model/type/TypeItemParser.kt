@@ -165,7 +165,8 @@ open class TypeItemParser(
         if (nullability != null && nullability != TypeNullability.NONNULL) {
             errorReporter.report("Invalid nullability suffix on primitive: $original")
         }
-        return TypeItem.createPrimitiveType(modifiers(annotations, TypeNullability.NONNULL), kind)
+        val typeModifiers = createModifiers(annotations, TypeNullability.NONNULL)
+        return TypeItem.createPrimitiveType(typeModifiers, kind)
     }
 
     /**
@@ -257,7 +258,7 @@ open class TypeItemParser(
         // from innermost array modifiers to outermost array modifiers.
         val allModifiers =
             allAnnotations.zip(allNullability.reversed()).map { (annotations, nullability) ->
-                modifiers(annotations, nullability)
+                createModifiers(annotations, nullability)
             }
         // The final modifiers are in the list apply to the outermost array.
         val componentModifiers = allModifiers.dropLast(1)
@@ -289,24 +290,24 @@ open class TypeItemParser(
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
 
-        val modifiers = modifiers(annotations, TypeNullability.UNDEFINED)
+        val typeModifiers = createModifiers(annotations, TypeNullability.UNDEFINED)
 
         // Unbounded wildcard type: there is an implicit Object extends bound
-        if (type == "?") return TypeItem.createWildcardType(modifiers, objectType, null)
+        if (type == "?") return TypeItem.createWildcardType(typeModifiers, objectType, null)
 
         // If there's a bound, the nullability suffix applies there instead.
         val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
             TypeItem.createWildcardType(
-                modifiers,
+                typeModifiers,
                 getWildcardBound(extendsBound, typeParameterScope),
                 null,
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
             TypeItem.createWildcardType(
-                modifiers,
+                typeModifiers,
                 // All wildcards have an implicit Object extends bound
                 objectType,
                 getWildcardBound(superBound, typeParameterScope),
@@ -315,7 +316,7 @@ open class TypeItemParser(
             errorReporter.report("Type starts with \"?\" but doesn't appear to be wildcard: $type")
 
             // Ignore the part after the "?" and treat it as an unbounded wildcard.
-            TypeItem.createWildcardType(modifiers, objectType, null)
+            TypeItem.createWildcardType(typeModifiers, objectType, null)
         }
     }
 
@@ -335,7 +336,8 @@ open class TypeItemParser(
         nullability: TypeNullability?
     ): VariableTypeItem? {
         val param = typeParameterScope.findTypeParameter(type) ?: return null
-        return TypeItem.createVariableType(modifiers(annotations, nullability), param)
+        val typeModifiers = createModifiers(annotations, nullability)
+        return TypeItem.createVariableType(typeModifiers, param)
     }
 
     /**
@@ -379,9 +381,9 @@ open class TypeItemParser(
         // the leading annotations (they belong to the nested class type).
         val classModifiers =
             if (remainder != null) {
-                modifiers(classAnnotations, TypeNullability.NONNULL)
+                createModifiers(classAnnotations, TypeNullability.NONNULL)
             } else {
-                modifiers(classAnnotations + annotations, nullability)
+                createModifiers(classAnnotations + annotations, nullability)
             }
 
         // Construct a qualified name to use for the class.
@@ -447,7 +449,7 @@ open class TypeItemParser(
      *    [annotations].
      * 2. [TypeNullability.PLATFORM].
      */
-    private fun modifiers(
+    private fun createModifiers(
         annotations: List<AnnotationItem>,
         knownNullability: TypeNullability?
     ): TypeModifiers {
