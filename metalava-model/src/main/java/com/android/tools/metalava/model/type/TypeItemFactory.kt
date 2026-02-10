@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -226,22 +227,34 @@ data class ContextNullability(
 ) {
     /**
      * Compute the [TypeNullability] according to the priority in the documentation for this class.
+     *
+     * @param existingNullability this will either come from Kotlin type information or is the
+     *   [TypeNullability] for an existing [TypeItem] that might need its
+     *   [TypeModifiers.nullability] updating.
      */
     fun compute(
-        kotlinNullability: TypeNullability?,
+        existingNullability: TypeNullability?,
         typeAnnotations: List<AnnotationItem>
     ): TypeNullability =
         // If forced is set then use that as the top priority.
         forcedNullability
-            // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
-            // as that may be overridden by annotations or the default.
-            ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
+            // If an existing nullability is provided and is a known nullability then use that but
+            // if it is a known nullability then ignore it for now as it is possible that a known
+            // nullability will be provided by annotations or inference.
+            ?: existingNullability?.takeIf { nullability -> nullability.known }
+
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
+
             // If item annotations are found then check them.
             ?: itemAnnotations?.typeNullability
+
             // If an inferred nullability is provided then use it.
             ?: inferNullability?.invoke()
+
+            // Use an existing nullability, even if it is unknown.
+            ?: existingNullability
+
             // Finally use the default.
             ?: defaultNullability
 
