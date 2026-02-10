@@ -593,7 +593,7 @@ open class TypeItemParser(
         fun splitNullabilitySuffix(
             type: String,
             kotlinStyleNulls: Boolean,
-            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+            errorReporter: TypeItemParserErrorReporter,
         ): Pair<String, TypeNullability?> {
             return if (kotlinStyleNulls) {
                 // Don't interpret the wildcard type `?` as a nullability marker.
