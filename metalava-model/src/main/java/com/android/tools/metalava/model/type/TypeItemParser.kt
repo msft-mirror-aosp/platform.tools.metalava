@@ -435,8 +435,17 @@ open class TypeItemParser(
     /**
      * Create a [TypeModifiers].
      *
-     * If [knownNullability] is `null` then this will compute nullability from the [annotations], if
-     * any, and if not then default to platform nullness.
+     * If [knownNullability] is `null` then this will compute a non-null [TypeNullability] as
+     * follows:
+     *
+     * If [kotlinStyleNulls] is `true` then this will use the first non-null [TypeNullability] found
+     * in the following steps:
+     * 1. [TypeNullability.NONNULL].
+     *
+     * Otherwise, it will use the first non-null [TypeNullability] found in the following steps:
+     * 1. The [TypeNullability] of a [AnnotationItem.isNullnessAnnotation] annotation in
+     *    [annotations].
+     * 2. [TypeNullability.PLATFORM].
      */
     private fun modifiers(
         annotations: List<AnnotationItem>,
@@ -446,10 +455,13 @@ open class TypeItemParser(
         // defaulting to platform nullness if not.
         val nullability =
             knownNullability
-                ?: annotations
-                    .firstOrNull { it.isNullnessAnnotation() }
-                    ?.let { TypeNullability.ofAnnotation(it) }
-                ?: TypeNullability.PLATFORM
+                ?: if (kotlinStyleNulls) {
+                    TypeNullability.NONNULL
+                } else {
+                    annotations
+                        .firstOrNull { it.isNullnessAnnotation() }
+                        ?.let { TypeNullability.ofAnnotation(it) } ?: TypeNullability.PLATFORM
+                }
 
         return TypeModifiers.create(annotations, nullability)
     }
@@ -605,7 +617,7 @@ open class TypeItemParser(
                 } else if (type.endsWith("!")) {
                     Pair(type.dropLast(1), TypeNullability.PLATFORM)
                 } else {
-                    Pair(type, TypeNullability.NONNULL)
+                    Pair(type, null)
                 }
             } else if (((type.length > 1) && type.endsWith("?")) || type.endsWith("!")) {
                 errorReporter.report("Format does not support Kotlin-style null type syntax: $type")

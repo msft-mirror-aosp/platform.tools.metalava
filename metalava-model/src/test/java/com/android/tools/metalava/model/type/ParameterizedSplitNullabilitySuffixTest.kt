@@ -76,13 +76,13 @@ class ParameterizedSplitNullabilitySuffixTest {
                     type = "String",
                     kotlinStyleNulls = true,
                     expectedRemainder = "String",
-                    expectedNullability = TypeNullability.NONNULL,
+                    expectedNullability = null,
                 ),
                 TestParams(
                     type = "T",
                     kotlinStyleNulls = true,
                     expectedRemainder = "T",
-                    expectedNullability = TypeNullability.NONNULL,
+                    expectedNullability = null,
                 ),
 
                 // Not Kotlin style nulls.
