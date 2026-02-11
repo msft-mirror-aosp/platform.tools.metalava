@@ -18,11 +18,14 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidRestrictedForEnvironment
+import com.android.tools.metalava.androidXRestrictedForEnvironment
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.xml
 import org.junit.Test
@@ -990,6 +993,57 @@ class FlaggedApiLintTest : DriverTest() {
             checkCompatibilityApiReleased = previouslyReleasedApi,
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+        )
+    }
+
+    // b/483372828 - This test was added to prevent false-positives from occurring stating that
+    // @RestrictedForEnvironment should be flagged when it shouldn't. @RestrictedForEnvironment has
+    // attribute values that are represented differently between the sources (current api) and the
+    // prebuilts signature file (previous api). Testing around this can be improved in the future.
+    @Test
+    fun `Do not require @FlaggedApi for @RestrictedForEnvironment with no changes`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 5.0
+                    package android.pkg {
+                      @androidx.annotation.RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=34) public final class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            api =
+                """
+                // Signature format: 5.0
+                package android.pkg {
+                  @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=34) public final class Foo {
+                    ctor public Foo();
+                  }
+                }
+            """
+                    .trimIndent(),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            import androidx.annotation.RestrictedForEnvironment;
+
+                            @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=34)
+                            public final class Foo {
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                    androidRestrictedForEnvironment,
+                    androidXRestrictedForEnvironment,
+                    KnownSourceFiles.stringDefSource,
+                    flagsFile,
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
 }
