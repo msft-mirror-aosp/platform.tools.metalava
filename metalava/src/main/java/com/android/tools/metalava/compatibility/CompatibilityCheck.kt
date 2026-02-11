@@ -437,6 +437,9 @@ class CompatibilityCheck(
         // to differences in nullability. That will be checked below.
         if (original != candidate) return false
 
+        // If the nullability is the same then the parameters are compatible.
+        if (original.modifiers.nullability == candidate.modifiers.nullability) return true
+
         // The nullability can't change from nullable to non-null, because that would mean that
         // usages that pass in a nullable value would no longer work.
         return original.modifiers.isNonNull || candidate.modifiers.isNullable
