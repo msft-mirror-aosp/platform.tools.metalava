@@ -937,6 +937,91 @@ class FlaggedApiLintTest : DriverTest() {
         )
     }
 
+    // b/448616809 - In the future, @FlaggedApi will not be required for such changes after the
+    // attribute fields are normalized
+    @Test
+    fun `Require @FlaggedApi on annotations changes that involve attribute fields that resolve to the same value`() {
+        check(
+            expectedIssues =
+                "src/test/pkg/Foo.java:10: warning: Changes to modifiers, from '@test.annotation.Custom(test.pkg.Foo.SECONDARY_FIELD) public' to '@test.annotation.Custom(test.pkg.Foo.PRIMARY_FIELD) public' must be flagged with @FlaggedApi: method test.pkg.Foo.bar() [UnflaggedApi]",
+            apiLint =
+                """
+                     // Signature format: 5.0
+                     package test.annotation {
+                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD}) public @interface Custom {
+                         method public abstract int value() default 0;
+                       }
+                     }
+                     package test.pkg {
+                       public class Foo {
+                         ctor public Foo();
+                         method @test.annotation.Custom(test.pkg.Foo.SECONDARY_FIELD) public void bar();
+                         field public static final int PRIMARY_FIELD = 1; // 0x1
+                         field public static final int SECONDARY_FIELD = 1; // 0x1
+                       }
+                     }
+                """,
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.annotation {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD}) public @interface Custom {
+                        method public abstract int value() default 0;
+                      }
+                    }
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method @test.annotation.Custom(test.pkg.Foo.PRIMARY_FIELD) public void bar();
+                        field public static final int PRIMARY_FIELD = 1; // 0x1
+                        field public static final int SECONDARY_FIELD = 1; // 0x1
+                      }
+                    }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.annotation;
+
+                            import static java.lang.annotation.ElementType.METHOD;
+                            import java.lang.annotation.Target;
+
+                            @Target({METHOD})
+                            public @interface Custom {
+                                int value() default 0;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import test.annotation.Custom;
+
+                            public class Foo {
+                                public static final int PRIMARY_FIELD = 1;
+                                public static final int SECONDARY_FIELD = 1;
+
+                                @Custom(PRIMARY_FIELD)
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments =
+                arrayOf(
+                    ARG_WARNING,
+                    "UnflaggedApi",
+                    ARG_PASS_THROUGH_ANNOTATION,
+                    "test.annotation.Custom"
+                ),
+        )
+    }
+
     @Test
     fun `Require @FlaggedApi api flags to be exported`() {
         val apiFlagsXmlFile =
