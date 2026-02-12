@@ -196,6 +196,64 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
                 ),
             )
 
+        private val interfaceInputSets =
+            arrayOf(
+                inputSet(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Interface3<G, H> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Interface2<E, F> extends Interface3<E, F> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Interface1<C, D> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Class<A, B> implements Interface1<A, B>, Interface2<B, A>{}
+                        """
+                    ),
+                ),
+                inputSet(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public class Class<A, B> implements test.pkg.Interface1<A,B> test.pkg.Interface2<B,A> {
+                              }
+                              public interface Interface1<C, D> {
+                              }
+                              public interface Interface2<E, F> extends test.pkg.Interface3<E,F> {
+                              }
+                              public interface Interface3<G, H> {
+                              }
+                            }
+                        """
+                    ),
+                ),
+                inputSet(
+                    kotlin(
+                        """
+                            package test.pkg
+                            interface Interface3<G, H>
+                            interface Interface2<E, F> : Interface3<E, F>
+                            interface Interface1<C, D>
+                            class Class<A, B> : Interface1<A, B>, Interface2<B, A>
+                        """
+                    ),
+                ),
+            )
+
         private val params =
             listOf(
                 // Child / Parent tests
@@ -269,6 +327,44 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
                     descendantClass = "test.pkg.Class1",
                     ancestorClass = "test.pkg.Class4",
                     expectedBindingsBuilder = { "I" shouldBeBoundTo "B" },
+                ),
+
+                // Interfaces
+                TestParams(
+                    inputSets = interfaceInputSets,
+                    descendantClass = "test.pkg.Class",
+                    ancestorClass = "test.pkg.Interface1",
+                    expectedBindingsBuilder = {
+                        "C" shouldBeBoundTo "A"
+                        "D" shouldBeBoundTo "B"
+                    },
+                ),
+                TestParams(
+                    inputSets = interfaceInputSets,
+                    descendantClass = "test.pkg.Class",
+                    ancestorClass = "test.pkg.Interface2",
+                    expectedBindingsBuilder = {
+                        "E" shouldBeBoundTo "B"
+                        "F" shouldBeBoundTo "A"
+                    },
+                ),
+                TestParams(
+                    inputSets = interfaceInputSets,
+                    descendantClass = "test.pkg.Class",
+                    ancestorClass = "test.pkg.Interface3",
+                    expectedBindingsBuilder = {
+                        "G" shouldBeBoundTo "B"
+                        "H" shouldBeBoundTo "A"
+                    },
+                ),
+                TestParams(
+                    inputSets = interfaceInputSets,
+                    descendantClass = "test.pkg.Interface2",
+                    ancestorClass = "test.pkg.Interface3",
+                    expectedBindingsBuilder = {
+                        "G" shouldBeBoundTo "E"
+                        "H" shouldBeBoundTo "F"
+                    },
                 ),
             )
 
