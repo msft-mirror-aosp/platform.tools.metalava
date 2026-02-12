@@ -1369,10 +1369,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
                     nullability == TypeNullability.NULLABLE -> nullability
                     // If the type that is replacing the type parameter has platform nullability,
                     // i.e. carries no information one way or another about whether it is nullable,
-                    // then use the nullability of the use of the type parameter as while at worst
-                    // it may also have no nullability information, it could have some, e.g. from a
-                    // declaration nullability annotation.
-                    replacement.modifiers.nullability == TypeNullability.PLATFORM -> nullability
+                    // then use the nullability of this type variable if it has some known
+                    // nullability, e.g. from a declaration nullability annotation.
+                    replacement.modifiers.nullability == TypeNullability.PLATFORM &&
+                        nullability.known -> nullability
                     else -> null
                 }
 

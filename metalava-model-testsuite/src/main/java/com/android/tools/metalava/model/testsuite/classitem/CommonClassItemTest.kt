@@ -1090,10 +1090,6 @@ class CommonClassItemTest : BaseModelTest() {
             //   cases.
             val undefinedSuffix = if (inputFormat == InputFormat.JAVA) "!" else ""
 
-            // TODO(b/483318672): Platform nullability should not be ignored when type variables are
-            //   undefined.
-            val platformSuffix = if (inputFormat == InputFormat.JAVA) "!" else ""
-
             // Check the result.
             // TODO(b/483318672): Nullable types are not substituted correctly into non-null type
             //   variables. They should be non-null after substitution but are still nullable.
@@ -1126,10 +1122,10 @@ class CommonClassItemTest : BaseModelTest() {
                       listOfOptionalT -> java.util.List<? extends U?>
 
                     Duplicating into class test.pkg.PlatformNumberClass
-                      t -> java.lang.Number$platformSuffix
+                      t -> java.lang.Number!
                       requiredT -> java.lang.Number
                       optionalT -> java.lang.Number?
-                      listOfT -> java.util.List<? extends java.lang.Number$platformSuffix>
+                      listOfT -> java.util.List<? extends java.lang.Number!>
                       listOfRequiredT -> java.util.List<? extends java.lang.Number>
                       listOfOptionalT -> java.util.List<? extends java.lang.Number?>
                   """
