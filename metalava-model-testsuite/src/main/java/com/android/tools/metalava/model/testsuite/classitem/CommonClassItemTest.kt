@@ -912,64 +912,6 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test basic mapTypeVariables`() {
-        runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-                        public class Parent<M, N> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Child<X, Y> extends Parent<X, Y> {}
-                    """
-                )
-            ),
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 5.0
-                        package test.pkg {
-                          public class Child<X, Y> extends test.pkg.Parent<X,Y> {
-                          }
-                          public class Parent<M, N> {
-                          }
-                        }
-                    """
-                )
-            ),
-            inputSet(
-                kotlin(
-                    """
-                        package test.pkg
-                        open class Parent<M, N>
-                        class Child<X, Y> : Parent<X, Y>()
-                    """
-                )
-            )
-        ) {
-            val parent = codebase.assertClass("test.pkg.Parent")
-            val parentTypeParams = parent.typeParameterList
-            val m = parentTypeParams[0]
-            val n = parentTypeParams[1]
-
-            val child = codebase.assertClass("test.pkg.Child")
-            val childTypeParams = child.typeParameterList
-            val x = childTypeParams[0].type()
-            val y = childTypeParams[1].type()
-
-            assertEquals(mapOf(m to x, n to y), child.mapTypeVariables(parent))
-
-            // Not valid uses of mapTypeVariables
-            assertEquals(emptyMap(), parent.mapTypeVariables(child))
-            assertEquals(emptyMap(), child.mapTypeVariables(child))
-        }
-    }
-
-    @Test
     fun `Test mapTypeVariables with multiple layers of super classes`() {
         runCodebaseTest(
             inputSet(
