@@ -24,8 +24,6 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
@@ -5144,7 +5142,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads constructors`() {
@@ -5225,7 +5222,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads methods`() {
@@ -6734,8 +6730,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    // With K1 there is an incorrect extra copy of the no-args constructor, annotated @A
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test primary constructor with defaults and secondary constructor with JvmOverloads`() {
@@ -6775,8 +6769,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
-    // K1 does not have full typealias support.
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @Test
     fun `Test typealiases from classpath are not listed`() {
         check(

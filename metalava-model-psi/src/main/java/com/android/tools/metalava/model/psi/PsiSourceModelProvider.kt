@@ -48,7 +48,6 @@ internal class PsiSourceModelProvider : SourceModelProvider {
 
     override val modelOptionsList: List<ModelOptions> =
         listOf(
-            ModelOptions.build("k1") { this[PsiModelOptions.useK2Uast] = false },
             ModelOptions.build("k2") { this[PsiModelOptions.useK2Uast] = true },
         )
 
