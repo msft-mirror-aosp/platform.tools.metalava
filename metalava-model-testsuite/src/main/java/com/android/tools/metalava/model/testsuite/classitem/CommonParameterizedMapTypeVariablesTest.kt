@@ -138,6 +138,64 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
                 ),
             )
 
+        private val multipleLayersOfSuperClassesInputSets =
+            arrayOf(
+                inputSet(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Class4<I> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Class3<G, H> extends Class4<G> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Class2<D, E, F> extends Class3<D, F> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Class1<A, B, C> extends Class2<B, C, A> {}
+                        """
+                    ),
+                ),
+                inputSet(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public class Class1<A, B, C> extends test.pkg.Class2<B,C,A> {
+                              }
+                              public class Class2<D, E, F> extends test.pkg.Class3<D,F> {
+                              }
+                              public class Class3<G, H> extends test.pkg.Class4<G> {
+                              }
+                              public class Class4<I> {
+                              }
+                            }
+                        """
+                    ),
+                ),
+                inputSet(
+                    kotlin(
+                        """
+                            package test.pkg
+                            open class Class4<I>
+                            open class Class3<G, H> : Class4<G>
+                            open class Class2<D, E, F> : Class3<D, F>
+                            class Class1<A, B, C> : Class2<B, C, A>
+                        """
+                    ),
+                ),
+            )
+
         private val params =
             listOf(
                 // Child / Parent tests
@@ -163,6 +221,54 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
                     descendantClass = "test.pkg.Child",
                     ancestorClass = "test.pkg.Child",
                     expectedBindingsBuilder = {},
+                ),
+
+                // Multiple layers of super class tests.
+                TestParams(
+                    inputSets = multipleLayersOfSuperClassesInputSets,
+                    descendantClass = "test.pkg.Class3",
+                    ancestorClass = "test.pkg.Class4",
+                    expectedBindingsBuilder = { "I" shouldBeBoundTo "G" },
+                ),
+                TestParams(
+                    inputSets = multipleLayersOfSuperClassesInputSets,
+                    descendantClass = "test.pkg.Class2",
+                    ancestorClass = "test.pkg.Class3",
+                    expectedBindingsBuilder = {
+                        "G" shouldBeBoundTo "D"
+                        "H" shouldBeBoundTo "F"
+                    },
+                ),
+                TestParams(
+                    inputSets = multipleLayersOfSuperClassesInputSets,
+                    descendantClass = "test.pkg.Class2",
+                    ancestorClass = "test.pkg.Class4",
+                    expectedBindingsBuilder = { "I" shouldBeBoundTo "D" },
+                ),
+                TestParams(
+                    inputSets = multipleLayersOfSuperClassesInputSets,
+                    descendantClass = "test.pkg.Class1",
+                    ancestorClass = "test.pkg.Class2",
+                    expectedBindingsBuilder = {
+                        "D" shouldBeBoundTo "B"
+                        "E" shouldBeBoundTo "C"
+                        "F" shouldBeBoundTo "A"
+                    },
+                ),
+                TestParams(
+                    inputSets = multipleLayersOfSuperClassesInputSets,
+                    descendantClass = "test.pkg.Class1",
+                    ancestorClass = "test.pkg.Class3",
+                    expectedBindingsBuilder = {
+                        "G" shouldBeBoundTo "B"
+                        "H" shouldBeBoundTo "A"
+                    },
+                ),
+                TestParams(
+                    inputSets = multipleLayersOfSuperClassesInputSets,
+                    descendantClass = "test.pkg.Class1",
+                    ancestorClass = "test.pkg.Class4",
+                    expectedBindingsBuilder = { "I" shouldBeBoundTo "B" },
                 ),
             )
 
