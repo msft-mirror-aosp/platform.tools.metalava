@@ -1091,8 +1091,6 @@ class CommonClassItemTest : BaseModelTest() {
             val undefinedSuffix = if (inputFormat == InputFormat.JAVA) "!" else ""
 
             // Check the result.
-            // TODO(b/483318672): Nullable types are not substituted correctly into non-null type
-            //   variables. They should be non-null after substitution but are still nullable.
             // TODO(b/483318672): Non-null type variables are not marked as non-null (i.e. by
             //   appending ` & Any` to make it a non-null intersection type).
             assertEquals(
@@ -1107,10 +1105,10 @@ class CommonClassItemTest : BaseModelTest() {
 
                     Duplicating into class test.pkg.NullableIntegerClass
                       t -> java.lang.Integer?
-                      requiredT -> java.lang.Integer?
+                      requiredT -> java.lang.Integer
                       optionalT -> java.lang.Integer?
                       listOfT -> java.util.List<? extends java.lang.Integer?>
-                      listOfRequiredT -> java.util.List<? extends java.lang.Integer?>
+                      listOfRequiredT -> java.util.List<? extends java.lang.Integer>
                       listOfOptionalT -> java.util.List<? extends java.lang.Integer?>
 
                     Duplicating into class test.pkg.UndefinedTypeVariableClass
