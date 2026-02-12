@@ -16,12 +16,26 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.ParameterDefaultValue
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
 
 @MetalavaApi
-interface ParameterItem : ClassContentItem, Item {
+interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
     /** The name of this field */
     fun name(): String
+
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Parameter" else "parameter")
+        append(' ')
+        append(name())
+        append(" in ")
+        with(containingCallable()) {
+            appendCallableSignature(
+                includeParameterNames = true,
+                includeParameterTypes = true,
+            )
+        }
+    }
 
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
@@ -59,15 +73,15 @@ interface ParameterItem : ClassContentItem, Item {
      */
     fun hasDefaultValue(): Boolean
 
-    /** The default value of this [ParameterItem]. */
-    val defaultValue: ParameterDefaultValue
-
     /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean = modifiers.isVarArg()
 
-    /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
-    val property: PropertyItem?
-        get() = null
+    /**
+     * The property declared by this parameter; inverse of [PropertyItem.constructorParameter].
+     *
+     * Overridden to provide more specific documentation.
+     */
+    override var property: PropertyItem?
 
     override fun parent(): CallableItem? = containingCallable()
 
@@ -82,41 +96,10 @@ interface ParameterItem : ClassContentItem, Item {
     }
 
     /**
-     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
-     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
-     * syntax.
-     *
-     * Specifically this will attempt to handle the follow cases:
-     * - Java SAM interface = true
-     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
-     * - Kotlin fun interface = true
-     * - Kotlin lambda = true
-     * - Any other type = false
-     */
-    fun isSamCompatibleOrKotlinLambda(): Boolean {
-        if (type() is LambdaTypeItem) return true
-
-        // Check the parameter type to see if it is defined in Kotlin or not.
-        // Interfaces defined in Kotlin do not support SAM conversion, but `fun` interfaces do.
-        // This is a best-effort check, since external dependencies (bytecode) won't appear to
-        // be Kotlin for psi, and won't have a `fun` modifier visible. To resolve this, we could
-        // parse the kotlin.metadata annotation on the bytecode declaration , but in reality the
-        // amount of Java methods with a Kotlin interface with a single abstract method from an
-        // external dependency should be minimal.
-        val cls = type().asClass() ?: return false
-        if (!cls.isInterface()) return false
-        return if (cls.isKotlin()) {
-            cls.modifiers.isFunctional()
-        } else {
-            cls.methods().singleOrNull { it.modifiers.isAbstract() } != null
-        }
-    }
-
-    /**
      * Create a duplicate of this for [containingCallable].
      *
-     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
-     * [TypeItem.convertType].
+     * The duplicate's [ParameterItem.type] is the result of applying [typeConverter] to this
+     * [ParameterItem]'s [type].
      *
      * This is called from within the constructor of the [containingCallable] so must only access
      * its `name` and its reference. In particularly it must not access its
@@ -124,8 +107,15 @@ interface ParameterItem : ClassContentItem, Item {
      */
     fun duplicate(
         containingCallable: CallableItem,
-        typeVariableMap: TypeParameterBindings,
+        typeConverter: TypeItemConverter,
+        newParameterIndex: Int = parameterIndex,
     ): ParameterItem
+
+    override val description: DocContent?
+        get() = containingCallable().documentation?.paramTagDescription(name())
+
+    override val descriptionOwner: DocContentOwner
+        get() = containingCallable().requiredDocumentation.paramTagDescriptionOwner(name())
 
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true

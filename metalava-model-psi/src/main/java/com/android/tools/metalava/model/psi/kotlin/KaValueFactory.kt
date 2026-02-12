@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi.kotlin
 
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.CachingValueProvider
 import com.android.tools.metalava.model.value.CombinedValueProvider
@@ -33,8 +32,7 @@ import org.jetbrains.uast.toUElement
 
 /** Creates [Value]s from [KaAnnotationValue]s and optionally psi [ValueArgument]s. */
 internal class KaValueFactory(
-    private val codebase: PsiBasedCodebase,
-    private val assembler: KaCodebaseAssembler,
+    private val processor: KaModuleProcessor,
     private val globalTypeItemFactory: KaTypeItemFactory,
 ) : ValueFactory, ImplementationValueToModelFactory<Pair<KaAnnotationValue, ValueArgument?>> {
     /**
@@ -67,7 +65,12 @@ internal class KaValueFactory(
                 )
             is KaAnnotationValue.ClassLiteralValue ->
                 createClassObjectValue(
-                    globalTypeItemFactory.getClassReferenceType(kaAnnotationValue.type),
+                    // If a class has type parameters, K2 models the type with unbounded wildcards
+                    // for the type arguments. However, the value creation enforces that there are
+                    // no type arguments on a class value.
+                    globalTypeItemFactory
+                        .getClassReferenceType(kaAnnotationValue.type)
+                        .substitute(arguments = emptyList()),
                     // The sourceExpression is only used for legacy value formatting, so it isn't
                     // important to include it here.
                     sourceExpression = null,
@@ -75,14 +78,16 @@ internal class KaValueFactory(
             is KaAnnotationValue.ConstantValue -> {
                 // A constant value might be created through a field reference. Check if the psi
                 // value is a field reference with the codebase's PsiValueFactory.
-                (psiArgument?.getArgumentExpression()?.toUElement() as? UReferenceExpression)
-                    ?.let { uExpr ->
-                        (codebase.valueFactory.implementationValueToModelValue(
-                            optionalTypeItem,
-                            uExpr,
-                            valueUseSite
-                        ) as? FieldReferenceValue)
-                    }
+                processor.psiCodebase?.let { psiBasedCodebase ->
+                    (psiArgument?.getArgumentExpression()?.toUElement() as? UReferenceExpression)
+                        ?.let { uExpr ->
+                            (psiBasedCodebase.valueFactory.implementationValueToModelValue(
+                                optionalTypeItem,
+                                uExpr,
+                                valueUseSite
+                            ) as? FieldReferenceValue)
+                        }
+                }
                     // If it isn't a field reference, use the evaluated constant value.
                     ?: kaAnnotationValue.value.value?.let {
                         createLiteralValue(optionalTypeItem, it)
@@ -92,14 +97,14 @@ internal class KaValueFactory(
                 kaAnnotationValue.callableId?.let { callableId ->
                     callableId.classId?.let { classId ->
                         createFieldReferenceValue(
-                            codebase,
+                            processor.codebase,
                             classId.asFqNameString(),
                             callableId.callableName.identifier,
                         )
                     }
                 }
             is KaAnnotationValue.NestedAnnotationValue ->
-                assembler.createAnnotation(kaAnnotationValue.annotation)?.let {
+                processor.createAnnotation(kaAnnotationValue.annotation)?.let {
                     createAnnotationValue(it)
                 }
             is KaAnnotationValue.UnsupportedValue -> error("Unsupported value $implementationValue")

@@ -18,9 +18,11 @@ package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -61,6 +63,103 @@ class CommonValueTest : BaseModelTest() {
                 "test.other.Other.Friend.FIELD",
                 value.toValueString(ValueStringConfiguration(showKotlinCompanionClass = true))
             )
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test class value reference for class with type parameters from kotlin`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                import kotlin.reflect.KClass
+                class ClassWithTypeParam<T>
+
+                annotation class AnnotationUsingClass(val classValue: KClass<*>)
+                @JvmInline
+                value class IntValue(val value: Int) {
+                    @AnnotationUsingClass(classValue = ClassWithTypeParam::class)
+                    fun foo() = Unit
+                }
+                """
+            )
+        ) {
+            val intValueClass = codebase.assertClass("test.pkg.IntValue")
+            val fooMethod = intValueClass.assertMethod("foo", emptyList())
+            val anno = fooMethod.modifiers.annotations().single()
+            val classValue = anno.attributes.single()
+            assertEquals(classValue.name, "classValue")
+            assertEquals(classValue.value.toValueString(), "test.pkg.ClassWithTypeParam.class")
+        }
+    }
+
+    @Test
+    fun `Test use field reference in an annotation on a package`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    "test/pkg/package-info.java",
+                    """
+                        @Anno(Anno.CONSTANT)
+                        package test.pkg;
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public @interface Anno {
+                            int value();
+
+                            int CONSTANT = 37;
+                        }
+                    """
+                )
+            ),
+        ) {
+            val testItem = codebase.assertPackage("test.pkg")
+            val annotationItem = testItem.modifiers.annotations().single()
+            val annotationAttribute = annotationItem.attributes.single()
+            val value = annotationAttribute.value
+            assertEquals(fieldReferenceValue("test.pkg.Anno", "CONSTANT"), value)
+            assertEquals(37, value.asLiteralValue()?.underlyingValue)
+        }
+    }
+
+    @Test
+    fun `Test use field reference in a type annotation`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Target;
+                        @Target(ElementType.TYPE_USE)
+                        public @interface Anno {
+                            int value();
+
+                            int CONSTANT = 37;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            public @Anno(Anno.CONSTANT) int field;
+                        }
+                    """,
+                ),
+            ),
+        ) {
+            val testItem = codebase.assertClass("test.pkg.Test")
+            val fieldItem = testItem.fields().single()
+            val annotationItem = fieldItem.type().modifiers.annotations.single()
+            val annotationAttribute = annotationItem.attributes.single()
+            val value = annotationAttribute.value
+            assertEquals(fieldReferenceValue("test.pkg.Anno", "CONSTANT"), value)
+            assertEquals(37, value.asLiteralValue()?.underlyingValue)
         }
     }
 }

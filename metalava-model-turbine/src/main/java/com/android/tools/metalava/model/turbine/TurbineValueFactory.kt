@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -42,6 +41,7 @@ import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.ConstVarName
 import com.google.turbine.tree.Tree.Expression
+import com.google.turbine.tree.Tree.Literal
 
 /**
  * Factory for creating [Value]s from [TurbineValue]s.
@@ -104,17 +104,31 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
     /** Create a [Value] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toValue(optionalTypeItem: TypeItem?): Value {
+        // Check to see if the value should be an array.
         if (const is ArrayInitValue) {
             val arrayTypeItem = optionalTypeItem as ArrayTypeItem
             val elementTypeItem = arrayTypeItem.componentType
 
-            val elements = const.elements()
-            val exprElements = (expr as? ArrayInit)?.exprs()
+            // Get the list of Consts.
+            val constElements = const.elements()
+
+            // Get a corresponding list of Expressions, if available.
+            val exprElements =
+                expr?.let { expr ->
+                    // If expr is an ArrayInit then get the expressions that make up its contents.
+                    (expr as? ArrayInit)?.exprs()
+                        // Otherwise, it was just a single value in the source so wrap it in a list
+                        // to match the constElements.
+                        ?: listOf(expr)
+                }
+
+            // Combine the Const and optional Expressions into a list of TurbineValues.
             val turbineValues =
-                elements.mapIndexed { index, element ->
+                constElements.mapIndexed { index, element ->
                     TurbineValue(element, exprElements?.get(index), fieldResolver)
                 }
 
+            // Map the list of TurbineValues to ArrayElementValue objects.
             val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
 
             // If the source was a single non-array expression of an array type then that needs to
@@ -122,9 +136,37 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             // `ArrayInitValue` so check the expression. If the expression was provided (i.e. from
             // sources not jars) but was not an `ArrayInit` expression (no `exprElements) then it
             // was unwrapped in the sources, otherwise it was not.
-            val wasUnwrappedInSource = expr != null && exprElements == null
+            val wasUnwrappedInSource = expr != null && expr !is ArrayInit
 
+            // Create an ArrayValue instance.
             return createArrayValue(values, wasUnwrappedInSource)
+        }
+
+        // If const is null then the expressions could not be resolved. See if the expression was an
+        // ArrayInit expression. If there was then create an ArrayValue from it.
+        if (const == null && expr is ArrayInit) {
+            // Get the array type item. If an optional type item is provided then it must be an
+            // ArrayTypeItem.
+            val elementTypeItem =
+                if (optionalTypeItem == null) null
+                else {
+                    val arrayTypeItem = optionalTypeItem as ArrayTypeItem
+                    arrayTypeItem.componentType
+                }
+
+            // Create a list of TurbineValues from the Expressions, no Consts are available for any
+            // of them.
+            val turbineValues =
+                expr.exprs().map { elementExpr ->
+                    TurbineValue(const = null, elementExpr, fieldResolver)
+                }
+
+            // Map the list of TurbineValues to ArrayElementValue objects.
+            val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
+
+            // Create an ArrayValue instance. As it was created from an array of expressions it was
+            // not unwrapped in the sources.
+            return createArrayValue(values, wasUnwrappedInSource = false)
         }
 
         return if (optionalTypeItem is ArrayTypeItem) {
@@ -140,7 +182,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
     /** Create an [ArrayElementValue] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toArrayElementValue(optionalTypeItem: TypeItem?): ArrayElementValue {
-        when (const.kind()) {
+        when (const?.kind()) {
             Const.Kind.CLASS_LITERAL -> {
                 const as TurbineClassValue
                 // Get the type of the class literal. e.g. if the expression was `X.class` then this
@@ -176,28 +218,53 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             else -> {}
         }
 
-        // Check for a field reference if a field resolver is available.
-        if (expr != null && expr is ConstVarName && fieldResolver != null) {
-            val fieldInfo = fieldResolver.resolveField(expr)
-            val fieldSymbol = fieldInfo?.sym()
+        // Check for a field reference.
+        if (expr is ConstVarName) {
+            // Try and resolve it if a fieldResolver is available.
+            val fieldInfo = fieldResolver?.resolveField(expr)
             // If the field could be resolved then wrap it around the constant value.
-            if (fieldSymbol != null) {
+            if (fieldInfo != null) {
+                val fieldSymbol = fieldInfo.sym()
                 return createFieldReferenceValueWithDeferredConstantValue(
                     codebase,
                     fieldSymbol.owner().qualifiedName,
                     fieldSymbol.name(),
                     optionalTypeItem,
                 )
+            } else {
+                // It could not be resolved so create a fake FieldReferenceValue from the source
+                // name.
+                val identList = expr.name()
+
+                // The last part of the name must be the field.
+                val fieldName = identList.last().value()
+
+                // Everything else is the qualified name.
+                val qualifiedName = identList.subList(0, identList.size - 1).dotSeparatedName
+
+                // Create a FieldReferenceValue with no constant value.
+                return createFieldReferenceValue(
+                    codebase,
+                    qualifiedName,
+                    fieldName,
+                )
             }
         }
 
-        return toConstant(optionalTypeItem)
+        // Const evaluation requires the annotation class is available, if it is not
+        // then just try and use the expression value.
+        val constToConvert = const ?: (expr as? Literal)?.value()
+
+        return toConstant(constToConvert, optionalTypeItem)
     }
 
     /** Create a [ConstantValue] of [optionalTypeItem] from this [TurbineValue]. */
-    private fun TurbineValue.toConstant(optionalTypeItem: TypeItem?): ConstantValue {
-        if (const.kind() == Const.Kind.PRIMITIVE) {
-            val underlyingValue = (const as Const.Value).value
+    private fun TurbineValue.toConstant(
+        constToConvert: Const?,
+        optionalTypeItem: TypeItem?
+    ): ConstantValue {
+        if (constToConvert?.kind() == Const.Kind.PRIMITIVE) {
+            val underlyingValue = (constToConvert as Const.Value).value
 
             // If no expr is provided then this comes from a .class file, otherwise it comes from
             // the source.
@@ -251,7 +318,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
         }
 
         throw ValueProviderException(
-            "Unknown value '$const' of ${const.javaClass} for type $optionalTypeItem"
+            "Unknown value '$constToConvert' (class ${constToConvert?.javaClass?.name}) of ${optionalTypeItem ?: "unknown"} type from expression '${expr ?: "unknown"}'"
         )
     }
 

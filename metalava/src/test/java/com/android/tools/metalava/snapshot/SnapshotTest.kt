@@ -53,6 +53,7 @@ class SnapshotTest : DriverTest() {
                 codebase,
                 definitionVisitorFactory = factory,
                 referenceVisitorFactory = factory,
+                includeDocumentation = true,
             )
         return snapshot
     }
@@ -69,6 +70,10 @@ class SnapshotTest : DriverTest() {
                             import android.annotation.SdkConstant;
                             import android.annotation.SdkConstant.SdkConstantType;
                             public class Foo {
+                                /**
+                                 * Using SdkConstant in this comment will keep the import if it is
+                                 * not filtered out.
+                                 */
                                 @SdkConstant(SdkConstantType.SERVICE_ACTION)
                                 public static final String CONSTANT = "something";
                             }
@@ -93,6 +98,10 @@ class SnapshotTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Using SdkConstant in this comment will keep the import if it is
+                             * not filtered out.
+                             */
                             @android.annotation.SdkConstant(android.annotation.SdkConstant.SdkConstantType.SERVICE_ACTION) public static final java.lang.String CONSTANT = "something";
                             }
                         """

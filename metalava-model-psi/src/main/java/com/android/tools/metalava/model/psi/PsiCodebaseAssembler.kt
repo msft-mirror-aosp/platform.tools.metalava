@@ -19,90 +19,83 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
-import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
-import com.android.tools.metalava.model.JVM_NAME
-import com.android.tools.metalava.model.JVM_SYNTHETIC
-import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
-import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultPackageItem
-import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDoc
-import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
+import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
+import com.android.tools.metalava.model.source.SourceCodebaseAssembler
+import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
-import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
-import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCodeBlock
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
-import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.impl.file.PsiPackageImpl
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
+import kotlin.collections.forEach
+import kotlin.collections.set
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.JvmStandardClassIds
-import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.KtTypeAlias
-import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
-import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
-import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 
 internal class PsiCodebaseAssembler(
     private val uastEnvironment: UastEnvironment,
     codebaseFactory: (PsiCodebaseAssembler) -> PsiBasedCodebase
-) : CodebaseAssembler {
+) : SourceCodebaseAssembler(), PsiGlobalContext {
 
-    internal val codebase = codebaseFactory(this)
+    override val psiCodebase = codebaseFactory(this)
 
-    internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
+    override val codebase: DefaultCodebase
+        get() = psiCodebase
+
+    override val itemFactory: DefaultItemFactory =
+        DefaultItemFactory(
+            codebase = codebase,
+            // Psi can process Java and Kotlin so use unknown as the default.
+            defaultSourceLanguage = SourceLanguage.UNKNOWN,
+            // Source files need to track which parts belong to which API surface variants, so they
+            // need to create an ApiVariantSelectors instance that can be used to track that.
+            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        )
+
+    override val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
     internal val project: Project = uastEnvironment.ideaProject
 
+    private val projectSearchScope = GlobalSearchScope.allScope(project)
+
     private val reporter
         get() = codebase.reporter
+
+    /** Provides an interface for using the Kotlin analysis API. */
+    private var kaCodebaseAssembler: KaCodebaseAssembler? = null
 
     /**
      * Map from qualified class name to the heavyweight [PsiClass] implementations corresponding to
@@ -129,49 +122,55 @@ internal class PsiCodebaseAssembler(
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)
 
-    internal fun getClassType(cls: PsiClass): PsiClassType =
-        getFactory().createType(cls, PsiSubstitutor.EMPTY)
+    override fun getClassType(psiClass: PsiClass) =
+        getFactory().createType(psiClass, PsiSubstitutor.EMPTY)
 
-    internal fun getComment(documentation: String, parent: PsiElement? = null): PsiDocComment =
-        getFactory().createDocCommentFromText(documentation, parent)
+    override fun createPsiType(sourceType: String, context: PsiElement?) =
+        getFactory().createTypeFromText(sourceType, context)
 
-    internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
-        getFactory().createTypeFromText(s, parent)
+    override fun findPsiPackage(packageName: String) =
+        JavaPsiFacade.getInstance(project).findPackage(packageName)
 
-    private fun createPsiAnnotation(s: String, parent: PsiElement? = null): PsiAnnotation =
-        getFactory().createAnnotationFromText(s, parent)
+    override fun getPackageInfoFromSource(packageName: String): SourcePackageInfo? {
+        // The root package can never have a corresponding package-info.java and so cannot have
+        // any annotations or documentation so return immediately.
+        if (packageName == "") {
+            return null
+        }
 
-    internal fun findPsiPackage(pkgName: String): PsiPackage? {
-        return JavaPsiFacade.getInstance(project).findPackage(pkgName)
+        val psiPackage = findPsiPackage(packageName) ?: return null
+        val annotations = PsiModifierItem.create(psiCodebase, psiPackage).annotations()
+
+        // Try and find a package-info.java file for the package in the project files.
+        val psiJavaFile =
+            psiPackage.getFiles(projectSearchScope).find {
+                // Make sure that the file is a PsiJavaFile with the correct package name.
+                it is PsiJavaFile && it.name == JAVA_PACKAGE_INFO && it.packageName == packageName
+            } as? PsiJavaFile
+
+        return if (psiJavaFile == null) {
+            SourcePackageInfo(
+                annotations = annotations,
+            )
+        } else {
+            val documentationFactory =
+                psiJavaFile.packageStatement?.let { it.createItemDocumentation(psiCodebase) }
+            val sourceFile = PsiSourceFile(psiCodebase, psiJavaFile)
+            SourcePackageInfo(
+                sourceFile = sourceFile,
+                annotations = annotations,
+                commentFactory = documentationFactory,
+            )
+        }
     }
 
-    override fun createPackageItem(
-        packageName: String,
-        packageDoc: PackageDoc,
-        containingPackage: PackageItem?
-    ): DefaultPackageItem {
-        val psiPackage =
-            findPsiPackage(packageName)
-                ?: run {
-                    // This can happen if a class's package statement does not match its file path.
-                    // In that case, this fakes up a PsiPackageImpl that matches the package
-                    // statement as that is the source of truth.
-                    val manager = PsiManager.getInstance(codebase.project)
-                    PsiPackageImpl(manager, packageName)
-                }
-        return PsiPackageItem.create(
-            codebase = codebase,
-            psiPackage = psiPackage,
-            packageDoc = packageDoc,
-            containingPackage = containingPackage,
-        )
-    }
+    override fun isValidPackage(packageName: String) = findPsiPackage(packageName) != null
 
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         findOrCreateClass(qualifiedName)
 
     /** Check if the [BaseModifierList] is accsssible. */
-    private val BaseModifierList.isAccessible
+    private val BaseModifierList.hasApiVisibilityOrShowAnnotation
         get() =
             when (getVisibilityLevel()) {
                 VisibilityLevel.PUBLIC,
@@ -195,8 +194,8 @@ internal class PsiCodebaseAssembler(
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
 
         // Ignore inaccessible classes.
-        val modifiers = PsiModifierItem.create(codebase, psiClass)
-        if (!modifiers.isAccessible) {
+        val modifiers = PsiModifierItem.create(psiCodebase, psiClass)
+        if (!modifiers.hasApiVisibilityOrShowAnnotation) {
             deferredHeavyweightPsiClasses[psiClass.qualifiedName!!] = psiClass
             return null
         }
@@ -208,8 +207,8 @@ internal class PsiCodebaseAssembler(
     private fun createTopLevelClassAndContents(
         psiClass: PsiClass,
         origin: ClassOrigin,
-        modifiers: MutableModifierList = PsiModifierItem.create(codebase, psiClass),
-    ): ClassItem {
+        modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
+    ): SkeletonClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
         return createClass(
             psiClass,
@@ -225,379 +224,19 @@ internal class PsiCodebaseAssembler(
         containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         origin: ClassOrigin,
-        modifiers: MutableModifierList = PsiModifierItem.create(codebase, psiClass),
-    ): ClassItem {
-        val packageName = getPackageName(psiClass)
-
-        // If the package could not be found then report an error.
-        findPsiPackage(packageName)
-            ?: run {
-                val directory =
-                    psiClass.containingFile.containingDirectory.virtualFile.canonicalPath
-                reporter.report(
-                    Issues.INVALID_PACKAGE,
-                    psiClass,
-                    "Could not find package $packageName for class ${psiClass.qualifiedName}." +
-                        " This is most likely due to a mismatch between the package statement" +
-                        " and the directory $directory"
-                )
-            }
-
-        val packageItem = codebase.packageTracker.findOrCreatePackage(packageName)
-
-        if (psiClass is PsiTypeParameter) {
-            error(
-                "Must not be called with PsiTypeParameter; use PsiTypeParameterItem.create(...) instead"
+        modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
+    ): SkeletonClassItem {
+        val builder =
+            PsiClassBuilder(
+                globalContext = this,
+                psiClass,
+                origin,
             )
-        }
-        val qualifiedName = psiClass.classQualifiedName
-        val classKind = getClassKind(psiClass)
-        val isKotlin = psiClass.isKotlin()
-        if (
-            classKind == ClassKind.ANNOTATION_TYPE &&
-                !hasExplicitRetention(modifiers, psiClass, isKotlin)
-        ) {
-            modifiers.addDefaultRetentionPolicyAnnotation(codebase, isKotlin)
-        }
-        // Create the TypeParameterList for this before wrapping any of the other types used by
-        // it as they may reference a type parameter in the list.
-        val (typeParameterList, classTypeItemFactory) =
-            PsiTypeParameterList.create(
-                codebase,
-                enclosingClassTypeItemFactory,
-                "class $qualifiedName",
-                psiClass
-            )
-        val (superClassType, interfaceTypes) =
-            computeSuperTypes(psiClass, classKind, classTypeItemFactory)
-        val classItem =
-            PsiClassItem(
-                codebase = codebase,
-                psiClass = psiClass,
-                modifiers = modifiers,
-                documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
-                classKind = classKind,
-                containingClass = containingClassItem,
-                containingPackage = packageItem,
-                qualifiedName = qualifiedName,
-                typeParameterList = typeParameterList,
-                origin = origin,
-                superClassType = superClassType,
-                interfaceTypes = interfaceTypes,
-            )
-        // Construct the children
-        val psiMethods = psiClass.methods
-        // create methods
-        for (psiMethod in psiMethods) {
-            // Skip fake UAST constructors, accessors, reified inline methods, and JvmSynthetic
-            // methods, which can't be used from java source, and deprecated level hidden methods,
-            // which can't be used from java or kotlin source.
-            // If this condition is updated, the one in KaCodebaseAssembler determining which
-            // methods to create needs to be updated too.
-            if (
-                (psiMethod is UastFakeSourceLightMethod ||
-                    psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) &&
-                    (psiMethod.isConstructor ||
-                        PsiMethodItem.isKotlinProperty(psiMethod) ||
-                        psiMethod.typeParameters.any { PsiTypeParameterItem.isReified(it) } ||
-                        (psiMethod as? UMethod)?.uAnnotations?.any {
-                            it.qualifiedName == JVM_SYNTHETIC
-                        } == true ||
-                        (psiMethod.isDeprecated &&
-                            (psiMethod as? UMethod)?.findAnnotation(KOTLIN_DEPRECATED)?.let {
-                                (it.findAttributeValue("level") as? UReferenceExpression)
-                                    ?.resolvedName == "HIDDEN"
-                            } == true))
-            ) {
-                continue
-            }
-
-            if (psiMethod.isConstructor) {
-                // Kotlin value class primary constructors cannot be called from Java, so they will
-                // be generated later by the KaCodebaseAssembler. For K1, these constructors aren't
-                // fake UAST elements, so they won't have already been filtered out.
-                // TODO(b/427783483): remove this workaround
-                if (classItem.modifiers.isValue() && (psiMethod as UMethod).isPrimaryConstructor) {
-                    continue
-                }
-
-                val constructor =
-                    PsiConstructorItem.create(
-                        codebase,
-                        classItem,
-                        psiMethod,
-                        classTypeItemFactory,
-                    )
-
-                // Constructors with value class type parameters may or may not be fake UAST
-                // elements depending on whether K1 or K2 is used.
-                // TODO(b/427783483): remove this workaround
-                if (constructor.parameters().any { it.type().isValueClassType() }) {
-                    continue
-                }
-
-                addOverloadedKotlinCallablesIfNecessary(
-                    classItem,
-                    classTypeItemFactory,
-                    constructor
-                )
-                classItem.addConstructor(constructor)
-            } else {
-                // With K1, value class property accessors are present as [PsiMethod]s and with K2
-                // they are not. These accessor methods can't actually be used from Java, so this
-                // forces the K2 behavior and filters them out for K1.
-                // TODO(b/427783483): remove this workaround
-                if (
-                    classItem.modifiers.isValue() && psiMethod.sourceElement is KtPropertyAccessor
-                ) {
-                    continue
-                }
-
-                val method =
-                    PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
-
-                // With K2, any accessors of value class type properties which don't use JvmName
-                // will already have been filtered out because they are represented with fake UAST
-                // elements. With K1, value class types are not treated differently so the elements
-                // are not fake UAST. Filter those value class type property accessors here.
-                // TODO(b/427783483): remove this workaround
-                if (
-                    method.isKotlinProperty() &&
-                        (method.returnType().isValueClassType() ||
-                            method.parameters().any { it.type().isValueClassType() }) &&
-                        method.modifiers.annotations().none { it.qualifiedName == JVM_NAME }
-                ) {
-                    continue
-                }
-
-                if (!method.isEnumSyntheticMethod()) {
-                    addOverloadedKotlinCallablesIfNecessary(classItem, classTypeItemFactory, method)
-                    classItem.addMethod(method)
-                }
-            }
-        }
-
-        // Note that this is dependent on the constructor filtering above. UAST sometimes
-        // reports duplicate primary constructors, e.g.: the implicit no-arg constructor
-        // If the primary constructor has optional arguments, `isPrimary` will be true for all
-        // overloads, so there won't be one constructor selected as the class primary constructor.
-        val constructors = classItem.constructors()
-        constructors.singleOrNull { it.isPrimary }?.let { classItem.primaryConstructor = it }
-        val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
-        if (hasImplicitDefaultConstructor) {
-            assert(constructors.isEmpty())
-            classItem.addConstructor(classItem.createDefaultConstructor())
-        }
-        val psiFields = psiClass.fields
-        if (psiFields.isNotEmpty()) {
-            for (psiField in psiFields) {
-                val fieldItem =
-                    PsiFieldItem.create(codebase, classItem, psiField, classTypeItemFactory)
-                classItem.addField(fieldItem)
-            }
-        }
-
-        // This actually gets all nested classes not just inner, i.e. non-static nested,
-        // classes.
-        val psiNestedClasses = psiClass.innerClasses
-        for (psiNestedClass in psiNestedClasses) {
-            createClass(
-                psiClass = psiNestedClass,
-                containingClassItem = classItem,
-                enclosingClassTypeItemFactory = classTypeItemFactory,
-                origin = origin,
-            )
-        }
-        return classItem
-    }
-
-    private fun hasExplicitRetention(
-        modifiers: BaseModifierList,
-        psiClass: PsiClass,
-        isKotlin: Boolean
-    ): Boolean {
-        if (modifiers.hasAnnotation(AnnotationItem::isRetention)) {
-            return true
-        }
-        if (isKotlin && psiClass is UClass) {
-            // In Kotlin some annotations show up on the Java facade only; for example,
-            // a @DslMarker annotation will imply a runtime annotation which is present
-            // in the java facade, not in the source list of annotations
-            val modifierList = psiClass.modifierList
-            if (
-                modifierList != null &&
-                    modifierList.annotations.any { isRetention(it.qualifiedName) }
-            ) {
-                return true
-            }
-        }
-        return false
-    }
-
-    /**
-     * Compute the super types for the class.
-     *
-     * Returns a pair of the optional super class type and the possibly empty list of interface
-     * types.
-     */
-    private fun computeSuperTypes(
-        psiClass: PsiClass,
-        classKind: ClassKind,
-        classTypeItemFactory: PsiTypeItemFactory
-    ): Pair<ClassTypeItem?, List<ClassTypeItem>> {
-
-        // A map from the qualified type name to the corresponding [KtTypeReference]. This is
-        // empty for non-Kotlin code, otherwise it maps from the qualified type name of a
-        // super type to the associated [KtTypeReference]. The qualified name is used to map
-        // between them because Kotlin does not differentiate between `implements` and `extends`
-        // lists and just has one super type list. The qualified name is safe because a class
-        // cannot implement/extend the same generic type multiple times with different type
-        // arguments so the qualified name should be unique among the super type list.
-        // The [KtTypeReference] is needed to access the type nullability of the generic type
-        // arguments.
-        val qualifiedNameToKt =
-            if (psiClass is UClass) {
-                psiClass.uastSuperTypes.associateBy({ it.getQualifiedName() }) {
-                    it.sourcePsi as KtTypeReference
-                }
-            } else emptyMap()
-
-        // Get the [KtTypeReference], if any, associated with ths [PsiType] which must be a
-        // [PsiClassType] as that is the only type allowed in an extends/implements list.
-        fun PsiType.ktTypeReference(): KtTypeReference? {
-            val qualifiedName = (this as PsiClassType).computeQualifiedName()
-            return qualifiedNameToKt[qualifiedName]
-        }
-
-        // Construct the super class type if needed and available.
-        val superClassType =
-            if (classKind != ClassKind.INTERFACE) {
-                val superClassPsiType = psiClass.superClassType as? PsiType
-                superClassPsiType?.let { superClassType ->
-                    val ktTypeRef = superClassType.ktTypeReference()
-                    classTypeItemFactory.getSuperClassType(PsiTypeInfo(superClassType, ktTypeRef))
-                }
-            } else null
-
-        // Get the interfaces from the appropriate list.
-        val interfaces =
-            if (classKind == ClassKind.INTERFACE || classKind == ClassKind.ANNOTATION_TYPE) {
-                // An interface uses "extends <interfaces>", either explicitly for normal
-                // interfaces or implicitly for annotations.
-                psiClass.extendsListTypes
-            } else {
-                // A class uses "extends <interfaces>".
-                psiClass.implementsListTypes
-            }
-
-        // Map them to PsiTypeItems.
-        val interfaceTypes =
-            interfaces.map { interfaceType ->
-                val ktTypeRef = interfaceType.ktTypeReference()
-                classTypeItemFactory.getInterfaceType(PsiTypeInfo(interfaceType, ktTypeRef))
-            }
-        return Pair(superClassType, interfaceTypes)
-    }
-
-    private fun getClassKind(psiClass: PsiClass): ClassKind {
-        return when {
-            psiClass.isAnnotationType -> ClassKind.ANNOTATION_TYPE
-            psiClass.isInterface -> ClassKind.INTERFACE
-            psiClass.isEnum -> ClassKind.ENUM
-            psiClass is PsiTypeParameter ->
-                error("Must not call this with a PsiTypeParameter - $psiClass")
-            else -> ClassKind.CLASS
-        }
-    }
-
-    /**
-     * Whether a no-args constructor should be generated for this class. For Kotlin source classes,
-     * the psi will include the implicit no-args constructor if it exists, so this is only needed
-     * for Java source classes.
-     */
-    private fun hasImplicitDefaultConstructor(classItem: PsiClassItem): Boolean {
-        return classItem.isJava() && classItem.constructors().isEmpty() && classItem.isClass()
-    }
-
-    /**
-     * Returns true if overloads of this callable should be created separately.
-     *
-     * This works around the issue of actual callable not generating overloads for @JvmOverloads
-     * annotation when the default is specified on expect side
-     * (https://youtrack.jetbrains.com/issue/KT-57537).
-     */
-    private fun PsiCallableItem.shouldExpandOverloads(): Boolean {
-        val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
-        return modifiers.isActual() &&
-            psiMethod.hasAnnotation(JvmStandardClassIds.JVM_OVERLOADS_FQ_NAME.asString()) &&
-            // It is /technically/ invalid to have actual functions with default values, but
-            // some places suppress the compiler error, so we should handle it here too.
-            ktFunction.valueParameters.none { it.hasDefaultValue() } &&
-            parameters().any { it.hasDefaultValue() }
-    }
-
-    /**
-     * Add overloads of [callable] if necessary.
-     *
-     * Workaround for https://youtrack.jetbrains.com/issue/KT-57537.
-     *
-     * For each parameter with a default value in [callable] this adds a [PsiCallableItem] that
-     * excludes that parameter and all following parameters with default values.
-     */
-    private fun addOverloadedKotlinCallablesIfNecessary(
-        classItem: PsiClassItem,
-        enclosingClassTypeItemFactory: PsiTypeItemFactory,
-        callable: PsiCallableItem,
-    ) {
-        if (!callable.shouldExpandOverloads()) {
-            return
-        }
-
-        val parameters = callable.parameters()
-
-        // Create an overload of the constructor for each parameter that has a default value. The
-        // constructor will exclude that parameter and all following parameters that have default
-        // values.
-        for (currentParameterIndex in parameters.indices) {
-            val currentParameter = parameters[currentParameterIndex]
-            // There is no need to create an overload if the parameter does not have default value.
-            if (!currentParameter.hasDefaultValue()) continue
-
-            val psiParameters =
-                parameters.mapIndexedNotNull { index, parameterItem ->
-                    // Ignore the current parameter as well as any following parameters
-                    // with default values.
-                    if (index >= currentParameterIndex && parameterItem.hasDefaultValue()) null
-                    else (parameterItem as PsiParameterItem).psiParameter
-                }
-            // Create an overloaded callable.
-            when (callable) {
-                is PsiConstructorItem -> {
-                    val overloadConstructor =
-                        PsiConstructorItem.create(
-                            codebase,
-                            classItem,
-                            callable.psiMethod,
-                            enclosingClassTypeItemFactory,
-                            psiParameters,
-                        )
-
-                    classItem.addConstructor(overloadConstructor)
-                }
-                is PsiMethodItem -> {
-                    val overloadMethod =
-                        PsiMethodItem.create(
-                            codebase,
-                            classItem,
-                            callable.psiMethod,
-                            enclosingClassTypeItemFactory,
-                            psiParameters,
-                        )
-
-                    classItem.addMethod(overloadMethod)
-                }
-            }
-        }
+        return builder.createClass(
+            containingClassItem,
+            enclosingClassTypeItemFactory,
+            modifiers,
+        )
     }
 
     private fun findOrCreateClass(qualifiedName: String): ClassItem? {
@@ -622,7 +261,14 @@ internal class PsiCodebaseAssembler(
         // The following cannot find a class whose name does not correspond to the file name, e.g.
         // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
-        return finder.findClass(qualifiedName, GlobalSearchScope.allScope(project))
+        // When working with a multiplatform project, perform the class search in a limited scope
+        // from the `kaCodebaseAssembler`, which is important for multiplatform projects to avoid
+        // searching the classpath of unrelated modules.
+        return if (uastEnvironment.isKMP && kaCodebaseAssembler != null) {
+            kaCodebaseAssembler!!.findClassInModule(finder, qualifiedName)
+        } else {
+            finder.findClass(qualifiedName, projectSearchScope)
+        }
     }
 
     /**
@@ -665,7 +311,7 @@ internal class PsiCodebaseAssembler(
 
             // If the containing class has a matching class item then return an insertion point that
             // uses that containing class item and the current class.
-            codebase.findClass(containing)?.let { containingClassItem ->
+            psiCodebase.findClass(containing)?.let { containingClassItem ->
                 return NewClassInsertionPoint(current, containingClassItem)
             }
             current = containing
@@ -680,7 +326,7 @@ internal class PsiCodebaseAssembler(
         }
 
         // If it has already been created then return it.
-        codebase.findClass(psiClass)?.let {
+        psiCodebase.findClass(psiClass)?.let {
             return it
         }
 
@@ -710,6 +356,9 @@ internal class PsiCodebaseAssembler(
                 )
             }
 
+        // Add any Kotlin properties to the class.
+        kaCodebaseAssembler?.addPropertiesToClassFromClasspath(createdClassItem)
+
         // Select the class item to return.
         return if (missingPsiClass == psiClass) {
             // The created class item was what was requested so just return it.
@@ -717,33 +366,8 @@ internal class PsiCodebaseAssembler(
         } else {
             // Otherwise, a nested class was requested so find it. It was created when its
             // containing class was created.
-            codebase.findClass(psiClass)!!
+            psiCodebase.findClass(psiClass)!!
         }
-    }
-
-    private fun getPackageName(clz: PsiClass): String {
-        var top: PsiClass? = clz
-        while (top?.containingClass != null) {
-            top = top.containingClass
-        }
-        top ?: return ""
-
-        val simpleName = top.simpleName
-        val qualifiedName = top.classQualifiedName
-
-        if (simpleName == qualifiedName) {
-            return ""
-        }
-
-        return qualifiedName.substring(0, qualifiedName.length - 1 - simpleName.length)
-    }
-
-    internal fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
-        return PsiAnnotationItem.create(codebase, psiAnnotation)
     }
 
     internal fun initializeFromJar(jarFile: File) {
@@ -777,10 +401,6 @@ internal class PsiCodebaseAssembler(
             }
         }
 
-        // Create the initial set of packages that were found in the jar files. When loading from a
-        // jar there is no package documentation so this will only create the root package.
-        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
-
         // Find all classes referenced from the class
         val facade = JavaPsiFacade.getInstance(project)
         val scope = GlobalSearchScope.allScope(project)
@@ -795,6 +415,16 @@ internal class PsiCodebaseAssembler(
         }
     }
 
+    /** Lists all packages in the psi project. */
+    private fun allPackages(): Set<String> {
+        fun listPackages(psiPackage: PsiPackage): List<String> {
+            return listOf(psiPackage.qualifiedName) +
+                psiPackage.subPackages.flatMap { listPackages(it) }
+        }
+        val rootPackage = findPsiPackage("") ?: return emptySet()
+        return listPackages(rootPackage).toSet()
+    }
+
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
@@ -802,114 +432,195 @@ internal class PsiCodebaseAssembler(
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
-        // Split the `PsiFile`s into `PsiClass`es and `package-info.java` `PsiJavaFile`s.
-        val (packageInfoFiles, psiClasses) = splitPsiFilesIntoClassesAndPackageInfoFiles(psiFiles)
-
-        // Gather all package related javadoc.
-        val packageDocs =
-            gatherPackageJavadoc(
-                reporter,
-                sourceSet,
-                packageNameFilter = { findPsiPackage(it) != null },
-                packageInfoFiles,
-                packageInfoDocExtractor = { getOptionalPackageDocFromPackageInfoFile(it) },
-            )
+        // Get the `PsiClass`es from the `PsiFile`s.
+        val psiClasses = getPsiClassesFromPsiFiles(psiFiles)
 
         // Create the initial set of packages that were found in the source files.
-        codebase.packageTracker.createInitialPackages(packageDocs)
+        createInitialPackages(sourceSet)
 
-        findTypeAliases(psiClasses, codebase)
+        // Add type aliases.
+        val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
+        kaCodebaseAssembler =
+            psiCodebase.mainAnalysisModule?.let { KaCodebaseAssembler(kotlinFiles, psiCodebase) }
+        kaCodebaseAssembler?.let { kaCodebaseAssembler ->
+            // Provide a list of all packages when all typealiases are needed in order to inline
+            // usages. If that isn't necessary, just typealiases from source will be processed.
+            val allPackages =
+                if (psiCodebase.inlineTypeAliasUsages) {
+                    allPackages()
+                } else {
+                    null
+                }
+            kaCodebaseAssembler.createTypeAliases(allPackages)
+        }
 
+        // Tracker for which source files of `@JvmMultifileClass`es have already been processed.
+        val multiFileClasses = HashMap<FqName, Set<PsiFile>>()
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
-            // If a package filter is supplied then ignore any classes that do not match it.
-            if (apiPackages != null) {
-                val packageName = getPackageName(psiClass)
-                if (!apiPackages.matches(packageName)) continue
-            }
-
-            val classItem =
-                createPossibleApiClass(
-                    psiClass,
-                    // Sources always come from the command line.
-                    ClassOrigin.COMMAND_LINE,
-                ) ?: continue
-            codebase.addTopLevelClassFromSource(classItem)
+            initializeClassFromSources(psiClass, multiFileClasses, apiPackages)
         }
+
+        // Determining sealed class exhaustivity is done here because it requires looking at
+        // classes that are private and won't be turned into ClassItems, and these classes are
+        // only all available here during codebase assembly. Doing this at a later stage (for
+        // example in ApiAnalyzer) wouldn't be possible because non-visible classes are no longer
+        // accessible from there.
+        determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(psiClasses)
 
         // Add kotlin-only APIs.
-        KaCodebaseAssembler.assembleFromKotlin(psiFiles.filterIsInstance<KtFile>(), codebase)
+        kaCodebaseAssembler?.assemble()
+    }
+
+    // Instances of sealed classes can be matched using `when` statements. If all the subclasses
+    // of a sealed class are available to API consumers, then new subclasses can't be added
+    // to the sealed class because doing so would be a breaking change (clients' `when`
+    // statements would no longer be exhaustive). In this case, we label the sealed class as
+    // exhaustive. If there is an inaccessible class that extends a sealed class, however, then
+    // the sealed class is not exhaustive. For more details, see b/447143803
+    private fun determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(
+        psiClasses: List<PsiClass>
+    ) {
+        psiClasses.forEach { psiClass -> sealedClassExhaustivityHelper(psiClass, false) }
     }
 
     /**
-     * Finds all type aliases declared in the [KtFile]s underlying any file facade classes in
-     * [psiClasses] and adds them to the codebase.
-     */
-    private fun findTypeAliases(psiClasses: List<PsiClass>, codebase: PsiBasedCodebase) {
-        val typeAliases =
-            psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
-        for (typeAlias in typeAliases) {
-            PsiTypeAliasItem.create(typeAlias, codebase)
-        }
-    }
-
-    /**
-     * Returns a list of declarations from the [fileFacadeClass]. If [fileFacadeClass] is not
-     * actually a file facade class, returns an empty list.
-     */
-    private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
-        return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
-            it.declarations
-        } ?: emptyList()
-    }
-
-    /**
-     * Split the [psiFiles] into separate `package-info.java` [PsiJavaFile]s and [PsiClass]es.
+     * Recursively traverses the inner classes of [psiClass] to determine if any sealed super
+     * classes should be marked as non-exhaustive.
      *
-     * During the processing this checks each [PsiFile] for unresolved imports and each [PsiClass]
-     * for syntax errors.
+     * A sealed class is considered non-exhaustive if it has at least one inaccessible subclass.
+     *
+     * @param psiClass The current [PsiClass] being checked.
+     * @param parentWasNotVisible True if any containing class of [psiClass] was not visible.
      */
-    private fun splitPsiFilesIntoClassesAndPackageInfoFiles(
-        psiFiles: List<PsiFile>
-    ): Pair<List<PsiJavaFile>, List<PsiClass>> {
-        // A set to track `@JvmMultifileClass`es that have already been added to psiClasses.
-        val multiFileClassNames = HashSet<FqName>()
+    private fun sealedClassExhaustivityHelper(
+        psiClass: PsiClass,
+        parentWasNotVisible: Boolean,
+    ) {
+        val qualifiedName = psiClass.qualifiedName
+        if (qualifiedName != null) {
 
-        val psiClasses = mutableListOf<PsiClass>()
-        val packageInfoFiles = mutableListOf<PsiJavaFile>()
+            // If a ClassItem already exists for this psiClass, use its modifiers. Otherwise, create
+            // new ones.
+            val modifiers =
+                psiCodebase.findClass(psiClass)?.modifiers
+                    ?: PsiModifierItem.create(psiCodebase, psiClass)
+            val curClassNotVisible =
+                modifiers.annotations().any { it.showability.hide() } ||
+                    !modifiers.hasApiVisibilityOrShowAnnotation
 
-        // Make sure we only process the files once; sometimes there's overlap in the source lists
-        for (psiFile in psiFiles.asSequence().distinct()) {
-            checkForUnresolvedImports(psiFile)
-
-            val classes = getPsiClassesFromPsiFile(psiFile)
-            when {
-                classes.isEmpty() && psiFile is PsiJavaFile -> {
-                    if (psiFile.name == JAVA_PACKAGE_INFO) {
-                        packageInfoFiles.add(psiFile)
-                    }
+            if (curClassNotVisible || parentWasNotVisible) {
+                val superClassName = psiClass.superClass?.qualifiedName
+                if (superClassName != null) {
+                    codebase.findClass(superClassName)?.mutateModifiers { setExhaustive(false) }
                 }
-                else -> {
-                    for (psiClass in classes) {
-                        checkForSyntaxErrors(psiClass)
-
-                        // Multi file classes appear identically from each file they're defined in,
-                        // don't add duplicates
-                        val multiFileClassName = getOptionalMultiFileClassName(psiClass)
-                        if (multiFileClassName != null) {
-                            if (multiFileClassName in multiFileClassNames) {
-                                continue
-                            } else {
-                                multiFileClassNames.add(multiFileClassName)
-                            }
-                        }
-
-                        psiClasses.add(psiClass)
+                psiClass.interfaces
+                    .mapNotNull { it?.qualifiedName }
+                    .forEach { name ->
+                        codebase.findClass(name)?.mutateModifiers { setExhaustive(false) }
                     }
-                }
+            }
+
+            psiClass.innerClasses.forEach { innerClass ->
+                sealedClassExhaustivityHelper(
+                    innerClass,
+                    parentWasNotVisible || curClassNotVisible,
+                )
             }
         }
-        return Pair(packageInfoFiles, psiClasses)
+    }
+
+    /**
+     * Adds a class to the codebase based on the [psiClass].
+     *
+     * For handling of [JvmMultifileClass]es, [multiFileClasses] is a map from qualified class name
+     * to the set of source files which have already been processed for a class. If [psiClass] is a
+     * multi-file class present in the map, only the class members which come from files which have
+     * not already been processed will be added to the existing class definition.
+     *
+     * [apiPackages] is a filter for which packages should not be added to the codebase.
+     */
+    private fun initializeClassFromSources(
+        psiClass: PsiClass,
+        multiFileClasses: HashMap<FqName, Set<PsiFile>>,
+        apiPackages: PackageFilter?
+    ) {
+        // Multi file classes appear from each file they're defined in. When the class parts are
+        // defined in the same source set, the PsiClass from each file is identical, but if the
+        // class parts are in different source sets, the members of each PsiClass will contain
+        // a subset of all class members based on the structure of source set dependencies.
+        val multiFileClassName = getOptionalMultiFileClassName(psiClass)
+        if (multiFileClassName != null) {
+            // Find which source files of this multi file class have already been processed.
+            val previouslyProcessedFiles = multiFileClasses[multiFileClassName] ?: emptySet()
+            // Assemble the set of source files which were used to create this PsiClass.
+            val filesForCurrentPsiClass =
+                (psiClass.methods.map { it.containingFile } +
+                        psiClass.fields.map { it.containingFile })
+                    .toSet()
+            // Update the tracking with the new set of source files.
+            multiFileClasses[multiFileClassName] =
+                previouslyProcessedFiles + filesForCurrentPsiClass
+
+            // If this class was already processed, there is already a ClassItem defined.
+            if (previouslyProcessedFiles.isNotEmpty()) {
+                val existingClassItem =
+                    codebase.findClass(multiFileClassName.toString()) as SkeletonClassItem
+                // Only add the methods and fields which defined in files which have not been
+                // previously processed.
+                val builder =
+                    PsiClassBuilder(
+                        globalContext = this,
+                        psiClass,
+                        existingClassItem.origin,
+                    )
+                builder.addMembersToClassItem(
+                    classItem = existingClassItem,
+                    psiMethods =
+                        psiClass.methods.filter { it.containingFile !in previouslyProcessedFiles },
+                    psiFields =
+                        psiClass.fields.filter { it.containingFile !in previouslyProcessedFiles },
+                    classTypeItemFactory = globalTypeItemFactory.from(existingClassItem),
+                )
+                // Skip the step below of adding a new ClassItem as one already exists.
+                return
+            }
+        }
+
+        // If a package filter is supplied then ignore any classes that do not match it.
+        if (apiPackages != null) {
+            val packageName = psiClass.packageName
+            if (!apiPackages.matches(packageName)) return
+        }
+
+        val classItem =
+            createPossibleApiClass(
+                psiClass,
+                // Sources always come from the command line.
+                ClassOrigin.COMMAND_LINE,
+            ) ?: return
+        codebase.addTopLevelClassFromSource(classItem)
+    }
+
+    /**
+     * Extract all the top level classes from [psiFiles].
+     *
+     * During the processing this checks each [PsiFile] for unresolved imports and syntax errors.
+     */
+    private fun getPsiClassesFromPsiFiles(psiFiles: List<PsiFile>): List<PsiClass> {
+        // Make sure we only process the files once; sometimes there's overlap in the source lists
+        return psiFiles
+            .asSequence()
+            .distinct()
+            .flatMap { psiFile ->
+                // Check for syntax errors across the whole file.
+                checkForSyntaxErrors(psiFile)
+
+                checkForUnresolvedImports(psiFile)
+
+                getPsiClassesFromPsiFile(psiFile)
+            }
+            .toList()
     }
 
     /** Check to see if [psiFile] contains any unresolved imports. */
@@ -944,36 +655,9 @@ internal class PsiCodebaseAssembler(
         return uFile?.classes?.map { it }?.toList() ?: emptyList()
     }
 
-    /**
-     * Get the optional [MutablePackageDoc] from [psiFile].
-     *
-     * @param psiFile must be a `package-info.java` file.
-     */
-    private fun getOptionalPackageDocFromPackageInfoFile(psiFile: PsiJavaFile): MutablePackageDoc? {
-        val packageStatement = psiFile.packageStatement ?: return null
-        val packageName = packageStatement.packageName
-
-        // Make sure that this is actually a package.
-        findPsiPackage(packageName) ?: return null
-
-        // Look for javadoc on the package statement; this is NOT handed to us on the PsiPackage!
-        val comment = PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
-        if (comment != null) {
-            return MutablePackageDoc(
-                qualifiedName = packageName,
-                fileLocation = PsiFileLocation.fromPsiElement(psiFile),
-                commentFactory =
-                    PsiItemDocumentation.factory(packageStatement, codebase, comment.text),
-            )
-        }
-
-        // No comment could be found.
-        return null
-    }
-
-    /** Check the [psiClass] for any syntax errors. */
-    private fun checkForSyntaxErrors(psiClass: PsiClass) {
-        psiClass.accept(
+    /** Check the [psiFile] for any syntax errors. */
+    private fun checkForSyntaxErrors(psiFile: PsiFile) {
+        psiFile.accept(
             object : JavaRecursiveElementVisitor() {
                 override fun visitErrorElement(element: PsiErrorElement) {
                     super.visitErrorElement(element)
@@ -1008,25 +692,3 @@ internal class PsiCodebaseAssembler(
         return multiFileClassName
     }
 }
-
-/**
- * Get the simple name of a named class or type parameter.
- *
- * A [PsiClass] is used to represent named classes, type parameters, anonymous and local classes.
- * So, its [PsiClass.getName] can sometimes be `null`. However, Metalava only gets the name for
- * named classes and type parameters which never return `null`. So, this extension property forces
- * it to be non-null.
- */
-internal val PsiClass.simpleName
-    get() = name!!
-
-/**
- * Get the qualified name of a name class.
- *
- * A [PsiClass] is used to represent named classes, type parameters, anonymous and local classes.
- * So, its [PsiClass.getQualifiedName] can sometimes be `null`. However, Metalava only gets the
- * qualified name for name classes which never return `null`. So, this extension property forces it
- * to be non-null.
- */
-internal val PsiClass.classQualifiedName
-    get() = qualifiedName!!
