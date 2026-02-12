@@ -970,16 +970,11 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         import java.util.List;
                         import type.use.only.*;
-                        class HiddenClass<T extends @Nullable Object, S extends @Nullable Object> {
+                        class HiddenClass<T extends @Nullable Object> {
                             public void t(T t) {}
                             public void optionalT(@Nullable T optionalT) {}
                             public void listOfT(@NonNull List<? extends T> listOfT) {}
                             public void listOfOptionalT(@NonNull List<? extends @Nullable T>listOfOptionalT) {}
-
-                            public void s(S s) {}
-                            public void optionalS(@Nullable S optionalS) {}
-                            public void listOfS(@NonNull List<? extends S> listOfS) {}
-                            public void listOfOptionalS(@NonNull List<? extends @Nullable S> listOfOptionalS) {}
                         }
                     """
                 ),
@@ -987,7 +982,14 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                         package test.pkg;
                         import type.use.only.*;
-                        public class PublicClass extends HiddenClass<@NonNull String, @Nullable Integer> {}
+                        public class NonNullStringClass extends HiddenClass<@NonNull String> {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class NullableIntegerClass extends HiddenClass<@Nullable Integer> {}
                     """
                 ),
             ),
@@ -995,53 +997,78 @@ class CommonClassItemTest : BaseModelTest() {
                 kotlin(
                     """
                         package test.pkg
-                        internal class HiddenClass<T, S> {
+                        internal class HiddenClass<T> {
                             fun t(t: T) {}
                             fun optionalT(optionalT: T?) {}
                             fun listOfT(listOfT: List<T>) {}
                             fun listOfOptionalT(listOfOptionalT: List<T?>) {}
-
-                            fun s(s: S) {}
-                            fun optionalS(optionalS: S?) {}
-                            fun listOfS(listOfS: List<S>) {}
-                            fun listOfOptionalS(listOfOptionalS: List<S?>) {}
                         }
                     """
                 ),
                 kotlin(
                     """
                         package test.pkg
-                        class PublicClass: HiddenClass<String, Integer?>()
+                        class NonNullStringClass: HiddenClass<String>()
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class NullableIntegerClass: HiddenClass<Integer?>()
                     """
                 ),
             ),
         ) {
             val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
-            val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
-            val expectedTypes =
-                mapOf(
-                    "t" to "java.lang.String",
-                    "optionalT" to "java.lang.String?",
-                    "listOfT" to "java.util.List<? extends java.lang.String>",
-                    "listOfOptionalT" to "java.util.List<? extends java.lang.String?>",
-                    "s" to "java.lang.Integer?",
-                    "optionalS" to "java.lang.Integer?",
-                    "listOfS" to "java.util.List<? extends java.lang.Integer?>",
-                    "listOfOptionalS" to "java.util.List<? extends java.lang.Integer?>",
-                )
+            /**
+             * Append the result of duplicating `hiddenClass` into [destinationClassName] to this
+             * [StringBuilder].
+             */
+            fun StringBuilder.appendResultOfDuplicatingInto(destinationClassName: String) {
+                val destinationClass = codebase.assertClass(destinationClassName)
+                append("Duplicating into $destinationClass\n")
+                for (method in hiddenClass.methods().sortedBy { it.name() }.reversed()) {
+                    val name = method.name()
+                    val inheritedMethod = method.duplicate(destinationClass)
+                    assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+                    assertTrue(inheritedMethod.inheritedFromAncestor)
 
-            for (method in hiddenClass.methods().sortedBy { it.name() }) {
-                val name = method.name()
-                val inheritedMethod = method.duplicate(publicClass)
-                assertSame(hiddenClass, inheritedMethod.inheritedFrom)
-                assertTrue(inheritedMethod.inheritedFromAncestor)
-
-                val parameterType = inheritedMethod.parameters().single().type()
-                assertWithMessage("testing type of $name")
-                    .that(parameterType.testTypeString(kotlinStyleNulls = true))
-                    .isEqualTo(expectedTypes[name])
+                    val parameterType = inheritedMethod.parameters().single().type()
+                    append("  ")
+                    append(name)
+                    append(" -> ")
+                    append(parameterType.testTypeString(kotlinStyleNulls = true))
+                    append("\n")
+                }
+                append("\n")
             }
+
+            // Concatenate result of duplicating HiddenClass into different classes with different
+            // substitution types.
+            val result = buildString {
+                appendResultOfDuplicatingInto("test.pkg.NonNullStringClass")
+                appendResultOfDuplicatingInto("test.pkg.NullableIntegerClass")
+            }
+
+            // Check the result.
+            assertEquals(
+                """
+                    Duplicating into class test.pkg.NonNullStringClass
+                      t -> java.lang.String
+                      optionalT -> java.lang.String?
+                      listOfT -> java.util.List<? extends java.lang.String>
+                      listOfOptionalT -> java.util.List<? extends java.lang.String?>
+
+                    Duplicating into class test.pkg.NullableIntegerClass
+                      t -> java.lang.Integer?
+                      optionalT -> java.lang.Integer?
+                      listOfT -> java.util.List<? extends java.lang.Integer?>
+                      listOfOptionalT -> java.util.List<? extends java.lang.Integer?>
+                """
+                    .trimIndent(),
+                result.trim()
+            )
         }
     }
 
