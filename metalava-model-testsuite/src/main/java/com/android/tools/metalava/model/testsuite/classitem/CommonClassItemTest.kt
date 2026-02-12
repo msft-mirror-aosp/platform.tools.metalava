@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -973,8 +974,11 @@ class CommonClassItemTest : BaseModelTest() {
                         class HiddenClass<T extends @Nullable Object> {
                             public void t(T t) {}
                             public void optionalT(@Nullable T optionalT) {}
+                            public void requiredT(@NonNull T requiredT) {}
+
                             public void listOfT(@NonNull List<? extends T> listOfT) {}
                             public void listOfOptionalT(@NonNull List<? extends @Nullable T>listOfOptionalT) {}
+                            public void listOfRequiredT(@NonNull List<? extends @NonNull T>listOfRequiredT) {}
                         }
                     """
                 ),
@@ -992,6 +996,18 @@ class CommonClassItemTest : BaseModelTest() {
                         public class NullableIntegerClass extends HiddenClass<@Nullable Integer> {}
                     """
                 ),
+                java(
+                    """
+                        package test.pkg;
+                        public class UndefinedTypeVariableClass<U> extends HiddenClass<U> {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class PlatformNumberClass extends HiddenClass<Number> {}
+                    """
+                ),
             ),
             inputSet(
                 kotlin(
@@ -1000,8 +1016,11 @@ class CommonClassItemTest : BaseModelTest() {
                         internal class HiddenClass<T> {
                             fun t(t: T) {}
                             fun optionalT(optionalT: T?) {}
+                            fun requiredT(requiredT: T & Any) {}
+
                             fun listOfT(listOfT: List<T>) {}
                             fun listOfOptionalT(listOfOptionalT: List<T?>) {}
+                            fun listOfRequiredT(listOfRequiredT: List<T & Any>) {}
                         }
                     """
                 ),
@@ -1015,6 +1034,20 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                         package test.pkg
                         class NullableIntegerClass: HiddenClass<Integer?>()
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class UndefinedTypeVariableClass<U>: HiddenClass<U>()
+                    """
+                ),
+                // Need to use Java here as there is no way in Kotlin to specify a type with
+                // platform nullability.
+                java(
+                    """
+                        package test.pkg;
+                        public class PlatformNumberClass extends HiddenClass<Number> {}
                     """
                 ),
             ),
@@ -1049,23 +1082,57 @@ class CommonClassItemTest : BaseModelTest() {
             val result = buildString {
                 appendResultOfDuplicatingInto("test.pkg.NonNullStringClass")
                 appendResultOfDuplicatingInto("test.pkg.NullableIntegerClass")
+                appendResultOfDuplicatingInto("test.pkg.UndefinedTypeVariableClass")
+                appendResultOfDuplicatingInto("test.pkg.PlatformNumberClass")
             }
 
+            // TODO(b/483318672): Type variables are not treated as undefined by default in some
+            //   cases.
+            val undefinedSuffix = if (inputFormat == InputFormat.JAVA) "!" else ""
+
+            // TODO(b/483318672): Platform nullability should not be ignored when type variables are
+            //   undefined.
+            val platformSuffix = if (inputFormat == InputFormat.JAVA) "!" else ""
+
             // Check the result.
+            // TODO(b/483318672): Nullable types are not substituted correctly into non-null type
+            //   variables. They should be non-null after substitution but are still nullable.
+            // TODO(b/483318672): Non-null type variables are not marked as non-null (i.e. by
+            //   appending ` & Any` to make it a non-null intersection type).
             assertEquals(
                 """
                     Duplicating into class test.pkg.NonNullStringClass
                       t -> java.lang.String
+                      requiredT -> java.lang.String
                       optionalT -> java.lang.String?
                       listOfT -> java.util.List<? extends java.lang.String>
+                      listOfRequiredT -> java.util.List<? extends java.lang.String>
                       listOfOptionalT -> java.util.List<? extends java.lang.String?>
 
                     Duplicating into class test.pkg.NullableIntegerClass
                       t -> java.lang.Integer?
+                      requiredT -> java.lang.Integer?
                       optionalT -> java.lang.Integer?
                       listOfT -> java.util.List<? extends java.lang.Integer?>
+                      listOfRequiredT -> java.util.List<? extends java.lang.Integer?>
                       listOfOptionalT -> java.util.List<? extends java.lang.Integer?>
-                """
+
+                    Duplicating into class test.pkg.UndefinedTypeVariableClass
+                      t -> U$undefinedSuffix
+                      requiredT -> U
+                      optionalT -> U?
+                      listOfT -> java.util.List<? extends U$undefinedSuffix>
+                      listOfRequiredT -> java.util.List<? extends U>
+                      listOfOptionalT -> java.util.List<? extends U?>
+
+                    Duplicating into class test.pkg.PlatformNumberClass
+                      t -> java.lang.Number$platformSuffix
+                      requiredT -> java.lang.Number
+                      optionalT -> java.lang.Number?
+                      listOfT -> java.util.List<? extends java.lang.Number$platformSuffix>
+                      listOfRequiredT -> java.util.List<? extends java.lang.Number>
+                      listOfOptionalT -> java.util.List<? extends java.lang.Number?>
+                  """
                     .trimIndent(),
                 result.trim()
             )
