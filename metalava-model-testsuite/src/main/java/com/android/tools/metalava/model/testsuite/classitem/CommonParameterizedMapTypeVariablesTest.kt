@@ -16,11 +16,13 @@
 
 package com.android.tools.metalava.model.testsuite.classitem
 
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.InputSet
 import com.android.tools.metalava.model.testsuite.InputSetFactory
@@ -82,10 +84,14 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
          * [descendantClass]'s [ClassItem.typeParameterList].
          */
         infix fun String.shouldBeBoundTo(descendantName: String) =
-            mutableMap.put(
-                ancestorClass.typeParameterList[this],
-                descendantClass.typeParameterList[descendantName].type()
-            )
+            shouldBeBoundTo(descendantClass.typeParameterList[descendantName].type())
+
+        /**
+         * Add an expected binding of the type parameter called [this] in [ancestorTypeParameters]
+         * to the [descendantType].
+         */
+        infix fun String.shouldBeBoundTo(descendantType: TypeArgumentTypeItem) =
+            mutableMap.put(ancestorClass.typeParameterList[this], descendantType)
 
         /**
          * Find the [TypeParameterItem] called [name] in this list, or null if no such
@@ -97,7 +103,7 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
         internal fun bindings(): TypeParameterBindings = mutableMap.toMap()
     }
 
-    companion object : InputSetFactory {
+    companion object : Assertions, InputSetFactory {
         private val childParentInputSets =
             arrayOf(
                 inputSet(
@@ -312,6 +318,55 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
                 ),
             )
 
+        private val concreteInputSets =
+            arrayOf(
+                inputSet(
+                    java(
+                        """
+                            package test.pkg;
+                            public class BaseClass<A, B> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class SubClass<T> extends BaseClass<T, SubClass<T>> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class SubSubClass extends SubClass<SubSubClass> {}
+                        """
+                    ),
+                ),
+                inputSet(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public class SubSubClass extends test.pkg.SubClass<test.pkg.SubSubClass> {
+                              }
+                              public class BaseClass<A, B> {
+                              }
+                              public class SubClass<T> extends test.pkg.BaseClass<T,test.pkg.SubClass<T>> {
+                              }
+                            }
+                        """
+                    ),
+                ),
+                inputSet(
+                    kotlin(
+                        """
+                            package test.pkg
+                            open class BaseClass<A, B>
+                            open class SubClass<T> : BaseClass<T, SubClass<T>>
+                            class SubSubClass : SubClass<SubSubClass>
+                        """
+                    ),
+                ),
+            )
+
         private val params =
             listOf(
                 // Child / Parent tests
@@ -455,6 +510,34 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
                     descendantClass = "test.pkg.Bottom",
                     ancestorClass = "test.pkg.Top",
                     expectedBindingsBuilder = { "T" shouldBeBoundTo "BL" },
+                ),
+
+                // Concrete
+                TestParams(
+                    inputSets = concreteInputSets,
+                    descendantClass = "test.pkg.SubClass",
+                    ancestorClass = "test.pkg.BaseClass",
+                    expectedBindingsBuilder = {
+                        "A" shouldBeBoundTo "T"
+                        "B" shouldBeBoundTo classTypeItem("test.pkg.SubClass")
+                    },
+                ),
+                TestParams(
+                    inputSets = concreteInputSets,
+                    descendantClass = "test.pkg.SubSubClass",
+                    ancestorClass = "test.pkg.SubClass",
+                    expectedBindingsBuilder = {
+                        "T" shouldBeBoundTo classTypeItem("test.pkg.SubSubClass")
+                    },
+                ),
+                TestParams(
+                    inputSets = concreteInputSets,
+                    descendantClass = "test.pkg.SubSubClass",
+                    ancestorClass = "test.pkg.BaseClass",
+                    expectedBindingsBuilder = {
+                        "A" shouldBeBoundTo classTypeItem("test.pkg.SubSubClass")
+                        "B" shouldBeBoundTo classTypeItem("test.pkg.SubClass")
+                    },
                 ),
             )
 
