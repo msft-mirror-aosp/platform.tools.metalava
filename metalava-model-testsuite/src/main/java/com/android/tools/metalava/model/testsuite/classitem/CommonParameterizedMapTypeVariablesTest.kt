@@ -254,6 +254,64 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
                 ),
             )
 
+        private val diamondInputSets =
+            arrayOf(
+                inputSet(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Top<T> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Left<L> extends Top<L> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Right<R> extends Top<R> {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Bottom<BL, BR> implements Left<BL>, Right<BR> {}
+                        """
+                    ),
+                ),
+                inputSet(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public class Bottom<BL, BR> implements test.pkg.Left<BL> test.pkg.Right<BR> {
+                              }
+                              public interface Left<L> extends test.pkg.Top<L> {
+                              }
+                              public interface Right<R> extends test.pkg.Top<R> {
+                              }
+                              public interface Top<T> {
+                              }
+                            }
+                        """
+                    ),
+                ),
+                inputSet(
+                    kotlin(
+                        """
+                            package test.pkg
+                            interface Top<T>
+                            interface Left<L> : Top<L>
+                            interface Right<R> : Top<R>
+                            class Bottom<BL, BR> : Left<BL>, Right<BR>
+                        """
+                    ),
+                ),
+            )
+
         private val params =
             listOf(
                 // Child / Parent tests
@@ -365,6 +423,38 @@ class CommonParameterizedMapTypeVariablesTest : BaseModelTest() {
                         "G" shouldBeBoundTo "E"
                         "H" shouldBeBoundTo "F"
                     },
+                ),
+
+                // Diamond
+                TestParams(
+                    inputSets = diamondInputSets,
+                    descendantClass = "test.pkg.Left",
+                    ancestorClass = "test.pkg.Top",
+                    expectedBindingsBuilder = { "T" shouldBeBoundTo "L" },
+                ),
+                TestParams(
+                    inputSets = diamondInputSets,
+                    descendantClass = "test.pkg.Right",
+                    ancestorClass = "test.pkg.Top",
+                    expectedBindingsBuilder = { "T" shouldBeBoundTo "R" },
+                ),
+                TestParams(
+                    inputSets = diamondInputSets,
+                    descendantClass = "test.pkg.Bottom",
+                    ancestorClass = "test.pkg.Left",
+                    expectedBindingsBuilder = { "L" shouldBeBoundTo "BL" },
+                ),
+                TestParams(
+                    inputSets = diamondInputSets,
+                    descendantClass = "test.pkg.Bottom",
+                    ancestorClass = "test.pkg.Right",
+                    expectedBindingsBuilder = { "R" shouldBeBoundTo "BR" },
+                ),
+                TestParams(
+                    inputSets = diamondInputSets,
+                    descendantClass = "test.pkg.Bottom",
+                    ancestorClass = "test.pkg.Top",
+                    expectedBindingsBuilder = { "T" shouldBeBoundTo "BL" },
                 ),
             )
 
