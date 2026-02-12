@@ -4,7 +4,7 @@ com.android.tools.metalava.ApiFileTest
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
-com.android.tools.metalava.UastTestK2
+com.android.tools.metalava.UastTest
   actual typealias[psi,k2]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest

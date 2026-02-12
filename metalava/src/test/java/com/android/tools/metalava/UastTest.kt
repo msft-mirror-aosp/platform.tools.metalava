@@ -31,9 +31,9 @@ import com.android.tools.metalava.testing.standardProjectXmlClasspath
 import kotlin.test.assertEquals
 import org.junit.Test
 
-/** Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions. */
+/** Test inputs whose behaviors (API/lint) varied depending on UAST version. */
 @RequiresCapabilities(Capability.KOTLIN)
-abstract class UastTestBase : DriverTest() {
+class UastTest : DriverTest() {
 
     @Test
     fun `Test RequiresOptIn and OptIn`() {
