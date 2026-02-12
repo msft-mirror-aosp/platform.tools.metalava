@@ -4925,14 +4925,6 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Value class`() {
-        // With K1, the value class functions which can't be used from Java source are not properly
-        // marked as kotlin only, because K1 psi does not handle value classes differently.
-        val doSomethingTargetLanguages =
-            if (isK2) {
-                "@KotlinOnly "
-            } else {
-                ""
-            }
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -5028,7 +5020,7 @@ class ApiFileTest : DriverTest() {
                     method @BytecodeOnly public int compareTo-fPRv1QM(float);
                     method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
                     method @BytecodeOnly public static float constructor-impl(float);
-                    method ${doSomethingTargetLanguages}public void doSomething();
+                    method @KotlinOnly public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
                     method @InaccessibleFromKotlin public float getValue();
