@@ -699,7 +699,10 @@ internal class PsiTypeItemFactory(
                 .toList()
 
         // Verify that the lambda is being implemented using the expected classes.
-        require(qualifiedName.startsWith(KOTLIN_FUNCTION_PREFIX)) {
+        require(
+            qualifiedName.startsWith(KOTLIN_FUNCTION_PREFIX) ||
+                qualifiedName == KOTLIN_REFLECT_FUNCTION
+        ) {
             "internal error: Kotlin lambda implemented using unexpected class '$qualifiedName'."
         }
 
@@ -794,3 +797,6 @@ internal fun PsiClassType.computeQualifiedName(): String {
 
 /** Prefix of Kotlin JVM function types, used for lambdas. */
 private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
+
+/** Prefix of Kotlin reflect function types, used for lambdas. */
+private const val KOTLIN_REFLECT_FUNCTION = "kotlin.reflect.KFunction"
