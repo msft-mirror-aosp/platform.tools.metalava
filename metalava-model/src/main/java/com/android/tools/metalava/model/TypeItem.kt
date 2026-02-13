@@ -96,8 +96,8 @@ interface TypeItem {
      * Provide a canonical string representation of this type.
      *
      * Helper methods to compare types, especially types from signature files with types from
-     * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
-     * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
+     * parsing, which may have slightly different formats, e.g. varargs (`...`) versus arrays
+     * (`[]`), java.lang. prefixes removed in wildcard signatures, etc.
      */
     fun toCanonicalTypeString() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
 
@@ -265,8 +265,7 @@ interface TypeItem {
 
         /**
          * A total ordering over [TypeItem] comparing [ClassTypeItem]s using
-         * [ClassTypeItem.fullNameThenQualifierComparator] and then comparing
-         * [TypeItem.toTypeString].
+         * [TypeItem.fullNameThenQualifierComparator] and then comparing [TypeItem.toTypeString].
          */
         val totalComparator: Comparator<TypeItem> =
             typeItemAsClassComparator(fullNameThenQualifierComparator)
@@ -420,7 +419,7 @@ abstract class DefaultTypeItem(
                         if (type.isVarargs && !configuration.treatVarargsAsArray) "..." else "[]"
 
                     // The ordering of array annotations means this can't just use a recursive
-                    // approach for annotated multi-dimensional arrays, but it can if annotations
+                    // approach for annotated multidimensional arrays, but it can if annotations
                     // aren't included.
                     if (configuration.annotations) {
                         var deepComponentType = type.componentType
@@ -626,9 +625,7 @@ abstract class DefaultTypeItem(
                 dimension += "["
                 name = name.substring(0, name.length - 2)
             }
-
-            val base: String
-            base =
+            val base =
                 when (name) {
                     "void" -> "V"
                     "byte" -> "B"
@@ -859,56 +856,58 @@ interface PrimitiveTypeItem : TypeItem {
             kotlinName = "Boolean",
             defaultValue = false,
             defaultValueString = "false",
-            wrapperClass = java.lang.Boolean::class.java,
+            wrapperClass =
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Boolean::class.java,
         ),
         BYTE(
             primitiveName = "byte",
             kotlinName = "Byte",
             defaultValue = 0.toByte(),
             defaultValueString = "0",
-            wrapperClass = java.lang.Byte::class.java,
+            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Byte::class.java,
         ),
         CHAR(
             primitiveName = "char",
             kotlinName = "Char",
             defaultValue = 0.toChar(),
             defaultValueString = "0",
-            wrapperClass = java.lang.Character::class.java,
+            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") Character::class.java,
         ),
         DOUBLE(
             primitiveName = "double",
             kotlinName = "Double",
             defaultValue = 0.0,
             defaultValueString = "0",
-            wrapperClass = java.lang.Double::class.java,
+            wrapperClass =
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Double::class.java,
         ),
         FLOAT(
             primitiveName = "float",
             kotlinName = "Float",
             defaultValue = 0F,
             defaultValueString = "0",
-            wrapperClass = java.lang.Float::class.java,
+            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Float::class.java,
         ),
         INT(
             primitiveName = "int",
             kotlinName = "Int",
             defaultValue = 0,
             defaultValueString = "0",
-            wrapperClass = java.lang.Integer::class.java,
+            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") Integer::class.java,
         ),
         LONG(
             primitiveName = "long",
             kotlinName = "Long",
             defaultValue = 0L,
             defaultValueString = "0",
-            wrapperClass = java.lang.Long::class.java,
+            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Long::class.java,
         ),
         SHORT(
             primitiveName = "short",
             kotlinName = "Short",
             defaultValue = 0.toShort(),
             defaultValueString = "0",
-            wrapperClass = java.lang.Short::class.java,
+            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Short::class.java,
         ),
         VOID(
             primitiveName = "void",
@@ -917,7 +916,7 @@ interface PrimitiveTypeItem : TypeItem {
             kotlinName = "Unit",
             defaultValue = null,
             defaultValueString = "null",
-            wrapperClass = java.lang.Void::class.java,
+            wrapperClass = Void::class.java,
         ),
         ;
 
@@ -1473,7 +1472,7 @@ fun bestGuessAtFullName(qualifiedName: String): String {
     val length = qualifiedName.length
     var prev: Char? = null
     var lastDotIndex = -1
-    for (i in 0..length - 1) {
+    for (i in 0..<length) {
         val c = qualifiedName[i]
         if (prev == null || prev == '.') {
             if (c.isUpperCase()) {
