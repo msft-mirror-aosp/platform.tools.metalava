@@ -209,13 +209,6 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                             outerClassType =
                                 classTypeItem(
                                     "other.pkg.Other",
-                                    // TODO(b/479907812): This outerClassType is wrong, should be
-                                    //   null.
-                                    outerClassType =
-                                        classTypeItem(
-                                            "other.pkg",
-                                            outerClassType = classTypeItem("other"),
-                                        ),
                                 ),
                         ),
                     expectedSourceType =

@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.isClassByConvention
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
@@ -608,9 +609,9 @@ internal class PsiTypeItemFactory(
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no
             // outer class reference. If the type is not a nested type, it returns the package
             // name (e.g. for "java.lang.String" it returns "java.lang").
-            if (outerClassName == "" || globalContext.findPsiPackage(outerClassName) != null) {
-                null
-            } else {
+            //
+            // Only create a class if the outer class name does not look like a class name.
+            if (isClassByConvention(outerClassName)) {
                 val psiOuterClassType =
                     globalContext.createPsiType(
                         outerClassName,
@@ -627,6 +628,8 @@ internal class PsiTypeItemFactory(
                     contextNullability = ContextNullability.forceNonNull,
                 )
                     as ClassTypeItem
+            } else {
+                null
             }
         }
     }
