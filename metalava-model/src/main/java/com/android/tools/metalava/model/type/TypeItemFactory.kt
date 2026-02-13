@@ -19,12 +19,16 @@ package com.android.tools.metalava.model.type
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.typeNullability
@@ -181,9 +185,9 @@ data class MethodFingerprint(
  * 2. Kotlin; ignoring [TypeNullability.PLATFORM].
  * 3. Annotations.
  * 4. Nullability inferred from context, e.g. constant field with non-null value.
- * 4. [TypeNullability.PLATFORM]
+ * 4. [defaultNullability]
  */
-class ContextNullability(
+data class ContextNullability(
     /**
      * The [TypeNullability] that a [TypeItem] MUST have by virtue of what the type is, or where it
      * is used; e.g. [PrimitiveTypeItem]s and super class types MUST be [TypeNullability.NONNULL]
@@ -217,27 +221,42 @@ class ContextNullability(
      * It is passed as a lambda as it may be expensive to compute.
      */
     val inferNullability: (() -> TypeNullability?)? = null,
+
+    /** The default [TypeNullability] when all else fails. */
+    val defaultNullability: TypeNullability = TypeNullability.PLATFORM
 ) {
     /**
      * Compute the [TypeNullability] according to the priority in the documentation for this class.
+     *
+     * @param existingNullability this will either come from Kotlin type information or is the
+     *   [TypeNullability] for an existing [TypeItem] that might need its
+     *   [TypeModifiers.nullability] updating.
      */
     fun compute(
-        kotlinNullability: TypeNullability?,
+        existingNullability: TypeNullability?,
         typeAnnotations: List<AnnotationItem>
     ): TypeNullability =
         // If forced is set then use that as the top priority.
         forcedNullability
-            // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
-            // as that may be overridden by annotations or the default.
-            ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
+            // If an existing nullability is provided and is a known nullability then use that but
+            // if it is a known nullability then ignore it for now as it is possible that a known
+            // nullability will be provided by annotations or inference.
+            ?: existingNullability?.takeIf { nullability -> nullability.known }
+
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
+
             // If item annotations are found then check them.
             ?: itemAnnotations?.typeNullability
+
             // If an inferred nullability is provided then use it.
             ?: inferNullability?.invoke()
-            // Finally default to [TypeNullability.PLATFORM].
-            ?: TypeNullability.PLATFORM
+
+            // Use an existing nullability, even if it is unknown.
+            ?: existingNullability
+
+            // Finally use the default.
+            ?: defaultNullability
 
     /**
      * Get a [ContextNullability] instance for components of arrays.
@@ -250,9 +269,29 @@ class ContextNullability(
         forcedComponentNullability?.let { ContextNullability(forcedNullability = it) } ?: none
 
     companion object {
+        /**
+         * A [ContextNullability] instance that provides no hints from the context as to the
+         * nullability of a type.
+         */
         val none = ContextNullability()
-        val forceNonNull = ContextNullability(TypeNullability.NONNULL)
-        val forceUndefined = ContextNullability(TypeNullability.UNDEFINED)
+
+        /**
+         * A [ContextNullability] instance that will force a type to be treated as
+         * [TypeNullability.NONNULL].
+         */
+        val forceNonNull =
+            ContextNullability(
+                forcedNullability = TypeNullability.NONNULL,
+            )
+
+        /**
+         * A [ContextNullability] instance that will force a type to be treated as
+         * [TypeNullability.UNDEFINED].
+         */
+        val forceUndefined =
+            ContextNullability(
+                forcedNullability = TypeNullability.UNDEFINED,
+            )
     }
 }
 
@@ -414,4 +453,62 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             }
         }
     }
+
+    /**
+     * Create a list of [TypeParameterItem] and a corresponding [TypeItemFactory] from model
+     * specific parameter and bounds information within this [TypeItemFactory].
+     *
+     * A type parameter list can contain cycles between its type parameters, e.g.
+     *
+     *     class Node<L extends Node<L, R>, R extends Node<L, R>>
+     *
+     * Parsing that requires a multi-stage approach.
+     * 1. Separate the list into a mapping from `TypeParameterItem` that have not yet had their
+     *    `bounds` property initialized to the model specific parameter.
+     * 2. Create a nested factory of the enclosing factory which includes the type parameters. That
+     *    will allow references between them to be resolved.
+     * 3. Complete the initialization by converting each bounds string into a TypeItem.
+     *
+     * @param scopeDescription the description of the scope that will be created by the factory.
+     * @param inputParams a list of the model specific type parameters.
+     * @param paramFactory a function that will create a [TypeParameterItem] from the model
+     *   specified parameter [P].
+     * @param boundsGetter a function that will create a list of [BoundsTypeItem] from the model
+     *   specific bounds which will be stored in [SkeletonTypeParameterItem.bounds].
+     * @param P the type of the underlying model specific type parameter objects.
+     */
+    fun <P> createTypeParameterItemsAndFactory(
+        scopeDescription: String,
+        inputParams: List<P>,
+        paramFactory: (P) -> SkeletonTypeParameterItem,
+        boundsGetter: (F, P) -> List<BoundsTypeItem>,
+    ): TypeParameterListAndFactory<F> {
+        // First, create a Map from [TypeParameterItem] to the model specific parameter. Using
+        // the [paramFactory] to convert the model specific parameter to a [TypeParameterItem].
+        val typeParameterItemToBounds = inputParams.associateBy { param -> paramFactory(param) }
+
+        // Then, create a [TypeItemFactory] for this list of type parameters.
+        val typeParameters = typeParameterItemToBounds.keys.toList()
+        val typeItemFactory = nestedFactory(scopeDescription, typeParameters)
+
+        // Then, create and set the bounds in the [TypeParameterItem] passing in the
+        // [TypeItemFactory] to allow cross-references to type parameters to be resolved.
+        for ((typeParameter, param) in typeParameterItemToBounds) {
+            val boundsTypeItems = boundsGetter(typeItemFactory, param)
+            typeParameter.bounds = boundsTypeItems
+        }
+
+        // Pair the list up with the [TypeItemFactory] so that the latter can be reused.
+        val typeParameterList = DefaultTypeParameterList(typeParameters)
+        return TypeParameterListAndFactory(typeParameterList, typeItemFactory)
+    }
 }
+
+/**
+ * Group up [typeParameterList] and the [factory] that was used to resolve references when creating
+ * their [com.android.tools.metalava.model.BoundsTypeItem]s.
+ */
+data class TypeParameterListAndFactory<F : TypeItemFactory<*, F>>(
+    val typeParameterList: TypeParameterList,
+    val factory: F,
+)

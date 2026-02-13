@@ -18,27 +18,28 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultPackageItem
-import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageInfo
+import com.android.tools.metalava.model.utils.extractOptionalQualifierName
+import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import java.io.File
 
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
-    private val classResolver: ClassResolver?,
+    private val classPathResolver: ClassPathResolver?,
 ) : DefaultCodebaseAssembler() {
 
-    internal val codebase = codebaseFactory(this)
+    override val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =
@@ -52,10 +53,9 @@ internal class TextCodebaseAssembler(
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
-    fun initialize() {
-        // Make sure that it has a root package.
-        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
-    }
+    override fun createPackageFromUnderlyingModel(qualifiedName: String) =
+        // Check on the class path, if any, for additional packages.
+        classPathResolver?.resolvePackage(qualifiedName)
 
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         getOrCreateClass(qualifiedName)
@@ -77,11 +77,14 @@ internal class TextCodebaseAssembler(
      */
     private val requiredStubKindForClass = mutableMapOf<String, StubKind>()
 
-    override fun newClassRegistered(classItem: DefaultClassItem) {
+    override fun newClassRegistered(classItem: ClassItem) {
         // A real class exists so a stub will not be created so the hint as to the kind of class
         // that the stubs should be is no longer needed.
         requiredStubKindForClass.remove(classItem.qualifiedName())
     }
+
+    /** Override to return [PackageInfo.NO_COMMENT]. */
+    override fun getPackageInfoFromUnderlyingModel(packageName: String) = PackageInfo.NO_COMMENT
 
     /**
      * Register that the class type requires a specific stub kind.
@@ -130,9 +133,9 @@ internal class TextCodebaseAssembler(
 
         // Only check for external classes if this is not searching for an outer class of a class in
         // this codebase and there is a class resolver that will populate the external classes.
-        if (!isOuterClassOfClassInThisCodebase && classResolver != null) {
+        if (!isOuterClassOfClassInThisCodebase && classPathResolver != null) {
             // Try and resolve the class, returning it if it was found.
-            classResolver.resolveClass(qualifiedName)?.let {
+            classPathResolver.resolveClass(qualifiedName)?.let {
                 return it
             }
         }
@@ -143,13 +146,13 @@ internal class TextCodebaseAssembler(
             if (fullName.contains('.')) {
                 // We created a new nested class stub. We need to fully initialize it with outer
                 // classes, themselves possibly stubs
-                val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
+                val outerName = qualifiedName.extractOptionalQualifierName()!!
                 val outerClass = getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase)
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
                 // DefaultClassItem so cast it to one so that the code below can use
                 // DefaultClassItem methods.
-                outerClass as DefaultClassItem
+                outerClass as SkeletonClassItem
             } else {
                 null
             }
@@ -157,11 +160,10 @@ internal class TextCodebaseAssembler(
         // Find/create package
         val pkg =
             if (outerClass == null) {
-                val endIndex = qualifiedName.lastIndexOf('.')
-                val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-                codebase.findOrCreatePackage(pkgPath)
+                val pkgName = qualifiedName.extractPossiblyEmptyQualifierName()
+                codebase.findOrCreatePackage(pkgName)
             } else {
-                outerClass.containingPackage() as DefaultPackageItem
+                outerClass.containingPackage()
             }
 
         // Build a stub class of the required kind.
@@ -184,7 +186,7 @@ internal class TextCodebaseAssembler(
             location: File,
             description: String,
             codebaseConfig: Codebase.Config,
-            classResolver: ClassResolver?,
+            classPathResolver: ClassPathResolver?,
         ): TextCodebaseAssembler {
             val assembler =
                 TextCodebaseAssembler(
@@ -199,9 +201,8 @@ internal class TextCodebaseAssembler(
                             assembler = assembler,
                         )
                     },
-                    classResolver = classResolver,
+                    classPathResolver = classPathResolver,
                 )
-            assembler.initialize()
 
             return assembler
         }

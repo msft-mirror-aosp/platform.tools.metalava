@@ -18,8 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.LintCliClient.Companion.printWriter
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
-import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_READ
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_WRITE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
@@ -31,7 +29,6 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -39,17 +36,13 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.SingleArrayElementFormat
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
-import com.android.tools.metalava.model.value.asDouble
-import com.android.tools.metalava.model.value.asLong
-import com.android.tools.metalava.model.value.provider
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -68,9 +61,10 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
+    private val apiPredicateConfig: ApiPredicate.Config,
 ) :
     ApiVisitor(
-        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+        apiPredicateConfig = apiPredicateConfig,
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
@@ -231,14 +225,6 @@ class ExtractAnnotations(
                             Issues.ANNOTATION_EXTRACTION,
                             typeDefClass,
                             "This typedef annotation class should have @Retention(RetentionPolicy.SOURCE)"
-                        )
-                    }
-
-                    if (filterEmit.test(typeDefClass)) {
-                        reporter.report(
-                            Issues.ANNOTATION_EXTRACTION,
-                            typeDefClass,
-                            "This typedef annotation class should be marked @hide or should not be marked public"
                         )
                     }
 
@@ -440,54 +426,6 @@ class ExtractAnnotations(
                     // permission, but we'll counteract that on the read-annotations side.
                     (attributes[0].value as? AnnotationValue)?.let { value ->
                         return value.annotationItem.attributes
-                    }
-                }
-            }
-            // `@IntRange` can be used to set the range of both `int`s and `long`s. As a result its
-            // `from` and `to` attributes are `long` as that covers both types. However, it makes
-            // little sense to use `long` values when the type to which it is applied is an `int`.
-            // In that case this converts those attributes to `int`s.
-            // TODO(b/354633349): Consider moving this to annotation item creation to make the value
-            //   types appropriate for the annotated item everywhere not just here.
-            ANDROIDX_INT_RANGE -> {
-                val type = item.type()
-                if (type is PrimitiveTypeItem && type.kind == PrimitiveTypeItem.Primitive.INT) {
-                    return attributes.mapNotNull { attribute ->
-                        val name = attribute.name
-                        if (name == "from" || name == "to") {
-                            attribute.value.asLong()?.let { long ->
-                                val intValue = Value.createLiteralValue(null, long.toInt())
-                                DefaultAnnotationAttribute(
-                                    name,
-                                    intValue.provider(),
-                                    intValue.asAnnotationAttributeValue()
-                                )
-                            }
-                        } else attribute
-                    }
-                }
-            }
-            // `@FloatRange` can be used to set the range of both `float`s and `doubles`s. As a
-            // result its `from` and `to` attributes are `doubles` as that covers both types.
-            // However, it makes little sense to use `doubles` values when the type to which it is
-            // applied is a `float`. Especially given that converting a `float` to a `double` can
-            // result in a different serialized form. In that case this converts those attributes to
-            // `float`s.
-            ANDROIDX_FLOAT_RANGE -> {
-                val type = item.type()
-                if (type is PrimitiveTypeItem && type.kind == PrimitiveTypeItem.Primitive.FLOAT) {
-                    return attributes.mapNotNull { attribute ->
-                        val name = attribute.name
-                        if (name == "from" || name == "to") {
-                            attribute.value.asDouble()?.let { double ->
-                                val floatValue = Value.createLiteralValue(null, double.toFloat())
-                                DefaultAnnotationAttribute(
-                                    name,
-                                    floatValue.provider(),
-                                    floatValue.asAnnotationAttributeValue()
-                                )
-                            }
-                        } else attribute
                     }
                 }
             }

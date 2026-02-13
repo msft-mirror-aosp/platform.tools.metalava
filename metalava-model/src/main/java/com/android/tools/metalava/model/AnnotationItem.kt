@@ -20,15 +20,14 @@ import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
-import com.android.tools.metalava.model.value.ArrayElementValue
-import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueContext
+import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
-import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
@@ -49,7 +48,19 @@ fun isNonNullAnnotation(qualifiedName: String): Boolean {
 }
 
 fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
-    return qualifiedName == "kotlin.jvm.JvmSynthetic"
+    return qualifiedName == JVM_SYNTHETIC
+}
+
+/** Enumeration of the possible purposes of an [AnnotationItem]. */
+enum class AnnotationPurpose {
+    /** Annotates an [Item]. */
+    ITEM,
+
+    /** A [Value]. */
+    VALUE,
+
+    /** Annotates a [TypeItem]. */
+    TYPE,
 }
 
 sealed interface AnnotationItem {
@@ -83,15 +94,34 @@ sealed interface AnnotationItem {
 
     /**
      * Append the string representation of this annotation to the [builder] according to
-     * [configuration].
+     * [configuration] and [purpose].
+     *
+     * If [purpose] is [AnnotationPurpose.VALUE] then this is being written out as a value, i.e.
+     * either nested within another [AnnotationItem] or as [MethodItem.defaultValue]. In that case
+     * [ValueStringConfiguration.valueLanguage] affects the representation of the annotation as
+     * follows:
+     * * Kotlin does not use a leading `@` for annotation values but Java does.
+     * * Parentheses are optional everywhere for an annotation with an empty attributes list except
+     *   when used as a Kotlin annotation value where they are required.
+     *
+     * Otherwise, this uses the [ValueLanguage.JAVA] representation as that is the same as Kotlin.
      */
     fun appendAnnotationStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration,
+        purpose: AnnotationPurpose,
     ) {
-        val language = configuration.valueLanguage
+        // While top level annotations use the Java syntax for Kotlin and Java, nested annotations
+        // use different syntax for each one.
+        val language =
+            if (purpose == AnnotationPurpose.VALUE) configuration.valueLanguage
+            else ValueLanguage.JAVA
         builder.append(language.annotationClassPrefix)
-        builder.append(qualifiedName)
+
+        // Get the annotation class name.
+        val formatName = configuration.annotationQualifiedNameGetter(this, purpose)
+        builder.append(formatName)
+
         if (language.annotationAttributesListRequiresParentheses || attributes.isNotEmpty()) {
             builder.append("(")
 
@@ -124,13 +154,6 @@ sealed interface AnnotationItem {
             builder.append(")")
         }
     }
-
-    /**
-     * Generates source code for this annotation (using fully qualified names).
-     *
-     * @param target the [AnnotationTarget] for which this is being generated.
-     */
-    fun toSource(target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE): String
 
     /** The applicable targets for this annotation */
     val targets: Set<AnnotationTarget>
@@ -243,8 +266,8 @@ sealed interface AnnotationItem {
             return AnnotationRetention.getDefault()
         }
 
-    /** Take a snapshot of this [AnnotationItem] suitable for use in [Codebase]. */
-    fun snapshot(targetCodebase: Codebase): AnnotationItem
+    /** Take a snapshot of this [AnnotationItem] suitable for use in [targetContext]. */
+    fun snapshot(targetContext: AnnotationContext): AnnotationItem
 
     companion object {
         /**
@@ -256,22 +279,22 @@ sealed interface AnnotationItem {
         }
 
         /**
-         * Given a "full" annotation name, shortens it by removing redundant package names. This is
+         * Given [annotationClassName], shortens it by removing redundant package names. This is
          * intended to be used to reduce clutter in signature files.
          *
-         * For example, this method will convert `@androidx.annotation.Nullable` to just
-         * `@Nullable`, and `@androidx.annotation.IntRange(from=20)` to `IntRange(from=20)`.
+         * For example, this method will convert `androidx.annotation.Nullable` to just `Nullable`,
+         * and `@androidx.annotation.IntRange(from=20)` to `IntRange(from=20)`.
          */
-        fun shortenAnnotation(source: String): String {
+        fun shortenAnnotation(annotationClassName: String): String {
             return when {
-                source == "@java.lang.Deprecated" -> "@Deprecated"
-                source.startsWith(ANDROID_ANNOTATION_PREFIX, 1) -> {
-                    "@" + source.substring(ANDROID_ANNOTATION_PREFIX.length + 1)
+                annotationClassName == "java.lang.Deprecated" -> "Deprecated"
+                annotationClassName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
+                    annotationClassName.substring(ANDROID_ANNOTATION_PREFIX.length)
                 }
-                source.startsWith(ANDROIDX_ANNOTATION_PREFIX, 1) -> {
-                    "@" + source.substring(ANDROIDX_ANNOTATION_PREFIX.length + 1)
+                annotationClassName.startsWith(ANDROIDX_ANNOTATION_PREFIX) -> {
+                    annotationClassName.substring(ANDROIDX_ANNOTATION_PREFIX.length)
                 }
-                else -> source
+                else -> annotationClassName
             }
         }
 
@@ -279,27 +302,117 @@ sealed interface AnnotationItem {
          * Reverses the [shortenAnnotation] method. Intended for use when reading in signature files
          * that contain shortened type references.
          */
-        fun unshortenAnnotation(source: String): String {
+        fun unshortenAnnotation(annotationClassName: String): String {
             return when {
-                source == "@Deprecated" -> "@java.lang.Deprecated"
+                annotationClassName == "Deprecated" -> "java.lang.Deprecated"
                 // The first 4 annotations are in the android.annotation. package, not
                 // androidx.annotation
                 // Nullability annotations are written as @NonNull and @Nullable in API text files,
-                // and these should be linked no android.annotation package when generating stubs.
-                source.startsWith("@SystemService") ||
-                    source.startsWith("@TargetApi") ||
-                    source.startsWith("@SuppressLint") ||
-                    source.startsWith("@FlaggedApi") ||
-                    source.startsWith("@Nullable") ||
-                    source.startsWith("@NonNull") -> "@android.annotation." + source.substring(1)
-                // If the first character of the name (after "@") is lower-case, then
-                // assume it's a package name, so no need to shorten it.
-                source.startsWith("@") && source[1].isLowerCase() -> source
-                else -> {
-                    "@androidx.annotation." + source.substring(1)
-                }
+                // and these should be linked to android.annotation package when generating stubs.
+                annotationClassName == "SystemService" ||
+                    annotationClassName == "TargetApi" ||
+                    annotationClassName == "SuppressLint" ||
+                    annotationClassName == "FlaggedApi" ||
+                    annotationClassName == "Nullable" ||
+                    annotationClassName == "NonNull" ->
+                    "$ANDROID_ANNOTATION_PREFIX$annotationClassName"
+                // If the first character of the name is lower-case, then assume it's a package
+                // name, so no need to shorten it.
+                annotationClassName[0].isLowerCase() -> annotationClassName
+                else -> "$ANDROIDX_ANNOTATION_PREFIX$annotationClassName"
             }
         }
+
+        /** Create an annotation from [source]. */
+        fun createFromSource(
+            annotationContext: AnnotationContext,
+            source: String,
+        ): AnnotationItem? {
+            val valueParser =
+                ValueParser(
+                    annotationContext,
+                    TypeItemParser.forValueParser(annotationContext),
+                )
+            return valueParser.parseAnnotationItem(source)
+        }
+
+        /**
+         * Create an [AnnotationItem] deferring the creation of the attributes until needed.
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createAttributesLazily(
+            annotationContext: AnnotationContext,
+            fileLocation: FileLocation,
+            originalName: String,
+            attributesGetter: () -> List<AnnotationAttribute>,
+        ): AnnotationItem? {
+            val qualifiedName =
+                annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
+            return LazyAttributesAnnotationItem(
+                annotationContext = annotationContext,
+                fileLocation = fileLocation,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+                attributesGetter = attributesGetter,
+            )
+        }
+
+        /**
+         * Create an [AnnotationItem] with [attributes].
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createWithAttributes(
+            annotationContext: AnnotationContext,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+            originalName: String,
+            attributes: List<AnnotationAttribute> = emptyList(),
+        ): AnnotationItem? {
+            val qualifiedName =
+                annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
+            return DefaultAnnotationItem(
+                annotationContext,
+                fileLocation,
+                originalName,
+                qualifiedName,
+                attributes,
+            )
+        }
+
+        /**
+         * Create a marker [AnnotationItem], i.e. one without [attributes].
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createMarkerAnnotation(
+            annotationContext: AnnotationContext,
+            originalName: String,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+        ) = createWithAttributes(annotationContext, fileLocation, originalName)
+
+        /**
+         * Create a single element [AnnotationItem], i.e. one with a single required attribute
+         * called [ANNOTATION_ATTR_VALUE], i.e. `value`.
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createSingleElementAnnotation(
+            annotationContext: AnnotationContext,
+            originalName: String,
+            value: Value,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+        ) =
+            createWithAttributes(
+                annotationContext,
+                fileLocation,
+                originalName,
+                listOf(AnnotationAttribute.createAttribute(ANNOTATION_ATTR_VALUE, value))
+            )
     }
 }
 
@@ -307,127 +420,8 @@ sealed interface AnnotationItem {
 val List<AnnotationItem>.typeNullability
     get() = mapNotNull { it.typeNullability }.firstOrNull()
 
-/**
- * Get the value of the named attribute as an object of the specified type or null if the attribute
- * could not be found.
- *
- * This can only be called for attributes which have a single value, it will throw an exception if
- * called for an attribute whose value is any array type. See [getAttributeValues] instead.
- *
- * This supports the following types for [T]:
- * * [String] - the attribute must be of type [String] or [Class].
- * * [AnnotationItem] - the attribute must be of an annotation type.
- * * [Boolean] - the attribute must be of type [Boolean].
- * * [Byte] - the attribute must be of type [Byte].
- * * [Char] - the attribute must be of type [Char].
- * * [Double] - the attribute must be of type [Double].
- * * [Float] - the attribute must be of type [Float].
- * * [Int] - the attribute must be of type [Int].
- * * [Long] - the attribute must be of type [Long].
- * * [Short] - the attribute must be of type [Short].
- *
- * Any other types will result in a [ClassCastException].
- */
-inline fun <reified T : Any> AnnotationItem.getAttributeValue(name: String): T? {
-    val value = nonInlineGetAttributeValue(T::class, name) ?: return null
-    return value as T
-}
-
-/**
- * Non-inline portion of functionality needed by [getAttributeValue]; separated to reduce the cost
- * of inlining [getAttributeValue].
- */
-@PublishedApi
-internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
-    val attributeValue = findAttribute(name)?.legacyValue ?: return null
-    val value =
-        when (attributeValue) {
-            is AnnotationArrayAttributeValue ->
-                throw IllegalStateException("Annotation attribute is of type array")
-            else -> attributeValue.value()
-        } ?: return null
-
-    return convertValue(annotationContext, kClass, value)
-}
-
-/**
- * Get the values of the named attribute as a list of objects of the specified type or null if the
- * attribute could not be found.
- *
- * This can be used to get the value of an attribute that is either one of the types in
- * [getAttributeValue] (in which case this returns a list containing a single item), or an array of
- * one of the types in [getAttributeValue] (in which case this returns a list containing all the
- * items in the array).
- */
-inline fun <reified T : Any> AnnotationItem.getAttributeValues(name: String): List<T>? {
-    return nonInlineGetAttributeValues(T::class, name) { it as T }
-}
-
-/**
- * Non-inline portion of functionality needed by [getAttributeValues]; separated to reduce the cost
- * of inlining [getAttributeValues].
- */
-@PublishedApi
-internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
-    kClass: KClass<*>,
-    name: String,
-    caster: (Any) -> T
-): List<T>? {
-    val attributeValue = findAttribute(name)?.legacyValue ?: return null
-    val values =
-        when (attributeValue) {
-            is AnnotationArrayAttributeValue -> attributeValue.values.mapNotNull { it.value() }
-            else -> listOfNotNull(attributeValue.value())
-        }
-
-    return values.mapNotNull { convertValue(annotationContext, kClass, it) }.map { caster(it) }
-}
-
-/**
- * Perform some conversions to try and make [value] to be an instance of [kClass].
- *
- * This fixes up some known issues with [value] not corresponding to the expected type but otherwise
- * simply returns the value it is given. It is the caller's responsibility to actually cast the
- * returned value to the correct type.
- */
-private fun convertValue(
-    annotationContext: AnnotationContext,
-    kClass: KClass<*>,
-    value: Any
-): Any? {
-    // The value stored for number types is not always the same as the type of the annotation
-    // attributes. This is for a number of reasons, e.g.
-    // * In a .class file annotation values are stored in the constant pool and some number types do
-    //   not have their own constant form (or their own array constant form) so are stored as
-    //   instances of a wider type. They need to be converted to the correct type.
-    // * In signature files annotation values are not always stored as the narrowest type, may not
-    //   have a suffix and type information may not always be available when parsing.
-    if (Number::class.java.isAssignableFrom(kClass.java)) {
-        value as Number
-        return when (kClass) {
-            // Byte does have its own constant form but when stored in an array it is stored as an
-            // int.
-            Byte::class -> value.toByte()
-            // DefaultAnnotationValue.create() always reads integers as longs.
-            Int::class -> value.toInt()
-            // DefaultAnnotationValue.create() always reads floating point as doubles.
-            Float::class -> value.toFloat()
-            // Short does not have its own constant form.
-            Short::class -> value.toShort()
-            else -> value
-        }
-    }
-
-    // TODO: Push down into the model as that is likely to be more efficient.
-    if (kClass == AnnotationItem::class) {
-        return DefaultAnnotationItem.createFromSource(annotationContext, value as String)
-    }
-
-    return value
-}
-
 /** Provides contextual information needed by [AnnotationItem]s. */
-interface AnnotationContext : ClassResolver {
+interface AnnotationContext : ClassResolver, ValueContext {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
 
@@ -442,21 +436,6 @@ interface AnnotationContext : ClassResolver {
         resolveClass(qualifiedName)?.annotationClass?.defaults ?: AnnotationDefaults.EMPTY
 
     companion object {
-        /**
-         * Instance that can be used in contexts where [resolveClass] is not required, e.g. testing
-         * or when parsing annotations provides on the command line.
-         */
-        val DEFAULT: AnnotationContext =
-            object : AnnotationContext, ClassResolver by ClassResolver.THROWING {
-                /**
-                 * Return [noOpAnnotationManager] rather than just throwing an exception as most
-                 * uses of [AnnotationItem]s will make at least one call to [annotationManager] and
-                 * having it return a valid, but basic implementation makes this more useful.
-                 */
-                override val annotationManager
-                    get() = noOpAnnotationManager
-            }
-
         /**
          * Instance that can be used in contexts where [resolveClass] always returns null, e.g.
          * testing or when parsing annotations provides on the command line.
@@ -475,27 +454,19 @@ interface AnnotationContext : ClassResolver {
 }
 
 /** Default implementation of an annotation item */
-open class DefaultAnnotationItem
-/** The primary constructor is private to force subclasses to use the secondary constructor. */
-protected constructor(
+internal abstract class BaseAnnotationItem(
     override val annotationContext: AnnotationContext,
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    protected val originalName: String,
+    internal val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
-    final override val qualifiedName: String,
-
-    /** Possibly empty list of attributes. */
-    attributesGetter: (AnnotationItem) -> List<AnnotationAttribute>,
+    override val qualifiedName: String,
 ) : AnnotationItem {
 
     override val targets
         get() = info.targets
-
-    final override val attributes: List<AnnotationAttribute> by
-        lazy(LazyThreadSafetyMode.NONE) { attributesGetter(this) }
 
     /** Information that metalava has gathered about this annotation item. */
     internal val info: AnnotationInfo by lazy {
@@ -542,7 +513,7 @@ protected constructor(
 
     override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
-    override fun snapshot(targetCodebase: Codebase): AnnotationItem {
+    override fun snapshot(targetContext: AnnotationContext): AnnotationItem {
         // Force the info property to be initialized which will cause the AnnotationInfo for
         // annotations of the same class as this to be created based off this AnnotationItem and
         // not the snapshot AnnotationItem. That is important because the AnnotationInfo
@@ -551,31 +522,11 @@ protected constructor(
         // cached version of the AnnotationInfo from the AnnotationManager.
         info
 
-        return DefaultAnnotationItem(
-            targetCodebase,
-            fileLocation,
-            originalName,
-            qualifiedName,
-        ) {
-            attributes.map { attributeToSnapshot ->
-                // Defer retrieval of the value until it is needed as it could throw an exception.
-                // This makes it easier to incrementally expand the Value model without breaking
-                // existing snapshot tests.
-                // TODO(b/354633349): Stop deferring retrieval.
-                val valueProvider =
-                    object : ValueProvider {
-                        override val value: Value
-                            get() = attributeToSnapshot.value.snapshot(targetCodebase)
-                    }
-
-                DefaultAnnotationAttribute(
-                    attributeToSnapshot.name,
-                    valueProvider,
-                    attributeToSnapshot.legacyValue.snapshot(),
-                )
-            }
-        }
+        return createSnapshotFor(targetContext)
     }
+
+    /** Create snapshot of this for [targetContext]. */
+    abstract fun createSnapshotFor(targetContext: AnnotationContext): AnnotationItem
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false
@@ -588,82 +539,60 @@ protected constructor(
         return result
     }
 
-    override fun toSource(target: AnnotationTarget): String {
-        val qualifiedName =
-            annotationContext.annotationManager.normalizeOutputName(qualifiedName, target)
-
-        return formatAnnotationItem(qualifiedName, attributes)
+    override fun toString() = buildString {
+        appendAnnotationStringTo(
+            this,
+            ValueStringConfiguration.DEFAULT,
+            // Assume that the annotation is for an item. That should be safe as this is only used
+            // for debugging and testing purposes.
+            AnnotationPurpose.ITEM,
+        )
     }
+}
 
-    final override fun toString() = buildString {
-        appendAnnotationStringTo(this, ValueStringConfiguration.DEFAULT)
-    }
+internal class DefaultAnnotationItem(
+    annotationContext: AnnotationContext,
+    fileLocation: FileLocation,
+    originalName: String,
+    qualifiedName: String,
+    override val attributes: List<AnnotationAttribute>,
+) :
+    BaseAnnotationItem(
+        annotationContext,
+        fileLocation,
+        originalName,
+        qualifiedName,
+    ) {
+    override fun createSnapshotFor(targetContext: AnnotationContext) =
+        DefaultAnnotationItem(
+            targetContext,
+            fileLocation,
+            originalName,
+            qualifiedName,
+            attributes.map { it.snapshot(targetContext) }
+        )
+}
 
-    companion object {
-        private fun formatAnnotationItem(
-            qualifiedName: String,
-            attributes: List<AnnotationAttribute>,
-        ): String {
-            return buildString {
-                append("@")
-                append(qualifiedName)
-                if (attributes.isNotEmpty()) {
-                    val suppressDefaultAnnotationAttribute = attributes.size == 1
-                    append("(")
-                    attributes.forEachIndexed { i, attribute ->
-                        if (i != 0) {
-                            append(", ")
-                        }
-                        if (
-                            !suppressDefaultAnnotationAttribute ||
-                                attribute.name != ANNOTATION_ATTR_VALUE
-                        ) {
-                            append(attribute.name)
-                            append("=")
-                        }
-                        append(attribute.legacyValue)
-                    }
-                    append(")")
-                }
-            }
+internal class LazyAttributesAnnotationItem(
+    annotationContext: AnnotationContext,
+    fileLocation: FileLocation,
+    originalName: String,
+    qualifiedName: String,
+    /** Possibly empty list of attributes. */
+    attributesGetter: () -> List<AnnotationAttribute>,
+) : BaseAnnotationItem(annotationContext, fileLocation, originalName, qualifiedName) {
+    override val attributes: List<AnnotationAttribute> by
+        lazy(LazyThreadSafetyMode.NONE, attributesGetter)
+
+    override fun createSnapshotFor(targetContext: AnnotationContext) =
+        LazyAttributesAnnotationItem(
+            targetContext,
+            fileLocation,
+            originalName,
+            qualifiedName,
+        ) {
+            attributes.map { it.snapshot(targetContext) }
         }
-
-        /** Create an annotation from [source]. */
-        fun createFromSource(
-            annotationContext: AnnotationContext,
-            source: String,
-        ): AnnotationItem? {
-            val valueParser =
-                ValueParser(
-                    annotationContext,
-                    TypeItemParser.forValueParser(annotationContext),
-                )
-            return valueParser.parseAnnotationItem(source)
-        }
-
-        /**
-         * Create a [DefaultAnnotationItem] deferring the creation of the attributes until needed.
-         *
-         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
-         * [AnnotationManager.normalizeInputName].
-         */
-        fun createAttributesLazily(
-            annotationContext: AnnotationContext,
-            fileLocation: FileLocation,
-            originalName: String,
-            attributesGetter: (AnnotationItem) -> List<AnnotationAttribute>,
-        ): AnnotationItem? {
-            val qualifiedName =
-                annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
-            return DefaultAnnotationItem(
-                annotationContext = annotationContext,
-                fileLocation = fileLocation,
-                originalName = originalName,
-                qualifiedName = qualifiedName,
-                attributesGetter = attributesGetter,
-            )
-        }
-    }
 }
 
 /** The default annotation attribute name when no name is provided. */
@@ -675,66 +604,40 @@ sealed interface AnnotationAttribute {
     val name: String
 
     /**
-     * The legacy annotation value.
-     *
-     * This is called `legacy` because this an old, inconsistent representation of an attribute
-     * value that exposes implementation details. It will be replaced by a properly modelled value
-     * representation.
-     */
-    val legacyValue: AnnotationAttributeValue
-
-    /**
      * The value of this attribute.
-     *
-     * Replacement for [legacyValue].
      *
      * The [Value] will be suitable for use as an annotation attribute value as specified by JLS
      * 9.6.1 (what this model calls "attributes", the JSL calls "elements"). That includes constant
      * fields.
      */
     val value: Value
+
+    /** Take a snapshot of this [AnnotationAttribute] suitable for use in [targetContext]. */
+    fun snapshot(targetContext: AnnotationContext): AnnotationAttribute
+
+    companion object {
+        /**
+         * Create an [AnnotationAttribute] called [name] that will retrieve its [Value] from
+         * [valueProvider] when requested.
+         */
+        fun createLazyAttribute(name: String, valueProvider: ValueProvider): AnnotationAttribute =
+            LazyAnnotationAttribute(name, valueProvider)
+
+        /** Create an [AnnotationAttribute] called [name] with [value]. */
+        fun createAttribute(name: String, value: Value): AnnotationAttribute =
+            DefaultAnnotationAttribute(name, value)
+    }
 }
 
-const val ANNOTATION_VALUE_FALSE = "false"
-const val ANNOTATION_VALUE_TRUE = "true"
-
-/** An annotation value */
-sealed interface AnnotationAttributeValue {
-    /** Generates source code for this annotation value */
-    fun toSource(): String
-
-    /** The value of the annotation */
-    fun value(): Any?
-
-    /**
-     * Take a snapshot of this [AnnotationAttributeValue] suitable for use in a snapshot [Codebase].
-     */
-    fun snapshot(): AnnotationAttributeValue
-}
-
-/** An annotation value (for a single item, not an array) */
-sealed interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
-    val value: Any?
-
-    override fun value() = value
-}
-
-/** An annotation value for an array of items */
-sealed interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
-    /** The annotation values */
-    val values: List<AnnotationAttributeValue>
-
-    override fun value() = values.mapNotNull { it.value() }.toTypedArray()
-}
-
-class DefaultAnnotationAttribute(
-    override val name: String,
-    private val valueProvider: ValueProvider,
-    override val legacyValue: AnnotationAttributeValue,
+/** Base implementation of [AnnotationAttribute]. */
+private abstract class BaseAnnotationAttribute(
+    final override val name: String,
 ) : AnnotationAttribute {
 
-    override val value: Value
-        get() = valueProvider.value
+    override fun snapshot(targetContext: AnnotationContext): DefaultAnnotationAttribute {
+        val valueSnapshot = value.snapshot(targetContext)
+        return DefaultAnnotationAttribute(name, valueSnapshot)
+    }
 
     override fun toString(): String {
         return "$name=${value.toValueString()}"
@@ -752,139 +655,18 @@ class DefaultAnnotationAttribute(
     }
 }
 
-/** Create an [AnnotationAttributeValue] for this [Value]. */
-fun Value.asAnnotationAttributeValue(): AnnotationAttributeValue =
-    when (this) {
-        is ArrayValue ->
-            DefaultAnnotationArrayAttributeValue(
-                ::toValueString,
-                { elements.map(ArrayElementValue::asAnnotationAttributeValue) }
-            )
-        else ->
-            DefaultAnnotationSingleAttributeValue(
-                ::toValueString,
-                { asLiteralValue()?.underlyingValue }
-            )
-    }
+/** Lazy [AnnotationAttribute] that takes a [ValueProvider] to defer creating the [Value]. */
+private class LazyAnnotationAttribute(
+    name: String,
+    private val valueProvider: ValueProvider,
+) : BaseAnnotationAttribute(name) {
 
-abstract class DefaultAnnotationAttributeValue(sourceGetter: () -> String) :
-    AnnotationAttributeValue {
-    companion object {
-        fun create(valueSource: String): DefaultAnnotationAttributeValue {
-            return if (valueSource.startsWith("{")) { // Array
-                DefaultAnnotationArrayAttributeValue(
-                    { valueSource },
-                    {
-                        assert(valueSource.startsWith("{") && valueSource.endsWith("}")) {
-                            valueSource
-                        }
-                        valueSource
-                            .substring(1, valueSource.length - 1)
-                            .split(",")
-                            .map { create(it.trim()) }
-                            .toList()
-                    },
-                )
-            } else {
-                DefaultAnnotationSingleAttributeValue(
-                    { valueSource },
-                    {
-                        when {
-                            valueSource == ANNOTATION_VALUE_TRUE -> true
-                            valueSource == ANNOTATION_VALUE_FALSE -> false
-                            valueSource.startsWith("\"") ->
-                                javaUnescapeString(valueSource.removeSurrounding("\""))
-                            valueSource.startsWith('\'') ->
-                                javaUnescapeString(valueSource.removeSurrounding("'"))[0]
-                            else ->
-                                try {
-                                    if (valueSource.contains(".")) {
-                                        if (
-                                            valueSource.endsWith("f") || valueSource.endsWith("F")
-                                        ) {
-                                            valueSource.dropLast(1).toFloat()
-                                        } else {
-                                            valueSource.toDouble()
-                                        }
-                                    } else if (
-                                        valueSource.endsWith("L") || valueSource.endsWith("l")
-                                    ) {
-                                        valueSource.dropLast(1).toLong()
-                                    } else {
-                                        valueSource.toLong()
-                                    }
-                                } catch (e: NumberFormatException) {
-                                    valueSource
-                                }
-                        }
-                    },
-                )
-            }
-        }
-    }
-
-    /** The annotation value, expressed as source code */
-    private val valueSource: String by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
-
-    override fun toSource() = valueSource
-
-    override fun toString(): String = toSource()
+    override val value: Value
+        get() = valueProvider.value
 }
 
-open class DefaultAnnotationSingleAttributeValue(
-    sourceGetter: () -> String,
-    valueGetter: () -> Any?
-) : DefaultAnnotationAttributeValue(sourceGetter), AnnotationSingleAttributeValue {
-
-    override val value by lazy(LazyThreadSafetyMode.NONE, valueGetter)
-
-    override fun snapshot(): AnnotationSingleAttributeValue {
-        // Take a snapshot of the value and sources by immediately forcing them to be initialized
-        // from their respective getters. That way there will be no connection to the original
-        // attribute value.
-        val newValue = value
-        val newSource = toSource()
-        return DefaultAnnotationSingleAttributeValue(
-            sourceGetter = { newSource },
-            valueGetter = { newValue },
-        )
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationSingleAttributeValue) return false
-        return value == other.value
-    }
-
-    override fun hashCode(): Int {
-        return value.hashCode()
-    }
-}
-
-class DefaultAnnotationArrayAttributeValue(
-    sourceGetter: () -> String,
-    valuesGetter: () -> List<AnnotationAttributeValue>
-) : DefaultAnnotationAttributeValue(sourceGetter), AnnotationArrayAttributeValue {
-
-    override val values by lazy(LazyThreadSafetyMode.NONE, valuesGetter)
-
-    override fun snapshot(): AnnotationArrayAttributeValue {
-        // Take a snapshot of the values and sources by immediately forcing them to be initialized
-        // from their respective getters. That way there will be no connection to the original
-        // attribute value.
-        val newValues = values.map { it.snapshot() }
-        val newSource = toSource()
-        return DefaultAnnotationArrayAttributeValue(
-            sourceGetter = { newSource },
-            valuesGetter = { newValues },
-        )
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationArrayAttributeValue) return false
-        return values == other.values
-    }
-
-    override fun hashCode(): Int {
-        return values.hashCode()
-    }
-}
+/** Simple [AnnotationAttribute] that takes a [Value] directly. */
+private class DefaultAnnotationAttribute(
+    name: String,
+    override val value: Value,
+) : BaseAnnotationAttribute(name)

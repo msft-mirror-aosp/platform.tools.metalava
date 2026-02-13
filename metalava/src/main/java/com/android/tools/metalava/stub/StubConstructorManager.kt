@@ -170,7 +170,7 @@ class StubConstructorManager(codebase: Codebase) {
                 // constructor) so a package private constructor is needed. Technically, this will
                 // result in the stub class having a constructor that isn't available at runtime,
                 // but creating subclasses in API packages is not supported.
-                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
+                cls.createImplicitDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
             }
 
         // If neither the constructors in this class nor its subclasses need to add a `super(...)`
@@ -207,11 +207,11 @@ class StubConstructorManager(codebase: Codebase) {
          * the same.
          */
         private val bestStubConstructorComparator: Comparator<ConstructorItem> =
-            Comparator.comparingInt<ConstructorItem?>({ it.throwsTypes().size })
-                .thenComparingInt({ it.parameters().size })
-                .thenComparingInt({
+            Comparator.comparingInt<ConstructorItem> { it.throwsTypes().size }
+                .thenComparingInt { it.parameters().size }
+                .thenComparingInt {
                     it.parameters().sumOf { it.type().toErasedTypeString().length }
-                })
+                }
                 .thenComparing(CallableItem.comparator)
     }
 

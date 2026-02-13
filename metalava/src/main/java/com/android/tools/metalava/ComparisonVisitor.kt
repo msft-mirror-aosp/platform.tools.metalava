@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
@@ -42,6 +43,8 @@ open class ComparisonVisitor {
     open fun addedItem(new: SelectableItem) {}
 
     open fun removedItem(old: SelectableItem, from: SelectableItem?) {}
+
+    open fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {}
 
     open fun comparePackageItems(old: PackageItem, new: PackageItem) {}
 
@@ -279,7 +282,7 @@ class CodebaseComparator {
         oldParent: SelectableItem?,
         visitor: ComparisonVisitor,
     ) {
-        // If it's a method, we may not have added a new method,
+        // If it's a method/property, we may not have added a new method/property,
         // we may simply have inherited it previously and overriding
         // it now (or in the case of signature files, identical overrides
         // are not explicitly listed and therefore not added to the model)
@@ -291,6 +294,10 @@ class CodebaseComparator {
                         includeSuperClasses = true,
                         includeInterfaces = true
                     )
+                    ?.duplicate(oldParent)
+            } else if (new is PropertyItem && oldParent is ClassItem) {
+                oldParent
+                    .findProperty(new, includeSuperClasses = true, includeInterfaces = true)
                     ?.duplicate(oldParent)
             } else {
                 null
@@ -339,13 +346,17 @@ class CodebaseComparator {
         // declared on the subclass
         val inheritedMethod =
             if (old is MethodItem && newParent is ClassItem) {
-                val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
+                // Use an updated filter when searching for a matching method: if an [Item] is an
+                // unstable API that will be reverted then it will not be treated as if it was
+                // removed. That is because reverting it will replace it with the old item against
+                // which it is being compared in this compatibility check. So, while this specific
+                // item will not appear in the API the old item will and so it has not been removed.
+                val methodFilter =
+                    filter?.or { method: SelectableItem -> method.showability.revertUnstableApi() }
 
-                if (superMethod != null && (filter == null || filter.test(superMethod))) {
-                    superMethod.duplicate(newParent)
-                } else {
-                    null
-                }
+                // Find an element which matches the methodFilter
+                val superMethod = newParent.findPredicateMethodWithSuper(old, methodFilter)
+                superMethod?.duplicate(newParent)
             } else {
                 null
             }
@@ -378,6 +389,17 @@ class CodebaseComparator {
             dispatchToCompare(visitor, old, inheritedField)
             return
         }
+
+        // A property may have been moved to a superclass.
+        if (old is PropertyItem && newParent is ClassItem) {
+            val superProperty =
+                newParent.findProperty(old, includeSuperClasses = true, includeInterfaces = true)
+            if (superProperty != null && (filter == null || filter.test(superProperty))) {
+                dispatchToCompare(visitor, old, superProperty.duplicate(newParent))
+                return
+            }
+        }
+
         dispatchToRemoved(visitor, old, newParent)
     }
 
@@ -411,6 +433,7 @@ class CodebaseComparator {
         new: SelectableItem
     ) {
         visitor.compareItems(old, new)
+        visitor.compareSelectableItems(old, new)
 
         if (old is CallableItem) {
             visitor.compareCallableItems(old, new as CallableItem)
@@ -494,8 +517,10 @@ class CodebaseComparator {
                                             //      signatures since older signature files may have
                                             // removed
                                             //      those
-                                            val simpleType1 = parameter1.type().toCanonicalType()
-                                            val simpleType2 = parameter2.type().toCanonicalType()
+                                            val simpleType1 =
+                                                parameter1.type().toCanonicalTypeString()
+                                            val simpleType2 =
+                                                parameter2.type().toCanonicalTypeString()
                                             delta = simpleType1.compareTo(simpleType2)
                                             if (delta != 0) {
                                                 // If still not the same, check the special case for
@@ -529,6 +554,31 @@ class CodebaseComparator {
                                             }
                                         }
                                     }
+                                    if (delta == 0) {
+                                        // Also compare the target languages. As long as there is a
+                                        // common target language, it makes sense to compare the
+                                        // items, but if there are no common target language, treat
+                                        // these items as not the same.
+                                        if (
+                                            item1.targetLanguages
+                                                .intersect(item2.targetLanguages)
+                                                .isEmpty()
+                                        ) {
+                                            // If there is no intersection between the target
+                                            // language sets, exactly one of them must contain
+                                            // Kotlin (because Java implies bytecode, and the
+                                            // possible non-overlapping sets are bytecode|kotlin or
+                                            // bytecode,java|kotlin).
+                                            delta =
+                                                if (
+                                                    TargetLanguage.KOTLIN in item1.targetLanguages
+                                                ) {
+                                                    1
+                                                } else {
+                                                    -1
+                                                }
+                                        }
+                                    }
                                 }
                             }
                             // The method names are different, return the result of the compareTo
@@ -538,7 +588,20 @@ class CodebaseComparator {
                             item1.name().compareTo((item2 as FieldItem).name())
                         }
                         is PropertyItem -> {
-                            item1.name().compareTo((item2 as PropertyItem).name())
+                            var delta = item1.name().compareTo((item2 as PropertyItem).name())
+                            if (delta == 0) {
+                                // If the properties have the same name, additionally check the
+                                // receiver types.
+                                delta =
+                                    item1.receiver?.let { receiver1 ->
+                                        item2.receiver?.let { receiver2 ->
+                                            receiver1
+                                                .toTypeString()
+                                                .compareTo(receiver2.toTypeString())
+                                        } ?: -1
+                                    } ?: 1
+                            }
+                            delta
                         }
                         else -> error("Unexpected item $item1 of ${item1.javaClass}")
                     }

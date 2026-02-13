@@ -17,8 +17,12 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.ResourceFile
+import com.android.tools.metalava.model.scope.QualifiedNameScope
 
-interface PackageItem : SelectableItem {
+interface PackageItem : SelectableItem, ReferencableItem, QualifiedNameScope {
+    /** The optional [SourceFile] for packages created from `package-info.java` files. */
+    val sourceFile: SourceFile?
+
     /**
      * The overview documentation associated with the package; retrieved from an `overview.html`
      * file listed in the source files.
@@ -48,8 +52,10 @@ interface PackageItem : SelectableItem {
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }
 
-    /** All type aliases defined in this package. */
-    fun typeAliases(): List<TypeAliasItem>
+    override fun describe(capitalize: Boolean): String {
+        val suffix = qualifiedName().let { if (it.isEmpty()) "<root>" else it }
+        return "${if (capitalize) "Package" else "package"} $suffix"
+    }
 
     override fun type(): TypeItem? = null
 
@@ -64,6 +70,10 @@ interface PackageItem : SelectableItem {
 
     override fun parent(): PackageItem? =
         if (qualifiedName().isEmpty()) null else containingPackage()
+
+    fun addChildPackage(pkg: PackageItem)
+
+    fun childPackages(): List<PackageItem>
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated

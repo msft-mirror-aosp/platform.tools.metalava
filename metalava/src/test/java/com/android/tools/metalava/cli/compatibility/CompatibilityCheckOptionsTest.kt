@@ -32,6 +32,15 @@ Compatibility Checks:
 
   Options controlling which, if any, compatibility checks are performed against a previously released API.
 
+  --check-compatibility [enabled|disabled]   Determines whether the --check-compatibility:api:released and
+                                             --check-compatibility:removed:released cause a compatibility check to be
+                                             performed. This must be set to `disabled` when those options are only
+                                             provided to supply the previously released API to which flagged APIs are
+                                             reverted.
+
+                                             enabled (default) - Compatibility checks are performed.
+
+                                             disabled - Compatibility checks are NOT performed.
   --check-compatibility:api:released <file>  Check compatibility of the previously released API.
 
                                              When multiple files are provided any files that are a delta on another file
@@ -76,8 +85,7 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility api released`() {
-        val file =
-            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, file.path) {
             assertThat(options.compatibilityChecks)
                 .isEqualTo(
@@ -93,12 +101,8 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility api released multiple files`() {
-        val file1 =
-            signature("released1.txt", "// Signature format: 2.0\n")
-                .createFile(temporaryFolder.root)
-        val file2 =
-            signature("released2.txt", "// Signature format: 2.0\n")
-                .createFile(temporaryFolder.root)
+        val file1 = signature("released1.txt", "// Signature format: 2.0\n").toFile()
+        val file2 = signature("released2.txt", "// Signature format: 2.0\n").toFile()
         runTest(
             ARG_CHECK_COMPATIBILITY_API_RELEASED,
             file1.path,
@@ -120,8 +124,7 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility removed api released`() {
-        val file =
-            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("removed.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, file.path) {
             assertThat(options.compatibilityChecks)
                 .isEqualTo(
@@ -143,7 +146,7 @@ class CompatibilityCheckOptionsTest :
      * Create a fake jar file. It is ok that it is not actually a jar file as its contents are not
      * read.
      */
-    private fun fakeJar() = source("some.jar", "PK...").createFile(temporaryFolder.root)
+    private fun fakeJar() = source("some.jar", "PK...").toFile()
 
     @Test
     fun `check compatibility api released from jar`() {
@@ -164,8 +167,7 @@ class CompatibilityCheckOptionsTest :
     @Test
     fun `check compatibility api released mixture of signature and jar`() {
         val jarFile = fakeJar()
-        val signatureFile =
-            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val signatureFile = signature("removed.txt", "// Signature format: 2.0\n").toFile()
 
         val exception =
             assertThrows(IllegalStateException::class.java) {
@@ -211,6 +213,24 @@ class CompatibilityCheckOptionsTest :
         ) {
             assertThat(options.apiCompatAnnotations)
                 .containsExactly("com.example.MyAnnotation", "com.example.MyOtherAnnotation")
+        }
+    }
+
+    @Test
+    fun `Test check-compatibility=disabled disables check but not previously released API`() {
+        val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
+        runTest(
+            ARG_CHECK_COMPATIBILITY_API_RELEASED,
+            file.path,
+            ARG_CHECK_COMPATIBILITY,
+            "disabled",
+        ) {
+            // Make sure that no compatibility checks are returned when they are disabled.
+            assertThat(options.compatibilityChecks).isEmpty()
+
+            // Make sure that the previously released API is returned even when the checks are
+            // disabled.
+            assertThat(options.previouslyReleasedApi).isNotNull()
         }
     }
 }

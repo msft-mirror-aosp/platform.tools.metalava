@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
@@ -77,14 +76,14 @@ class StubsTest : AbstractStubsTest() {
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
-                public static final char HEX_INPUT = 61184; // 0xef00 '\uef00'
+                public static final char HEX_INPUT = '\uef00';
                 protected int field00;
                 public static final boolean field01 = true;
-                public static final int field02 = 42; // 0x2a
-                public static final long field03 = 42L; // 0x2aL
-                public static final short field04 = 5; // 0x5
-                public static final byte field05 = 5; // 0x5
-                public static final char field06 = 99; // 0x0063 'c'
+                public static final int field02 = 42;
+                public static final long field03 = 42L;
+                public static final short field04 = 5;
+                public static final byte field05 = 5;
+                public static final char field06 = 'c';
                 public static final float field07 = 98.5f;
                 public static final double field08 = 98.5;
                 public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";
@@ -379,16 +378,19 @@ class StubsTest : AbstractStubsTest() {
                     /*
                     My header 1
                      */
+
                     /*
                     My header 2
                      */
+
                     // My third comment
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class HeaderComments {
                     public HeaderComments() { throw new RuntimeException("Stub!"); }
                     }
-                    """
+                    """,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -483,7 +485,7 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Outer {
                     public Outer() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass1 {
                     public MyClass1() { throw new RuntimeException("Stub!"); }
@@ -492,9 +494,9 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass2 {
                     public MyClass2() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     public int myMethod() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     public int myField;
                     }
                     }
@@ -992,14 +994,13 @@ class StubsTest : AbstractStubsTest() {
                  * This is the copyright header.
                  */
                 package test.pkg;
-                import java.util.List;
                 /** This is the documentation for the class */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 /**
                  * Method documentation.
-                 * @see java.util.List
+                 * @see java.util.List List
                  */
                 protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 /** My field doc */
@@ -1238,11 +1239,6 @@ class StubsTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_API_CLASS_RESOLUTION,
-                    "api:classpath",
-                ),
         )
     }
 
@@ -1285,11 +1281,6 @@ class StubsTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_API_CLASS_RESOLUTION,
-                    "api:classpath",
                 ),
         )
     }
