@@ -18,8 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
@@ -608,7 +606,6 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    @FilterByProvider("psi", "k2", action = EXCLUDE)
     @Test
     fun `internal setter with delegation`() {
         // https://youtrack.jetbrains.com/issue/KT-70458
@@ -2045,7 +2042,6 @@ abstract class UastTestBase : DriverTest() {
     }
 
     // b/324521456: need to set kotlin-stdlib-common for common module
-    @FilterByProvider("psi", "k2", action = EXCLUDE)
     @Test
     fun `actual typealias`() {
         // https://youtrack.jetbrains.com/issue/KT-55085

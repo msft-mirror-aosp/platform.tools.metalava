@@ -4,6 +4,9 @@ com.android.tools.metalava.ApiFileTest
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
+com.android.tools.metalava.UastTestK2
+  actual typealias[psi,k2]
+
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Expected API changes converting collections to Kotlin[turbine]
 
