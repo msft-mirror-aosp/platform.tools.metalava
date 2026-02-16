@@ -37,9 +37,6 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
-com.android.tools.metalava.model.testsuite.jar.CommonClassPathResolverTest
-  Test classpath resolve - no java lang[turbine]
-
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]
 
