@@ -102,31 +102,7 @@ internal class TurbineTypeItemFactory(
             }
             Type.TyKind.CLASS_TY -> {
                 type as Type.ClassTy
-                var outerClass: ClassTypeItem? = null
-                // A ClassTy is represented by list of SimpleClassTY each representing a nested
-                // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
-                // Outer, Outer.Inner and Outer.Inner.Inner1
-                val iterator = type.classes().iterator()
-                while (iterator.hasNext()) {
-                    val simpleClass = iterator.next()
-
-                    // Select the ContextNullability. If there is another SimpleClassTy after this
-                    // then this is an outer class which can never be null, so force it to be
-                    // non-null. Otherwise, this is the nested class so use the supplied
-                    // ContextNullability.
-                    val actualContextNullability =
-                        if (iterator.hasNext()) {
-                            // For all outer class types, set the nullability to non-null.
-                            ContextNullability.forceNonNull
-                        } else {
-                            // Use the supplied ContextNullability.
-                            contextNullability
-                        }
-
-                    outerClass =
-                        createNestedClassType(simpleClass, outerClass, actualContextNullability)
-                }
-                outerClass!!
+                createClassTypeItemFromSimpleTys(type.classes(), contextNullability)!!
             }
             Type.TyKind.TY_VAR -> {
                 type as Type.TyVar
@@ -183,6 +159,40 @@ internal class TurbineTypeItemFactory(
             }
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
+    }
+
+    /**
+     * Create a [ClassTypeItem] from a list of [Type.ClassTy.SimpleClassTy] using
+     * [contextNullability].
+     */
+    private fun createClassTypeItemFromSimpleTys(
+        simpleTys: List<Type.ClassTy.SimpleClassTy>,
+        contextNullability: ContextNullability
+    ): ClassTypeItem? {
+        var outerClass: ClassTypeItem? = null
+        // A ClassTy is represented by list of SimpleClassTy each representing a nested
+        // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
+        // Outer, Outer.Inner and Outer.Inner.Inner1
+        val iterator = simpleTys.iterator()
+        while (iterator.hasNext()) {
+            val simpleClass = iterator.next()
+
+            // Select the ContextNullability. If there is another SimpleClassTy after this
+            // then this is an outer class which can never be null, so force it to be
+            // non-null. Otherwise, this is the nested class so use the supplied
+            // ContextNullability.
+            val actualContextNullability =
+                if (iterator.hasNext()) {
+                    // For all outer class types, set the nullability to non-null.
+                    ContextNullability.forceNonNull
+                } else {
+                    // Use the supplied ContextNullability.
+                    contextNullability
+                }
+
+            outerClass = createNestedClassType(simpleClass, outerClass, actualContextNullability)
+        }
+        return outerClass
     }
 
     private fun createWildcardBound(type: Type) = getGeneralType(type) as ReferenceTypeItem
