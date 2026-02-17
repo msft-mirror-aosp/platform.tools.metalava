@@ -164,6 +164,7 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
             if (path.endsWith(DOT_JAVA) || path.endsWith(DOT_KT)) {
                 val pkg = findPackage(file) ?: return null
                 val parent = file.parentFile ?: return null
+                if (pkg == "") return parent
                 val endIndex = parent.path.length - pkg.length
                 val before = path[endIndex - 1]
                 if (before == '/' || before == '\\') {

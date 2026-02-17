@@ -76,12 +76,9 @@ class SourceSetTest : TemporaryFolderOwner {
         val sourceSet = SourceSet(sources = sources, sourcePath = emptyList())
         val extractedRoots = sourceSet.extractRoots(reporter)
 
+        val srcDir = temporaryFolder.root.resolve("src")
         assertEquals(sources, extractedRoots.sources)
-        assertEquals(
-            // TODO(b/479907812): Should include the directory containing the `RootPackageClass`.
-            emptyList(),
-            extractedRoots.sourcePath
-        )
+        assertEquals(listOf(srcDir), extractedRoots.sourcePath)
     }
 
     @Test
@@ -89,7 +86,7 @@ class SourceSetTest : TemporaryFolderOwner {
         val testFiles =
             listOf(
                 kotlin(
-                    "FooKt.kt",
+                    "src/FooKt.kt",
                     """
                         const val CONST = 1
                     """
@@ -101,12 +98,9 @@ class SourceSetTest : TemporaryFolderOwner {
         val sourceSet = SourceSet(sources = sources, sourcePath = emptyList())
         val extractedRoots = sourceSet.extractRoots(reporter)
 
+        val srcDir = temporaryFolder.root.resolve("src")
         assertEquals(sources, extractedRoots.sources)
-        assertEquals(
-            // TODO(b/479907812): Should include the directory containing the `FooKt` file.
-            emptyList(),
-            extractedRoots.sourcePath
-        )
+        assertEquals(listOf(srcDir), extractedRoots.sourcePath)
     }
 
     @Suppress("DanglingJavadoc")

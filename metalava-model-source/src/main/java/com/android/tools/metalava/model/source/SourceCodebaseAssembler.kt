@@ -98,7 +98,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
                     ?.listFiles()
                     ?.filter { it.name.endsWith(DOT_JAVA) }
                     ?.asSequence()
-                    ?.mapNotNull { findPackage(it) }
+                    ?.map { findPackage(it) }
                     ?.firstOrNull()
             if (pkg == null) {
                 // Strip the longest prefix source root.
