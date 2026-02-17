@@ -57,15 +57,7 @@ class SourceSetTest : TemporaryFolderOwner {
         val extractedRoots = sourceSet.extractRoots(reporter)
 
         assertEquals(sources, extractedRoots.sources)
-        assertEquals(
-            listOf(
-                // TODO(b/479907812): There is actually only one directory in the source path but
-                //  this duplicates it, one absolute and one relative.
-                File("src/main/java").absoluteFile,
-                File("src/main/java"),
-            ),
-            extractedRoots.sourcePath
-        )
+        assertEquals(listOf(File("src/main/java").absoluteFile), extractedRoots.sourcePath)
     }
 
     @Suppress("DanglingJavadoc")
