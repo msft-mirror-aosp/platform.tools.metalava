@@ -60,6 +60,55 @@ class SourceSetTest : TemporaryFolderOwner {
         assertEquals(listOf(File("src/main/java").absoluteFile), extractedRoots.sourcePath)
     }
 
+    @Test
+    fun `Test extract roots - root package class - java`() {
+        val testFiles =
+            listOf(
+                java(
+                    """
+                        public class RootPackageClass {}
+                    """
+                ),
+            )
+
+        val sources = testFiles.map { it.toFile() }
+
+        val sourceSet = SourceSet(sources = sources, sourcePath = emptyList())
+        val extractedRoots = sourceSet.extractRoots(reporter)
+
+        assertEquals(sources, extractedRoots.sources)
+        assertEquals(
+            // TODO(b/479907812): Should include the directory containing the `RootPackageClass`.
+            emptyList(),
+            extractedRoots.sourcePath
+        )
+    }
+
+    @Test
+    fun `Test extract roots - root package file - kotlin`() {
+        val testFiles =
+            listOf(
+                kotlin(
+                    "FooKt.kt",
+                    """
+                        const val CONST = 1
+                    """
+                ),
+            )
+
+        val sources = testFiles.map { it.toFile() }
+
+        val sourceSet = SourceSet(sources = sources, sourcePath = emptyList())
+        val extractedRoots = sourceSet.extractRoots(reporter)
+
+        assertEquals(sources, extractedRoots.sources)
+        assertEquals(
+            // TODO(b/479907812): Should include the directory containing the `FooKt` file.
+            emptyList(),
+            extractedRoots.sourcePath
+        )
+    }
+
     @Suppress("DanglingJavadoc")
     @Test
     fun `Regression test for 124333557`() {
