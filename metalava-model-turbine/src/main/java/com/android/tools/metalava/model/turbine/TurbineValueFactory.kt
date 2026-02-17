@@ -44,6 +44,7 @@ import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.tree.TurbineOperatorKind
 import com.google.turbine.tree.TurbineOperatorKind.Precedence
+import com.google.turbine.type.Type
 import kotlin.collections.fold
 
 /**
@@ -303,7 +304,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                         is Short -> {
                             // Determine whether the expression was originally one of the number
                             // kinds that is formatted specially.
-                            val specialNumericKind = expr.getOriginalNumericKind()
+                            val specialNumericKind = expr.getOriginalNumericKind(fieldResolver)
 
                             // Convert back to the original number type, if needed.
                             specialNumericKind.toOriginalNumberTypeIfNeeded(underlyingValue)
@@ -431,7 +432,9 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
      *
      * Computes a [OriginalNumericKind] appropriate for the expression kind.
      */
-    private fun Expression.getOriginalNumericKind(): OriginalNumericKind =
+    private fun Expression.getOriginalNumericKind(
+        fieldResolver: FieldResolver?
+    ): OriginalNumericKind =
         when (this) {
             is Literal -> {
                 // Get the OriginalNumericKind from the literal kind.
@@ -440,7 +443,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             is Tree.Unary -> {
                 // Get the OriginalNumericKind from the expression the unary operator is being
                 // applied to.
-                expr().getOriginalNumericKind()
+                expr().getOriginalNumericKind(fieldResolver)
             }
             is Tree.Binary -> {
                 // The OriginalNumericKind is determined by combining the OriginalNumericKind of
@@ -455,19 +458,26 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                 // Combine the OriginalNumericKind of the first pair of children according to the
                 // operator and then combine the result of that with the next child and so on.
                 children.fold(null) { accumulator, expr ->
-                    val kind = expr.getOriginalNumericKind()
+                    val kind = expr.getOriginalNumericKind(fieldResolver)
                     originalNumericKindOfBinaryOp(operatorKind, accumulator, kind)
                 } ?: OriginalNumericKind.OTHER
             }
             is Tree.Paren -> {
                 // The OriginalNumericKind of a parenthesis expression is just the
                 // OriginalNumericKind of the contained expression.
-                expr().getOriginalNumericKind()
+                expr().getOriginalNumericKind(fieldResolver)
             }
             is Tree.TypeCast -> {
                 // The OriginalNumericKind of a type case expression is the OriginalNumericKind of
                 // the type to which it is being cast.
                 (ty() as? Tree.PrimTy)?.tykind().toOriginalNumericKind()
+            }
+            is ConstVarName -> {
+                // The OriginalNumericKind of a field is the OriginalNumericKind of its type. Only
+                // PrimTy's will produce a value that is not OTHER.
+                val fieldInfo = fieldResolver?.resolveField(this)
+                (fieldInfo?.type() as? Type.PrimTy)?.primkind()?.toOriginalNumericKind()
+                    ?: OriginalNumericKind.OTHER
             }
             else -> {
                 // The OriginalNumericKind is not known so assume it does not need converting.
