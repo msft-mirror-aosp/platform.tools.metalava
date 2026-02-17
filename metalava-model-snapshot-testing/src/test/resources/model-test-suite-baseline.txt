@@ -66,31 +66,47 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations[text]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
+  testLegacySource[psi,kotlin,k1,source,long - int expression]
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,class literal - array of basic class]
   testLegacySource[text,source,class literal - array of generic class]
   testLegacySource[text,source,class literal - basic class]
   testLegacySource[text,source,class literal - generic class]
   testLegacySource[text,source,short - cast]
+  testLegacySource[turbine,source,long - int expression]
+  testLegacySource[turbine,source,long - int field expression]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
+  testLegacySource[psi,kotlin,k1,source,long - int expression]
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,short - cast]
+  testLegacySource[turbine,source,long - int expression]
+  testLegacySource[turbine,source,long - int field expression]
+  testMethodDefaultValue[psi,kotlin,k1,source,long - int expression]
   testMethodDefaultValue[text,source,byte - cast]
   testMethodDefaultValue[text,source,short - cast]
+  testMethodDefaultValue[turbine,source,long - int expression]
+  testMethodDefaultValue[turbine,source,long - int field expression]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testAttributeValue[psi,kotlin,k1,source,long - int expression]
   testAttributeValue[text,source,byte - cast]
   testAttributeValue[text,source,short - cast]
+  testAttributeValue[turbine,source,long - int expression]
+  testAttributeValue[turbine,source,long - int field expression]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[psi,kotlin,k1,source,long - int expression]
   testFieldValue[psi,kotlin,k1,source,null - intermediate non-constant expression]
   testFieldValue[psi,kotlin,k2,source,null - intermediate non-constant expression]
   testFieldValue[psi,kotlin,k2,source,unsigned int - expression]
   testFieldValue[text,source,byte - cast]
   testFieldValue[text,source,short - cast]
+  testFieldValue[turbine,source,long - int expression]
+  testFieldValue[turbine,source,long - int field expression]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[psi,kotlin,k1,source,long - int expression]
   testLegacySource[psi,kotlin,k1,source,null - intermediate non-constant expression]
   testLegacySource[psi,kotlin,k2,source,null - intermediate non-constant expression]
   testLegacySource[psi,kotlin,k2,source,unsigned int - expression]
