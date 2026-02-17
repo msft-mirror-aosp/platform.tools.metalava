@@ -282,7 +282,7 @@ class CodebaseComparator {
         oldParent: SelectableItem?,
         visitor: ComparisonVisitor,
     ) {
-        // If it's a method/property, we may not have added a new method/property,
+        // If it's a method, we may not have added a new method,
         // we may simply have inherited it previously and overriding
         // it now (or in the case of signature files, identical overrides
         // are not explicitly listed and therefore not added to the model)
@@ -294,10 +294,6 @@ class CodebaseComparator {
                         includeSuperClasses = true,
                         includeInterfaces = true
                     )
-                    ?.duplicate(oldParent)
-            } else if (new is PropertyItem && oldParent is ClassItem) {
-                oldParent
-                    .findProperty(new, includeSuperClasses = true, includeInterfaces = true)
                     ?.duplicate(oldParent)
             } else {
                 null
@@ -389,17 +385,6 @@ class CodebaseComparator {
             dispatchToCompare(visitor, old, inheritedField)
             return
         }
-
-        // A property may have been moved to a superclass.
-        if (old is PropertyItem && newParent is ClassItem) {
-            val superProperty =
-                newParent.findProperty(old, includeSuperClasses = true, includeInterfaces = true)
-            if (superProperty != null && (filter == null || filter.test(superProperty))) {
-                dispatchToCompare(visitor, old, superProperty.duplicate(newParent))
-                return
-            }
-        }
-
         dispatchToRemoved(visitor, old, newParent)
     }
 
@@ -586,20 +571,7 @@ class CodebaseComparator {
                             item1.name().compareTo((item2 as FieldItem).name())
                         }
                         is PropertyItem -> {
-                            var delta = item1.name().compareTo((item2 as PropertyItem).name())
-                            if (delta == 0) {
-                                // If the properties have the same name, additionally check the
-                                // receiver types.
-                                delta =
-                                    item1.receiver?.let { receiver1 ->
-                                        item2.receiver?.let { receiver2 ->
-                                            receiver1
-                                                .toTypeString()
-                                                .compareTo(receiver2.toTypeString())
-                                        } ?: -1
-                                    } ?: 1
-                            }
-                            delta
+                            item1.name().compareTo((item2 as PropertyItem).name())
                         }
                         else -> error("Unexpected item $item1 of ${item1.javaClass}")
                     }

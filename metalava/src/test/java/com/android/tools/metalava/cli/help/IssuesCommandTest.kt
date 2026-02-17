@@ -38,7 +38,6 @@ Available Issues                             |  Category                        
   ActionValue                                |  api_lint                             |   error
   AddSealed                                  |  source_compatibility_only            |   error
   AddedAbstractMethod                        |  binary_and_source_compatibility      |   error
-  AddedAbstractProperty                      |  source_compatibility_only            |   error
   AddedAnnotation                            |  other_compatibility                  |   error
   AddedClass                                 |  other_compatibility                  |   hidden
   AddedField                                 |  other_compatibility                  |   hidden
@@ -47,7 +46,6 @@ Available Issues                             |  Category                        
   AddedInterface                             |  other_compatibility                  |   hidden
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
-  AddedProperty                              |  other_compatibility                  |   hidden
   AddedReified                               |  binary_compatibility_only            |   error
   AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
@@ -98,7 +96,7 @@ Available Issues                             |  Category                        
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
   FacadeClassJvmName                         |  api_lint                             |   hidden
-  FlaggedApiLiteral                          |  api_lint                             |   error
+  FlaggedApiLiteral                          |  api_lint                             |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                             |   error
   ForbiddenTag                               |  documentation                        |   error
   FractionFloat                              |  api_lint                             |   error
@@ -212,7 +210,6 @@ Available Issues                             |  Category                        
   RemovedJvmDefaultWithCompatibility         |  binary_compatibility_only            |   error
   RemovedMethod                              |  binary_and_source_compatibility      |   error
   RemovedPackage                             |  binary_and_source_compatibility      |   error
-  RemovedProperty                            |  source_compatibility_only            |   error
   RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error

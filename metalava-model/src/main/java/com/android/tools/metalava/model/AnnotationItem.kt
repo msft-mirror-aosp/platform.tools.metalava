@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
+import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
 
@@ -49,18 +50,6 @@ fun isNonNullAnnotation(qualifiedName: String): Boolean {
 
 fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
     return qualifiedName == JVM_SYNTHETIC
-}
-
-/** Enumeration of the possible purposes of an [AnnotationItem]. */
-enum class AnnotationPurpose {
-    /** Annotates an [Item]. */
-    ITEM,
-
-    /** A [Value]. */
-    VALUE,
-
-    /** Annotates a [TypeItem]. */
-    TYPE,
 }
 
 sealed interface AnnotationItem {
@@ -94,32 +83,31 @@ sealed interface AnnotationItem {
 
     /**
      * Append the string representation of this annotation to the [builder] according to
-     * [configuration] and [purpose].
+     * [configuration] and [annotationIsValue].
      *
-     * If [purpose] is [AnnotationPurpose.VALUE] then this is being written out as a value, i.e.
-     * either nested within another [AnnotationItem] or as [MethodItem.defaultValue]. In that case
+     * If [annotationIsValue] is `true` then this is being written out as a value, i.e. either
+     * nested within another [AnnotationItem] or as [MethodItem.defaultValue]. In that case
      * [ValueStringConfiguration.valueLanguage] affects the representation of the annotation as
      * follows:
      * * Kotlin does not use a leading `@` for annotation values but Java does.
      * * Parentheses are optional everywhere for an annotation with an empty attributes list except
      *   when used as a Kotlin annotation value where they are required.
      *
-     * Otherwise, this uses the [ValueLanguage.JAVA] representation as that is the same as Kotlin.
+     * Otherwise, if [annotationIsValue] is `false` then this uses the [ValueLanguage.JAVA]
+     * representation as that is the same as Kotlin.
      */
     fun appendAnnotationStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration,
-        purpose: AnnotationPurpose,
+        annotationIsValue: Boolean,
     ) {
         // While top level annotations use the Java syntax for Kotlin and Java, nested annotations
         // use different syntax for each one.
-        val language =
-            if (purpose == AnnotationPurpose.VALUE) configuration.valueLanguage
-            else ValueLanguage.JAVA
+        val language = if (annotationIsValue) configuration.valueLanguage else ValueLanguage.JAVA
         builder.append(language.annotationClassPrefix)
 
         // Get the annotation class name.
-        val formatName = configuration.annotationQualifiedNameGetter(this, purpose)
+        val formatName = configuration.annotationQualifiedNameGetter(this)
         builder.append(formatName)
 
         if (language.annotationAttributesListRequiresParentheses || attributes.isNotEmpty()) {
@@ -279,22 +267,22 @@ sealed interface AnnotationItem {
         }
 
         /**
-         * Given [annotationClassName], shortens it by removing redundant package names. This is
+         * Given a "full" annotation name, shortens it by removing redundant package names. This is
          * intended to be used to reduce clutter in signature files.
          *
-         * For example, this method will convert `androidx.annotation.Nullable` to just `Nullable`,
-         * and `@androidx.annotation.IntRange(from=20)` to `IntRange(from=20)`.
+         * For example, this method will convert `@androidx.annotation.Nullable` to just
+         * `@Nullable`, and `@androidx.annotation.IntRange(from=20)` to `IntRange(from=20)`.
          */
-        fun shortenAnnotation(annotationClassName: String): String {
+        fun shortenAnnotation(source: String): String {
             return when {
-                annotationClassName == "java.lang.Deprecated" -> "Deprecated"
-                annotationClassName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
-                    annotationClassName.substring(ANDROID_ANNOTATION_PREFIX.length)
+                source == "@java.lang.Deprecated" -> "@Deprecated"
+                source.startsWith(ANDROID_ANNOTATION_PREFIX, 1) -> {
+                    "@" + source.substring(ANDROID_ANNOTATION_PREFIX.length + 1)
                 }
-                annotationClassName.startsWith(ANDROIDX_ANNOTATION_PREFIX) -> {
-                    annotationClassName.substring(ANDROIDX_ANNOTATION_PREFIX.length)
+                source.startsWith(ANDROIDX_ANNOTATION_PREFIX, 1) -> {
+                    "@" + source.substring(ANDROIDX_ANNOTATION_PREFIX.length + 1)
                 }
-                else -> annotationClassName
+                else -> source
             }
         }
 
@@ -302,24 +290,25 @@ sealed interface AnnotationItem {
          * Reverses the [shortenAnnotation] method. Intended for use when reading in signature files
          * that contain shortened type references.
          */
-        fun unshortenAnnotation(annotationClassName: String): String {
+        fun unshortenAnnotation(source: String): String {
             return when {
-                annotationClassName == "Deprecated" -> "java.lang.Deprecated"
+                source == "@Deprecated" -> "@java.lang.Deprecated"
                 // The first 4 annotations are in the android.annotation. package, not
                 // androidx.annotation
                 // Nullability annotations are written as @NonNull and @Nullable in API text files,
-                // and these should be linked to android.annotation package when generating stubs.
-                annotationClassName == "SystemService" ||
-                    annotationClassName == "TargetApi" ||
-                    annotationClassName == "SuppressLint" ||
-                    annotationClassName == "FlaggedApi" ||
-                    annotationClassName == "Nullable" ||
-                    annotationClassName == "NonNull" ->
-                    "$ANDROID_ANNOTATION_PREFIX$annotationClassName"
-                // If the first character of the name is lower-case, then assume it's a package
-                // name, so no need to shorten it.
-                annotationClassName[0].isLowerCase() -> annotationClassName
-                else -> "$ANDROIDX_ANNOTATION_PREFIX$annotationClassName"
+                // and these should be linked no android.annotation package when generating stubs.
+                source.startsWith("@SystemService") ||
+                    source.startsWith("@TargetApi") ||
+                    source.startsWith("@SuppressLint") ||
+                    source.startsWith("@FlaggedApi") ||
+                    source.startsWith("@Nullable") ||
+                    source.startsWith("@NonNull") -> "@android.annotation." + source.substring(1)
+                // If the first character of the name (after "@") is lower-case, then
+                // assume it's a package name, so no need to shorten it.
+                source.startsWith("@") && source[1].isLowerCase() -> source
+                else -> {
+                    "@androidx.annotation." + source.substring(1)
+                }
             }
         }
 
@@ -543,9 +532,8 @@ internal abstract class BaseAnnotationItem(
         appendAnnotationStringTo(
             this,
             ValueStringConfiguration.DEFAULT,
-            // Assume that the annotation is for an item. That should be safe as this is only used
-            // for debugging and testing purposes.
-            AnnotationPurpose.ITEM,
+            // This method is never used for values.
+            annotationIsValue = false,
         )
     }
 }
@@ -621,22 +609,34 @@ sealed interface AnnotationAttribute {
          * [valueProvider] when requested.
          */
         fun createLazyAttribute(name: String, valueProvider: ValueProvider): AnnotationAttribute =
-            LazyAnnotationAttribute(name, valueProvider)
+            DefaultAnnotationAttribute(name, valueProvider)
 
         /** Create an [AnnotationAttribute] called [name] with [value]. */
         fun createAttribute(name: String, value: Value): AnnotationAttribute =
-            DefaultAnnotationAttribute(name, value)
+            DefaultAnnotationAttribute(name, value.provider())
     }
 }
 
-/** Base implementation of [AnnotationAttribute]. */
-private abstract class BaseAnnotationAttribute(
-    final override val name: String,
+internal class DefaultAnnotationAttribute(
+    override val name: String,
+    private val valueProvider: ValueProvider,
 ) : AnnotationAttribute {
 
+    override val value: Value
+        get() = valueProvider.value
+
     override fun snapshot(targetContext: AnnotationContext): DefaultAnnotationAttribute {
-        val valueSnapshot = value.snapshot(targetContext)
-        return DefaultAnnotationAttribute(name, valueSnapshot)
+        // Defer retrieval of the value until it is needed as it could throw an exception.
+        // This makes it easier to incrementally expand the Value model without breaking
+        // existing snapshot tests.
+        // TODO(b/354633349): Stop deferring retrieval.
+        val valueProvider =
+            object : ValueProvider {
+                override val value: Value
+                    get() = this@DefaultAnnotationAttribute.value.snapshot(targetContext)
+            }
+
+        return DefaultAnnotationAttribute(name, valueProvider)
     }
 
     override fun toString(): String {
@@ -654,19 +654,3 @@ private abstract class BaseAnnotationAttribute(
         return result
     }
 }
-
-/** Lazy [AnnotationAttribute] that takes a [ValueProvider] to defer creating the [Value]. */
-private class LazyAnnotationAttribute(
-    name: String,
-    private val valueProvider: ValueProvider,
-) : BaseAnnotationAttribute(name) {
-
-    override val value: Value
-        get() = valueProvider.value
-}
-
-/** Simple [AnnotationAttribute] that takes a [Value] directly. */
-private class DefaultAnnotationAttribute(
-    name: String,
-    override val value: Value,
-) : BaseAnnotationAttribute(name)

@@ -28,15 +28,13 @@ sealed interface AnnotationFormatter {
     /** Format [annotationItem] as part of [context]. */
     fun formatAnnotation(
         annotationItem: AnnotationItem,
-        purpose: AnnotationPurpose,
         context: Item? = null,
-    ) = buildString { appendFormatAnnotation(this, annotationItem, purpose, context) }
+    ) = buildString { appendFormatAnnotation(this, annotationItem, context) }
 
     /** Format [annotationItem] as part of [context] and append to [builder]. */
     fun appendFormatAnnotation(
         builder: StringBuilder,
         annotationItem: AnnotationItem,
-        purpose: AnnotationPurpose,
         context: Item? = null,
     )
 
@@ -66,16 +64,9 @@ sealed interface AnnotationFormatter {
         override fun appendFormatAnnotation(
             builder: StringBuilder,
             annotationItem: AnnotationItem,
-            purpose: AnnotationPurpose,
             context: Item?
         ) {
-            legacyValueFormatter.appendFormatAnnotation(
-                builder,
-                annotationItem,
-                purpose,
-                target,
-                context
-            )
+            legacyValueFormatter.appendFormatAnnotation(builder, annotationItem, target, context)
         }
     }
 
@@ -86,7 +77,7 @@ sealed interface AnnotationFormatter {
             ValueStringConfiguration(
                 annotationAttributeNameValueSeparator =
                     AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
-                annotationQualifiedNameGetter = { annotationItem, _ ->
+                annotationQualifiedNameGetter = { annotationItem ->
                     annotationItem.annotationContext.annotationManager.normalizeOutputName(
                         annotationItem.qualifiedName,
                         target
@@ -108,7 +99,6 @@ sealed interface AnnotationFormatter {
         override fun appendFormatAnnotation(
             builder: StringBuilder,
             annotationItem: AnnotationItem,
-            purpose: AnnotationPurpose,
             context: Item?
         ) {
             val alwaysInline = annotationItem.qualifiedName == ANDROID_FLAGGED_API
@@ -117,7 +107,7 @@ sealed interface AnnotationFormatter {
             annotationItem.appendAnnotationStringTo(
                 builder,
                 configuration,
-                purpose,
+                annotationIsValue = false,
             )
         }
     }

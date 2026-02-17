@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -98,18 +97,15 @@ class DefaultPackageItem(
      */
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
-        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ): ReferencableItem? {
         // First, check to see if it [simpleName] is a class in this package, returning it if it is.
         val inPackageName = packageRelativeName(simpleName)
-        return nameClassification.findClass { codebase.resolveClass(inPackageName) }
+        return codebase.resolveClass(inPackageName)
             // Then, if allowed, check to see if it is a sub-package of this one.
-            ?: nameClassification.findPackage {
-                if (!isFirstSimpleName || containingPackage == null)
-                    codebase.resolvePackage(inPackageName)
-                else null
-            }
+            ?: if (!isFirstSimpleName || containingPackage == null)
+                codebase.resolvePackage(inPackageName)
+            else null
     }
 
     // N.A. a package cannot be contained in a class

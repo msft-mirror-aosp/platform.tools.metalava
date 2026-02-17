@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
@@ -38,7 +37,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
-import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.utils.extractSimpleName
@@ -248,32 +246,6 @@ open class DefaultClassItem(
         mutableConstructors += constructor
     }
 
-    /**
-     * If there is a version of [item] already in [mutableItems], replaces the existing version with
-     * [item]. Otherwise, adds [item] to the end of [mutableItems].
-     */
-    private fun <I : Item> replaceOrAddItem(item: I, mutableItems: MutableList<I>) {
-        ensureNotFrozen()
-        val iterator = mutableItems.listIterator()
-        while (iterator.hasNext()) {
-            val existing = iterator.next()
-            if (existing == item) {
-                iterator.set(item)
-                return
-            }
-        }
-        mutableItems += item
-    }
-
-    /**
-     * If there is already a constructor with the same signature as [constructor], replaces the
-     * existing version with the new one. If there is not a matching constructor, just adds
-     * [constructor] to the list of constructors.
-     */
-    fun replaceOrAddConstructor(constructor: ConstructorItem) {
-        replaceOrAddItem(constructor, mutableConstructors)
-    }
-
     override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
             codebase = codebase,
@@ -300,7 +272,16 @@ open class DefaultClassItem(
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem) {
-        replaceOrAddItem(method, mutableMethods)
+        ensureNotFrozen()
+        val iterator = mutableMethods.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == method) {
+                iterator.set(method)
+                return
+            }
+        }
+        mutableMethods += method
     }
 
     /** The mutable list of [FieldItem] that backs [fields]. */
@@ -325,15 +306,6 @@ open class DefaultClassItem(
         mutableProperties += property
     }
 
-    /**
-     * If there is already a property with the same signature as [property], replaces the existing
-     * version with the new one. If there is not a matching property, just adds [property] to the
-     * list of properties.
-     */
-    fun replaceOrAddProperty(property: PropertyItem) {
-        replaceOrAddItem(property, mutableProperties)
-    }
-
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
 
@@ -350,7 +322,6 @@ open class DefaultClassItem(
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
-        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ) =
         // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
@@ -358,28 +329,16 @@ open class DefaultClassItem(
         if (simpleName == simpleName()) this
         else
         // Then check to see type parameters.
-        nameClassification.findTypeParameter { typeParameterList.find { it.name() == simpleName } }
+        typeParameterList.find { it.name() == simpleName }
                 // Then, check to see if it is a field of this class.
-                ?: nameClassification.findField { mutableFields.find { it.name() == simpleName } }
+                ?: mutableFields.find { it.name() == simpleName }
                 // Then, check to see if it matches a nested class and if it does then return that.
-                ?: nameClassification.findClass {
-                    mutableNestedClasses.find { it.simpleName() == simpleName }
-                }
+                ?: mutableNestedClasses.find { it.simpleName() == simpleName }
                 // Then, check to see if it matches a class defined in a super class.
-                ?: superClass()
-                    ?.resolveReferencableItemBySimpleName(
-                        simpleName,
-                        nameClassification,
-                        isFirstSimpleName
-                    )
+                ?: superClass()?.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
                 // Then, check to see if it matches a class defined in a super interface.
                 ?: interfaceTypes().firstNotNullOfOrNull {
-                    it.asClass()
-                        ?.resolveReferencableItemBySimpleName(
-                            simpleName,
-                            nameClassification,
-                            isFirstSimpleName
-                        )
+                    it.asClass()?.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
                 }
 
     /** Cache value of [annotationClass]. */

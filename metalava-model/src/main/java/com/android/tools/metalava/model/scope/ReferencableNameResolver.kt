@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.ReferencableItem
 /** Implementation of [ReferencableNameScope.resolveReferencableItem]. */
 internal object ReferencableNameResolver {
     /**
-     * Resolve [referencableName] as [nameClassification] within [scope]
+     * Resolve [referencableName] within [scope].
      *
      * First, this will recursively call itself removing the trailing simple name from
      * [referencableName] until it is just a single simple name.
@@ -43,15 +43,10 @@ internal object ReferencableNameResolver {
      *     * Search for `io` in `PackageItem("java")` finding `PackageItem("java.io")`.
      * * Search for `IOException` in `PackageItem("java.io")` finding
      *   `ClassItem("java.io.IOException")`.
-     *
-     * The [nameClassification] determines the type of items to which the [referencableName] can
-     * refer. It limits the return types to one of the allowable item types (or
-     * [InvalidReferencableItem]).
      */
     fun resolveReferencableItem(
         scope: ReferencableNameScope,
-        referencableName: String,
-        nameClassification: NameClassification,
+        referencableName: String
     ): ReferencableItem {
         val length = referencableName.length
 
@@ -75,50 +70,43 @@ internal object ReferencableNameResolver {
             // string will be returned so this does not have to do that.
             val simpleName = referencableName.substring(startIndex, endIndex)
 
-            // If this is searching for the last simple name then use the classification supplied to
-            // this method, otherwise just look for items that can qualify other names.
-            val simpleNameClassification =
-                if (dotIndex == -1) nameClassification else NameClassification.QUALIFIER
-
             // Resolve the simple name against the current scope.
             val resolved =
                 if (startIndex == 0) {
                     // If this is the first name to be resolved then search all the enclosing scopes
                     // of the current scope.
-                    searchEnclosingScopes(currentScope, simpleName, simpleNameClassification)
+                    searchEnclosingScopes(currentScope, simpleName)
                 } else {
                     // Otherwise, only search the current scope for the simple name.
                     currentScope.resolveReferencableItemBySimpleName(
                         simpleName,
-                        simpleNameClassification,
                         isFirstSimpleName = false,
                     )
                 }
                     // If the simple name could not be found then it is an error.
-                    ?: run {
-                        // Use a shorter message for unqualified references that avoids duplicating
-                        // the reference multiple times in the message.
-                        val unqualifiedName = startIndex == 0 && dotIndex == -1
-                        val message =
-                            if (unqualifiedName) {
-                                "Could not resolve ${simpleNameClassification.describeName(simpleName)} in '$currentScope'"
-                            } else {
-                                "Could not resolve ${nameClassification.describeName(referencableName)} as could not find ${simpleNameClassification.describeName(simpleName)} in '$currentScope'"
-                            }
-
-                        return InvalidReferencableItem(message)
-                    }
+                    ?: return InvalidReferencableItem(
+                        unresolvedReferenceName = referencableName,
+                        failingScopeName = currentScope.toString(),
+                        failingSimpleName = simpleName,
+                        reason = InvalidReferencableItem.Reason.NOT_FOUND,
+                    )
 
             // If that was the last simple name to search then return the result.
             if (dotIndex == -1) {
                 return resolved
             }
 
-            // Otherwise, treat the resolved item as the next scope to search. At this point
-            // `resolved` will always be an instance of [QualifiedNameScope] as `resolved` is the
-            // result of resolving `simpleName` using [NameClassification.QUALIFIER] and that will
-            // always return either `null` (handled above), `PackageItem`, or `ClassItem`.
-            currentScope = resolved as QualifiedNameScope
+            // Otherwise, if possible treat the resolved item as the next scope to search.
+            currentScope =
+                resolved as? QualifiedNameScope
+                    // It is an error for a containing name to resolve to something that cannot
+                    // resolve a qualified name.
+                    ?: return InvalidReferencableItem(
+                        unresolvedReferenceName = referencableName,
+                        failingScopeName = currentScope.toString(),
+                        failingSimpleName = simpleName,
+                        reason = InvalidReferencableItem.Reason.NOT_QUALIFIED_SCOPE,
+                    )
 
             // Move onto the next simple name to find.
             startIndex = endIndex + 1
@@ -128,24 +116,17 @@ internal object ReferencableNameResolver {
     /**
      * Search for [simpleName] in [scope] and all its [ReferencableNameScope.containingScope]s,
      * returning the [ReferencableItem] that is found, or `null` otherwise.
-     *
-     * The [simpleName] is classified by [nameClassification].
      */
     private fun searchEnclosingScopes(
         scope: ReferencableNameScope,
-        simpleName: String,
-        nameClassification: NameClassification
+        simpleName: String
     ): ReferencableItem? {
         // Traverse through the scopes, starting with the one supplied to see if they can map
         // it to a [ReferencableItem].
         var current: ReferencableNameScope? = scope
         while (current != null) {
             current
-                .resolveReferencableItemBySimpleName(
-                    simpleName,
-                    nameClassification,
-                    isFirstSimpleName = true
-                )
+                .resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName = true)
                 ?.let { result ->
                     return result
                 }

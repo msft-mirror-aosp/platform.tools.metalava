@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
@@ -169,6 +170,9 @@ internal class PsiBasedCodebase(
     }
 
     override fun isFromClassPath() = fromClasspath
+
+    override fun createAnnotation(source: String, context: Item?) =
+        psiAssembler.createAnnotation(source, context)
 
     /**
      * Override to allow access to the [AnnotationDefaults] without having to resolve a [ClassItem]

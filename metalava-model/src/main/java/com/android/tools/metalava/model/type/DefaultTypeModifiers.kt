@@ -36,32 +36,21 @@ class DefaultTypeModifiers(
         else this
 
     companion object {
-        /** Get an empty (no annotations) [TypeModifiers] for [typeNullability]. */
-        private fun emptyModifiers(typeNullability: TypeNullability) =
-            emptyModifiersByNullability[typeNullability.ordinal]
-
-        /**
-         * A list of empty [DefaultTypeModifiers] instances, one for each [TypeNullability] indexed
-         * by [TypeNullability.ordinal].
-         */
-        private val emptyModifiersByNullability =
-            buildList<TypeModifiers> {
-                for (typeNullability in TypeNullability.entries) {
-                    add(DefaultTypeModifiers(emptyList(), typeNullability))
-                }
-            }
-
         /** A set of empty, non-null [TypeModifiers] for sharing. */
-        val emptyNonNullModifiers = emptyModifiers(TypeNullability.NONNULL)
+        val emptyNonNullModifiers: TypeModifiers =
+            DefaultTypeModifiers(emptyList(), TypeNullability.NONNULL)
 
         /** A set of empty, nullable [TypeModifiers] for sharing. */
-        val emptyNullableModifiers = emptyModifiers(TypeNullability.NULLABLE)
+        val emptyNullableModifiers: TypeModifiers =
+            DefaultTypeModifiers(emptyList(), TypeNullability.NULLABLE)
 
         /** A set of empty, platform [TypeModifiers] for sharing. */
-        val emptyPlatformModifiers = emptyModifiers(TypeNullability.PLATFORM)
+        val emptyPlatformModifiers: TypeModifiers =
+            DefaultTypeModifiers(emptyList(), TypeNullability.PLATFORM)
 
         /** A set of empty, undefined [TypeModifiers] for sharing. */
-        val emptyUndefinedModifiers = emptyModifiers(TypeNullability.UNDEFINED)
+        val emptyUndefinedModifiers: TypeModifiers =
+            DefaultTypeModifiers(emptyList(), TypeNullability.UNDEFINED)
 
         /**
          * Create a [DefaultTypeModifiers].
@@ -84,7 +73,12 @@ class DefaultTypeModifiers(
 
             // If the annotations are empty then use one of the predefined instances.
             if (annotations.isEmpty()) {
-                return emptyModifiers(nullability)
+                return when (nullability) {
+                    TypeNullability.NONNULL -> emptyNonNullModifiers
+                    TypeNullability.NULLABLE -> emptyNullableModifiers
+                    TypeNullability.PLATFORM -> emptyPlatformModifiers
+                    TypeNullability.UNDEFINED -> emptyUndefinedModifiers
+                }
             }
 
             return DefaultTypeModifiers(annotations, nullability)

@@ -77,9 +77,9 @@ enum class TypeNullability(
     companion object {
         /** Given a nullness [annotation], returns the corresponding [TypeNullability]. */
         fun ofAnnotation(annotation: AnnotationItem): TypeNullability {
-            return if (isNullableAnnotation(annotation.qualifiedName)) {
+            return if (isNullableAnnotation(annotation.qualifiedName.orEmpty())) {
                 NULLABLE
-            } else if (isNonNullAnnotation(annotation.qualifiedName)) {
+            } else if (isNonNullAnnotation(annotation.qualifiedName.orEmpty())) {
                 NONNULL
             } else {
                 throw IllegalStateException("Not a nullness annotation: $annotation")

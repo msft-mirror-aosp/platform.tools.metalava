@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationPurpose
 import com.android.tools.metalava.model.Assertions.Companion.assertField
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.FieldItem
@@ -70,7 +69,6 @@ enum class LegacyValueUseSite(
             val wholeAnnotation =
                 annotationFormatter.formatAnnotation(
                     annotation,
-                    AnnotationPurpose.VALUE,
                     context = testClassItem,
                 )
 

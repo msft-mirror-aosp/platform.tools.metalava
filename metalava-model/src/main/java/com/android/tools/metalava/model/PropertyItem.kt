@@ -18,7 +18,7 @@ package com.android.tools.metalava.model
 
 import java.util.Objects
 
-interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
+interface PropertyItem : MemberItem, TypeParameterListOwner {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
         get() = null
@@ -80,7 +80,9 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
 
         return name() == other.name() &&
             containingClass() == other.containingClass() &&
-            equalReceivers(receiver, other.receiver)
+            // Nullability is important for property receivers because kotlin allows defining
+            // properties which differ only in receiver nullability.
+            return receiver?.equalToType(other.receiver, true) ?: (other.receiver == null)
     }
 
     override fun hashCodeForItem(): Int {
@@ -103,13 +105,6 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
-        }
-
-        /** Returns whether the two types should be considered equal property receivers. */
-        fun equalReceivers(receiver1: TypeItem?, receiver2: TypeItem?): Boolean {
-            // Nullability is important for property receivers because kotlin allows defining
-            // properties which differ only in receiver nullability.
-            return receiver1?.equalToType(receiver2, true) ?: (receiver2 == null)
         }
     }
 }

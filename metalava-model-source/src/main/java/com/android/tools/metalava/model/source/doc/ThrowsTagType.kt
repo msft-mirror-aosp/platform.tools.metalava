@@ -16,10 +16,6 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.InvalidReferencableItem
-import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
@@ -35,7 +31,7 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BL
         // Resolve the class name to a fully qualified class reference or type parameter. If it
         // could not be found then fake one.
         val throwableReference =
-            resolveThrowableType(context, reporter, throwsName) ?: ClassReference(throwsName)
+            context.resolveThrowableType(reporter, throwsName) ?: ClassReference(throwsName)
 
         return ExtractDataResult(
             tagData =
@@ -46,30 +42,6 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BL
             // they are part of [ThrowsTagData].
             consumedContent = text.skipForwardsOverLeadingWhitespace(throwsName.length),
         )
-    }
-
-    /**
-     * Resolve [typeName] (which may be a reference to a class or a type parameter) to a
-     * [TypeReference], if possible.
-     */
-    private fun resolveThrowableType(
-        context: DocCommentContext,
-        reporter: LocationSpecificReporter,
-        typeName: String
-    ): TypeReference? {
-        val resolved = context.resolveItemReference(typeName, NameClassification.TYPE)
-        // TODO(b/447588621): Ensure that the resolved type is a Throwable.
-        return when (resolved) {
-            is ClassItem -> resolved.toResolvedReference()
-            is TypeParameterItem -> resolved.toResolvedReference()
-            is InvalidReferencableItem -> {
-                resolved.reportIssue(reporter)
-                null
-            }
-            // This should never happen as passing in NameClassification.TYPE above should limit the
-            // returned types to ClassItem, TypeParameterItem or InvalidReferencableItem
-            else -> error("type '$typeName' was resolved to an unknown type $resolved")
-        }
     }
 }
 

@@ -18,29 +18,36 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
-import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.doc.BlockTagSection
+import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
+import com.android.tools.metalava.model.source.doc.PackageReference
+import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TagTypes
+import com.android.tools.metalava.model.source.doc.TypeParameterReference
+import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 import java.io.PrintWriter
 
 /**
@@ -143,11 +150,8 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
-    override fun resolveItemReference(
-        sourceReference: String,
-        nameClassification: NameClassification
-    ): ReferencableItem {
-        return item.resolveReferencableItem(sourceReference, nameClassification)
+    override fun resolveItemReference(sourceReference: String): ReferencableItem {
+        return item.resolveReferencableItem(sourceReference)
     }
 
     /** Implements [ExprContext.isFlagEnabled]. */
@@ -210,13 +214,48 @@ abstract class AbstractItemDocumentation(
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
 
-    override val containingClassItem: ClassItem?
-        get() =
-            when (item) {
-                is ClassItem -> item
-                is MemberItem -> item.containingClass()
-                else -> null
+    private fun PackageItem.toResolvedReference() = PackageReference(qualifiedName())
+
+    private fun ClassItem.toResolvedReference() = ClassReference(qualifiedName())
+
+    private fun TypeParameterItem.toResolvedReference() = TypeParameterReference(name())
+
+    override fun resolveThrowableType(
+        reporter: LocationSpecificReporter,
+        typeName: String
+    ): TypeReference? {
+        val resolved = item.resolveReferencableItem(typeName)
+        return when (resolved) {
+            is ClassItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
+            is InvalidReferencableItem -> {
+                reporter.report(Issues.UNRESOLVED_LINK, resolved.message)
+                null
             }
+            else -> {
+                reporter.report(
+                    Issues.INVALID_DOC_THROWS_TYPE,
+                    "Invalid @throws type '$typeName': it should reference a class but it resolves to $resolved"
+                )
+                null
+            }
+        }
+    }
+
+    override fun resolveReference(sourceReference: String): ResolvedReference? {
+        // Ignore references to members for now.
+        val hashIndex = sourceReference.indexOf('#')
+        if (hashIndex != -1) return null
+
+        // Resolve the reference.
+        val resolved = item.resolveReferencableItem(sourceReference)
+        return when (resolved) {
+            is ClassItem -> resolved.toResolvedReference()
+            is PackageItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
+            else -> null
+        }
+    }
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")
