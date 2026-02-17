@@ -428,16 +428,19 @@ class CommonPackageItemTest : BaseModelTest() {
                         }
                     """
                 ),
-                html(
-                    "src/other/pkg/package.html",
-                    """
-                        <HTML>
-                        <BODY>
-                        Some text.
-                        </BODY>
-                        </HTML>
-                    """
-                ),
+                sourcePathFiles =
+                    listOf(
+                        html(
+                            "src/other/pkg/package.html",
+                            """
+                                <HTML>
+                                <BODY>
+                                Some text.
+                                </BODY>
+                                </HTML>
+                            """
+                        ),
+                    ),
             ),
         ) {
             val packageItem = codebase.findPackage("other.pkg")
@@ -643,9 +646,6 @@ class CommonPackageItemTest : BaseModelTest() {
                 // Should be treated as being relative to the containing directory with the longest
                 // path, i.e. `TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name` and so be
                 // applicable to the `other` package.
-                // TODO(b/479907812): Is actually resolved relative to
-                //  `TEST-ROOT/src/a-really-long-dir-name` because while that is a shorter path
-                //  `a-really-long-dir-name` is a longer name that `shorter-dir-name`.
                 html(
                     "a-really-long-dir-name/shorter-dir-name/other/package.html",
                     """
@@ -660,8 +660,7 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("other")
 
-            // TODO(b/479907812): Should be "Some text".
-            packageItem.assertPrintedDocumentation(expectedOutput = "")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text */")
         }
     }
 }

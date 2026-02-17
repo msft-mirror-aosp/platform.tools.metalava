@@ -76,7 +76,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      */
     private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
         val packages = mutableMapOf<String, MutablePackageDoc>()
-        val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
+        val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.path.length }
         for (file in sourceSet.sources) {
             val documentationFile =
                 when (file.name) {
