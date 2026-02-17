@@ -42,6 +42,9 @@ import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.ConstVarName
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Literal
+import com.google.turbine.tree.TurbineOperatorKind
+import com.google.turbine.tree.TurbineOperatorKind.Precedence
+import kotlin.collections.fold
 
 /**
  * Factory for creating [Value]s from [TurbineValue]s.
@@ -325,6 +328,12 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
      * This is needed because Turbine automatically converts an expression to a constant value
      * suitable for the type. However, in some cases, the original type of the expression can affect
      * the formatting of the value.
+     *
+     * The order matters and is relied upon in [originalNumericKindOfBinaryOp]. They are in order
+     * such that if two expressions have [OriginalNumericKind] of `o1` and o2` then if `o2 > o1`
+     * then the result of combining the two expressions with most binary operators will be `o2`.
+     * e.g. [INT] combined with [FLOAT] will result in [FLOAT], [FLOAT] combined with [OTHER] (say
+     * `double`), will result in `double`, i.e. [OTHER].
      */
     enum class OriginalNumericKind {
         /**
@@ -364,6 +373,49 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
         abstract fun toOriginalNumberTypeIfNeeded(underlyingValue: Any): Any
     }
 
+    /** Compute the [OriginalNumericKind] as a result of applying [binaryOp] to [lhs] and [rhs]. */
+    private fun originalNumericKindOfBinaryOp(
+        binaryOp: TurbineOperatorKind,
+        lhs: OriginalNumericKind?,
+        rhs: OriginalNumericKind
+    ) =
+        when (lhs) {
+            // If the lhs is null (the starting value) then just use the rhs.
+            null -> rhs
+
+            // If the lhs and rhs are equal then use the lhs
+            rhs -> lhs
+
+            // Otherwise, compare based on the operator.
+            else -> {
+                // Compare the precedence as that simplifies the check allowing groups of operators
+                // to be checked in one go.
+                when (val precedence = binaryOp.prec()) {
+                    Precedence.SHIFT -> {
+                        // Shift operators always use the lhs.
+                        lhs
+                    }
+                    Precedence.RELATIONAL,
+                    Precedence.EQUALITY -> {
+                        // Comparison operators always result in boolean which does not need any
+                        // special handling.
+                        OriginalNumericKind.OTHER
+                    }
+                    Precedence.MULTIPLICATIVE,
+                    Precedence.ADDITIVE,
+                    Precedence.BIT_AND,
+                    Precedence.BIT_XOR,
+                    Precedence.BIT_IOR,
+                    Precedence.AND,
+                    Precedence.OR -> {
+                        // Use the maximum of the lhs and rhs.
+                        maxOf(lhs, rhs)
+                    }
+                    else -> error("Unknown binary operator $binaryOp of precedence $precedence")
+                }
+            }
+        }
+
     /**
      * Convert this optional [TurbineConstantTypeKind] to its corresponding [OriginalNumericKind].
      */
@@ -389,6 +441,33 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                 // Get the OriginalNumericKind from the expression the unary operator is being
                 // applied to.
                 expr().getOriginalNumericKind()
+            }
+            is Tree.Binary -> {
+                // The OriginalNumericKind is determined by combining the OriginalNumericKind of
+                // each expression according to the operator/
+                val operatorKind = op()
+
+                // Although this is binary operator it can actually have more than two children.
+                // e.g. `1 + 2 + 3` is represented as two Binary instances both using the `+`
+                // operator but children will return three expressions, `1`, `2`, `3`.
+                val children = children().toList()
+
+                // Combine the OriginalNumericKind of the first pair of children according to the
+                // operator and then combine the result of that with the next child and so on.
+                children.fold(null) { accumulator, expr ->
+                    val kind = expr.getOriginalNumericKind()
+                    originalNumericKindOfBinaryOp(operatorKind, accumulator, kind)
+                } ?: OriginalNumericKind.OTHER
+            }
+            is Tree.Paren -> {
+                // The OriginalNumericKind of a parenthesis expression is just the
+                // OriginalNumericKind of the contained expression.
+                expr().getOriginalNumericKind()
+            }
+            is Tree.TypeCast -> {
+                // The OriginalNumericKind of a type case expression is the OriginalNumericKind of
+                // the type to which it is being cast.
+                (ty() as? Tree.PrimTy)?.tykind().toOriginalNumericKind()
             }
             else -> {
                 // The OriginalNumericKind is not known so assume it does not need converting.
