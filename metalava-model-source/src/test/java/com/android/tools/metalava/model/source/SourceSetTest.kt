@@ -20,6 +20,7 @@ import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.File
 import kotlin.test.assertEquals
 import org.junit.After
 import org.junit.Rule
@@ -41,6 +42,30 @@ class SourceSetTest : TemporaryFolderOwner {
     fun tearDown() {
         // Make sure that no unexpected issues were reported.
         assertAndRemoveReportedIssues("")
+    }
+
+    @Test
+    fun `Test extract roots - mixture of relative and absolute files`() {
+        val sources = buildList {
+            add(
+                File("src/main/java/com/android/tools/metalava/model/source/SourceSet.kt")
+                    .absoluteFile
+            )
+            add(File("src/main/java/com/android/tools/metalava/model/source/SourceParser.kt"))
+        }
+        val sourceSet = SourceSet(sources = sources, sourcePath = emptyList())
+        val extractedRoots = sourceSet.extractRoots(reporter)
+
+        assertEquals(sources, extractedRoots.sources)
+        assertEquals(
+            listOf(
+                // TODO(b/479907812): There is actually only one directory in the source path but
+                //  this duplicates it, one absolute and one relative.
+                File("src/main/java").absoluteFile,
+                File("src/main/java"),
+            ),
+            extractedRoots.sourcePath
+        )
     }
 
     @Suppress("DanglingJavadoc")
