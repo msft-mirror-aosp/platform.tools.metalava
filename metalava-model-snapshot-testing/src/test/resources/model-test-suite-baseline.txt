@@ -44,9 +44,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
-com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test overlapping source path dirs[turbine]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid binary reference[turbine,with other but not nested]
   Test invalid binary reference[turbine,without other at all]

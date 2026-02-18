@@ -46,7 +46,9 @@ internal class TurbineSourceParser(
             error("Turbine model does not support --compiled-jar")
         }
 
-        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
+        val sourceSetWithExtractedRoots = sourceSet.extractRoots(codebaseConfig.reporter)
+
+        val rootDir = sourceSetWithExtractedRoots.sourcePath.firstOrNull() ?: File("").canonicalFile
 
         val assembler =
             TurbineCodebaseInitialiser(
@@ -66,7 +68,7 @@ internal class TurbineSourceParser(
 
         try {
             // Initialize the codebase.
-            assembler.initialize(sourceSet, apiPackages)
+            assembler.initialize(sourceSetWithExtractedRoots, apiPackages)
         } catch (_: TurbineError) {
             // Processing was aborted so the `codebase` is not valid so return `null`.
             return null

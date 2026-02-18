@@ -5,9 +5,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
 
-com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test overlapping source path dirs
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid binary reference[with other but not nested]
   Test invalid binary reference[without other at all]
