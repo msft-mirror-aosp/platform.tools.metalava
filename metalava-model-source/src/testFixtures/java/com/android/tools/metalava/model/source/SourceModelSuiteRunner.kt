@@ -85,17 +85,20 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             // Make sure that the input files have been created.
             sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir)
 
-            val environmentManager = sourceModelProvider.createEnvironmentManager(forTesting = true)
-            val testFixture = inputs.testFixture
-            val sourceParser =
-                environmentManager.createSourceParser(
-                    codebaseConfig = testFixture.codebaseConfig,
-                    javaLanguageLevel = testFixture.javaLanguageLevel,
-                    modelOptions = inputs.modelOptions,
-                )
+            // Create an EnvironmentManager and run the tests within it, closing it when finished.
+            sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager
+                ->
+                val testFixture = inputs.testFixture
+                val sourceParser =
+                    environmentManager.createSourceParser(
+                        codebaseConfig = testFixture.codebaseConfig,
+                        javaLanguageLevel = testFixture.javaLanguageLevel,
+                        modelOptions = inputs.modelOptions,
+                    )
 
-            val codebase = sourceParser.createMultiplatformCodebase(projectDescription)
-            test(codebase)
+                val codebase = sourceParser.createMultiplatformCodebase(projectDescription)
+                test(codebase)
+            }
         } ?: error("Project description file is required to create multiplatform codebase.")
     }
 
