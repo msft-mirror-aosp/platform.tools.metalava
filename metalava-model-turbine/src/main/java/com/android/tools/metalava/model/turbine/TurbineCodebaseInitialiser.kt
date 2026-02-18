@@ -52,9 +52,6 @@ import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.parse.Parser
-import com.google.turbine.processing.ModelFactory
-import com.google.turbine.processing.TurbineElements
-import com.google.turbine.processing.TurbineTypes
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.type.AnnoInfo
@@ -62,7 +59,6 @@ import java.io.File
 import java.nio.file.Paths
 import java.util.Optional
 import javax.lang.model.SourceVersion
-import javax.lang.model.element.TypeElement
 
 /**
  * This initializer acts as an adapter between codebase and the output from Turbine parser.
@@ -109,13 +105,6 @@ internal class TurbineCodebaseInitialiser(
         )
 
     override lateinit var valueFactory: TurbineValueFactory
-
-    /**
-     * Data Type: TurbineElements (An implementation of javax.lang.model.util.Elements)
-     *
-     * Usage: Enables lookup of TypeElement objects by name.
-     */
-    private lateinit var turbineElements: TurbineElements
 
     /**
      * Populates [codebase] from the [sourceSet].
@@ -227,13 +216,6 @@ internal class TurbineCodebaseInitialiser(
         // queried first. So, this will search for a class on the source path first and then on the
         // class path.
         envClassMap = CompoundEnv.of<ClassSymbol, TypeBoundClass>(classPathEnv).append(sourceEnv)
-
-        // used to create language model elements for code analysis
-        val factory = ModelFactory(envClassMap, ClassLoader.getSystemClassLoader(), index)
-        // provides type-related operations within the Turbine compiler context
-        val turbineTypes = TurbineTypes(factory)
-        // provides access to code elements (packages, types, members) for analysis.
-        turbineElements = TurbineElements(factory, turbineTypes)
 
         // Create a cache from SourceFile to the TurbineSourceFile wrapper. The latter needs the
         // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
@@ -555,8 +537,6 @@ internal class TurbineCodebaseInitialiser(
         val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
         return LookupKey(ImmutableList.copyOf(idents))
     }
-
-    internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }
 
 /** Create a [SourceFile] for every `.java` file in [sources]. */
