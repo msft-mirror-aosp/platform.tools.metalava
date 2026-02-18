@@ -184,16 +184,6 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                                     "other.pkg.Other",
                                 ),
                         ),
-                    expectedSourceType =
-                        classTypeItem(
-                            // TODO(b/479907812): This qualified name is wrong, should be
-                            //  other.pkg.Other.Nested.
-                            "Other.Nested",
-                            outerClassType =
-                                classTypeItem(
-                                    "other.pkg.Other",
-                                ),
-                        ),
                 ),
 
                 // Test what happens when processing types without an outer class.

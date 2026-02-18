@@ -412,7 +412,18 @@ internal class PsiTypeItemFactory(
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability,
     ): ClassTypeItem {
-        val qualifiedName = psiType.computeQualifiedName()
+        val outerClassType =
+            computeOuterClass(
+                psiType,
+                kotlinType,
+            )
+
+        val qualifiedName =
+            if (outerClassType == null) psiType.computeQualifiedName()
+            else {
+                "${outerClassType.qualifiedName}.${psiType.name}"
+            }
+
         return TypeItem.createClassType(
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             qualifiedName = qualifiedName,
@@ -421,11 +432,7 @@ internal class PsiTypeItemFactory(
                     psiType,
                     kotlinType,
                 ),
-            outerClassType =
-                computeOuterClass(
-                    psiType,
-                    kotlinType,
-                ),
+            outerClassType = outerClassType,
             isValueClassType = kotlinType.isValueClassTypeIfAvailable,
         )
     }
