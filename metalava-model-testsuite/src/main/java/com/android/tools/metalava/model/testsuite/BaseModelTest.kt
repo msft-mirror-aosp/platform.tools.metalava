@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
@@ -450,6 +451,26 @@ abstract class BaseModelTest() :
     /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
     fun signature(to: String, contents: String): TestFile =
         TestFiles.source(to, contents.trimIndent())
+
+    data class JarSupportContext(val jarSupport: JarSupport)
+
+    /** Run a test that uses [JarSupport]. */
+    fun runJarSupportTest(test: JarSupportContext.() -> Unit) {
+        if (jarSupportCapabilities.none { it in runner.capabilities }) {
+            error(
+                "Provider ${runner.providerName} does not support jars; please add one of ${jarSupportCapabilities.joinToString { "@RequiresCapabilities(Capability.$it)" }}` to the test"
+            )
+        }
+        runner.createJarSupportAndRun { jarSupport ->
+            val context = JarSupportContext(jarSupport)
+            context.test()
+        }
+    }
+
+    companion object {
+        /** The set of [Capability] instances supported by [JarSupport]. */
+        private val jarSupportCapabilities = setOf(Capability.CLASS_PATH_RESOLVER)
+    }
 }
 
 /**

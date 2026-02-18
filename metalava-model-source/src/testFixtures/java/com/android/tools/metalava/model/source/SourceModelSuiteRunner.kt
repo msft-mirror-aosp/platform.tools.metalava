@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
+import com.android.tools.metalava.model.testsuite.JarSupport
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.SourceDir
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
@@ -147,5 +148,23 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             SourceSet(sources, sourcePath)
         }
 
+    override fun createJarSupportAndRun(test: (JarSupport) -> Unit) {
+        sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
+            val sourceParser =
+                environmentManager.createSourceParser(
+                    codebaseConfig = Codebase.Config(),
+                )
+
+            val jarSupport = SourceParserJarSupport(sourceParser)
+            test(jarSupport)
+        }
+    }
+
     override fun toString(): String = sourceModelProvider.providerName
+}
+
+/** A [JarSupport] implementation that delegates to [sourceParser]. */
+private class SourceParserJarSupport(private val sourceParser: SourceParser) : JarSupport {
+    override fun getClassPathResolver(classPath: List<File>) =
+        sourceParser.getClassPathResolver(classPath)
 }
