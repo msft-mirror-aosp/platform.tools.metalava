@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
+import com.google.common.collect.ImmutableList
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -176,7 +177,7 @@ internal class TurbineTypeItemFactory(
                 TypeItem.createClassType(
                     TypeModifiers.emptyUndefinedModifiers,
                     type.name(),
-                    emptyList(),
+                    createTypeArguments(type.targs()),
                     null,
                 )
             }
@@ -258,7 +259,7 @@ internal class TurbineTypeItemFactory(
 
         val modifiers = createModifiers(type.annos(), contextNullability)
         val qualifiedName = sym.qualifiedName
-        val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
+        val parameters = createTypeArguments(type.targs())
         return TypeItem.createClassType(
             modifiers,
             qualifiedName,
@@ -266,4 +267,8 @@ internal class TurbineTypeItemFactory(
             outerClassItem,
         )
     }
+
+    /** Create a list of [TypeArgumentTypeItem]s from [types]. */
+    private fun createTypeArguments(types: ImmutableList<Type>) =
+        types.map { getGeneralType(it) as TypeArgumentTypeItem }
 }
