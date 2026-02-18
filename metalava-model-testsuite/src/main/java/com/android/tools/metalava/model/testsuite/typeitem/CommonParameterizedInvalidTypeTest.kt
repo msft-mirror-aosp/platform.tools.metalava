@@ -49,6 +49,14 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
     constructor(
         val name: String,
 
+        /** The type being tested. */
+        val testType: TestType = otherNestedTestType,
+
+        /**
+         * The field in the BinaryTest class to use in the [`Test invalid binary reference`] test.
+         */
+        val binaryTestField: String = "otherNested",
+
         /** The classpath to use in the test. */
         val classpath: List<TestFile>,
 
@@ -127,25 +135,52 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                 )
                 .cacheIn(testFileCacheRule)
 
-        /**
-         * Jar file containing a `test.pkg.BinaryTest` class compiled against [otherWithNestedJar].
-         */
-        private val binaryTestJar =
-            jarFromSources(
-                    "binary-test.jar",
-                    java(
+        /** Encapsulates information about the type being tested. */
+        data class TestType(
+            val name: String,
+
+            /** The reference to use in [javaTestFile]. */
+            val javaReference: String = "Other.Nested",
+
+            /** The import to use in [javaTestFile]. */
+            val javaImport: String = "other.pkg.Other",
+
+            /** The classPath against which [javaTestFile] will be compiled. */
+            val classPath: List<TestFile>,
+        ) {
+            /** The java [TestFile] that encapsulates the type being tested. */
+            val javaTestFile =
+                java(
+                        "$name/test/pkg/Test.java",
                         """
-                            package test.pkg;
-                            import other.pkg.Other;
-                            public class BinaryTest {
-                                private BinaryTest() {}
-                                public Other.Nested field;
-                            }
-                        """
-                    ),
-                    classPath = listOf(otherWithNestedJar),
-                )
-                .cacheIn(testFileCacheRule)
+                        package test.pkg;
+                        import $javaImport;
+                        public class Test {
+                            private Test() {}
+                            public $javaReference field;
+                        }
+                    """
+                    )
+                    .cacheIn(testFileCacheRule)
+
+            /** Jar file containing a [javaTestFile] class compiled against [classPath]. */
+            val binaryTestJar =
+                jarFromSources(
+                        "$name.binary-test.jar",
+                        javaTestFile,
+                        classPath = classPath,
+                    )
+                    .cacheIn(testFileCacheRule)
+        }
+
+        /** Test the `Other.Nested` type. */
+        val otherNestedTestType =
+            TestType(
+                name = "otherNested",
+                javaReference = "Other.Nested",
+                javaImport = "other.pkg.Other",
+                classPath = listOf(otherWithNestedJar),
+            )
 
         private val params =
             listOf(
@@ -199,7 +234,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                                 ),
                         ),
                     expectedSourceIssues =
-                        "MAIN_SRC/src/test/pkg/SourceTest.java:2: info: Unresolved import: `other.pkg.Other` [UnresolvedImport]",
+                        "MAIN_SRC/otherNested/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.Other` [UnresolvedImport]",
                 ),
 
                 // Test what happens when processing types without an outer class but with another
@@ -238,7 +273,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                                 ),
                         ),
                     expectedSourceIssues =
-                        "MAIN_SRC/src/test/pkg/SourceTest.java:2: info: Unresolved import: `other.pkg.Other` [UnresolvedImport]",
+                        "MAIN_SRC/otherNested/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.Other` [UnresolvedImport]",
                 ),
             )
 
@@ -258,12 +293,12 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                 TestFixture(
                     additionalClassPath =
                         buildList {
-                            add(binaryTestJar.toFile())
+                            add(params.testType.binaryTestJar.toFile())
                             params.classpath.mapTo(this) { it.toFile() }
                         }
                 ),
         ) {
-            val testClass = codebase.assertResolvedClass("test.pkg.BinaryTest")
+            val testClass = codebase.assertResolvedClass("test.pkg.Test")
             val testField = testClass.fields().single()
             val type = testField.type()
             assertEquals(params.expectedBinaryType, type)
@@ -273,19 +308,10 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
     @Test
     fun `Test invalid source reference`() {
         runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-                    import other.pkg.Other;
-                    public class SourceTest {
-                        private SourceTest() {}
-                        public Other.Nested field;
-                    }
-                """
-            ),
+            params.testType.javaTestFile,
             testFixture = TestFixture(additionalClassPath = params.classpath.map { it.toFile() }),
         ) {
-            val testClass = codebase.assertClass("test.pkg.SourceTest")
+            val testClass = codebase.assertClass("test.pkg.Test")
             val testField = testClass.fields().single()
             val type = testField.type()
             assertEquals(params.expectedSourceType, type)
