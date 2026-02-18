@@ -152,11 +152,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                 // Test what happens when processing types with a self-consistent set of classes.
                 TestParams(
                     name = "with other and nested",
-                    classpath =
-                        listOf(
-                            binaryTestJar,
-                            otherWithNestedJar,
-                        ),
+                    classpath = listOf(otherWithNestedJar),
                     expectedType =
                         classTypeItem(
                             "other.pkg.Other.Nested",
@@ -171,11 +167,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                 // class.
                 TestParams(
                     name = "with other but not nested",
-                    classpath =
-                        listOf(
-                            binaryTestJar,
-                            otherWithoutNestedJar,
-                        ),
+                    classpath = listOf(otherWithoutNestedJar),
                     expectedType =
                         classTypeItem(
                             "other.pkg.Other.Nested",
@@ -189,10 +181,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                 // Test what happens when processing types without an outer class.
                 TestParams(
                     name = "without other at all",
-                    classpath =
-                        listOf(
-                            binaryTestJar,
-                        ),
+                    classpath = emptyList(),
                     expectedBinaryType =
                         classTypeItem(
                             "other.pkg.Other.Nested",
@@ -222,7 +211,6 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                     name = "without other but with another class in the same package",
                     classpath =
                         listOf(
-                            binaryTestJar,
                             // Include a jar that contains a class in other.pkg.
                             anotherClassJar,
                         ),
@@ -266,7 +254,14 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                     public interface Placeholder {}
                 """
             ),
-            testFixture = TestFixture(additionalClassPath = params.classpath.map { it.toFile() }),
+            testFixture =
+                TestFixture(
+                    additionalClassPath =
+                        buildList {
+                            add(binaryTestJar.toFile())
+                            params.classpath.mapTo(this) { it.toFile() }
+                        }
+                ),
         ) {
             val testClass = codebase.assertResolvedClass("test.pkg.BinaryTest")
             val testField = testClass.fields().single()
