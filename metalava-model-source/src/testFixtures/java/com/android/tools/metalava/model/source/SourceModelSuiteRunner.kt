@@ -133,32 +133,18 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
     private fun sourceSet(sourceDir: SourceDir?, sourcePathDir: SourceDir? = null) =
         if (sourceDir == null && sourcePathDir == null) SourceSet.empty()
         else {
-            val sources = mutableListOf<File>()
+            // Create the files from which the Codebase will be created and add them to the sources.
+            val sources = sourceDir?.createFiles() ?: emptyList()
 
-            // Create a set that will dedup the directories but maintain the order in which they
-            // were added.
-            val sourcePath = mutableSetOf<File>()
-            if (sourceDir != null) {
-                // Create the files and add them to the sources and the containing directory to the
-                // source path.
-                sources.addAll(sourceDir.createFiles())
-                sourcePath.add(sourceDir.dir)
-            }
-            if (sourcePathDir != null) {
-                // Create the files but do not add them to the sources, instead just add the
-                // directory in which the files were created to the source path.
-                val dir = sourcePathDir.dir
-                for (testFile in sourcePathDir.contents) {
-                    testFile.createFile(dir)
-                    // Get the root directory in which the test file was created and add that to the
-                    // source path.
-                    val rootDir = testFile.targetRootFolder?.let { dir.resolve(it) } ?: dir
-                    sourcePath.add(rootDir)
-                }
-                sourcePath.add(sourcePathDir.dir.resolve("src"))
-            }
+            // Create additional files that will be on the source path and which can be referenced
+            // from the other source files but will not otherwise be part of the Codebase.
+            val sourcePath =
+                sourcePathDir?.let { additionalSourceDir ->
+                    additionalSourceDir.createFiles()
+                    listOf(additionalSourceDir.dir)
+                } ?: emptyList()
 
-            SourceSet(sources, sourcePath.toList())
+            SourceSet(sources, sourcePath)
         }
 
     override fun toString(): String = sourceModelProvider.providerName
