@@ -97,7 +97,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                                 }
                             }
                         """
-                    )
+                    ),
                 )
                 .cacheIn(testFileCacheRule)
 
@@ -112,7 +112,40 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                                 private Other() {}
                             }
                         """
-                    )
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+
+        /** Jar file containing a `generic.pkg.Generic` class with an `Inner` class. */
+        private val genericWithInnerJar =
+            jarFromSources(
+                    "generic-with-inner.jar",
+                    java(
+                        """
+                            package generic.pkg;
+                            public class Generic<O> {
+                                private Generic() {}
+                                public class Inner<I> {
+                                    private Inner() {}
+                                }
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+
+        /** Jar file containing a `generic.pkg.Generic` class without an `Inner` class. */
+        private val genericWithoutInnerJar =
+            jarFromSources(
+                    "generic-without-inner.jar",
+                    java(
+                        """
+                            package generic.pkg;
+                            public class Generic<O> {
+                                private Generic() {}
+                            }
+                        """
+                    ),
                 )
                 .cacheIn(testFileCacheRule)
 
@@ -177,6 +210,27 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                 javaImport = "other.pkg.Other",
                 classPath = listOf(otherWithNestedJar),
             )
+
+        /** Test the `Generic<String>` type. */
+        val genericString =
+            TestType(
+                name = "genericString",
+                javaReference = "Generic<String>",
+                javaImport = "generic.pkg.Generic",
+                classPath = listOf(genericWithInnerJar),
+            )
+
+        /** Test the `Generic<Number>.Inner<String>` type. */
+        val genericStringInnerNumber =
+            TestType(
+                name = "genericStringInnerNumber",
+                javaReference = "Generic<String>.Inner<Number>",
+                javaImport = "generic.pkg.Generic",
+                classPath = listOf(genericWithInnerJar),
+            )
+
+        private val numberClassType = classTypeItem("java.lang.Number")
+        private val stringClassType = classTypeItem("java.lang.String")
 
         private val params =
             listOf(
@@ -264,6 +318,92 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                                     // TODO(b/479907812): This qualified name is wrong, should be
                                     //  other.pkg.Other.
                                     "Other",
+                                ),
+                        ),
+                ),
+                TestParams(
+                    name = "generic defined",
+                    classpath = listOf(genericWithInnerJar),
+                    testType = genericString,
+                    expectedType =
+                        classTypeItem(
+                            "generic.pkg.Generic",
+                            arguments = listOf(stringClassType),
+                        ),
+                ),
+                TestParams(
+                    name = "generic undefined",
+                    classpath = emptyList(),
+                    testType = genericString,
+                    expectedType =
+                        classTypeItem(
+                            "generic.pkg.Generic",
+                            arguments = listOf(stringClassType),
+                        ),
+                    expectedSourceType =
+                        classTypeItem(
+                            // TODO(b/479907812): This qualified name is wrong, should be
+                            //  generic.pkg.Generic.
+                            "Generic",
+                            arguments = listOf(stringClassType),
+                        ),
+                ),
+                TestParams(
+                    name = "generic and inner both defined",
+                    classpath = listOf(genericWithInnerJar),
+                    testType = genericStringInnerNumber,
+                    expectedType =
+                        classTypeItem(
+                            "generic.pkg.Generic.Inner",
+                            arguments = listOf(numberClassType),
+                            outerClassType =
+                                classTypeItem(
+                                    "generic.pkg.Generic",
+                                    arguments = listOf(stringClassType),
+                                ),
+                        ),
+                ),
+                TestParams(
+                    name = "generic defined but inner undefined",
+                    classpath = listOf(genericWithoutInnerJar),
+                    testType = genericStringInnerNumber,
+                    expectedType =
+                        classTypeItem(
+                            "generic.pkg.Generic.Inner",
+                            arguments = listOf(numberClassType),
+                            outerClassType =
+                                classTypeItem(
+                                    "generic.pkg.Generic",
+                                    arguments = listOf(stringClassType),
+                                ),
+                        ),
+                ),
+                TestParams(
+                    name = "generic and inner both undefined",
+                    classpath = emptyList(),
+                    testType = genericStringInnerNumber,
+                    expectedType =
+                        classTypeItem(
+                            "generic.pkg.Generic.Inner",
+                            arguments = listOf(numberClassType),
+                            outerClassType =
+                                classTypeItem(
+                                    "generic.pkg.Generic",
+                                    arguments = listOf(stringClassType),
+                                ),
+                        ),
+                    expectedSourceType =
+                        classTypeItem(
+                            // TODO(b/479907812): This qualified name is wrong, should be
+                            //  generic.pkg.Generic.Inner.
+                            "Generic.Inner",
+                            arguments = listOf(numberClassType),
+                            outerClassType =
+                                classTypeItem(
+                                    // TODO(b/479907812): This qualified name is wrong, should be
+                                    //  generic.pkg.Generic.
+                                    "Generic",
+                                    arguments = listOf(stringClassType),
                                 ),
                         ),
                 ),
