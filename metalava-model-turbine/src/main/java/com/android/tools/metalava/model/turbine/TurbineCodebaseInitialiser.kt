@@ -192,7 +192,7 @@ internal class TurbineCodebaseInitialiser(
         // Report all the diagnostics, filtering those that relate to missing references.
         log.reportTo(codebase.reporter) { diagnostic ->
             // Ignore missing references.
-            var errorKind = diagnostic.kind()
+            val errorKind = diagnostic.kind()
             when (errorKind) {
                 TurbineError.ErrorKind.CANNOT_RESOLVE,
                 TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
@@ -378,7 +378,8 @@ internal class TurbineCodebaseInitialiser(
      * Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find it
      * then look in the class path.
      */
-    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)
+    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass? =
+        envClassMap.get(classSymbol)
 
     /**
      * Convert this qualified name consisting of a list of identifiers separated by '.' into a list
@@ -411,7 +412,7 @@ internal class TurbineCodebaseInitialiser(
                 val turbineSourceFile = sourceFileCache.turbineSourceFile(packageInfoClass.source())
                 val unit = turbineSourceFile.compUnit
                 val pkgDecl = unit.pkg().get()
-                var annoInfos = packageInfoClass.annotations()
+                val annoInfos = packageInfoClass.annotations()
                 SourcePackageInfo(
                     sourceFile = turbineSourceFile,
                     annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver),
