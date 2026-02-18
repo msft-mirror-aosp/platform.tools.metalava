@@ -119,8 +119,8 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                     java(
                         """
                             package other.pkg;
-                            public class Other {
-                                private Other() {}
+                            public class Another {
+                                private Another() {}
                             }
                         """
                     )
@@ -261,9 +261,13 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                             "Other.Nested",
                             outerClassType =
                                 classTypeItem(
-                                    "other.pkg.Other",
+                                    // TODO(b/479907812): This qualified name is wrong, should be
+                                    //  other.pkg.Other.
+                                    "Other",
                                 ),
                         ),
+                    expectedSourceIssues =
+                        "MAIN_SRC/src/test/pkg/SourceTest.java:2: info: Unresolved import: `other.pkg.Other` [UnresolvedImport]",
                 ),
             )
 
