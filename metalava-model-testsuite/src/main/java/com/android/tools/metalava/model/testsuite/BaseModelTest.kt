@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
@@ -217,9 +218,12 @@ abstract class BaseModelTest() :
 
         /** The Java language level. */
         val javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
+
+        /** The set of [Issue] to exclude from the [recordingReporter]. */
+        val excludedIssues: Set<Issue> = emptySet(),
     ) {
         /** The [RecordingReporter] used by the test. */
-        val recordingReporter = RecordingReporter()
+        val recordingReporter = RecordingReporter(excludedIssues)
 
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig

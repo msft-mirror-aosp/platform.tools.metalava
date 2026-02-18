@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
@@ -68,9 +69,6 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
 
         /** The expected type when processing a type in the source class. */
         val expectedSourceType: TypeItem? = expectedType,
-
-        /** Expected issues when processing sources, e.g. unresolved imports. */
-        val expectedSourceIssues: String = "",
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -233,8 +231,6 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                                     "Other",
                                 ),
                         ),
-                    expectedSourceIssues =
-                        "MAIN_SRC/otherNested/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.Other` [UnresolvedImport]",
                 ),
 
                 // Test what happens when processing types without an outer class but with another
@@ -272,8 +268,6 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                                     "Other",
                                 ),
                         ),
-                    expectedSourceIssues =
-                        "MAIN_SRC/otherNested/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.Other` [UnresolvedImport]",
                 ),
             )
 
@@ -309,14 +303,16 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
     fun `Test invalid source reference`() {
         runCodebaseTest(
             params.testType.javaTestFile,
-            testFixture = TestFixture(additionalClassPath = params.classpath.map { it.toFile() }),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = params.classpath.map { it.toFile() },
+                    excludedIssues = setOf(Issues.UNRESOLVED_IMPORT),
+                ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testField = testClass.fields().single()
             val type = testField.type()
             assertEquals(params.expectedSourceType, type)
-
-            assertAndRemoveReportedIssues(expectedIssues = params.expectedSourceIssues)
         }
     }
 }
