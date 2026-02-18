@@ -76,9 +76,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
          */
         val entryPointCallerTracker = EntryPointCallerTracker()
 
-        override fun toString(): String {
-            return name
-        }
+        override fun toString() = "${testType.name} - $name"
     }
 
     companion object {
@@ -184,7 +182,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
             listOf(
                 // Test what happens when processing types with a self-consistent set of classes.
                 TestParams(
-                    name = "with other and nested",
+                    name = "other and nested both defined",
                     classpath = listOf(otherWithNestedJar),
                     expectedType =
                         classTypeItem(
@@ -199,7 +197,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                 // Test what happens when processing types with an outer class but a missing nested
                 // class.
                 TestParams(
-                    name = "with other but not nested",
+                    name = "other defined but nested undefined",
                     classpath = listOf(otherWithoutNestedJar),
                     expectedType =
                         classTypeItem(
@@ -213,7 +211,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
 
                 // Test what happens when processing types without an outer class.
                 TestParams(
-                    name = "without other at all",
+                    name = "other and nested both undefined",
                     classpath = emptyList(),
                     expectedBinaryType =
                         classTypeItem(
@@ -239,7 +237,7 @@ class CommonParameterizedInvalidTypeTest : BaseModelTest() {
                 // presence of `other.pkg.Another` ensures that `other.pkg` is treated as a package
                 // and not a qualified class.
                 TestParams(
-                    name = "without other but with another class in the same package",
+                    name = "other and nested undefined but with another class in the same package",
                     classpath =
                         listOf(
                             // Include a jar that contains a class in other.pkg.

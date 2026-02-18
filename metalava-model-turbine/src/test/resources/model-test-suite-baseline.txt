@@ -6,12 +6,12 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
-  Test invalid binary reference[with other but not nested]
-  Test invalid binary reference[without other at all]
-  Test invalid binary reference[without other but with another class in the same package]
-  Test invalid source reference[with other but not nested]
-  Test invalid source reference[without other at all]
-  Test invalid source reference[without other but with another class in the same package]
+  Test invalid binary reference[otherNested - other and nested both undefined]
+  Test invalid binary reference[otherNested - other and nested undefined but with another class in the same package]
+  Test invalid binary reference[otherNested - other defined but nested undefined]
+  Test invalid source reference[otherNested - other and nested both undefined]
+  Test invalid source reference[otherNested - other and nested undefined but with another class in the same package]
+  Test invalid source reference[otherNested - other defined but nested undefined]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test interface types
