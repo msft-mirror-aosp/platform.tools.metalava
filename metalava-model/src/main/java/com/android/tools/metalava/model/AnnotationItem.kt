@@ -418,6 +418,39 @@ sealed interface AnnotationItem {
 val List<AnnotationItem>.typeNullability
     get() = mapNotNull { it.typeNullability }.firstOrNull()
 
+/**
+ * An enumeration of the possible uses of annotations.
+ *
+ * This only differentiates between declaration and type uses as that is all that is needed at the
+ * moment to allow model providers to tweak the behavior of the underlying model to ensure
+ * consistent and correct behavior. It does not differentiate between the different declaration use
+ * sites as the model providers generally handle that correctly.
+ *
+ * The declaration/type uses are differentiated because the introduction of type use annotations
+ * introduced ambiguity into the language which the specification does address but there are still
+ * some places where it is not handled correctly.
+ */
+enum class AnnotationUse {
+    /** The annotation is only usable in a declaration context. */
+    DECLARATION_ONLY,
+
+    /** The annotation is only usable in a type context. */
+    TYPE_ONLY,
+
+    /** The annotation is usable in either a declaration context or a type context. */
+    DECLARATION_AND_TYPE,
+    ;
+
+    /**
+     * Combine this with an optional [other],
+     *
+     * If the other is null or the same as this one then return this one. Otherwise, as any two,
+     * non-null, but different instances, will always combine to [DECLARATION_AND_TYPE].
+     */
+    fun combineWith(other: AnnotationUse?) =
+        if (other == null || other == this) this else DECLARATION_AND_TYPE
+}
+
 /** Provides contextual information needed by [AnnotationItem]s. */
 interface AnnotationContext : ClassResolver, ValueContext {
     /** The manager of annotations within this context. */
