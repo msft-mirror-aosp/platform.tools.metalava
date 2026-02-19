@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
+
 /** Provides support for managing annotations within Metalava. */
 interface AnnotationManager {
 
@@ -181,6 +183,9 @@ internal class NoOpAnnotationInfo(
 
     override val suppressCompatibility
         get() = qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
+
+    override val annotationClass: AnnotationClass?
+        get() = null
 }
 
 val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()

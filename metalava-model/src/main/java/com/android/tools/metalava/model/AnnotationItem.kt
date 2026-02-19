@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
@@ -253,18 +254,15 @@ sealed interface AnnotationItem {
      */
     fun isShowabilityAnnotation(): Boolean
 
+    /**
+     * The [AnnotationClass] that provides information about the annotation class of this
+     * [AnnotationItem] instance.
+     */
+    val annotationClass: AnnotationClass?
+
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
-        get() {
-            val cls = resolve()
-            if (cls != null) {
-                if (cls.isAnnotationType()) {
-                    return cls.annotationClass.retention
-                }
-            }
-
-            return AnnotationRetention.getDefault()
-        }
+        get() = annotationClass?.retention ?: AnnotationRetention.getDefault()
 
     /** Take a snapshot of this [AnnotationItem] suitable for use in [targetContext]. */
     fun snapshot(targetContext: AnnotationContext): AnnotationItem
@@ -512,6 +510,9 @@ internal abstract class BaseAnnotationItem(
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
 
     override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
+
+    override val annotationClass
+        get() = info.annotationClass
 
     override fun snapshot(targetContext: AnnotationContext): AnnotationItem {
         // Force the info property to be initialized which will cause the AnnotationInfo for

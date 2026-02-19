@@ -70,6 +70,7 @@ import com.android.tools.metalava.model.isNullableAnnotation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
+import kotlin.getValue
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
@@ -714,6 +715,9 @@ private class LazyAnnotationInfo(
         val flagName = annotationItem.optionalFlagName ?: return null
         return apiFlags[flagName]
     }
+
+    override val annotationClass
+        get() = annotationClassItem?.annotationClass
 
     companion object {
         /**
