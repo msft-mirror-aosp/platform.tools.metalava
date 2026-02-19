@@ -298,15 +298,12 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                         is Float,
                         is Long,
                         is Short -> {
-                            when (expr.getLiteralKind()) {
-                                TurbineConstantTypeKind.INT -> {
-                                    (underlyingValue as Number).toInt()
-                                }
-                                TurbineConstantTypeKind.FLOAT -> {
-                                    (underlyingValue as Number).toFloat()
-                                }
-                                else -> underlyingValue
-                            }
+                            // Determine whether the expression was originally one of the number
+                            // kinds that is formatted specially.
+                            val specialNumericKind = expr.getOriginalNumericKind()
+
+                            // Convert back to the original number type, if needed.
+                            specialNumericKind.toOriginalNumberTypeIfNeeded(underlyingValue)
                         }
                         else -> underlyingValue
                     }
@@ -323,17 +320,80 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
     }
 
     /**
-     * Get the literal kind of this expression.
+     * Enumeration of numeric kinds that may require conversion back to the original type.
      *
-     * If this is itself a [Tree.Literal] then return its [Tree.Literal.tykind]. Otherwise, if this
-     * is a [Tree.Unary], e.g. `-<expr>` of `+<expr>`, then it will call this on its
-     * [Tree.Unary.expr].
+     * This is needed because Turbine automatically converts an expression to a constant value
+     * suitable for the type. However, in some cases, the original type of the expression can affect
+     * the formatting of the value.
      */
-    private fun Expression.getLiteralKind(): TurbineConstantTypeKind? =
+    enum class OriginalNumericKind {
+        /**
+         * The expression was originally of type `int`.
+         *
+         * The underlying const value needs converting back to an `int` to ensure correct
+         * formatting.
+         */
+        INT {
+            /** Convert [underlyingValue] back to an integer. */
+            override fun toOriginalNumberTypeIfNeeded(underlyingValue: Any) =
+                (underlyingValue as Number).toInt()
+        },
+
+        /**
+         * The expression was originally of type `float`.
+         *
+         * The underlying const value needs converting back to a `float` to ensure correct
+         * formatting.
+         */
+        FLOAT {
+            /** Convert [underlyingValue] back to a float. */
+            override fun toOriginalNumberTypeIfNeeded(underlyingValue: Any) =
+                (underlyingValue as Number).toFloat()
+        },
+
+        /**
+         * The expression was originally of some other type which does not affect formatting so
+         * leave it as it is.
+         */
+        OTHER {
+            /** Just return [underlyingValue] unchanged. */
+            override fun toOriginalNumberTypeIfNeeded(underlyingValue: Any) = underlyingValue
+        },
+        ;
+
+        abstract fun toOriginalNumberTypeIfNeeded(underlyingValue: Any): Any
+    }
+
+    /**
+     * Convert this optional [TurbineConstantTypeKind] to its corresponding [OriginalNumericKind].
+     */
+    private fun TurbineConstantTypeKind?.toOriginalNumericKind(): OriginalNumericKind =
         when (this) {
-            is Literal -> this.tykind()
-            is Tree.Unary -> expr().getLiteralKind()
-            else -> null
+            TurbineConstantTypeKind.INT -> OriginalNumericKind.INT
+            TurbineConstantTypeKind.FLOAT -> OriginalNumericKind.FLOAT
+            else -> OriginalNumericKind.OTHER
+        }
+
+    /**
+     * Get the [OriginalNumericKind] kind of this expression.
+     *
+     * Computes a [OriginalNumericKind] appropriate for the expression kind.
+     */
+    private fun Expression.getOriginalNumericKind(): OriginalNumericKind =
+        when (this) {
+            is Literal -> {
+                // Get the OriginalNumericKind from the literal kind.
+                this.tykind().toOriginalNumericKind()
+            }
+            is Tree.Unary -> {
+                // Get the OriginalNumericKind from the expression the unary operator is being
+                // applied to.
+                expr().getOriginalNumericKind()
+            }
+            else -> {
+                // The OriginalNumericKind is not known so assume it does not need converting.
+                OriginalNumericKind.OTHER
+            }
         }
 }
 
