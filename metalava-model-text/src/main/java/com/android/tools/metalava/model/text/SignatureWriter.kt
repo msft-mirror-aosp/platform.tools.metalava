@@ -20,10 +20,10 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -118,14 +117,20 @@ class SignatureWriter(
         write("\n")
     }
 
-    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
+    /**
+     * Writes the signature for the [typeAlias], which is formatted differently from all other
+     * [ClassItem]s.
+     *
+     * This should only be called if [typeAlias] is a typealias.
+     */
+    fun visitTypeAlias(typeAlias: ClassItem) {
         write("  ")
 
         writeModifiers(typeAlias)
 
         write("typealias ")
 
-        write(typeAlias.simpleName)
+        write(typeAlias.simpleName())
         writeTypeParameterList(typeAlias.typeParameterList, addSpace = false)
 
         write(" = ")
@@ -192,6 +197,11 @@ class SignatureWriter(
     }
 
     override fun visitClass(cls: ClassItem) {
+        // Typealiases are written in a different format than any other class.
+        if (cls.classKind == ClassKind.TYPEALIAS) {
+            visitTypeAlias(cls)
+            return
+        }
         write("  ")
 
         writeModifiers(cls)
@@ -251,7 +261,10 @@ class SignatureWriter(
     }
 
     override fun afterVisitClass(cls: ClassItem) {
-        write("  }\n\n")
+        // Typealiases are written differently from any other class, and don't have an opening `{`.
+        if (cls.classKind != ClassKind.TYPEALIAS) {
+            write("  }\n\n")
+        }
     }
 
     private fun writeModifiers(item: Item) {
@@ -261,7 +274,8 @@ class SignatureWriter(
 
     private fun writeTargetLanguage(item: SelectableItem) {
         // Properties and type aliases are always only for Kotlin use, so don't bother writing it.
-        if (item is PropertyItem || item is TypeAliasItem) return
+        if (item is PropertyItem || (item is ClassItem && item.classKind == ClassKind.TYPEALIAS))
+            return
 
         val modifier =
             TargetLanguageSet.targetLanguageSetToSignatureFileRepresentation[item.targetLanguages]
@@ -400,7 +414,8 @@ class SignatureWriter(
         val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             write(" throws ")
-            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ClassOrVariableTypeItem.fullNameComparator).forEachIndexed { i, type
+                ->
                 if (i > 0) {
                     write(", ")
                 }

@@ -21,8 +21,11 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
@@ -33,6 +36,7 @@ import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.source
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -71,6 +75,205 @@ class ApiFileTest : DriverTest() {
         that we skip interfaces if their implementation methods are marked @hide?
       - Test recursive package filtering.
     */
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Correctly mark sealed class and interface as nonexhaustive even when private subclass is declared before sealed parent class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        private class PrivateSubclassOfSealedClass: ParentNonExhaustiveSealedClass()
+                        private class PrivateSubclassOfSealedInterface: ParentNonExhaustiveSealedInterface
+                        """
+                            .trimIndent()
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ParentNonExhaustiveSealedClass
+                        public sealed interface ParentNonExhaustiveSealedInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public class PublicSubclassOfSealedClass : ParentNonExhaustiveSealedClass()
+                        public class PublicSubclassOfSealedInterface : ParentNonExhaustiveSealedInterface
+                        """
+                            .trimIndent()
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract sealed nonexhaustive class ParentNonExhaustiveSealedClass {
+                  }
+                  public sealed nonexhaustive interface ParentNonExhaustiveSealedInterface {
+                  }
+                  public final class PublicSubclassOfSealedClass extends test.pkg.ParentNonExhaustiveSealedClass {
+                    ctor public PublicSubclassOfSealedClass();
+                  }
+                  public final class PublicSubclassOfSealedInterface implements test.pkg.ParentNonExhaustiveSealedInterface {
+                    ctor public PublicSubclassOfSealedInterface();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as exhaustive if no non-accessible classes inherit from it - basic case`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ExhaustiveSealedClass
+                        public class PublicSealedClassChild1 : ExhaustiveSealedClass()
+                        public class PublicSealedClassChild2 : ExhaustiveSealedClass()
+
+                        public sealed interface ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor1 : ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor2 : ExhaustiveSealedInterface
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class ExhaustiveSealedClass {
+                  }
+                  public sealed exhaustive interface ExhaustiveSealedInterface {
+                  }
+                  public final class PublicSealedClassChild1 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild1();
+                  }
+                  public final class PublicSealedClassChild2 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild2();
+                  }
+                  public final class PublicSealedInterfaceImplementor1 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor1();
+                  }
+                  public final class PublicSealedInterfaceImplementor2 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor2();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as exhaustive even if sealed subclass is nonexhaustive`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedExhaustiveParentClass
+                        public class PublicChildOfSealedParentClass : SealedExhaustiveParentClass()
+
+                        public sealed interface SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedParentInterface : SealedExhaustiveParentInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedNonExhaustiveChildClass : SealedExhaustiveParentClass()
+                        public class PublicChildOfSealedChildClass: SealedNonExhaustiveChildClass()
+                        private class PrivateChildOfSealedChildClass : SealedNonExhaustiveChildClass()
+
+                        public sealed interface SealedNonExhaustiveChildInterface : SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedChildInterface: SealedNonExhaustiveChildInterface
+                        private class PrivateChildOfSealedChildInterface : SealedNonExhaustiveChildInterface
+                        """
+                            .trimIndent()
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class PublicChildOfSealedChildClass extends test.pkg.SealedNonExhaustiveChildClass {
+                    ctor public PublicChildOfSealedChildClass();
+                  }
+                  public final class PublicChildOfSealedChildInterface implements test.pkg.SealedNonExhaustiveChildInterface {
+                    ctor public PublicChildOfSealedChildInterface();
+                  }
+                  public final class PublicChildOfSealedParentClass extends test.pkg.SealedExhaustiveParentClass {
+                    ctor public PublicChildOfSealedParentClass();
+                  }
+                  public final class PublicChildOfSealedParentInterface implements test.pkg.SealedExhaustiveParentInterface {
+                    ctor public PublicChildOfSealedParentInterface();
+                  }
+                  public abstract sealed exhaustive class SealedExhaustiveParentClass {
+                  }
+                  public sealed exhaustive interface SealedExhaustiveParentInterface {
+                  }
+                  public abstract sealed nonexhaustive class SealedNonExhaustiveChildClass extends test.pkg.SealedExhaustiveParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedNonExhaustiveChildInterface extends test.pkg.SealedExhaustiveParentInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as nonexhaustive if a private subclass inherits from it`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class AnOuterClass {
+                            private class InnerClassA : SealedParentClass()
+                            private class InnerClassB : SealedParentInterface
+                        }
+                        """
+                            .trimIndent()
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedParentClass
+                        public sealed interface SealedParentInterface
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class AnOuterClass {
+                    ctor public AnOuterClass();
+                  }
+                  public abstract sealed nonexhaustive class SealedParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedParentInterface {
+                  }
+                }
+                """
+        )
+    }
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
@@ -285,7 +488,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T! getSystemService(Class<T!>!);
+                    method public final <T> T getSystemService(Class<T>!);
                   }
                   public final class TestKt {
                     method @KotlinOnly public static inline <reified T> T! systemService1(test.pkg.Context);
@@ -741,7 +944,7 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package androidx.collection {
-                  public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
+                  public class ArrayMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
                     ctor public ArrayMap();
                   }
                   public final class ArrayMapKt {
@@ -749,7 +952,7 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
-                  public class ArraySet<E> extends java.util.HashSet<E!> implements java.util.Set<E!> {
+                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
                     ctor public ArraySet();
                   }
                   public final class ArraySetKt {
@@ -1037,9 +1240,9 @@ class ApiFileTest : DriverTest() {
                     property public S? second;
                   }
                   public class PlatformJavaPair<F, S> {
-                    ctor public PlatformJavaPair(F!, S!);
-                    field public final F! first;
-                    field public final S! second;
+                    ctor public PlatformJavaPair(F, S);
+                    field public final F first;
+                    field public final S second;
                   }
                   public final class TestKt {
                     method public static inline operator <F, S> F! component1(androidx.util.PlatformJavaPair<F,S>);
@@ -1886,7 +2089,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A!,B!> {
+                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A,B> {
                     ctor public MyStringBuilder();
                     method public void setLength(int);
                   }
@@ -2499,13 +2702,13 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    public class MyClass {
-                        public <T> MyClass(Class<T> klass) { }
-                        public <U> void method1(Function<U> func) { }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            public class MyClass {
+                                public <T> MyClass(Class<T> klass) { }
+                                public <U> void method1(java.util.function.Consumer<U> func) { }
+                            }
+                        """
+                    ),
                 ),
             expectedIssues = "",
             api =
@@ -2513,10 +2716,10 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public class MyClass {
                         ctor public <T> MyClass(Class<T>);
-                        method public <U> void method1(Function<U>);
+                        method public <U> void method1(java.util.function.Consumer<U>);
                       }
                     }
-            """
+                """,
         )
     }
 
@@ -3983,8 +4186,8 @@ class ApiFileTest : DriverTest() {
         val expected =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query!,Result!> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
@@ -4192,7 +4395,7 @@ class ApiFileTest : DriverTest() {
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
                 """,
@@ -4268,7 +4471,7 @@ class ApiFileTest : DriverTest() {
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
             """,
@@ -4419,7 +4622,7 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package test.pkg {
-                  public abstract sealed class MyClass {
+                  public abstract sealed exhaustive class MyClass {
                     method @InaccessibleFromKotlin public final int getFirstConstructorProperty();
                     method @InaccessibleFromKotlin public final String getNonConstructorProperty();
                     method @InaccessibleFromKotlin public final boolean getSecondConstructorProperty();
@@ -5682,7 +5885,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @Deprecated public sealed interface LazyInfo {
+                  @Deprecated public sealed exhaustive interface LazyInfo {
                     method @InaccessibleFromKotlin @Deprecated public int getIndex();
                     method @InaccessibleFromKotlin @Deprecated public int getKey();
                     property @Deprecated public abstract int index;
@@ -5718,14 +5921,14 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public @interface RequiresExtension {
                     ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
                     method @InaccessibleFromKotlin public abstract int extension();
                     method @InaccessibleFromKotlin public abstract int version();
                     property public abstract int extension;
                     property public abstract int version;
                   }
-                  @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
                   }
                 }
@@ -6398,7 +6601,7 @@ class ApiFileTest : DriverTest() {
                     method @InaccessibleFromKotlin public S getCurrentState();
                     property public S currentState;
                   }
-                  public abstract sealed class TransitionState<S> {
+                  public abstract sealed exhaustive class TransitionState<S> {
                     method @InaccessibleFromKotlin public abstract S getCurrentState();
                     property public abstract S currentState;
                   }
@@ -6437,7 +6640,7 @@ class ApiFileTest : DriverTest() {
                         ctor public Foo();
                         method public java.util.List<java.lang.String?>! foo(Number?, Number!);
                       }
-                      @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
                       }
                     }
                 """
@@ -6529,10 +6732,11 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    // With K1 there is an incorrect extra copy of the no-args constructor, annotated @A
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test primary constructor with defaults and secondary constructor with JvmOverloads`() {
-        // TODO(b/436557035): there should only be one copy of the constructor, annotated @B
         check(
             sourceFiles =
                 arrayOf(
@@ -6559,13 +6763,44 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class Foo {
                     ctor @test.pkg.B public Foo();
-                    ctor @test.pkg.A public Foo();
                     ctor @test.pkg.A public Foo(optional int i);
                     ctor @test.pkg.B public Foo(optional String s);
                     ctor @test.pkg.B public Foo(optional String s, optional int i);
                   }
                 }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    // K1 does not have full typealias support.
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
+    @Test
+    fun `Test typealiases from classpath are not listed`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        // The kotlin package is used here to make it so built-in kotlin typealiases
+                        // are also processed.
+                        """
+                        package kotlin
+                        """,
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public typealias Foo = String;
+                }
+                """,
         )
     }
 }

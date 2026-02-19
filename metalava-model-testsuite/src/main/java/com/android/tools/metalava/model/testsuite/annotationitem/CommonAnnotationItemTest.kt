@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.annotationitem
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
@@ -39,13 +40,13 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.fail
 import org.junit.Test
 
 /** Annotation that is added on a line before the item being annotated. */
@@ -193,7 +194,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     8:@test.pkg.SameLine("field")
                     8:field test.pkg.Foo.field
                     8:method test.pkg.Foo.getField()
-                    8:property Foo.field
+                    8:property test.pkg.Foo#field
                     9:@test.pkg.LineBefore("method")
                     10:@test.pkg.SameLine("method")
                     10:method test.pkg.Foo.method(int)
@@ -791,7 +792,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `annotation with constant literal values`() {
+    fun `annotation with constant literal value in int attribute`() {
         runCodebaseTest(
             signature(
                 """
@@ -839,8 +840,55 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `annotation with unknown field`() {
-        val reporter = RecordingReporter()
+    fun `annotation with constant literal value in int array attribute`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno({test.pkg.Test.FIELD})
+                      public class Test {
+                        ctor public Test();
+                        field public static final int FIELD = 5;
+                      }
+
+                      public @interface Test.Anno {
+                         method public int[] values();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    @Test.Anno(Test.FIELD)
+                    public class Test {
+                        public Test() {}
+
+                        public static final int FIELD = 5;
+
+                        public @interface Anno {
+                          int[] value();
+                        }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to arrayValue(fieldReferenceValue("test.pkg.Test", "FIELD")),
+                )
+            assertEquals(expectedAnno, anno)
+        }
+    }
+
+    @Test
+    fun `annotation attribute with unknown field`() {
         runCodebaseTest(
             signature(
                 """
@@ -899,28 +947,139 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-            testFixture =
-                TestFixture(
-                    reporter = reporter,
-                )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
             val intValue = anno.assertAttribute("intValue").value
             assertValuesAreStrictlyEqual(
+                fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN"),
                 intValue,
-                fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN")
+                message = "intValue",
             )
 
             val intArrayValue = anno.assertAttribute("intArrayValue").value
             assertValuesAreStrictlyEqual(
-                intArrayValue,
                 arrayValue(
                     fieldReferenceValue("TestEnum", "UNKNOWN"),
                     fieldReferenceValue("", "UNKNOWN"),
-                )
+                ),
+                intArrayValue,
+                message = "intArrayValue",
             )
+
+            // Kotlin does not report an unresolved import for some reason.
+            val unresolvedImportIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.TestEnum` [UnresolvedImport]"
+            removeReportedIssues().let { actualIssues ->
+                if (actualIssues != "" && actualIssues != unresolvedImportIssues) {
+                    fail("Unexpected issues:\n${actualIssues.prependIndent("    ")}")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `annotation default attribute with unknown field`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method @test.pkg.Test.Anno(other.pkg.TestEnum.UNKNOWN) public void method1();
+                        method @test.pkg.Test.Anno({TestEnum.UNKNOWN, UNKNOWN}) public void method2();
+                      }
+
+                      public @interface Test.Anno {
+                          method public int[] value();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    import other.pkg.TestEnum;
+                    import static other.pkg.TestEnum.UNKNOWN;
+
+                    public class Test {
+                        public Test() {}
+
+                        @Test.Anno(other.pkg.TestEnum.UNKNOWN)
+                        public void method1() {}
+
+                        @Test.Anno({TestEnum.UNKNOWN, UNKNOWN})
+                        public void method2() {}
+
+                        public @interface Anno {
+                          int[] value();
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    import other.pkg.TestEnum
+                    import other.pkg.TestEnum.UNKNOWN
+
+                    class Test {
+                        @Test.Anno(other.pkg.TestEnum.UNKNOWN)
+                        fun method1() {}
+
+                        @Test.Anno([TestEnum.UNKNOWN, UNKNOWN])
+                        fun method2() {}
+
+                        annotation class Anno(
+                          val value: IntArray,
+                        )
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            testClass
+                .methods()
+                .single { it.name() == "method1" }
+                .let { methodItem ->
+                    val annotation = methodItem.modifiers.annotations().single()
+
+                    val value = annotation.assertAttribute(ANNOTATION_ATTR_VALUE).value
+                    assertValuesAreStrictlyEqual(
+                        arrayValue(fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN")),
+                        value,
+                        message = "method1 value"
+                    )
+                }
+
+            testClass
+                .methods()
+                .single { it.name() == "method2" }
+                .let { methodItem ->
+                    val annotation = methodItem.modifiers.annotations().single()
+
+                    val value = annotation.assertAttribute(ANNOTATION_ATTR_VALUE).value
+                    assertValuesAreStrictlyEqual(
+                        arrayValue(
+                            fieldReferenceValue("TestEnum", "UNKNOWN"),
+                            fieldReferenceValue("", "UNKNOWN"),
+                        ),
+                        value,
+                        message = "method2 value"
+                    )
+                }
+
+            // Kotlin does not report an unresolved import for some reason.
+            val unresolvedImportIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.TestEnum` [UnresolvedImport]"
+            removeReportedIssues().let { actualIssues ->
+                if (actualIssues != "" && actualIssues != unresolvedImportIssues) {
+                    fail("Unexpected issues:\n${actualIssues.prependIndent("    ")}")
+                }
+            }
         }
     }
 
@@ -1361,13 +1520,16 @@ class CommonAnnotationItemTest : BaseModelTest() {
             ),
             testFixture =
                 TestFixture(
-                    DefaultAnnotationManager(
-                        config =
-                            DefaultAnnotationManager.Config(
-                                allShowAnnotations = showFilter,
-                                showAnnotations = showFilter,
-                            )
-                    )
+                    annotationManagerFactory = {
+                        DefaultAnnotationManager(
+                            config =
+                                DefaultAnnotationManager.Config(
+                                    allShowAnnotations = showFilter,
+                                    apiFlags = apiFlags,
+                                    showAnnotations = showFilter,
+                                )
+                        )
+                    }
                 ),
         ) {
             // This should be defined.
@@ -1376,6 +1538,211 @@ class CommonAnnotationItemTest : BaseModelTest() {
             codebase.assertResolvedClass("test.pkg.Bar")
             // This should not be defined.
             codebase.assertResolvedClass("test.pkg.Baz")
+        }
+    }
+
+    @Test
+    fun `annotation repeated inside container`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        import static java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.RUNTIME)
+                        @Target({TYPE})
+                        @Repeatable(Repeated.Container.class)
+                        public @interface Repeated {
+                          String value();
+
+                          @Retention(RetentionPolicy.RUNTIME)
+                          @Target(TYPE)
+                          @interface Container {
+                              Repeated[] value();
+                          }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @Repeated("1")
+                        @Repeated("2")
+                        public class Test {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annos = testClass.modifiers.annotations()
+
+            val expectedAnnos =
+                listOf(
+                    annotationItem(
+                        "test.pkg.Repeated",
+                        "value" to literalValue("1"),
+                    ),
+                    annotationItem(
+                        "test.pkg.Repeated",
+                        "value" to literalValue("2"),
+                    ),
+                )
+            assertEquals(expectedAnnos, annos)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with default attribute - string value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno("unknown")
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno("unknown")
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno("unknown")
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute(ANNOTATION_ATTR_VALUE).value
+            assertEquals(literalValue("unknown"), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with named attribute - string value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno(attr="unknown")
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno(attr="unknown")
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(attr="unknown")
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute("attr").value
+            assertEquals(literalValue("unknown"), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with default attribute - array value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno({"unknown1", "unknown2"})
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno({"unknown1", "unknown2"})
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(["unknown1", "unknown2"])
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute(ANNOTATION_ATTR_VALUE).value
+            assertEquals(arrayValue(literalValue("unknown1"), literalValue("unknown2")), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with named attribute - array value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno(attr={"unknown1", "unknown2"})
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno(attr={"unknown1", "unknown2"})
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(attr=["unknown1", "unknown2"])
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute("attr").value
+            assertEquals(arrayValue(literalValue("unknown1"), literalValue("unknown2")), value)
         }
     }
 }
