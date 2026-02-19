@@ -1,5 +1,4 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotations of various uses after generic method type arguments list
   annotations of various uses and nullability after generic method type arguments list
   annotations of various uses and nullability on method
 

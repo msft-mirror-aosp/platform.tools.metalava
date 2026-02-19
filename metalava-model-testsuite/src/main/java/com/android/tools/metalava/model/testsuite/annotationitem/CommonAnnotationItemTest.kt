@@ -2056,12 +2056,12 @@ class CommonAnnotationItemTest : BaseModelTest() {
             methods.assertItemAnnotationStatus(
                 """
                     method test.pkg.Test.method1()
-                        annotations = []
-                        type = java.lang.@test.pkg.DeclOnlyAnno String
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String
 
                     method test.pkg.Test.method2()
-                        annotations = []
-                        type = java.lang.@test.pkg.DeclOnlyAnno String[]
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String[]
 
                     method test.pkg.Test.method3()
                         annotations = []
@@ -2072,11 +2072,11 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         type = java.lang.@test.pkg.TypeOnlyAnno String[]
 
                     method test.pkg.Test.method5()
-                        annotations = []
+                        annotations = [@test.pkg.DeclAndTypeAnno]
                         type = java.lang.@test.pkg.DeclAndTypeAnno String
 
                     method test.pkg.Test.method6()
-                        annotations = []
+                        annotations = [@test.pkg.DeclAndTypeAnno]
                         type = java.lang.@test.pkg.DeclAndTypeAnno String[]
                 """
             )
@@ -2133,27 +2133,27 @@ class CommonAnnotationItemTest : BaseModelTest() {
             methods.assertItemAnnotationStatus(
                 """
                     method test.pkg.Test.method1()
-                        annotations = []
-                        type = java.lang.@not.type.use.Nullable String
+                        annotations = [@not.type.use.Nullable]
+                        type = java.lang.String
 
                     method test.pkg.Test.method2()
-                        annotations = []
-                        type = java.lang.@not.type.use.NonNull String @not.type.use.Nullable []
+                        annotations = [@not.type.use.NonNull]
+                        type = java.lang.String @not.type.use.Nullable []
 
                     method test.pkg.Test.method3()
-                        annotations = []
+                        annotations = [@type.use.only.Nullable]
                         type = java.lang.@type.use.only.Nullable String
 
                     method test.pkg.Test.method4()
-                        annotations = []
+                        annotations = [@type.use.only.NonNull]
                         type = java.lang.@type.use.only.NonNull String @type.use.only.Nullable []
 
                     method test.pkg.Test.method5()
-                        annotations = []
+                        annotations = [@mixed.use.Nullable]
                         type = java.lang.@mixed.use.Nullable String
 
                     method test.pkg.Test.method6()
-                        annotations = []
+                        annotations = [@mixed.use.NonNull]
                         type = java.lang.@mixed.use.NonNull String @mixed.use.Nullable []
                 """
             )

@@ -264,6 +264,10 @@ sealed interface AnnotationItem {
     val retention: AnnotationRetention
         get() = annotationClass?.retention ?: AnnotationRetention.getDefault()
 
+    /** The [AnnotationUse] for this [AnnotationItem]. */
+    val annotationUse: AnnotationUse
+        get() = annotationClass?.annotationUse ?: AnnotationUse.DECLARATION_ONLY
+
     /** Take a snapshot of this [AnnotationItem] suitable for use in [targetContext]. */
     fun snapshot(targetContext: AnnotationContext): AnnotationItem
 
@@ -430,15 +434,27 @@ val List<AnnotationItem>.typeNullability
  * introduced ambiguity into the language which the specification does address but there are still
  * some places where it is not handled correctly.
  */
-enum class AnnotationUse {
+enum class AnnotationUse(
+    val usableInDeclarationContext: Boolean,
+    val usableInTypeContext: Boolean,
+) {
     /** The annotation is only usable in a declaration context. */
-    DECLARATION_ONLY,
+    DECLARATION_ONLY(
+        usableInDeclarationContext = true,
+        usableInTypeContext = false,
+    ),
 
     /** The annotation is only usable in a type context. */
-    TYPE_ONLY,
+    TYPE_ONLY(
+        usableInDeclarationContext = false,
+        usableInTypeContext = true,
+    ),
 
     /** The annotation is usable in either a declaration context or a type context. */
-    DECLARATION_AND_TYPE,
+    DECLARATION_AND_TYPE(
+        usableInDeclarationContext = true,
+        usableInTypeContext = true,
+    ),
     ;
 
     /**
