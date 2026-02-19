@@ -312,7 +312,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                     }
 
                 // A value is considered non-literal if it was not a literal expression.
-                val nonLiteralInSource = expr !is Tree.Literal
+                val nonLiteralInSource = expr !is Literal
                 return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
             }
         }
@@ -331,7 +331,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
      */
     private fun Expression.getLiteralKind(): TurbineConstantTypeKind? =
         when (this) {
-            is Tree.Literal -> this.tykind()
+            is Literal -> this.tykind()
             is Tree.Unary -> expr().getLiteralKind()
             else -> null
         }
