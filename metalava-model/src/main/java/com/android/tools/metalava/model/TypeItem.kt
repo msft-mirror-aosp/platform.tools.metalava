@@ -1146,7 +1146,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
         return substitute(
             outerClassType = outerClassType?.convertType(typeParameterBindings),
-            arguments = arguments.mapIfNotSame { it.convertType(typeParameterBindings) },
+            arguments = arguments.mapIfNotSameNotNull { it.convertType(typeParameterBindings) },
         )
     }
 
@@ -1449,7 +1449,7 @@ fun equalWithFlattenedWildcards(type1: TypeItem, type2: TypeItem): Boolean {
 /**
  * Create a new [MutableList] containing the first [count] items from this list.
  *
- * Helper method for [filterIfNotSame] and [mapIfNotSame].
+ * Helper method for [filterIfNotSame] and [mapIfNotSameNotNull].
  */
 @PublishedApi
 internal fun <T> List<T>.mutableCopyOfFirstItems(count: Int): MutableList<T> {
@@ -1494,8 +1494,10 @@ internal inline fun <T> List<T>.filterIfNotSame(predicate: (T) -> Boolean): List
 /**
  * Map the items in this list to a new list if [transform] returns at least one item which is not
  * the same instance as its input, otherwise return this.
+ *
+ * If [transform] returns null then the item is removed from the list.
  */
-fun <T> List<T>.mapIfNotSame(transform: (T) -> T): List<T> {
+fun <T> List<T>.mapIfNotSameNotNull(transform: (T) -> T?): List<T> {
     // The new list that might need to be created.
     var newList: MutableList<T>? = null
 
@@ -1511,9 +1513,11 @@ fun <T> List<T>.mapIfNotSame(transform: (T) -> T): List<T> {
             newList = mutableCopyOfFirstItems(i)
         }
 
-        // Add the possibly new, element to the new list if it was created, otherwise do
+        // Add the possibly new, non-null, element to the new list if it was created, otherwise do
         // nothing as nothing has been changed yet.
-        newList?.add(newElement)
+        if (newElement != null) {
+            newList?.add(newElement)
+        }
     }
 
     // Return the new list if it was created, otherwise return this.

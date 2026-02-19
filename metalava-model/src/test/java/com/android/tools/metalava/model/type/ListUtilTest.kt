@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.filterIfNotSame
-import com.android.tools.metalava.model.mapIfNotSame
+import com.android.tools.metalava.model.mapIfNotSameNotNull
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import org.junit.Test
@@ -40,14 +40,21 @@ class ListUtilTest {
     @Test
     fun `Test map with reuse - no change`() {
         val list = listOf(1, 2, 3)
-        val newList = list.mapIfNotSame { it }
+        val newList = list.mapIfNotSameNotNull { it }
         assertSame(list, newList)
     }
 
     @Test
     fun `Test map with reuse - change middle`() {
         val list = listOf(1, 2, 3)
-        val newList = list.mapIfNotSame { if (it == 2) it * 2 else it }
+        val newList = list.mapIfNotSameNotNull { if (it == 2) it * 2 else it }
         assertEquals(listOf(1, 4, 3), newList)
+    }
+
+    @Test
+    fun `Test map with reuse - remove middle`() {
+        val list = listOf(1, 2, 3)
+        val newList = list.mapIfNotSameNotNull { if (it == 2) null else it }
+        assertEquals(listOf(1, 3), newList)
     }
 }
