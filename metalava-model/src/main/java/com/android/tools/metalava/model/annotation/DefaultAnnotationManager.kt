@@ -759,7 +759,7 @@ private class LazyAnnotationInfo(
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
-    private val annotationClass by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
+    private val annotationClassItem by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
 
     /** Flag to detect whether the [checkResolvedAnnotationClass] is in a cycle. */
     private var isCheckingResolvedAnnotationClass = false
@@ -781,7 +781,7 @@ private class LazyAnnotationInfo(
 
             // Try and resolve this to the class to see if it has been annotated with hide meta
             // annotations. If it could not be resolved then assume it has not been annotated.
-            val resolved = annotationClass ?: return false
+            val resolved = annotationClassItem ?: return false
 
             // Return the result of applying the test to the resolved class.
             return test(resolved)
