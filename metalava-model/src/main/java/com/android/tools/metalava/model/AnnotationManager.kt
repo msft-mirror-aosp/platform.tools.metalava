@@ -188,4 +188,9 @@ internal class NoOpAnnotationInfo(
         get() = null
 }
 
-val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()
+/**
+ * Get a [NoOpAnnotationManager], creates a new one on each call as it caches information specific
+ * to a [Codebase].
+ */
+val noOpAnnotationManager: AnnotationManager
+    get() = NoOpAnnotationManager()
