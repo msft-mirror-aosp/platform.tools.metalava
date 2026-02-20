@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.testsuite.annotationitem
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -1451,7 +1450,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `annotation retention with no op manager`() {
+    fun `ensure can access annotation class even when using the NoOpAnnotationManager`() {
         runCodebaseTest(
             signature(
                 """
@@ -1470,14 +1469,10 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    import java.lang.annotation.Retention;
-                    import java.lang.annotation.RetentionPolicy;
-
                     @Test.Anno
                     public class Test {
                         private Test() {}
 
-                        @Retention(RetentionPolicy.RUNTIME)
                         public @interface Anno {
                         }
                     }
@@ -1489,7 +1484,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
                     @Test.Anno
                     class Test {
-                        @Retention(AnnotationRetention.RUNTIME)
                         annotation class Anno {
                         }
                     }
@@ -1498,14 +1492,14 @@ class CommonAnnotationItemTest : BaseModelTest() {
             testFixture =
                 TestFixture(
                     // Use the noOpAnnotationManager to ensure that tests that use it can still
-                    // access important information from the AnnotationClass.
+                    // access AnnotationItem.annotationClass from the AnnotationClass.
                     annotationManager = noOpAnnotationManager,
                 ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val annotation = testClass.modifiers.annotations().single()
 
-            assertEquals(AnnotationRetention.RUNTIME, annotation.retention)
+            assertNotNull(annotation.annotationClass)
         }
     }
 
