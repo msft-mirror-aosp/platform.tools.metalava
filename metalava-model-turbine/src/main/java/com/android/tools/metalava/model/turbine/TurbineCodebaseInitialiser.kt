@@ -17,11 +17,15 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationUse
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
@@ -29,6 +33,7 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -243,6 +248,9 @@ internal class TurbineCodebaseInitialiser(
         createInitialPackages(sourceSet)
 
         createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
     }
 
     /**
@@ -538,6 +546,46 @@ internal class TurbineCodebaseInitialiser(
     private fun createLookupKey(name: String): LookupKey {
         val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
         return LookupKey(ImmutableList.copyOf(idents))
+    }
+
+    /**
+     * Copy [AnnotationUse.TYPE_ONLY] only nullness annotations from types to [Item]s.
+     *
+     * The Psi model has historically included nullness annotations in the annotations for an item
+     * even when those annotations are [AnnotationUse.TYPE_ONLY]. This replicates that behavior.
+     *
+     * This is not strictly the same as Psi, as Psi only does that for annotations that are used in
+     * a context that means it could apply to either the declaration or the type. This simply always
+     * copies them. That means that in theory the behavior could differ but in practice this does
+     * not as type use only nullness annotations are not heavily used in Android or AndroidX.
+     */
+    fun copyTypeUseOnlyNullnessAnnotationsToItems() {
+        codebase.accept(
+            object : BaseItemVisitor() {
+                override fun visitItem(item: Item) {
+                    if (item is ClassItem || item is PackageItem) return
+                    val type = item.type() ?: return
+
+                    val itemAnnotations = item.modifiers.annotations()
+                    if (itemAnnotations.typeNullability == null) {
+                        val closestType =
+                            when (type) {
+                                is ArrayTypeItem -> type.innermostComponentType()
+                                else -> type
+                            }
+
+                        val annotationToAdd =
+                            closestType.modifiers.annotations.find { it.isNullnessAnnotation() }
+                        if (
+                            annotationToAdd != null &&
+                                annotationToAdd.annotationUse == AnnotationUse.TYPE_ONLY
+                        ) {
+                            item.mutateModifiers { mutateAnnotations { add(annotationToAdd) } }
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
