@@ -10,9 +10,6 @@ com.android.tools.metalava.Java9LanguageFeaturesTest
 com.android.tools.metalava.NullnessMigrationTest
   Check type use only nullability annotations[turbine]
 
-com.android.tools.metalava.TypeUseAnnotationFilteringTest
-  Keep type use annotations[turbine]
-
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
