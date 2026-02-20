@@ -19,11 +19,13 @@ package com.android.tools.metalava.model.testsuite.annotationitem
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.classTypeItem
@@ -1445,6 +1447,65 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 retentionClass.qualifiedName(),
                 message = "retention class"
             )
+        }
+    }
+
+    @Test
+    fun `annotation retention with no op manager`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno
+                      public class Test {
+                      }
+
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Test.Anno {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+
+                    @Test.Anno
+                    public class Test {
+                        private Test() {}
+
+                        @Retention(RetentionPolicy.RUNTIME)
+                        public @interface Anno {
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    @Test.Anno
+                    class Test {
+                        @Retention(AnnotationRetention.RUNTIME)
+                        annotation class Anno {
+                        }
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to ensure that tests that use it can still
+                    // access important information from the AnnotationClass.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annotation = testClass.modifiers.annotations().single()
+
+            assertEquals(AnnotationRetention.RUNTIME, annotation.retention)
         }
     }
 
