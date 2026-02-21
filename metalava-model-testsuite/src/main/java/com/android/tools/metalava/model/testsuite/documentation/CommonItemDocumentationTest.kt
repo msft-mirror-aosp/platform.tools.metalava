@@ -1546,4 +1546,72 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test pathological comments - preceding annotation no other comments`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.SuppressLint;
+
+                    @SuppressLint("UnflaggedApi")
+                    /** Some comment. */
+                    public class Test {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // TODO(b/479907812): Should be "/** Some comment. */".
+            testClass.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
+
+    @Test
+    fun `Test pathological comments - preceding annotation with other comments`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.SuppressLint;
+
+                    @SuppressLint("UnflaggedApi")
+                    // Inline comment
+                    /** Some comment. */
+                    /* Block comment. */
+                    public class Test {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // TODO(b/479907812): Should be "/** Some comment. */".
+            testClass.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
+
+    @Test
+    fun `Test pathological comments - preceding inline comment`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    // Inline comment.
+                    /** Some comment. */
+                    public class Test {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput = "/** Some comment. */\n",
+            )
+        }
+    }
 }
