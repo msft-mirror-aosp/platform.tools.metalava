@@ -1908,6 +1908,10 @@ val DEFAULT_SKIP_EMIT_PACKAGES =
         ANDROIDX_ANNOTATION_PACKAGE,
         // Ditto for libcore.util.
         "libcore.util",
+        // Ditto for test only nullability annotations.
+        "mixed.use",
+        "not.type.use",
+        "type.use.only",
     )
 
 /**

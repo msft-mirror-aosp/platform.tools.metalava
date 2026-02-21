@@ -7,6 +7,9 @@ com.android.tools.metalava.DuplicateClassTest
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Using JDK APIs[turbine]
 
+com.android.tools.metalava.NullnessMigrationTest
+  Check type use only nullability annotations[turbine]
+
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
 
