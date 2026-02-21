@@ -453,8 +453,8 @@ class NullnessMigrationTest : DriverTest() {
                     package test.pkg {
                       public class Test {
                         ctor public Test();
-                        method @Nullable public compute1(@Nullable _: java.util.@Nullable List<@Nullable String>): @Nullable Integer;
-                        method @Nullable public compute2(@NonNull _: java.util.@NonNull List<java.util.@NonNull List<?>>): @Nullable Integer;
+                        method @Nullable public compute1(@Nullable _: java.util.List<@Nullable String>): Integer;
+                        method @Nullable public compute2(@NonNull _: java.util.List<java.util.@NonNull List<?>>): Integer;
                       }
                     }
                 """,
