@@ -1563,9 +1563,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            // TODO(b/479907812): Should be "/** Some comment. */".
             testClass.assertPrintedDocumentation(
-                expectedOutput = "",
+                expectedOutput = "/** Some comment. */",
             )
         }
     }
@@ -1588,9 +1587,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            // TODO(b/479907812): Should be "/** Some comment. */".
             testClass.assertPrintedDocumentation(
-                expectedOutput = "",
+                expectedOutput = "/** Some comment. */",
             )
         }
     }
