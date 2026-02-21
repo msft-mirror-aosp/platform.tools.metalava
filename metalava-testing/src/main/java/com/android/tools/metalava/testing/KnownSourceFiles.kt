@@ -108,31 +108,31 @@ object KnownSourceFiles {
     val libcoreNonNullSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface NonNull {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
         )
 
     val libcoreNullableSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface Nullable {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface Nullable {
+                }
+            """
         )
 
     /**

@@ -79,12 +79,12 @@ class CommonParameterizedAnnotationUseTest : BaseModelTest() {
                 TestParams(
                     className = "libcore.util.NonNull",
                     testFile = KnownSourceFiles.libcoreNonNullSource,
-                    expectedAnnotationUse = AnnotationUse.TYPE_ONLY,
+                    expectedAnnotationUse = AnnotationUse.DECLARATION_AND_TYPE,
                 ),
                 TestParams(
                     className = "libcore.util.Nullable",
                     testFile = KnownSourceFiles.libcoreNullableSource,
-                    expectedAnnotationUse = AnnotationUse.TYPE_ONLY,
+                    expectedAnnotationUse = AnnotationUse.DECLARATION_AND_TYPE,
                 ),
                 TestParams(
                     className = "androidx.annotation.IntRange",
