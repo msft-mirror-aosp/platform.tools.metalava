@@ -406,8 +406,9 @@ internal class PsiCodebaseAssembler(
         val facade = JavaPsiFacade.getInstance(project)
         val scope = GlobalSearchScope.allScope(project)
 
-        val isFromClassPath = codebase.isFromClassPath()
-        val origin = if (isFromClassPath) ClassOrigin.CLASS_PATH else ClassOrigin.COMMAND_LINE
+        // Treat the jar classes as if they were specified on the command line.
+        val origin = ClassOrigin.COMMAND_LINE
+
         for (className in classNames) {
             val psiClass = facade.findClass(className, scope) ?: continue
 
