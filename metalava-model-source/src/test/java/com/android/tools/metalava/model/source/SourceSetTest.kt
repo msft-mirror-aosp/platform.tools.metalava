@@ -207,7 +207,6 @@ class SourceSetTest : TemporaryFolderOwner {
         val filesWithDuplicates = files + files
         val sourceSet = SourceSet(filesWithDuplicates, emptyList())
         val extractedRoots = sourceSet.extractRoots(reporter)
-        // TODO(b/479907812): Should remove duplicates.
-        assertEquals(filesWithDuplicates, extractedRoots.sources)
+        assertEquals(files, extractedRoots.sources)
     }
 }
