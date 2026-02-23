@@ -79,10 +79,6 @@ internal class TurbineSourceParser(
         return assembler.codebase
     }
 
-    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
-        TODO("b/299044569 handle this")
-    }
-
     override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
         error("Turbine model does not support multiplatform codebase creation")
     }
