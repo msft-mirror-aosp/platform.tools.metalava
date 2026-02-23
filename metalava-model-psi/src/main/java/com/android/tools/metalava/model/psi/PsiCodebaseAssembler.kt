@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.AnnotationItem
@@ -26,6 +25,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
@@ -382,13 +382,13 @@ internal class PsiCodebaseAssembler(
                             // skip inner classes
                             continue
                         }
-                        if (!fileName.endsWith(SdkConstants.DOT_CLASS)) {
+                        if (!fileName.endsWith(JavaConstants.DOT_CLASS)) {
                             // skip entries that are not .class files.
                             continue
                         }
 
                         val qualifiedName =
-                            fileName.removeSuffix(SdkConstants.DOT_CLASS).replace('/', '.')
+                            fileName.removeSuffix(JavaConstants.DOT_CLASS).replace('/', '.')
                         if (qualifiedName.endsWith(".package-info")) {
                             // skip package-info files.
                             continue

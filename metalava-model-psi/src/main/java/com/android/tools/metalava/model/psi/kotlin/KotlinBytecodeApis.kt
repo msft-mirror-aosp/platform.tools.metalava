@@ -16,12 +16,12 @@
 
 package com.android.tools.metalava.model.psi.kotlin
 
-import com.android.SdkConstants
 import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
@@ -103,7 +103,7 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
             for (entry in jar.entries().iterator()) {
                 val fileName = entry.name
                 if (
-                    !fileName.endsWith(SdkConstants.DOT_CLASS) ||
+                    !fileName.endsWith(JavaConstants.DOT_CLASS) ||
                         fileName.endsWith("package-info.class")
                 ) {
                     // for entries that are not .class files, just write them to the new jar
@@ -114,7 +114,7 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
 
                 val qualifiedName =
                     fileName
-                        .removeSuffix(SdkConstants.DOT_CLASS)
+                        .removeSuffix(JavaConstants.DOT_CLASS)
                         .replace('/', '.')
                         .replace('$', '.')
                 qualifiedClassNames.add(qualifiedName)
