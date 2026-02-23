@@ -21,17 +21,18 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import java.io.File
 
 abstract class AbstractSourceParser : SourceParser {
-    override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
+    final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
         loadCodebaseFromJars(classPath, "Codebase from classpath")
 
     /** Load a [DefaultCodebase] from a set of [jars]. */
-    protected fun loadCodebaseFromJars(
+    protected open fun loadCodebaseFromJars(
         jars: List<File>,
         description: String,
+        sourceSet: SourceSet = SourceSet.empty(),
     ): DefaultCodebase {
         val codebase =
             parseSources(
-                sourceSet = SourceSet.empty(),
+                sourceSet = sourceSet,
                 description = description,
                 classPath = jars,
             ) ?: error("Could not create codebase from $jars")

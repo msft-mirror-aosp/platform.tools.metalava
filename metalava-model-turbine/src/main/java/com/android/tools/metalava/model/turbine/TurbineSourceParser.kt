@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -54,24 +53,22 @@ internal class TurbineSourceParser(
         SourceSet(listOf(file), emptyList())
     }
 
-    override fun getClassPathResolver(classPath: List<File>): ClassPathResolver {
-        return try {
+    override fun loadCodebaseFromJars(
+        jars: List<File>,
+        description: String,
+        sourceSet: SourceSet,
+    ) =
+        try {
             // First try the default implementation.
-            super.getClassPathResolver(classPath)
+            super.loadCodebaseFromJars(jars, description, SourceSet.empty())
         } catch (e: IllegalArgumentException) {
             // If it failed for some unexpected reason then rethrow the exception.
             if (e.message != "Could not find java.lang on bootclasspath") {
                 throw e
             }
 
-            // Otherwise, try again with a fake java.lang.Object class.
-            parseSources(
-                sourceSet = fakeJavaLangObject,
-                description = "Codebase from classpath",
-                classPath = classPath,
-            ) ?: error("Could not create resolver from $classPath")
+            super.loadCodebaseFromJars(jars, description, fakeJavaLangObject)
         }
-    }
 
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
