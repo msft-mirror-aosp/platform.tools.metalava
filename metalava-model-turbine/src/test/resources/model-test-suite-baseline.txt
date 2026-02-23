@@ -2,6 +2,9 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotations of various uses and nullability after generic method type arguments list
   annotations of various uses and nullability on method
 
+com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
+  Test enum locations - java
+
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test preceding anonymous class with comment - in field initializer
   Test preceding anonymous class with comment - in method body
