@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
-import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
@@ -57,9 +56,6 @@ import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import java.io.File
-import java.io.IOException
-import java.util.zip.ZipFile
 import kotlin.collections.forEach
 import kotlin.collections.set
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -371,72 +367,6 @@ internal class PsiCodebaseAssembler(
             // containing class was created.
             psiCodebase.findClass(psiClass)!!
         }
-    }
-
-    /**
-     * Initialize [codebase] by making sure that all classes in [jarFile] are resolved and are
-     * treated as if they were added from sources.
-     */
-    internal fun initializeFromJar(jarFile: File) {
-        // Extract the list of class names from the jar file.
-        val classNames = buildList {
-            try {
-                ZipFile(jarFile).use { jar ->
-                    for (entry in jar.entries().iterator()) {
-                        val fileName = entry.name
-                        if (fileName.contains("$")) {
-                            // skip inner classes
-                            continue
-                        }
-                        if (!fileName.endsWith(JavaConstants.DOT_CLASS)) {
-                            // skip entries that are not .class files.
-                            continue
-                        }
-
-                        val qualifiedName =
-                            fileName.removeSuffix(JavaConstants.DOT_CLASS).replace('/', '.')
-                        if (qualifiedName.endsWith(".package-info")) {
-                            // skip package-info files.
-                            continue
-                        }
-
-                        add(qualifiedName)
-                    }
-                }
-            } catch (e: IOException) {
-                reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
-            }
-        }
-
-        // Iterate over all the top level classes found in the jar file.
-        for (className in classNames) {
-            val classItem =
-                codebase.resolveClass(className) ?: error("Could not resolve $className")
-
-            // Make sure it is modifiable.
-            classItem as SkeletonClassItem
-
-            // Treat the jar classes as if they were specified on the command line.
-            classItem.origin = ClassOrigin.COMMAND_LINE
-
-            // Make sure that the containing package is being emitted.
-            classItem.containingPackage().emit = true
-
-            // Make sure that the class and any nested classes are emitted.
-            classItem.markAsEmittable()
-
-            // Add it to the list of top level classes.
-            codebase.addTopLevelClassFromSource(classItem)
-        }
-    }
-
-    /**
-     * Mark this [ClassItem] and all its nested classes as being emittable, just like a class loaded
-     * from sources would be.
-     */
-    private fun ClassItem.markAsEmittable() {
-        emit = true
-        nestedClasses().forEach { it.markAsEmittable() }
     }
 
     /** Lists all packages in the psi project. */
