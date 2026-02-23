@@ -16,23 +16,22 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MutableCodebase
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiFile
 import java.io.File
-import org.jetbrains.uast.UMethod
-
-const val METHOD_ESTIMATE = 1000
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 
 /**
  * A codebase containing Java, Kotlin, or UAST PSI classes
@@ -49,49 +48,55 @@ const val METHOD_ESTIMATE = 1000
 internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
-    annotationManager: AnnotationManager,
-    override val reporter: Reporter,
-    val allowReadingComments: Boolean,
+    config: Codebase.Config,
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
+    /**
+     * Whether types should be checked to see if there are any references to typealiases, and have
+     * the references replaced with the aliased type.
+     *
+     * This is necessary when processing multiplatform sources with K2. With K1 psi, all typealiases
+     * are already replaced by the aliased type, but with K2 typealias usages may not have been
+     * replaced with the aliased type, particularly if the typealias is defined in a different
+     * module from the usage.
+     */
+    val inlineTypeAliasUsages: Boolean,
+    /** The KaModule to use for adding kotlin-only APIs to the codebase. */
+    val mainAnalysisModule: KaModule? = null,
 ) :
     DefaultCodebase(
         location = location,
         description = description,
         preFiltered = false,
-        annotationManager = annotationManager,
+        config = config,
         trustedApi = false,
         supportsDocumentation = true,
         assembler = assembler,
-    ),
-    MutableCodebase {
+    ) {
 
     internal val psiAssembler = assembler
 
     internal val project: Project
         get() = psiAssembler.project
 
-    /**
-     * Printer which can convert PSI, UAST and constants into source code, with ability to filter
-     * out elements that are not part of a codebase etc
-     */
-    internal val printer = CodePrinter(this, reporter)
-
-    /**
-     * Map from classes to the set of callables for each (but only for classes where we've called
-     * [findCallableByPsiMethod]
-     */
-    private val methodMap: MutableMap<ClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
-        HashMap(METHOD_ESTIMATE)
-
-    /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
+    /** [PsiTypeItemFactory] used to create [TypeItem]s. */
     internal val globalTypeItemFactory
         get() = psiAssembler.globalTypeItemFactory
+
+    /** Creates [ValueProvider]s and [Value]s from Psi classes. */
+    internal val valueFactory by
+        lazy(LazyThreadSafetyMode.NONE) { PsiValueFactory(this, globalTypeItemFactory) }
 
     override fun dispose() {
         psiAssembler.dispose()
         super.dispose()
     }
+
+    /**
+     * Cache from [PsiFile] to [PsiSourceFile] to ensure that every [PsiClass] within a single
+     * [PsiFile] use the same [PsiSourceFile] instance.
+     */
+    internal val sourceFileCache = PsiSourceFileCache(this)
 
     fun findClass(psiClass: PsiClass): ClassItem? {
         val qualifiedName: String = psiClass.classQualifiedName
@@ -100,66 +105,64 @@ internal class PsiBasedCodebase(
 
     internal fun findOrCreateClass(psiClass: PsiClass) = psiAssembler.findOrCreateClass(psiClass)
 
-    internal fun findCallableByPsiMethod(method: PsiMethod): PsiCallableItem {
-        val containingClass = method.containingClass
-        val cls = findOrCreateClass(containingClass!!)
-
-        // Ensure initialized/registered via [#registerMethods]
-        if (methodMap[cls] == null) {
-            val map = HashMap<PsiMethod, PsiCallableItem>(40)
-            registerCallablesByPsiMethod(cls.methods(), map)
-            registerCallablesByPsiMethod(cls.constructors(), map)
-            methodMap[cls] = map
-        }
-
-        val methods = methodMap[cls]!!
-        val methodItem = methods[method]
-        if (methodItem == null) {
-            // Probably switched psi classes (e.g. used source PsiClass in registry but found
-            // duplicate class in .jar library, and we're now pointing to it; in that case, find the
-            // equivalent method by signature
-            val psiClass = (cls as PsiClassItem).psiClass
-            val updatedMethod = psiClass.findMethodBySignature(method, true)
-            val result = methods[updatedMethod!!]
-            if (result == null) {
-                val extra =
-                    PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
-                methods[method] = extra
-                methods[updatedMethod] = extra
-
-                return extra
-            }
-            return result
-        }
-
-        return methodItem
-    }
-
-    internal fun findField(field: PsiField): FieldItem? {
-        val containingClass = field.containingClass ?: return null
-        val cls = findOrCreateClass(containingClass)
-        return cls.findField(field.name)
-    }
-
-    private fun registerCallablesByPsiMethod(
-        callables: List<CallableItem>,
-        map: MutableMap<PsiMethod, PsiCallableItem>
-    ) {
-        for (callable in callables) {
-            val psiMethod = (callable as PsiCallableItem).psiMethod
-            map[psiMethod] = callable
-            if (psiMethod is UMethod) {
-                // Register LC method as a key too
-                // so that we can find the corresponding [CallableItem]
-                // Otherwise, we will end up creating a new [CallableItem]
-                // without source PSI, resulting in wrong modifier.
-                map[psiMethod.javaPsi] = callable
-            }
-        }
-    }
-
     override fun isFromClassPath() = fromClasspath
 
-    override fun createAnnotation(source: String, context: Item?) =
-        psiAssembler.createAnnotation(source, context)
+    /**
+     * Override to allow access to the [AnnotationDefaults] without having to resolve a [ClassItem]
+     * which can have side effects which can cause problems during [PsiBasedCodebase] construction.
+     *
+     * The side effects are encountered as follows:
+     * * There is an optimization in [PsiCodebaseAssembler] where it will not create inaccessible
+     *   classes.
+     * * An `internal` class may be accessible if it has a show annotation.
+     * * Computing the [AnnotationItem.showability] requires getting values for all an
+     *   [AnnotationItem]'s attributes, including default values.
+     * * Getting [AnnotationDefaults] using the default implementation of this will resolve the
+     *   [AnnotationItem]'s [ClassItem].
+     * * Resolving the [ClassItem] before it has itself been created and registered causes problems,
+     *   e.g. it has the wrong value for [ClassItem.emit].
+     */
+    override fun defaultsForAnnotationClass(qualifiedName: String): AnnotationDefaults {
+        // Use defaults from a class if it was already created.
+        findClass(qualifiedName)?.let {
+            return it.annotationClass.defaults
+        }
+
+        // Otherwise, find the `PsiClass` and compute the values from that instead. This does not
+        // cache the results as there are very few places outside tests where this is used.
+        psiAssembler.findPsiClass(qualifiedName)?.let { psiClass ->
+            if (psiClass.methods.isNotEmpty()) {
+                val defaultsByName =
+                    psiClass.methods
+                        .mapNotNull { psiMethod ->
+                            val psiReturnType = psiMethod.returnType ?: return@mapNotNull null
+                            val optionalTypeItem =
+                                globalTypeItemFactory.getType(
+                                    psiReturnType,
+                                    psiMethod,
+                                    ContextNullability.forceNonNull,
+                                )
+                            val valueProvider =
+                                psiMethod.defaultValueProvider(this, optionalTypeItem)
+                                    ?: return@mapNotNull null
+
+                            psiMethod.name to valueProvider.value
+                        }
+                        .toMap()
+
+                return AnnotationDefaults(defaultsByName)
+            }
+        }
+
+        return AnnotationDefaults.EMPTY
+    }
+
+    /**
+     * Returns a typealias identified by fully qualified name, if in the codebase.
+     *
+     * If there is a [ClassItem] with the [qualifiedName] that is not a typealias, returns null.
+     */
+    fun findTypeAlias(qualifiedName: String): ClassItem? {
+        return findClass(qualifiedName)?.takeIf { it.classKind == ClassKind.TYPEALIAS }
+    }
 }

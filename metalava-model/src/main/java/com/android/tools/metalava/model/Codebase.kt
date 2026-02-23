@@ -16,15 +16,17 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import java.io.File
 
 /**
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase {
+interface Codebase : ClassPathResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -34,11 +36,14 @@ interface Codebase {
      */
     val location: File
 
+    /** Configuration of this [Codebase], typically comes from the command line. */
+    val config: Config
+
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
 
-    /** The manager of annotations within this codebase. */
-    val annotationManager: AnnotationManager
+    /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
+    val apiSurfaces: ApiSurfaces
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
@@ -76,7 +81,11 @@ interface Codebase {
      * available). That may include fabricating the [ClassItem] from nothing in the case of models
      * that work with a partial set of classes (like text model).
      */
-    fun resolveClass(className: String): ClassItem?
+    override fun resolveClass(erasedName: String): ClassItem?
+
+    /** The root [PackageItem]. */
+    val rootPackage
+        get() = resolvePackage("")
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
@@ -95,16 +104,6 @@ interface Codebase {
         visitor.visit(this)
     }
 
-    /**
-     * Creates an annotation item for the given (fully qualified) Java source.
-     *
-     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
-     */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem?
-
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing {
         error(
@@ -122,18 +121,70 @@ interface Codebase {
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
     }
-}
 
-sealed class MinSdkVersion
+    /** Indicates whether this [Codebase] contains a reverted item, or not. */
+    val containsRevertedItem: Boolean
 
-data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
+    /** Record that this [Codebase] contains at least one reverted item. */
+    fun markContainsRevertedItem()
 
-object UnsetMinSdkVersion : MinSdkVersion()
-
-interface MutableCodebase : Codebase {
     /**
-     * Register the class by name, return `true` if the class was registered and `false` if it was
-     * not, i.e. because it is a duplicate.
+     * Contains configuration for [Codebase] that can, or at least could, come from command line
+     * options.
      */
-    fun registerClass(classItem: DefaultClassItem): Boolean
+    data class Config(
+        /**
+         * Whether to allow reading comments from the sources.
+         *
+         * If `true` then source comments will be read and [SelectableItem.documentation] will not
+         * be `null` (unless the [SelectableItem] is `private`). If `false` then
+         * [SelectableItem.documentation] will always be `null`.
+         */
+        val allowReadingComments: Boolean = true,
+
+        /** Determines how annotations will affect the [Codebase]. */
+        val annotationManager: AnnotationManager = noOpAnnotationManager,
+
+        /**
+         * The [ApiFlags] to use in conditional javadoc.
+         *
+         * If set to `null` then it behaves as if all flags are enabled.
+         */
+        val apiFlags: ApiFlags? = null,
+
+        /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
+        /** The reporter to use for issues found during processing of the [Codebase]. */
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
+    ) {
+        companion object {
+            /**
+             * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
+             * reporter.
+             */
+            val NOOP = Config()
+        }
+    }
+
+    companion object {
+        /** Find the corresponding item in the previously released API if available. */
+        fun findPreviouslyReleased(
+            oldCodebase: Codebase?,
+            item: Item?,
+            inherit: Boolean = true,
+        ): Item? {
+            return oldCodebase?.let {
+                item?.findCorrespondingItemIn(
+                    oldCodebase,
+                    superMethods = inherit,
+                    duplicate = inherit,
+                )
+            }
+        }
+
+        /** Check to see if [item] was previously released. */
+        fun wasPreviouslyReleased(oldCodebase: Codebase?, item: Item?) =
+            findPreviouslyReleased(oldCodebase, item) != null
+    }
 }

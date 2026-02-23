@@ -20,14 +20,17 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectors.TestableSelectorsState
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
 
 /** Common tests for [ApiVariantSelectors]. */
+@RequiresCapabilities(Capability.API_VARIANT_SELECTORS)
 class CommonApiVariantSelectorsTest : BaseModelTest() {
 
     /**
@@ -371,9 +374,11 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
     fun `Test accessible`() {
         runCodebaseTest(
             inputSet(
-                java("""
+                java(
+                    """
                         package test.pkg;
-                    """),
+                    """
+                ),
                 java(
                     """
                         package test.pkg;
@@ -396,8 +401,13 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
 
             var count = 0
             pkgItem.accept(
-                object : BaseItemVisitor() {
-                    override fun visitItem(item: Item) {
+                object :
+                    BaseItemVisitor(
+                        // [ParameterItem]s are not [SelectableItem]s so there is no point in
+                        // visiting them.
+                        visitParameterItems = false,
+                    ) {
+                    override fun visitSelectableItem(item: SelectableItem) {
                         val name =
                             when (item) {
                                 is ClassItem -> item.simpleName()

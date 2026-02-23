@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.testing.getAndroidTxt
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
@@ -79,10 +80,10 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                     .isEqualTo(
                         ApiFile.Stats(
                             totalClasses = 7315,
-                            typeCacheRequests = 190875,
+                            typeCacheRequests = 170884,
                             typeCacheSkip = 0,
-                            typeCacheHit = 179355,
-                            typeCacheSize = 11520,
+                            typeCacheHit = 159367,
+                            typeCacheSize = 11517,
                         )
                     )
             }
@@ -99,16 +100,16 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         }
 
         ApiFile.parseApi(
-            listOf(SignatureFile.fromFile(testFile)),
+            SignatureFile.fromFiles(testFile),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
                         ApiFile.Stats(
                             totalClasses = 306,
-                            typeCacheRequests = 7245,
+                            typeCacheRequests = 6401,
                             typeCacheSkip = 0,
-                            typeCacheHit = 6532,
-                            typeCacheSize = 713,
+                            typeCacheHit = 5691,
+                            typeCacheSize = 710,
                         )
                     )
             }
@@ -299,8 +300,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
             assertWithMessage(
                     "string representation of withAnno1.deepestComponent() and withAnno1TwoDims.deepestComponent()"
                 )
-                .that(withAnno1TwoDims.deepestComponent().toTypeString(annotations = true))
-                .isEqualTo(withAnno1.deepestComponent().toTypeString(annotations = true))
+                .that(withAnno1TwoDims.deepestComponent().testTypeString(annotations = true))
+                .isEqualTo(withAnno1.deepestComponent().testTypeString(annotations = true))
 
             // But they are different instances as types with annotations are not cached..
             assertWithMessage(
@@ -315,7 +316,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     fun `Test caching of generic type arguments`() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
-            val second = parser.obtainTypeFromString("List<Number>", emptyScope) as ClassTypeItem
+            val second =
+                parser.obtainTypeFromString("java.util.List<Number>", emptyScope) as ClassTypeItem
 
             assertThat(second.arguments[0]).isSameInstanceAs(first)
         }
@@ -326,7 +328,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
             val second =
-                parser.obtainTypeFromString("List<? extends Number>", emptyScope) as ClassTypeItem
+                parser.obtainTypeFromString("java.util.List<? extends Number>", emptyScope)
+                    as ClassTypeItem
 
             assertThat((second.arguments[0] as WildcardTypeItem).extendsBound)
                 .isSameInstanceAs(first)
@@ -338,7 +341,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
             val second =
-                parser.obtainTypeFromString("List<? super Number>", emptyScope) as ClassTypeItem
+                parser.obtainTypeFromString("java.util.List<? super Number>", emptyScope)
+                    as ClassTypeItem
 
             assertThat((second.arguments[0] as WildcardTypeItem).superBound).isSameInstanceAs(first)
         }

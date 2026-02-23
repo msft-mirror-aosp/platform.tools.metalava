@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -75,7 +76,15 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
         annotationUsageSource: TestFile,
         annotationDefinitionSource: TestFile,
     ) {
-        runCodebaseTest(inputSet(annotationDefinitionSource, annotationUsageSource)) {
+        runCodebaseTest(
+            inputSet(annotationDefinitionSource, annotationUsageSource),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertThat(methods).hasSize(3)
 
@@ -92,7 +101,7 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
             assertThat(string).isInstanceOf(ClassTypeItem::class.java)
             assertThat(string.annotationNames()).containsExactly("test.pkg.A")
             val stringMethodAnnotations = stringMethod.annotationNames()
-            if ((stringMethod as PsiMethodItem).psiMethod.isKotlin()) {
+            if (stringMethod.isKotlin()) {
                 // The Kotlin version puts a nullability annotation on the method
                 assertThat(stringMethodAnnotations)
                     .containsExactly("org.jetbrains.annotations.NotNull")

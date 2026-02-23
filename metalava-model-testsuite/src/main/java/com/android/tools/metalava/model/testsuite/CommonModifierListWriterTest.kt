@@ -26,10 +26,10 @@ import org.junit.Test
 /** Common tests for implementations of [ModifierListWriter]. */
 class CommonModifierListWriterTest : BaseModelTest() {
 
-    private fun Item.writeKeywords(normalize: Boolean = false): String {
+    private fun Item.writeKeywords(normalizeFinal: Boolean = false): String {
         val stringWriter = StringWriter()
         val writer = ModifierListWriter.forSignature(stringWriter, skipNullnessAnnotations = true)
-        writer.writeKeywords(this, normalize = normalize)
+        writer.writeKeywords(this, normalizeFinal = normalizeFinal)
         return stringWriter.toString().trimEnd()
     }
 
@@ -125,11 +125,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val methodItem = testClass.methods().single()
 
-            // This test reveals some inconsistencies between the models in how they handle a final
-            // method in a final class. Psi ignores the `final` keyword on the method but text and
-            // turbine do not. It is not 100% clear which is the correct behavior but at the moment
-            // this treats the latter two behavior as correct.
-            assertEquals("public final", methodItem.writeKeywords())
+            assertEquals("public", methodItem.writeKeywords())
         }
     }
 
@@ -161,7 +157,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val methodItem = testClass.methods().single()
 
-            assertEquals("public", methodItem.writeKeywords(normalize = true))
+            assertEquals("public", methodItem.writeKeywords(normalizeFinal = true))
         }
     }
 

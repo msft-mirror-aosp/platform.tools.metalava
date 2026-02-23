@@ -16,55 +16,74 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.BoundsTypeItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM_TYPE
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
-open class DefaultTypeParameterItem(
-    codebase: Codebase,
-    itemLanguage: ItemLanguage,
+internal class DefaultTypeParameterItem(
     modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,
-) :
-    DefaultItem(
-        codebase = codebase,
-        fileLocation = FileLocation.UNKNOWN,
-        itemLanguage = itemLanguage,
-        modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
-    ),
-    TypeParameterItem {
+) : SkeletonTypeParameterItem {
 
-    final override fun name() = name
+    override val modifiers: ModifierList = modifiers.toImmutable()
+
+    override fun name() = name
 
     /** Must only be used by [type] to cache its result. */
     private lateinit var variableTypeItem: VariableTypeItem
 
     override fun type(): VariableTypeItem {
         if (!::variableTypeItem.isInitialized) {
-            variableTypeItem = createVariableTypeItem()
+            variableTypeItem =
+                TypeItem.createVariableType(TypeModifiers.emptyUndefinedModifiers, this)
         }
         return variableTypeItem
     }
 
-    /** Create a [VariableTypeItem] for this [TypeParameterItem]. */
-    protected open fun createVariableTypeItem(): VariableTypeItem =
-        DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
+    override lateinit var bounds: List<BoundsTypeItem>
 
-    lateinit var bounds: List<BoundsTypeItem>
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
-    final override fun typeBounds(): List<BoundsTypeItem> = bounds
+    override fun asErasedType() =
+        // The first type bound, if any, is the erased type as defined in
+        // https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.6.
+        typeBounds().firstOrNull()?.asErasedType()
+            // The nullability of the default type bound differs between Kotlin (Any?) and Java
+            // (Object!) but that does not matter here as this is the type used at runtime which
+            // ignores nullability. As nullability is required this just uses the platform as
+            // that seems more representative of the intent.
+            ?: JAVA_LANG_OBJECT_PLATFORM_TYPE
 
-    final override fun isReified(): Boolean = isReified
+    override fun isReified(): Boolean = isReified
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name() == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name().hashCode()
+    }
+
+    override fun toString(): String =
+        if (typeBounds().isEmpty() && !isReified()) name()
+        else
+            buildString {
+                if (isReified()) append("reified ")
+                append(name())
+                if (typeBounds().isNotEmpty()) {
+                    append(" extends ")
+                    typeBounds().joinTo(this, " & ")
+                }
+            }
 }

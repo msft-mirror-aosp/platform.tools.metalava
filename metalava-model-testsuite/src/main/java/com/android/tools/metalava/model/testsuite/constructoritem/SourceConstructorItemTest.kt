@@ -37,12 +37,8 @@ class SourceConstructorItemTest : BaseModelTest() {
             ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val constructorItem = fooClass.assertConstructor("")
+            val constructorItem = fooClass.assertConstructor(emptyList())
 
-            assertTrue(
-                fooClass.hasImplicitDefaultConstructor(),
-                message = "hasImplicitDefaultConstructor"
-            )
             assertTrue(constructorItem.isImplicitConstructor(), message = "isImplicitConstructor")
         }
     }
@@ -61,12 +57,8 @@ class SourceConstructorItemTest : BaseModelTest() {
             ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val constructorItem = fooClass.assertConstructor("")
+            val constructorItem = fooClass.assertConstructor(emptyList())
 
-            assertFalse(
-                fooClass.hasImplicitDefaultConstructor(),
-                message = "!hasImplicitDefaultConstructor"
-            )
             assertFalse(constructorItem.isImplicitConstructor(), message = "!isImplicitConstructor")
         }
     }

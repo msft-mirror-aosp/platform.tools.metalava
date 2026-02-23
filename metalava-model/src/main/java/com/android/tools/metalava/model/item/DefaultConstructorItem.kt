@@ -27,17 +27,22 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultConstructorItem(
+internal class DefaultConstructorItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -49,11 +54,13 @@ open class DefaultConstructorItem(
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
     private val implicitConstructor: Boolean,
+    override val isPrimary: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
@@ -68,19 +75,40 @@ open class DefaultConstructorItem(
     ConstructorItem {
 
     /** Override to specialize the return type. */
-    final override fun returnType() = super.returnType() as ClassTypeItem
+    override fun returnType() = super.returnType() as ClassTypeItem
 
     /** Override to make sure that [type] is a [ClassTypeItem]. */
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         super.setType(type as ClassTypeItem)
     }
 
-    final override fun isImplicitConstructor() = implicitConstructor
+    override fun isImplicitConstructor() = implicitConstructor
+
+    override fun createOverload(parameters: List<ParameterItem>): ConstructorItem =
+        DefaultConstructorItem(
+            codebase,
+            fileLocation,
+            sourceLanguage,
+            targetLanguages,
+            modifiers,
+            documentation.duplicatingFactory(),
+            variantSelectors::duplicate,
+            name(),
+            containingClass(),
+            typeParameterList,
+            returnType(),
+            parameterItemsFactory = overloadParameterItemFactory(parameters),
+            throwsTypes,
+            body::duplicate,
+            implicitConstructor,
+            // This is an overload so cannot be the primary constructor by definition.
+            isPrimary = false,
+        )
 
     companion object {
-        fun createDefaultConstructor(
+        fun createImplicitDefaultConstructor(
             codebase: Codebase,
-            itemLanguage: ItemLanguage,
+            sourceLanguage: SourceLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
             visibility: VisibilityLevel,
@@ -93,7 +121,8 @@ open class DefaultConstructorItem(
                     codebase = codebase,
                     // Use the location of the containing class for the default constructor.
                     fileLocation = containingClass.fileLocation,
-                    itemLanguage = itemLanguage,
+                    sourceLanguage = sourceLanguage,
+                    targetLanguages = TargetLanguageSet.ALL,
                     modifiers = modifiers,
                     documentationFactory = ItemDocumentation.NONE_FACTORY,
                     variantSelectorsFactory = variantSelectorsFactory,
@@ -104,8 +133,8 @@ open class DefaultConstructorItem(
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
                     callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
-                    // This is not an implicit constructor as it was not created by the compiler.
-                    implicitConstructor = false,
+                    // This is an implicit constructor as it was not found in the source.
+                    implicitConstructor = true,
                 )
             return ctorItem
         }

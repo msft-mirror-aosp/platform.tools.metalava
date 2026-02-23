@@ -23,10 +23,53 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Common tests for implementations of [ClassItem] that are `enum` classes. */
 class CommonEnumTest : BaseModelTest() {
+    @Test
+    fun `Test enum class super class`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public enum Foo {
+                        FOO
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    enum class Foo {
+                        FOO
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public enum Foo {
+                        enum_constant public test.pkg.Foo FOO;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val enumClass = codebase.assertResolvedClass("java.lang.Enum")
+
+            assertSame(enumClass, fooClass.superClassType()?.resolveClass(codebase))
+            assertSame(enumClass, fooClass.superClass())
+
+            val interfaceList = fooClass.interfaceTypes()
+            assertEquals(emptyList(), interfaceList)
+        }
+    }
+
     @Test
     fun `Test enum synthetic methods are not included in the enum class`() {
         runCodebaseTest(
@@ -77,17 +120,17 @@ class CommonEnumTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Make sure that only `values(String)` is in the class.
-            val values = fooClass.assertMethod(JAVA_ENUM_VALUES, "java.lang.String")
+            val values = fooClass.assertMethod(JAVA_ENUM_VALUES, listOf("java.lang.String"))
             assertThat(fooClass.methods().filter { it.name() == JAVA_ENUM_VALUES })
                 .isEqualTo(listOf(values))
 
             // Make sure that only `valueOf(int)` is in the class.
-            val valueOf = fooClass.assertMethod(JAVA_ENUM_VALUE_OF, "int")
+            val valueOf = fooClass.assertMethod(JAVA_ENUM_VALUE_OF, listOf("int"))
             assertThat(fooClass.methods().filter { it.name() == JAVA_ENUM_VALUE_OF })
                 .isEqualTo(listOf(valueOf))
 
             // Make sure that only `getEntries(String)` is in the class.
-            val getEntries = fooClass.assertMethod("getEntries", "java.lang.String")
+            val getEntries = fooClass.assertMethod("getEntries", listOf("java.lang.String"))
             assertThat(fooClass.methods().filter { it.name() == "getEntries" })
                 .isEqualTo(listOf(getEntries))
         }

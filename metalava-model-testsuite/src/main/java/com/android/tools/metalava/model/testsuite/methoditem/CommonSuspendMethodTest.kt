@@ -165,4 +165,40 @@ class CommonSuspendMethodTest : BaseModelTest() {
                 )
         }
     }
+
+    @Test
+    fun `Test extension suspend method`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                interface Foo {
+                    suspend fun regularFun(): String
+                    suspend fun String.extensionFun(): String
+                }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val regularFun =
+                fooClass.assertMethod(
+                    "regularFun",
+                    listOf("kotlin.coroutines.Continuation<? super java.lang.String>")
+                )
+            assertThat(regularFun.modifiers.isSuspend()).isTrue()
+            assertThat(regularFun.isExtensionMethod()).isFalse()
+
+            val extensionFun =
+                fooClass.assertMethod(
+                    "extensionFun",
+                    listOf(
+                        "java.lang.String",
+                        "kotlin.coroutines.Continuation<? super java.lang.String>"
+                    )
+                )
+            assertThat(extensionFun.modifiers.isSuspend()).isTrue()
+            assertThat(extensionFun.isExtensionMethod()).isTrue()
+        }
+    }
 }

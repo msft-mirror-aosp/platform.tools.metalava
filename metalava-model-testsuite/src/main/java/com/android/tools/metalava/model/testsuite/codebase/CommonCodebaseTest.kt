@@ -17,9 +17,12 @@
 package com.android.tools.metalava.model.testsuite.codebase
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Common tests for implementations of [MethodItem]. */
@@ -47,6 +50,78 @@ class CommonCodebaseTest : BaseModelTest() {
             val classes = codebase.getTopLevelClassesFromSource()
 
             assertEquals(listOf(codebase.assertClass("test.pkg.Outer")), classes)
+        }
+    }
+
+    @Test
+    fun `Test resolve nested class sets correct containing class`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+        ) {
+            val entryClass = codebase.assertResolvedClass("java.util.Map.Entry")
+            val mapClass = codebase.assertResolvedClass("java.util.Map")
+            assertSame(entryClass.containingClass(), mapClass)
+        }
+    }
+
+    @Test
+    fun `Test resolve package`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """
+            ),
+        ) {
+            // Make sure that the `java` package has not been created yet.
+            assertNull(codebase.findPackage("java"), message = "find java package")
+
+            // Resolve and create the `java` package.
+            codebase.assertResolvedPackage("java")
+
+            // Make sure that resolving an unknown package does not create it.
+            assertNull(codebase.resolvePackage("unknown"), message = "resolve unknown package")
+        }
+    }
+
+    @Test
+    fun `Test ApiFlags passed through to codebase config`() {
+        val apiFlags = ApiFlags(emptyList())
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    apiFlags = apiFlags,
+                ),
+        ) {
+            // Make sure that the `apiFlags` has been passed through to the Codebase.Config.
+            assertSame(apiFlags, codebase.config.apiFlags)
         }
     }
 }

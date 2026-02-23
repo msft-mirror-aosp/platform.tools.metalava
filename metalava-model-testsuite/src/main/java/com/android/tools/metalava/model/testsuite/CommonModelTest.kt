@@ -33,9 +33,11 @@ class CommonModelTest : BaseModelTest() {
     @Test
     fun `empty file`() {
         runCodebaseTest(
-            signature("""
+            signature(
+                """
                     // Signature format: 2.0
-                """),
+                """
+            ),
             java(""),
         ) {
             assertNotNull(codebase)
@@ -198,7 +200,7 @@ class CommonModelTest : BaseModelTest() {
             val previouslyReleased = codebase
             runCodebaseTest(*pairs.map { it.second }.toTypedArray()) {
                 val latest = codebase
-                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", "int")
+                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", listOf("int"))
 
                 // Make sure that super methods are not found by default.
                 assertNull(barFoo.findCorrespondingItemIn(previouslyReleased))
@@ -216,11 +218,11 @@ class CommonModelTest : BaseModelTest() {
         runCodebaseTest(*pairs.map { it.first }.toTypedArray()) {
             val previouslyReleased = codebase
             val previouslyReleasedFooFoo =
-                previouslyReleased.assertClass("test.pkg.Foo").assertMethod("foo", "int")
+                previouslyReleased.assertClass("test.pkg.Foo").assertMethod("foo", listOf("int"))
             val previouslyReleasedFooFooParameter = previouslyReleasedFooFoo.parameters().first()
             runCodebaseTest(*pairs.map { it.second }.toTypedArray()) {
                 val latest = codebase
-                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", "int")
+                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", listOf("int"))
 
                 // Make sure that super methods are found when requested
                 assertSame(
@@ -244,12 +246,12 @@ class CommonModelTest : BaseModelTest() {
         runCodebaseTest(*pairs.map { it.first }.toTypedArray()) {
             val previouslyReleased = codebase
             val previouslyReleasedFooFoo =
-                previouslyReleased.assertClass("test.pkg.Foo").assertMethod("foo", "int")
+                previouslyReleased.assertClass("test.pkg.Foo").assertMethod("foo", listOf("int"))
             val previouslyReleasedFooFooParameter = previouslyReleasedFooFoo.parameters().first()
             runCodebaseTest(*pairs.map { it.second }.toTypedArray()) {
                 val latest = codebase
-                val fooFoo = latest.assertClass("test.pkg.Foo").assertMethod("foo", "int")
-                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", "int")
+                val fooFoo = latest.assertClass("test.pkg.Foo").assertMethod("foo", listOf("int"))
+                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", listOf("int"))
 
                 // Make sure that super methods are not duplicated when requested unless necessary.
                 val correspondingFooFooMethodItem =
@@ -391,7 +393,7 @@ class CommonModelTest : BaseModelTest() {
                 for (interfaceType in classItem.interfaceTypes()) {
                     // Resolve the interface type which might trigger a change in the
                     // packages/classes.
-                    interfaceType.asClass()?.let { items += it }
+                    interfaceType.resolveClass(codebase)?.let { items += it }
                 }
             }
 

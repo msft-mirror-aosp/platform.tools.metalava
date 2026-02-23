@@ -17,19 +17,20 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.fail
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class MetalavaCommandTest : TemporaryFolderOwner {
-
-    @get:Rule override val temporaryFolder = TemporaryFolder()
+class MetalavaCommandTest :
+    BaseCommandTest<MetalavaCommand>({ executionEnvironment ->
+        MetalavaCommand(
+            executionEnvironment = executionEnvironment,
+            progressTracker = ProgressTracker(),
+        )
+    }) {
 
     /**
      * Ensure that the [CommonOptions.terminal] can be accessed before the options has been
@@ -136,6 +137,7 @@ class MetalavaCommandTest : TemporaryFolderOwner {
 
         val pattern =
             """\Qcom.android.tools.metalava.cli.common.MetalavaCliException: fail
+            |	at com.android.tools.metalava.cli.common.MetalavaCliExceptionKt.cliError\E\([^)]+\)\Q
             |	at com.android.tools.metalava.cli.common.MetalavaCommandTest${"$"}FailCommand.run\E\([^)]+\)
             |	at .*
             |	at .*
@@ -163,7 +165,17 @@ $separator
 
     private class FailCommand : CliktCommand() {
         override fun run() {
-            throw MetalavaCliException("fail")
+            cliError("fail")
+        }
+    }
+
+    @Test
+    fun `Test version`() {
+        commandTest {
+            args += listOf(ARG_NO_COLOR, "--version")
+
+            expectedStderr = ""
+            expectedStdout = "metalava version: 1.0.0-alpha14"
         }
     }
 }
