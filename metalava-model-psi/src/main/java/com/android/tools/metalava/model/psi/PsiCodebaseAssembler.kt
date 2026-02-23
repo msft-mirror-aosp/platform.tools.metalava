@@ -188,10 +188,7 @@ internal class PsiCodebaseAssembler(
      * [ClassItem] may be created for it later if needed, e.g. if it is a super class of an
      * accessible class.
      */
-    private fun createPossibleApiClass(
-        psiClass: PsiClass,
-        origin: ClassOrigin,
-    ): ClassItem? {
+    private fun createPossibleApiClass(psiClass: PsiClass): ClassItem? {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
 
         // Ignore inaccessible classes.
@@ -201,7 +198,12 @@ internal class PsiCodebaseAssembler(
             return null
         }
 
-        return createTopLevelClassAndContents(psiClass, origin, modifiers)
+        return createTopLevelClassAndContents(
+            psiClass,
+            // Sources always come from the command line.
+            ClassOrigin.COMMAND_LINE,
+            modifiers
+        )
     }
 
     /** Create a top level class, their inner classes and all the other members. */
@@ -714,12 +716,7 @@ internal class PsiCodebaseAssembler(
             if (!apiPackages.matches(packageName)) return
         }
 
-        val classItem =
-            createPossibleApiClass(
-                psiClass,
-                // Sources always come from the command line.
-                ClassOrigin.COMMAND_LINE,
-            ) ?: return
+        val classItem = createPossibleApiClass(psiClass) ?: return
         codebase.addTopLevelClassFromSource(classItem)
     }
 
