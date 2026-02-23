@@ -371,6 +371,10 @@ internal class PsiCodebaseAssembler(
         }
     }
 
+    /**
+     * Initialize [codebase] by making sure that all classes in [jarFile] are resolved and are
+     * treated as if they were added from sources.
+     */
     internal fun initializeFromJar(jarFile: File) {
         // Extract the list of class names from the jar file.
         val classNames = buildList {
@@ -402,19 +406,35 @@ internal class PsiCodebaseAssembler(
             }
         }
 
-        // Find all classes referenced from the class
-        val facade = JavaPsiFacade.getInstance(project)
-        val scope = GlobalSearchScope.allScope(project)
-
-        // Treat the jar classes as if they were specified on the command line.
-        val origin = ClassOrigin.COMMAND_LINE
-
+        // Iterate over all the top level classes found in the jar file.
         for (className in classNames) {
-            val psiClass = facade.findClass(className, scope) ?: continue
+            val classItem =
+                codebase.resolveClass(className) ?: error("Could not resolve $className")
 
-            val classItem = createPossibleApiClass(psiClass, origin) ?: continue
+            // Make sure it is modifiable.
+            classItem as SkeletonClassItem
+
+            // Treat the jar classes as if they were specified on the command line.
+            classItem.origin = ClassOrigin.COMMAND_LINE
+
+            // Make sure that the containing package is being emitted.
+            classItem.containingPackage().emit = true
+
+            // Make sure that the class and any nested classes are emitted.
+            classItem.markAsEmittable()
+
+            // Add it to the list of top level classes.
             codebase.addTopLevelClassFromSource(classItem)
         }
+    }
+
+    /**
+     * Mark this [ClassItem] and all its nested classes as being emittable, just like a class loaded
+     * from sources would be.
+     */
+    private fun ClassItem.markAsEmittable() {
+        emit = true
+        nestedClasses().forEach { it.markAsEmittable() }
     }
 
     /** Lists all packages in the psi project. */
