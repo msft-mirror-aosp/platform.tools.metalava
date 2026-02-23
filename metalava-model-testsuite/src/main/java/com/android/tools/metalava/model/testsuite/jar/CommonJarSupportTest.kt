@@ -28,7 +28,7 @@ import com.android.tools.metalava.testing.java
 import org.junit.ClassRule
 import org.junit.Test
 
-class CommonClassPathResolverTest : BaseModelTest() {
+class CommonJarSupportTest : BaseModelTest() {
     companion object {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
