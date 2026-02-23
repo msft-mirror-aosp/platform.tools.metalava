@@ -7,10 +7,21 @@ com.android.tools.metalava.DuplicateClassTest
 com.android.tools.metalava.NullnessMigrationTest
   Check type use only nullability annotations[turbine]
 
+com.android.tools.metalava.apilevels.ApiGeneratorTest
+  Generate API for system surface from jar[turbine]
+
+com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommandTest
+  Test computing delta for annotations with attributes
+
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
+
+com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
+  Test jar loader does not freeze codebase[turbine]
+  Test jar loader freezes codebase[turbine]
+  Test loaded jar depends on class path[turbine]
 
 com.android.tools.metalava.stub.StubsTest
   Generate stubs for various modifier scenarios[turbine]
