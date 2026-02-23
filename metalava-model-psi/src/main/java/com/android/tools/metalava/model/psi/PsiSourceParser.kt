@@ -165,18 +165,12 @@ internal class PsiSourceParser(
             add(apiJar)
             addAll(classPath)
         }
-        val environment = loadUastFromJars(jars)
-        val assembler =
-            PsiCodebaseAssembler(environment) { assembler ->
-                PsiBasedCodebase(
-                    location = apiJar,
-                    description = "Codebase loaded from $apiJar",
-                    config = codebaseConfig,
-                    assembler = assembler,
-                    inlineTypeAliasUsages = environment.isKMP,
-                )
-            }
-        val codebase = assembler.psiCodebase
+        val codebase =
+            loadCodebaseFromJars(
+                jars,
+                "Codebase loaded from $apiJar",
+                includeKotlinInCodebase = false,
+            )
         initializeFromJar(codebase, apiJar)
         return codebase
     }
