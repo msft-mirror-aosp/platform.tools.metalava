@@ -343,11 +343,4 @@ internal class PsiSourceParser(
             }
         )
     }
-
-    companion object {
-        private const val AAR = "aar"
-        private const val JAR = "jar"
-        private const val KLIB = "klib"
-        private val SUPPORTED_CLASSPATH_EXT = listOf(AAR, JAR, KLIB)
-    }
 }
