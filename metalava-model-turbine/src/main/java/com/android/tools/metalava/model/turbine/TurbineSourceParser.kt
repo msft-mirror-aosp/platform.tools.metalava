@@ -22,12 +22,15 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceSet
+import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.JimageClassBinder
 import com.google.turbine.diag.TurbineError
 import java.io.File
 import java.nio.file.Files
 
 internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
+    private val jdkHome: File?,
 ) : AbstractSourceParser() {
 
     /**
@@ -88,6 +91,11 @@ internal class TurbineSourceParser(
             error("Turbine model does not support --compiled-jar")
         }
 
+        val classpath = ClassPathBinder.bindClasspath(classPath.map { it.toPath() })
+        val bootclasspath =
+            jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
+                ?: ClassPathBinder.bindClasspath(listOf())
+
         val sourceSetWithExtractedRoots = sourceSet.extractRoots(codebaseConfig.reporter)
 
         val rootDir = sourceSetWithExtractedRoots.sourcePath.firstOrNull() ?: File("").canonicalFile
@@ -105,7 +113,8 @@ internal class TurbineSourceParser(
                         assembler = assembler,
                     )
                 },
-                classpath = classPath,
+                bootclasspath = bootclasspath,
+                classpath = classpath,
             )
 
         try {
