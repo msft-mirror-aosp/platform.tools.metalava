@@ -1612,4 +1612,64 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test preceding anonymous class with comment - in field initializer`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        @SuppressWarnings("Convert2Lambda")
+                        private static final Runnable RUNNABLE = new Runnable() {
+                            /** Do nothing. */
+                            @Override public void run() {
+                            }
+                        };
+
+                        // This method has no documentation.
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.methods().single()
+            testMethod.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
+
+    @Test
+    fun `Test preceding anonymous class with comment - in method body`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        @SuppressWarnings("Convert2Lambda")
+                        private void hidden() {
+                            final Runnable RUNNABLE = new Runnable() {
+                                /** Do nothing. */
+                                @Override public void run() {
+                                }
+                            };
+                        }
+
+                        // This method has no documentation.
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.assertMethod("method", emptyList())
+            testMethod.assertPrintedDocumentation(
+                expectedOutput = "",
+            )
+        }
+    }
 }

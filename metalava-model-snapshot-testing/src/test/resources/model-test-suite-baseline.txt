@@ -36,6 +36,10 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
 
+com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
+  Test preceding anonymous class with comment - in field initializer[turbine]
+  Test preceding anonymous class with comment - in method body[turbine]
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
