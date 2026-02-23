@@ -51,7 +51,7 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
             }
 
         val sourceRoots = extractRoots(reporter, absoluteSources, absoluteSourcePaths)
-        return SourceSet(sources, sourceRoots)
+        return SourceSet(absoluteSources, sourceRoots)
     }
 
     companion object {
