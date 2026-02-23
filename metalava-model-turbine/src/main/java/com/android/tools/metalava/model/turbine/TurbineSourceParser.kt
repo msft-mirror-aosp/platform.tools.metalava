@@ -21,16 +21,15 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
-import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.google.turbine.diag.TurbineError
 import java.io.File
 import java.nio.file.Files
-import kotlin.io.writeText
 
 internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
-) : SourceParser {
+) : AbstractSourceParser() {
 
     /**
      * A [SourceSet] that contains a fake `java.lang.Object` class.

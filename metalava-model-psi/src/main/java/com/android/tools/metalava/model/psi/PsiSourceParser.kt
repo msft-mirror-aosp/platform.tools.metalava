@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
-import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.pom.java.LanguageLevel
@@ -71,7 +71,7 @@ internal class PsiSourceParser(
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val useK2Uast: Boolean,
     private val jdkHome: File?,
-) : SourceParser {
+) : AbstractSourceParser() {
 
     private val reporter = codebaseConfig.reporter
 
