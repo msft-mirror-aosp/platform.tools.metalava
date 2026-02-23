@@ -132,10 +132,3 @@ internal class TurbineSourceParser(
         error("Turbine model does not support multiplatform codebase creation")
     }
 }
-
-private val NULL =
-    object : ClassPathResolver {
-        override fun resolveClass(erasedName: String) = null
-
-        override fun resolvePackage(pkgName: String) = null
-    }
