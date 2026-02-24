@@ -27,7 +27,15 @@ import com.android.tools.metalava.model.scope.QualifiedNameScope
  */
 @MetalavaApi
 interface ClassItem :
-    ClassContentItem, SelectableItem, TypeParameterListOwner, ReferencableItem, QualifiedNameScope {
+    ClassContentItem,
+    SelectableItem,
+    TypeParameterListOwner,
+    ReferencableItem,
+    // This is implemented because constructors cannot usually be referenced directly, e.g. in
+    // imports of `new` expressions. Instead, the class is referenced giving access to its
+    // constructors. Having ClassItem extend ReferencableCallableItem models that behavior.
+    ReferencableCallableItem,
+    QualifiedNameScope {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
@@ -80,7 +88,7 @@ interface ClassItem :
      *
      * Interfaces always return `null` for this.
      */
-    @MetalavaApi fun superClass() = superClassType()?.asClass()
+    @MetalavaApi fun superClass() = superClassType()?.resolveClass(codebase)
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
@@ -136,7 +144,7 @@ interface ClassItem :
         }
 
         interfaceTypes().forEach {
-            val cls = it.asClass()
+            val cls = it.resolveClass(codebase)
             if (cls != null && cls.implements(qualifiedName)) {
                 return true
             }
@@ -210,7 +218,7 @@ interface ClassItem :
      * Whether this class is a multi-file facade class, generated from Kotlin files annotated with
      * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
      */
-    fun isMultiFileClass() = false
+    val isMultiFileClass: Boolean
 
     override fun describe(capitalize: Boolean): String {
         val descriptor =
@@ -273,10 +281,6 @@ interface ClassItem :
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
-    /** The primary constructor for this class in Kotlin, if present. */
-    val primaryConstructor: ConstructorItem?
-        get() = constructors().singleOrNull { it.isPrimary }
-
     override fun baselineElementId() = qualifiedName()
 
     override fun accept(visitor: ItemVisitor) {
@@ -307,21 +311,11 @@ interface ClassItem :
             }
         }
 
-        /** A partial ordering over [ClassItem] comparing [ClassItem.fullName]. */
-        val fullNameComparator: Comparator<ClassItem> = Comparator.comparing { it.fullName() }
-
         /** A total ordering over [ClassItem] comparing [ClassItem.qualifiedName]. */
         private val qualifiedComparator: Comparator<ClassItem> =
             Comparator.comparing { it.qualifiedName() }
 
-        /**
-         * A total ordering over [ClassItem] comparing [ClassItem.fullName] first and then
-         * [ClassItem.qualifiedName].
-         */
-        val fullNameThenQualifierComparator: Comparator<ClassItem> =
-            fullNameComparator.thenComparing(qualifiedComparator)
-
-        fun classNameSorter(): Comparator<in ClassItem> = ClassItem.qualifiedComparator
+        fun classNameSorter(): Comparator<in ClassItem> = qualifiedComparator
     }
 
     fun findMethod(
@@ -344,7 +338,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
+                val cls = itf.resolveClass(codebase) ?: continue
                 cls.findMethod(template, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -396,7 +390,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
+                val cls = itf.resolveClass(codebase) ?: continue
                 cls.findField(fieldName, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -431,7 +425,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
+                val cls = itf.resolveClass(codebase) ?: continue
                 cls.findProperty(template, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -552,7 +546,7 @@ interface ClassItem :
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
-            val superClass = superClassType.asClass() ?: return null
+            val superClass = superClassType.resolveClass(codebase) ?: return null
             if (predicate.test(superClass)) {
                 if (prev == null || superClass == superClass()) {
                     // Direct reference; no need to map type variables
@@ -667,34 +661,23 @@ interface ClassItem :
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: FilterPredicate): Collection<ClassTypeItem> {
-        val interfaceTypes =
-            filteredInterfaceTypes(
-                predicate,
-                LinkedHashSet(),
-                includeSelf = false,
-                includeParents = false,
-                target = this
-            )
+    fun filteredInterfaceTypes(predicate: FilterPredicate) =
+        filteredInterfaceTypes(
+            predicate,
+            LinkedHashSet(),
+            includeSelf = false,
+            includeParents = false,
+            target = this
+        )
 
-        return interfaceTypes
-    }
-
-    fun allInterfaceTypes(predicate: FilterPredicate): Collection<TypeItem> {
-        val interfaceTypes =
-            filteredInterfaceTypes(
-                predicate,
-                LinkedHashSet(),
-                includeSelf = false,
-                includeParents = true,
-                target = this
-            )
-        if (interfaceTypes.isEmpty()) {
-            return interfaceTypes
-        }
-
-        return interfaceTypes
-    }
+    fun allInterfaceTypes(predicate: FilterPredicate) =
+        filteredInterfaceTypes(
+            predicate,
+            LinkedHashSet(),
+            includeSelf = false,
+            includeParents = true,
+            target = this
+        )
 
     private fun filteredInterfaceTypes(
         predicate: FilterPredicate,
@@ -702,10 +685,10 @@ interface ClassItem :
         includeSelf: Boolean,
         includeParents: Boolean,
         target: ClassItem
-    ): LinkedHashSet<ClassTypeItem> {
+    ): Set<ClassTypeItem> {
         val superClassType = superClassType()
         if (superClassType != null) {
-            val superClass = superClassType.asClass()
+            val superClass = superClassType.resolveClass(codebase)
             if (superClass != null) {
                 if (!predicate.test(superClass)) {
                     superClass.filteredInterfaceTypes(
@@ -730,7 +713,7 @@ interface ClassItem :
             }
         }
         for (type in interfaceTypes()) {
-            val cls = type.asClass() ?: continue
+            val cls = type.resolveClass(codebase) ?: continue
             if (predicate.test(cls)) {
                 if (hasTypeVariables() && type.hasTypeArguments()) {
                     val replacementMap = target.mapTypeVariables(this)
@@ -781,9 +764,8 @@ interface ClassItem :
             }
 
         for (superClassType in candidates.filterNotNull()) {
-            superClassType as? ClassTypeItem ?: continue
             // Get the class from the class type so that its type parameters can be accessed.
-            val declaringClass = superClassType.asClass() ?: continue
+            val declaringClass = superClassType.resolveClass(codebase) ?: continue
 
             if (declaringClass.qualifiedName() == target.qualifiedName()) {
                 // The target has been found, return the map directly.
@@ -827,7 +809,7 @@ interface ClassItem :
     }
 
     /**
-     * Creates a default constructor in this class.
+     * Creates an implicit default constructor in this class.
      *
      * Default constructors that are added by Java have the same visibility as their class which is
      * the default behavior of this method if no [visibility] is provided. However, this is also
@@ -837,10 +819,11 @@ interface ClassItem :
      *
      * @param visibility the visibility of the constructor, defaults to the same as this class.
      */
-    fun createDefaultConstructor(
+    fun createImplicitDefaultConstructor(
         visibility: VisibilityLevel = modifiers.getVisibilityLevel()
     ): ConstructorItem
 
+    /** Add a method to this class. */
     fun addMethod(method: MethodItem)
 
     /**

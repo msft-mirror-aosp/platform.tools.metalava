@@ -27,7 +27,6 @@ class RequiresFeatureTest : DriverTest() {
         import: String = "import android.content.pm.PackageManager;",
         enforcement: String = "",
         expectedText: String,
-        expectedImport: String = import,
         expectedIssues: String = "",
     ) {
         val attributes =
@@ -75,7 +74,6 @@ class RequiresFeatureTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            $expectedImport
                             /** $expectedText */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class FeatureUser {
@@ -98,7 +96,7 @@ class RequiresFeatureTest : DriverTest() {
         checkRequiresFeatureHandling(
             feature = "PackageManager.FEATURE_LOCATION",
             expectedText =
-                "Requires the {@link android.content.pm.PackageManager#FEATURE_LOCATION PackageManager#FEATURE_LOCATION} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
+                "Requires the {@link android.content.pm.PackageManager#FEATURE_LOCATION PackageManager#FEATURE_LOCATION} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(java.lang.String) PackageManager.hasSystemFeature(String)}.",
         )
     }
 
@@ -107,7 +105,7 @@ class RequiresFeatureTest : DriverTest() {
         checkRequiresFeatureHandling(
             feature = "PackageManager.FEATURE_UNKNOWN",
             expectedText =
-                "Requires the {@link PackageManager.FEATURE_UNKNOWN} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
+                "Requires the {@link PackageManager.FEATURE_UNKNOWN} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(java.lang.String) PackageManager.hasSystemFeature(String)}.",
             expectedIssues =
                 "src/test/pkg/FeatureUser.java:6: error: Cannot find feature field for PackageManager.FEATURE_UNKNOWN required by class test.pkg.FeatureUser (may be hidden or removed) [MissingPermission]",
         )
@@ -118,7 +116,7 @@ class RequiresFeatureTest : DriverTest() {
         checkRequiresFeatureHandling(
             feature = "PackageManager.FEATURE_HIDDEN",
             expectedText =
-                "Requires the PackageManager#FEATURE_HIDDEN feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
+                "Requires the PackageManager#FEATURE_HIDDEN feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(java.lang.String) PackageManager.hasSystemFeature(String)}.",
             expectedIssues =
                 "src/test/pkg/FeatureUser.java:6: error: Feature field android.content.pm.PackageManager.FEATURE_HIDDEN required by class test.pkg.FeatureUser is hidden or removed [MissingPermission]",
         )
@@ -131,7 +129,7 @@ class RequiresFeatureTest : DriverTest() {
             import = "import android.pkg.other.OtherFeatureManager;",
             enforcement = "android.pkg.other.OtherFeatureManager#hasMyFeature",
             expectedText =
-                "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.pkg.other.OtherFeatureManager#hasMyFeature(String) OtherFeatureManager.hasMyFeature(String)}.",
+                "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.pkg.other.OtherFeatureManager#hasMyFeature(java.lang.String) OtherFeatureManager.hasMyFeature(String)}.",
         )
     }
 
@@ -142,8 +140,7 @@ class RequiresFeatureTest : DriverTest() {
             import = "import android.pkg.other.OtherFeatureManager;",
             enforcement = "invalid enforcement value",
             expectedText =
-                "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
-            expectedImport = "",
+                "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(java.lang.String) PackageManager.hasSystemFeature(String)}.",
             expectedIssues =
                 "src/test/pkg/FeatureUser.java:6: error: Invalid 'enforcement' value 'invalid enforcement value', must be of the form <qualified-class>#<method-name>, using default [InvalidFeatureEnforcement]",
         )

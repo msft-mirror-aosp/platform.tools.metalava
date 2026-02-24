@@ -82,7 +82,7 @@ internal class PsiSourceParser(
     ): Codebase {
         val codebase =
             parseAbsoluteSources(
-                sourceSet.absoluteCopy().extractRoots(reporter),
+                sourceSet.extractRoots(reporter),
                 description,
                 classPath.map { it.absoluteFile },
                 apiPackages,
@@ -214,7 +214,7 @@ internal class PsiSourceParser(
     }
 
     fun mergeFromJar(existingCodebase: PsiBasedCodebase, jarFile: File) {
-        val bytecodeApis = KotlinBytecodeApis(existingCodebase)
+        val bytecodeApis = KotlinBytecodeApis(existingCodebase.psiAssembler)
         val rewrittenJar = bytecodeApis.rewriteJar(jarFile)
         val jarEnvironment = loadUastFromJars(listOf(rewrittenJar))
         bytecodeApis.loadPsiFromProject(jarEnvironment.ideaProject)
