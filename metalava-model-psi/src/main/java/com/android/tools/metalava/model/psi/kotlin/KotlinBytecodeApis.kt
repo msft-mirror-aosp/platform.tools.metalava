@@ -492,7 +492,11 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
      * signatures.
      *
      * If [hasDefaultConstructorMarker] is true, the parameter count of the potential matches will
-     * be one less than the parameter count of the [psiMethod].
+     * be one less than the parameter count of the [psiMethod], but only private-visibility matches
+     * will be accepted (see https://youtrack.jetbrains.com/issue/KT-51073: metalava needs to track
+     * the constructors with a default constructor marker when they are generated for public
+     * constructors with optional parameters, but not when they are generated for private
+     * constructors).
      */
     private fun potentialMatchingCallables(
         psiMethod: PsiMethod,
@@ -514,7 +518,12 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
             }
         return callables
             .filter { callable ->
-                callable.name() == psiMethod.name && callable.parameters().size == parameterCount
+                callable.name() == psiMethod.name &&
+                    callable.parameters().size == parameterCount &&
+                    // Only look for private matches of a default constructor-marked constructor
+                    // because synthetic constructors generated for public constructors with
+                    // optional parameters do need to be tracked.
+                    (!hasDefaultConstructorMarker || callable.modifiers.isPrivate())
             }
             .map { callable ->
                 callable to callable.parameters().joinToString { it.type().toErasedTypeString() }
