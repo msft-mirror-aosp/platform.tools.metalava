@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.annotationitem
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
@@ -23,9 +24,11 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testing.value.annotationItem
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
@@ -887,7 +890,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `annotation with unknown field`() {
+    fun `annotation attribute with unknown field`() {
         runCodebaseTest(
             signature(
                 """
@@ -952,18 +955,124 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
             val intValue = anno.assertAttribute("intValue").value
             assertValuesAreStrictlyEqual(
+                fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN"),
                 intValue,
-                fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN")
+                message = "intValue",
             )
 
             val intArrayValue = anno.assertAttribute("intArrayValue").value
             assertValuesAreStrictlyEqual(
-                intArrayValue,
                 arrayValue(
                     fieldReferenceValue("TestEnum", "UNKNOWN"),
                     fieldReferenceValue("", "UNKNOWN"),
-                )
+                ),
+                intArrayValue,
+                message = "intArrayValue",
             )
+
+            // Kotlin does not report an unresolved import for some reason.
+            val unresolvedImportIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.TestEnum` [UnresolvedImport]"
+            removeReportedIssues().let { actualIssues ->
+                if (actualIssues != "" && actualIssues != unresolvedImportIssues) {
+                    fail("Unexpected issues:\n${actualIssues.prependIndent("    ")}")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `annotation default attribute with unknown field`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method @test.pkg.Test.Anno(other.pkg.TestEnum.UNKNOWN) public void method1();
+                        method @test.pkg.Test.Anno({TestEnum.UNKNOWN, UNKNOWN}) public void method2();
+                      }
+
+                      public @interface Test.Anno {
+                          method public int[] value();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    import other.pkg.TestEnum;
+                    import static other.pkg.TestEnum.UNKNOWN;
+
+                    public class Test {
+                        public Test() {}
+
+                        @Test.Anno(other.pkg.TestEnum.UNKNOWN)
+                        public void method1() {}
+
+                        @Test.Anno({TestEnum.UNKNOWN, UNKNOWN})
+                        public void method2() {}
+
+                        public @interface Anno {
+                          int[] value();
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    import other.pkg.TestEnum
+                    import other.pkg.TestEnum.UNKNOWN
+
+                    class Test {
+                        @Test.Anno(other.pkg.TestEnum.UNKNOWN)
+                        fun method1() {}
+
+                        @Test.Anno([TestEnum.UNKNOWN, UNKNOWN])
+                        fun method2() {}
+
+                        annotation class Anno(
+                          val value: IntArray,
+                        )
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            testClass
+                .methods()
+                .single { it.name() == "method1" }
+                .let { methodItem ->
+                    val annotation = methodItem.modifiers.annotations().single()
+
+                    val value = annotation.assertAttribute(ANNOTATION_ATTR_VALUE).value
+                    assertValuesAreStrictlyEqual(
+                        arrayValue(fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN")),
+                        value,
+                        message = "method1 value"
+                    )
+                }
+
+            testClass
+                .methods()
+                .single { it.name() == "method2" }
+                .let { methodItem ->
+                    val annotation = methodItem.modifiers.annotations().single()
+
+                    val value = annotation.assertAttribute(ANNOTATION_ATTR_VALUE).value
+                    assertValuesAreStrictlyEqual(
+                        arrayValue(
+                            fieldReferenceValue("TestEnum", "UNKNOWN"),
+                            fieldReferenceValue("", "UNKNOWN"),
+                        ),
+                        value,
+                        message = "method2 value"
+                    )
+                }
 
             // Kotlin does not report an unresolved import for some reason.
             val unresolvedImportIssues =
@@ -1342,6 +1451,60 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `ensure can access annotation class even when using the NoOpAnnotationManager`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno
+                      public class Test {
+                      }
+
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Test.Anno {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    @Test.Anno
+                    public class Test {
+                        private Test() {}
+
+                        public @interface Anno {
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    @Test.Anno
+                    class Test {
+                        annotation class Anno {
+                        }
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to ensure that tests that use it can still
+                    // access AnnotationItem.annotationClass from the AnnotationClass.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annotation = testClass.modifiers.annotations().single()
+
+            assertNotNull(annotation.annotationClass)
+        }
+    }
+
+    @Test
     fun `annotation targets - on source path`() {
         runCodebaseTest(
             inputSet(
@@ -1484,6 +1647,516 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     ),
                 )
             assertEquals(expectedAnnos, annos)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with default attribute - string value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno("unknown")
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno("unknown")
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno("unknown")
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute(ANNOTATION_ATTR_VALUE).value
+            assertEquals(literalValue("unknown"), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with named attribute - string value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno(attr="unknown")
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno(attr="unknown")
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(attr="unknown")
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute("attr").value
+            assertEquals(literalValue("unknown"), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with default attribute - array value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno({"unknown1", "unknown2"})
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno({"unknown1", "unknown2"})
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(["unknown1", "unknown2"])
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute(ANNOTATION_ATTR_VALUE).value
+            assertEquals(arrayValue(literalValue("unknown1"), literalValue("unknown2")), value)
+        }
+    }
+
+    @Test
+    fun `unknown annotation class with named attribute - array value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Anno(attr={"unknown1", "unknown2"})
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    @Anno(attr={"unknown1", "unknown2"})
+                    public class Test {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    @Anno(attr=["unknown1", "unknown2"])
+                    class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val value = anno.assertAttribute("attr").value
+            assertEquals(arrayValue(literalValue("unknown1"), literalValue("unknown2")), value)
+        }
+    }
+
+    /** Assert the annotations status of this list of [Item]s. */
+    private fun List<Item>.assertItemAnnotationStatus(expectedStatus: String) {
+        // Construct a single string with information about where each method's annotations and
+        // type (including annotations).
+        val result = buildString {
+            for (item in this@assertItemAnnotationStatus) {
+                this.append(item).append('\n')
+
+                this.append("    annotations = ")
+                append(item.modifiers.annotations())
+                this.append('\n')
+
+                this.append("    type = ")
+                this.append(item.type()?.testTypeString(annotations = true))
+                this.append('\n')
+
+                this.append('\n')
+            }
+        }
+
+        assertEquals(expectedStatus.trimIndent(), result.trim())
+    }
+
+    @Test
+    fun `annotations of various uses on method`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({METHOD})
+                        public @interface DeclOnlyAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({TYPE_USE})
+                        public @interface TypeOnlyAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({METHOD, TYPE_USE})
+                        public @interface DeclAndTypeAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            // Declaration only annotations, should be on the method but not the
+                            // type.
+                            public @DeclOnlyAnno String method1() {}
+                            public @DeclOnlyAnno String[] method2() {}
+
+                            // Type only annotations, should be on the type but not the method.
+                            public @TypeOnlyAnno String method3() {}
+                            public @TypeOnlyAnno String[] method4() {}
+
+                            // Declaration and type annotations, should be on both.
+                            public @DeclAndTypeAnno String method5() {}
+                            public @DeclAndTypeAnno String[] method6() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/479907812): It is not strictly correct that the TypeOnlyAnnos are added to the
+            //  method's annotations. Look into removing them from the model and adding them back in
+            //  where necessary when writing out signature files or stub files.
+            val methods = testClass.methods()
+            methods.assertItemAnnotationStatus(
+                """
+                    method test.pkg.Test.method1()
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String
+
+                    method test.pkg.Test.method2()
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String[]
+
+                    method test.pkg.Test.method3()
+                        annotations = []
+                        type = java.lang.@test.pkg.TypeOnlyAnno String
+
+                    method test.pkg.Test.method4()
+                        annotations = []
+                        type = java.lang.@test.pkg.TypeOnlyAnno String[]
+
+                    method test.pkg.Test.method5()
+                        annotations = [@test.pkg.DeclAndTypeAnno]
+                        type = java.lang.@test.pkg.DeclAndTypeAnno String
+
+                    method test.pkg.Test.method6()
+                        annotations = [@test.pkg.DeclAndTypeAnno]
+                        type = java.lang.@test.pkg.DeclAndTypeAnno String[]
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `annotations of various uses and nullability on method`() {
+        runCodebaseTest(
+            inputSet(
+                KnownSourceFiles.notTypeUseNullableSource,
+                KnownSourceFiles.notTypeUseNonNullSource,
+                KnownSourceFiles.typeUseOnlyNullableSource,
+                KnownSourceFiles.typeUseOnlyNonNullSource,
+                KnownSourceFiles.mixedUseNullableSource,
+                KnownSourceFiles.mixedUseNonNullSource,
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            // Declaration only annotations, should be on the method but not the
+                            // type.
+                            public @not.type.use.Nullable String method1() {}
+                            public @not.type.use.NonNull String @not.type.use.Nullable [] method2() {}
+
+                            // Type only annotations, should be on the type but not the method.
+                            public @type.use.only.Nullable String method3() {}
+                            public @type.use.only.NonNull String @type.use.only.Nullable [] method4() {}
+
+                            // Declaration and type annotations, should be on both.
+                            public @mixed.use.Nullable String method5() {}
+                            public @mixed.use.NonNull String @mixed.use.Nullable [] method6() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/479907812): It is not strictly correct that the type.use.only.* annotations
+            //  are added to the method's annotations. Look into removing them from the model and
+            //  adding them back in where necessary when writing out signature files or stub files.
+            val methods = testClass.methods()
+            methods.assertItemAnnotationStatus(
+                """
+                    method test.pkg.Test.method1()
+                        annotations = [@not.type.use.Nullable]
+                        type = java.lang.String
+
+                    method test.pkg.Test.method2()
+                        annotations = [@not.type.use.NonNull]
+                        type = java.lang.String @not.type.use.Nullable []
+
+                    method test.pkg.Test.method3()
+                        annotations = [@type.use.only.Nullable]
+                        type = java.lang.@type.use.only.Nullable String
+
+                    method test.pkg.Test.method4()
+                        annotations = [@type.use.only.NonNull]
+                        type = java.lang.@type.use.only.NonNull String @type.use.only.Nullable []
+
+                    method test.pkg.Test.method5()
+                        annotations = [@mixed.use.Nullable]
+                        type = java.lang.@mixed.use.Nullable String
+
+                    method test.pkg.Test.method6()
+                        annotations = [@mixed.use.NonNull]
+                        type = java.lang.@mixed.use.NonNull String @mixed.use.Nullable []
+                """
+            )
+        }
+    }
+
+    /**
+     * TODO(b/479907812): This should behave just like [`annotations of various uses on method`].
+     */
+    @Test
+    fun `annotations of various uses after generic method type arguments list`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({METHOD})
+                        public @interface DeclOnlyAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({TYPE_USE})
+                        public @interface TypeOnlyAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        @Target({METHOD, TYPE_USE})
+                        public @interface DeclAndTypeAnno {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            // Declaration only annotations, should be on the method but not the
+                            // type.
+                            public <T> @DeclOnlyAnno String method1() {}
+                            public <T> @DeclOnlyAnno String[] method2() {}
+
+                            // Type only annotations, should be on the type but not the method.
+                            public <T> @TypeOnlyAnno String method3() {}
+                            public <T> @TypeOnlyAnno String[] method4() {}
+
+                            // Declaration and type annotations, should be on both.
+                            public <T> @DeclAndTypeAnno String method5() {}
+                            public <T> @DeclAndTypeAnno String[] method6() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/479907812): It is not strictly correct that the TypeOnlyAnnos are added to the
+            //  method's annotations. Look into removing them from the model and adding them back in
+            //  where necessary when writing out signature files or stub files.
+            val methods = testClass.methods()
+            methods.assertItemAnnotationStatus(
+                """
+                    method test.pkg.Test.method1()
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String
+
+                    method test.pkg.Test.method2()
+                        annotations = [@test.pkg.DeclOnlyAnno]
+                        type = java.lang.String[]
+
+                    method test.pkg.Test.method3()
+                        annotations = []
+                        type = java.lang.@test.pkg.TypeOnlyAnno String
+
+                    method test.pkg.Test.method4()
+                        annotations = []
+                        type = java.lang.@test.pkg.TypeOnlyAnno String[]
+
+                    method test.pkg.Test.method5()
+                        annotations = [@test.pkg.DeclAndTypeAnno]
+                        type = java.lang.@test.pkg.DeclAndTypeAnno String
+
+                    method test.pkg.Test.method6()
+                        annotations = [@test.pkg.DeclAndTypeAnno]
+                        type = java.lang.@test.pkg.DeclAndTypeAnno String[]
+                """
+            )
+        }
+    }
+
+    /**
+     * TODO(b/479907812): This should behave just like
+     *   [`annotations of various uses and nullability on method`].
+     */
+    @Test
+    fun `annotations of various uses and nullability after generic method type arguments list`() {
+        runCodebaseTest(
+            inputSet(
+                KnownSourceFiles.notTypeUseNullableSource,
+                KnownSourceFiles.notTypeUseNonNullSource,
+                KnownSourceFiles.typeUseOnlyNullableSource,
+                KnownSourceFiles.typeUseOnlyNonNullSource,
+                KnownSourceFiles.mixedUseNullableSource,
+                KnownSourceFiles.mixedUseNonNullSource,
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            // Declaration only annotations, should be on the method but not the
+                            // type.
+                            public <T> @not.type.use.Nullable String method1() {}
+                            public <T> @not.type.use.NonNull String @not.type.use.Nullable [] method2() {}
+
+                            // Type only annotations, should be on the type but not the method.
+                            public <T> @type.use.only.Nullable String method3() {}
+                            public <T> @type.use.only.NonNull String @type.use.only.Nullable [] method4() {}
+
+                            // Declaration and type annotations, should be on both.
+                            public <T> @mixed.use.Nullable String method5() {}
+                            public <T> @mixed.use.NonNull String @mixed.use.Nullable [] method6() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/479907812): It is not strictly correct that the type.use.only.* annotations
+            //  are added to the method's annotations. Look into removing them from the model and
+            //  adding them back in where necessary when writing out signature files or stub files.
+            val methods = testClass.methods()
+            methods.assertItemAnnotationStatus(
+                """
+                    method test.pkg.Test.method1()
+                        annotations = [@not.type.use.Nullable]
+                        type = java.lang.String
+
+                    method test.pkg.Test.method2()
+                        annotations = [@not.type.use.NonNull]
+                        type = java.lang.String @not.type.use.Nullable []
+
+                    method test.pkg.Test.method3()
+                        annotations = [@type.use.only.Nullable]
+                        type = java.lang.@type.use.only.Nullable String
+
+                    method test.pkg.Test.method4()
+                        annotations = [@type.use.only.NonNull]
+                        type = java.lang.@type.use.only.NonNull String @type.use.only.Nullable []
+
+                    method test.pkg.Test.method5()
+                        annotations = [@mixed.use.Nullable]
+                        type = java.lang.@mixed.use.Nullable String
+
+                    method test.pkg.Test.method6()
+                        annotations = [@mixed.use.NonNull]
+                        type = java.lang.@mixed.use.NonNull String @mixed.use.Nullable []
+                """
+            )
         }
     }
 }

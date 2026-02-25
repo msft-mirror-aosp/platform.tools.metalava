@@ -31,6 +31,7 @@ import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import org.junit.ClassRule
 import org.junit.Test
@@ -250,6 +251,9 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageLocation = packageItem.fileLocation.toString()
 
             assertEquals("MAIN_SRC/api.txt:2", removeTestSpecificDirectories(packageLocation))
+
+            // A signature package has no corresponding source file.
+            assertNull(packageItem.sourceFile)
         }
     }
 
@@ -281,6 +285,10 @@ class CommonPackageItemTest : BaseModelTest() {
                 "MAIN_SRC/src/test/pkg/package-info.java",
                 removeTestSpecificDirectories(packageLocation)
             )
+
+            // A package with a package-info.java file has a source file.
+            val sourceFile = assertNotNull(packageItem.sourceFile)
+            assertEquals(packageLocation, sourceFile.fileLocation.toString())
         }
     }
 
@@ -306,7 +314,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            packageItem.assertDocumentationText("/** Some text. */")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text. */")
         }
     }
 
@@ -334,7 +342,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            packageItem.assertDocumentationText("/** Package comment. */")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Package comment. */")
         }
     }
 
@@ -370,6 +378,9 @@ class CommonPackageItemTest : BaseModelTest() {
                 "MAIN_SRC/src/test/pkg/package.html",
                 removeTestSpecificDirectories(packageLocation)
             )
+
+            // A package with a package.html file has no corresponding source file.
+            assertNull(packageItem.sourceFile)
         }
     }
 
@@ -400,7 +411,7 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
 
-            packageItem.assertDocumentationText(expectedOutput = "/** Some text. */")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text. */")
         }
     }
 
@@ -417,16 +428,19 @@ class CommonPackageItemTest : BaseModelTest() {
                         }
                     """
                 ),
-                html(
-                    "src/other/pkg/package.html",
-                    """
-                        <HTML>
-                        <BODY>
-                        Some text.
-                        </BODY>
-                        </HTML>
-                    """
-                ),
+                sourcePathFiles =
+                    listOf(
+                        html(
+                            "src/other/pkg/package.html",
+                            """
+                                <HTML>
+                                <BODY>
+                                Some text.
+                                </BODY>
+                                </HTML>
+                            """
+                        ),
+                    ),
             ),
         ) {
             val packageItem = codebase.findPackage("other.pkg")
@@ -528,7 +542,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test")
-            packageItem.assertDocumentationText(expectedOutput = "/** Some documentation. */")
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some documentation. */")
         }
     }
 
@@ -555,7 +569,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
             testFixture =
                 TestFixture(
-                    additionalClassPath = listOf(otherJarFile.createFile(temporaryFolder.root))
+                    additionalClassPath = listOf(otherJarFile.toFile()),
                 ),
         ) {
             val packageItem = codebase.assertResolvedPackage("other.pkg")
@@ -604,6 +618,49 @@ class CommonPackageItemTest : BaseModelTest() {
                         MAIN_SRC/src/test/pkg/package-info.java: warning: It is illegal to provide both a package-info.java file and a package.html file for the same package [BothPackageInfoAndHtml]
                     """
             )
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test overlapping source path dirs`() {
+        // Tests what happens when the source path contains overlapping source roots.
+        runCodebaseTest(
+            inputSet(
+                // Adds TEST-ROOT/src/a-really-long-dir-name on the source path.
+                java(
+                    "a-really-long-dir-name/test/pkg/Test.java",
+                    """
+                        package test.pkg;
+                        public class Test {}
+                    """
+                ),
+                // Adds TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name on the source path.
+                java(
+                    "a-really-long-dir-name/shorter-dir-name/other/pkg/Other.java",
+                    """
+                        package other.pkg;
+                        public class Other {}
+                    """
+                ),
+                // Should be treated as being relative to the containing directory with the longest
+                // path, i.e. `TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name` and so be
+                // applicable to the `other` package.
+                html(
+                    "a-really-long-dir-name/shorter-dir-name/other/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            )
+        ) {
+            val packageItem = codebase.assertPackage("other")
+
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text */")
         }
     }
 }
