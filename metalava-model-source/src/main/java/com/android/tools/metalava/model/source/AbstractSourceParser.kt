@@ -28,11 +28,10 @@ abstract class AbstractSourceParser : SourceParser {
     protected open fun loadCodebaseFromJars(
         jars: List<File>,
         description: String,
-        sourceSet: SourceSet = SourceSet.empty(),
     ): DefaultCodebase {
         val codebase =
             parseSources(
-                sourceSet = sourceSet,
+                sourceSet = SourceSet.empty(),
                 description = description,
                 classPath = jars,
             ) ?: error("Could not create codebase from $jars")
