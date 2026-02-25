@@ -19,11 +19,11 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
+import com.android.tools.metalava.model.testsuite.JarSupport
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
@@ -75,6 +75,10 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         TODO("b/407735666")
     }
 
+    override fun createJarSupportAndRun(test: (JarSupport) -> Unit) {
+        error("should never be called")
+    }
+
     override fun toString() = providerName
 }
 
@@ -82,13 +86,13 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  * A [ClassPathResolver] that is backed by a [URLClassLoader].
  *
  * When [resolveClass] is called this will first look in [codebase] to see if the [ClassItem] has
- * already been loaded, returning it if found. Otherwise, it will look in the [classLoader] to see
- * if the class exists on the classpath. If it does then it will create a [DefaultClassItem] to
- * represent it and add it to the [codebase]. Otherwise, it will return `null`.
+ * already been loaded, returning it if found. Otherwise, it will look in the [jars] to see if the
+ * class exists on the classpath. If it does then it will create a [ClassItem] to represent it and
+ * add it to the [codebase]. Otherwise, it will return `null`.
  *
- * The created [DefaultClassItem] is not a complete representation of the class that was found in
- * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
- * change in the future.
+ * The created [ClassItem] is not a complete representation of the class that was found in the
+ * [jars]. It is just a placeholder to indicate that it was found, although that may change in the
+ * future.
  */
 class ClassLoaderBasedClassPathResolver(
     jars: List<File>,
