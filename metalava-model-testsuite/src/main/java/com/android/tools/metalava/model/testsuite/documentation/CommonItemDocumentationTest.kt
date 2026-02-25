@@ -1727,11 +1727,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     /** A special field. */
                     Field FIELD1:
 
-                    /** This should be ignored as it does not precede the declaration. */
+                    /** A special field. */
                     Field FIELD2:
 
+                    /** A special field. */
                     Field FIELD3:
 
+                    /** A special field. */
                     Field FIELD4:
 
                     /** Another special field. */
