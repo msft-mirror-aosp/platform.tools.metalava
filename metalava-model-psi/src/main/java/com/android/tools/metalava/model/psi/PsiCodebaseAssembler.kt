@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.AnnotationItem
@@ -57,9 +56,6 @@ import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import java.io.File
-import java.io.IOException
-import java.util.zip.ZipFile
 import kotlin.collections.forEach
 import kotlin.collections.set
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -188,10 +184,7 @@ internal class PsiCodebaseAssembler(
      * [ClassItem] may be created for it later if needed, e.g. if it is a super class of an
      * accessible class.
      */
-    private fun createPossibleApiClass(
-        psiClass: PsiClass,
-        origin: ClassOrigin,
-    ): ClassItem? {
+    private fun createPossibleApiClass(psiClass: PsiClass): ClassItem? {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
 
         // Ignore inaccessible classes.
@@ -201,7 +194,12 @@ internal class PsiCodebaseAssembler(
             return null
         }
 
-        return createTopLevelClassAndContents(psiClass, origin, modifiers)
+        return createTopLevelClassAndContents(
+            psiClass,
+            // Sources always come from the command line.
+            ClassOrigin.COMMAND_LINE,
+            modifiers
+        )
     }
 
     /** Create a top level class, their inner classes and all the other members. */
@@ -368,51 +366,6 @@ internal class PsiCodebaseAssembler(
             // Otherwise, a nested class was requested so find it. It was created when its
             // containing class was created.
             psiCodebase.findClass(psiClass)!!
-        }
-    }
-
-    internal fun initializeFromJar(jarFile: File) {
-        // Extract the list of class names from the jar file.
-        val classNames = buildList {
-            try {
-                ZipFile(jarFile).use { jar ->
-                    for (entry in jar.entries().iterator()) {
-                        val fileName = entry.name
-                        if (fileName.contains("$")) {
-                            // skip inner classes
-                            continue
-                        }
-                        if (!fileName.endsWith(SdkConstants.DOT_CLASS)) {
-                            // skip entries that are not .class files.
-                            continue
-                        }
-
-                        val qualifiedName =
-                            fileName.removeSuffix(SdkConstants.DOT_CLASS).replace('/', '.')
-                        if (qualifiedName.endsWith(".package-info")) {
-                            // skip package-info files.
-                            continue
-                        }
-
-                        add(qualifiedName)
-                    }
-                }
-            } catch (e: IOException) {
-                reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
-            }
-        }
-
-        // Find all classes referenced from the class
-        val facade = JavaPsiFacade.getInstance(project)
-        val scope = GlobalSearchScope.allScope(project)
-
-        val isFromClassPath = codebase.isFromClassPath()
-        val origin = if (isFromClassPath) ClassOrigin.CLASS_PATH else ClassOrigin.COMMAND_LINE
-        for (className in classNames) {
-            val psiClass = facade.findClass(className, scope) ?: continue
-
-            val classItem = createPossibleApiClass(psiClass, origin) ?: continue
-            codebase.addTopLevelClassFromSource(classItem)
         }
     }
 
@@ -693,12 +646,7 @@ internal class PsiCodebaseAssembler(
             if (!apiPackages.matches(packageName)) return
         }
 
-        val classItem =
-            createPossibleApiClass(
-                psiClass,
-                // Sources always come from the command line.
-                ClassOrigin.COMMAND_LINE,
-            ) ?: return
+        val classItem = createPossibleApiClass(psiClass) ?: return
         codebase.addTopLevelClassFromSource(classItem)
     }
 

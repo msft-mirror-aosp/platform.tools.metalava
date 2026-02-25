@@ -170,4 +170,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
 private class SourceParserJarSupport(private val sourceParser: SourceParser) : JarSupport {
     override fun getClassPathResolver(classPath: List<File>) =
         sourceParser.getClassPathResolver(classPath)
+
+    override fun loadFromJar(apiJar: File, classPath: List<File>) =
+        sourceParser.loadFromJar(apiJar, classPath)
 }
