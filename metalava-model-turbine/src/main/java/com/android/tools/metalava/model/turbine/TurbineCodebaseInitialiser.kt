@@ -187,6 +187,7 @@ internal class TurbineCodebaseInitialiser(
                 TurbineError.ErrorKind.CANNOT_RESOLVE,
                 TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
                 TurbineError.ErrorKind.EXPRESSION_ERROR,
+                TurbineError.ErrorKind.NO_JAVA_LANG,
                 TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
                     false
                 }
