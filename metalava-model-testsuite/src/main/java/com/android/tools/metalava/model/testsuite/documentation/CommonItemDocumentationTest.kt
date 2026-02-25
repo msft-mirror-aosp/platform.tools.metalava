@@ -1563,8 +1563,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
+            // Should be empty as the doc comment must come immediately before the declaration but
+            // in this case it is in the middle of the declaration.
             testClass.assertPrintedDocumentation(
-                expectedOutput = "/** Some comment. */",
+                expectedOutput = "",
             )
         }
     }
@@ -1587,8 +1589,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
+            // Should be empty as the doc comment must come immediately before the declaration but
+            // in this case it is in the middle of the declaration.
             testClass.assertPrintedDocumentation(
-                expectedOutput = "/** Some comment. */",
+                expectedOutput = "",
             )
         }
     }

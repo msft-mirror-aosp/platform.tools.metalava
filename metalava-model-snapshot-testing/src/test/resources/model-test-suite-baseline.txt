@@ -40,6 +40,8 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
+  Test pathological comments - preceding annotation no other comments[turbine]
+  Test pathological comments - preceding annotation with other comments[turbine]
   Test preceding anonymous class with comment - in field initializer[turbine]
   Test preceding anonymous class with comment - in method body[turbine]
 

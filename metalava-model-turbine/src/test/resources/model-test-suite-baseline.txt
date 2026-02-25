@@ -6,6 +6,8 @@ com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
   Test enum locations - java
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
+  Test pathological comments - preceding annotation no other comments
+  Test pathological comments - preceding annotation with other comments
   Test preceding anonymous class with comment - in field initializer
   Test preceding anonymous class with comment - in method body
 
