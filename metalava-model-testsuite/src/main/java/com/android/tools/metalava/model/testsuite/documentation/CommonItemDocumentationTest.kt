@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -1673,6 +1675,72 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.assertMethod("method", emptyList())
             testMethod.assertPrintedDocumentation(
                 expectedOutput = "",
+            )
+        }
+    }
+
+    @Test
+    fun `Test documenting multiple variable declaration`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        /** Zero-th field. */
+                        public static final int FIELD0 = 0;
+
+                        /** A special field. */
+                        public static final int FIELD1 = 1,
+                            /** This should be ignored as it does not precede the declaration. */
+                            FIELD2 = 2,
+                            // A line comment.
+                            FIELD3 = 3,
+                            /* A block comment. */
+                            FIELD4 = 4;
+
+                        /** Another special field. */
+                        public static final int FIELD5 = 5;
+
+                        public static final int FIELD6 = 6;
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val fields = testClass.fields()
+            val writer = StringWriter()
+            PrintWriter(writer).use { out ->
+                for (field in fields) {
+                    field.documentation?.print(out)
+                    out.println("Field ${field.name()}:")
+                    out.println()
+                }
+            }
+
+            // TODO(b/479907812): FIELD2 should have the same documentation as FIELD1.
+            assertEquals(
+                """
+                    /** Zero-th field. */
+                    Field FIELD0:
+
+                    /** A special field. */
+                    Field FIELD1:
+
+                    /** This should be ignored as it does not precede the declaration. */
+                    Field FIELD2:
+
+                    Field FIELD3:
+
+                    Field FIELD4:
+
+                    /** Another special field. */
+                    Field FIELD5:
+
+                    Field FIELD6:
+                """
+                    .trimIndent(),
+                writer.toString().trim()
             )
         }
     }
