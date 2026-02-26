@@ -28,19 +28,27 @@ import com.android.tools.metalava.testing.java
 import org.junit.ClassRule
 import org.junit.Test
 
-class CommonClassPathResolverTest : BaseModelTest() {
+class CommonJarSupportTest : BaseModelTest() {
     companion object {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
 
-        private val simpleTestJar =
+        private val testJar =
             jarFromSources(
-                    "simple-test.jar",
+                    "doubly-nested-test.jar",
                     java(
                         """
-                        package test.pkg;
-                        public class Test {}
-                    """
+                            package test.pkg;
+                            public class Test {
+                                private Test() {}
+                                public class Nested {
+                                    private Nested() {}
+                                    public class DoublyNested {
+                                        private DoublyNested() {}
+                                    }
+                                }
+                            }
+                        """
                     ),
                 )
                 .cacheIn(testFileCacheRule)
@@ -50,7 +58,7 @@ class CommonClassPathResolverTest : BaseModelTest() {
     @Test
     fun `Test classpath resolve - no java lang`() {
         runJarSupportTest {
-            val resolver = jarSupport.getClassPathResolver(listOf(simpleTestJar.toFile()))
+            val resolver = jarSupport.getClassPathResolver(listOf(testJar.toFile()))
             resolver.assertResolvedClass("test.pkg.Test")
         }
     }
@@ -63,10 +71,32 @@ class CommonClassPathResolverTest : BaseModelTest() {
                 jarSupport.getClassPathResolver(
                     listOf(
                         getAndroidJar(),
-                        simpleTestJar.toFile(),
+                        testJar.toFile(),
                     )
                 )
             resolver.assertResolvedClass("test.pkg.Test")
+        }
+    }
+
+    @RequiresCapabilities(Capability.LOAD_JAR)
+    @Test
+    fun `Test load jar - no java lang`() {
+        runJarSupportTest {
+            val codebase = jarSupport.loadFromJar(testJar.toFile(), emptyList())
+            codebase.assertClass("test.pkg.Test")
+            codebase.assertClass("test.pkg.Test.Nested")
+            codebase.assertClass("test.pkg.Test.Nested.DoublyNested")
+        }
+    }
+
+    @RequiresCapabilities(Capability.LOAD_JAR)
+    @Test
+    fun `Test load jar - with java lang`() {
+        runJarSupportTest {
+            val codebase = jarSupport.loadFromJar(testJar.toFile(), listOf(getAndroidJar()))
+            codebase.assertClass("test.pkg.Test")
+            codebase.assertClass("test.pkg.Test.Nested")
+            codebase.assertClass("test.pkg.Test.Nested.DoublyNested")
         }
     }
 }

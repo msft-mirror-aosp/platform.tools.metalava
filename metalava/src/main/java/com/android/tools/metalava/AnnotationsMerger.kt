@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants.AMP_ENTITY
 import com.android.SdkConstants.APOS_ENTITY
 import com.android.SdkConstants.ATTR_NAME
-import com.android.SdkConstants.DOT_CLASS
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_XML
 import com.android.SdkConstants.DOT_ZIP
@@ -53,6 +52,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
@@ -597,8 +597,9 @@ class AnnotationsMerger(
                 if (valName == "valuesFromClass" || flagsFromClass) {
                     // Not supported
                     var found = false
-                    if (value.endsWith(DOT_CLASS)) {
-                        val clsName = value.substring(0, value.length - DOT_CLASS.length)
+                    if (value.endsWith(JavaConstants.DOT_CLASS)) {
+                        val clsName =
+                            value.substring(0, value.length - JavaConstants.DOT_CLASS.length)
                         val sb = StringBuilder()
                         sb.append('{')
 

@@ -27,6 +27,9 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
+  Test enum locations - java[turbine]
+
 com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
   Usage of value class with type parameter[psi,kotlin,k1]
   Usage of value class with type parameter[psi,kotlin,k2]
@@ -35,6 +38,10 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k1]
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
+
+com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
+  Test preceding anonymous class with comment - in field initializer[turbine]
+  Test preceding anonymous class with comment - in method body[turbine]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]

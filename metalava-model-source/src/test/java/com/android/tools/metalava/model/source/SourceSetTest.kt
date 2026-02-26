@@ -56,7 +56,7 @@ class SourceSetTest : TemporaryFolderOwner {
         val sourceSet = SourceSet(sources = sources, sourcePath = emptyList())
         val extractedRoots = sourceSet.extractRoots(reporter)
 
-        assertEquals(sources, extractedRoots.sources)
+        assertEquals(sources.map { it.absoluteFile }, extractedRoots.sources)
         assertEquals(listOf(File("src/main/java").absoluteFile), extractedRoots.sourcePath)
     }
 
