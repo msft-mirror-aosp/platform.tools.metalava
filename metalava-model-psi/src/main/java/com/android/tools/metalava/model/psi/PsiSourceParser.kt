@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.JavaConstants
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -32,7 +31,6 @@ import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
@@ -80,38 +78,18 @@ internal class PsiSourceParser(
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
     override fun processInputs(inputs: SourceParser.Inputs): Codebase {
-        val codebase =
-            parseAbsoluteSources(
-                inputs.sourceSet,
-                inputs.description,
-                inputs.classPath,
-                inputs.apiPackages,
-                inputs.projectDescription,
-            )
-        inputs.compiledSourceJar?.let { compiledSourceJar ->
-            mergeFromJar(codebase, compiledSourceJar)
-        }
-        return codebase
-    }
+        val sourceSet = inputs.sourceSet
 
-    /** Returns a codebase initialized from the given set of absolute files. */
-    private fun parseAbsoluteSources(
-        sourceSet: SourceSet,
-        description: String,
-        classpath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-    ): PsiBasedCodebase {
         @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
-        when {
-            projectDescription != null -> {
-                configureUastEnvironmentFromProjectDescription(config, projectDescription)
+        when (val projectDescription = inputs.projectDescription) {
+            null -> {
+                configureUastEnvironment(config, sourceSet.sourcePath, inputs.classPath)
             }
             else -> {
-                configureUastEnvironment(config, sourceSet.sourcePath, classpath)
+                configureUastEnvironmentFromProjectDescription(config, projectDescription)
             }
         }
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
@@ -131,7 +109,7 @@ internal class PsiSourceParser(
             PsiCodebaseAssembler(environment) {
                 PsiBasedCodebase(
                     location = location,
-                    description = description,
+                    description = inputs.description,
                     config = codebaseConfig,
                     assembler = it,
                     inlineTypeAliasUsages = environment.isKMP,
@@ -139,8 +117,14 @@ internal class PsiSourceParser(
                 )
             }
 
-        assembler.initializeFromSources(sourceSet, apiPackages)
-        return assembler.psiCodebase
+        assembler.initializeFromSources(sourceSet, inputs.apiPackages)
+        val codebase = assembler.psiCodebase
+
+        inputs.compiledSourceJar?.let { compiledSourceJar ->
+            mergeFromJar(codebase, compiledSourceJar)
+        }
+
+        return codebase
     }
 
     /** Lists all of the [KaModule]s that exist in this project. */
@@ -294,7 +278,7 @@ internal class PsiSourceParser(
     private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
         @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        var sourceRoots = emptyList<File>()
+        val sourceRoots = emptyList<File>()
         configureUastEnvironment(config, sourceRoots, apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
