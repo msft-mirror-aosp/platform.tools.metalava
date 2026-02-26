@@ -17,11 +17,10 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.AbstractSourceParser
-import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.SourceParser
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
 import com.google.turbine.diag.TurbineError
@@ -31,30 +30,24 @@ internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
     private val jdkHome: File?,
 ) : AbstractSourceParser() {
+
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */
-    override fun parseSources(
-        sourceSet: SourceSet,
-        description: String,
-        classPath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-        compiledSourceJar: File?,
-    ): Codebase? {
-        if (projectDescription != null) {
+    override fun parseSources(inputs: SourceParser.Inputs): Codebase? {
+        if (inputs.projectDescription != null) {
             error("Turbine model does not support --project")
         }
-        if (compiledSourceJar != null) {
+        if (inputs.compiledSourceJar != null) {
             error("Turbine model does not support --compiled-jar")
         }
 
-        val classpath = ClassPathBinder.bindClasspath(classPath.map { it.toPath() })
+        val classpath = ClassPathBinder.bindClasspath(inputs.classPath.map { it.toPath() })
         val bootclasspath =
             jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
                 ?: ClassPathBinder.bindClasspath(listOf())
 
-        val sourceSetWithExtractedRoots = sourceSet.extractRoots(codebaseConfig.reporter)
+        val sourceSetWithExtractedRoots = inputs.sourceSet.extractRoots(codebaseConfig.reporter)
 
         val rootDir = sourceSetWithExtractedRoots.sourcePath.firstOrNull() ?: File("").canonicalFile
 
@@ -63,7 +56,7 @@ internal class TurbineSourceParser(
                 codebaseFactory = { assembler ->
                     DefaultCodebase(
                         location = rootDir,
-                        description = description,
+                        description = inputs.description,
                         preFiltered = false,
                         config = codebaseConfig,
                         trustedApi = false,
@@ -77,7 +70,7 @@ internal class TurbineSourceParser(
 
         try {
             // Initialize the codebase.
-            assembler.initialize(sourceSetWithExtractedRoots, apiPackages)
+            assembler.initialize(sourceSetWithExtractedRoots, inputs.apiPackages)
         } catch (_: TurbineError) {
             // Processing was aborted so the `codebase` is not valid so return `null`.
             return null

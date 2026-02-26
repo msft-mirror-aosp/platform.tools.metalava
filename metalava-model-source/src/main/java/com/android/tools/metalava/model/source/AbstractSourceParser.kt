@@ -29,12 +29,14 @@ abstract class AbstractSourceParser : SourceParser {
         jars: List<File>,
         description: String,
     ): DefaultCodebase {
-        val codebase =
-            parseSources(
+        val inputs =
+            SourceParser.Inputs(
                 sourceSet = SourceSet.empty(),
                 description = description,
                 classPath = jars,
-            ) ?: error("Could not create codebase from $jars")
+            )
+
+        val codebase = parseSources(inputs) ?: error("Could not create codebase from $jars")
 
         return codebase as DefaultCodebase
     }

@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.AbstractSourceParser
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.pom.java.LanguageLevel
@@ -81,23 +82,16 @@ internal class PsiSourceParser(
      *
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
-    override fun parseSources(
-        sourceSet: SourceSet,
-        description: String,
-        classPath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-        compiledSourceJar: File?,
-    ): Codebase {
+    override fun parseSources(inputs: SourceParser.Inputs): Codebase {
         val codebase =
             parseAbsoluteSources(
-                sourceSet.extractRoots(reporter),
-                description,
-                classPath.map { it.absoluteFile },
-                apiPackages,
-                projectDescription,
+                inputs.sourceSet.extractRoots(reporter),
+                inputs.description,
+                inputs.classPath.map { it.absoluteFile },
+                inputs.apiPackages,
+                inputs.projectDescription,
             )
-        if (compiledSourceJar != null) {
+        inputs.compiledSourceJar?.let { compiledSourceJar ->
             mergeFromJar(codebase, compiledSourceJar)
         }
         return codebase
