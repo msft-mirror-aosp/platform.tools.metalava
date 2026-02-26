@@ -44,9 +44,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
-com.android.tools.metalava.model.testsuite.sourcefile.CommonSourceFileTest
-  Test dos end-of-line in header comments[turbine]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTypeTest
   Test invalid source reference[turbine,genericStringInnerNumber - generic and inner both undefined]
   Test invalid source reference[turbine,genericStringInnerNumber - generic defined but inner undefined]
