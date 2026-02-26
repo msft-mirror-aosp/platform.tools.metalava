@@ -20,24 +20,14 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.JavaConstants
-import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.SkeletonClassItem
-import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.AbstractSourceParser
-import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.model.source.SourceParser
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
-import java.io.IOException
-import java.util.zip.ZipFile
-import kotlin.collections.iterator
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
@@ -71,55 +61,26 @@ internal class PsiSourceParser(
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val useK2Uast: Boolean,
     private val jdkHome: File?,
-) : AbstractSourceParser() {
-
-    private val reporter = codebaseConfig.reporter
-
+) : AbstractSourceParser(codebaseConfig.reporter) {
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
      * description.
      *
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
-    override fun parseSources(
-        sourceSet: SourceSet,
-        description: String,
-        classPath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-        compiledSourceJar: File?,
-    ): Codebase {
-        val codebase =
-            parseAbsoluteSources(
-                sourceSet.extractRoots(reporter),
-                description,
-                classPath.map { it.absoluteFile },
-                apiPackages,
-                projectDescription,
-            )
-        if (compiledSourceJar != null) {
-            mergeFromJar(codebase, compiledSourceJar)
-        }
-        return codebase
-    }
+    override fun processInputs(inputs: SourceParser.Inputs): Codebase {
+        val sourceSet = inputs.sourceSet
 
-    /** Returns a codebase initialized from the given set of absolute files. */
-    private fun parseAbsoluteSources(
-        sourceSet: SourceSet,
-        description: String,
-        classpath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-    ): PsiBasedCodebase {
+        @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
-        when {
-            projectDescription != null -> {
-                configureUastEnvironmentFromProjectDescription(config, projectDescription)
+        when (val projectDescription = inputs.projectDescription) {
+            null -> {
+                configureUastEnvironment(config, sourceSet.sourcePath, inputs.classPath)
             }
             else -> {
-                configureUastEnvironment(config, sourceSet.sourcePath, classpath)
+                configureUastEnvironmentFromProjectDescription(config, projectDescription)
             }
         }
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
@@ -139,7 +100,7 @@ internal class PsiSourceParser(
             PsiCodebaseAssembler(environment) {
                 PsiBasedCodebase(
                     location = location,
-                    description = description,
+                    description = inputs.description,
                     config = codebaseConfig,
                     assembler = it,
                     inlineTypeAliasUsages = environment.isKMP,
@@ -147,8 +108,18 @@ internal class PsiSourceParser(
                 )
             }
 
-        assembler.initializeFromSources(sourceSet, apiPackages)
-        return assembler.psiCodebase
+        assembler.initializeFromSources(
+            sourceSet,
+            inputs.apiPackages,
+            inputs.includeKotlinInCodebase,
+        )
+        val codebase = assembler.psiCodebase
+
+        inputs.compiledSourceJar?.let { compiledSourceJar ->
+            mergeFromJar(codebase, compiledSourceJar)
+        }
+
+        return codebase
     }
 
     /** Lists all of the [KaModule]s that exist in this project. */
@@ -180,93 +151,6 @@ internal class PsiSourceParser(
         return File(homePath, "jmods").isDirectory
     }
 
-    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
-        val jars = buildList {
-            add(apiJar)
-            addAll(classPath)
-        }
-        val environment = loadUastFromJars(jars)
-        val assembler =
-            PsiCodebaseAssembler(environment) { assembler ->
-                PsiBasedCodebase(
-                    location = apiJar,
-                    description = "Codebase loaded from $apiJar",
-                    config = codebaseConfig,
-                    assembler = assembler,
-                    inlineTypeAliasUsages = environment.isKMP,
-                )
-            }
-        val codebase = assembler.psiCodebase
-        initializeFromJar(codebase, apiJar)
-        return codebase
-    }
-
-    /**
-     * Initialize [codebase] by making sure that all classes in [jarFile] are resolved and are
-     * treated as if they were added from sources.
-     */
-    internal fun initializeFromJar(codebase: DefaultCodebase, jarFile: File) {
-        // Extract the list of class names from the jar file.
-        val classNames = buildList {
-            try {
-                ZipFile(jarFile).use { jar ->
-                    for (entry in jar.entries().iterator()) {
-                        val fileName = entry.name
-                        if (fileName.contains("$")) {
-                            // skip inner classes
-                            continue
-                        }
-                        if (!fileName.endsWith(JavaConstants.DOT_CLASS)) {
-                            // skip entries that are not .class files.
-                            continue
-                        }
-
-                        val qualifiedName =
-                            fileName.removeSuffix(JavaConstants.DOT_CLASS).replace('/', '.')
-                        if (qualifiedName.endsWith(".package-info")) {
-                            // skip package-info files.
-                            continue
-                        }
-
-                        add(qualifiedName)
-                    }
-                }
-            } catch (e: IOException) {
-                reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
-            }
-        }
-
-        // Iterate over all the top level classes found in the jar file.
-        for (className in classNames) {
-            val classItem =
-                codebase.resolveClass(className) ?: error("Could not resolve $className")
-
-            // Make sure it is modifiable.
-            classItem as SkeletonClassItem
-
-            // Treat the jar classes as if they were specified on the command line.
-            classItem.origin = ClassOrigin.COMMAND_LINE
-
-            // Make sure that the containing package is being emitted.
-            classItem.containingPackage().emit = true
-
-            // Make sure that the class and any nested classes are emitted.
-            classItem.markAsEmittable()
-
-            // Add it to the list of top level classes.
-            codebase.addTopLevelClassFromSource(classItem)
-        }
-    }
-
-    /**
-     * Mark this [ClassItem] and all its nested classes as being emittable, just like a class loaded
-     * from sources would be.
-     */
-    private fun ClassItem.markAsEmittable() {
-        emit = true
-        nestedClasses().forEach { it.markAsEmittable() }
-    }
-
     override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
         if (!useK2Uast) error("Multiplatform codebase creation requires K2 UAST.")
 
@@ -275,6 +159,8 @@ internal class PsiSourceParser(
         val environment =
             psiEnvironmentManager.initialEnvironment
                 ?: run {
+                    // b/427783483: to be removed when K1 support is dropped
+                    @Suppress("DEPRECATION")
                     val config = UastEnvironment.Configuration.create(useFirUast = true)
                     config.javaLanguageLevel = javaLanguageLevel
                     configureUastEnvironmentFromProjectDescription(config, projectDescription)
@@ -298,8 +184,9 @@ internal class PsiSourceParser(
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
+        @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        var sourceRoots = emptyList<File>()
+        val sourceRoots = emptyList<File>()
         configureUastEnvironment(config, sourceRoots, apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
