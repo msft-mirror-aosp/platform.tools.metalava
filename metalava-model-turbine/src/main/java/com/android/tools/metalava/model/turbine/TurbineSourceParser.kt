@@ -29,12 +29,11 @@ import java.io.File
 internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
     private val jdkHome: File?,
-) : AbstractSourceParser() {
-
+) : AbstractSourceParser(codebaseConfig.reporter) {
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */
-    override fun parseSources(inputs: SourceParser.Inputs): Codebase? {
+    override fun processInputs(inputs: SourceParser.Inputs): Codebase? {
         if (inputs.projectDescription != null) {
             error("Turbine model does not support --project")
         }
@@ -47,9 +46,9 @@ internal class TurbineSourceParser(
             jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
                 ?: ClassPathBinder.bindClasspath(listOf())
 
-        val sourceSetWithExtractedRoots = inputs.sourceSet.extractRoots(codebaseConfig.reporter)
+        val sourceSet = inputs.sourceSet
 
-        val rootDir = sourceSetWithExtractedRoots.sourcePath.firstOrNull() ?: File("").canonicalFile
+        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
         val assembler =
             TurbineCodebaseInitialiser(
@@ -70,7 +69,7 @@ internal class TurbineSourceParser(
 
         try {
             // Initialize the codebase.
-            assembler.initialize(sourceSetWithExtractedRoots, inputs.apiPackages)
+            assembler.initialize(sourceSet, inputs.apiPackages)
         } catch (_: TurbineError) {
             // Processing was aborted so the `codebase` is not valid so return `null`.
             return null

@@ -72,22 +72,19 @@ internal class PsiSourceParser(
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val useK2Uast: Boolean,
     private val jdkHome: File?,
-) : AbstractSourceParser() {
-
-    private val reporter = codebaseConfig.reporter
-
+) : AbstractSourceParser(codebaseConfig.reporter) {
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
      * description.
      *
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
-    override fun parseSources(inputs: SourceParser.Inputs): Codebase {
+    override fun processInputs(inputs: SourceParser.Inputs): Codebase {
         val codebase =
             parseAbsoluteSources(
-                inputs.sourceSet.extractRoots(reporter),
+                inputs.sourceSet,
                 inputs.description,
-                inputs.classPath.map { it.absoluteFile },
+                inputs.classPath,
                 inputs.apiPackages,
                 inputs.projectDescription,
             )

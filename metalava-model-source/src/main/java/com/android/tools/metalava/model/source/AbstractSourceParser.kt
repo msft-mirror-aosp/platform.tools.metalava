@@ -17,10 +17,13 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ClassPathResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
-abstract class AbstractSourceParser : SourceParser {
+abstract class AbstractSourceParser(protected val reporter: Reporter) : SourceParser {
+
     final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
         loadCodebaseFromJars(classPath, "Codebase from classpath")
 
@@ -40,4 +43,23 @@ abstract class AbstractSourceParser : SourceParser {
 
         return codebase as DefaultCodebase
     }
+
+    /**
+     * Override to ensure that [inputs] are correctly prepared for [processInputs].
+     *
+     * Preparation includes replacing [Inputs.sourceSet] with the result of calling
+     * [SourceSet.extractRoots] on it, and making [Inputs.classPath], absolute files.
+     */
+    final override fun parseSources(inputs: SourceParser.Inputs): Codebase? {
+        val absoluteInputs =
+            inputs.copy(
+                sourceSet = inputs.sourceSet.extractRoots(reporter),
+                classPath = inputs.classPath.map { it.absoluteFile },
+            )
+
+        return processInputs(absoluteInputs)
+    }
+
+    /** Process the [inputs] to produce a [Codebase], if possible. */
+    protected abstract fun processInputs(inputs: SourceParser.Inputs): Codebase?
 }
