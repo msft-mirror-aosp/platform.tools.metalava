@@ -39,10 +39,6 @@ internal class TurbineTypeItemFactory(
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
 
-    // TODO(b/479907812): Provide a non-null FieldResolver.
-    val fieldResolver: FieldResolver?
-        get() = null
-
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
@@ -58,7 +54,7 @@ internal class TurbineTypeItemFactory(
         annos: List<AnnoInfo>,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = annotationFactory.createAnnotations(annos, fieldResolver)
+        val typeAnnotations = annotationFactory.createAnnotations(annos)
         // Compute the nullability, factoring in any context nullability and type annotations.
         // Turbine does not support kotlin so the kotlin nullability is always null.
         val nullability = contextNullability.compute(null, typeAnnotations)
@@ -129,7 +125,7 @@ internal class TurbineTypeItemFactory(
             }
             Type.TyKind.TY_VAR -> {
                 type as Type.TyVar
-                val modifiers = createModifiers(type.annos(), contextNullability.forTypeVariable())
+                val modifiers = createModifiers(type.annos(), contextNullability)
                 val typeParameter = typeParameterScope.getTypeParameter(type.sym().name())
                 TypeItem.createVariableType(modifiers, typeParameter)
             }

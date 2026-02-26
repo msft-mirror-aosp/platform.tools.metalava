@@ -383,66 +383,29 @@ class CompatibilityCheck(
             original.returnType().modifiers.isNonNull && candidate.returnType().modifiers.isNullable
         )
             return false
-
-        // Ensure that the functions are either both suspend or both not suspend.
-        if (candidate.modifiers.isSuspend() != original.modifiers.isSuspend()) return false
-        // If the functions are suspend, they have an extra continuation parameter which is not
-        // used from Kotlin source, so it can be skipped for parameter checks.
-        val (candidateParameters, originalParameters) =
-            if (candidate.modifiers.isSuspend()) {
-                candidate.parameters().dropLast(1) to original.parameters().dropLast(1)
-            } else {
-                candidate.parameters() to original.parameters()
-            }
-
         // All parameters from the original need to be present on the candidate, initial check to
         // make sure there are at least as many parameters (check for if they match is below).
-        if (candidateParameters.size < originalParameters.size) return false
+        if (candidate.parameters().size < original.parameters().size) return false
         // All new parameters on the candidate need to be optional for calls to the original to
         // still work since they won't be providing these new parameters.
         val additionalParameters =
-            candidateParameters.subList(originalParameters.size, candidateParameters.size)
+            candidate.parameters().subList(original.parameters().size, candidate.parameters().size)
         if (additionalParameters.any { !it.hasDefaultValue() }) return false
         // Verify that all parameters from the original are present.
-        return candidateParameters.zip(originalParameters).all {
-            (candidateParameter, originalParameter) ->
-            isCompatibleKotlinOverloadParameter(originalParameter, candidateParameter)
+        return candidate.parameters().zip(original.parameters()).all {
+            (candidateParameter, oldParameter) ->
+            // Since the item could be called using named parameters, the name can't change.
+            candidateParameter.name() == oldParameter.name() &&
+                // Parameter types must be the same.
+                candidateParameter.type() == oldParameter.type() &&
+                // The nullability can't change from nullable to non-null, because that would mean
+                // that usages that pass in a nullable value would no longer work.
+                (oldParameter.type().modifiers.isNonNull ||
+                    candidateParameter.type().modifiers.isNullable) &&
+                // If there was a default value, an existing caller might not be providing the
+                // parameter, so the parameters needs to still be optional.
+                (!oldParameter.hasDefaultValue() || candidateParameter.hasDefaultValue())
         }
-    }
-
-    /** Check whether the parameters are compatible in a Kotlin method overload. */
-    private fun isCompatibleKotlinOverloadParameter(
-        original: ParameterItem,
-        candidate: ParameterItem,
-    ): Boolean {
-        // Since the item could be called using named parameters, the name can't change.
-        if (original.name() != candidate.name()) return false
-
-        // Parameter types must be compatible.
-        if (!isCompatibleKotlinOverloadParameterType(original.type(), candidate.type()))
-            return false
-
-        // If there was a default value, an existing caller might not be providing the
-        // parameter, so the parameters needs to still be optional.
-        return (!original.hasDefaultValue() || candidate.hasDefaultValue())
-    }
-
-    /** Check whether the parameter types are compatible in a Kotlin method overload. */
-    private fun isCompatibleKotlinOverloadParameterType(
-        original: TypeItem,
-        candidate: TypeItem,
-    ): Boolean {
-        // Parameter types must be the same. Note: TypeItem.equals() does not check nullability (or
-        // annotations). So, it is possible that two TypeItems that are equal are not compatible due
-        // to differences in nullability. That will be checked below.
-        if (original != candidate) return false
-
-        // If the nullability is the same then the parameters are compatible.
-        if (original.modifiers.nullability == candidate.modifiers.nullability) return true
-
-        // The nullability can't change from nullable to non-null, because that would mean that
-        // usages that pass in a nullable value would no longer work.
-        return original.modifiers.isNonNull || candidate.modifiers.isNullable
     }
 
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
@@ -1326,8 +1289,7 @@ class CompatibilityCheck(
         // It is ok to add a new abstract method to a class that cannot be extended externally
         if (
             new.modifiers.isAbstract() &&
-                (new.containingClass().cannotContainExternallyOverridableAbstractMethods() ||
-                    new.containingClass().allExtensibleSubclassesConcretelyImplement(new))
+                new.containingClass().cannotContainExternallyOverridableAbstractMethods()
         ) {
             return
         }
@@ -1358,37 +1320,6 @@ class CompatibilityCheck(
     }
 
     /**
-     * Determines if all publicly extensible subclasses of a class have a non-abstract
-     * implementation of targetMethod.
-     */
-    private fun ClassItem.allExtensibleSubclassesConcretelyImplement(
-        targetMethod: CallableItem
-    ): Boolean {
-        if (
-            methods().any { clsMethod: CallableItem ->
-                clsMethod != targetMethod &&
-                    !clsMethod.modifiers.isAbstract() &&
-                    clsMethod.matches(targetMethod)
-            }
-        ) {
-            return true
-        }
-
-        // We need to check if the class is effectively sealed here because the
-        // sealedClassDirectSubclasses() call below errors on classes that aren't effectively
-        // sealed. Additionally, if the class is not effectively sealed (and doesn't implement
-        // the method) then it can be externally implemented/extended and a new abstract method
-        // would be breaking change for users.
-        if (!isEffectivelySealed()) {
-            return false
-        }
-
-        return sealedClassDirectSubclasses().all { cls: ClassItem ->
-            cls.allExtensibleSubclassesConcretelyImplement(targetMethod)
-        }
-    }
-
-    /**
      * Determines if it is possible for the class to have externally overridable abstract methods.
      */
     private fun ClassItem.cannotContainExternallyOverridableAbstractMethods(): Boolean {
@@ -1399,7 +1330,12 @@ class CompatibilityCheck(
 
         // if the class is directly publicly extensible (and not concrete) then it can contain
         // externally overridable abstract methods
-        if (!isEffectivelySealed()) {
+        if (
+            !modifiers.isSealed() &&
+                ((isInterface() && isPublic) ||
+                    (isClass() &&
+                        constructors().any { (it.isPublic || it.isProtected) && !it.hidden }))
+        ) {
             return false
         }
 

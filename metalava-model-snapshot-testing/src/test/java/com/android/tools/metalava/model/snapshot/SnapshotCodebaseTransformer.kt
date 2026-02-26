@@ -33,8 +33,6 @@ class SnapshotCodebaseTransformer : CodebaseTransformer {
                 .snapshotIncludingRevertedItems(
                     // Allow references to any Item in the original.
                     ::NonFilteringDelegatingVisitor,
-                    // Include documentation as many tests rely on them.
-                    includeDocumentation = true,
                 )
         return fragment.codebase
     }

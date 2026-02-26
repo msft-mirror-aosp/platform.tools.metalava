@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
@@ -33,7 +32,7 @@ import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class DefaultFieldItem(
+open class DefaultFieldItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -60,15 +59,13 @@ internal class DefaultFieldItem(
     ),
     FieldItem {
 
-    override var inheritedFrom: ClassItem? = null
+    final override var inheritedFrom: ClassItem? = null
 
-    override fun type(): TypeItem = type
+    final override fun type(): TypeItem = type
 
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
-
-    override var property: PropertyItem? = null
 
     override fun duplicate(targetContainingClass: ClassItem) =
         DefaultFieldItem(
@@ -87,10 +84,10 @@ internal class DefaultFieldItem(
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-    override val constantValue
+    final override val constantValue
         get() = constantValueProvider?.optionalValue?.let { it as ConstantValue }
 
-    override fun isEnumConstant(): Boolean = isEnumConstant
+    final override fun isEnumConstant(): Boolean = isEnumConstant
 
     override val containingScope: ReferencableNameScope?
         get() =

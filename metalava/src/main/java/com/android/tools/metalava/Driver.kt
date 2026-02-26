@@ -60,6 +60,7 @@ import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
@@ -248,8 +249,9 @@ class Driver(
      * created allows it to be reused for the same reason.
      */
     private val classPathResolver: ClassPathResolver? by lazy {
+        var apiClassResolution = sourceOptions.apiClassResolution
         val classpath = sourceOptions.classpath
-        if (classpath.isNotEmpty()) {
+        if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
             sourceParser.getClassPathResolver(classpath)
         } else {
             null

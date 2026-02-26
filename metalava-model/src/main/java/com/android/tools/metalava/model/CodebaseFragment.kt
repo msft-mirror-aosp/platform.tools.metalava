@@ -51,7 +51,6 @@ abstract class CodebaseFragment private constructor() {
      */
     fun snapshotIncludingRevertedItems(
         referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
-        includeDocumentation: Boolean = false,
     ): CodebaseFragment {
         return LazyCodebaseFragment(
             {
@@ -59,7 +58,6 @@ abstract class CodebaseFragment private constructor() {
                     codebase,
                     definitionVisitorFactory = visitorFactory,
                     referenceVisitorFactory = referenceVisitorFactory,
-                    includeDocumentation,
                 )
             },
             ::EmittableDelegatingVisitor,

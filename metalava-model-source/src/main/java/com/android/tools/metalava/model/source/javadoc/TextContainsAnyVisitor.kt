@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.source.doc.DocCommentPredicate
  * A [JavadocContentVisitor] that will search [JavadocContent] for any text that satisfies
  * [predicate].
  */
-internal open class TextContainsAnyVisitor(private val predicate: (String) -> Boolean) :
+internal class TextContainsAnyVisitor(private val predicate: (String) -> Boolean) :
     DocCommentPredicate {
     /**
      * Checks to see whether [predicate] returns `true` for any text in [content].
@@ -42,8 +42,8 @@ internal open class TextContainsAnyVisitor(private val predicate: (String) -> Bo
 
     /** Check to see if the content matches [predicate]. */
     private fun DocTag.contentMatches() =
-        // First, use the predicate to check the content, if any.
+        // First, use the predicate to check the tag data, if any.
         content?.accept(this@TextContainsAnyVisitor) == true ||
-            // Then, use this visitor to check the tag data, if any.
+            // Then, use this visitor to check the content, if any.
             tagData?.textMatches(predicate) == true
 }

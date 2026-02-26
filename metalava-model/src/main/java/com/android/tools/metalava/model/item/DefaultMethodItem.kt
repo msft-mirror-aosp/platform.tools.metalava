@@ -24,8 +24,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
@@ -34,7 +32,7 @@ import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class DefaultMethodItem(
+open class DefaultMethodItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -51,7 +49,6 @@ internal class DefaultMethodItem(
     callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
     private val isExtensionMethod: Boolean,
-    override val isKotlinProperty: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase,
@@ -71,14 +68,12 @@ internal class DefaultMethodItem(
     ),
     MethodItem {
 
-    override var inheritedFrom: ClassItem? = null
+    final override var inheritedFrom: ClassItem? = null
 
     override fun isExtensionMethod(): Boolean = isExtensionMethod
 
-    override val defaultValue
+    final override val defaultValue
         get() = defaultValueProvider?.optionalValue
-
-    override var property: PropertyItem? = null
 
     private lateinit var superMethodList: List<MethodItem>
 
@@ -94,7 +89,7 @@ internal class DefaultMethodItem(
      * that name and parameter list types match. Parameter names, Return types and Throws list types
      * are not matched
      */
-    override fun superMethods(): List<MethodItem> {
+    final override fun superMethods(): List<MethodItem> {
         return if (containingClass().frozen) {
             if (!::superMethodList.isInitialized) {
                 superMethodList = computeSuperMethods()
@@ -106,13 +101,10 @@ internal class DefaultMethodItem(
     }
 
     @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
+    final override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
-
-        // Create a [TypeItemConverter] wrapper around `typeVariableMap`.
-        val typeConverter = typeVariableMap.toTypeConverter()
 
         return DefaultMethodItem(
                 codebase = codebase,
@@ -128,13 +120,12 @@ internal class DefaultMethodItem(
                 returnType = returnType.convertType(typeVariableMap),
                 parameterItemsFactory = { containingCallable ->
                     // Duplicate the parameters
-                    parameters.map { it.duplicate(containingCallable, typeConverter) }
+                    parameters.map { it.duplicate(containingCallable, typeVariableMap) }
                 },
                 throwsTypes = throwsTypes,
                 callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
                 isExtensionMethod = isExtensionMethod,
-                isKotlinProperty = isKotlinProperty,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -142,26 +133,6 @@ internal class DefaultMethodItem(
                 duplicated.updateCopiedMethodState()
             }
     }
-
-    override fun createOverload(parameters: List<ParameterItem>): MethodItem =
-        DefaultMethodItem(
-            codebase,
-            fileLocation,
-            sourceLanguage,
-            targetLanguages,
-            modifiers,
-            documentation.duplicatingFactory(),
-            variantSelectors::duplicate,
-            name(),
-            containingClass(),
-            typeParameterList,
-            returnType(),
-            parameterItemsFactory = overloadParameterItemFactory(parameters),
-            throwsTypes,
-            body::duplicate,
-            defaultValueProvider,
-            isExtensionMethod(),
-        )
 
     /**
      * Compute the super methods of this method.

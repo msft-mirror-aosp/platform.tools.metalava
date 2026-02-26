@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceModelProvider
+import com.android.tools.metalava.model.text.ApiClassResolution
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
@@ -219,6 +220,20 @@ class SourceOptions(
 
         return classpath
     }
+
+    val apiClassResolution by
+        enumOption(
+            ARG_API_CLASS_RESOLUTION,
+            help =
+                """
+                    Determines how class resolution is performed when loading API signature files.
+                    Any classes that cannot be found will be treated as empty.
+                """
+                    .trimIndent(),
+            enumValueHelpGetter = { it.help },
+            default = ApiClassResolution.API_CLASSPATH,
+            key = { it.optionValue },
+        )
 
     /** Lint project description that describes project's module structure in details */
     val projectDescription by

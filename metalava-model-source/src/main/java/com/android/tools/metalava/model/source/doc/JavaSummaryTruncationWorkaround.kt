@@ -29,7 +29,7 @@ import kotlin.text.substring
  * Work around javadoc cutting off the summary line after "e.g. " by replacing the ` ` with
  * `&nbsp;`.
  */
-internal class JavaSummaryTruncationWorkaround private constructor() : JavadocContentRewriter {
+internal class JavaSummaryTruncationWorkaround : JavadocContentRewriter {
 
     /** Rewrite [content] to apply the workaround, if needed. */
     override fun rewrite(content: JavadocContent?) =
@@ -84,8 +84,4 @@ internal class JavaSummaryTruncationWorkaround private constructor() : JavadocCo
     override fun visit(inlineTag: JavadocInlineTag) =
         // No changes were made and no `.` was found at all so return the original unchanged.
         inlineTag
-
-    companion object {
-        val INSTANCE = JavaSummaryTruncationWorkaround()
-    }
 }

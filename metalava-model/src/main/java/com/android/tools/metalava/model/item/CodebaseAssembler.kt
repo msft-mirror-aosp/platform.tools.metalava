@@ -76,8 +76,11 @@ interface CodebaseAssembler {
      */
     fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem?
 
-    /** Overrideable hook, called from [DefaultCodebase.registerClass] for each new [ClassItem]. */
-    fun newClassRegistered(classItem: ClassItem) {}
+    /**
+     * Overrideable hook, called from [DefaultCodebase.registerClass] for each new
+     * [DefaultClassItem].
+     */
+    fun newClassRegistered(classItem: DefaultClassItem) {}
 }
 
 /**
@@ -113,7 +116,6 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
             else createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
         return itemFactory.createPackageItem(
             packageInfo.fileLocation,
-            packageInfo.sourceFile,
             modifiers,
             documentationFactory,
             packageName,

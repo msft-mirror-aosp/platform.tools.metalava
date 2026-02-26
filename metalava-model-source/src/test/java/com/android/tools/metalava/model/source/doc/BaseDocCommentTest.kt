@@ -118,7 +118,12 @@ internal class CollatingDocumentationIssueReporter : DocumentationIssueReporter 
 }
 
 /** A test [DocCommentContext] that provides basic implementations. */
-internal class TestDocCommentContext(reporter: DocumentationIssueReporter) : DocCommentContext {
+internal class TestDocCommentContext(reporter: DocumentationIssueReporter) :
+    DocCommentContext, DocCommentMutationListener {
+    override val mutationListener: DocCommentMutationListener
+        get() = this
+
+    override fun docCommentMutated() {}
 
     /** A map from flage name to enabled status. */
     var flags: Map<String, Boolean> = emptyMap()
@@ -155,6 +160,8 @@ internal class TestDocCommentContext(reporter: DocumentationIssueReporter) : Doc
     override fun ordinalInParamsList(name: String) = 0
 
     override fun isOverridingMethod() = false
+
+    override fun fullyQualifyComment(comment: String) = comment
 
     override val containingClassItem: ClassItem?
         get() = null

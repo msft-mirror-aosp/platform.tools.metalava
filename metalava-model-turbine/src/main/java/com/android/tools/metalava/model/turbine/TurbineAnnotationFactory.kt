@@ -32,6 +32,7 @@ import com.google.turbine.model.TurbineTyKind
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Assign
 import com.google.turbine.tree.Tree.Expression
+import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 
@@ -45,7 +46,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(
         annotations: List<AnnoInfo>,
-        fieldResolver: FieldResolver?,
+        fieldResolver: TurbineFieldResolver? = null,
     ): List<AnnotationItem> {
         return buildList {
             // The annotations could be a single annotation, or a container for a repeatable
@@ -71,7 +72,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
      */
     fun MutableList<AnnotationItem>.createAndAddAnnotationItemIfNotNull(
         annotation: AnnoInfo,
-        fieldResolver: FieldResolver?
+        fieldResolver: TurbineFieldResolver?
     ) {
         createAnnotation(annotation, fieldResolver)?.let { add(it) }
     }
@@ -82,8 +83,9 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
         val possibleContainerSym = sym()
         val possibleContainerClass =
             possibleContainerSym?.let { sym -> typeBoundClassForSymbol(sym) }
+                ?:
                 // Cannot find the class so assume it is not a container.
-                ?: return false
+                return false
 
         // Container class must have a "value" method...
         val valueMethod =
@@ -127,7 +129,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
     /** Create an [AnnotationItem] from an [AnnoInfo]. */
     internal fun createAnnotation(
         annotation: AnnoInfo,
-        fieldResolver: FieldResolver?,
+        fieldResolver: TurbineFieldResolver? = null,
     ): AnnotationItem? {
         // Get the source representation of the annotation. This will be null for an annotation
         // loaded from a class file.
@@ -161,54 +163,67 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
         annotationClass: TypeBoundClass?,
         attrs: ImmutableMap<String, Const>,
         exprs: ImmutableList<Expression>?,
-        fieldResolver: FieldResolver?,
+        fieldResolver: TurbineFieldResolver?,
     ): List<AnnotationAttribute> {
         val attributes = mutableListOf<AnnotationAttribute>()
-
-        /**
-         * Add an attribute called [name] with constant value [const] and optional value expression
-         * [valueExpr] to the `attributes` list.
-         */
-        fun addAttribute(name: String, const: Const?, valueExpr: Expression?) {
-            attributes.add(
-                AnnotationAttribute.createLazyAttribute(
-                    name,
-                    createAttributeValueProvider(
-                        annotationClass,
-                        name,
-                        const,
-                        valueExpr,
-                        fieldResolver,
-                    ),
-                )
-            )
-        }
-
-        // Source annotations have expressions, binary annotations do not.
         if (exprs != null) {
-            // This is for a source annotation.
             for (exp in exprs) {
-                // Get the attribute name and value expression.
-                val (name, valueExpr) =
-                    if (exp is Assign) {
+                when (exp.kind()) {
+                    Tree.Kind.ASSIGN -> {
+                        exp as Assign
                         val name = exp.name().value()
                         val assignExp = exp.expr()
-                        name to assignExp
-                    } else {
-                        ANNOTATION_ATTR_VALUE to exp
+                        val const = attrs[name]!!
+                        attributes.add(
+                            AnnotationAttribute.createLazyAttribute(
+                                name,
+                                createAttributeValueProvider(
+                                    annotationClass,
+                                    name,
+                                    const,
+                                    assignExp,
+                                    fieldResolver,
+                                ),
+                            )
+                        )
                     }
-
-                // Get the constant value, if any.
-                val const = attrs[name]
-
-                // Add an attribute.
-                addAttribute(name, const, valueExpr)
+                    else -> {
+                        val name = ANNOTATION_ATTR_VALUE
+                        val const =
+                            attrs[name]
+                                ?: (exp as? Literal)?.value()
+                                ?: error(
+                                    "Cannot find value for default 'value' attribute from $exp"
+                                )
+                        attributes.add(
+                            AnnotationAttribute.createLazyAttribute(
+                                name,
+                                createAttributeValueProvider(
+                                    annotationClass,
+                                    name,
+                                    const,
+                                    exp,
+                                    fieldResolver,
+                                ),
+                            )
+                        )
+                    }
+                }
             }
         } else {
-            // This is for a binary annotation.
             for ((name, const) in attrs) {
-                // Add an attribute for a binary annotation which has no expression.
-                addAttribute(name, const, null)
+                attributes.add(
+                    AnnotationAttribute.createLazyAttribute(
+                        name,
+                        createAttributeValueProvider(
+                            annotationClass,
+                            name,
+                            const,
+                            null,
+                            fieldResolver,
+                        ),
+                    )
+                )
             }
         }
         return attributes
@@ -220,17 +235,17 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
      * @param annotationClass the optional [TypeBoundClass] for the annotation. If provided it will
      *   be used to find a [TypeItem] for the annotation attribute called [attributeName].
      * @param attributeName the name of the annotation.
-     * @param const the optional [Const] value.
+     * @param const the [Const] value.
      * @param expr the optional source [Expression].
-     * @param fieldResolver the optional [FieldResolver] used to resolve field [expr]s to the field
-     *   definition.
+     * @param fieldResolver the optional [TurbineFieldResolver] used to resolve field [expr]s to the
+     *   field definition.
      */
     private fun createAttributeValueProvider(
         annotationClass: TypeBoundClass?,
         attributeName: String,
-        const: Const?,
+        const: Const,
         expr: Expression?,
-        fieldResolver: FieldResolver?,
+        fieldResolver: TurbineFieldResolver?,
     ): ValueProvider {
         val turbineValue = TurbineValue(const, expr, fieldResolver)
         return valueFactory.providerForAnnotationValue(annotationClass, attributeName, turbineValue)

@@ -29,7 +29,7 @@ class SignatureFileTest : BaseTextCodebaseTest() {
 
     /** Get an empty [SignatureFile] for [path]. */
     private fun signatureFile(path: String): SignatureFile {
-        val inputFile = signature(path, "").toFile()
+        val inputFile = signature(path, "").createFile(temporaryFolder.root)
         return SignatureFile.forTest(listOf(inputFile))[0]
     }
 

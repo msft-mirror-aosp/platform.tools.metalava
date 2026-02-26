@@ -96,8 +96,8 @@ interface TypeItem {
      * Provide a canonical string representation of this type.
      *
      * Helper methods to compare types, especially types from signature files with types from
-     * parsing, which may have slightly different formats, e.g. varargs (`...`) versus arrays
-     * (`[]`), java.lang. prefixes removed in wildcard signatures, etc.
+     * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
+     * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
     fun toCanonicalTypeString() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
 
@@ -265,7 +265,8 @@ interface TypeItem {
 
         /**
          * A total ordering over [TypeItem] comparing [ClassTypeItem]s using
-         * [TypeItem.fullNameThenQualifierComparator] and then comparing [TypeItem.toTypeString].
+         * [ClassTypeItem.fullNameThenQualifierComparator] and then comparing
+         * [TypeItem.toTypeString].
          */
         val totalComparator: Comparator<TypeItem> =
             typeItemAsClassComparator(fullNameThenQualifierComparator)
@@ -283,6 +284,94 @@ interface TypeItem {
         )
         val partialComparator: Comparator<TypeItem> =
             typeItemAsClassComparator(fullNameComparator, typeStringComparator)
+
+        /**
+         * Convert a type string containing to its lambda representation or return the original.
+         *
+         * E.g.: `"kotlin.jvm.functions.Function1<Integer, String>"` to `"(Integer) -> String"`.
+         */
+        fun toLambdaFormat(typeName: String): String {
+            // Bail if this isn't a Kotlin function type
+            if (!typeName.startsWith(KOTLIN_FUNCTION_PREFIX)) {
+                return typeName
+            }
+
+            // Find the first character after the first opening angle bracket. This will either be
+            // the first character of the paramTypes of the lambda if it has parameters.
+            val paramTypesStart =
+                typeName.indexOf('<', startIndex = KOTLIN_FUNCTION_PREFIX.length) + 1
+
+            // The last type param is always the return type. We find and set these boundaries with
+            // the push down loop below.
+            var paramTypesEnd = -1
+            var returnTypeStart = -1
+
+            // Get the exclusive end of the return type parameter by finding the last closing
+            // angle bracket.
+            val returnTypeEnd = typeName.lastIndexOf('>')
+
+            // Bail if an an unexpected format broke the indexOf's above.
+            if (paramTypesStart <= 0 || paramTypesStart >= returnTypeEnd) {
+                return typeName
+            }
+
+            // This loop looks for the last comma that is not inside the type parameters of a type
+            // parameter. It's a simple push down state machine that stores its depth as a counter
+            // instead of a stack. It runs backwards from the last character of the type parameters
+            // just before the last closing angle bracket to the beginning just before the first
+            // opening angle bracket.
+            var depth = 0
+            for (i in returnTypeEnd - 1 downTo paramTypesStart) {
+                val c = typeName[i]
+
+                // Increase or decrease stack depth on angle brackets
+                when (c) {
+                    '>' -> depth++
+                    '<' -> depth--
+                }
+
+                when {
+                    depth == 0 ->
+                        when { // At the top level
+                            c == ',' -> {
+                                // When top level comma is found, mark it as the exclusive end of
+                                // the
+                                // parameter types and end the loop
+                                paramTypesEnd = i
+                                break
+                            }
+                            !c.isWhitespace() -> {
+                                // Keep moving the start of the return type back until whitespace
+                                returnTypeStart = i
+                            }
+                        }
+                    depth < 0 -> return typeName // Bail, unbalanced nesting
+                }
+            }
+
+            // Bail if some sort of unbalanced nesting occurred or the indices around the comma
+            // appear grossly incorrect.
+            if (depth > 0 || returnTypeStart < 0 || returnTypeStart <= paramTypesEnd) {
+                return typeName
+            }
+
+            return buildString(typeName.length) {
+                append("(")
+
+                // Slice param types, if any, and append them between the parenthesis
+                if (paramTypesEnd > 0) {
+                    append(typeName, paramTypesStart, paramTypesEnd)
+                }
+
+                append(") -> ")
+
+                // Slice out the return type param and append it after the arrow
+                append(typeName, returnTypeStart, returnTypeEnd)
+            }
+        }
+
+        /** Prefix of Kotlin JVM function types, used for lambdas. */
+        private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
     }
 }
 
@@ -312,9 +401,6 @@ enum class StripJavaLangPrefix {
     /** Always strip java.lang. prefixes from the type. */
     ALWAYS,
 }
-
-/** Lambda for converting one [TypeItem] into a different [TypeItem]. */
-typealias TypeItemConverter = (TypeItem) -> TypeItem
 
 /**
  * A mapping from type parameters to types which should be substituted for these type parameters.
@@ -373,7 +459,6 @@ abstract class DefaultTypeItem(
     }
 
     override fun equals(other: Any?): Boolean {
-        if (this === other) return true
         if (other !is TypeItem) return false
         return equalToType(other, includeNullability = false)
     }
@@ -419,7 +504,7 @@ abstract class DefaultTypeItem(
                         if (type.isVarargs && !configuration.treatVarargsAsArray) "..." else "[]"
 
                     // The ordering of array annotations means this can't just use a recursive
-                    // approach for annotated multidimensional arrays, but it can if annotations
+                    // approach for annotated multi-dimensional arrays, but it can if annotations
                     // aren't included.
                     if (configuration.annotations) {
                         var deepComponentType = type.componentType
@@ -625,7 +710,9 @@ abstract class DefaultTypeItem(
                 dimension += "["
                 name = name.substring(0, name.length - 2)
             }
-            val base =
+
+            val base: String
+            base =
                 when (name) {
                     "void" -> "V"
                     "byte" -> "B"
@@ -856,58 +943,56 @@ interface PrimitiveTypeItem : TypeItem {
             kotlinName = "Boolean",
             defaultValue = false,
             defaultValueString = "false",
-            wrapperClass =
-                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Boolean::class.java,
+            wrapperClass = java.lang.Boolean::class.java,
         ),
         BYTE(
             primitiveName = "byte",
             kotlinName = "Byte",
             defaultValue = 0.toByte(),
             defaultValueString = "0",
-            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Byte::class.java,
+            wrapperClass = java.lang.Byte::class.java,
         ),
         CHAR(
             primitiveName = "char",
             kotlinName = "Char",
             defaultValue = 0.toChar(),
             defaultValueString = "0",
-            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") Character::class.java,
+            wrapperClass = java.lang.Character::class.java,
         ),
         DOUBLE(
             primitiveName = "double",
             kotlinName = "Double",
             defaultValue = 0.0,
             defaultValueString = "0",
-            wrapperClass =
-                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Double::class.java,
+            wrapperClass = java.lang.Double::class.java,
         ),
         FLOAT(
             primitiveName = "float",
             kotlinName = "Float",
             defaultValue = 0F,
             defaultValueString = "0",
-            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Float::class.java,
+            wrapperClass = java.lang.Float::class.java,
         ),
         INT(
             primitiveName = "int",
             kotlinName = "Int",
             defaultValue = 0,
             defaultValueString = "0",
-            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") Integer::class.java,
+            wrapperClass = java.lang.Integer::class.java,
         ),
         LONG(
             primitiveName = "long",
             kotlinName = "Long",
             defaultValue = 0L,
             defaultValueString = "0",
-            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Long::class.java,
+            wrapperClass = java.lang.Long::class.java,
         ),
         SHORT(
             primitiveName = "short",
             kotlinName = "Short",
             defaultValue = 0.toShort(),
             defaultValueString = "0",
-            wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Short::class.java,
+            wrapperClass = java.lang.Short::class.java,
         ),
         VOID(
             primitiveName = "void",
@@ -916,7 +1001,7 @@ interface PrimitiveTypeItem : TypeItem {
             kotlinName = "Unit",
             defaultValue = null,
             defaultValueString = "null",
-            wrapperClass = Void::class.java,
+            wrapperClass = java.lang.Void::class.java,
         ),
         ;
 
@@ -1120,6 +1205,12 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
     /**
+     * Check to see whether this type is a functional type, i.e. references a function interface,
+     * which is an interface with at most one abstract method.
+     */
+    fun isFunctionalType(): Boolean = error("unsupported")
+
+    /**
      * Erasing a [ClassTypeItem] requires removing annotations and argument types and erasing its
      * outer class type.
      */
@@ -1269,15 +1360,15 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         return typeParameterBindings[asTypeParameter]?.let { replacement ->
             val replacementNullability =
                 when {
-                    // If this use of the type parameter has a known nullability then it overrides
+                    // If this use of the type parameter is marked as nullable, then it overrides
                     // the nullability of the substituted type.
-                    // e.g. the result of replacing `T` with `String?` in `T & Any` (which makes T
-                    // non-null) is `String? & Any` which simplifies to `String`.
-                    //
-                    // The resulty of replacing `T` with `String in `T?` is `String?`.
-                    nullability.known -> nullability
-
-                    // Otherwise, use the replacement nullability.
+                    nullability == TypeNullability.NULLABLE -> nullability
+                    // If the type that is replacing the type parameter has platform nullability,
+                    // i.e. carries no information one way or another about whether it is nullable,
+                    // then use the nullability of the use of the type parameter as while at worst
+                    // it may also have no nullability information, it could have some, e.g. from a
+                    // declaration nullability annotation.
+                    replacement.modifiers.nullability == TypeNullability.PLATFORM -> nullability
                     else -> null
                 }
 
@@ -1472,7 +1563,7 @@ fun bestGuessAtFullName(qualifiedName: String): String {
     val length = qualifiedName.length
     var prev: Char? = null
     var lastDotIndex = -1
-    for (i in 0..<length) {
+    for (i in 0..length - 1) {
         val c = qualifiedName[i]
         if (prev == null || prev == '.') {
             if (c.isUpperCase()) {

@@ -40,8 +40,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.SkeletonClassItem
-import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -54,7 +52,9 @@ import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
@@ -276,12 +276,11 @@ private constructor(
     private var appending: Boolean = false
 
     /**
-     * A map from [SkeletonClassItem] to list of [ClassCharacteristics] for re-definition of the
-     * original class that needs to be checked for consistency against the [SkeletonClassItem] and
+     * A map from [DefaultClassItem] to list of [ClassCharacteristics] for re-definition of the
+     * original class that needs to be checked for consistency against the [DefaultClassItem] and
      * then merge any extensions into it.
      */
-    private var deferredMerges =
-        mutableMapOf<SkeletonClassItem, MutableList<ClassCharacteristics>>()
+    private var deferredMerges = mutableMapOf<DefaultClassItem, MutableList<ClassCharacteristics>>()
 
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
@@ -321,12 +320,6 @@ private constructor(
                     ?: buildString {
                         append("Codebase loaded from ")
                         signatureFiles.joinTo(this)
-                        if (classPathResolver == null) {
-                            append(" without a class path resolver")
-                        } else {
-                            append(" with class path resolver ")
-                            append(classPathResolver)
-                        }
                     }
             val assembler =
                 TextCodebaseAssembler.createAssembler(
@@ -900,7 +893,7 @@ private constructor(
      * have been resolved.
      */
     private fun deferMergingIntoExistingClass(
-        existingClass: SkeletonClassItem,
+        existingClass: DefaultClassItem,
         newClassCharacteristics: ClassCharacteristics
     ) {
         val merges = deferredMerges.computeIfAbsent(existingClass) { mutableListOf() }
@@ -926,7 +919,7 @@ private constructor(
      * @return `false` if there is no existing class, `true` if there is and the merge succeeded.
      */
     private fun tryMergingIntoExistingClass(
-        existingClass: SkeletonClassItem,
+        existingClass: DefaultClassItem,
         newClassCharacteristics: ClassCharacteristics,
     ) {
         // Make sure the new class characteristics are compatible with the old class
@@ -985,7 +978,7 @@ private constructor(
     /** Parse the class body, adding members to [cl]. */
     private fun parseClassBody(
         tokenizer: Tokenizer,
-        cl: SkeletonClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         var token = tokenizer.requireToken()
@@ -1051,7 +1044,7 @@ private constructor(
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
-        val outerClass: SkeletonClassItem?,
+        val outerClass: DefaultClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
         /**
@@ -1102,7 +1095,7 @@ private constructor(
                 assembler.getOrCreateClass(
                     qualifiedOuterClassName,
                     isOuterClassOfClassInThisCodebase = true
-                ) as SkeletonClassItem
+                ) as DefaultClassItem
             }
 
         // Get the [TextTypeItemFactory] for the outer class, if any, from a previously stored one,
@@ -1263,7 +1256,7 @@ private constructor(
 
     private fun parseConstructor(
         tokenizer: Tokenizer,
-        containingClass: SkeletonClassItem,
+        containingClass: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -1324,7 +1317,7 @@ private constructor(
 
     private fun parseMethod(
         tokenizer: Tokenizer,
-        cl: SkeletonClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -1439,7 +1432,7 @@ private constructor(
 
     private fun parseField(
         tokenizer: Tokenizer,
-        cl: SkeletonClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String,
         isEnumConstant: Boolean,
@@ -1698,7 +1691,7 @@ private constructor(
 
     private fun parseProperty(
         tokenizer: Tokenizer,
-        cl: SkeletonClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -1875,13 +1868,13 @@ private constructor(
     }
 
     /**
-     * Create a partially initialized [SkeletonTypeParameterItem].
+     * Create a partially initialized [DefaultTypeParameterItem].
      *
      * This extracts the [TypeParameterItem.isReified] and [TypeParameterItem.name] from the
-     * [typeParameterString] and creates a [SkeletonTypeParameterItem] with those properties
-     * initialized but the [SkeletonTypeParameterItem.bounds] is not.
+     * [typeParameterString] and creates a [DefaultTypeParameterItem] with those properties
+     * initialized but the [DefaultTypeParameterItem.bounds] is not.
      */
-    private fun createTypeParameterItem(typeParameterString: String): SkeletonTypeParameterItem {
+    private fun createTypeParameterItem(typeParameterString: String): DefaultTypeParameterItem {
         val length = typeParameterString.length
         var nameEnd = length
 

@@ -44,23 +44,7 @@ class FilteringReporter(
 
         val item = reportable as? Item
         if (item != null) {
-            // Determine whether to inherit methods from super classes in the previously released
-            // API.
-            val inherit =
-                when (id) {
-                    // Do not consider inherited methods in previously released APIs when
-                    // determining
-                    // the severity to use for the EQUALS_AND_HASH_CODE report as otherwise it will
-                    // almost always inherit from `java.lang.Object`. That will break the test as it
-                    // expects to see both methods implemented directly on a class, and inherited
-                    // methods are explicitly not allowed.
-                    Issues.EQUALS_AND_HASH_CODE -> false
-
-                    // Inherit by default.
-                    else -> true
-                }
-
-            val previousItem = Codebase.findPreviouslyReleased(oldCodebase, item, inherit)
+            val previousItem = Codebase.findPreviouslyReleased(oldCodebase, item)
 
             val computedMaximumSeverity = computeMaximumSeverity(item, previousItem, id)
             if (computedMaximumSeverity == Severity.HIDDEN) {
@@ -89,60 +73,36 @@ class FilteringReporter(
     }
 
     private var contextItem: Item? = null
-    private var maximumSeverityForContextItem: Severity = Severity.UNLIMITED
-    private var maximumSeverityForContextItemContents: Severity = Severity.UNLIMITED
+    private var maximumSeverityForItem: Severity = Severity.UNLIMITED
+    private var maximumSeverityForItemContents: Severity = Severity.UNLIMITED
 
-    /**
-     * Compute the maximum severity of [issue] within [contextItem].
-     *
-     * @param item is the [Item] on which the issue is being reported.
-     * @param previousItem is the corresponding [Item] in the previously released API, `null` if it
-     *   could not be found. It may have been inherited from a super class/interface.
-     */
-    private fun computeMaximumSeverity(item: Item, previousItem: Item?, issue: Issues.Issue) =
+    private fun computeMaximumSeverity(item: Item?, previousItem: Item?, issue: Issues.Issue) =
         when {
-            // FlaggedApi issues are always treated as an error even if they do appear in the
-            // previously released API because they are being reported because there is a change
-            // compared with the previously released API.
-            issue == Issues.UNFLAGGED_API || issue == Issues.UNEXPORTED_FLAGGED_API -> {
+            issue == Issues.UNFLAGGED_API || issue == Issues.UNEXPORTED_FLAGGED_API ->
                 Severity.ERROR
-            }
-
-            // If the issue is being reported on the [contextItem] then limit this to the maximum
-            // severity of that item (which depends on whether that item is in the previously
-            // released API or not).
-            item === contextItem -> {
-                maximumSeverityForContextItem
-            }
-
-            // If the context item is hidden but this item is new then treat it as a warning.
-            maximumSeverityForContextItem == Severity.HIDDEN && previousItem == null -> {
+            item === contextItem -> maximumSeverityForItem
+            maximumSeverityForItem == Severity.HIDDEN && previousItem == null ->
                 Severity.WARNING_ERROR_WHEN_NEW
-            }
-
-            // Otherwise, just limit the item to the maximum severity allowed by the context item.
-            else -> {
-                maximumSeverityForContextItemContents
-            }
+            else -> maximumSeverityForItemContents
         }
 
     internal fun withContext(contextItem: Item, checker: () -> Unit) {
         val oldContextItem = this.contextItem
-        val oldMaximumSeverityForItem = this.maximumSeverityForContextItem
-        val oldMaximumSeverityForItemContents = this.maximumSeverityForContextItemContents
+        val oldMaximumSeverityForItem = this.maximumSeverityForItem
+        val oldMaximumSeverityForItemContents = this.maximumSeverityForItemContents
         try {
             this.contextItem = contextItem
             val previouslyReleased =
                 oldCodebase != null && Codebase.wasPreviouslyReleased(oldCodebase, contextItem)
-            this.maximumSeverityForContextItem =
+            this.maximumSeverityForItem =
                 if (previouslyReleased) Severity.HIDDEN else Severity.UNLIMITED
-            this.maximumSeverityForContextItemContents = maximumSeverityForContextItem
+            this.maximumSeverityForItemContents = maximumSeverityForItem
 
             checker()
         } finally {
             this.contextItem = oldContextItem
-            this.maximumSeverityForContextItem = oldMaximumSeverityForItem
-            this.maximumSeverityForContextItemContents = oldMaximumSeverityForItemContents
+            this.maximumSeverityForItem = oldMaximumSeverityForItem
+            this.maximumSeverityForItemContents = oldMaximumSeverityForItemContents
         }
     }
 }

@@ -21,14 +21,13 @@ import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
 
 @MetalavaApi
-interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
+interface MethodItem : CallableItem, InheritableItem {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
-     *
-     * Overridden to provide more specific documentation.
      */
-    override var property: PropertyItem?
+    val property: PropertyItem?
+        get() = null
 
     override val effectivelyDeprecated: Boolean
         get() =
@@ -51,9 +50,6 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
 
     /** Returns the super methods that this method is overriding */
     fun superMethods(): List<MethodItem>
-
-    /** Override to specialize return type. */
-    override fun createOverload(parameters: List<ParameterItem>): MethodItem
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,
@@ -258,13 +254,8 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
      */
     val defaultValue: Value?
 
-    /**
-     * Whether this method is a getter/setter for an underlying Kotlin property (val/var).
-     *
-     * This should be the same as `property != null` but this may be called before [property] has
-     * been initialized.
-     */
-    val isKotlinProperty: Boolean
+    /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
+    fun isKotlinProperty(): Boolean = false
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that

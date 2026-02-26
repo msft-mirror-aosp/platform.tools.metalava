@@ -137,6 +137,14 @@ private fun JavadocContent?.requiredSpace(): RequiredSpace =
         else -> RequiredSpace.SINGLE_LINE
     }
 
+/**
+ * Interface that must be implemented by classes that need to respond to changes in a [DocComment].
+ */
+interface DocCommentMutationListener {
+    /** Invoked when [DocComment] is mutated. */
+    fun docCommentMutated()
+}
+
 internal class DefaultDocComment(
     context: DocCommentContext,
     descriptionSupplier: ContentSupplier,
@@ -176,7 +184,7 @@ internal class DefaultDocComment(
         addBlockTagSection(blockTagSection)
     }
 
-    /** Add [blockTagSection] to [blockTagSections]. */
+    /** Add [blockTagSection] to [blockTagSections] invoking the [DocCommentMutationListener]. */
     internal fun addBlockTagSection(blockTagSection: BlockTagSection) {
         blockTagSections = blockTagSections + blockTagSection
 
@@ -188,6 +196,9 @@ internal class DefaultDocComment(
         if (blockTagSections.size == 1 && appendInheritDocIfNeeded()) {
             return
         }
+
+        // Notify any listener.
+        context.mutationListener.docCommentMutated()
     }
 
     override fun pendingBlockTagSection(
@@ -203,6 +214,9 @@ internal class DefaultDocComment(
         if (filtered.size != blockTagSections.size) {
             // Something was removed.
             blockTagSections = filtered
+
+            // Notify any listener.
+            context.mutationListener.docCommentMutated()
         }
     }
 

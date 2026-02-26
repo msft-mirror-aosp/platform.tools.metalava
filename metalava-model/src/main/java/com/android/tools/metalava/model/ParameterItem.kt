@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 
 @MetalavaApi
-interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
+interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
 
@@ -76,12 +76,9 @@ interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
     /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean = modifiers.isVarArg()
 
-    /**
-     * The property declared by this parameter; inverse of [PropertyItem.constructorParameter].
-     *
-     * Overridden to provide more specific documentation.
-     */
-    override var property: PropertyItem?
+    /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
+    val property: PropertyItem?
+        get() = null
 
     override fun parent(): CallableItem? = containingCallable()
 
@@ -98,8 +95,8 @@ interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
     /**
      * Create a duplicate of this for [containingCallable].
      *
-     * The duplicate's [ParameterItem.type] is the result of applying [typeConverter] to this
-     * [ParameterItem]'s [type].
+     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
+     * [TypeItem.convertType].
      *
      * This is called from within the constructor of the [containingCallable] so must only access
      * its `name` and its reference. In particularly it must not access its
@@ -107,8 +104,7 @@ interface ParameterItem : ClassContentItem, Item, PossiblyPropertyRelated {
      */
     fun duplicate(
         containingCallable: CallableItem,
-        typeConverter: TypeItemConverter,
-        newParameterIndex: Int = parameterIndex,
+        typeVariableMap: TypeParameterBindings,
     ): ParameterItem
 
     override val description: DocContent?

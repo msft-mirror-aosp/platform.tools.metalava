@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.PackageInfo
@@ -217,8 +216,8 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
  * underlying model. That can only come from [PackageDoc.overview].
  */
 data class SourcePackageInfo(
-    /** See [PackageInfo.sourceFile] for details. */
-    val sourceFile: SourceFile? = null,
+    /** See [PackageInfo.fileLocation] for details. */
+    val fileLocation: FileLocation = FileLocation.UNKNOWN,
 
     /** See [PackageInfo.annotations] for details. */
     val annotations: List<AnnotationItem> = emptyList(),
@@ -226,9 +225,6 @@ data class SourcePackageInfo(
     /** See [PackageInfo.commentFactory] for details. */
     val commentFactory: ItemDocumentationFactory? = null,
 ) {
-    /** See [PackageInfo.fileLocation] for details. */
-    val fileLocation: FileLocation = sourceFile?.fileLocation ?: FileLocation.UNKNOWN
-
     /**
      * Construct a [PackageInfo] from this.
      *
@@ -238,7 +234,6 @@ data class SourcePackageInfo(
     fun toPackageInfo(defaultCommentFactory: ItemDocumentationFactory) =
         PackageInfo(
             fileLocation,
-            sourceFile,
             annotations,
             // Make sure the returned [PackageInfo] has a non-null [PackageInfo.commentFactory].
             commentFactory ?: defaultCommentFactory,

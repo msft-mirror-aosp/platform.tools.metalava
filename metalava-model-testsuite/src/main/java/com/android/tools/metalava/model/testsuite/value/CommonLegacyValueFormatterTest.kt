@@ -244,7 +244,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     private fun checkFormatting(body: FormattingContext.() -> Unit) {
         val additionalClassPath =
             when (producerKind) {
-                ProducerKind.JAR -> listOf(jarFile.toFile())
+                ProducerKind.JAR -> listOf(jarFile.createFile(temporaryFolder.root))
                 else -> emptyList()
             }
 

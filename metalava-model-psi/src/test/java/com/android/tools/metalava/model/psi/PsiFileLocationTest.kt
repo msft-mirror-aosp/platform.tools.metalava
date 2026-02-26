@@ -16,12 +16,23 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PsiFileLocationTest : BaseModelTest() {
+    /**
+     * Casts [item] to a [PsiItem] and gets the source psi of its underlying PsiElement. Generates a
+     * baseline key, checking that the element ID of that key matches [expectedKey].
+     */
+    private fun checkBaselineKeyFromPsi(item: Item, expectedKey: String) {
+        val psi = (item as PsiItem).psi()
+        val baselineKey = PsiFileLocation.getBaselineKey(psi)
+        assertEquals(expectedKey, baselineKey.elementId())
+    }
+
     @Test
     fun `Baseline key for top level KtProperty`() {
         runCodebaseTest(
@@ -45,26 +56,11 @@ class PsiFileLocationTest : BaseModelTest() {
         ) {
             val testKtPropertyItem = codebase.assertClass("test.pkg.TestKt").properties().single()
             assertEquals(
-                "test.pkg.TestKt#propertyInTestKt",
                 testKtPropertyItem.baselineKey.elementId(),
-                message = "from TestKt PropertyItem.baselineKey"
-            )
-            assertEquals(
-                "test.pkg.TestKt#propertyInTestKt",
-                testKtPropertyItem.fileLocation.baselineKey?.elementId(),
-                message = "from PropertyItem.fileLocation.baselineKey"
+                "test.pkg.TestKt#propertyInTestKt"
             )
             val fooPropertyItem = codebase.assertClass("test.pkg.Foo").properties().single()
-            assertEquals(
-                "test.pkg.Foo#propertyInFoo",
-                fooPropertyItem.baselineKey.elementId(),
-                message = "from Foo PropertyItem.baselineKey"
-            )
-            assertEquals(
-                "test.pkg.Foo#propertyInFoo",
-                fooPropertyItem.fileLocation.baselineKey?.elementId(),
-                message = "from Foo PropertyItem.fileLocation.baselineKey"
-            )
+            assertEquals(fooPropertyItem.baselineKey.elementId(), "test.pkg.Foo#propertyInFoo")
         }
     }
 
@@ -81,15 +77,9 @@ class PsiFileLocationTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo").methods().single()
-            assertEquals(
-                "test.pkg.Foo#foo(String, java.util.List<? extends T>)",
-                foo.baselineKey.elementId(),
-                message = "from MethodItem.baselineKey"
-            )
-            assertEquals(
-                "test.pkg.Foo#foo(java.lang.String, java.util.List<? extends T>)",
-                foo.fileLocation.baselineKey?.elementId(),
-                message = "from MethodItem.fileLocation.baselineKey"
+            checkBaselineKeyFromPsi(
+                foo,
+                "test.pkg.Foo#foo(java.lang.String, java.util.List<? extends T>)"
             )
         }
     }

@@ -1929,7 +1929,6 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val kotlinCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(kotlinCtor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
-            assertThat(kotlinCtor.parameters().single().hasDefaultValue()).isTrue()
 
             val bytecodeCtor =
                 fooClass.assertConstructor(
@@ -1937,15 +1936,18 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
             assertThat(bytecodeCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
+            // When a kotlin constructor has a single default parameter, an overload is generated
+            // with no parameters.
+            val defaultCtor = fooClass.assertConstructor(emptyList())
+            assertThat(defaultCtor.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+
             val bytecodeDefaultCtor =
                 fooClass.assertConstructor(
                     listOf("int", "int", "kotlin.jvm.internal.DefaultConstructorMarker")
                 )
             assertThat(bytecodeDefaultCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            // Usually, when a kotlin constructor has a single default parameter, an overload is
-            // generated with no parameters, but this is not the case with the value class type.
-            assertThat(fooClass.constructors()).hasSize(3)
+            assertThat(fooClass.constructors()).hasSize(4)
         }
     }
 

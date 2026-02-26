@@ -279,8 +279,13 @@ interface Assertions {
     fun SelectableItem.assertPrintedDocumentation(expectedOutput: String, message: String? = null) {
         val stringWriter = StringWriter()
         PrintWriter(stringWriter).use { documentation?.print(it) }
-        val actualOutput = stringWriter.toString().trimEnd()
-        assertEquals(expectedOutput.trimIndent(), actualOutput, message)
+        val actualOutput = stringWriter.toString()
+        assertEquals("$expectedOutput\n".trimIndent(), actualOutput, message)
+    }
+
+    /** Make sure the documentation text for [this] matches [expectedOutput]. */
+    fun SelectableItem.assertDocumentationText(expectedOutput: String, message: String? = null) {
+        assertEquals(expectedOutput.trimIndent(), documentation?.text?.trim(), message)
     }
 
     /**

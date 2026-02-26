@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
-import com.android.tools.metalava.model.source.createSourceItemDocumentation
 import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.sym.ClassSymbol
@@ -101,7 +100,7 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
         } ?: return NO_SOURCE_COMMENT_FACTORY
 
     return ItemDocumentationFactory { item ->
-        createSourceItemDocumentation(item, TurbineSourceComment(sourceFile, turbineJavadoc))
+        TurbineItemDocumentation(item, sourceFile, turbineJavadoc)
     }
 }
 

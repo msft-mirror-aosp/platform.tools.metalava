@@ -30,8 +30,6 @@ import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEV
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownConfigFiles
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
@@ -301,7 +299,6 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
-    @RequiresCapabilities(Capability.LOAD_JAR)
     @Test
     fun `Generate API for system surface from jar`() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
@@ -767,7 +764,6 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs annotated with suppress-compatibility-meta-annotations appear in output`() {
         val apiVersionsJson = temporaryFolder.newFile("api-info.json")
@@ -849,7 +845,8 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    private fun createTextFile(name: String, contents: String) = signature(name, contents).toFile()
+    private fun createTextFile(name: String, contents: String) =
+        signature(name, contents).createFile(temporaryFolder.root)
 
     @Test
     fun `Support major minor versions in generated api-versions xml file`() {
