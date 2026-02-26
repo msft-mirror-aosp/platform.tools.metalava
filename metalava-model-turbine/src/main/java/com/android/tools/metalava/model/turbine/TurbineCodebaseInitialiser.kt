@@ -17,11 +17,15 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationUse
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
@@ -29,6 +33,7 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -36,7 +41,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
-import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.ClassPath
 import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
@@ -52,9 +57,6 @@ import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.parse.Parser
-import com.google.turbine.processing.ModelFactory
-import com.google.turbine.processing.TurbineElements
-import com.google.turbine.processing.TurbineTypes
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.type.AnnoInfo
@@ -62,7 +64,6 @@ import java.io.File
 import java.nio.file.Paths
 import java.util.Optional
 import javax.lang.model.SourceVersion
-import javax.lang.model.element.TypeElement
 
 /**
  * This initializer acts as an adapter between codebase and the output from Turbine parser.
@@ -72,7 +73,8 @@ import javax.lang.model.element.TypeElement
  */
 internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
-    private val classpath: List<File>,
+    private val bootclasspath: ClassPath,
+    private val classpath: ClassPath,
 ) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
@@ -109,13 +111,6 @@ internal class TurbineCodebaseInitialiser(
         )
 
     override lateinit var valueFactory: TurbineValueFactory
-
-    /**
-     * Data Type: TurbineElements (An implementation of javax.lang.model.util.Elements)
-     *
-     * Usage: Enables lookup of TypeElement objects by name.
-     */
-    private lateinit var turbineElements: TurbineElements
 
     /**
      * Populates [codebase] from the [sourceSet].
@@ -178,9 +173,9 @@ internal class TurbineCodebaseInitialiser(
                 Binder.bind(
                     log,
                     allUnits,
-                    ClassPathBinder.bindClasspath(classpath.map { it.toPath() }),
+                    classpath,
                     annotationProcessorInfo,
-                    ClassPathBinder.bindClasspath(listOf()),
+                    bootclasspath,
                     Optional.empty()
                 )!!
         } catch (e: TurbineError) {
@@ -192,11 +187,12 @@ internal class TurbineCodebaseInitialiser(
         // Report all the diagnostics, filtering those that relate to missing references.
         log.reportTo(codebase.reporter) { diagnostic ->
             // Ignore missing references.
-            var errorKind = diagnostic.kind()
+            val errorKind = diagnostic.kind()
             when (errorKind) {
                 TurbineError.ErrorKind.CANNOT_RESOLVE,
                 TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
                 TurbineError.ErrorKind.EXPRESSION_ERROR,
+                TurbineError.ErrorKind.NO_JAVA_LANG,
                 TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
                     false
                 }
@@ -228,13 +224,6 @@ internal class TurbineCodebaseInitialiser(
         // class path.
         envClassMap = CompoundEnv.of<ClassSymbol, TypeBoundClass>(classPathEnv).append(sourceEnv)
 
-        // used to create language model elements for code analysis
-        val factory = ModelFactory(envClassMap, ClassLoader.getSystemClassLoader(), index)
-        // provides type-related operations within the Turbine compiler context
-        val turbineTypes = TurbineTypes(factory)
-        // provides access to code elements (packages, types, members) for analysis.
-        turbineElements = TurbineElements(factory, turbineTypes)
-
         // Create a cache from SourceFile to the TurbineSourceFile wrapper. The latter needs the
         // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
         sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
@@ -259,6 +248,9 @@ internal class TurbineCodebaseInitialiser(
         createInitialPackages(sourceSet)
 
         createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
     }
 
     /**
@@ -378,7 +370,8 @@ internal class TurbineCodebaseInitialiser(
      * Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find it
      * then look in the class path.
      */
-    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)
+    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass? =
+        envClassMap.get(classSymbol)
 
     /**
      * Convert this qualified name consisting of a list of identifiers separated by '.' into a list
@@ -411,7 +404,7 @@ internal class TurbineCodebaseInitialiser(
                 val turbineSourceFile = sourceFileCache.turbineSourceFile(packageInfoClass.source())
                 val unit = turbineSourceFile.compUnit
                 val pkgDecl = unit.pkg().get()
-                var annoInfos = packageInfoClass.annotations()
+                val annoInfos = packageInfoClass.annotations()
                 SourcePackageInfo(
                     sourceFile = turbineSourceFile,
                     annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver),
@@ -555,7 +548,45 @@ internal class TurbineCodebaseInitialiser(
         return LookupKey(ImmutableList.copyOf(idents))
     }
 
-    internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
+    /**
+     * Copy [AnnotationUse.TYPE_ONLY] only nullness annotations from types to [Item]s.
+     *
+     * The Psi model has historically included nullness annotations in the annotations for an item
+     * even when those annotations are [AnnotationUse.TYPE_ONLY]. This replicates that behavior.
+     *
+     * This is not strictly the same as Psi, as Psi only does that for annotations that are used in
+     * a context that means it could apply to either the declaration or the type. This simply always
+     * copies them. That means that in theory the behavior could differ but in practice this does
+     * not as type use only nullness annotations are not heavily used in Android or AndroidX.
+     */
+    fun copyTypeUseOnlyNullnessAnnotationsToItems() {
+        codebase.accept(
+            object : BaseItemVisitor() {
+                override fun visitItem(item: Item) {
+                    if (item is ClassItem || item is PackageItem) return
+                    val type = item.type() ?: return
+
+                    val itemAnnotations = item.modifiers.annotations()
+                    if (itemAnnotations.typeNullability == null) {
+                        val closestType =
+                            when (type) {
+                                is ArrayTypeItem -> type.innermostComponentType()
+                                else -> type
+                            }
+
+                        val annotationToAdd =
+                            closestType.modifiers.annotations.find { it.isNullnessAnnotation() }
+                        if (
+                            annotationToAdd != null &&
+                                annotationToAdd.annotationUse == AnnotationUse.TYPE_ONLY
+                        ) {
+                            item.mutateModifiers { mutateAnnotations { add(annotationToAdd) } }
+                        }
+                    }
+                }
+            }
+        )
+    }
 }
 
 /** Create a [SourceFile] for every `.java` file in [sources]. */

@@ -336,7 +336,12 @@ open class TypeItemParser(
         nullability: TypeNullability?
     ): VariableTypeItem? {
         val param = typeParameterScope.findTypeParameter(type) ?: return null
-        val typeModifiers = createModifiers(annotations, nullability)
+        val typeModifiers =
+            createModifiers(
+                annotations,
+                nullability,
+                defaultNullability = TypeNullability.UNDEFINED,
+            )
         return TypeItem.createVariableType(typeModifiers, param)
     }
 
