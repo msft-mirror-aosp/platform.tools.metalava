@@ -117,7 +117,11 @@ internal class PsiSourceParser(
                 )
             }
 
-        assembler.initializeFromSources(sourceSet, inputs.apiPackages)
+        assembler.initializeFromSources(
+            sourceSet,
+            inputs.apiPackages,
+            inputs.includeKotlinInCodebase,
+        )
         val codebase = assembler.psiCodebase
 
         inputs.compiledSourceJar?.let { compiledSourceJar ->

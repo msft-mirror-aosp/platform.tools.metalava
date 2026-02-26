@@ -382,6 +382,7 @@ internal class PsiCodebaseAssembler(
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
+        includeKotlinInCodebase: Boolean,
     ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
@@ -394,9 +395,14 @@ internal class PsiCodebaseAssembler(
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
-        kaCodebaseAssembler =
-            psiCodebase.mainAnalysisModule?.let { KaCodebaseAssembler(kotlinFiles, psiCodebase) }
-        kaCodebaseAssembler?.let { kaCodebaseAssembler ->
+        if (includeKotlinInCodebase) {
+            kaCodebaseAssembler =
+                psiCodebase.mainAnalysisModule?.let {
+                    KaCodebaseAssembler(kotlinFiles, psiCodebase)
+                }
+        }
+
+        kaCodebaseAssembler?.apply {
             // Provide a list of all packages when all typealiases are needed in order to inline
             // usages. If that isn't necessary, just typealiases from source will be processed.
             val allPackages =
@@ -405,7 +411,7 @@ internal class PsiCodebaseAssembler(
                 } else {
                     null
                 }
-            kaCodebaseAssembler.createTypeAliases(allPackages)
+            createTypeAliases(allPackages)
         }
 
         // Tracker for which source files of `@JvmMultifileClass`es have already been processed.

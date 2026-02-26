@@ -78,6 +78,9 @@ interface SourceParser {
          * Only supported by the PSI model.
          */
         val compiledSourceJar: File? = null,
+
+        /** Indicates whether to include Kotlin derived information in the [Codebase]. */
+        val includeKotlinInCodebase: Boolean = true,
     )
 
     /**

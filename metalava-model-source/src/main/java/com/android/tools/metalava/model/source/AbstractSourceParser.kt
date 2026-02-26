@@ -25,18 +25,24 @@ import java.io.File
 abstract class AbstractSourceParser(protected val reporter: Reporter) : SourceParser {
 
     final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
-        loadCodebaseFromJars(classPath, "Codebase from classpath")
+        loadCodebaseFromJars(
+            classPath,
+            "Codebase from classpath",
+            includeKotlinInCodebase = true,
+        )
 
     /** Load a [DefaultCodebase] from a set of [jars]. */
     protected open fun loadCodebaseFromJars(
         jars: List<File>,
         description: String,
+        includeKotlinInCodebase: Boolean,
     ): DefaultCodebase {
         val inputs =
             SourceParser.Inputs(
                 sourceSet = SourceSet.empty(),
                 description = description,
                 classPath = jars,
+                includeKotlinInCodebase = includeKotlinInCodebase,
             )
 
         val codebase = parseSources(inputs) ?: error("Could not create codebase from $jars")
