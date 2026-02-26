@@ -176,4 +176,38 @@ class SourceSetTest : TemporaryFolderOwner {
         assertEquals(1, roots.size)
         assertEquals(src[0].path, roots[0].path)
     }
+
+    @Test
+    fun `Test will remove duplicates`() {
+        val testFiles =
+            listOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Bar {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Baz {}
+                    """
+                ),
+            )
+        val files = testFiles.map { it.toFile() }
+        val filesWithDuplicates = files + files
+        val sourceSet = SourceSet(filesWithDuplicates, emptyList())
+        val extractedRoots = sourceSet.extractRoots(reporter)
+        // TODO(b/479907812): Should remove duplicates.
+        assertEquals(filesWithDuplicates, extractedRoots.sources)
+    }
 }
