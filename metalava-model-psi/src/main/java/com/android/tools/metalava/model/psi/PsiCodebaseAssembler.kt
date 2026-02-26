@@ -266,7 +266,9 @@ internal class PsiCodebaseAssembler(
         return if (uastEnvironment.isKMP && kaCodebaseAssembler != null) {
             kaCodebaseAssembler!!.findClassInModule(finder, qualifiedName)
         } else {
-            finder.findClass(qualifiedName, projectSearchScope)
+            finder.findClass(qualifiedName, projectSearchScope)?.takeIf {
+                it.qualifiedName == qualifiedName
+            }
         }
     }
 
