@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationUse
 import com.android.tools.metalava.model.AnnotationUse.TYPE_ONLY
-import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -235,14 +234,8 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
 
                     val itemAnnotations = item.modifiers.annotations()
                     if (itemAnnotations.typeNullability == null) {
-                        val closestType =
-                            when (type) {
-                                is ArrayTypeItem -> type.innermostComponentType()
-                                else -> type
-                            }
-
                         val annotationToAdd =
-                            closestType.modifiers.annotations.find { it.isNullnessAnnotation() }
+                            type.modifiers.annotations.find { it.isNullnessAnnotation() }
                         if (
                             annotationToAdd != null &&
                                 annotationToAdd.annotationUse == AnnotationUse.TYPE_ONLY
