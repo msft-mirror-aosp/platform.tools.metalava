@@ -37,6 +37,10 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
+com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
+  JvmOverloads methods[psi,kotlin,k1]
+  JvmOverloads with initial vararg parameter[psi,kotlin,k1]
+
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]
 
