@@ -5144,6 +5144,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads constructors`() {
@@ -5224,6 +5225,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads methods`() {
