@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -465,6 +466,11 @@ abstract class BaseModelTest() :
             val context = JarSupportContext(jarSupport)
             context.test()
         }
+    }
+
+    /** Check to make sure that this uses the default type bounds. */
+    fun TypeParameterItem.assertUsesDefaultTypeBounds() {
+        assertEquals(emptyList(), typeBounds())
     }
 
     companion object {

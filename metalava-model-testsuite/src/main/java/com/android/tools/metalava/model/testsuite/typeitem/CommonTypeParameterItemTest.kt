@@ -84,8 +84,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParameter = fooClass.typeParameterList.single()
             assertThat(typeParameter.toSource()).isEqualTo("T")
-            val typeBounds = typeParameter.typeBounds()
-            assertThat(typeBounds.size).isEqualTo(0)
+            typeParameter.assertUsesDefaultTypeBounds()
         }
     }
 
@@ -281,7 +280,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             bBound.assertReferencesTypeParameter(a)
 
             // C
-            assertThat(c.typeBounds()).isEmpty()
+            c.assertUsesDefaultTypeBounds()
         }
     }
 
