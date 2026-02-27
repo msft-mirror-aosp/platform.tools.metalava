@@ -25,6 +25,9 @@ object KnownSourceFiles {
         TestFiles.java(
             """
                 package not.type.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD})
                 public @interface NonNull {
                 }
             """
@@ -34,6 +37,9 @@ object KnownSourceFiles {
         TestFiles.java(
             """
                 package not.type.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD})
                 public @interface Nullable {
                 }
             """
@@ -58,6 +64,30 @@ object KnownSourceFiles {
                 import java.lang.annotation.*;
                 import static java.lang.annotation.ElementType.*;
                 @Target(TYPE_USE)
+                public @interface Nullable {
+                }
+            """
+        )
+
+    val mixedUseNonNullSource: TestFile =
+        TestFiles.java(
+            """
+                package mixed.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val mixedUseNullableSource: TestFile =
+        TestFiles.java(
+            """
+                package mixed.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
                 public @interface Nullable {
                 }
             """
@@ -108,31 +138,31 @@ object KnownSourceFiles {
     val libcoreNonNullSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface NonNull {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
         )
 
     val libcoreNullableSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface Nullable {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface Nullable {
+                }
+            """
         )
 
     /**
@@ -299,6 +329,35 @@ object KnownSourceFiles {
                             ACTIVITY_INTENT_ACTION, BROADCAST_INTENT_ACTION, SERVICE_ACTION, INTENT_CATEGORY, FEATURE
                         }
                         SdkConstantType value();
+                    }
+                """
+            )
+            .indented()
+
+    val stringDefSource: TestFile =
+        TestFiles.java(
+                """
+                    package android.annotation;
+
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.Target;
+
+                    import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                    import static java.lang.annotation.RetentionPolicy.SOURCE;
+
+                    /**
+                     * @hide
+                     */
+                    @Retention(SOURCE)
+                    @Target({ANNOTATION_TYPE})
+                    public @interface StringDef {
+                        /** Defines the constant prefix for this element */
+                        String[] prefix() default {};
+                        /** Defines the constant suffix for this element */
+                        String[] suffix() default {};
+
+                        /** Defines the allowed constants for this element */
+                        String[] value() default {};
                     }
                 """
             )

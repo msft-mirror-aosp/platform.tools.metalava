@@ -45,13 +45,23 @@ private constructor(
             )
         }
 
+        fun forNormalizing(writer: Writer): ModifierListWriter {
+            return ModifierListWriter(
+                writer = writer,
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = true,
+            )
+        }
+
         fun forStubs(
             writer: Writer,
-            docStubs: Boolean,
+            isDocStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
         ): ModifierListWriter {
             val target =
-                if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
+                if (isDocStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
             return ModifierListWriter(
                 writer = writer,
                 target = target,
@@ -98,7 +108,10 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item, normalizeFinal: Boolean = false) {
+    fun write(
+        item: Item,
+        normalizeFinal: Boolean = false,
+    ) {
         writeAnnotations(item)
         writeKeywords(item, normalizeFinal = normalizeFinal)
     }
@@ -172,6 +185,12 @@ private constructor(
 
         if (list.isSealed()) {
             writer.write("sealed ")
+
+            if (list.isExhaustive()) {
+                writer.write("exhaustive ")
+            } else {
+                writer.write("nonexhaustive ")
+            }
         }
 
         if (list.isSuspend()) {
@@ -228,10 +247,7 @@ private constructor(
                     else -> false
                 }
 
-        val list = item.modifiers
-        var annotations = list.annotations()
-
-        // Do not write deprecate or suppress compatibility annotations on a package.
+        // Do not write deprecate annotations on a package.
         if (item !is PackageItem) {
             val writeDeprecated =
                 when {
@@ -244,11 +260,17 @@ private constructor(
                 writer.write("@Deprecated")
                 writer.write(if (separateLines) "\n" else " ")
             }
+        }
 
-            if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
-                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
-                writer.write(if (separateLines) "\n" else " ")
-            }
+        val list = item.modifiers
+        var annotations = list.annotations()
+        if (annotations.isEmpty()) {
+            return
+        }
+
+        if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
+            writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
+            writer.write(if (separateLines) "\n" else " ")
         }
 
         // Remove @SuppressCompatibility if it exists (it will for text codebases) because it was
@@ -256,67 +278,60 @@ private constructor(
         annotations =
             annotations.filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
         // Ensure stable signature file order
-        if (annotations.size > 1) {
-            annotations = annotations.sortedBy { it.qualifiedName }
-        }
+        annotations = annotations.sortedBy { it.qualifiedName }
 
-        if (annotations.isNotEmpty()) {
-            // Omit common packages in signature files.
-            val omitCommonPackages = target == AnnotationTarget.SIGNATURE_FILE
-            var index = -1
-            for (annotation in annotations) {
-                index++
+        var index = -1
+        for (annotation in annotations) {
+            index++
 
-                if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+            if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+                continue
+            }
+
+            var printAnnotation = annotation
+            if (!annotation.targets.contains(target)) {
+                continue
+            } else if (annotation.isNullnessAnnotation()) {
+                // skip Nullness annotations if requested, otherwise fall through the if-statements
+                // like any other annotation
+                if (skipNullnessAnnotations) {
                     continue
                 }
-
-                var printAnnotation = annotation
-                if (!annotation.targets.contains(target)) {
-                    continue
-                } else if ((annotation.isNullnessAnnotation())) {
-                    if (skipNullnessAnnotations) {
-                        continue
+            } else if (annotation.qualifiedName == "java.lang.Deprecated") {
+                // Special cased in stubs and signature files: emitted first
+                continue
+            } else {
+                val typedefMode = item.codebase.annotationManager.typedefMode
+                if (typedefMode == TypedefMode.INLINE) {
+                    val typedef = annotation.findTypedefAnnotation()
+                    if (typedef != null) {
+                        printAnnotation = typedef
                     }
-                } else if (annotation.qualifiedName == "java.lang.Deprecated") {
-                    // Special cased in stubs and signature files: emitted first
-                    continue
-                } else {
-                    val typedefMode = item.codebase.annotationManager.typedefMode
-                    if (typedefMode == TypedefMode.INLINE) {
-                        val typedef = annotation.findTypedefAnnotation()
-                        if (typedef != null) {
-                            printAnnotation = typedef
-                        }
-                    } else if (
-                        typedefMode == TypedefMode.REFERENCE &&
-                            annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
-                            annotation.findTypedefAnnotation() != null
-                    ) {
-                        // For annotation references, only include the simple name
-                        writer.write("@")
-                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
-                        if (separateLines) {
-                            writer.write("\n")
-                        } else {
-                            writer.write(" ")
-                        }
-                        continue
+                } else if (
+                    typedefMode == TypedefMode.REFERENCE &&
+                        annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
+                        annotation.findTypedefAnnotation() != null
+                ) {
+                    // For annotation references, only include the simple name
+                    writer.write("@")
+                    writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
+                    if (separateLines) {
+                        writer.write("\n")
+                    } else {
+                        writer.write(" ")
                     }
+                    continue
                 }
+            }
 
-                val source = annotationFormatter.formatAnnotation(printAnnotation, item)
+            val source =
+                annotationFormatter.formatAnnotation(printAnnotation, AnnotationPurpose.ITEM, item)
+            writer.write(source)
 
-                if (omitCommonPackages) {
-                    writer.write(AnnotationItem.shortenAnnotation(source))
-                } else {
-                    writer.write(source)
-                }
-                if (separateLines) {
-                    writer.write("\n")
-                } else {
-                    writer.write(" ")
-                }
+            if (separateLines) {
+                writer.write("\n")
+            } else {
+                writer.write(" ")
             }
         }
     }
@@ -383,5 +398,5 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it doesn't
  * need to maintain compatibility.
  */
-internal val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-    AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+    AnnotationItem.unshortenAnnotation(SUPPRESS_COMPATIBILITY_ANNOTATION)

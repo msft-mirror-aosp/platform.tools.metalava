@@ -286,7 +286,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
             api =
                 """
                     package libcore.util {
-                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
+                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
                       }
                     }
                     package my.pkg {
@@ -294,7 +294,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         ctor public String(@libcore.util.NonNull char[]);
                       }
                     }
-                    """,
+                """,
             stubFiles =
                 arrayOf(
                     java(
@@ -534,7 +534,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public static @interface InnerAnnotation {
                 }
                 }
-                """
+                """,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -599,9 +600,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @deprecated Use checkPermission instead.
-                     */
+                    /** @deprecated Use checkPermission instead. */
                     @Deprecated
                     protected boolean inClass(java.lang.String name) { throw new RuntimeException("Stub!"); }
                     }
