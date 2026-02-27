@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
@@ -1010,7 +1011,7 @@ internal class PsiClassBuilder(
             { typeItemFactory, psiTypeParameter ->
                 val refs = psiTypeParameter.extendsList.referencedTypes
                 if (refs.isEmpty()) {
-                    emptyList()
+                    WellKnownTypes.defaultTypeParameterBounds(psiTypeParameter.isKotlin())
                 } else {
                     refs.mapNotNull { typeItemFactory.getBoundsType(PsiTypeInfo(it)) }
                 }

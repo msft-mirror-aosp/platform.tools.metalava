@@ -179,8 +179,8 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val testClass = codebase.assertResolvedClass("test.pkg.Test")
             testClass.assertTypeParameterListBounds(
                 """
-                    A -> []
-                    B -> []
+                    A -> [java.lang.Object!]
+                    B -> [java.lang.Object!]
                     C -> [java.lang.Comparable<C>!]
                     D -> [java.lang.Object!, java.lang.Comparable<D>!]
                 """
@@ -446,11 +446,12 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            // TODO(b/488322332): This is wrong, U should not be empty.
+            // TODO(b/488322332): This is wrong, U should not be nullable. That is happening because
+            //   Kotlin is dropping Any, even if it non-nullable.
             fooClass.assertTypeParameterListBounds(
                 """
-                    T -> []
-                    U -> []
+                    T -> [java.lang.Object?]
+                    U -> [java.lang.Object?]
                 """
             )
         }

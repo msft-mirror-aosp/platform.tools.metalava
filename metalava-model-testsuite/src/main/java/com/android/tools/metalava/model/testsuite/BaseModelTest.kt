@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -470,7 +471,21 @@ abstract class BaseModelTest() :
 
     /** Check to make sure that this uses the default type bounds. */
     fun TypeParameterItem.assertUsesDefaultTypeBounds() {
-        assertEquals(emptyList(), typeBounds())
+        val expected =
+            if (inputFormat == InputFormat.KOTLIN) {
+                "java.lang.Object?"
+            } else {
+                "java.lang.Object!"
+            }
+        assertEquals(
+            expected,
+            typeBounds().joinToString {
+                it.testTypeString(
+                    annotations = true,
+                    kotlinStyleNulls = true,
+                )
+            }
+        )
     }
 
     companion object {

@@ -12,8 +12,5 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTy
   Test invalid source reference[otherNested - other and nested undefined but with another class in the same package]
   Test invalid source reference[otherNested - other defined but nested undefined]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
-  Test typeBounds on jar
-
 com.android.tools.metalava.model.testsuite.value.CommonValueTest
   Test use field reference in a type annotation
