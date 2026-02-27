@@ -395,7 +395,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test explicit Object bound`() {
+    fun `Test explicit Object bound - java`() {
         runCodebaseTest(
             java(
                 """
@@ -433,6 +433,27 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             // Since this is not a single object bound, it is still included
             assertThat(typeParameterU.toSource())
                 .isEqualTo("U extends java.lang.Object & java.lang.Comparable<U>")
+        }
+    }
+
+    @Test
+    fun `Test explicit Any bounds - kotlin`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T: Any?, U: Any>
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            // TODO(b/488322332): This is wrong, U should not be empty.
+            fooClass.assertTypeParameterListBounds(
+                """
+                    T -> []
+                    U -> []
+                """
+            )
         }
     }
 
