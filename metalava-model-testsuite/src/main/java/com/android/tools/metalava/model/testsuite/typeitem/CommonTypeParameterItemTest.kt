@@ -21,13 +21,40 @@ import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import org.junit.ClassRule
 import org.junit.Test
 
 class CommonTypeParameterItemTest : BaseModelTest() {
+
+    companion object {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        /** Jar file containing an `other.pkg.Other` class with a `Nested` class. */
+        @Suppress("TypeParameterExplicitlyExtendsObject")
+        private val typeParametersJar =
+            jarFromSources(
+                    "type-parameters.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Test<A, B extends Object, C extends Comparable<C>, D extends Object & Comparable<D>> {
+                                private Test() {}
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+    }
+
     @Test
     fun `Test typeBounds no extends`() {
         runCodebaseTest(
@@ -133,6 +160,32 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             assertThat((first as ClassTypeItem).qualifiedName).isEqualTo("java.lang.Object")
             assertThat(second).isInstanceOf(ClassTypeItem::class.java)
             assertThat((second as ClassTypeItem).qualifiedName).isEqualTo("java.lang.Comparable")
+        }
+    }
+
+    @Test
+    fun `Test typeBounds on jar`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Placeholder {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(typeParametersJar.toFile()),
+                ),
+        ) {
+            val testClass = codebase.assertResolvedClass("test.pkg.Test")
+            testClass.assertTypeParameterListBounds(
+                """
+                    A -> []
+                    B -> []
+                    C -> [java.lang.Comparable<C>!]
+                    D -> [java.lang.Object!, java.lang.Comparable<D>!]
+                """
+            )
         }
     }
 

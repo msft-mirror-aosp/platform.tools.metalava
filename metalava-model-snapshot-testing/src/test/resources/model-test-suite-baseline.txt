@@ -59,6 +59,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVaria
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations[psi,kotlin,k1]
   Test type parameter with annotations[text]
+  Test typeBounds on jar[turbine]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
   testLegacySource[psi,kotlin,k1,source,long - int expression]
