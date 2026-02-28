@@ -1649,35 +1649,9 @@ val broadcastBehaviorSource: TestFile =
         )
         .indented()
 
-val androidxNonNullSource: TestFile =
-    java(
-        """
-            package androidx.annotation;
-            import java.lang.annotation.*;
-            import static java.lang.annotation.ElementType.*;
-            import static java.lang.annotation.RetentionPolicy.SOURCE;
-            @SuppressWarnings("WeakerAccess")
-            @Retention(SOURCE)
-            @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
-            public @interface NonNull {
-            }
-        """
-    )
+val androidxNonNullSource = KnownSourceFiles.androidxNonNullJavaSource
 
-val androidxNullableSource: TestFile =
-    java(
-        """
-            package androidx.annotation;
-            import java.lang.annotation.*;
-            import static java.lang.annotation.ElementType.*;
-            import static java.lang.annotation.RetentionPolicy.SOURCE;
-            @SuppressWarnings("WeakerAccess")
-            @Retention(SOURCE)
-            @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
-            public @interface Nullable {
-            }
-        """
-    )
+val androidxNullableSource = KnownSourceFiles.androidxNullableJavaSource
 
 val recentlyNonNullSource: TestFile =
     java(

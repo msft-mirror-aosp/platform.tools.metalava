@@ -178,6 +178,36 @@ object KnownSourceFiles {
             """
         )
 
+    val androidxNonNullJavaSource: TestFile =
+        TestFiles.java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val androidxNullableJavaSource: TestFile =
+        TestFiles.java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
+                public @interface Nullable {
+                }
+            """
+        )
+
     /** TYPE_USE version of [com.android.tools.metalava.intRangeAnnotationSource] */
     val intRangeTypeUseSource =
         java(
