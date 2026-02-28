@@ -1649,10 +1649,6 @@ val broadcastBehaviorSource: TestFile =
         )
         .indented()
 
-val androidxNonNullSource = KnownSourceFiles.androidxNonNullJavaSource
-
-val androidxNullableSource = KnownSourceFiles.androidxNullableJavaSource
-
 val recentlyNonNullSource: TestFile =
     java(
             """

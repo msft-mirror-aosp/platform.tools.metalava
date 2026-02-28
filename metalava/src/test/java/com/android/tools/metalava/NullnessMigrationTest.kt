@@ -43,8 +43,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -80,8 +80,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -132,8 +132,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -187,8 +187,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -260,8 +260,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -445,8 +445,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -481,8 +481,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
@@ -553,8 +553,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
@@ -626,8 +626,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -725,8 +725,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     KnownSourceFiles.systemApiSource,
                 ),
             migrateNullsApiList =
@@ -885,8 +885,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             stubFiles =
                 arrayOf(
