@@ -114,14 +114,18 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                 javaLanguageLevel = testFixture.javaLanguageLevel,
                 modelOptions = inputs.modelOptions,
             )
-        return sourceParser.parseSources(
-            sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
-            description = "Test Codebase",
-            classPath = classPath,
-            apiPackages = testFixture.apiPackages,
-            projectDescription = inputs.projectDescription,
-            compiledSourceJar = inputs.compiledSourceJar?.createFile(inputs.mainSourceDir.dir)
-        )
+
+        val inputs =
+            SourceParser.Inputs(
+                sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
+                description = "Test Codebase",
+                classPath = classPath,
+                apiPackages = testFixture.apiPackages,
+                projectDescription = inputs.projectDescription,
+                compiledSourceJar = inputs.compiledSourceJar?.createFile(inputs.mainSourceDir.dir),
+            )
+
+        return sourceParser.parseSources(inputs)
     }
 
     /**

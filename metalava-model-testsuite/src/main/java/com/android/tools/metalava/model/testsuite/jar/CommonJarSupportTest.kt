@@ -25,6 +25,7 @@ import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import org.junit.ClassRule
 import org.junit.Test
 
@@ -50,6 +51,14 @@ class CommonJarSupportTest : BaseModelTest() {
                             }
                         """
                     ),
+                    java(
+                        """
+                            package test.pkg;
+                            public @interface Anno {
+                                int attribute();
+                            }
+                        """
+                    )
                 )
                 .cacheIn(testFileCacheRule)
     }
@@ -97,6 +106,19 @@ class CommonJarSupportTest : BaseModelTest() {
             codebase.assertClass("test.pkg.Test")
             codebase.assertClass("test.pkg.Test.Nested")
             codebase.assertClass("test.pkg.Test.Nested.DoublyNested")
+        }
+    }
+
+    @RequiresCapabilities(Capability.LOAD_JAR, Capability.KOTLIN)
+    @Test
+    fun `Test load jar - check annotation properties`() {
+        runJarSupportTest {
+            val codebase = jarSupport.loadFromJar(testJar.toFile(), emptyList())
+
+            // Make sure that the annotation loaded from the jar does not have Kotlin properties for
+            // the attributes added.
+            val annotation = codebase.assertClass("test.pkg.Anno")
+            assertEquals(emptyList(), annotation.properties())
         }
     }
 }
