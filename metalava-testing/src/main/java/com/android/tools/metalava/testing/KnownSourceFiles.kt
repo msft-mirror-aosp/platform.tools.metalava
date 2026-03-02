@@ -96,43 +96,43 @@ object KnownSourceFiles {
     val nonNullSource: TestFile =
         TestFiles.java(
             """
-    package android.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.CLASS;
-    /**
-     * Denotes that a parameter, field or method return value can never be null.
-     * @paramDoc This value must never be {@code null}.
-     * @returnDoc This value will never be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(CLASS)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
-    public @interface NonNull {
-    }
-    """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.CLASS;
+                /**
+                 * Denotes that a parameter, field or method return value can never be null.
+                 * @paramDoc This value must never be {@code null}.
+                 * @returnDoc This value will never be {@code null}.
+                 * @hide
+                 */
+                @SuppressWarnings({"WeakerAccess", "JavaDoc"})
+                @Retention(CLASS)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface NonNull {
+                }
+            """
         )
 
     val nullableSource: TestFile =
         TestFiles.java(
             """
-    package android.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.CLASS;
-    /**
-     * Denotes that a parameter, field or method return value can be null.
-     * @paramDoc This value may be {@code null}.
-     * @returnDoc This value may be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(CLASS)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
-    public @interface Nullable {
-    }
-    """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.CLASS;
+                /**
+                 * Denotes that a parameter, field or method return value can be null.
+                 * @paramDoc This value may be {@code null}.
+                 * @returnDoc This value may be {@code null}.
+                 * @hide
+                 */
+                @SuppressWarnings({"WeakerAccess", "JavaDoc"})
+                @Retention(CLASS)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface Nullable {
+                }
+            """
         )
 
     val libcoreNonNullSource: TestFile =
