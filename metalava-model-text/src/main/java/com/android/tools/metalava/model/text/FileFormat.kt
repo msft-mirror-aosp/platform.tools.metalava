@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
@@ -523,7 +524,7 @@ data class FileFormat(
             formatForLegacyFiles: FileFormat? = null
         ): FileFormat? {
             val lineNumberReader =
-                if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
+                reader as? LineNumberReader ?: LineNumberReader(reader, BUFFER_SIZE)
 
             try {
                 return parseHeader(lineNumberReader, formatForLegacyFiles)
@@ -752,8 +753,9 @@ data class FileFormat(
                 parsePropertyAssignment(
                     builder,
                     it,
-                    { it.defaultable },
-                )
+                ) {
+                    it.defaultable
+                }
             }
             return builder.build()
         }
