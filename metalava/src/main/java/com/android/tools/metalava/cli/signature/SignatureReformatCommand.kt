@@ -24,6 +24,8 @@ import com.android.tools.metalava.model.text.SignatureFile
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.option
 
 class SignatureReformatCommand :
     MetalavaSubCommand(
@@ -60,6 +62,23 @@ class SignatureReformatCommand :
 
     private val formatOptions by SignatureFormatOptions(migratingAllowed = true)
 
+    private val preserveStructure by
+        option(
+                "--preserve-structure",
+                help =
+                    """
+                        Preserve the structure of the file while changing the format.
+
+                        Changes the format of the signature file while preserving the properties
+                        from the previous version of the signature file preserving the signature
+                        file structure.
+
+                        `--format-defaults` should have the same value as that used when the
+                        signature files was last updated to ensure that the structure is preserved.
+                    """,
+            )
+            .flag()
+
     private val files by
         argument(
                 name = "<files>",
@@ -70,6 +89,65 @@ class SignatureReformatCommand :
             )
             .existingFile()
             .multiple(required = true)
+
+    /**
+     * Compute a [FileFormat] that will preserve the structure of the original [currentFormat] while
+     * incorporating changes from [targetFormat].
+     *
+     * This assumes that every property difference between [currentFormat] and [targetFormat] could
+     * result in structural changes.
+     */
+    private fun computeStructurePreservingFormat(
+        currentFormat: FileFormat,
+        targetFormat: FileFormat,
+    ) =
+        // Create a new FileFormat based on the [targetFormat] with properties copied from
+        // [currentFormat] where necessary.
+        targetFormat.buildCopy {
+            // Iterate over all the properties checking to see if the [targetFormat] value needs to
+            // be replaced with the [currentFormat] value.
+            for (property in FileFormat.CustomizableProperty.entries) {
+                // Get the current value of the property, including any defaults. If it is not set
+                // then it will have no impact on the resulting format so continue.
+                val currentValue = currentFormat.getWithDefault(property) ?: continue
+
+                // Get the target value, including any defaults.
+                val targetValue = targetFormat.getWithDefault(property)
+                if (targetValue == null) {
+                    // The target value is null so use the value from the current file.
+                    this[property] = currentValue
+                } else if (targetValue != currentValue) {
+                    // The target value is different from the current value so use the current
+                    // value.
+                    this[property] = currentValue
+                }
+            }
+        }
+
+    /**
+     * Compute the output [FileFormat] to use.
+     *
+     * Returns [targetFormat] unless [preserveStructure] is `true` in which case this will call
+     * [computeStructurePreservingFormat] to create a [FileFormat] from [targetFormat] with settings
+     * from [currentFormat] needed to preserve the structure.
+     *
+     * @param currentFormat the current [FileFormat] for the file.
+     * @param targetFormat the target [FileFormat] to which the file is to be reformatted.
+     */
+    private fun computeOutputFormat(
+        currentFormat: FileFormat,
+        targetFormat: FileFormat,
+    ) =
+        if (preserveStructure) {
+            // Make sure to apply any defaults provided to the current format to ensure it is the
+            // same format as was used to create the current signature file.
+            val currentFormatWithDefaults = formatOptions.applyDefaultsTo(currentFormat)
+
+            // Compute structure preserving format.
+            computeStructurePreservingFormat(currentFormatWithDefaults, targetFormat)
+        } else {
+            targetFormat
+        }
 
     override fun run() {
         // Get the target format for the signature files.
@@ -83,7 +161,11 @@ class SignatureReformatCommand :
             if (currentFormat == null) continue
 
             val codebase = readSignatureFiles(SignatureFile.fromFiles(file), stderr)
-            file.printWriter().use { writer -> writeSignatureFile(codebase, targetFormat, writer) }
+
+            // Compute the output format to use when writing out this file.
+            val outputFormat = computeOutputFormat(currentFormat, targetFormat)
+
+            file.printWriter().use { writer -> writeSignatureFile(codebase, outputFormat, writer) }
         }
     }
 }
