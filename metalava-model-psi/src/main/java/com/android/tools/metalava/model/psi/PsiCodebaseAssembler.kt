@@ -430,6 +430,9 @@ internal class PsiCodebaseAssembler(
         // accessible from there.
         determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(psiClasses)
 
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
+
         // Psi does not correctly track annotations in some cases so fix them up. Done here as it
         // cannot fix them up earlier because it requires resolving annotation classes and doing it
         // earlier would result in annotation classes being loaded multiple times.
@@ -585,11 +588,13 @@ internal class PsiCodebaseAssembler(
     /**
      * Check to see whether [typeAnnotation] should be copied to its associated [MethodItem].
      *
-     * Replicates behavior of [PsiModifierItem]'s `filterIncorrectTypeUseAnnotations` method.
+     * Only annotations that are usable in a declaration context should be copied to the method
+     * item.
+     *
+     * Similar to the behavior of [PsiModifierItem.filterIncorrectTypeUseAnnotations].
      */
-    private fun shouldCopyTypeAnnotationToMethodItem(typeAnnotation: AnnotationItem) =
-        typeAnnotation.annotationUse.usableInDeclarationContext ||
-            typeAnnotation.isNullnessAnnotation()
+    internal fun shouldCopyTypeAnnotationToMethodItem(typeAnnotation: AnnotationItem) =
+        typeAnnotation.annotationUse.usableInDeclarationContext
 
     /**
      * Adds a class to the codebase based on the [psiClass].

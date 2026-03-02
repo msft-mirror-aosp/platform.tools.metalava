@@ -5,7 +5,6 @@ com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
-  Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Expected API changes converting collections to Kotlin[turbine]
 
 com.android.tools.metalava.stub.StubsTest
