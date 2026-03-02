@@ -295,7 +295,39 @@ data class FileFormat(
                     properties will be explicitly defined in the signature file avoiding reliance on
                     version specific defaults.
                 """,
-        );
+        ),
+        V6(
+            versionNumber = "6.0",
+            // This adds full property support.
+            propertySupport = PropertySupport.FULL,
+            factory = { version ->
+                V5.defaults.copy(
+                    version = version,
+                    specifiedAddAdditionalOverrides = true,
+                    specifiedNormalizeFinalModifier = true,
+                    specifiedOverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE,
+                    specifiedSortWholeExtendsList = true,
+                    specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+                    specifiedTypeArgumentSpacing = TypeArgumentSpacing.SPACE,
+                )
+            },
+            help =
+                """
+                    Provides support for sealed and record classes.
+
+                    Also, provides defaults for lots of formatting properties to ensure consistent
+                    formatting. This is `5.0` plus the following properties:
+                    ```
+                    + add-additional-overrides = yes
+                    + normalize-final-modifier = yes
+                    + overloaded-method-order = signature
+                    + sort-whole-extends-list = yes
+                    + strip-java-lang-prefix = always
+                    + type-argument-spacing = space
+                    ```
+                """,
+        ),
+        ;
 
         /**
          * The defaults associated with this version.
@@ -487,6 +519,9 @@ data class FileFormat(
 
         // The defaults associated with version 5.0.
         val V5 = Version.V5.defaults
+
+        // The defaults associated with version 6.0.
+        val V6 = Version.V6.defaults
 
         /** The list of all [Version] instances. */
         val versions: List<Version> = Version.entries
