@@ -119,7 +119,6 @@ class UpdateSignatureHeaderCommand :
                     temp,
                     file.toPath(),
                     StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE
                 )
             }
         } catch (e: Exception) {
