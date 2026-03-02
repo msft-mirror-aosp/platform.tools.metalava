@@ -227,9 +227,6 @@ class SignatureReformatCommandTest :
             args += inputFile
 
             verify {
-                // TODO(b/489684033): Not all the following property settings have any impact on the
-                //  structure, e.g. normalize-final-modifier=no does not affect it so should be
-                //  excluded.
                 inputFile.assertSignatureContents(
                     """
                         // Signature format: 6.0
@@ -237,9 +234,6 @@ class SignatureReformatCommandTest :
                         // - surface=public
                         // - include-default-parameter-values=no
                         // - kotlin-style-nulls=no
-                        // - normalize-final-modifier=no
-                        // - overloaded-method-order=source
-                        // - sort-whole-extends-list=no
                         // - strip-java-lang-prefix=legacy
                         // - type-argument-spacing=legacy
                         package pkg {
